@@ -370,6 +370,11 @@ EXPORT_SYMBOL(pci_irq_get_affinity);
  * Undo the interrupt vector allocations and possible device MSI/MSI-X
  * enablement earlier done through pci_alloc_irq_vectors_affinity() or
  * pci_alloc_irq_vectors().
+ *
+ * WARNING: Do not call this function if the device has been enabled
+ * with pcim_enable_device(). In that case, IRQ vectors are automatically
+ * managed via pcim_msi_release() and calling pci_free_irq_vectors() can
+ * lead to double-free issues.
  */
 void pci_free_irq_vectors(struct pci_dev *dev)
 {

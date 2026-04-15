@@ -54,6 +54,7 @@
 #define STATUS_BAR_SUBRANGE_SETUP_FAIL		BIT(15)
 #define STATUS_BAR_SUBRANGE_CLEAR_SUCCESS	BIT(16)
 #define STATUS_BAR_SUBRANGE_CLEAR_FAIL		BIT(17)
+#define STATUS_NO_RESOURCE		BIT(18)
 
 #define FLAG_USE_DMA			BIT(0)
 
@@ -64,6 +65,13 @@
 #define CAP_MSIX			BIT(2)
 #define CAP_INTX			BIT(3)
 #define CAP_SUBRANGE_MAPPING		BIT(4)
+#define CAP_DYNAMIC_INBOUND_MAPPING	BIT(5)
+#define CAP_BAR0_RESERVED		BIT(6)
+#define CAP_BAR1_RESERVED		BIT(7)
+#define CAP_BAR2_RESERVED		BIT(8)
+#define CAP_BAR3_RESERVED		BIT(9)
+#define CAP_BAR4_RESERVED		BIT(10)
+#define CAP_BAR5_RESERVED		BIT(11)
 
 #define PCI_EPF_TEST_BAR_SUBRANGE_NSUB	2
 
@@ -715,7 +723,6 @@ static void pci_epf_test_doorbell_cleanup(struct pci_epf_test *epf_test)
 	struct pci_epf_test_reg *reg = epf_test->reg[epf_test->test_reg_bar];
 	struct pci_epf *epf = epf_test->epf;
 
-	free_irq(epf->db_msg[0].virq, epf_test);
 	reg->doorbell_bar = cpu_to_le32(NO_BAR);
 
 	pci_epf_free_doorbell(epf);
@@ -759,7 +766,7 @@ static void pci_epf_test_enable_doorbell(struct pci_epf_test *epf_test,
 					 &epf_test->db_bar.phys_addr, &offset);
 
 	if (ret)
-		goto err_doorbell_cleanup;
+		goto err_free_irq;
 
 	reg->doorbell_offset = cpu_to_le32(offset);
 
@@ -769,12 +776,14 @@ static void pci_epf_test_enable_doorbell(struct pci_epf_test *epf_test,
 
 	ret = pci_epc_set_bar(epc, epf->func_no, epf->vfunc_no, &epf_test->db_bar);
 	if (ret)
-		goto err_doorbell_cleanup;
+		goto err_free_irq;
 
 	status |= STATUS_DOORBELL_ENABLE_SUCCESS;
 	reg->status = cpu_to_le32(status);
 	return;
 
+err_free_irq:
+	free_irq(epf->db_msg[0].virq, epf_test);
 err_doorbell_cleanup:
 	pci_epf_test_doorbell_cleanup(epf_test);
 set_status_err:
@@ -794,6 +803,7 @@ static void pci_epf_test_disable_doorbell(struct pci_epf_test *epf_test,
 	if (bar < BAR_0)
 		goto set_status_err;
 
+	free_irq(epf->db_msg[0].virq, epf_test);
 	pci_epf_test_doorbell_cleanup(epf_test);
 
 	/*
@@ -892,6 +902,8 @@ static void pci_epf_test_bar_subrange_setup(struct pci_epf_test *epf_test,
 	ret = pci_epc_set_bar(epc, epf->func_no, epf->vfunc_no, bar);
 	if (ret) {
 		dev_err(&epf->dev, "pci_epc_set_bar() failed: %d\n", ret);
+		if (ret == -ENOSPC)
+			status |= STATUS_NO_RESOURCE;
 		bar->submap = old_submap;
 		bar->num_submap = old_nsub;
 		ret = pci_epc_set_bar(epc, epf->func_no, epf->vfunc_no, bar);
@@ -1107,9 +1119,30 @@ static void pci_epf_test_set_capabilities(struct pci_epf *epf)
 	if (epf_test->epc_features->intx_capable)
 		caps |= CAP_INTX;
 
+	if (epf_test->epc_features->dynamic_inbound_mapping)
+		caps |= CAP_DYNAMIC_INBOUND_MAPPING;
+
 	if (epf_test->epc_features->dynamic_inbound_mapping &&
 	    epf_test->epc_features->subrange_mapping)
 		caps |= CAP_SUBRANGE_MAPPING;
+
+	if (epf_test->epc_features->bar[BAR_0].type == BAR_RESERVED)
+		caps |= CAP_BAR0_RESERVED;
+
+	if (epf_test->epc_features->bar[BAR_1].type == BAR_RESERVED)
+		caps |= CAP_BAR1_RESERVED;
+
+	if (epf_test->epc_features->bar[BAR_2].type == BAR_RESERVED)
+		caps |= CAP_BAR2_RESERVED;
+
+	if (epf_test->epc_features->bar[BAR_3].type == BAR_RESERVED)
+		caps |= CAP_BAR3_RESERVED;
+
+	if (epf_test->epc_features->bar[BAR_4].type == BAR_RESERVED)
+		caps |= CAP_BAR4_RESERVED;
+
+	if (epf_test->epc_features->bar[BAR_5].type == BAR_RESERVED)
+		caps |= CAP_BAR5_RESERVED;
 
 	reg->caps = cpu_to_le32(caps);
 }

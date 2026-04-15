@@ -18,12 +18,18 @@ description: |+
 
 properties:
   compatible:
-    enum:
-      - fsl,imx8mm-pcie-ep
-      - fsl,imx8mq-pcie-ep
-      - fsl,imx8mp-pcie-ep
-      - fsl,imx8q-pcie-ep
-      - fsl,imx95-pcie-ep
+    oneOf:
+      - enum:
+          - fsl,imx8mm-pcie-ep
+          - fsl,imx8mp-pcie-ep
+          - fsl,imx8mq-pcie-ep
+          - fsl,imx8q-pcie-ep
+          - fsl,imx95-pcie-ep
+      - items:
+          - enum:
+              - fsl,imx94-pcie-ep
+              - fsl,imx943-pcie-ep
+          - const: fsl,imx95-pcie-ep
 
   clocks:
     minItems: 3

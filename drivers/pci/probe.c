@@ -68,23 +68,6 @@ static struct resource *get_pci_domain_busn_res(int domain_nr)
 }
 
 /*
- * Some device drivers need know if PCI is initiated.
- * Basically, we think PCI is not initiated when there
- * is no device to be found on the pci_bus_type.
- */
-int no_pci_devices(void)
-{
-	struct device *dev;
-	int no_devices;
-
-	dev = bus_find_next_device(&pci_bus_type, NULL);
-	no_devices = (dev == NULL);
-	put_device(dev);
-	return no_devices;
-}
-EXPORT_SYMBOL(no_pci_devices);
-
-/*
  * PCI Bus Class
  */
 static void release_pcibus_dev(struct device *dev)
@@ -395,6 +378,9 @@ static void pci_read_bridge_io(struct pci_dev *dev, struct resource *res,
 	unsigned long io_mask, io_granularity, base, limit;
 	struct pci_bus_region region;
 
+	if (!dev->io_window)
+		return;
+
 	io_mask = PCI_IO_RANGE_MASK;
 	io_granularity = 0x1000;
 	if (dev->io_window_1k) {
@@ -464,6 +450,9 @@ static void pci_read_bridge_mmio_pref(struct pci_dev *dev, struct resource *res,
 	u64 base64, limit64;
 	pci_bus_addr_t base, limit;
 	struct pci_bus_region region;
+
+	if (!dev->pref_window)
+		return;
 
 	pci_read_config_word(dev, PCI_PREF_MEMORY_BASE, &mem_base_lo);
 	pci_read_config_word(dev, PCI_PREF_MEMORY_LIMIT, &mem_limit_lo);
@@ -782,6 +771,22 @@ const unsigned char pcie_link_speed[] = {
 	PCI_SPEED_UNKNOWN		/* F */
 };
 EXPORT_SYMBOL_GPL(pcie_link_speed);
+
+/**
+ * pcie_get_link_speed - Get speed value from PCIe generation number
+ * @speed: PCIe speed (1-based: 1 = 2.5GT, 2 = 5GT, ...)
+ *
+ * Returns the speed value (e.g., PCIE_SPEED_2_5GT) if @speed is valid,
+ * otherwise returns PCI_SPEED_UNKNOWN.
+ */
+unsigned char pcie_get_link_speed(unsigned int speed)
+{
+	if (speed >= ARRAY_SIZE(pcie_link_speed))
+		return PCI_SPEED_UNKNOWN;
+
+	return pcie_link_speed[speed];
+}
+EXPORT_SYMBOL_GPL(pcie_get_link_speed);
 
 const char *pci_speed_string(enum pci_bus_speed speed)
 {

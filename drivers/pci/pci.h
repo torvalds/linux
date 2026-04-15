@@ -108,6 +108,8 @@ struct pcie_tlp_log;
 				 PCI_EXP_DEVCTL_FERE | PCI_EXP_DEVCTL_URRE)
 
 extern const unsigned char pcie_link_speed[];
+unsigned char pcie_get_link_speed(unsigned int speed);
+
 extern bool pci_early_dump;
 
 extern struct mutex pci_rescan_remove_lock;
@@ -231,7 +233,7 @@ bool pci_reset_supported(struct pci_dev *dev);
 void pci_init_reset_methods(struct pci_dev *dev);
 int pci_bridge_secondary_bus_reset(struct pci_dev *dev);
 int pci_bus_error_reset(struct pci_dev *dev);
-int __pci_reset_bus(struct pci_bus *bus);
+int pci_try_reset_bridge(struct pci_dev *bridge);
 
 struct pci_cap_saved_data {
 	u16		cap_nr;
@@ -1052,6 +1054,9 @@ static inline resource_size_t pci_resource_alignment(struct pci_dev *dev,
 		return pci_cardbus_resource_alignment(res);
 	return resource_alignment(res);
 }
+
+resource_size_t pci_min_window_alignment(struct pci_bus *bus,
+					 unsigned long type);
 
 void pci_acs_init(struct pci_dev *dev);
 void pci_enable_acs(struct pci_dev *dev);

@@ -84,7 +84,7 @@ static void pci_secondary_epc_epf_unlink(struct config_item *epf_item,
 	pci_epc_remove_epf(epc, epf, SECONDARY_INTERFACE);
 }
 
-static struct configfs_item_operations pci_secondary_epc_item_ops = {
+static const struct configfs_item_operations pci_secondary_epc_item_ops = {
 	.allow_link	= pci_secondary_epc_epf_link,
 	.drop_link	= pci_secondary_epc_epf_unlink,
 };
@@ -148,7 +148,7 @@ static void pci_primary_epc_epf_unlink(struct config_item *epf_item,
 	pci_epc_remove_epf(epc, epf, PRIMARY_INTERFACE);
 }
 
-static struct configfs_item_operations pci_primary_epc_item_ops = {
+static const struct configfs_item_operations pci_primary_epc_item_ops = {
 	.allow_link	= pci_primary_epc_epf_link,
 	.drop_link	= pci_primary_epc_epf_unlink,
 };
@@ -256,7 +256,7 @@ static void pci_epc_epf_unlink(struct config_item *epc_item,
 	pci_epc_remove_epf(epc, epf, PRIMARY_INTERFACE);
 }
 
-static struct configfs_item_operations pci_epc_item_ops = {
+static const struct configfs_item_operations pci_epc_item_ops = {
 	.allow_link	= pci_epc_epf_link,
 	.drop_link	= pci_epc_epf_unlink,
 };
@@ -507,7 +507,7 @@ static void pci_epf_release(struct config_item *item)
 	kfree(epf_group);
 }
 
-static struct configfs_item_operations pci_epf_ops = {
+static const struct configfs_item_operations pci_epf_ops = {
 	.allow_link		= pci_epf_vepf_link,
 	.drop_link		= pci_epf_vepf_unlink,
 	.release		= pci_epf_release,
@@ -565,7 +565,8 @@ static void pci_ep_cfs_add_type_group(struct pci_epf_group *epf_group)
 
 	if (IS_ERR(group)) {
 		dev_err(&epf_group->epf->dev,
-			"failed to create epf type specific attributes\n");
+			"failed to create epf type specific attributes: %pe\n",
+			group);
 		return;
 	}
 
@@ -578,13 +579,17 @@ static void pci_epf_cfs_add_sub_groups(struct pci_epf_group *epf_group)
 
 	group = pci_ep_cfs_add_primary_group(epf_group);
 	if (IS_ERR(group)) {
-		pr_err("failed to create 'primary' EPC interface\n");
+		dev_err(&epf_group->epf->dev,
+			"failed to create 'primary' EPC interface: %pe\n",
+			group);
 		return;
 	}
 
 	group = pci_ep_cfs_add_secondary_group(epf_group);
 	if (IS_ERR(group)) {
-		pr_err("failed to create 'secondary' EPC interface\n");
+		dev_err(&epf_group->epf->dev,
+			"failed to create 'secondary' EPC interface: %pe\n",
+			group);
 		return;
 	}
 
@@ -624,8 +629,9 @@ static struct config_group *pci_epf_make(struct config_group *group,
 
 	epf = pci_epf_create(epf_name);
 	if (IS_ERR(epf)) {
-		pr_err("failed to create endpoint function device\n");
-		err = -EINVAL;
+		err = PTR_ERR(epf);
+		pr_err("failed to create endpoint function device (%s): %d\n",
+			epf_name, err);
 		goto free_name;
 	}
 
@@ -657,7 +663,7 @@ static void pci_epf_drop(struct config_group *group, struct config_item *item)
 	config_item_put(item);
 }
 
-static struct configfs_group_operations pci_epf_group_ops = {
+static const struct configfs_group_operations pci_epf_group_ops = {
 	.make_group     = &pci_epf_make,
 	.drop_item      = &pci_epf_drop,
 };
@@ -674,8 +680,8 @@ struct config_group *pci_ep_cfs_add_epf_group(const char *name)
 	group = configfs_register_default_group(functions_group, name,
 						&pci_epf_group_type);
 	if (IS_ERR(group))
-		pr_err("failed to register configfs group for %s function\n",
-		       name);
+		pr_err("failed to register configfs group for %s function: %pe\n",
+		       name, group);
 
 	return group;
 }

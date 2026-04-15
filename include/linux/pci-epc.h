@@ -191,13 +191,49 @@ struct pci_epc {
  * @BAR_RESIZABLE: The BAR implements the PCI-SIG Resizable BAR Capability.
  *		   NOTE: An EPC driver can currently only set a single supported
  *		   size.
- * @BAR_RESERVED: The BAR should not be touched by an EPF driver.
+ * @BAR_RESERVED: Used for HW-backed BARs (e.g. MSI-X table, DMA regs). The BAR
+ *		  should not be disabled by an EPC driver. The BAR should not be
+ *		  reprogrammed by an EPF driver. An EPF driver is allowed to
+ *		  disable the BAR if absolutely necessary. (However, right now
+ *		  there is no EPC operation to disable a BAR that has not been
+ *		  programmed using pci_epc_set_bar().)
+ * @BAR_DISABLED: The BAR should be disabled by an EPC driver. The BAR will be
+ *		  unavailable to an EPF driver.
  */
 enum pci_epc_bar_type {
 	BAR_PROGRAMMABLE = 0,
 	BAR_FIXED,
 	BAR_RESIZABLE,
 	BAR_RESERVED,
+	BAR_DISABLED,
+};
+
+/**
+ * enum pci_epc_bar_rsvd_region_type - type of a fixed subregion behind a BAR
+ * @PCI_EPC_BAR_RSVD_DMA_CTRL_MMIO: Integrated DMA controller MMIO window
+ * @PCI_EPC_BAR_RSVD_MSIX_TBL_RAM: MSI-X table structure
+ * @PCI_EPC_BAR_RSVD_MSIX_PBA_RAM: MSI-X PBA structure
+ *
+ * BARs marked BAR_RESERVED are owned by the SoC/EPC hardware and must not be
+ * reprogrammed by EPF drivers. Some of them still expose fixed subregions that
+ * EPFs may want to reference (e.g. embedded doorbell fallback).
+ */
+enum pci_epc_bar_rsvd_region_type {
+	PCI_EPC_BAR_RSVD_DMA_CTRL_MMIO = 0,
+	PCI_EPC_BAR_RSVD_MSIX_TBL_RAM,
+	PCI_EPC_BAR_RSVD_MSIX_PBA_RAM,
+};
+
+/**
+ * struct pci_epc_bar_rsvd_region - fixed subregion behind a BAR
+ * @type: reserved region type
+ * @offset: offset within the BAR aperture
+ * @size: size of the reserved region
+ */
+struct pci_epc_bar_rsvd_region {
+	enum pci_epc_bar_rsvd_region_type	type;
+	resource_size_t				offset;
+	resource_size_t				size;
 };
 
 /**
@@ -206,18 +242,16 @@ enum pci_epc_bar_type {
  * @fixed_size: the fixed size, only applicable if type is BAR_FIXED_MASK.
  * @only_64bit: if true, an EPF driver is not allowed to choose if this BAR
  *		should be configured as 32-bit or 64-bit, the EPF driver must
- *		configure this BAR as 64-bit. Additionally, the BAR succeeding
- *		this BAR must be set to type BAR_RESERVED.
- *
- *		only_64bit should not be set on a BAR of type BAR_RESERVED.
- *		(If BARx is a 64-bit BAR that an EPF driver is not allowed to
- *		touch, then both BARx and BARx+1 must be set to type
- *		BAR_RESERVED.)
+ *		configure this BAR as 64-bit.
+ * @nr_rsvd_regions: number of fixed subregions described for BAR_RESERVED
+ * @rsvd_regions: fixed subregions behind BAR_RESERVED
  */
 struct pci_epc_bar_desc {
 	enum pci_epc_bar_type type;
 	u64 fixed_size;
 	bool only_64bit;
+	u8 nr_rsvd_regions;
+	const struct pci_epc_bar_rsvd_region *rsvd_regions;
 };
 
 /**

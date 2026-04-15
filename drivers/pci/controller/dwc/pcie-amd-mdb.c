@@ -389,7 +389,7 @@ static int amd_mdb_setup_irq(struct amd_mdb_pcie *pcie,
 			       IRQF_NO_THREAD, NULL, pcie);
 	if (err) {
 		dev_err(dev, "Failed to request INTx IRQ %d, err=%d\n",
-			irq, err);
+			pcie->intx_irq, err);
 		return err;
 	}
 

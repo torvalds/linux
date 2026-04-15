@@ -61,6 +61,7 @@
 #define STATUS_BAR_SUBRANGE_SETUP_FAIL		BIT(15)
 #define STATUS_BAR_SUBRANGE_CLEAR_SUCCESS	BIT(16)
 #define STATUS_BAR_SUBRANGE_CLEAR_FAIL		BIT(17)
+#define STATUS_NO_RESOURCE			BIT(18)
 
 #define PCI_ENDPOINT_TEST_LOWER_SRC_ADDR	0x0c
 #define PCI_ENDPOINT_TEST_UPPER_SRC_ADDR	0x10
@@ -84,6 +85,13 @@
 #define CAP_MSIX				BIT(2)
 #define CAP_INTX				BIT(3)
 #define CAP_SUBRANGE_MAPPING			BIT(4)
+#define CAP_DYNAMIC_INBOUND_MAPPING		BIT(5)
+#define CAP_BAR0_RESERVED			BIT(6)
+#define CAP_BAR1_RESERVED			BIT(7)
+#define CAP_BAR2_RESERVED			BIT(8)
+#define CAP_BAR3_RESERVED			BIT(9)
+#define CAP_BAR4_RESERVED			BIT(10)
+#define CAP_BAR5_RESERVED			BIT(11)
 
 #define PCI_ENDPOINT_TEST_DB_BAR		0x34
 #define PCI_ENDPOINT_TEST_DB_OFFSET		0x38
@@ -106,6 +114,9 @@
 #define PCI_DEVICE_ID_RENESAS_R8A779F0		0x0031
 
 #define PCI_DEVICE_ID_ROCKCHIP_RK3588		0x3588
+
+#define PCI_DEVICE_ID_NVIDIA_TEGRA194_EP	0x1ad4
+#define PCI_DEVICE_ID_NVIDIA_TEGRA234_EP	0x229b
 
 #define PCI_ENDPOINT_TEST_BAR_SUBRANGE_NSUB	2
 
@@ -275,6 +286,11 @@ fail:
 	return ret;
 }
 
+static bool bar_is_reserved(struct pci_endpoint_test *test, enum pci_barno bar)
+{
+	return test->ep_caps & BIT(bar + __fls(CAP_BAR0_RESERVED));
+}
+
 static const u32 bar_test_pattern[] = {
 	0xA0A0A0A0,
 	0xA1A1A1A1,
@@ -403,7 +419,7 @@ static int pci_endpoint_test_bars(struct pci_endpoint_test *test)
 
 	/* Write all BARs in order (without reading). */
 	for (bar = 0; bar < PCI_STD_NUM_BARS; bar++)
-		if (test->bar[bar])
+		if (test->bar[bar] && !bar_is_reserved(test, bar))
 			pci_endpoint_test_bars_write_bar(test, bar);
 
 	/*
@@ -413,7 +429,7 @@ static int pci_endpoint_test_bars(struct pci_endpoint_test *test)
 	 * (Reading back the BAR directly after writing can not detect this.)
 	 */
 	for (bar = 0; bar < PCI_STD_NUM_BARS; bar++) {
-		if (test->bar[bar]) {
+		if (test->bar[bar] && !bar_is_reserved(test, bar)) {
 			ret = pci_endpoint_test_bars_read_bar(test, bar);
 			if (ret)
 				return ret;
@@ -465,7 +481,7 @@ static int pci_endpoint_test_bar_subrange_cmd(struct pci_endpoint_test *test,
 
 	status = pci_endpoint_test_readl(test, PCI_ENDPOINT_TEST_STATUS);
 	if (status & fail_bit)
-		return -EIO;
+		return (status & STATUS_NO_RESOURCE) ? -ENOSPC : -EIO;
 
 	if (!(status & ok_bit))
 		return -EIO;
@@ -535,7 +551,7 @@ static int pci_endpoint_test_bar_subrange(struct pci_endpoint_test *test,
 
 	sub_size = bar_size / nsub;
 	if (sub_size < sizeof(u32)) {
-		ret = -ENOSPC;
+		ret = -EINVAL;
 		goto out_clear;
 	}
 
@@ -1060,6 +1076,9 @@ static int pci_endpoint_test_doorbell(struct pci_endpoint_test *test)
 	u32 addr;
 	int left;
 
+	if (!(test->ep_caps & CAP_DYNAMIC_INBOUND_MAPPING))
+		return -EOPNOTSUPP;
+
 	if (irq_type < PCITEST_IRQ_TYPE_INTX ||
 	    irq_type > PCITEST_IRQ_TYPE_MSIX) {
 		dev_err(dev, "Invalid IRQ type\n");
@@ -1138,6 +1157,11 @@ static long pci_endpoint_test_ioctl(struct file *file, unsigned int cmd,
 			goto ret;
 		if (is_am654_pci_dev(pdev) && bar == BAR_0)
 			goto ret;
+
+		if (bar_is_reserved(test, bar)) {
+			ret = -ENOBUFS;
+			goto ret;
+		}
 
 		if (cmd == PCITEST_BAR)
 			ret = pci_endpoint_test_bar(test, bar);
@@ -1418,6 +1442,8 @@ static const struct pci_device_id pci_endpoint_test_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ROCKCHIP, PCI_DEVICE_ID_ROCKCHIP_RK3588),
 	  .driver_data = (kernel_ulong_t)&rk3588_data,
 	},
+	{ PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_TEGRA194_EP),},
+	{ PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_TEGRA234_EP),},
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, pci_endpoint_test_tbl);

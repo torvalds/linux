@@ -378,6 +378,9 @@ static ssize_t numa_node_store(struct device *dev,
 	if (node != NUMA_NO_NODE && !node_online(node))
 		return -EINVAL;
 
+	if (node == dev->numa_node)
+		return count;
+
 	add_taint(TAINT_FIRMWARE_WORKAROUND, LOCKDEP_STILL_OK);
 	pci_alert(pdev, FW_BUG "Overriding NUMA node to %d.  Contact your vendor for updates.",
 		  node);
@@ -553,7 +556,6 @@ static ssize_t reset_subordinate_store(struct device *dev,
 				const char *buf, size_t count)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	struct pci_bus *bus = pdev->subordinate;
 	unsigned long val;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -563,7 +565,7 @@ static ssize_t reset_subordinate_store(struct device *dev,
 		return -EINVAL;
 
 	if (val) {
-		int ret = __pci_reset_bus(bus);
+		int ret = pci_try_reset_bridge(pdev);
 
 		if (ret)
 			return ret;
