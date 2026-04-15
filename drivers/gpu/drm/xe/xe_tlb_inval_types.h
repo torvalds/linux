@@ -9,6 +9,8 @@
 #include <linux/workqueue.h>
 #include <linux/dma-fence.h>
 
+#include "xe_device_types.h"
+
 struct drm_suballoc;
 struct xe_tlb_inval;
 
@@ -130,6 +132,18 @@ struct xe_tlb_inval_fence {
 	int seqno;
 	/** @inval_time: time of TLB invalidation */
 	ktime_t inval_time;
+};
+
+/**
+ * struct xe_tlb_inval_batch - Batch of TLB invalidation fences
+ *
+ * Holds one fence per GT covered by a TLB invalidation request.
+ */
+struct xe_tlb_inval_batch {
+	/** @fence: per-GT TLB invalidation fences */
+	struct xe_tlb_inval_fence fence[XE_MAX_TILES_PER_DEVICE * XE_MAX_GT_PER_TILE];
+	/** @num_fences: number of valid entries in @fence */
+	unsigned int num_fences;
 };
 
 #endif

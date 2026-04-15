@@ -15,6 +15,7 @@
  *
  * @XE_GT_SRIOV_STATE_WIP: indicates that some operations are in progress.
  * @XE_GT_SRIOV_STATE_FLR_WIP: indicates that a VF FLR is in progress.
+ * @XE_GT_SRIOV_STATE_FLR_PREPARE: indicates that the PF received early VF FLR prepare notification.
  * @XE_GT_SRIOV_STATE_FLR_SEND_START: indicates that the PF wants to send a FLR START command.
  * @XE_GT_SRIOV_STATE_FLR_WAIT_GUC: indicates that the PF awaits for a response from the GuC.
  * @XE_GT_SRIOV_STATE_FLR_GUC_DONE: indicates that the PF has received a response from the GuC.
@@ -56,6 +57,7 @@ enum xe_gt_sriov_control_bits {
 	XE_GT_SRIOV_STATE_WIP = 1,
 
 	XE_GT_SRIOV_STATE_FLR_WIP,
+	XE_GT_SRIOV_STATE_FLR_PREPARE,
 	XE_GT_SRIOV_STATE_FLR_SEND_START,
 	XE_GT_SRIOV_STATE_FLR_WAIT_GUC,
 	XE_GT_SRIOV_STATE_FLR_GUC_DONE,

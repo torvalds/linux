@@ -46,7 +46,7 @@ struct dc_link *dc_get_link_at_index(struct dc *dc, uint32_t link_index)
 
 void dc_get_edp_links(const struct dc *dc,
 		struct dc_link **edp_links,
-		int *edp_num)
+		unsigned int *edp_num)
 {
 	int i;
 
@@ -68,7 +68,7 @@ bool dc_get_edp_link_panel_inst(const struct dc *dc,
 		unsigned int *inst_out)
 {
 	struct dc_link *edp_links[MAX_NUM_EDP];
-	int edp_num, i;
+	unsigned int edp_num, i;
 
 	*inst_out = 0;
 	if (link->connector_signal != SIGNAL_TYPE_EDP)

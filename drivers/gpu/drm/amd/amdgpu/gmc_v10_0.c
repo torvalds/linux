@@ -767,7 +767,7 @@ static int gmc_v10_0_sw_init(struct amdgpu_ip_block *ip_block)
 		adev->gmc.vram_type = AMDGPU_VRAM_TYPE_GDDR6;
 		adev->gmc.vram_width = 1 * 128; /* numchan * chansize */
 	} else {
-		r = amdgpu_atomfirmware_get_vram_info(adev,
+		r = amdgpu_gmc_get_vram_info(adev,
 				&vram_width, &vram_type, &vram_vendor);
 		adev->gmc.vram_width = vram_width;
 

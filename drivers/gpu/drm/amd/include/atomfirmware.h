@@ -879,6 +879,7 @@ enum atom_connector_caps_def
 {
   ATOM_CONNECTOR_CAP_INTERNAL_DISPLAY         = 0x01,        //a cap bit to indicate that this non-embedded display connector is an internal display
   ATOM_CONNECTOR_CAP_INTERNAL_DISPLAY_BL      = 0x02,        //a cap bit to indicate that this internal display requires BL control from GPU, refers to lcd_info for BL PWM freq 
+  ATOM_CONNECTOR_CAP_DP_PLUS_PLUS_TYPE2_ONLY  = 0x10,        //a cap bit that indicates connector with DP_PLUS_PLUS_TYPE2_ONLY
 };
 
 struct atom_disp_connector_caps_record
@@ -1694,7 +1695,9 @@ struct atom_integrated_system_info_v2_3 {
   uint8_t gpu_package_id;
   struct  edp_info_table  edp1_info;
   struct  edp_info_table  edp2_info;
-  uint32_t  reserved2[8];
+  uint32_t cpuid;
+  uint32_t vram_bit_width;
+  uint32_t reserved2[6];
   struct  atom_external_display_connection_info extdispconninfo;
   uint8_t UMACarveoutVersion;
   uint8_t UMACarveoutIndexMax;
@@ -1769,6 +1772,7 @@ enum atom_dmi_t17_mem_type_def{
   Hbm2MemType,                                          ///< Assign 33 to HBM2
   Ddr5MemType,                                          ///< Assign 34 to DDR5
   LpDdr5MemType,                                        ///< Assign 35 to LPDDR5
+  LpDdr5xMemType,                                       ///< Assign 36 to LPDDR5x
 };
 
 

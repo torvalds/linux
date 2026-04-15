@@ -318,8 +318,13 @@ tu102_gsp_oneinit(struct nvkm_gsp *gsp)
 	if (ret)
 		return ret;
 
-	/* Calculate FB layout. */
-	gsp->fb.wpr2.frts.size = 0x100000;
+	/*
+	 * Calculate FB layout. FRTS is a memory region created by the FWSEC-FRTS firmware.
+	 * FWSEC comes from VBIOS.  So on systems with no VBIOS (e.g. GA100), the FRTS does
+	 * not exist.  Therefore, use the existence of VBIOS to determine whether to reserve
+	 * an FRTS region.
+	 */
+	gsp->fb.wpr2.frts.size = device->bios ? 0x100000 : 0;
 	gsp->fb.wpr2.frts.addr = ALIGN_DOWN(gsp->fb.bios.addr, 0x20000) - gsp->fb.wpr2.frts.size;
 
 	gsp->fb.wpr2.boot.size = gsp->boot.fw.size;
@@ -343,9 +348,12 @@ tu102_gsp_oneinit(struct nvkm_gsp *gsp)
 	if (ret)
 		return ret;
 
-	ret = nvkm_gsp_fwsec_frts(gsp);
-	if (WARN_ON(ret))
-		return ret;
+	/* Only boot FWSEC-FRTS if it actually exists */
+	if (gsp->fb.wpr2.frts.size) {
+		ret = nvkm_gsp_fwsec_frts(gsp);
+		if (WARN_ON(ret))
+			return ret;
+	}
 
 	/* Reset GSP into RISC-V mode. */
 	ret = gsp->func->reset(gsp);

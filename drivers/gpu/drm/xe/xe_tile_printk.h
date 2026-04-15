@@ -3,8 +3,8 @@
  * Copyright © 2025 Intel Corporation
  */
 
-#ifndef _xe_tile_printk_H_
-#define _xe_tile_printk_H_
+#ifndef _XE_TILE_PRINTK_H_
+#define _XE_TILE_PRINTK_H_
 
 #include "xe_printk.h"
 

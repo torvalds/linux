@@ -31,80 +31,127 @@ static void virtual_stream_encoder_dp_set_stream_attribute(
 	struct dc_crtc_timing *crtc_timing,
 	enum dc_color_space output_color_space,
 	bool use_vsc_sdp_for_colorimetry,
-	uint32_t enable_sdp_splitting) {}
+	uint32_t enable_sdp_splitting) {
+		(void)enc;
+		(void)crtc_timing;
+		(void)output_color_space;
+		(void)use_vsc_sdp_for_colorimetry;
+		(void)enable_sdp_splitting;
+	}
 
 static void virtual_stream_encoder_hdmi_set_stream_attribute(
 	struct stream_encoder *enc,
 	struct dc_crtc_timing *crtc_timing,
 	int actual_pix_clk_khz,
-	bool enable_audio) {}
+	bool enable_audio) {
+		(void)enc;
+		(void)crtc_timing;
+		(void)actual_pix_clk_khz;
+		(void)enable_audio;
+	}
 
 static void virtual_stream_encoder_dvi_set_stream_attribute(
 	struct stream_encoder *enc,
 	struct dc_crtc_timing *crtc_timing,
-	bool is_dual_link) {}
+	bool is_dual_link) {
+		(void)enc;
+		(void)crtc_timing;
+		(void)is_dual_link;
+	}
 
 static void virtual_stream_encoder_set_throttled_vcp_size(
 	struct stream_encoder *enc,
-	struct fixed31_32 avg_time_slots_per_mtp)
-{}
+	struct fixed31_32 avg_time_slots_per_mtp) {
+		(void)enc;
+		(void)avg_time_slots_per_mtp;
+	}
 
 static void virtual_stream_encoder_update_hdmi_info_packets(
 	struct stream_encoder *enc,
-	const struct encoder_info_frame *info_frame) {}
+	const struct encoder_info_frame *info_frame) {
+		(void)enc;
+		(void)info_frame;
+	}
 
 static void virtual_stream_encoder_stop_hdmi_info_packets(
-	struct stream_encoder *enc) {}
+	struct stream_encoder *enc) {
+		(void)enc;
+	}
 
 static void virtual_stream_encoder_set_avmute(
-	struct stream_encoder *enc,
-	bool enable) {}
+	struct stream_encoder *enc, bool enable) {
+		(void)enc;
+		(void)enable;
+	}
 static void virtual_stream_encoder_update_dp_info_packets(
 	struct stream_encoder *enc,
-	const struct encoder_info_frame *info_frame) {}
+	const struct encoder_info_frame *info_frame) {
+		(void)enc;
+		(void)info_frame;
+	}
 
 static void virtual_stream_encoder_stop_dp_info_packets(
-	struct stream_encoder *enc) {}
+	struct stream_encoder *enc) {
+		(void)enc;
+	}
 
 static void virtual_stream_encoder_dp_blank(
 	struct dc_link *link,
-	struct stream_encoder *enc) {}
+	struct stream_encoder *enc) {
+		(void)link;
+		(void)enc;
+	}
 
 static void virtual_stream_encoder_dp_unblank(
 	struct dc_link *link,
 	struct stream_encoder *enc,
-	const struct encoder_unblank_param *param) {}
+	const struct encoder_unblank_param *param) {
+		(void)enc;
+		(void)link;
+		(void)param;
+	}
 
 static void virtual_audio_mute_control(
-	struct stream_encoder *enc,
-	bool mute) {}
+	struct stream_encoder *enc, bool mute) {
+		(void)enc;
+		(void)mute;
+	}
 
 static void virtual_stream_encoder_reset_hdmi_stream_attribute(
-		struct stream_encoder *enc)
-{}
+	struct stream_encoder *enc)
+{
+	(void)enc;
+}
 
 static void virtual_enc_dp_set_odm_combine(
-	struct stream_encoder *enc,
-	bool odm_combine)
-{}
+	struct stream_encoder *enc, bool odm_combine) {
+		(void)enc;
+		(void)odm_combine;
+	}
 
 static void virtual_dig_connect_to_otg(
-		struct stream_encoder *enc,
-		int tg_inst)
-{}
+		struct stream_encoder *enc, int tg_inst) {
+		(void)enc;
+		(void)tg_inst;
+	}
 
 static void virtual_setup_stereo_sync(
-			struct stream_encoder *enc,
-			int tg_inst,
-			bool enable)
-{}
+		struct stream_encoder *enc,
+		int tg_inst, bool enable) {
+		(void)enc;
+		(void)tg_inst;
+		(void)enable;
+	}
 
 static void virtual_stream_encoder_set_dsc_pps_info_packet(
-		struct stream_encoder *enc,
-		bool enable,
-		uint8_t *dsc_packed_pps,
-		bool immediate_update)
-{}
+	struct stream_encoder *enc, bool enable, uint8_t *dsc_packed_pps,
+	bool immediate_update)
+{
+	(void)enc;
+	(void)enable;
+	(void)dsc_packed_pps;
+	(void)immediate_update;
+}
 
 static const struct stream_encoder_funcs virtual_str_enc_funcs = {
 	.dp_set_odm_combine =

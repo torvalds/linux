@@ -44,8 +44,6 @@ properties:
   panel-timing: true
   port: true
 
-additionalProperties: false
-
 required:
   - compatible
   - vcc-supply
@@ -54,6 +52,8 @@ required:
   - height-mm
   - panel-timing
   - port
+
+additionalProperties: false
 
 examples:
   - |+

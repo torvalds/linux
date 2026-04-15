@@ -17,8 +17,7 @@ int msm_hdmi_audio_update(struct hdmi *hdmi)
 {
 	struct hdmi_audio *audio = &hdmi->audio;
 	bool enabled = audio->enabled;
-	uint32_t acr_pkt_ctrl, vbi_pkt_ctrl, aud_pkt_ctrl;
-	uint32_t audio_config;
+	u32 acr_pkt_ctrl, vbi_pkt_ctrl, aud_pkt_ctrl, audio_config;
 
 	if (!hdmi->connector->display_info.is_hdmi)
 		return -EINVAL;
@@ -43,7 +42,7 @@ int msm_hdmi_audio_update(struct hdmi *hdmi)
 	acr_pkt_ctrl &= ~HDMI_ACR_PKT_CTRL_SELECT__MASK;
 
 	if (enabled) {
-		uint32_t n, cts, multiplier;
+		u32 n, cts, multiplier;
 		enum hdmi_acr_cts select;
 
 		drm_hdmi_acr_get_n_cts(hdmi->pixclock, audio->rate, &n, &cts);

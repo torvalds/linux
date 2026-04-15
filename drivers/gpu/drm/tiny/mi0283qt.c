@@ -50,16 +50,48 @@
 #define ILI9341_MADCTL_MX	BIT(6)
 #define ILI9341_MADCTL_MY	BIT(7)
 
-static void mi0283qt_enable(struct drm_simple_display_pipe *pipe,
-			    struct drm_crtc_state *crtc_state,
-			    struct drm_plane_state *plane_state)
+struct mi0283qt_device {
+	struct mipi_dbi_dev dbidev;
+
+	struct drm_plane plane;
+	struct drm_crtc crtc;
+	struct drm_encoder encoder;
+	struct drm_connector connector;
+};
+
+static struct mi0283qt_device *to_mi0283qt_device(struct drm_device *dev)
 {
-	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(pipe->crtc.dev);
+	return container_of(drm_to_mipi_dbi_dev(dev), struct mi0283qt_device, dbidev);
+}
+
+static const u32 mi0283qt_plane_formats[] = {
+	DRM_MIPI_DBI_PLANE_FORMATS,
+};
+
+static const u64 mi0283qt_plane_format_modifiers[] = {
+	DRM_MIPI_DBI_PLANE_FORMAT_MODIFIERS,
+};
+
+static const struct drm_plane_helper_funcs mi0283qt_plane_helper_funcs = {
+	DRM_MIPI_DBI_PLANE_HELPER_FUNCS,
+};
+
+static const struct drm_plane_funcs mi0283qt_plane_funcs = {
+	DRM_MIPI_DBI_PLANE_FUNCS,
+	.destroy = drm_plane_cleanup,
+};
+
+static void mi0283qt_crtc_helper_atomic_enable(struct drm_crtc *crtc,
+					       struct drm_atomic_state *state)
+{
+	struct drm_device *drm = crtc->dev;
+	struct mi0283qt_device *mi0283qt = to_mi0283qt_device(drm);
+	struct mipi_dbi_dev *dbidev = &mi0283qt->dbidev;
 	struct mipi_dbi *dbi = &dbidev->dbi;
 	u8 addr_mode;
 	int ret, idx;
 
-	if (!drm_dev_enter(pipe->crtc.dev, &idx))
+	if (!drm_dev_enter(drm, &idx))
 		return;
 
 	DRM_DEBUG_KMS("\n");
@@ -137,13 +169,41 @@ out_enable:
 	}
 	addr_mode |= ILI9341_MADCTL_BGR;
 	mipi_dbi_command(dbi, MIPI_DCS_SET_ADDRESS_MODE, addr_mode);
-	mipi_dbi_enable_flush(dbidev, crtc_state, plane_state);
+
+	backlight_enable(dbidev->backlight);
 out_exit:
 	drm_dev_exit(idx);
 }
 
-static const struct drm_simple_display_pipe_funcs mi0283qt_pipe_funcs = {
-	DRM_MIPI_DBI_SIMPLE_DISPLAY_PIPE_FUNCS(mi0283qt_enable),
+static const struct drm_crtc_helper_funcs mi0283qt_crtc_helper_funcs = {
+	DRM_MIPI_DBI_CRTC_HELPER_FUNCS,
+	.atomic_enable = mi0283qt_crtc_helper_atomic_enable,
+};
+
+static const struct drm_crtc_funcs mi0283qt_crtc_funcs = {
+	DRM_MIPI_DBI_CRTC_FUNCS,
+	.destroy = drm_crtc_cleanup,
+};
+
+static const struct drm_encoder_funcs mi0283qt_encoder_funcs = {
+	.destroy = drm_encoder_cleanup,
+};
+
+static const struct drm_connector_helper_funcs mi0283qt_connector_helper_funcs = {
+	DRM_MIPI_DBI_CONNECTOR_HELPER_FUNCS,
+};
+
+static const struct drm_connector_funcs mi0283qt_connector_funcs = {
+	DRM_MIPI_DBI_CONNECTOR_FUNCS,
+	.destroy = drm_connector_cleanup,
+};
+
+static const struct drm_mode_config_helper_funcs mi0283qt_mode_config_helper_funcs = {
+	DRM_MIPI_DBI_MODE_CONFIG_HELPER_FUNCS,
+};
+
+static const struct drm_mode_config_funcs mi0283qt_mode_config_funcs = {
+	DRM_MIPI_DBI_MODE_CONFIG_FUNCS,
 };
 
 static const struct drm_display_mode mi0283qt_mode = {
@@ -179,18 +239,22 @@ MODULE_DEVICE_TABLE(spi, mi0283qt_id);
 static int mi0283qt_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
+	struct mi0283qt_device *mi0283qt;
 	struct mipi_dbi_dev *dbidev;
 	struct drm_device *drm;
 	struct mipi_dbi *dbi;
 	struct gpio_desc *dc;
+	struct drm_plane *plane;
+	struct drm_crtc *crtc;
+	struct drm_encoder *encoder;
+	struct drm_connector *connector;
 	u32 rotation = 0;
 	int ret;
 
-	dbidev = devm_drm_dev_alloc(dev, &mi0283qt_driver,
-				    struct mipi_dbi_dev, drm);
-	if (IS_ERR(dbidev))
-		return PTR_ERR(dbidev);
-
+	mi0283qt = devm_drm_dev_alloc(dev, &mi0283qt_driver, struct mi0283qt_device, dbidev.drm);
+	if (IS_ERR(mi0283qt))
+		return PTR_ERR(mi0283qt);
+	dbidev = &mi0283qt->dbidev;
 	dbi = &dbidev->dbi;
 	drm = &dbidev->drm;
 
@@ -216,7 +280,53 @@ static int mi0283qt_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = mipi_dbi_dev_init(dbidev, &mi0283qt_pipe_funcs, &mi0283qt_mode, rotation);
+	ret = drm_mipi_dbi_dev_init(dbidev, &mi0283qt_mode, mi0283qt_plane_formats[0],
+				    rotation, 0);
+	if (ret)
+		return ret;
+
+	ret = drmm_mode_config_init(drm);
+	if (ret)
+		return ret;
+
+	drm->mode_config.min_width = dbidev->mode.hdisplay;
+	drm->mode_config.max_width = dbidev->mode.hdisplay;
+	drm->mode_config.min_height = dbidev->mode.vdisplay;
+	drm->mode_config.max_height = dbidev->mode.vdisplay;
+	drm->mode_config.funcs = &mi0283qt_mode_config_funcs;
+	drm->mode_config.preferred_depth = 16;
+	drm->mode_config.helper_private = &mi0283qt_mode_config_helper_funcs;
+
+	plane = &mi0283qt->plane;
+	ret = drm_universal_plane_init(drm, plane, 0, &mi0283qt_plane_funcs,
+				       mi0283qt_plane_formats, ARRAY_SIZE(mi0283qt_plane_formats),
+				       mi0283qt_plane_format_modifiers,
+				       DRM_PLANE_TYPE_PRIMARY, NULL);
+	if (ret)
+		return ret;
+	drm_plane_helper_add(plane, &mi0283qt_plane_helper_funcs);
+	drm_plane_enable_fb_damage_clips(plane);
+
+	crtc = &mi0283qt->crtc;
+	ret = drm_crtc_init_with_planes(drm, crtc, plane, NULL, &mi0283qt_crtc_funcs, NULL);
+	if (ret)
+		return ret;
+	drm_crtc_helper_add(crtc, &mi0283qt_crtc_helper_funcs);
+
+	encoder = &mi0283qt->encoder;
+	ret = drm_encoder_init(drm, encoder, &mi0283qt_encoder_funcs, DRM_MODE_ENCODER_NONE, NULL);
+	if (ret)
+		return ret;
+	encoder->possible_crtcs = drm_crtc_mask(crtc);
+
+	connector = &mi0283qt->connector;
+	ret = drm_connector_init(drm, connector, &mi0283qt_connector_funcs,
+				 DRM_MODE_CONNECTOR_SPI);
+	if (ret)
+		return ret;
+	drm_connector_helper_add(connector, &mi0283qt_connector_helper_funcs);
+
+	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret)
 		return ret;
 

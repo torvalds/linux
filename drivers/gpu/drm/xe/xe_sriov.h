@@ -28,7 +28,8 @@ static inline enum xe_sriov_mode xe_device_sriov_mode(const struct xe_device *xe
 
 static inline bool xe_device_is_sriov_pf(const struct xe_device *xe)
 {
-	return xe_device_sriov_mode(xe) == XE_SRIOV_MODE_PF;
+	return IS_ENABLED(CONFIG_PCI_IOV) &&
+		xe_device_sriov_mode(xe) == XE_SRIOV_MODE_PF;
 }
 
 static inline bool xe_device_is_sriov_vf(const struct xe_device *xe)
@@ -36,11 +37,7 @@ static inline bool xe_device_is_sriov_vf(const struct xe_device *xe)
 	return xe_device_sriov_mode(xe) == XE_SRIOV_MODE_VF;
 }
 
-#ifdef CONFIG_PCI_IOV
 #define IS_SRIOV_PF(xe) xe_device_is_sriov_pf(xe)
-#else
-#define IS_SRIOV_PF(xe) (typecheck(struct xe_device *, (xe)) && false)
-#endif
 #define IS_SRIOV_VF(xe) xe_device_is_sriov_vf(xe)
 
 #define IS_SRIOV(xe) (IS_SRIOV_PF(xe) || IS_SRIOV_VF(xe))

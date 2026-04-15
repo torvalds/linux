@@ -25,7 +25,7 @@ struct dw_hdmi_qp_plat_data {
 	int main_irq;
 	int cec_irq;
 	unsigned long ref_clk_rate;
-	/* Supported output formats: bitmask of @hdmi_colorspace */
+	/* Supported output formats: bitmask of @drm_output_color_format */
 	unsigned int supported_formats;
 	/* Maximum bits per color channel: 8, 10 or 12 */
 	unsigned int max_bpc;

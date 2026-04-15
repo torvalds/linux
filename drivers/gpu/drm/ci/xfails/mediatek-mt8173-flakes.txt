@@ -53,3 +53,38 @@ kms_bw@connected-linear-tiling-1-displays-2160x1440p
 # IGT Version: 1.30-g04bedb923
 # Linux Version: 6.14.0-rc4
 kms_flip@flip-vs-wf_vblank-interruptible
+
+# Board Name: mt8173-elm-hana
+# Bug Report: https://lore.kernel.org/dri-devel/7559dd68-c9dd-410f-880f-201679e2dd54@collabora.com/T/#u
+# Failure Rate: 20
+# IGT Version: 2.1-g26ddb59c1
+# Linux Version: 6.16.0-rc2
+kms_flip@blocking-wf_vblank
+
+# Board Name: mt8173-elm-hana
+# Bug Report: https://lore.kernel.org/dri-devel/953ab66e-9dda-4003-9b98-9e0d81e18a1f@collabora.com/T/#u
+# Failure Rate: 40
+# IGT Version: 2.1-g26ddb59c1
+# Linux Version: 6.16.0-rc2
+kms_flip@busy-flip
+
+# Board Name: mt8173-elm-hana
+# Bug Report: https://lore.kernel.org/dri-devel/6ab7f59c-042e-4c7a-baaa-86c7d47ab308@collabora.com/
+# Failure Rate: 40
+# IGT Version: 2.1-g26ddb59c1
+# Linux Version: 6.16.0-rc2
+kms_flip@flip-vs-rmfb
+
+# Board Name: mt8173-elm-hana
+# Bug Report: https://lore.kernel.org/dri-devel/30b3f8b0-3409-4329-bb60-b6287e1a439d@collabora.com/
+# Failure Rate: 60
+# IGT Version: 2.1-g26ddb59c1
+# Linux Version: 6.16.0-rc2
+kms_atomic_transition@plane-all-modeset-transition-internal-panels
+
+# Board Name: mt8173-elm-hana
+# Bug Report: https://lore.kernel.org/dri-devel/4c9e1501-52cd-4659-a894-8a2ac58c3996@collabora.com/
+# Failure Rate: 40
+# IGT Version: 2.1-g26ddb59c1
+# Linux Version: 6.16.0-rc2
+kms_flip@absolute-wf_vblank

@@ -11,6 +11,7 @@ amdxdna-y := \
 	aie2_solver.o \
 	amdxdna_ctx.o \
 	amdxdna_gem.o \
+	amdxdna_iommu.o \
 	amdxdna_mailbox.o \
 	amdxdna_mailbox_helper.o \
 	amdxdna_pci_drv.o \

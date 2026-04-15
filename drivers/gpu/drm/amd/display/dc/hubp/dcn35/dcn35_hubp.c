@@ -179,6 +179,7 @@ void hubp35_program_surface_config(
 	bool horizontal_mirror,
 	unsigned int compat_level)
 {
+	(void)compat_level;
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 
 	hubp3_dcc_control_sienna_cichlid(hubp, dcc);

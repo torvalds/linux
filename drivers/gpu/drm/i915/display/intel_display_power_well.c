@@ -6,8 +6,8 @@
 #include <linux/iopoll.h>
 
 #include <drm/drm_print.h>
+#include <drm/intel/intel_pcode_regs.h>
 
-#include "i915_reg.h"
 #include "intel_backlight_regs.h"
 #include "intel_combo_phy.h"
 #include "intel_combo_phy_regs.h"
@@ -18,6 +18,7 @@
 #include "intel_display_regs.h"
 #include "intel_display_rpm.h"
 #include "intel_display_types.h"
+#include "intel_display_wa.h"
 #include "intel_dkl_phy.h"
 #include "intel_dkl_phy_regs.h"
 #include "intel_dmc.h"
@@ -27,7 +28,6 @@
 #include "intel_dpll.h"
 #include "intel_hotplug.h"
 #include "intel_parent.h"
-#include "intel_pcode.h"
 #include "intel_pps.h"
 #include "intel_psr.h"
 #include "intel_tc.h"
@@ -195,6 +195,48 @@ int intel_power_well_refcount(struct i915_power_well *power_well)
 	return power_well->count;
 }
 
+static u32 dss_pipe_gating_bits(u8 irq_pipe_mask)
+{
+	u32 bits = 0;
+
+	if (irq_pipe_mask & BIT(PIPE_A))
+		bits |= DSS_PIPE_A_GATING_DISABLED;
+	if (irq_pipe_mask & BIT(PIPE_B))
+		bits |= DSS_PIPE_B_GATING_DISABLED;
+	if (irq_pipe_mask & BIT(PIPE_C))
+		bits |= DSS_PIPE_C_GATING_DISABLED;
+	if (irq_pipe_mask & BIT(PIPE_D))
+		bits |= DSS_PIPE_D_GATING_DISABLED;
+
+	return bits;
+}
+
+static void dss_pipe_gating_enable_disable(struct intel_display *display,
+					   u8 irq_pipe_mask,
+					   bool disable)
+{
+	u32 bits = dss_pipe_gating_bits(irq_pipe_mask);
+	u32 clear, set;
+
+	if (!bits)
+		return;
+
+	/*
+	 * Single intel_de_rmw() for both enable/disable:
+	 *  - disable == true, set bits (disable clock gating)
+	 *  - disable == false, clear bits (re-enable clock gating)
+	 */
+	set = disable ? bits : 0;
+	clear = disable ? 0 : bits;
+
+	intel_de_rmw(display, CLKGATE_DIS_DSSDSC, clear, set);
+
+	drm_dbg_kms(display->drm,
+		    "DSS clock gating %sd for pipe_mask=0x%x (CLKGATE_DIS_DSSDSC=0x%08x)\n",
+		    str_enable_disable(!disable), irq_pipe_mask,
+		    intel_de_read(display, CLKGATE_DIS_DSSDSC));
+}
+
 /*
  * Starting with Haswell, we have a "Power Down Well" that can be turned off
  * when not needed anymore. We have 4 registers that can request the power well
@@ -202,20 +244,25 @@ int intel_power_well_refcount(struct i915_power_well *power_well)
  * requesting it to be enabled.
  */
 static void hsw_power_well_post_enable(struct intel_display *display,
-				       u8 irq_pipe_mask, bool has_vga)
+				       u8 irq_pipe_mask)
 {
-	if (has_vga)
-		intel_vga_reset_io_mem(display);
-
-	if (irq_pipe_mask)
+	if (irq_pipe_mask) {
 		gen8_irq_power_well_post_enable(display, irq_pipe_mask);
+
+		if (intel_display_wa(display, INTEL_DISPLAY_WA_22021048059))
+			dss_pipe_gating_enable_disable(display, irq_pipe_mask, false);
+	}
 }
 
 static void hsw_power_well_pre_disable(struct intel_display *display,
 				       u8 irq_pipe_mask)
 {
-	if (irq_pipe_mask)
+	if (irq_pipe_mask) {
+		if (intel_display_wa(display, INTEL_DISPLAY_WA_22021048059))
+			dss_pipe_gating_enable_disable(display, irq_pipe_mask, true);
+
 		gen8_irq_power_well_pre_disable(display, irq_pipe_mask);
+	}
 }
 
 #define ICL_AUX_PW_TO_PHY(pw_idx)	\
@@ -418,8 +465,7 @@ static void hsw_power_well_enable(struct intel_display *display,
 	}
 
 	hsw_power_well_post_enable(display,
-				   power_well->desc->irq_pipe_mask,
-				   power_well->desc->has_vga);
+				   power_well->desc->irq_pipe_mask);
 }
 
 static void hsw_power_well_disable(struct intel_display *display,
@@ -522,7 +568,7 @@ static void icl_tc_cold_exit(struct intel_display *display)
 	int ret, tries = 0;
 
 	while (1) {
-		ret = intel_pcode_write(display->drm, ICL_PCODE_EXIT_TCCOLD, 0);
+		ret = intel_parent_pcode_write(display, ICL_PCODE_EXIT_TCCOLD, 0);
 		if (ret != -EAGAIN || ++tries == 3)
 			break;
 		msleep(1);
@@ -1230,7 +1276,7 @@ static void vlv_init_display_clock_gating(struct intel_display *display)
 	 * Disable trickle feed and enable pnd deadline calculation
 	 */
 	intel_de_write(display, MI_ARB_VLV,
-		       MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE);
+		       MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE_VLV);
 	intel_de_write(display, CBR1_VLV, 0);
 
 	drm_WARN_ON(display->drm, DISPLAY_RUNTIME_INFO(display)->rawclk_freq == 0);
@@ -1795,7 +1841,7 @@ tgl_tc_cold_request(struct intel_display *display, bool block)
 		 * Spec states that we should timeout the request after 200us
 		 * but the function below will timeout after 500us
 		 */
-		ret = intel_pcode_read(display->drm, TGL_PCODE_TCCOLD, &low_val, &high_val);
+		ret = intel_parent_pcode_read(display, TGL_PCODE_TCCOLD, &low_val, &high_val);
 		if (ret == 0) {
 			if (block &&
 			    (low_val & TGL_PCODE_EXIT_TCCOLD_DATA_L_EXIT_FAILED))

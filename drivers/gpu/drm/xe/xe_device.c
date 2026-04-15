@@ -26,6 +26,7 @@
 #include "xe_bo.h"
 #include "xe_bo_evict.h"
 #include "xe_debugfs.h"
+#include "xe_defaults.h"
 #include "xe_devcoredump.h"
 #include "xe_device_sysfs.h"
 #include "xe_dma_buf.h"
@@ -210,6 +211,8 @@ static const struct drm_ioctl_desc xe_ioctls[] = {
 			  DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(XE_EXEC_QUEUE_SET_PROPERTY, xe_exec_queue_set_property_ioctl,
 			  DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(XE_VM_GET_PROPERTY, xe_vm_get_property_ioctl,
+			  DRM_RENDER_ALLOW),
 };
 
 static long xe_drm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
@@ -387,9 +390,6 @@ bool xe_is_xe_file(const struct file *file)
 }
 
 static struct drm_driver driver = {
-	/* Don't use MTRRs here; the Xserver or userspace app should
-	 * deal with them for Intel hardware.
-	 */
 	.driver_features =
 	    DRIVER_GEM |
 	    DRIVER_RENDER | DRIVER_SYNCOBJ |
@@ -455,16 +455,16 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 			      xe->drm.anon_inode->i_mapping,
 			      xe->drm.vma_offset_manager, 0);
 	if (WARN_ON(err))
-		goto err;
+		return ERR_PTR(err);
 
 	xe_bo_dev_init(&xe->bo_device);
 	err = drmm_add_action_or_reset(&xe->drm, xe_device_destroy, NULL);
 	if (err)
-		goto err;
+		return ERR_PTR(err);
 
 	err = xe_shrinker_create(xe);
 	if (err)
-		goto err;
+		return ERR_PTR(err);
 
 	xe->info.devid = pdev->device;
 	xe->info.revid = pdev->revision;
@@ -474,7 +474,7 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 
 	err = xe_irq_init(xe);
 	if (err)
-		goto err;
+		return ERR_PTR(err);
 
 	xe_validation_device_init(&xe->val);
 
@@ -484,7 +484,7 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 
 	err = xe_pagemap_shrinker_create(xe);
 	if (err)
-		goto err;
+		return ERR_PTR(err);
 
 	xa_init_flags(&xe->usm.asid_to_vm, XA_FLAGS_ALLOC);
 
@@ -503,13 +503,13 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 
 	err = xe_bo_pinned_init(xe);
 	if (err)
-		goto err;
+		return ERR_PTR(err);
 
 	xe->preempt_fence_wq = alloc_ordered_workqueue("xe-preempt-fence-wq",
 						       WQ_MEM_RECLAIM);
 	xe->ordered_wq = alloc_ordered_workqueue("xe-ordered-wq", 0);
-	xe->unordered_wq = alloc_workqueue("xe-unordered-wq", 0, 0);
-	xe->destroy_wq = alloc_workqueue("xe-destroy-wq", 0, 0);
+	xe->unordered_wq = alloc_workqueue("xe-unordered-wq", WQ_PERCPU, 0);
+	xe->destroy_wq = alloc_workqueue("xe-destroy-wq", WQ_PERCPU, 0);
 	if (!xe->ordered_wq || !xe->unordered_wq ||
 	    !xe->preempt_fence_wq || !xe->destroy_wq) {
 		/*
@@ -517,18 +517,14 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 		 * drmm_add_action_or_reset register above
 		 */
 		drm_err(&xe->drm, "Failed to allocate xe workqueues\n");
-		err = -ENOMEM;
-		goto err;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	err = drmm_mutex_init(&xe->drm, &xe->pmt.lock);
 	if (err)
-		goto err;
+		return ERR_PTR(err);
 
 	return xe;
-
-err:
-	return ERR_PTR(err);
 }
 ALLOW_ERROR_INJECTION(xe_device_create, ERRNO); /* See xe_pci_probe() */
 
@@ -743,7 +739,7 @@ int xe_device_probe_early(struct xe_device *xe)
 	assert_lmem_ready(xe);
 
 	xe->wedged.mode = xe_device_validate_wedged_mode(xe, xe_modparam.wedged_mode) ?
-			  XE_WEDGED_MODE_DEFAULT : xe_modparam.wedged_mode;
+			  XE_DEFAULT_WEDGED_MODE : xe_modparam.wedged_mode;
 	drm_dbg(&xe->drm, "wedged_mode: setting mode (%u) %s\n",
 		xe->wedged.mode, xe_wedged_mode_to_string(xe->wedged.mode));
 
@@ -1089,10 +1085,7 @@ static void tdf_request_sync(struct xe_device *xe)
 	struct xe_gt *gt;
 	u8 id;
 
-	for_each_gt(gt, xe, id) {
-		if (xe_gt_is_media_type(gt))
-			continue;
-
+	for_each_gt_with_type(gt, xe, id, BIT(XE_GT_TYPE_MAIN)) {
 		CLASS(xe_force_wake, fw_ref)(gt_to_fw(gt), XE_FW_GT);
 		if (!fw_ref.domains)
 			return;
@@ -1110,6 +1103,29 @@ static void tdf_request_sync(struct xe_device *xe)
 				   300, NULL, false))
 			xe_gt_err_once(gt, "TD flush timeout\n");
 	}
+}
+
+/**
+ * xe_device_is_l2_flush_optimized - if L2 flush is optimized by HW
+ * @xe: The device to check.
+ *
+ * Return: true if the HW device optimizing L2 flush, false otherwise.
+ */
+bool xe_device_is_l2_flush_optimized(struct xe_device *xe)
+{
+	/* XA is *always* flushed, like at the end-of-submssion (and maybe other
+	 * places), just that internally as an optimisation hw doesn't need to make
+	 * that a full flush (which will also include XA) when Media is
+	 * off/powergated, since it doesn't need to worry about GT caches vs Media
+	 * coherency, and only CPU vs GPU coherency, so can make that flush a
+	 * targeted XA flush, since stuff tagged with XA now means it's shared with
+	 * the CPU. The main implication is that we now need to somehow flush non-XA before
+	 * freeing system memory pages, otherwise dirty cachelines could be flushed after the free
+	 * (like if Media suddenly turns on and does a full flush)
+	 */
+	if (GRAPHICS_VER(xe) >= 35 && !IS_DGFX(xe))
+		return true;
+	return false;
 }
 
 void xe_device_l2_flush(struct xe_device *xe)
@@ -1157,6 +1173,14 @@ void xe_device_l2_flush(struct xe_device *xe)
 void xe_device_td_flush(struct xe_device *xe)
 {
 	struct xe_gt *root_gt;
+
+	/*
+	 * From Xe3p onward the HW takes care of flush of TD entries also along
+	 * with flushing XA entries, which will be at the usual sync points,
+	 * like at the end of submission, so no manual flush is needed here.
+	 */
+	if (GRAPHICS_VER(xe) >= 35)
+		return;
 
 	if (!IS_DGFX(xe) || GRAPHICS_VER(xe) < 20)
 		return;
@@ -1310,7 +1334,8 @@ void xe_device_declare_wedged(struct xe_device *xe)
 		xe_pm_runtime_get_noresume(xe);
 		drm_err(&xe->drm,
 			"CRITICAL: Xe has declared device %s as wedged.\n"
-			"IOCTLs and executions are blocked. Only a rebind may clear the failure\n"
+			"IOCTLs and executions are blocked.\n"
+			"For recovery procedure, refer to https://docs.kernel.org/gpu/drm-uapi.html#device-wedging\n"
 			"Please file a _new_ bug report at https://gitlab.freedesktop.org/drm/xe/kernel/issues/new\n",
 			dev_name(xe->drm.dev));
 	}
@@ -1319,8 +1344,15 @@ void xe_device_declare_wedged(struct xe_device *xe)
 		xe_gt_declare_wedged(gt);
 
 	if (xe_device_wedged(xe)) {
+		/*
+		 * XE_WEDGED_MODE_UPON_ANY_HANG_NO_RESET is intended for debugging
+		 * hangs, so wedge the device with 'none' recovery method and have
+		 * it available to the user for debugging.
+		 */
+		if (xe->wedged.mode == XE_WEDGED_MODE_UPON_ANY_HANG_NO_RESET)
+			xe_device_set_wedged_method(xe, DRM_WEDGE_RECOVERY_NONE);
 		/* If no wedge recovery method is set, use default */
-		if (!xe->wedged.method)
+		else if (!xe->wedged.method)
 			xe_device_set_wedged_method(xe, DRM_WEDGE_RECOVERY_REBIND |
 						    DRM_WEDGE_RECOVERY_BUS_RESET);
 
@@ -1372,4 +1404,29 @@ const char *xe_wedged_mode_to_string(enum xe_wedged_mode mode)
 	default:
 		return "<invalid>";
 	}
+}
+
+/**
+ * xe_device_asid_to_vm() - Find VM from ASID
+ * @xe: the &xe_device
+ * @asid: Address space ID
+ *
+ * Find a VM from ASID and take a reference to VM which caller must drop.
+ * Reclaim safe.
+ *
+ * Return: VM on success, ERR_PTR on failure
+ */
+struct xe_vm *xe_device_asid_to_vm(struct xe_device *xe, u32 asid)
+{
+	struct xe_vm *vm;
+
+	down_read(&xe->usm.lock);
+	vm = xa_load(&xe->usm.asid_to_vm, asid);
+	if (vm)
+		xe_vm_get(vm);
+	else
+		vm = ERR_PTR(-EINVAL);
+	up_read(&xe->usm.lock);
+
+	return vm;
 }

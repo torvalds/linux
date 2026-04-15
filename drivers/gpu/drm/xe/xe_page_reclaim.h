@@ -20,6 +20,7 @@ struct xe_tlb_inval;
 struct xe_tlb_inval_fence;
 struct xe_tile;
 struct xe_gt;
+struct xe_guc;
 struct xe_vma;
 
 struct xe_guc_page_reclaim_entry {
@@ -121,5 +122,7 @@ static inline void xe_page_reclaim_entries_put(struct xe_guc_page_reclaim_entry 
 	if (entries)
 		put_page(virt_to_page(entries));
 }
+
+int xe_guc_page_reclaim_done_handler(struct xe_guc *guc, u32 *msg, u32 len);
 
 #endif	/* _XE_PAGE_RECLAIM_H_ */

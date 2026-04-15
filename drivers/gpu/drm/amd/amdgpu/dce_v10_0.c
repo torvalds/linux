@@ -175,10 +175,10 @@ static u32 dce_v10_0_audio_endpt_rreg(struct amdgpu_device *adev,
 	unsigned long flags;
 	u32 r;
 
-	spin_lock_irqsave(&adev->audio_endpt_idx_lock, flags);
+	spin_lock_irqsave(&adev->reg.audio_endpt.lock, flags);
 	WREG32(mmAZALIA_F0_CODEC_ENDPOINT_INDEX + block_offset, reg);
 	r = RREG32(mmAZALIA_F0_CODEC_ENDPOINT_DATA + block_offset);
-	spin_unlock_irqrestore(&adev->audio_endpt_idx_lock, flags);
+	spin_unlock_irqrestore(&adev->reg.audio_endpt.lock, flags);
 
 	return r;
 }
@@ -188,10 +188,10 @@ static void dce_v10_0_audio_endpt_wreg(struct amdgpu_device *adev,
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&adev->audio_endpt_idx_lock, flags);
+	spin_lock_irqsave(&adev->reg.audio_endpt.lock, flags);
 	WREG32(mmAZALIA_F0_CODEC_ENDPOINT_INDEX + block_offset, reg);
 	WREG32(mmAZALIA_F0_CODEC_ENDPOINT_DATA + block_offset, v);
-	spin_unlock_irqrestore(&adev->audio_endpt_idx_lock, flags);
+	spin_unlock_irqrestore(&adev->reg.audio_endpt.lock, flags);
 }
 
 static u32 dce_v10_0_vblank_get_counter(struct amdgpu_device *adev, int crtc)
@@ -1298,7 +1298,7 @@ static void dce_v10_0_audio_write_speaker_allocation(struct drm_encoder *encoder
 		return;
 	}
 
-	sad_count = drm_edid_to_speaker_allocation(amdgpu_connector->edid, &sadb);
+	sad_count = drm_edid_to_speaker_allocation(drm_edid_raw(amdgpu_connector->edid), &sadb);
 	if (sad_count < 0) {
 		DRM_ERROR("Couldn't read Speaker Allocation Data Block: %d\n", sad_count);
 		sad_count = 0;
@@ -1368,7 +1368,7 @@ static void dce_v10_0_audio_write_sad_regs(struct drm_encoder *encoder)
 		return;
 	}
 
-	sad_count = drm_edid_to_sad(amdgpu_connector->edid, &sads);
+	sad_count = drm_edid_to_sad(drm_edid_raw(amdgpu_connector->edid), &sads);
 	if (sad_count < 0)
 		DRM_ERROR("Couldn't read SADs: %d\n", sad_count);
 	if (sad_count <= 0)
@@ -2750,8 +2750,8 @@ static int dce_v10_0_early_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
 
-	adev->audio_endpt_rreg = &dce_v10_0_audio_endpt_rreg;
-	adev->audio_endpt_wreg = &dce_v10_0_audio_endpt_wreg;
+	adev->reg.audio_endpt.rreg = &dce_v10_0_audio_endpt_rreg;
+	adev->reg.audio_endpt.wreg = &dce_v10_0_audio_endpt_wreg;
 
 	dce_v10_0_set_display_funcs(adev);
 

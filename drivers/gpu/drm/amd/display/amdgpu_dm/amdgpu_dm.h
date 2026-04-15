@@ -123,6 +123,20 @@ struct dm_compressor_info {
 	uint64_t gpu_addr;
 };
 
+/**
+ * struct dm_boot_time_crc_info - Buffer info used by boot time CRC
+ * @cpu_addr: MMIO cpu addr
+ * @bo_ptr: Pointer to the buffer object
+ * @gpu_addr: MMIO gpu addr
+ * @size: Size of the buffer
+ */
+struct dm_boot_time_crc_info {
+	void *cpu_addr;
+	struct amdgpu_bo *bo_ptr;
+	uint64_t gpu_addr;
+	uint32_t size;
+};
+
 typedef void (*dmub_notify_interrupt_callback_t)(struct amdgpu_device *adev, struct dmub_notification *notify);
 
 /**
@@ -698,6 +712,13 @@ struct amdgpu_display_manager {
 		struct completion replied;
 		char reply_data[0x40];  // Cannot include dmub_cmd here
 	} fused_io[8];
+
+	/**
+	 * @dm_boot_time_crc_info:
+	 *
+	 * Buffer info for the boot time crc.
+	 */
+	struct dm_boot_time_crc_info boot_time_crc_info;
 };
 
 enum dsc_clock_force_state {

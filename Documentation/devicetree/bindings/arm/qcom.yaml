@@ -846,6 +846,12 @@ properties:
 
       - items:
           - enum:
+              - google,bonito-tianma
+          - const: google,bonito
+          - const: qcom,sdm670
+
+      - items:
+          - enum:
               - qcom,sdx55-mtp
               - qcom,sdx55-telit-fn980-tlb
               - qcom,sdx55-t55

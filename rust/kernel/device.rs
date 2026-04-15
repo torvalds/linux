@@ -489,6 +489,17 @@ impl<Ctx: DeviceContext> Device<Ctx> {
         // defined as a `#[repr(transparent)]` wrapper around `fwnode_handle`.
         Some(unsafe { &*fwnode_handle.cast() })
     }
+
+    /// Returns the name of the device.
+    ///
+    /// This is the kobject name of the device, or its initial name if the kobject is not yet
+    /// available.
+    #[inline]
+    pub fn name(&self) -> &CStr {
+        // SAFETY: By its type invariant `self.as_raw()` is a valid pointer to a `struct device`.
+        // The returned string is valid for the lifetime of the device.
+        unsafe { CStr::from_char_ptr(bindings::dev_name(self.as_raw())) }
+    }
 }
 
 // SAFETY: `Device` is a transparent wrapper of a type that doesn't depend on `Device`'s generic
@@ -575,7 +586,7 @@ pub struct CoreInternal;
 /// The bound context indicates that for the entire duration of the lifetime of a [`Device<Bound>`]
 /// reference, the [`Device`] is guaranteed to be bound to a driver.
 ///
-/// Some APIs, such as [`dma::CoherentAllocation`] or [`Devres`] rely on the [`Device`] to be bound,
+/// Some APIs, such as [`dma::Coherent`] or [`Devres`] rely on the [`Device`] to be bound,
 /// which can be proven with the [`Bound`] device context.
 ///
 /// Any abstraction that can guarantee a scope where the corresponding bus device is bound, should
@@ -584,7 +595,7 @@ pub struct CoreInternal;
 ///
 /// [`Devres`]: kernel::devres::Devres
 /// [`Devres::access`]: kernel::devres::Devres::access
-/// [`dma::CoherentAllocation`]: kernel::dma::CoherentAllocation
+/// [`dma::Coherent`]: kernel::dma::Coherent
 pub struct Bound;
 
 mod private {

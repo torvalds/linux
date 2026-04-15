@@ -110,14 +110,12 @@ static int v3d_get_param_ioctl(struct drm_device *dev, void *data,
 		args->value = !!drm_gem_get_huge_mnt(dev);
 		return 0;
 	case DRM_V3D_PARAM_GLOBAL_RESET_COUNTER:
-		mutex_lock(&v3d->reset_lock);
-		args->value = v3d->reset_counter;
-		mutex_unlock(&v3d->reset_lock);
+		args->value = atomic_read(&v3d->reset_counter);
 		return 0;
 	case DRM_V3D_PARAM_CONTEXT_RESET_COUNTER:
-		mutex_lock(&v3d->reset_lock);
-		args->value = v3d_priv->reset_counter;
-		mutex_unlock(&v3d->reset_lock);
+		args->value = 0;
+		for (enum v3d_queue q = 0; q < V3D_MAX_QUEUES; q++)
+			args->value += atomic_read(&v3d_priv->stats[q]->reset_counter);
 		return 0;
 	default:
 		drm_dbg(dev, "Unknown parameter %d\n", args->param);
@@ -131,7 +129,7 @@ v3d_open(struct drm_device *dev, struct drm_file *file)
 	struct v3d_dev *v3d = to_v3d_dev(dev);
 	struct v3d_file_priv *v3d_priv;
 	struct drm_gpu_scheduler *sched;
-	int i;
+	int i, ret;
 
 	v3d_priv = kzalloc_obj(*v3d_priv);
 	if (!v3d_priv)
@@ -140,40 +138,45 @@ v3d_open(struct drm_device *dev, struct drm_file *file)
 	v3d_priv->v3d = v3d;
 
 	for (i = 0; i < V3D_MAX_QUEUES; i++) {
-		sched = &v3d->queue[i].sched;
-		drm_sched_entity_init(&v3d_priv->sched_entity[i],
-				      DRM_SCHED_PRIORITY_NORMAL, &sched,
-				      1, NULL);
+		v3d_priv->stats[i] = v3d_stats_alloc();
+		if (!v3d_priv->stats[i]) {
+			ret = -ENOMEM;
+			goto err_stats;
+		}
 
-		memset(&v3d_priv->stats[i], 0, sizeof(v3d_priv->stats[i]));
-		seqcount_init(&v3d_priv->stats[i].lock);
+		sched = &v3d->queue[i].sched;
+		ret = drm_sched_entity_init(&v3d_priv->sched_entity[i],
+					    DRM_SCHED_PRIORITY_NORMAL, &sched,
+					    1, NULL);
+		if (ret)
+			goto err_sched;
 	}
 
 	v3d_perfmon_open_file(v3d_priv);
 	file->driver_priv = v3d_priv;
 
 	return 0;
+
+err_sched:
+	v3d_stats_put(v3d_priv->stats[i]);
+err_stats:
+	for (i--; i >= 0; i--) {
+		drm_sched_entity_destroy(&v3d_priv->sched_entity[i]);
+		v3d_stats_put(v3d_priv->stats[i]);
+	}
+	kfree(v3d_priv);
+	return ret;
 }
 
 static void
 v3d_postclose(struct drm_device *dev, struct drm_file *file)
 {
-	struct v3d_dev *v3d = to_v3d_dev(dev);
 	struct v3d_file_priv *v3d_priv = file->driver_priv;
-	unsigned long irqflags;
 	enum v3d_queue q;
 
 	for (q = 0; q < V3D_MAX_QUEUES; q++) {
-		struct v3d_queue_state *queue = &v3d->queue[q];
-		struct v3d_job *job = queue->active_job;
-
 		drm_sched_entity_destroy(&v3d_priv->sched_entity[q]);
-
-		if (job && job->base.entity == &v3d_priv->sched_entity[q]) {
-			spin_lock_irqsave(&queue->queue_lock, irqflags);
-			job->file_priv = NULL;
-			spin_unlock_irqrestore(&queue->queue_lock, irqflags);
-		}
+		v3d_stats_put(v3d_priv->stats[q]);
 	}
 
 	v3d_perfmon_close_file(v3d_priv);
@@ -186,7 +189,7 @@ void v3d_get_stats(const struct v3d_stats *stats, u64 timestamp,
 	unsigned int seq;
 
 	do {
-		seq = read_seqcount_begin(&stats->lock);
+		seq = raw_read_seqcount_begin(&stats->lock);
 		*active_runtime = stats->enabled_ns;
 		if (stats->start_ns)
 			*active_runtime += timestamp - stats->start_ns;
@@ -201,7 +204,7 @@ static void v3d_show_fdinfo(struct drm_printer *p, struct drm_file *file)
 	enum v3d_queue queue;
 
 	for (queue = 0; queue < V3D_MAX_QUEUES; queue++) {
-		struct v3d_stats *stats = &file_priv->stats[queue];
+		struct v3d_stats *stats = file_priv->stats[queue];
 		u64 active_runtime, jobs_completed;
 
 		v3d_get_stats(stats, timestamp, &active_runtime, &jobs_completed);

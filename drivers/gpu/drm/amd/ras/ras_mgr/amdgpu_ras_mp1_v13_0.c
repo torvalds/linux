@@ -28,6 +28,16 @@
 #define RAS_MP1_MSG_QueryValidMcaCeCount  0x3A
 #define RAS_MP1_MSG_McaBankCeDumpDW       0x3B
 
+static const enum smu_message_type pmfw_eeprom_msgs[] = {
+	[RAS_SMU_GetRASTableVersion] = SMU_MSG_GetRASTableVersion,
+	[RAS_SMU_GetBadPageCount] = SMU_MSG_GetBadPageCount,
+	[RAS_SMU_SetTimestamp] = SMU_MSG_SetTimestamp,
+	[RAS_SMU_GetTimestamp] = SMU_MSG_GetTimestamp,
+	[RAS_SMU_GetBadPageIpid] = SMU_MSG_GetBadPageIpid,
+	[RAS_SMU_EraseRasTable] = SMU_MSG_EraseRasTable,
+	[RAS_SMU_GetBadPageMcaAddr] = SMU_MSG_GetBadPageMcaAddr,
+};
+
 static int mp1_v13_0_get_valid_bank_count(struct ras_core_context *ras_core,
 					  u32 msg, u32 *count)
 {
@@ -87,8 +97,44 @@ static int mp1_v13_0_dump_valid_bank(struct ras_core_context *ras_core,
 	return ret;
 }
 
+static int mp1_v13_0_eeprom_send_msg(struct ras_core_context *ras_core,
+				enum ras_fw_eeprom_cmd index, uint32_t param, uint32_t *read_arg)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)ras_core->dev;
+	int ret = 0;
+
+	if (down_read_trylock(&adev->reset_domain->sem)) {
+		ret = amdgpu_smu_ras_send_msg(adev,
+			pmfw_eeprom_msgs[index], param, read_arg);
+		up_read(&adev->reset_domain->sem);
+	} else {
+		ret = -RAS_CORE_GPU_IN_MODE1_RESET;
+	}
+
+	return ret;
+}
+
+static int mp1_v13_0_get_ras_enabled_mask(struct ras_core_context *ras_core,
+					     uint64_t *enabled_mask)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)ras_core->dev;
+	int ret = 0;
+
+	if (down_read_trylock(&adev->reset_domain->sem)) {
+		if (amdgpu_smu_ras_feature_is_enabled(adev, SMU_FEATURE_HROM_EN_BIT))
+			*enabled_mask |= RAS_CORE_FW_FEATURE_BIT__RAS_EEPROM;
+		up_read(&adev->reset_domain->sem);
+	} else {
+		ret = -RAS_CORE_GPU_IN_MODE1_RESET;
+	}
+
+	return ret;
+}
+
 const struct ras_mp1_sys_func amdgpu_ras_mp1_sys_func_v13_0 = {
 	.mp1_get_valid_bank_count = mp1_v13_0_get_valid_bank_count,
 	.mp1_dump_valid_bank = mp1_v13_0_dump_valid_bank,
+	.mp1_send_eeprom_msg = mp1_v13_0_eeprom_send_msg,
+	.mp1_get_ras_enabled_mask = mp1_v13_0_get_ras_enabled_mask,
 };
 

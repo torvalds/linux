@@ -160,6 +160,8 @@ struct dml2_soc_bb {
 	unsigned long return_bus_width_bytes;
 	unsigned long hostvm_min_page_size_kbytes;
 	unsigned long gpuvm_min_page_size_kbytes;
+	unsigned int hostvm_max_non_cached_page_table_levels;
+	unsigned int gpuvm_max_page_table_levels;
 	double phy_downspread_percent;
 	double dcn_downspread_percent;
 	double dispclk_dppclk_vco_speed_mhz;
@@ -190,6 +192,7 @@ struct dml2_ip_capabilities {
 	unsigned int max_flip_time_us;
 	unsigned int max_flip_time_lines;
 	unsigned int hostvm_mode;
+	bool dcn_mrq_present;
 	unsigned int subvp_drr_scheduling_margin_us;
 	unsigned int subvp_prefetch_end_to_mall_start_us;
 	unsigned int subvp_fw_processing_delay;

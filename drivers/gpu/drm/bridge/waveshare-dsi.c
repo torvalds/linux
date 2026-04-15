@@ -66,7 +66,14 @@ static int ws_bridge_attach_dsi(struct ws_bridge *ws)
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO_HSE | MIPI_DSI_MODE_VIDEO |
 			  MIPI_DSI_CLOCK_NON_CONTINUOUS;
 	dsi->format = MIPI_DSI_FMT_RGB888;
-	dsi->lanes = 2;
+	ret = drm_of_get_data_lanes_count_ep(dev->of_node, 0, 0, 1, 4);
+	if (ret < 0) {
+		dev_warn(dev, "Invalid or missing DSI lane count %d, falling back to 2 lanes\n",
+			 ret);
+		dsi->lanes = 2;	/* Old DT backward compatibility */
+	} else {
+		dsi->lanes = ret;
+	}
 
 	ret = devm_mipi_dsi_attach(dev, dsi);
 	if (ret < 0)
@@ -80,11 +87,6 @@ static int ws_bridge_bridge_attach(struct drm_bridge *bridge,
 				   enum drm_bridge_attach_flags flags)
 {
 	struct ws_bridge *ws = bridge_to_ws_bridge(bridge);
-	int ret;
-
-	ret = ws_bridge_attach_dsi(ws);
-	if (ret)
-		return ret;
 
 	return drm_bridge_attach(encoder, ws->next_bridge,
 				 &ws->bridge, flags);
@@ -179,7 +181,7 @@ static int ws_bridge_probe(struct i2c_client *i2c)
 	ws->bridge.of_node = dev->of_node;
 	devm_drm_bridge_add(dev, &ws->bridge);
 
-	return 0;
+	return ws_bridge_attach_dsi(ws);
 }
 
 static const struct of_device_id ws_bridge_of_ids[] = {

@@ -75,6 +75,7 @@
 void dcn30_log_color_state(struct dc *dc,
 			   struct dc_log_buffer_ctx *log_ctx)
 {
+	(void)log_ctx;
 	struct dc_context *dc_ctx = dc->ctx;
 	struct resource_pool *pool = dc->res_pool;
 	bool is_gamut_remap_available = false;
@@ -645,7 +646,7 @@ void dcn30_init_hw(struct dc *dc)
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 	struct resource_pool *res_pool = dc->res_pool;
 	int i;
-	int edp_num;
+	unsigned int edp_num;
 	uint32_t backlight = MAX_BACKLIGHT_LEVEL;
 	uint32_t user_level = MAX_BACKLIGHT_LEVEL;
 
@@ -1183,6 +1184,7 @@ void dcn30_set_disp_pattern_generator(const struct dc *dc,
 		const struct tg_color *solid_color,
 		int width, int height, int offset)
 {
+	(void)dc;
 	pipe_ctx->stream_res.opp->funcs->opp_set_disp_pattern_generator(pipe_ctx->stream_res.opp, test_pattern,
 			color_space, color_depth, solid_color, width, height, offset);
 }
@@ -1237,6 +1239,7 @@ void dcn30_get_underflow_debug_data(const struct dc *dc,
 	struct timing_generator *tg,
 	struct dc_underflow_debug_data *out_data)
 {
+	(void)tg;
 	struct hubbub *hubbub = dc->res_pool->hubbub;
 
 	if (hubbub) {

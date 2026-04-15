@@ -205,19 +205,33 @@ struct dc_state *dc_state_create(struct dc *dc, struct dc_state_create_params *p
 	state->power_source = params ? params->power_source : DC_POWER_SOURCE_AC;
 
 #ifdef CONFIG_DRM_AMD_DC_FP
+	bool status;
+
 	if (dc->debug.using_dml2) {
-		if (!dml2_create(dc, &dc->dml2_options, &state->bw_ctx.dml2)) {
+		DC_FP_START();
+		status = dml2_create(dc, &dc->dml2_options, &state->bw_ctx.dml2);
+		DC_FP_END();
+
+		if (!status) {
 			dc_state_release(state);
 			return NULL;
 		}
 
-		if (dc->caps.dcmode_power_limits_present && !dml2_create(dc, &dc->dml2_dc_power_options, &state->bw_ctx.dml2_dc_power_source)) {
-			dc_state_release(state);
-			return NULL;
+		if (dc->caps.dcmode_power_limits_present) {
+			bool status;
+
+			DC_FP_START();
+			status = dml2_create(dc, &dc->dml2_dc_power_options, &state->bw_ctx.dml2_dc_power_source);
+			DC_FP_END();
+
+			if (!status) {
+				dc_state_release(state);
+				return NULL;
+			}
 		}
+
 	}
-#endif
-
+#endif // CONFIG_DRM_AMD_DC_FP
 	kref_init(&state->refcount);
 
 	return state;
@@ -235,14 +249,20 @@ void dc_state_copy(struct dc_state *dst_state, struct dc_state *src_state)
 
 #ifdef CONFIG_DRM_AMD_DC_FP
 	dst_state->bw_ctx.dml2 = dst_dml2;
-	if (src_state->bw_ctx.dml2)
+	if (src_state->bw_ctx.dml2) {
+		DC_FP_START();
 		dml2_copy(dst_state->bw_ctx.dml2, src_state->bw_ctx.dml2);
+		DC_FP_END();
+	}
 
 	dst_state->bw_ctx.dml2_dc_power_source = dst_dml2_dc_power_source;
-	if (src_state->bw_ctx.dml2_dc_power_source)
-		dml2_copy(dst_state->bw_ctx.dml2_dc_power_source, src_state->bw_ctx.dml2_dc_power_source);
-#endif
 
+	if (src_state->bw_ctx.dml2_dc_power_source) {
+		DC_FP_START();
+		dml2_copy(dst_state->bw_ctx.dml2_dc_power_source, src_state->bw_ctx.dml2_dc_power_source);
+		DC_FP_END();
+	}
+#endif // CONFIG_DRM_AMD_DC_FP
 	/* context refcount should not be overridden */
 	dst_state->refcount = refcount;
 }
@@ -258,22 +278,35 @@ struct dc_state *dc_state_create_copy(struct dc_state *src_state)
 	dc_state_copy_internal(new_state, src_state);
 
 #ifdef CONFIG_DRM_AMD_DC_FP
+	bool status;
+
 	new_state->bw_ctx.dml2 = NULL;
 	new_state->bw_ctx.dml2_dc_power_source = NULL;
 
-	if (src_state->bw_ctx.dml2 &&
-			!dml2_create_copy(&new_state->bw_ctx.dml2, src_state->bw_ctx.dml2)) {
-		dc_state_release(new_state);
-		return NULL;
+	if (src_state->bw_ctx.dml2) {
+		DC_FP_START();
+		status = dml2_create_copy(&new_state->bw_ctx.dml2, src_state->bw_ctx.dml2);
+		DC_FP_END();
+
+		if (!status) {
+			dc_state_release(new_state);
+			return NULL;
+		}
 	}
 
-	if (src_state->bw_ctx.dml2_dc_power_source &&
-			!dml2_create_copy(&new_state->bw_ctx.dml2_dc_power_source, src_state->bw_ctx.dml2_dc_power_source)) {
-		dc_state_release(new_state);
-		return NULL;
-	}
-#endif
 
+	if (src_state->bw_ctx.dml2_dc_power_source) {
+		DC_FP_START();
+		status = dml2_create_copy(&new_state->bw_ctx.dml2_dc_power_source,
+					  src_state->bw_ctx.dml2_dc_power_source);
+		DC_FP_END();
+
+		if (!status) {
+			dc_state_release(new_state);
+			return NULL;
+		}
+	}
+#endif // CONFIG_DRM_AMD_DC_FP
 	kref_init(&new_state->refcount);
 
 	return new_state;
@@ -351,11 +384,13 @@ static void dc_state_free(struct kref *kref)
 	dc_state_destruct(state);
 
 #ifdef CONFIG_DRM_AMD_DC_FP
+	DC_FP_START();
 	dml2_destroy(state->bw_ctx.dml2);
 	state->bw_ctx.dml2 = 0;
 
 	dml2_destroy(state->bw_ctx.dml2_dc_power_source);
 	state->bw_ctx.dml2_dc_power_source = 0;
+	DC_FP_END();
 #endif
 
 	kvfree(state);
@@ -374,6 +409,7 @@ enum dc_status dc_state_add_stream(
 		struct dc_state *state,
 		struct dc_stream_state *stream)
 {
+	(void)dc;
 	enum dc_status res;
 
 	DC_LOGGER_INIT(dc->ctx->logger);
@@ -749,6 +785,7 @@ struct dc_plane_state *dc_state_create_phantom_plane(const struct dc *dc,
 		struct dc_state *state,
 		struct dc_plane_state *main_plane)
 {
+	(void)main_plane;
 	struct dc_plane_state *phantom_plane = dc_create_plane_state(dc);
 
 	DC_LOGGER_INIT(dc->ctx->logger);

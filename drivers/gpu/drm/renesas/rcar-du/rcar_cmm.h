@@ -10,8 +10,8 @@
 
 #define CM2_LUT_SIZE		256
 
+struct device;
 struct drm_color_lut;
-struct platform_device;
 
 /**
  * struct rcar_cmm_config - CMM configuration
@@ -26,29 +26,29 @@ struct rcar_cmm_config {
 };
 
 #if IS_ENABLED(CONFIG_DRM_RCAR_CMM)
-int rcar_cmm_init(struct platform_device *pdev);
+int rcar_cmm_init(struct device *dev);
 
-int rcar_cmm_enable(struct platform_device *pdev);
-void rcar_cmm_disable(struct platform_device *pdev);
+int rcar_cmm_enable(struct device *dev);
+void rcar_cmm_disable(struct device *dev);
 
-int rcar_cmm_setup(struct platform_device *pdev,
+int rcar_cmm_setup(struct device *dev,
 		   const struct rcar_cmm_config *config);
 #else
-static inline int rcar_cmm_init(struct platform_device *pdev)
+static inline int rcar_cmm_init(struct device *dev)
 {
 	return -ENODEV;
 }
 
-static inline int rcar_cmm_enable(struct platform_device *pdev)
+static inline int rcar_cmm_enable(struct device *dev)
 {
 	return 0;
 }
 
-static inline void rcar_cmm_disable(struct platform_device *pdev)
+static inline void rcar_cmm_disable(struct device *dev)
 {
 }
 
-static inline int rcar_cmm_setup(struct platform_device *pdev,
+static inline int rcar_cmm_setup(struct device *dev,
 				 const struct rcar_cmm_config *config)
 {
 	return 0;

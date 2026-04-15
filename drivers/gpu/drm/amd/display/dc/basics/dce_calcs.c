@@ -2010,10 +2010,10 @@ static void calculate_bandwidth(
 	}
 	/*output link bit per pixel supported*/
 	for (k = 0; k <= maximum_number_of_surfaces - 1; k++) {
-		data->output_bpphdmi[k] = bw_def_na;
-		data->output_bppdp4_lane_hbr[k] = bw_def_na;
-		data->output_bppdp4_lane_hbr2[k] = bw_def_na;
-		data->output_bppdp4_lane_hbr3[k] = bw_def_na;
+		data->output_bpphdmi[k] = (uint32_t)bw_def_na;
+		data->output_bppdp4_lane_hbr[k] = (uint32_t)bw_def_na;
+		data->output_bppdp4_lane_hbr2[k] = (uint32_t)bw_def_na;
+		data->output_bppdp4_lane_hbr3[k] = (uint32_t)bw_def_na;
 		if (data->enable[k]) {
 			data->output_bpphdmi[k] = bw_fixed_to_int(bw_mul(bw_div(bw_min2(bw_int_to_fixed(600), data->max_phyclk), data->pixel_rate[k]), bw_int_to_fixed(24)));
 			if (bw_meq(data->max_phyclk, bw_int_to_fixed(270))) {

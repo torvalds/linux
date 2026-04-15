@@ -102,6 +102,9 @@ static void dcn401_convert_dc_clock_table_to_soc_bb_clock_table(
 					}
 				} else {
 					dml_clk_table->uclk.clk_values_khz[i] = dc_clk_table->entries[i].memclk_mhz * 1000;
+					#ifdef ENABLE_WCK
+					dml_clk_table->wck_ratio.clk_values_khz[i] = dc_clk_table->entries[i].wck_ratio;
+					#endif
 				}
 			} else {
 				dml_clk_table->uclk.clk_values_khz[i] = 0;

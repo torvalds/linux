@@ -158,8 +158,8 @@ static const struct dma_fence_ops drm_crtc_fence_ops;
 
 static struct drm_crtc *fence_to_crtc(struct dma_fence *fence)
 {
-	BUG_ON(fence->ops != &drm_crtc_fence_ops);
-	return container_of(fence->lock, struct drm_crtc, fence_lock);
+	BUG_ON(rcu_access_pointer(fence->ops) != &drm_crtc_fence_ops);
+	return container_of(fence->extern_lock, struct drm_crtc, fence_lock);
 }
 
 static const char *drm_crtc_fence_get_driver_name(struct dma_fence *fence)
@@ -340,8 +340,7 @@ static int __drm_crtc_init_with_planes(struct drm_device *dev, struct drm_crtc *
  * Inits a new object created as base part of a driver crtc object. Drivers
  * should use this function instead of drm_crtc_init(), which is only provided
  * for backwards compatibility with drivers which do not yet support universal
- * planes). For really simple hardware which has only 1 plane look at
- * drm_simple_display_pipe_init() instead.
+ * planes).
  * The &drm_crtc_funcs.destroy hook should call drm_crtc_cleanup() and kfree()
  * the crtc structure. The crtc structure should not be allocated with
  * devm_kzalloc().
@@ -424,8 +423,7 @@ static int __drmm_crtc_init_with_planes(struct drm_device *dev,
  * Inits a new object created as base part of a driver crtc object. Drivers
  * should use this function instead of drm_crtc_init(), which is only provided
  * for backwards compatibility with drivers which do not yet support universal
- * planes). For really simple hardware which has only 1 plane look at
- * drm_simple_display_pipe_init() instead.
+ * planes).
  *
  * Cleanup is automatically handled through registering
  * drmm_crtc_cleanup() with drmm_add_action(). The crtc structure should

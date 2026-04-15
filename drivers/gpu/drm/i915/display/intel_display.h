@@ -135,32 +135,6 @@ enum tc_port {
 	I915_MAX_TC_PORTS
 };
 
-enum aux_ch {
-	AUX_CH_NONE = -1,
-
-	AUX_CH_A,
-	AUX_CH_B,
-	AUX_CH_C,
-	AUX_CH_D,
-	AUX_CH_E, /* ICL+ */
-	AUX_CH_F,
-	AUX_CH_G,
-	AUX_CH_H,
-	AUX_CH_I,
-
-	/* tgl+ */
-	AUX_CH_USBC1 = AUX_CH_D,
-	AUX_CH_USBC2,
-	AUX_CH_USBC3,
-	AUX_CH_USBC4,
-	AUX_CH_USBC5,
-	AUX_CH_USBC6,
-
-	/* XE_LPD repositions D/E offsets and bitfields */
-	AUX_CH_D_XELPD = AUX_CH_USBC5,
-	AUX_CH_E_XELPD,
-};
-
 enum phy {
 	PHY_NONE = -1,
 
@@ -488,6 +462,7 @@ void intel_cpu_transcoder_get_m2_n2(struct intel_crtc *crtc,
 				    struct intel_link_m_n *m_n);
 int intel_dotclock_calculate(int link_freq, const struct intel_link_m_n *m_n);
 int intel_crtc_dotclock(const struct intel_crtc_state *pipe_config);
+int intel_max_uncompressed_dotclock(struct intel_display *display);
 enum intel_display_power_domain intel_port_to_power_domain(struct intel_digital_port *dig_port);
 enum intel_display_power_domain
 intel_aux_power_domain(struct intel_digital_port *dig_port);

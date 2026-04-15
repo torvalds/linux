@@ -247,6 +247,9 @@ static void dcn315_update_clocks(struct clk_mgr *clk_mgr_base,
 static void dcn315_dump_clk_registers(struct clk_state_registers_and_bypass *regs_and_bypass,
 		struct clk_mgr *clk_mgr_base, struct clk_log_info *log_info)
 {
+	(void)regs_and_bypass;
+	(void)clk_mgr_base;
+	(void)log_info;
 	return;
 }
 
@@ -652,11 +655,12 @@ void dcn315_clk_mgr_construct(
 	if (clk_mgr->base.smu_ver > 0)
 		clk_mgr->base.smu_present = true;
 
-	if (ctx->dc_bios->integrated_info->memory_type == LpDdr5MemType) {
+	if (ctx->dc_bios->integrated_info &&
+	    ctx->dc_bios->integrated_info->memory_type == LpDdr5MemType)
 		dcn315_bw_params.wm_table = lpddr5_wm_table;
-	} else {
+	else
 		dcn315_bw_params.wm_table = ddr5_wm_table;
-	}
+
 	/* Saved clocks configured at boot for debug purposes */
 	dcn315_dump_clk_registers(&clk_mgr->base.base.boot_snapshot,
 				  &clk_mgr->base.base, &log_info);

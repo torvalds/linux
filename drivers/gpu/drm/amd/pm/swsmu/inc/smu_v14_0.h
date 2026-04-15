@@ -25,11 +25,6 @@
 
 #include "amdgpu_smu.h"
 
-#define SMU14_DRIVER_IF_VERSION_INV 0xFFFFFFFF
-#define SMU14_DRIVER_IF_VERSION_SMU_V14_0_0 0x7
-#define SMU14_DRIVER_IF_VERSION_SMU_V14_0_1 0x6
-#define SMU14_DRIVER_IF_VERSION_SMU_V14_0_2 0x2E
-
 #define FEATURE_MASK(feature) (1ULL << feature)
 
 /* MP Apertures */
@@ -123,8 +118,6 @@ int smu_v14_0_check_fw_status(struct smu_context *smu);
 int smu_v14_0_setup_pptable(struct smu_context *smu);
 
 int smu_v14_0_get_vbios_bootup_values(struct smu_context *smu);
-
-int smu_v14_0_check_fw_version(struct smu_context *smu);
 
 int smu_v14_0_set_driver_table_location(struct smu_context *smu);
 

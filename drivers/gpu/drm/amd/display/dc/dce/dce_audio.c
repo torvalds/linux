@@ -350,6 +350,7 @@ static uint32_t calculate_required_audio_bw_in_symbols(
 	uint32_t av_stream_map_lane_count,
 	uint32_t audio_sdp_overhead)
 {
+	(void)channel_count;
 	/* DP spec recommends between 1.05 to 1.1 safety margin to prevent sample under-run */
 	struct fixed31_32 audio_sdp_margin = dc_fixpt_from_fraction(110, 100);
 	struct fixed31_32 horizontal_line_freq_khz = dc_fixpt_from_fraction(
@@ -1027,6 +1028,7 @@ static void get_azalia_clock_info_hdmi(
 	uint32_t actual_pixel_clock_100Hz,
 	struct azalia_clock_info *azalia_clock_info)
 {
+	(void)crtc_pixel_clock_100hz;
 	/* audio_dto_phase= 24 * 10,000;
 	 *   24MHz in [100Hz] units */
 	azalia_clock_info->audio_dto_phase =
@@ -1043,6 +1045,7 @@ static void get_azalia_clock_info_dp(
 	const struct audio_pll_info *pll_info,
 	struct azalia_clock_info *azalia_clock_info)
 {
+	(void)requested_pixel_clock_100Hz;
 	/* Reported dpDtoSourceClockInkhz value for
 	 * DCE8 already adjusted for SS, do not need any
 	 * adjustment here anymore
@@ -1150,98 +1153,6 @@ void dce_aud_wall_dto_setup(
 	}
 }
 
-#if defined(CONFIG_DRM_AMD_DC_SI)
-static void dce60_aud_wall_dto_setup(
-	struct audio *audio,
-	enum signal_type signal,
-	const struct audio_crtc_info *crtc_info,
-	const struct audio_pll_info *pll_info)
-{
-	struct dce_audio *aud = DCE_AUD(audio);
-
-	struct azalia_clock_info clock_info = { 0 };
-
-	if (dc_is_hdmi_signal(signal)) {
-		uint32_t src_sel;
-
-		/*DTO0 Programming goal:
-		-generate 24MHz, 128*Fs from 24MHz
-		-use DTO0 when an active HDMI port is connected
-		(optionally a DP is connected) */
-
-		/* calculate DTO settings */
-		get_azalia_clock_info_hdmi(
-			crtc_info->requested_pixel_clock_100Hz,
-			crtc_info->calculated_pixel_clock_100Hz,
-			&clock_info);
-
-		DC_LOG_HW_AUDIO("\n%s:Input::requested_pixel_clock_100Hz = %d"\
-				"calculated_pixel_clock_100Hz =%d\n"\
-				"audio_dto_module = %d audio_dto_phase =%d \n\n", __func__,\
-				crtc_info->requested_pixel_clock_100Hz,\
-				crtc_info->calculated_pixel_clock_100Hz,\
-				clock_info.audio_dto_module,\
-				clock_info.audio_dto_phase);
-
-		/* On TN/SI, Program DTO source select and DTO select before
-		programming DTO modulo and DTO phase. These bits must be
-		programmed first, otherwise there will be no HDMI audio at boot
-		up. This is a HW sequence change (different from old ASICs).
-		Caution when changing this programming sequence.
-
-		HDMI enabled, using DTO0
-		program master CRTC for DTO0 */
-		src_sel = pll_info->dto_source - DTO_SOURCE_ID0;
-		REG_UPDATE_2(DCCG_AUDIO_DTO_SOURCE,
-			DCCG_AUDIO_DTO0_SOURCE_SEL, src_sel,
-			DCCG_AUDIO_DTO_SEL, 0);
-
-		/* module */
-		REG_UPDATE(DCCG_AUDIO_DTO0_MODULE,
-			DCCG_AUDIO_DTO0_MODULE, clock_info.audio_dto_module);
-
-		/* phase */
-		REG_UPDATE(DCCG_AUDIO_DTO0_PHASE,
-			DCCG_AUDIO_DTO0_PHASE, clock_info.audio_dto_phase);
-	} else {
-		/*DTO1 Programming goal:
-		-generate 24MHz, 128*Fs from 24MHz (DCE6 does not support 512*Fs)
-		-default is to used DTO1, and switch to DTO0 when an audio
-		master HDMI port is connected
-		-use as default for DP
-
-		calculate DTO settings */
-		get_azalia_clock_info_dp(
-			crtc_info->requested_pixel_clock_100Hz,
-			pll_info,
-			&clock_info);
-
-		/* Program DTO select before programming DTO modulo and DTO
-		phase. default to use DTO1 */
-
-		REG_UPDATE(DCCG_AUDIO_DTO_SOURCE,
-				DCCG_AUDIO_DTO_SEL, 1);
-
-			/* DCCG_AUDIO_DTO2_USE_512FBR_DTO, 1)
-			 * Cannot select 512fs for DP
-			 *
-			 * DCE6 has no DCCG_AUDIO_DTO2_USE_512FBR_DTO mask
-			*/
-
-		/* module */
-		REG_UPDATE(DCCG_AUDIO_DTO1_MODULE,
-				DCCG_AUDIO_DTO1_MODULE, clock_info.audio_dto_module);
-
-		/* phase */
-		REG_UPDATE(DCCG_AUDIO_DTO1_PHASE,
-				DCCG_AUDIO_DTO1_PHASE, clock_info.audio_dto_phase);
-
-		/* DCE6 has no DCCG_AUDIO_DTO2_USE_512FBR_DTO mask in DCCG_AUDIO_DTO_SOURCE reg */
-
-	}
-}
-#endif
-
 static bool dce_aud_endpoint_valid(struct audio *audio)
 {
 	uint32_t value;
@@ -1303,18 +1214,6 @@ static const struct audio_funcs funcs = {
 	.destroy = dce_aud_destroy,
 };
 
-#if defined(CONFIG_DRM_AMD_DC_SI)
-static const struct audio_funcs dce60_funcs = {
-	.endpoint_valid = dce_aud_endpoint_valid,
-	.hw_init = dce_aud_hw_init,
-	.wall_dto_setup = dce60_aud_wall_dto_setup,
-	.az_enable = dce_aud_az_enable,
-	.az_disable = dce_aud_az_disable,
-	.az_configure = dce_aud_az_configure,
-	.destroy = dce_aud_destroy,
-};
-#endif
-
 void dce_aud_destroy(struct audio **audio)
 {
 	struct dce_audio *aud = DCE_AUD(*audio);
@@ -1347,30 +1246,3 @@ struct audio *dce_audio_create(
 	audio->masks = masks;
 	return &audio->base;
 }
-
-#if defined(CONFIG_DRM_AMD_DC_SI)
-struct audio *dce60_audio_create(
-		struct dc_context *ctx,
-		unsigned int inst,
-		const struct dce_audio_registers *reg,
-		const struct dce_audio_shift *shifts,
-		const struct dce_audio_mask *masks
-		)
-{
-	struct dce_audio *audio = kzalloc_obj(*audio);
-
-	if (audio == NULL) {
-		ASSERT_CRITICAL(audio);
-		return NULL;
-	}
-
-	audio->base.ctx = ctx;
-	audio->base.inst = inst;
-	audio->base.funcs = &dce60_funcs;
-
-	audio->regs = reg;
-	audio->shifts = shifts;
-	audio->masks = masks;
-	return &audio->base;
-}
-#endif

@@ -9,12 +9,12 @@ use r570_144 as bindings;
 use core::ops::Range;
 
 use kernel::{
-    dma::CoherentAllocation,
-    fmt,
+    dma::Coherent,
     prelude::*,
     ptr::{
         Alignable,
-        Alignment, //
+        Alignment,
+        KnownSize, //
     },
     sizes::{
         SZ_128K,
@@ -40,8 +40,7 @@ use crate::{
     },
 };
 
-// TODO: Replace with `IoView` projections once available; the `unwrap()` calls go away once we
-// switch to the new `dma::Coherent` API.
+// TODO: Replace with `IoView` projections once available.
 pub(super) mod gsp_mem {
     use core::sync::atomic::{
         fence,
@@ -49,10 +48,9 @@ pub(super) mod gsp_mem {
     };
 
     use kernel::{
-        dma::CoherentAllocation,
+        dma::Coherent,
         dma_read,
-        dma_write,
-        prelude::*, //
+        dma_write, //
     };
 
     use crate::gsp::cmdq::{
@@ -60,54 +58,44 @@ pub(super) mod gsp_mem {
         MSGQ_NUM_PAGES, //
     };
 
-    pub(in crate::gsp) fn gsp_write_ptr(qs: &CoherentAllocation<GspMem>) -> u32 {
-        // PANIC: A `dma::CoherentAllocation` always contains at least one element.
-        || -> Result<u32> { Ok(dma_read!(qs, [0]?.gspq.tx.0.writePtr) % MSGQ_NUM_PAGES) }().unwrap()
+    pub(in crate::gsp) fn gsp_write_ptr(qs: &Coherent<GspMem>) -> u32 {
+        dma_read!(qs, .gspq.tx.0.writePtr) % MSGQ_NUM_PAGES
     }
 
-    pub(in crate::gsp) fn gsp_read_ptr(qs: &CoherentAllocation<GspMem>) -> u32 {
-        // PANIC: A `dma::CoherentAllocation` always contains at least one element.
-        || -> Result<u32> { Ok(dma_read!(qs, [0]?.gspq.rx.0.readPtr) % MSGQ_NUM_PAGES) }().unwrap()
+    pub(in crate::gsp) fn gsp_read_ptr(qs: &Coherent<GspMem>) -> u32 {
+        dma_read!(qs, .gspq.rx.0.readPtr) % MSGQ_NUM_PAGES
     }
 
-    pub(in crate::gsp) fn cpu_read_ptr(qs: &CoherentAllocation<GspMem>) -> u32 {
-        // PANIC: A `dma::CoherentAllocation` always contains at least one element.
-        || -> Result<u32> { Ok(dma_read!(qs, [0]?.cpuq.rx.0.readPtr) % MSGQ_NUM_PAGES) }().unwrap()
+    pub(in crate::gsp) fn cpu_read_ptr(qs: &Coherent<GspMem>) -> u32 {
+        dma_read!(qs, .cpuq.rx.0.readPtr) % MSGQ_NUM_PAGES
     }
 
-    pub(in crate::gsp) fn advance_cpu_read_ptr(qs: &CoherentAllocation<GspMem>, count: u32) {
+    pub(in crate::gsp) fn advance_cpu_read_ptr(qs: &Coherent<GspMem>, count: u32) {
         let rptr = cpu_read_ptr(qs).wrapping_add(count) % MSGQ_NUM_PAGES;
 
         // Ensure read pointer is properly ordered.
         fence(Ordering::SeqCst);
 
-        // PANIC: A `dma::CoherentAllocation` always contains at least one element.
-        || -> Result {
-            dma_write!(qs, [0]?.cpuq.rx.0.readPtr, rptr);
-            Ok(())
-        }()
-        .unwrap()
+        dma_write!(qs, .cpuq.rx.0.readPtr, rptr);
     }
 
-    pub(in crate::gsp) fn cpu_write_ptr(qs: &CoherentAllocation<GspMem>) -> u32 {
-        // PANIC: A `dma::CoherentAllocation` always contains at least one element.
-        || -> Result<u32> { Ok(dma_read!(qs, [0]?.cpuq.tx.0.writePtr) % MSGQ_NUM_PAGES) }().unwrap()
+    pub(in crate::gsp) fn cpu_write_ptr(qs: &Coherent<GspMem>) -> u32 {
+        dma_read!(qs, .cpuq.tx.0.writePtr) % MSGQ_NUM_PAGES
     }
 
-    pub(in crate::gsp) fn advance_cpu_write_ptr(qs: &CoherentAllocation<GspMem>, count: u32) {
+    pub(in crate::gsp) fn advance_cpu_write_ptr(qs: &Coherent<GspMem>, count: u32) {
         let wptr = cpu_write_ptr(qs).wrapping_add(count) % MSGQ_NUM_PAGES;
 
-        // PANIC: A `dma::CoherentAllocation` always contains at least one element.
-        || -> Result {
-            dma_write!(qs, [0]?.cpuq.tx.0.writePtr, wptr);
-            Ok(())
-        }()
-        .unwrap();
+        dma_write!(qs, .cpuq.tx.0.writePtr, wptr);
 
         // Ensure all command data is visible before triggering the GSP read.
         fence(Ordering::SeqCst);
     }
 }
+
+/// Maximum size of a single GSP message queue element in bytes.
+pub(crate) const GSP_MSG_QUEUE_ELEMENT_SIZE_MAX: usize =
+    num::u32_as_usize(bindings::GSP_MSG_QUEUE_ELEMENT_SIZE_MAX);
 
 /// Empty type to group methods related to heap parameters for running the GSP firmware.
 enum GspFwHeapParams {}
@@ -201,7 +189,9 @@ impl LibosParams {
 /// Structure passed to the GSP bootloader, containing the framebuffer layout as well as the DMA
 /// addresses of the GSP bootloader and firmware.
 #[repr(transparent)]
-pub(crate) struct GspFwWprMeta(bindings::GspFwWprMeta);
+pub(crate) struct GspFwWprMeta {
+    inner: bindings::GspFwWprMeta,
+}
 
 // SAFETY: Padding is explicit and does not contain uninitialized data.
 unsafe impl AsBytes for GspFwWprMeta {}
@@ -214,10 +204,14 @@ type GspFwWprMetaBootResumeInfo = bindings::GspFwWprMeta__bindgen_ty_1;
 type GspFwWprMetaBootInfo = bindings::GspFwWprMeta__bindgen_ty_1__bindgen_ty_1;
 
 impl GspFwWprMeta {
-    /// Fill in and return a `GspFwWprMeta` suitable for booting `gsp_firmware` using the
+    /// Returns an initializer for a `GspFwWprMeta` suitable for booting `gsp_firmware` using the
     /// `fb_layout` layout.
-    pub(crate) fn new(gsp_firmware: &GspFirmware, fb_layout: &FbLayout) -> Self {
-        Self(bindings::GspFwWprMeta {
+    pub(crate) fn new<'a>(
+        gsp_firmware: &'a GspFirmware,
+        fb_layout: &'a FbLayout,
+    ) -> impl Init<Self> + 'a {
+        #[allow(non_snake_case)]
+        let init_inner = init!(bindings::GspFwWprMeta {
             // CAST: we want to store the bits of `GSP_FW_WPR_META_MAGIC` unmodified.
             magic: bindings::GSP_FW_WPR_META_MAGIC as u64,
             revision: u64::from(bindings::GSP_FW_WPR_META_REVISION),
@@ -252,7 +246,11 @@ impl GspFwWprMeta {
             fbSize: fb_layout.fb.end - fb_layout.fb.start,
             vgaWorkspaceOffset: fb_layout.vga_workspace.start,
             vgaWorkspaceSize: fb_layout.vga_workspace.end - fb_layout.vga_workspace.start,
-            ..Default::default()
+            ..Zeroable::init_zeroed()
+        });
+
+        init!(GspFwWprMeta {
+            inner <- init_inner,
         })
     }
 }
@@ -261,72 +259,36 @@ impl GspFwWprMeta {
 #[repr(u32)]
 pub(crate) enum MsgFunction {
     // Common function codes
-    Nop = bindings::NV_VGPU_MSG_FUNCTION_NOP,
-    SetGuestSystemInfo = bindings::NV_VGPU_MSG_FUNCTION_SET_GUEST_SYSTEM_INFO,
-    AllocRoot = bindings::NV_VGPU_MSG_FUNCTION_ALLOC_ROOT,
+    AllocChannelDma = bindings::NV_VGPU_MSG_FUNCTION_ALLOC_CHANNEL_DMA,
+    AllocCtxDma = bindings::NV_VGPU_MSG_FUNCTION_ALLOC_CTX_DMA,
     AllocDevice = bindings::NV_VGPU_MSG_FUNCTION_ALLOC_DEVICE,
     AllocMemory = bindings::NV_VGPU_MSG_FUNCTION_ALLOC_MEMORY,
-    AllocCtxDma = bindings::NV_VGPU_MSG_FUNCTION_ALLOC_CTX_DMA,
-    AllocChannelDma = bindings::NV_VGPU_MSG_FUNCTION_ALLOC_CHANNEL_DMA,
-    MapMemory = bindings::NV_VGPU_MSG_FUNCTION_MAP_MEMORY,
-    BindCtxDma = bindings::NV_VGPU_MSG_FUNCTION_BIND_CTX_DMA,
     AllocObject = bindings::NV_VGPU_MSG_FUNCTION_ALLOC_OBJECT,
+    AllocRoot = bindings::NV_VGPU_MSG_FUNCTION_ALLOC_ROOT,
+    BindCtxDma = bindings::NV_VGPU_MSG_FUNCTION_BIND_CTX_DMA,
+    ContinuationRecord = bindings::NV_VGPU_MSG_FUNCTION_CONTINUATION_RECORD,
     Free = bindings::NV_VGPU_MSG_FUNCTION_FREE,
-    Log = bindings::NV_VGPU_MSG_FUNCTION_LOG,
     GetGspStaticInfo = bindings::NV_VGPU_MSG_FUNCTION_GET_GSP_STATIC_INFO,
-    SetRegistry = bindings::NV_VGPU_MSG_FUNCTION_SET_REGISTRY,
-    GspSetSystemInfo = bindings::NV_VGPU_MSG_FUNCTION_GSP_SET_SYSTEM_INFO,
+    GetStaticInfo = bindings::NV_VGPU_MSG_FUNCTION_GET_STATIC_INFO,
     GspInitPostObjGpu = bindings::NV_VGPU_MSG_FUNCTION_GSP_INIT_POST_OBJGPU,
     GspRmControl = bindings::NV_VGPU_MSG_FUNCTION_GSP_RM_CONTROL,
-    GetStaticInfo = bindings::NV_VGPU_MSG_FUNCTION_GET_STATIC_INFO,
+    GspSetSystemInfo = bindings::NV_VGPU_MSG_FUNCTION_GSP_SET_SYSTEM_INFO,
+    Log = bindings::NV_VGPU_MSG_FUNCTION_LOG,
+    MapMemory = bindings::NV_VGPU_MSG_FUNCTION_MAP_MEMORY,
+    Nop = bindings::NV_VGPU_MSG_FUNCTION_NOP,
+    SetGuestSystemInfo = bindings::NV_VGPU_MSG_FUNCTION_SET_GUEST_SYSTEM_INFO,
+    SetRegistry = bindings::NV_VGPU_MSG_FUNCTION_SET_REGISTRY,
 
     // Event codes
     GspInitDone = bindings::NV_VGPU_MSG_EVENT_GSP_INIT_DONE,
+    GspLockdownNotice = bindings::NV_VGPU_MSG_EVENT_GSP_LOCKDOWN_NOTICE,
+    GspPostNoCat = bindings::NV_VGPU_MSG_EVENT_GSP_POST_NOCAT_RECORD,
     GspRunCpuSequencer = bindings::NV_VGPU_MSG_EVENT_GSP_RUN_CPU_SEQUENCER,
-    PostEvent = bindings::NV_VGPU_MSG_EVENT_POST_EVENT,
-    RcTriggered = bindings::NV_VGPU_MSG_EVENT_RC_TRIGGERED,
     MmuFaultQueued = bindings::NV_VGPU_MSG_EVENT_MMU_FAULT_QUEUED,
     OsErrorLog = bindings::NV_VGPU_MSG_EVENT_OS_ERROR_LOG,
-    GspPostNoCat = bindings::NV_VGPU_MSG_EVENT_GSP_POST_NOCAT_RECORD,
-    GspLockdownNotice = bindings::NV_VGPU_MSG_EVENT_GSP_LOCKDOWN_NOTICE,
+    PostEvent = bindings::NV_VGPU_MSG_EVENT_POST_EVENT,
+    RcTriggered = bindings::NV_VGPU_MSG_EVENT_RC_TRIGGERED,
     UcodeLibOsPrint = bindings::NV_VGPU_MSG_EVENT_UCODE_LIBOS_PRINT,
-}
-
-impl fmt::Display for MsgFunction {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            // Common function codes
-            MsgFunction::Nop => write!(f, "NOP"),
-            MsgFunction::SetGuestSystemInfo => write!(f, "SET_GUEST_SYSTEM_INFO"),
-            MsgFunction::AllocRoot => write!(f, "ALLOC_ROOT"),
-            MsgFunction::AllocDevice => write!(f, "ALLOC_DEVICE"),
-            MsgFunction::AllocMemory => write!(f, "ALLOC_MEMORY"),
-            MsgFunction::AllocCtxDma => write!(f, "ALLOC_CTX_DMA"),
-            MsgFunction::AllocChannelDma => write!(f, "ALLOC_CHANNEL_DMA"),
-            MsgFunction::MapMemory => write!(f, "MAP_MEMORY"),
-            MsgFunction::BindCtxDma => write!(f, "BIND_CTX_DMA"),
-            MsgFunction::AllocObject => write!(f, "ALLOC_OBJECT"),
-            MsgFunction::Free => write!(f, "FREE"),
-            MsgFunction::Log => write!(f, "LOG"),
-            MsgFunction::GetGspStaticInfo => write!(f, "GET_GSP_STATIC_INFO"),
-            MsgFunction::SetRegistry => write!(f, "SET_REGISTRY"),
-            MsgFunction::GspSetSystemInfo => write!(f, "GSP_SET_SYSTEM_INFO"),
-            MsgFunction::GspInitPostObjGpu => write!(f, "GSP_INIT_POST_OBJGPU"),
-            MsgFunction::GspRmControl => write!(f, "GSP_RM_CONTROL"),
-            MsgFunction::GetStaticInfo => write!(f, "GET_STATIC_INFO"),
-
-            // Event codes
-            MsgFunction::GspInitDone => write!(f, "INIT_DONE"),
-            MsgFunction::GspRunCpuSequencer => write!(f, "RUN_CPU_SEQUENCER"),
-            MsgFunction::PostEvent => write!(f, "POST_EVENT"),
-            MsgFunction::RcTriggered => write!(f, "RC_TRIGGERED"),
-            MsgFunction::MmuFaultQueued => write!(f, "MMU_FAULT_QUEUED"),
-            MsgFunction::OsErrorLog => write!(f, "OS_ERROR_LOG"),
-            MsgFunction::GspPostNoCat => write!(f, "NOCAT"),
-            MsgFunction::GspLockdownNotice => write!(f, "LOCKDOWN_NOTICE"),
-            MsgFunction::UcodeLibOsPrint => write!(f, "LIBOS_PRINT"),
-        }
-    }
 }
 
 impl TryFrom<u32> for MsgFunction {
@@ -334,38 +296,44 @@ impl TryFrom<u32> for MsgFunction {
 
     fn try_from(value: u32) -> Result<MsgFunction> {
         match value {
-            bindings::NV_VGPU_MSG_FUNCTION_NOP => Ok(MsgFunction::Nop),
-            bindings::NV_VGPU_MSG_FUNCTION_SET_GUEST_SYSTEM_INFO => {
-                Ok(MsgFunction::SetGuestSystemInfo)
-            }
-            bindings::NV_VGPU_MSG_FUNCTION_ALLOC_ROOT => Ok(MsgFunction::AllocRoot),
+            // Common function codes
+            bindings::NV_VGPU_MSG_FUNCTION_ALLOC_CHANNEL_DMA => Ok(MsgFunction::AllocChannelDma),
+            bindings::NV_VGPU_MSG_FUNCTION_ALLOC_CTX_DMA => Ok(MsgFunction::AllocCtxDma),
             bindings::NV_VGPU_MSG_FUNCTION_ALLOC_DEVICE => Ok(MsgFunction::AllocDevice),
             bindings::NV_VGPU_MSG_FUNCTION_ALLOC_MEMORY => Ok(MsgFunction::AllocMemory),
-            bindings::NV_VGPU_MSG_FUNCTION_ALLOC_CTX_DMA => Ok(MsgFunction::AllocCtxDma),
-            bindings::NV_VGPU_MSG_FUNCTION_ALLOC_CHANNEL_DMA => Ok(MsgFunction::AllocChannelDma),
-            bindings::NV_VGPU_MSG_FUNCTION_MAP_MEMORY => Ok(MsgFunction::MapMemory),
-            bindings::NV_VGPU_MSG_FUNCTION_BIND_CTX_DMA => Ok(MsgFunction::BindCtxDma),
             bindings::NV_VGPU_MSG_FUNCTION_ALLOC_OBJECT => Ok(MsgFunction::AllocObject),
+            bindings::NV_VGPU_MSG_FUNCTION_ALLOC_ROOT => Ok(MsgFunction::AllocRoot),
+            bindings::NV_VGPU_MSG_FUNCTION_BIND_CTX_DMA => Ok(MsgFunction::BindCtxDma),
+            bindings::NV_VGPU_MSG_FUNCTION_CONTINUATION_RECORD => {
+                Ok(MsgFunction::ContinuationRecord)
+            }
             bindings::NV_VGPU_MSG_FUNCTION_FREE => Ok(MsgFunction::Free),
-            bindings::NV_VGPU_MSG_FUNCTION_LOG => Ok(MsgFunction::Log),
             bindings::NV_VGPU_MSG_FUNCTION_GET_GSP_STATIC_INFO => Ok(MsgFunction::GetGspStaticInfo),
-            bindings::NV_VGPU_MSG_FUNCTION_SET_REGISTRY => Ok(MsgFunction::SetRegistry),
-            bindings::NV_VGPU_MSG_FUNCTION_GSP_SET_SYSTEM_INFO => Ok(MsgFunction::GspSetSystemInfo),
+            bindings::NV_VGPU_MSG_FUNCTION_GET_STATIC_INFO => Ok(MsgFunction::GetStaticInfo),
             bindings::NV_VGPU_MSG_FUNCTION_GSP_INIT_POST_OBJGPU => {
                 Ok(MsgFunction::GspInitPostObjGpu)
             }
             bindings::NV_VGPU_MSG_FUNCTION_GSP_RM_CONTROL => Ok(MsgFunction::GspRmControl),
-            bindings::NV_VGPU_MSG_FUNCTION_GET_STATIC_INFO => Ok(MsgFunction::GetStaticInfo),
+            bindings::NV_VGPU_MSG_FUNCTION_GSP_SET_SYSTEM_INFO => Ok(MsgFunction::GspSetSystemInfo),
+            bindings::NV_VGPU_MSG_FUNCTION_LOG => Ok(MsgFunction::Log),
+            bindings::NV_VGPU_MSG_FUNCTION_MAP_MEMORY => Ok(MsgFunction::MapMemory),
+            bindings::NV_VGPU_MSG_FUNCTION_NOP => Ok(MsgFunction::Nop),
+            bindings::NV_VGPU_MSG_FUNCTION_SET_GUEST_SYSTEM_INFO => {
+                Ok(MsgFunction::SetGuestSystemInfo)
+            }
+            bindings::NV_VGPU_MSG_FUNCTION_SET_REGISTRY => Ok(MsgFunction::SetRegistry),
+
+            // Event codes
             bindings::NV_VGPU_MSG_EVENT_GSP_INIT_DONE => Ok(MsgFunction::GspInitDone),
+            bindings::NV_VGPU_MSG_EVENT_GSP_LOCKDOWN_NOTICE => Ok(MsgFunction::GspLockdownNotice),
+            bindings::NV_VGPU_MSG_EVENT_GSP_POST_NOCAT_RECORD => Ok(MsgFunction::GspPostNoCat),
             bindings::NV_VGPU_MSG_EVENT_GSP_RUN_CPU_SEQUENCER => {
                 Ok(MsgFunction::GspRunCpuSequencer)
             }
-            bindings::NV_VGPU_MSG_EVENT_POST_EVENT => Ok(MsgFunction::PostEvent),
-            bindings::NV_VGPU_MSG_EVENT_RC_TRIGGERED => Ok(MsgFunction::RcTriggered),
             bindings::NV_VGPU_MSG_EVENT_MMU_FAULT_QUEUED => Ok(MsgFunction::MmuFaultQueued),
             bindings::NV_VGPU_MSG_EVENT_OS_ERROR_LOG => Ok(MsgFunction::OsErrorLog),
-            bindings::NV_VGPU_MSG_EVENT_GSP_POST_NOCAT_RECORD => Ok(MsgFunction::GspPostNoCat),
-            bindings::NV_VGPU_MSG_EVENT_GSP_LOCKDOWN_NOTICE => Ok(MsgFunction::GspLockdownNotice),
+            bindings::NV_VGPU_MSG_EVENT_POST_EVENT => Ok(MsgFunction::PostEvent),
+            bindings::NV_VGPU_MSG_EVENT_RC_TRIGGERED => Ok(MsgFunction::RcTriggered),
             bindings::NV_VGPU_MSG_EVENT_UCODE_LIBOS_PRINT => Ok(MsgFunction::UcodeLibOsPrint),
             _ => Err(EINVAL),
         }
@@ -397,22 +365,6 @@ pub(crate) enum SeqBufOpcode {
     RegPoll = bindings::GSP_SEQ_BUF_OPCODE_GSP_SEQ_BUF_OPCODE_REG_POLL,
     RegStore = bindings::GSP_SEQ_BUF_OPCODE_GSP_SEQ_BUF_OPCODE_REG_STORE,
     RegWrite = bindings::GSP_SEQ_BUF_OPCODE_GSP_SEQ_BUF_OPCODE_REG_WRITE,
-}
-
-impl fmt::Display for SeqBufOpcode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            SeqBufOpcode::CoreReset => write!(f, "CORE_RESET"),
-            SeqBufOpcode::CoreResume => write!(f, "CORE_RESUME"),
-            SeqBufOpcode::CoreStart => write!(f, "CORE_START"),
-            SeqBufOpcode::CoreWaitForHalt => write!(f, "CORE_WAIT_FOR_HALT"),
-            SeqBufOpcode::DelayUs => write!(f, "DELAY_US"),
-            SeqBufOpcode::RegModify => write!(f, "REG_MODIFY"),
-            SeqBufOpcode::RegPoll => write!(f, "REG_POLL"),
-            SeqBufOpcode::RegStore => write!(f, "REG_STORE"),
-            SeqBufOpcode::RegWrite => write!(f, "REG_WRITE"),
-        }
-    }
 }
 
 impl TryFrom<u32> for SeqBufOpcode {
@@ -453,7 +405,7 @@ impl From<SeqBufOpcode> for u32 {
 
 /// Wrapper for GSP sequencer register write payload.
 #[repr(transparent)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub(crate) struct RegWritePayload(bindings::GSP_SEQ_BUF_PAYLOAD_REG_WRITE);
 
 impl RegWritePayload {
@@ -476,7 +428,7 @@ unsafe impl AsBytes for RegWritePayload {}
 
 /// Wrapper for GSP sequencer register modify payload.
 #[repr(transparent)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub(crate) struct RegModifyPayload(bindings::GSP_SEQ_BUF_PAYLOAD_REG_MODIFY);
 
 impl RegModifyPayload {
@@ -504,7 +456,7 @@ unsafe impl AsBytes for RegModifyPayload {}
 
 /// Wrapper for GSP sequencer register poll payload.
 #[repr(transparent)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub(crate) struct RegPollPayload(bindings::GSP_SEQ_BUF_PAYLOAD_REG_POLL);
 
 impl RegPollPayload {
@@ -537,7 +489,7 @@ unsafe impl AsBytes for RegPollPayload {}
 
 /// Wrapper for GSP sequencer delay payload.
 #[repr(transparent)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub(crate) struct DelayUsPayload(bindings::GSP_SEQ_BUF_PAYLOAD_DELAY_US);
 
 impl DelayUsPayload {
@@ -555,7 +507,7 @@ unsafe impl AsBytes for DelayUsPayload {}
 
 /// Wrapper for GSP sequencer register store payload.
 #[repr(transparent)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub(crate) struct RegStorePayload(bindings::GSP_SEQ_BUF_PAYLOAD_REG_STORE);
 
 impl RegStorePayload {
@@ -595,13 +547,7 @@ impl SequencerBufferCmd {
             return Err(EINVAL);
         }
         // SAFETY: Opcode is verified to be `RegWrite`, so union contains valid `RegWritePayload`.
-        let payload_bytes = unsafe {
-            core::slice::from_raw_parts(
-                core::ptr::addr_of!(self.0.payload.regWrite).cast::<u8>(),
-                core::mem::size_of::<RegWritePayload>(),
-            )
-        };
-        Ok(*RegWritePayload::from_bytes(payload_bytes).ok_or(EINVAL)?)
+        Ok(RegWritePayload(unsafe { self.0.payload.regWrite }))
     }
 
     /// Returns the register modify payload by value.
@@ -612,13 +558,7 @@ impl SequencerBufferCmd {
             return Err(EINVAL);
         }
         // SAFETY: Opcode is verified to be `RegModify`, so union contains valid `RegModifyPayload`.
-        let payload_bytes = unsafe {
-            core::slice::from_raw_parts(
-                core::ptr::addr_of!(self.0.payload.regModify).cast::<u8>(),
-                core::mem::size_of::<RegModifyPayload>(),
-            )
-        };
-        Ok(*RegModifyPayload::from_bytes(payload_bytes).ok_or(EINVAL)?)
+        Ok(RegModifyPayload(unsafe { self.0.payload.regModify }))
     }
 
     /// Returns the register poll payload by value.
@@ -629,13 +569,7 @@ impl SequencerBufferCmd {
             return Err(EINVAL);
         }
         // SAFETY: Opcode is verified to be `RegPoll`, so union contains valid `RegPollPayload`.
-        let payload_bytes = unsafe {
-            core::slice::from_raw_parts(
-                core::ptr::addr_of!(self.0.payload.regPoll).cast::<u8>(),
-                core::mem::size_of::<RegPollPayload>(),
-            )
-        };
-        Ok(*RegPollPayload::from_bytes(payload_bytes).ok_or(EINVAL)?)
+        Ok(RegPollPayload(unsafe { self.0.payload.regPoll }))
     }
 
     /// Returns the delay payload by value.
@@ -646,13 +580,7 @@ impl SequencerBufferCmd {
             return Err(EINVAL);
         }
         // SAFETY: Opcode is verified to be `DelayUs`, so union contains valid `DelayUsPayload`.
-        let payload_bytes = unsafe {
-            core::slice::from_raw_parts(
-                core::ptr::addr_of!(self.0.payload.delayUs).cast::<u8>(),
-                core::mem::size_of::<DelayUsPayload>(),
-            )
-        };
-        Ok(*DelayUsPayload::from_bytes(payload_bytes).ok_or(EINVAL)?)
+        Ok(DelayUsPayload(unsafe { self.0.payload.delayUs }))
     }
 
     /// Returns the register store payload by value.
@@ -663,13 +591,7 @@ impl SequencerBufferCmd {
             return Err(EINVAL);
         }
         // SAFETY: Opcode is verified to be `RegStore`, so union contains valid `RegStorePayload`.
-        let payload_bytes = unsafe {
-            core::slice::from_raw_parts(
-                core::ptr::addr_of!(self.0.payload.regStore).cast::<u8>(),
-                core::mem::size_of::<RegStorePayload>(),
-            )
-        };
-        Ok(*RegStorePayload::from_bytes(payload_bytes).ok_or(EINVAL)?)
+        Ok(RegStorePayload(unsafe { self.0.payload.regStore }))
     }
 }
 
@@ -711,7 +633,9 @@ unsafe impl AsBytes for RunCpuSequencer {}
 /// The memory allocated for the arguments must remain until the GSP sends the
 /// init_done RPC.
 #[repr(transparent)]
-pub(crate) struct LibosMemoryRegionInitArgument(bindings::LibosMemoryRegionInitArgument);
+pub(crate) struct LibosMemoryRegionInitArgument {
+    inner: bindings::LibosMemoryRegionInitArgument,
+}
 
 // SAFETY: Padding is explicit and does not contain uninitialized data.
 unsafe impl AsBytes for LibosMemoryRegionInitArgument {}
@@ -721,10 +645,10 @@ unsafe impl AsBytes for LibosMemoryRegionInitArgument {}
 unsafe impl FromBytes for LibosMemoryRegionInitArgument {}
 
 impl LibosMemoryRegionInitArgument {
-    pub(crate) fn new<A: AsBytes + FromBytes>(
+    pub(crate) fn new<'a, A: AsBytes + FromBytes + KnownSize + ?Sized>(
         name: &'static str,
-        obj: &CoherentAllocation<A>,
-    ) -> Self {
+        obj: &'a Coherent<A>,
+    ) -> impl Init<Self> + 'a {
         /// Generates the `ID8` identifier required for some GSP objects.
         fn id8(name: &str) -> u64 {
             let mut bytes = [0u8; core::mem::size_of::<u64>()];
@@ -736,7 +660,8 @@ impl LibosMemoryRegionInitArgument {
             u64::from_ne_bytes(bytes)
         }
 
-        Self(bindings::LibosMemoryRegionInitArgument {
+        #[allow(non_snake_case)]
+        let init_inner = init!(bindings::LibosMemoryRegionInitArgument {
             id8: id8(name),
             pa: obj.dma_handle(),
             size: num::usize_as_u64(obj.size()),
@@ -746,7 +671,11 @@ impl LibosMemoryRegionInitArgument {
             loc: num::u32_into_u8::<
                 { bindings::LibosMemoryRegionLoc_LIBOS_MEMORY_REGION_LOC_SYSMEM },
             >(),
-            ..Default::default()
+            ..Zeroable::init_zeroed()
+        });
+
+        init!(LibosMemoryRegionInitArgument {
+            inner <- init_inner,
         })
     }
 }
@@ -925,15 +854,23 @@ unsafe impl FromBytes for GspMsgElement {}
 
 /// Arguments for GSP startup.
 #[repr(transparent)]
-pub(crate) struct GspArgumentsCached(bindings::GSP_ARGUMENTS_CACHED);
+#[derive(Zeroable)]
+pub(crate) struct GspArgumentsCached {
+    inner: bindings::GSP_ARGUMENTS_CACHED,
+}
 
 impl GspArgumentsCached {
     /// Creates the arguments for starting the GSP up using `cmdq` as its command queue.
-    pub(crate) fn new(cmdq: &Cmdq) -> Self {
-        Self(bindings::GSP_ARGUMENTS_CACHED {
-            messageQueueInitArguments: MessageQueueInitArguments::new(cmdq).0,
+    pub(crate) fn new(cmdq: &Cmdq) -> impl Init<Self> + '_ {
+        #[allow(non_snake_case)]
+        let init_inner = init!(bindings::GSP_ARGUMENTS_CACHED {
+            messageQueueInitArguments <- MessageQueueInitArguments::new(cmdq),
             bDmemStack: 1,
-            ..Default::default()
+            ..Zeroable::init_zeroed()
+        });
+
+        init!(GspArgumentsCached {
+            inner <- init_inner,
         })
     }
 }
@@ -945,9 +882,19 @@ unsafe impl AsBytes for GspArgumentsCached {}
 /// must all be a multiple of GSP_PAGE_SIZE in size, so add padding to force it
 /// to that size.
 #[repr(C)]
+#[derive(Zeroable)]
 pub(crate) struct GspArgumentsPadded {
     pub(crate) inner: GspArgumentsCached,
     _padding: [u8; GSP_PAGE_SIZE - core::mem::size_of::<bindings::GSP_ARGUMENTS_CACHED>()],
+}
+
+impl GspArgumentsPadded {
+    pub(crate) fn new(cmdq: &Cmdq) -> impl Init<Self> + '_ {
+        init!(GspArgumentsPadded {
+            inner <- GspArgumentsCached::new(cmdq),
+            ..Zeroable::init_zeroed()
+        })
+    }
 }
 
 // SAFETY: Padding is explicit and will not contain uninitialized data.
@@ -958,18 +905,18 @@ unsafe impl AsBytes for GspArgumentsPadded {}
 unsafe impl FromBytes for GspArgumentsPadded {}
 
 /// Init arguments for the message queue.
-#[repr(transparent)]
-struct MessageQueueInitArguments(bindings::MESSAGE_QUEUE_INIT_ARGUMENTS);
+type MessageQueueInitArguments = bindings::MESSAGE_QUEUE_INIT_ARGUMENTS;
 
 impl MessageQueueInitArguments {
     /// Creates a new init arguments structure for `cmdq`.
-    fn new(cmdq: &Cmdq) -> Self {
-        Self(bindings::MESSAGE_QUEUE_INIT_ARGUMENTS {
-            sharedMemPhysAddr: cmdq.dma_handle(),
+    #[allow(non_snake_case)]
+    fn new(cmdq: &Cmdq) -> impl Init<Self> + '_ {
+        init!(MessageQueueInitArguments {
+            sharedMemPhysAddr: cmdq.dma_handle,
             pageTableEntryCount: num::usize_into_u32::<{ Cmdq::NUM_PTES }>(),
             cmdQueueOffset: num::usize_as_u64(Cmdq::CMDQ_OFFSET),
             statQueueOffset: num::usize_as_u64(Cmdq::STATQ_OFFSET),
-            ..Default::default()
+            ..Zeroable::init_zeroed()
         })
     }
 }

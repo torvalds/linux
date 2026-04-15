@@ -34,6 +34,7 @@
 #include "amdgpu_ras.h"
 #include "amdgpu_reset.h"
 #include "amdgpu_xgmi.h"
+#include "amdgpu_atomfirmware.h"
 
 #include <drm/drm_drv.h>
 #include <drm/ttm/ttm_tt.h>
@@ -742,7 +743,7 @@ void amdgpu_gmc_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	 * translation. Avoid this by doing the invalidation from the SDMA
 	 * itself at least for GART.
 	 */
-	mutex_lock(&adev->mman.gtt_window_lock);
+	mutex_lock(&adev->mman.default_entity.lock);
 	r = amdgpu_job_alloc_with_ib(ring->adev, &adev->mman.default_entity.base,
 				     AMDGPU_FENCE_OWNER_UNDEFINED,
 				     16 * 4, AMDGPU_IB_POOL_IMMEDIATE,
@@ -755,7 +756,7 @@ void amdgpu_gmc_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	job->ibs->ptr[job->ibs->length_dw++] = ring->funcs->nop;
 	amdgpu_ring_pad_ib(ring, &job->ibs[0]);
 	fence = amdgpu_job_submit(job);
-	mutex_unlock(&adev->mman.gtt_window_lock);
+	mutex_unlock(&adev->mman.default_entity.lock);
 
 	dma_fence_wait(fence, false);
 	dma_fence_put(fence);
@@ -763,7 +764,7 @@ void amdgpu_gmc_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	return;
 
 error_alloc:
-	mutex_unlock(&adev->mman.gtt_window_lock);
+	mutex_unlock(&adev->mman.default_entity.lock);
 	dev_err(adev->dev, "Error flushing GPU TLB using the SDMA (%d)!\n", r);
 }
 
@@ -1374,18 +1375,18 @@ int amdgpu_gmc_get_nps_memranges(struct amdgpu_device *adev,
 				 struct amdgpu_mem_partition_info *mem_ranges,
 				 uint8_t *exp_ranges)
 {
-	struct amdgpu_gmc_memrange *ranges;
+	struct amdgpu_gmc_memrange ranges[AMDGPU_MAX_MEM_RANGES];
 	int range_cnt, ret, i, j;
 	uint32_t nps_type;
 	bool refresh;
 
 	if (!mem_ranges || !exp_ranges)
 		return -EINVAL;
-
+	range_cnt = AMDGPU_MAX_MEM_RANGES;
 	refresh = (adev->init_lvl->level != AMDGPU_INIT_LEVEL_MINIMAL_XGMI) &&
 		  (adev->gmc.reset_flags & AMDGPU_GMC_INIT_RESET_NPS);
-	ret = amdgpu_discovery_get_nps_info(adev, &nps_type, &ranges,
-					    &range_cnt, refresh);
+	ret = amdgpu_discovery_get_nps_info(adev, &nps_type, ranges, &range_cnt,
+					    refresh);
 
 	if (ret)
 		return ret;
@@ -1446,8 +1447,6 @@ int amdgpu_gmc_get_nps_memranges(struct amdgpu_device *adev,
 	if (!*exp_ranges)
 		*exp_ranges = range_cnt;
 err:
-	kvfree(ranges);
-
 	return ret;
 }
 
@@ -1747,5 +1746,33 @@ int amdgpu_gmc_init_mem_ranges(struct amdgpu_device *adev)
 			 "Mem ranges not matching with hardware config\n");
 	}
 
+	return 0;
+}
+
+int amdgpu_gmc_get_vram_info(struct amdgpu_device *adev,
+		int *vram_width, int *vram_type, int *vram_vendor)
+{
+	int ret = 0;
+
+	if (adev->flags & AMD_IS_APU)
+		return amdgpu_atomfirmware_get_integrated_system_info(adev,
+							vram_width, vram_type, vram_vendor);
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
+	case IP_VERSION(12, 0, 0):
+	case IP_VERSION(12, 0, 1):
+		return amdgpu_atomfirmware_get_umc_info(adev,
+								vram_width, vram_type, vram_vendor);
+	case IP_VERSION(9, 5, 0):
+	case IP_VERSION(9, 4, 4):
+	case IP_VERSION(9, 4, 3):
+		ret = amdgpu_atomfirmware_get_umc_info(adev,
+								vram_width, vram_type, vram_vendor);
+		if (vram_width && !ret)
+			*vram_width *= hweight32(adev->aid_mask);
+		return ret;
+	default:
+		return amdgpu_atomfirmware_get_vram_info(adev,
+								vram_width, vram_type, vram_vendor);
+	}
 	return 0;
 }

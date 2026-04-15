@@ -3,8 +3,8 @@
  * Copyright © 2023 Intel Corporation
  */
 
-#ifndef _XE_ENGINE_CLASS_SYSFS_H_
-#define _XE_ENGINE_CLASS_SYSFS_H_
+#ifndef _XE_HW_ENGINE_CLASS_SYSFS_H_
+#define _XE_HW_ENGINE_CLASS_SYSFS_H_
 
 #include <linux/kobject.h>
 

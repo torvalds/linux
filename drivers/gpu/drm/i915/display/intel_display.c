@@ -50,7 +50,6 @@
 #include "g4x_hdmi.h"
 #include "hsw_ips.h"
 #include "i915_config.h"
-#include "i915_reg.h"
 #include "i9xx_plane.h"
 #include "i9xx_plane_regs.h"
 #include "i9xx_wm.h"
@@ -86,7 +85,6 @@
 #include "intel_dpll.h"
 #include "intel_dpll_mgr.h"
 #include "intel_dpt.h"
-#include "intel_dpt_common.h"
 #include "intel_drrs.h"
 #include "intel_dsb.h"
 #include "intel_dsi.h"
@@ -455,7 +453,7 @@ void intel_enable_transcoder(const struct intel_crtc_state *new_crtc_state)
 	}
 
 	/* Wa_22012358565:adl-p */
-	if (DISPLAY_VER(display) == 13)
+	if (intel_display_wa(display, INTEL_DISPLAY_WA_22012358565))
 		intel_de_rmw(display, PIPE_ARB_CTL(display, pipe),
 			     0, PIPE_ARB_USE_PROG_SLOTS);
 
@@ -709,7 +707,7 @@ static void icl_set_pipe_chicken(const struct intel_crtc_state *crtc_state)
 		tmp |= UNDERRUN_RECOVERY_DISABLE_ADLP;
 
 	/* Wa_14010547955:dg2 */
-	if (display->platform.dg2)
+	if (intel_display_wa(display, INTEL_DISPLAY_WA_14010547955))
 		tmp |= DG2_RENDER_CCSTAG_4_3_EN;
 
 	intel_de_write(display, PIPE_CHICKEN(pipe), tmp);
@@ -1008,6 +1006,28 @@ static bool intel_casf_disabling(const struct intel_crtc_state *old_crtc_state,
 	return is_disabling(hw.casf_params.casf_enable, old_crtc_state, new_crtc_state);
 }
 
+static bool intel_crtc_lobf_enabling(const struct intel_crtc_state *old_crtc_state,
+				     const struct intel_crtc_state *new_crtc_state)
+{
+	if (!new_crtc_state->hw.active)
+		return false;
+
+	return is_enabling(has_lobf, old_crtc_state, new_crtc_state) ||
+	       (new_crtc_state->has_lobf &&
+		(new_crtc_state->update_lrr || new_crtc_state->update_m_n));
+}
+
+static bool intel_crtc_lobf_disabling(const struct intel_crtc_state *old_crtc_state,
+				      const struct intel_crtc_state *new_crtc_state)
+{
+	if (!old_crtc_state->hw.active)
+		return false;
+
+	return is_disabling(has_lobf, old_crtc_state, new_crtc_state) ||
+		(old_crtc_state->has_lobf &&
+		 (new_crtc_state->update_lrr || new_crtc_state->update_m_n));
+}
+
 #undef is_disabling
 #undef is_enabling
 
@@ -1050,12 +1070,13 @@ static void intel_post_plane_update(struct intel_atomic_state *state,
 	if (audio_enabling(old_crtc_state, new_crtc_state))
 		intel_encoders_audio_enable(state, crtc);
 
-	if (intel_display_wa(display, 14011503117)) {
+	if (intel_display_wa(display, INTEL_DISPLAY_WA_14011503117)) {
 		if (old_crtc_state->pch_pfit.enabled != new_crtc_state->pch_pfit.enabled)
 			adl_scaler_ecc_unmask(new_crtc_state);
 	}
 
-	intel_alpm_post_plane_update(state, crtc);
+	if (intel_crtc_lobf_enabling(old_crtc_state, new_crtc_state))
+		intel_alpm_lobf_enable(new_crtc_state);
 
 	intel_psr_post_plane_update(state, crtc);
 }
@@ -1152,7 +1173,9 @@ static void intel_pre_plane_update(struct intel_atomic_state *state,
 		intel_atomic_get_new_crtc_state(state, crtc);
 	enum pipe pipe = crtc->pipe;
 
-	intel_alpm_pre_plane_update(state, crtc);
+	if (intel_crtc_lobf_disabling(old_crtc_state, new_crtc_state))
+		intel_alpm_lobf_disable(new_crtc_state);
+
 	intel_psr_pre_plane_update(state, crtc);
 
 	if (intel_crtc_vrr_disabling(state, crtc)) {
@@ -4324,6 +4347,23 @@ static int intel_crtc_atomic_check(struct intel_atomic_state *state,
 	return 0;
 }
 
+static int bpc_to_bpp(int bpc)
+{
+	switch (bpc) {
+	case 6 ... 7:
+		return 6 * 3;
+	case 8 ... 9:
+		return 8 * 3;
+	case 10 ... 11:
+		return 10 * 3;
+	case 12 ... 16:
+		return 12 * 3;
+	default:
+		MISSING_CASE(bpc);
+		return -EINVAL;
+	}
+}
+
 static int
 compute_sink_pipe_bpp(const struct drm_connector_state *conn_state,
 		      struct intel_crtc_state *crtc_state)
@@ -4331,36 +4371,34 @@ compute_sink_pipe_bpp(const struct drm_connector_state *conn_state,
 	struct intel_display *display = to_intel_display(crtc_state);
 	struct drm_connector *connector = conn_state->connector;
 	const struct drm_display_info *info = &connector->display_info;
-	int bpp;
+	int edid_bpc = info->bpc ? : 8;
+	int target_pipe_bpp;
+	int max_edid_bpp;
 
-	switch (conn_state->max_bpc) {
-	case 6 ... 7:
-		bpp = 6 * 3;
-		break;
-	case 8 ... 9:
-		bpp = 8 * 3;
-		break;
-	case 10 ... 11:
-		bpp = 10 * 3;
-		break;
-	case 12 ... 16:
-		bpp = 12 * 3;
-		break;
-	default:
-		MISSING_CASE(conn_state->max_bpc);
-		return -EINVAL;
-	}
+	max_edid_bpp = bpc_to_bpp(edid_bpc);
+	if (max_edid_bpp < 0)
+		return max_edid_bpp;
 
-	if (bpp < crtc_state->pipe_bpp) {
+	target_pipe_bpp = bpc_to_bpp(conn_state->max_bpc);
+	if (target_pipe_bpp < 0)
+		return target_pipe_bpp;
+
+	/*
+	 * The maximum pipe BPP is the minimum of the max platform BPP and
+	 * the max EDID BPP.
+	 */
+	crtc_state->max_pipe_bpp = min(crtc_state->pipe_bpp, max_edid_bpp);
+
+	if (target_pipe_bpp < crtc_state->pipe_bpp) {
 		drm_dbg_kms(display->drm,
-			    "[CONNECTOR:%d:%s] Limiting display bpp to %d "
+			    "[CONNECTOR:%d:%s] Limiting target display pipe bpp to %d "
 			    "(EDID bpp %d, max requested bpp %d, max platform bpp %d)\n",
 			    connector->base.id, connector->name,
-			    bpp, 3 * info->bpc,
+			    target_pipe_bpp, 3 * info->bpc,
 			    3 * conn_state->max_requested_bpc,
 			    crtc_state->pipe_bpp);
 
-		crtc_state->pipe_bpp = bpp;
+		crtc_state->pipe_bpp = target_pipe_bpp;
 	}
 
 	return 0;
@@ -5025,24 +5063,6 @@ static bool allow_vblank_delay_fastset(const struct intel_crtc_state *old_crtc_s
 	       !intel_crtc_has_type(old_crtc_state, INTEL_OUTPUT_DSI);
 }
 
-static void
-pipe_config_lt_phy_pll_mismatch(struct drm_printer *p, bool fastset,
-				const struct intel_crtc *crtc,
-				const char *name,
-				const struct intel_lt_phy_pll_state *a,
-				const struct intel_lt_phy_pll_state *b)
-{
-	struct intel_display *display = to_intel_display(crtc);
-	char *chipname = "LTPHY";
-
-	pipe_config_mismatch(p, fastset, crtc, name, chipname);
-
-	drm_printf(p, "expected:\n");
-	intel_lt_phy_dump_hw_state(display, a);
-	drm_printf(p, "found:\n");
-	intel_lt_phy_dump_hw_state(display, b);
-}
-
 bool
 intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 			  const struct intel_crtc_state *pipe_config,
@@ -5153,16 +5173,6 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 		pipe_config_pll_mismatch(&p, fastset, crtc, __stringify(name), \
 					 &current_config->name, \
 					 &pipe_config->name); \
-		ret = false; \
-	} \
-} while (0)
-
-#define PIPE_CONF_CHECK_PLL_LT(name) do { \
-	if (!intel_lt_phy_pll_compare_hw_state(&current_config->name, \
-					       &pipe_config->name)) { \
-		pipe_config_lt_phy_pll_mismatch(&p, fastset, crtc, __stringify(name), \
-						&current_config->name, \
-						&pipe_config->name); \
 		ret = false; \
 	} \
 } while (0)
@@ -5393,10 +5403,6 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	if (display->dpll.mgr || HAS_GMCH(display))
 		PIPE_CONF_CHECK_PLL(dpll_hw_state);
 
-	/* FIXME convert MTL+ platforms over to dpll_mgr */
-	if (HAS_LT_PHY(display))
-		PIPE_CONF_CHECK_PLL_LT(dpll_hw_state.ltpll);
-
 	PIPE_CONF_CHECK_X(dsi_pll.ctrl);
 	PIPE_CONF_CHECK_X(dsi_pll.div);
 
@@ -5464,7 +5470,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	PIPE_CONF_CHECK_I(dsc.config.nsl_bpg_offset);
 
 	PIPE_CONF_CHECK_BOOL(dsc.compression_enable);
-	PIPE_CONF_CHECK_I(dsc.num_streams);
+	PIPE_CONF_CHECK_I(dsc.slice_config.streams_per_pipe);
 	PIPE_CONF_CHECK_I(dsc.compressed_bpp_x16);
 
 	PIPE_CONF_CHECK_BOOL(splitter.enable);
@@ -7362,9 +7368,6 @@ static void intel_atomic_dsb_finish(struct intel_atomic_state *state,
 		intel_psr_trigger_frame_change_event(new_crtc_state->dsb_commit,
 						     state, crtc);
 
-		intel_psr_wait_for_idle_dsb(new_crtc_state->dsb_commit,
-					    new_crtc_state);
-
 		if (new_crtc_state->use_dsb)
 			intel_dsb_vblank_evade(state, new_crtc_state->dsb_commit);
 
@@ -7395,9 +7398,37 @@ static void intel_atomic_dsb_finish(struct intel_atomic_state *state,
 				new_crtc_state->dsb_color);
 
 	if (new_crtc_state->use_dsb && !intel_color_uses_chained_dsb(new_crtc_state)) {
-		intel_dsb_wait_vblanks(new_crtc_state->dsb_commit, 1);
+		/*
+		 * Dsb wait vblank may or may not skip. Let's remove it for PSR
+		 * trans push case to ensure we are not waiting two vblanks
+		 */
+		if (!intel_psr_use_trans_push(new_crtc_state))
+			intel_dsb_wait_vblanks(new_crtc_state->dsb_commit, 1);
 
 		intel_vrr_send_push(new_crtc_state->dsb_commit, new_crtc_state);
+
+		/*
+		 * Wait for idle is needed for corner case where PSR HW
+		 * is transitioning into DEEP_SLEEP/SRDENT_OFF when
+		 * new Frame Change event comes in. It is ok to do it
+		 * here for both Frame Change mechanism (trans push
+		 * and register write).
+		 */
+		intel_psr_wait_for_idle_dsb(new_crtc_state->dsb_commit,
+					    new_crtc_state);
+
+		/*
+		 * In case PSR uses trans push as a "frame change" event and
+		 * VRR is not in use we need to wait vblank. Otherwise we may
+		 * miss selective updates. DSB skips all waits while PSR is
+		 * active. Check push send is skipped as well because trans push
+		 * send bit is not reset by the HW if VRR is not
+		 * enabled -> we may start configuring new selective
+		 * update while previous is not complete.
+		 */
+		if (intel_psr_use_trans_push(new_crtc_state))
+			intel_dsb_wait_vblanks(new_crtc_state->dsb_commit, 1);
+
 		intel_dsb_wait_for_delayed_vblank(state, new_crtc_state->dsb_commit);
 		intel_vrr_check_push_sent(new_crtc_state->dsb_commit,
 					  new_crtc_state);
@@ -7833,7 +7864,8 @@ static bool intel_ddi_crt_present(struct intel_display *display)
 
 bool assert_port_valid(struct intel_display *display, enum port port)
 {
-	return !drm_WARN(display->drm, !(DISPLAY_RUNTIME_INFO(display)->port_mask & BIT(port)),
+	return !drm_WARN(display->drm,
+			 !(port >= 0 && DISPLAY_RUNTIME_INFO(display)->port_mask & BIT(port)),
 			 "Platform does not support port %c\n", port_name(port));
 }
 
@@ -8004,6 +8036,25 @@ void intel_setup_outputs(struct intel_display *display)
 	intel_init_pch_refclk(display);
 
 	drm_helper_move_panel_connectors_to_head(display->drm);
+}
+
+int intel_max_uncompressed_dotclock(struct intel_display *display)
+{
+	int max_dotclock = display->cdclk.max_dotclk_freq;
+	int limit = max_dotclock;
+
+	if (DISPLAY_VERx100(display) == 3002)
+		limit = 937500;
+	else if (DISPLAY_VER(display) >= 30)
+		limit = 1350000;
+	/*
+	 * Note: For other platforms though there are limits given
+	 * in the Bspec, however the limit is intentionally not
+	 * enforced to avoid regressions, unless real issues are
+	 * observed.
+	 */
+
+	return min(max_dotclock, limit);
 }
 
 static int max_dotclock(struct intel_display *display)

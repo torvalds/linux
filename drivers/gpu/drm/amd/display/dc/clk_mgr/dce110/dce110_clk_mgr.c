@@ -92,7 +92,7 @@ static int determine_sclk_from_bounding_box(
 uint32_t dce110_get_min_vblank_time_us(const struct dc_state *context)
 {
 	uint8_t j;
-	uint32_t min_vertical_blank_time = -1;
+	uint32_t min_vertical_blank_time = (uint32_t)-1;
 
 	for (j = 0; j < context->stream_count; j++) {
 		struct dc_stream_state *stream = context->streams[j];

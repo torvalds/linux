@@ -539,6 +539,7 @@ static void dce112_get_pix_clk_dividers_helper (
 		struct pll_settings *pll_settings,
 		struct pixel_clk_params *pix_clk_params)
 {
+	(void)clk_src;
 	uint32_t actual_pixel_clock_100hz;
 
 	actual_pixel_clock_100hz = pix_clk_params->requested_pix_clk_100hz;
@@ -610,7 +611,7 @@ static uint32_t dce112_get_pix_clk_dividers(
 			|| pix_clk_params->requested_pix_clk_100hz == 0) {
 		DC_LOG_ERROR(
 			"%s: Invalid parameters!!\n", __func__);
-		return -1;
+		return (uint32_t)-1;
 	}
 
 	memset(pll_settings, 0, sizeof(*pll_settings));
@@ -621,7 +622,7 @@ static uint32_t dce112_get_pix_clk_dividers(
 		pll_settings->calculated_pix_clk_100hz = clk_src->ext_clk_khz * 10;
 		pll_settings->actual_pix_clk_100hz =
 					pix_clk_params->requested_pix_clk_100hz;
-		return -1;
+		return (uint32_t)-1;
 	}
 
 	dce112_get_pix_clk_dividers_helper(clk_src,
@@ -847,6 +848,7 @@ static bool dce110_program_pix_clk(
 		enum dp_link_encoding encoding,
 		struct pll_settings *pll_settings)
 {
+	(void)encoding;
 	struct dce110_clk_src *clk_src = TO_DCE110_CLK_SRC(clock_source);
 	struct bp_pixel_clock_parameters bp_pc_params = {0};
 
@@ -921,6 +923,7 @@ static bool dce112_program_pix_clk(
 		enum dp_link_encoding encoding,
 		struct pll_settings *pll_settings)
 {
+	(void)encoding;
 	struct dce110_clk_src *clk_src = TO_DCE110_CLK_SRC(clock_source);
 	struct bp_pixel_clock_parameters bp_pc_params = {0};
 
@@ -1070,6 +1073,7 @@ static bool dcn401_program_pix_clk(
 		enum dp_link_encoding encoding,
 		struct pll_settings *pll_settings)
 {
+	(void)encoding;
 	struct dce110_clk_src *clk_src = TO_DCE110_CLK_SRC(clock_source);
 	unsigned int inst = pix_clk_params->controller_id - CONTROLLER_ID_D0;
 	const struct pixel_rate_range_table_entry *e =
@@ -1376,7 +1380,7 @@ static uint32_t dcn3_get_pix_clk_dividers(
 			|| pix_clk_params->requested_pix_clk_100hz == 0) {
 		DC_LOG_ERROR(
 			"%s: Invalid parameters!!\n", __func__);
-		return -1;
+		return UINT_MAX;
 	}
 
 	memset(pll_settings, 0, sizeof(*pll_settings));

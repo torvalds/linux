@@ -1654,6 +1654,7 @@ static struct resource_funcs dcn321_res_pool_funcs = {
 	.calculate_mall_ways_from_bytes = dcn32_calculate_mall_ways_from_bytes,
 	.get_vstartup_for_pipe = dcn10_get_vstartup_for_pipe,
 	.get_max_hw_cursor_size = dcn32_get_max_hw_cursor_size,
+	.get_default_tiling_info = dcn10_get_default_tiling_info,
 };
 
 static uint32_t read_pipe_fuses(struct dc_context *ctx)
@@ -1729,7 +1730,7 @@ static bool dcn321_resource_construct(
 	/*************************************************
 	 *  Resource + asic cap harcoding                *
 	 *************************************************/
-	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
+	pool->base.underlay_pipe_index = (unsigned int)NO_UNDERLAY_PIPE;
 	pool->base.timing_generator_count = num_pipes;
 	pool->base.pipe_count = num_pipes;
 	pool->base.mpcc_count = num_pipes;

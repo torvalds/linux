@@ -37,6 +37,7 @@
 #include <drm/drm_client_event.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_device.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_file.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_probe_helper.h>
@@ -1574,7 +1575,6 @@ int radeon_suspend_kms(struct drm_device *dev, bool suspend,
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 		struct drm_framebuffer *fb = crtc->primary->fb;
-		struct radeon_bo *robj;
 
 		if (radeon_crtc->cursor_bo) {
 			struct radeon_bo *robj = gem_to_radeon_bo(radeon_crtc->cursor_bo);
@@ -1588,9 +1588,10 @@ int radeon_suspend_kms(struct drm_device *dev, bool suspend,
 		if (fb == NULL || fb->obj[0] == NULL) {
 			continue;
 		}
-		robj = gem_to_radeon_bo(fb->obj[0]);
 		/* don't unpin kernel fb objects */
-		if (!radeon_fbdev_robj_is_fb(rdev, robj)) {
+		if (!drm_fb_helper_gem_is_fb(dev->fb_helper, fb->obj[0])) {
+			struct radeon_bo *robj = gem_to_radeon_bo(fb->obj[0]);
+
 			r = radeon_bo_reserve(robj, false);
 			if (r == 0) {
 				radeon_bo_unpin(robj);

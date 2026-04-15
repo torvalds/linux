@@ -116,12 +116,25 @@ static int lt9611_mipi_input_digital(struct lt9611 *lt9611,
 		{ 0x830a, 0x00 },
 		{ 0x824f, 0x80 },
 		{ 0x8250, 0x10 },
+		{ 0x8303, 0x00 },
 		{ 0x8302, 0x0a },
 		{ 0x8306, 0x0a },
 	};
 
-	if (lt9611->dsi1_node)
-		reg_cfg[1].def = 0x03;
+	if (lt9611->dsi1_node) {
+		if (lt9611->dsi0_node) {
+			/* Dual port (Port A + B) */
+			reg_cfg[1].def = 0x03;
+		} else {
+			/*
+			 * Single port B:
+			 * - 0x8303 bit 6: port swap (1=PortB as primary)
+			 * - 0x8250 bit 3:2: byte_clk source (01=PortB)
+			 */
+			reg_cfg[3].def = 0x14;
+			reg_cfg[4].def = 0x40;
+		}
+	}
 
 	return regmap_multi_reg_write(lt9611->regmap, reg_cfg, ARRAY_SIZE(reg_cfg));
 }
@@ -202,7 +215,9 @@ static void lt9611_pcr_setup(struct lt9611 *lt9611, const struct drm_display_mod
 	regmap_write(lt9611->regmap, 0x831d, pol);
 
 	regmap_multi_reg_write(lt9611->regmap, reg_cfg, ARRAY_SIZE(reg_cfg));
-	if (lt9611->dsi1_node) {
+
+	/* dual port: configure hact for combining two DSI inputs */
+	if (lt9611->dsi0_node && lt9611->dsi1_node) {
 		unsigned int hact = mode->hdisplay;
 
 		hact >>= 2;
@@ -759,7 +774,8 @@ static enum drm_mode_status lt9611_bridge_mode_valid(struct drm_bridge *bridge,
 	if (mode->hdisplay > 3840)
 		return MODE_BAD_HVALUE;
 
-	if (mode->hdisplay > 2000 && !lt9611->dsi1_node)
+	/* high resolution requires dual port (Port A + B) */
+	if (mode->hdisplay > 2000 && !(lt9611->dsi0_node && lt9611->dsi1_node))
 		return MODE_PANEL;
 
 	return MODE_OK;
@@ -1033,12 +1049,12 @@ static int lt9611_parse_dt(struct device *dev,
 			   struct lt9611 *lt9611)
 {
 	lt9611->dsi0_node = of_graph_get_remote_node(dev->of_node, 0, -1);
-	if (!lt9611->dsi0_node) {
-		dev_err(lt9611->dev, "failed to get remote node for primary dsi\n");
+	lt9611->dsi1_node = of_graph_get_remote_node(dev->of_node, 1, -1);
+
+	if (!lt9611->dsi0_node && !lt9611->dsi1_node) {
+		dev_err(lt9611->dev, "failed to get remote node for dsi\n");
 		return -ENODEV;
 	}
-
-	lt9611->dsi1_node = of_graph_get_remote_node(dev->of_node, 1, -1);
 
 	lt9611->ac_mode = of_property_read_bool(dev->of_node, "lt,ac-mode");
 
@@ -1161,14 +1177,16 @@ static int lt9611_probe(struct i2c_client *client)
 
 	drm_bridge_add(&lt9611->bridge);
 
-	/* Attach primary DSI */
-	lt9611->dsi0 = lt9611_attach_dsi(lt9611, lt9611->dsi0_node);
-	if (IS_ERR(lt9611->dsi0)) {
-		ret = PTR_ERR(lt9611->dsi0);
-		goto err_remove_bridge;
+	/* Attach primary DSI (directly drives or Port A in dual-port mode) */
+	if (lt9611->dsi0_node) {
+		lt9611->dsi0 = lt9611_attach_dsi(lt9611, lt9611->dsi0_node);
+		if (IS_ERR(lt9611->dsi0)) {
+			ret = PTR_ERR(lt9611->dsi0);
+			goto err_remove_bridge;
+		}
 	}
 
-	/* Attach secondary DSI, if specified */
+	/* Attach secondary DSI (Port B in single or dual-port mode) */
 	if (lt9611->dsi1_node) {
 		lt9611->dsi1 = lt9611_attach_dsi(lt9611, lt9611->dsi1_node);
 		if (IS_ERR(lt9611->dsi1)) {

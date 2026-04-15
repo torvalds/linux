@@ -176,8 +176,7 @@ const struct dpu_mdss_cfg dpu_msm8917_cfg = {
 	.pingpong = msm8917_pp,
 	.intf_count = ARRAY_SIZE(msm8917_intf),
 	.intf = msm8917_intf,
-	.vbif_count = ARRAY_SIZE(msm8996_vbif),
-	.vbif = msm8996_vbif,
+	.vbif = &msm8996_vbif,
 	.perf = &msm8917_perf_data,
 };
 

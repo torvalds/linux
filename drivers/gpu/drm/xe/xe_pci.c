@@ -52,6 +52,7 @@ __diag_ignore_all("-Woverride-init", "Allow field overrides in table");
 
 static const struct xe_graphics_desc graphics_xelp = {
 	.hw_engine_mask = BIT(XE_HW_ENGINE_RCS0) | BIT(XE_HW_ENGINE_BCS0),
+	.num_geometry_xecore_fuse_regs = 1,
 };
 
 #define XE_HP_FEATURES \
@@ -62,6 +63,8 @@ static const struct xe_graphics_desc graphics_xehpg = {
 		BIT(XE_HW_ENGINE_RCS0) | BIT(XE_HW_ENGINE_BCS0) |
 		BIT(XE_HW_ENGINE_CCS0) | BIT(XE_HW_ENGINE_CCS1) |
 		BIT(XE_HW_ENGINE_CCS2) | BIT(XE_HW_ENGINE_CCS3),
+	.num_geometry_xecore_fuse_regs = 1,
+	.num_compute_xecore_fuse_regs = 1,
 
 	XE_HP_FEATURES,
 };
@@ -78,20 +81,25 @@ static const struct xe_graphics_desc graphics_xehpc = {
 
 	XE_HP_FEATURES,
 
+	.has_access_counter = 1,
 	.has_asid = 1,
 	.has_atomic_enable_pte_bit = 1,
 	.has_usm = 1,
+	.num_compute_xecore_fuse_regs = 2,
 };
 
 static const struct xe_graphics_desc graphics_xelpg = {
 	.hw_engine_mask =
 		BIT(XE_HW_ENGINE_RCS0) | BIT(XE_HW_ENGINE_BCS0) |
 		BIT(XE_HW_ENGINE_CCS0),
+	.num_geometry_xecore_fuse_regs = 1,
+	.num_compute_xecore_fuse_regs = 1,
 
 	XE_HP_FEATURES,
 };
 
 #define XE2_GFX_FEATURES \
+	.has_access_counter = 1, \
 	.has_asid = 1, \
 	.has_atomic_enable_pte_bit = 1, \
 	.has_range_tlb_inval = 1, \
@@ -104,14 +112,28 @@ static const struct xe_graphics_desc graphics_xelpg = {
 
 static const struct xe_graphics_desc graphics_xe2 = {
 	XE2_GFX_FEATURES,
+	.num_geometry_xecore_fuse_regs = 3,
+	.num_compute_xecore_fuse_regs = 3,
+};
+
+static const struct xe_graphics_desc graphics_xe3p_lpg = {
+	XE2_GFX_FEATURES,
+	.multi_queue_engine_class_mask = BIT(XE_ENGINE_CLASS_COPY) | BIT(XE_ENGINE_CLASS_COMPUTE),
+	.num_geometry_xecore_fuse_regs = 3,
+	.num_compute_xecore_fuse_regs = 3,
 };
 
 static const struct xe_graphics_desc graphics_xe3p_xpc = {
 	XE2_GFX_FEATURES,
+	.has_access_counter = 0,
 	.has_indirect_ring_state = 1,
 	.hw_engine_mask =
 		GENMASK(XE_HW_ENGINE_BCS8, XE_HW_ENGINE_BCS1) |
 		GENMASK(XE_HW_ENGINE_CCS3, XE_HW_ENGINE_CCS0),
+	.multi_queue_engine_class_mask = BIT(XE_ENGINE_CLASS_COPY) |
+					 BIT(XE_ENGINE_CLASS_COMPUTE),
+	.num_geometry_xecore_fuse_regs = 4,
+	.num_compute_xecore_fuse_regs = 4,
 };
 
 static const struct xe_media_desc media_xem = {
@@ -146,6 +168,7 @@ static const struct xe_ip graphics_ips[] = {
 	{ 3003, "Xe3_LPG", &graphics_xe2 },
 	{ 3004, "Xe3_LPG", &graphics_xe2 },
 	{ 3005, "Xe3_LPG", &graphics_xe2 },
+	{ 3510, "Xe3p_LPG", &graphics_xe3p_lpg },
 	{ 3511, "Xe3p_XPC", &graphics_xe3p_xpc },
 };
 
@@ -164,6 +187,10 @@ static const struct xe_ip media_ips[] = {
 	{ 3503, "Xe3p_HPM", &media_xelpmp },
 };
 
+#define MULTI_LRC_MASK \
+	.multi_lrc_mask = BIT(XE_ENGINE_CLASS_VIDEO_DECODE) | \
+			  BIT(XE_ENGINE_CLASS_VIDEO_ENHANCE)
+
 static const struct xe_device_desc tgl_desc = {
 	.pre_gmdid_graphics_ip = &graphics_ip_xelp,
 	.pre_gmdid_media_ip = &media_ip_xem,
@@ -174,6 +201,7 @@ static const struct xe_device_desc tgl_desc = {
 	.has_llc = true,
 	.has_sriov = true,
 	.max_gt_per_tile = 1,
+	MULTI_LRC_MASK,
 	.require_force_probe = true,
 	.va_bits = 48,
 	.vm_max_level = 3,
@@ -188,6 +216,7 @@ static const struct xe_device_desc rkl_desc = {
 	.has_display = true,
 	.has_llc = true,
 	.max_gt_per_tile = 1,
+	MULTI_LRC_MASK,
 	.require_force_probe = true,
 	.va_bits = 48,
 	.vm_max_level = 3,
@@ -205,6 +234,7 @@ static const struct xe_device_desc adl_s_desc = {
 	.has_llc = true,
 	.has_sriov = true,
 	.max_gt_per_tile = 1,
+	MULTI_LRC_MASK,
 	.require_force_probe = true,
 	.subplatforms = (const struct xe_subplatform_desc[]) {
 		{ XE_SUBPLATFORM_ALDERLAKE_S_RPLS, "RPLS", adls_rpls_ids },
@@ -226,6 +256,7 @@ static const struct xe_device_desc adl_p_desc = {
 	.has_llc = true,
 	.has_sriov = true,
 	.max_gt_per_tile = 1,
+	MULTI_LRC_MASK,
 	.require_force_probe = true,
 	.subplatforms = (const struct xe_subplatform_desc[]) {
 		{ XE_SUBPLATFORM_ALDERLAKE_P_RPLU, "RPLU", adlp_rplu_ids },
@@ -245,6 +276,7 @@ static const struct xe_device_desc adl_n_desc = {
 	.has_llc = true,
 	.has_sriov = true,
 	.max_gt_per_tile = 1,
+	MULTI_LRC_MASK,
 	.require_force_probe = true,
 	.va_bits = 48,
 	.vm_max_level = 3,
@@ -263,6 +295,7 @@ static const struct xe_device_desc dg1_desc = {
 	.has_gsc_nvm = 1,
 	.has_heci_gscfi = 1,
 	.max_gt_per_tile = 1,
+	MULTI_LRC_MASK,
 	.require_force_probe = true,
 	.va_bits = 48,
 	.vm_max_level = 3,
@@ -293,6 +326,7 @@ static const struct xe_device_desc ats_m_desc = {
 	.pre_gmdid_media_ip = &media_ip_xehpm,
 	.dma_mask_size = 46,
 	.max_gt_per_tile = 1,
+	MULTI_LRC_MASK,
 	.require_force_probe = true,
 
 	DG2_FEATURES,
@@ -305,6 +339,7 @@ static const struct xe_device_desc dg2_desc = {
 	.pre_gmdid_media_ip = &media_ip_xehpm,
 	.dma_mask_size = 46,
 	.max_gt_per_tile = 1,
+	MULTI_LRC_MASK,
 	.require_force_probe = true,
 
 	DG2_FEATURES,
@@ -323,6 +358,7 @@ static const __maybe_unused struct xe_device_desc pvc_desc = {
 	.has_heci_gscfi = 1,
 	.max_gt_per_tile = 1,
 	.max_remote_tiles = 1,
+	MULTI_LRC_MASK,
 	.require_force_probe = true,
 	.va_bits = 57,
 	.vm_max_level = 4,
@@ -338,6 +374,7 @@ static const struct xe_device_desc mtl_desc = {
 	.has_display = true,
 	.has_pxp = true,
 	.max_gt_per_tile = 2,
+	MULTI_LRC_MASK,
 	.va_bits = 48,
 	.vm_max_level = 3,
 };
@@ -349,6 +386,7 @@ static const struct xe_device_desc lnl_desc = {
 	.has_flat_ccs = 1,
 	.has_pxp = true,
 	.max_gt_per_tile = 2,
+	MULTI_LRC_MASK,
 	.needs_scratch = true,
 	.va_bits = 48,
 	.vm_max_level = 4,
@@ -373,6 +411,7 @@ static const struct xe_device_desc bmg_desc = {
 	.has_soc_remapper_telem = true,
 	.has_sriov = true,
 	.max_gt_per_tile = 2,
+	MULTI_LRC_MASK,
 	.needs_scratch = true,
 	.subplatforms = (const struct xe_subplatform_desc[]) {
 		{ XE_SUBPLATFORM_BATTLEMAGE_G21, "G21", bmg_g21_ids },
@@ -391,6 +430,7 @@ static const struct xe_device_desc ptl_desc = {
 	.has_pre_prod_wa = 1,
 	.has_pxp = true,
 	.max_gt_per_tile = 2,
+	MULTI_LRC_MASK,
 	.needs_scratch = true,
 	.needs_shared_vf_gt_wq = true,
 	.va_bits = 48,
@@ -404,6 +444,7 @@ static const struct xe_device_desc nvls_desc = {
 	.has_flat_ccs = 1,
 	.has_pre_prod_wa = 1,
 	.max_gt_per_tile = 2,
+	MULTI_LRC_MASK,
 	.require_force_probe = true,
 	.va_bits = 48,
 	.vm_max_level = 4,
@@ -425,8 +466,24 @@ static const struct xe_device_desc cri_desc = {
 	.has_soc_remapper_telem = true,
 	.has_sriov = true,
 	.max_gt_per_tile = 2,
+	MULTI_LRC_MASK,
 	.require_force_probe = true,
 	.va_bits = 57,
+	.vm_max_level = 4,
+};
+
+static const struct xe_device_desc nvlp_desc = {
+	PLATFORM(NOVALAKE_P),
+	.dma_mask_size = 46,
+	.has_cached_pt = true,
+	.has_display = true,
+	.has_flat_ccs = 1,
+	.has_page_reclaim_hw_assist = true,
+	.has_pre_prod_wa = true,
+	.max_gt_per_tile = 2,
+	MULTI_LRC_MASK,
+	.require_force_probe = true,
+	.va_bits = 48,
 	.vm_max_level = 4,
 };
 
@@ -459,6 +516,7 @@ static const struct pci_device_id pciidlist[] = {
 	INTEL_WCL_IDS(INTEL_VGA_DEVICE, &ptl_desc),
 	INTEL_NVLS_IDS(INTEL_VGA_DEVICE, &nvls_desc),
 	INTEL_CRI_IDS(INTEL_PCI_DEVICE, &cri_desc),
+	INTEL_NVLP_IDS(INTEL_VGA_DEVICE, &nvlp_desc),
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, pciidlist);
@@ -710,6 +768,7 @@ static int xe_info_init_early(struct xe_device *xe,
 	xe->info.skip_pcode = desc->skip_pcode;
 	xe->info.needs_scratch = desc->needs_scratch;
 	xe->info.needs_shared_vf_gt_wq = desc->needs_shared_vf_gt_wq;
+	xe->info.multi_lrc_mask = desc->multi_lrc_mask;
 
 	xe->info.probe_display = IS_ENABLED(CONFIG_DRM_XE_DISPLAY) &&
 				 xe_modparam.probe_display &&
@@ -719,6 +778,8 @@ static int xe_info_init_early(struct xe_device *xe,
 	xe_assert(xe, desc->max_gt_per_tile <= XE_MAX_GT_PER_TILE);
 	xe->info.max_gt_per_tile = desc->max_gt_per_tile;
 	xe->info.tile_count = 1 + desc->max_remote_tiles;
+
+	xe_step_platform_get(xe);
 
 	err = xe_tile_init_early(xe_device_get_root_tile(xe), xe, 0);
 	if (err)
@@ -786,6 +847,8 @@ static struct xe_gt *alloc_primary_gt(struct xe_tile *tile,
 	gt->info.has_indirect_ring_state = graphics_desc->has_indirect_ring_state;
 	gt->info.multi_queue_engine_class_mask = graphics_desc->multi_queue_engine_class_mask;
 	gt->info.engine_mask = graphics_desc->hw_engine_mask;
+	gt->info.num_geometry_xecore_fuse_regs = graphics_desc->num_geometry_xecore_fuse_regs;
+	gt->info.num_compute_xecore_fuse_regs = graphics_desc->num_compute_xecore_fuse_regs;
 
 	/*
 	 * Before media version 13, the media IP was part of the primary GT
@@ -852,7 +915,7 @@ static int xe_info_init(struct xe_device *xe,
 	if (desc->pre_gmdid_graphics_ip) {
 		graphics_ip = desc->pre_gmdid_graphics_ip;
 		media_ip = desc->pre_gmdid_media_ip;
-		xe->info.step = xe_step_pre_gmdid_get(xe);
+		xe_step_pre_gmdid_get(xe);
 	} else {
 		xe_assert(xe, !desc->pre_gmdid_media_ip);
 		ret = handle_gmdid(xe, &graphics_ip, &media_ip,
@@ -860,9 +923,7 @@ static int xe_info_init(struct xe_device *xe,
 		if (ret)
 			return ret;
 
-		xe->info.step = xe_step_gmdid_get(xe,
-						  graphics_gmdid_revid,
-						  media_gmdid_revid);
+		xe_step_gmdid_get(xe, graphics_gmdid_revid, media_gmdid_revid);
 	}
 
 	/*
@@ -886,12 +947,14 @@ static int xe_info_init(struct xe_device *xe,
 		media_desc = NULL;
 	}
 
+	xe->info.has_access_counter = graphics_desc->has_access_counter;
 	xe->info.has_asid = graphics_desc->has_asid;
 	xe->info.has_atomic_enable_pte_bit = graphics_desc->has_atomic_enable_pte_bit;
 	if (xe->info.platform != XE_PVC)
 		xe->info.has_device_atomics_on_smem = 1;
 
 	xe->info.has_range_tlb_inval = graphics_desc->has_range_tlb_inval;
+	xe->info.has_ctx_tlb_inval = graphics_desc->has_ctx_tlb_inval;
 	xe->info.has_usm = graphics_desc->has_usm;
 	xe->info.has_64bit_timestamp = graphics_desc->has_64bit_timestamp;
 	xe->info.has_mem_copy_instr = GRAPHICS_VER(xe) >= 20;

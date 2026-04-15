@@ -223,9 +223,7 @@ uint amdgpu_dc_visual_confirm;
 int amdgpu_async_gfx_ring = 1;
 int amdgpu_mcbp = -1;
 int amdgpu_discovery = -1;
-int amdgpu_mes;
 int amdgpu_mes_log_enable = 0;
-int amdgpu_mes_kiq;
 int amdgpu_uni_mes = 1;
 int amdgpu_noretry = -1;
 int amdgpu_force_asic_type = -1;
@@ -691,15 +689,6 @@ MODULE_PARM_DESC(discovery,
 module_param_named(discovery, amdgpu_discovery, int, 0444);
 
 /**
- * DOC: mes (int)
- * Enable Micro Engine Scheduler. This is a new hw scheduling engine for gfx, sdma, and compute.
- * (0 = disabled (default), 1 = enabled)
- */
-MODULE_PARM_DESC(mes,
-	"Enable Micro Engine Scheduler (0 = disabled (default), 1 = enabled)");
-module_param_named(mes, amdgpu_mes, int, 0444);
-
-/**
  * DOC: mes_log_enable (int)
  * Enable Micro Engine Scheduler log. This is used to enable/disable MES internal log.
  * (0 = disabled (default), 1 = enabled)
@@ -707,15 +696,6 @@ module_param_named(mes, amdgpu_mes, int, 0444);
 MODULE_PARM_DESC(mes_log_enable,
 	"Enable Micro Engine Scheduler log (0 = disabled (default), 1 = enabled)");
 module_param_named(mes_log_enable, amdgpu_mes_log_enable, int, 0444);
-
-/**
- * DOC: mes_kiq (int)
- * Enable Micro Engine Scheduler KIQ. This is a new engine pipe for kiq.
- * (0 = disabled (default), 1 = enabled)
- */
-MODULE_PARM_DESC(mes_kiq,
-	"Enable Micro Engine Scheduler KIQ (0 = disabled (default), 1 = enabled)");
-module_param_named(mes_kiq, amdgpu_mes_kiq, int, 0444);
 
 /**
  * DOC: uni_mes (int)
@@ -859,8 +839,8 @@ module_param_named_unsafe(no_queue_eviction_on_vm_fault, amdgpu_no_queue_evictio
 /**
  * DOC: mtype_local (int)
  */
-int amdgpu_mtype_local;
-MODULE_PARM_DESC(mtype_local, "MTYPE for local memory (0 = MTYPE_RW (default), 1 = MTYPE_NC, 2 = MTYPE_CC)");
+int amdgpu_mtype_local = -1;
+MODULE_PARM_DESC(mtype_local, "MTYPE for local memory (default: ASIC dependent, 0 = MTYPE_RW, 1 = MTYPE_NC, 2 = MTYPE_CC)");
 module_param_named_unsafe(mtype_local, amdgpu_mtype_local, int, 0444);
 
 /**
@@ -2976,9 +2956,11 @@ static int amdgpu_drm_release(struct inode *inode, struct file *filp)
 	int idx;
 
 	if (fpriv && drm_dev_enter(dev, &idx)) {
-		fpriv->evf_mgr.fd_closing = true;
-		amdgpu_eviction_fence_destroy(&fpriv->evf_mgr);
+		amdgpu_evf_mgr_shutdown(&fpriv->evf_mgr);
+		amdgpu_userq_mgr_cancel_resume(&fpriv->userq_mgr);
+		amdgpu_evf_mgr_flush_suspend(&fpriv->evf_mgr);
 		amdgpu_userq_mgr_fini(&fpriv->userq_mgr);
+		amdgpu_evf_mgr_fini(&fpriv->evf_mgr);
 		drm_dev_exit(idx);
 	}
 

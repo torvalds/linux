@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 /* Copyright © 2025 Intel Corporation */
 
+#include <drm/intel/display_parent_interface.h>
+
 #include "i915_drv.h"
 #include "i915_gem_object_frontbuffer.h"
 
@@ -101,3 +103,70 @@ void i915_gem_object_frontbuffer_put(struct i915_frontbuffer *front)
 	kref_put_lock(&front->ref, frontbuffer_release,
 		      &i915->frontbuffer_lock);
 }
+
+void __i915_gem_object_frontbuffer_flush(struct drm_i915_gem_object *obj,
+					 enum fb_op_origin origin)
+{
+	struct i915_frontbuffer *front;
+
+	front = i915_gem_object_frontbuffer_lookup(obj);
+	if (front) {
+		intel_frontbuffer_flush(&front->base, origin);
+		i915_gem_object_frontbuffer_put(front);
+	}
+}
+
+void __i915_gem_object_frontbuffer_invalidate(struct drm_i915_gem_object *obj,
+					      enum fb_op_origin origin)
+{
+	struct i915_frontbuffer *front;
+
+	front = i915_gem_object_frontbuffer_lookup(obj);
+	if (front) {
+		intel_frontbuffer_invalidate(&front->base, origin);
+		i915_gem_object_frontbuffer_put(front);
+	}
+}
+
+static struct intel_frontbuffer *i915_frontbuffer_get(struct drm_gem_object *_obj)
+{
+	struct drm_i915_gem_object *obj = to_intel_bo(_obj);
+	struct i915_frontbuffer *front;
+
+	front = i915_gem_object_frontbuffer_get(obj);
+	if (!front)
+		return NULL;
+
+	return &front->base;
+}
+
+static void i915_frontbuffer_ref(struct intel_frontbuffer *_front)
+{
+	struct i915_frontbuffer *front =
+		container_of(_front, typeof(*front), base);
+
+	i915_gem_object_frontbuffer_ref(front);
+}
+
+static void i915_frontbuffer_put(struct intel_frontbuffer *_front)
+{
+	struct i915_frontbuffer *front =
+		container_of(_front, typeof(*front), base);
+
+	return i915_gem_object_frontbuffer_put(front);
+}
+
+static void i915_frontbuffer_flush_for_display(struct intel_frontbuffer *_front)
+{
+	struct i915_frontbuffer *front =
+		container_of(_front, typeof(*front), base);
+
+	i915_gem_object_flush_if_display(front->obj);
+}
+
+const struct intel_display_frontbuffer_interface i915_display_frontbuffer_interface = {
+	.get = i915_frontbuffer_get,
+	.ref = i915_frontbuffer_ref,
+	.put = i915_frontbuffer_put,
+	.flush_for_display = i915_frontbuffer_flush_for_display,
+};

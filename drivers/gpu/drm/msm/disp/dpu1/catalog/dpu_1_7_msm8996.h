@@ -320,8 +320,7 @@ const struct dpu_mdss_cfg dpu_msm8996_cfg = {
 	.dsc = msm8996_dsc,
 	.intf_count = ARRAY_SIZE(msm8996_intf),
 	.intf = msm8996_intf,
-	.vbif_count = ARRAY_SIZE(msm8996_vbif),
-	.vbif = msm8996_vbif,
+	.vbif = &msm8996_vbif,
 	.perf = &msm8996_perf_data,
 };
 

@@ -40,8 +40,6 @@ properties:
   spi-max-frequency:
     const: 10000000
 
-  port: true
-
   vci-supply:
     description: Analog voltage supply (2.5 .. 3.3V)
 
@@ -50,8 +48,6 @@ properties:
 
   vddi-led-supply:
     description: Voltage supply for the LED driver (1.65 .. 3.3 V)
-
-unevaluatedProperties: false
 
 required:
   - compatible
@@ -67,6 +63,8 @@ if:
 then:
   required:
     - port
+
+unevaluatedProperties: false
 
 examples:
   - |+

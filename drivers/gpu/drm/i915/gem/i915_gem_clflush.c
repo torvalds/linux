@@ -22,7 +22,7 @@ static void __do_clflush(struct drm_i915_gem_object *obj)
 	GEM_BUG_ON(!i915_gem_object_has_pages(obj));
 	drm_clflush_sg(obj->mm.pages);
 
-	i915_gem_object_flush_frontbuffer(obj, ORIGIN_CPU);
+	i915_gem_object_frontbuffer_flush(obj, ORIGIN_CPU);
 }
 
 static void clflush_work(struct dma_fence_work *base)

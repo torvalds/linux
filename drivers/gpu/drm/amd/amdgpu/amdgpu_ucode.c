@@ -291,22 +291,22 @@ void amdgpu_ucode_print_rlc_hdr(const struct common_firmware_header *hdr)
 			break;
 		case 5:
 			/* rlc_hdr v2_5 */
-			DRM_INFO("rlc_iram_ucode_size_bytes: %u\n",
+			DRM_DEBUG("rlc_iram_ucode_size_bytes: %u\n",
 				  le32_to_cpu(rlc_hdr_v2_5->v2_2.rlc_iram_ucode_size_bytes));
-			DRM_INFO("rlc_iram_ucode_offset_bytes: %u\n",
+			DRM_DEBUG("rlc_iram_ucode_offset_bytes: %u\n",
 				  le32_to_cpu(rlc_hdr_v2_5->v2_2.rlc_iram_ucode_offset_bytes));
-			DRM_INFO("rlc_dram_ucode_size_bytes: %u\n",
+			DRM_DEBUG("rlc_dram_ucode_size_bytes: %u\n",
 				  le32_to_cpu(rlc_hdr_v2_5->v2_2.rlc_dram_ucode_size_bytes));
-			DRM_INFO("rlc_dram_ucode_offset_bytes: %u\n",
+			DRM_DEBUG("rlc_dram_ucode_offset_bytes: %u\n",
 				  le32_to_cpu(rlc_hdr_v2_5->v2_2.rlc_dram_ucode_offset_bytes));
 			/* rlc_hdr v2_5 */
-			DRM_INFO("rlc_1_iram_ucode_size_bytes: %u\n",
+			DRM_DEBUG("rlc_1_iram_ucode_size_bytes: %u\n",
 				  le32_to_cpu(rlc_hdr_v2_5->rlc_1_iram_ucode_size_bytes));
-			DRM_INFO("rlc_1_iram_ucode_offset_bytes: %u\n",
+			DRM_DEBUG("rlc_1_iram_ucode_offset_bytes: %u\n",
 				  le32_to_cpu(rlc_hdr_v2_5->rlc_1_iram_ucode_offset_bytes));
-			DRM_INFO("rlc_1_dram_ucode_size_bytes: %u\n",
+			DRM_DEBUG("rlc_1_dram_ucode_size_bytes: %u\n",
 				  le32_to_cpu(rlc_hdr_v2_5->rlc_1_dram_ucode_size_bytes));
-			DRM_INFO("rlc_1_dram_ucode_offset_bytes: %u\n",
+			DRM_DEBUG("rlc_1_dram_ucode_offset_bytes: %u\n",
 				  le32_to_cpu(rlc_hdr_v2_5->rlc_1_dram_ucode_offset_bytes));
 			break;
 		default:
@@ -1150,7 +1150,7 @@ int amdgpu_ucode_create_bo(struct amdgpu_device *adev)
 	if ((adev->firmware.load_type != AMDGPU_FW_LOAD_DIRECT) &&
 	    (adev->firmware.load_type != AMDGPU_FW_LOAD_RLC_BACKDOOR_AUTO)) {
 		amdgpu_bo_create_kernel(adev, adev->firmware.fw_size, PAGE_SIZE,
-			(amdgpu_sriov_vf(adev) || adev->debug_use_vram_fw_buf) ?
+			(amdgpu_sriov_vf(adev) || adev->debug_use_vram_fw_buf || adev->gmc.xgmi.connected_to_cpu) ?
 			AMDGPU_GEM_DOMAIN_VRAM : AMDGPU_GEM_DOMAIN_GTT,
 			&adev->firmware.fw_buf,
 			&adev->firmware.fw_buf_mc,

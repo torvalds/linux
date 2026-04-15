@@ -958,7 +958,10 @@ void dc_dmub_srv_log_diagnostic_data(struct dc_dmub_srv *dc_dmub_srv)
 {
 	uint32_t i;
 
-	if (!dc_dmub_srv || !dc_dmub_srv->dmub) {
+	if (!dc_dmub_srv)
+		return;
+
+	if (!dc_dmub_srv->dmub) {
 		DC_LOG_ERROR("%s: invalid parameters.", __func__);
 		return;
 	}
@@ -1082,6 +1085,7 @@ static void dc_build_cursor_attribute_update_payload1(
 		struct dmub_cursor_attributes_cfg *pl_A, const uint8_t p_idx,
 		const struct hubp *hubp, const struct dpp *dpp)
 {
+	(void)p_idx;
 	/* Hubp */
 	pl_A->aHubp.SURFACE_ADDR_HIGH = hubp->att.SURFACE_ADDR_HIGH;
 	pl_A->aHubp.SURFACE_ADDR = hubp->att.SURFACE_ADDR;
@@ -1163,7 +1167,10 @@ void dc_dmub_srv_enable_dpia_trace(const struct dc *dc)
 {
 	struct dc_dmub_srv *dc_dmub_srv = dc->ctx->dmub_srv;
 
-	if (!dc_dmub_srv || !dc_dmub_srv->dmub) {
+	if (!dc_dmub_srv)
+		return;
+
+	if (!dc_dmub_srv->dmub) {
 		DC_LOG_ERROR("%s: invalid parameters.", __func__);
 		return;
 	}
@@ -2347,6 +2354,33 @@ bool dmub_lsdma_send_poll_reg_write_command(struct dc_dmub_srv *dc_dmub_srv, uin
 bool dc_dmub_srv_is_cursor_offload_enabled(const struct dc *dc)
 {
 	return dc->ctx->dmub_srv && dc->ctx->dmub_srv->cursor_offload_enabled;
+}
+
+void dc_dmub_srv_boot_time_crc_init(const struct dc *dc, uint64_t gpu_addr, uint32_t size)
+{
+	struct dc_dmub_srv *dc_dmub_srv;
+	struct dc_context *dc_ctx;
+	union dmub_rb_cmd cmd = {0};
+	bool result = false;
+
+	if (!dc || !dc->ctx || !dc->ctx->dmub_srv || size == 0)
+		return;
+
+	dc_dmub_srv = dc->ctx->dmub_srv;
+	dc_ctx = dc_dmub_srv->ctx;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.boot_time_crc_init.header.type = DMUB_CMD__BOOT_TIME_CRC;
+	cmd.boot_time_crc_init.header.sub_type = DMUB_CMD__BOOT_TIME_CRC_INIT_MEM;
+	cmd.boot_time_crc_init.header.payload_bytes =
+		sizeof(struct dmub_rb_cmd_boot_time_crc_init);
+	cmd.boot_time_crc_init.data.buffer_addr.quad_part = gpu_addr;
+	cmd.boot_time_crc_init.data.buffer_size = size;
+
+	result = dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_NO_WAIT);
+
+	if (!result)
+		DC_ERROR("Boot time crc init failed in DMUB");
 }
 
 void dc_dmub_srv_release_hw(const struct dc *dc)

@@ -1,5 +1,5 @@
 #
-# Copyright 2017 Advanced Micro Devices, Inc.
+# Copyright 2017-2026 Advanced Micro Devices, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -28,18 +28,6 @@ CLK_MGR = clk_mgr.o
 AMD_DAL_CLK_MGR = $(addprefix $(AMDDALPATH)/dc/clk_mgr/,$(CLK_MGR))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR)
-
-
-ifdef CONFIG_DRM_AMD_DC_SI
-###############################################################################
-# DCE 60
-###############################################################################
-CLK_MGR_DCE60 = dce60_clk_mgr.o
-
-AMD_DAL_CLK_MGR_DCE60 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dce60/,$(CLK_MGR_DCE60))
-
-AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCE60)
-endif
 
 ###############################################################################
 # DCE 100 and DCE8x
@@ -188,4 +176,13 @@ CLK_MGR_DCN401 = dcn401_clk_mgr.o dcn401_clk_mgr_smu_msg.o
 AMD_DAL_CLK_MGR_DCN401 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn401/,$(CLK_MGR_DCN401))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN401)
+
+###############################################################################
+# DCN42
+###############################################################################
+CLK_MGR_DCN42 = dcn42_smu.o dcn42_clk_mgr.o
+
+AMD_DAL_CLK_MGR_DCN42 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn42/,$(CLK_MGR_DCN42))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN42)
 endif

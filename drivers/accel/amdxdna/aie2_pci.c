@@ -10,6 +10,7 @@
 #include <drm/drm_managed.h>
 #include <drm/drm_print.h>
 #include <drm/gpu_scheduler.h>
+#include <linux/amd-pmf-io.h>
 #include <linux/cleanup.h>
 #include <linux/errno.h>
 #include <linux/firmware.h>
@@ -791,12 +792,64 @@ static int aie2_get_clock_metadata(struct amdxdna_client *client,
 	return ret;
 }
 
+static int aie2_get_sensors(struct amdxdna_client *client,
+			    struct amdxdna_drm_get_info *args)
+{
+	struct amdxdna_dev_hdl *ndev = client->xdna->dev_handle;
+	struct amdxdna_drm_query_sensor sensor = {};
+	struct amd_pmf_npu_metrics npu_metrics;
+	u32 sensors_count = 0, i;
+	int ret;
+
+	ret = AIE2_GET_PMF_NPU_METRICS(&npu_metrics);
+	if (ret)
+		return ret;
+
+	sensor.type = AMDXDNA_SENSOR_TYPE_POWER;
+	sensor.input = npu_metrics.npu_power;
+	sensor.unitm = -3;
+	scnprintf(sensor.label, sizeof(sensor.label), "Total Power");
+	scnprintf(sensor.units, sizeof(sensor.units), "mW");
+
+	if (copy_to_user(u64_to_user_ptr(args->buffer), &sensor, sizeof(sensor)))
+		return -EFAULT;
+
+	sensors_count++;
+	if (args->buffer_size <= sensors_count * sizeof(sensor))
+		goto out;
+
+	for (i = 0; i < min_t(u32, ndev->total_col, 8); i++) {
+		memset(&sensor, 0, sizeof(sensor));
+		sensor.input = npu_metrics.npu_busy[i];
+		sensor.type = AMDXDNA_SENSOR_TYPE_COLUMN_UTILIZATION;
+		sensor.unitm = 0;
+		scnprintf(sensor.label, sizeof(sensor.label), "Column %d Utilization", i);
+		scnprintf(sensor.units, sizeof(sensor.units), "%%");
+
+		if (copy_to_user(u64_to_user_ptr(args->buffer) + sensors_count * sizeof(sensor),
+				 &sensor, sizeof(sensor)))
+			return -EFAULT;
+
+		sensors_count++;
+		if (args->buffer_size <= sensors_count * sizeof(sensor))
+			goto out;
+	}
+
+out:
+	args->buffer_size = sensors_count * sizeof(sensor);
+
+	return 0;
+}
+
 static int aie2_hwctx_status_cb(struct amdxdna_hwctx *hwctx, void *arg)
 {
 	struct amdxdna_drm_hwctx_entry *tmp __free(kfree) = NULL;
 	struct amdxdna_drm_get_array *array_args = arg;
 	struct amdxdna_drm_hwctx_entry __user *buf;
+	struct app_health_report report;
+	struct amdxdna_dev_hdl *ndev;
 	u32 size;
+	int ret;
 
 	if (!array_args->num_element)
 		return -EINVAL;
@@ -812,6 +865,7 @@ static int aie2_hwctx_status_cb(struct amdxdna_hwctx *hwctx, void *arg)
 	tmp->command_submissions = hwctx->priv->seq;
 	tmp->command_completions = hwctx->priv->completed;
 	tmp->pasid = hwctx->client->pasid;
+	tmp->heap_usage = hwctx->client->heap_usage;
 	tmp->priority = hwctx->qos.priority;
 	tmp->gops = hwctx->qos.gops;
 	tmp->fps = hwctx->qos.fps;
@@ -819,6 +873,17 @@ static int aie2_hwctx_status_cb(struct amdxdna_hwctx *hwctx, void *arg)
 	tmp->latency = hwctx->qos.latency;
 	tmp->frame_exec_time = hwctx->qos.frame_exec_time;
 	tmp->state = AMDXDNA_HWCTX_STATE_ACTIVE;
+	ndev = hwctx->client->xdna->dev_handle;
+	ret = aie2_query_app_health(ndev, hwctx->fw_ctx_id, &report);
+	if (!ret) {
+		/* Fill in app health report fields */
+		tmp->txn_op_idx = report.txn_op_id;
+		tmp->ctx_pc = report.ctx_pc;
+		tmp->fatal_error_type = report.fatal_info.fatal_type;
+		tmp->fatal_error_exception_type = report.fatal_info.exception_type;
+		tmp->fatal_error_exception_pc = report.fatal_info.exception_pc;
+		tmp->fatal_error_app_module = report.fatal_info.app_module;
+	}
 
 	buf = u64_to_user_ptr(array_args->buffer);
 	size = min(sizeof(*tmp), array_args->element_size);
@@ -994,6 +1059,9 @@ static int aie2_get_info(struct amdxdna_client *client, struct amdxdna_drm_get_i
 	case DRM_AMDXDNA_QUERY_CLOCK_METADATA:
 		ret = aie2_get_clock_metadata(client, args);
 		break;
+	case DRM_AMDXDNA_QUERY_SENSORS:
+		ret = aie2_get_sensors(client, args);
+		break;
 	case DRM_AMDXDNA_QUERY_HW_CONTEXTS:
 		ret = aie2_get_hwctx_status(client, args);
 		break;
@@ -1080,6 +1148,9 @@ static int aie2_get_array(struct amdxdna_client *client,
 		break;
 	case DRM_AMDXDNA_HW_LAST_ASYNC_ERR:
 		ret = aie2_get_array_async_error(xdna->dev_handle, args);
+		break;
+	case DRM_AMDXDNA_BO_USAGE:
+		ret = amdxdna_drm_get_bo_usage(&xdna->ddev, args);
 		break;
 	default:
 		XDNA_ERR(xdna, "Not supported request parameter %u", args->param);

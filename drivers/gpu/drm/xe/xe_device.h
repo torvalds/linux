@@ -12,6 +12,8 @@
 #include "xe_gt_types.h"
 #include "xe_sriov.h"
 
+struct xe_vm;
+
 static inline struct xe_device *to_xe_device(const struct drm_device *dev)
 {
 	return container_of(dev, struct xe_device, drm);
@@ -60,13 +62,6 @@ static inline struct xe_tile *xe_device_get_root_tile(struct xe_device *xe)
 	return &xe->tiles[0];
 }
 
-/*
- * Highest GT/tile count for any platform.  Used only for memory allocation
- * sizing.  Any logic looping over GTs or mapping userspace GT IDs into GT
- * structures should use the per-platform xe->info.max_gt_per_tile instead.
- */
-#define XE_MAX_GT_PER_TILE 2
-
 static inline struct xe_gt *xe_device_get_gt(struct xe_device *xe, u8 gt_id)
 {
 	struct xe_tile *tile;
@@ -114,6 +109,11 @@ static inline struct xe_gt *xe_root_mmio_gt(struct xe_device *xe)
 	return xe_device_get_root_tile(xe)->primary_gt;
 }
 
+static inline struct xe_mmio *xe_root_tile_mmio(struct xe_device *xe)
+{
+	return &xe->tiles[0].mmio;
+}
+
 static inline bool xe_device_uc_enabled(struct xe_device *xe)
 {
 	return !xe->info.force_execlist;
@@ -130,6 +130,10 @@ static inline bool xe_device_uc_enabled(struct xe_device *xe)
 #define for_each_gt(gt__, xe__, id__) \
 	for ((id__) = 0; (id__) < (xe__)->info.tile_count * (xe__)->info.max_gt_per_tile; (id__)++) \
 		for_each_if((gt__) = xe_device_get_gt((xe__), (id__)))
+
+#define for_each_gt_with_type(gt__, xe__, id__, typemask__) \
+	for_each_gt((gt__), (xe__), (id__)) \
+		for_each_if((typemask__) & BIT((gt__)->info.type))
 
 #define for_each_gt_on_tile(gt__, tile__, id__) \
 	for_each_gt((gt__), (tile__)->xe, (id__)) \
@@ -184,6 +188,7 @@ void xe_device_snapshot_print(struct xe_device *xe, struct drm_printer *p);
 u64 xe_device_canonicalize_addr(struct xe_device *xe, u64 address);
 u64 xe_device_uncanonicalize_addr(struct xe_device *xe, u64 address);
 
+bool xe_device_is_l2_flush_optimized(struct xe_device *xe);
 void xe_device_td_flush(struct xe_device *xe);
 void xe_device_l2_flush(struct xe_device *xe);
 
@@ -203,6 +208,8 @@ void xe_file_put(struct xe_file *xef);
 int xe_is_injection_active(void);
 
 bool xe_is_xe_file(const struct file *file);
+
+struct xe_vm *xe_device_asid_to_vm(struct xe_device *xe, u32 asid);
 
 /*
  * Occasionally it is seen that the G2H worker starts running after a delay of more than

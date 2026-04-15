@@ -79,7 +79,7 @@ static struct irq_source_info_funcs vupdate_irq_info_funcs = {
 		block ## reg_num ## _ ## reg1 ## __ ## mask1 ## _MASK,\
 	.enable_value = {\
 		block ## reg_num ## _ ## reg1 ## __ ## mask1 ## _MASK,\
-		~block ## reg_num ## _ ## reg1 ## __ ## mask1 ## _MASK \
+		(uint32_t)~block ## reg_num ## _ ## reg1 ## __ ## mask1 ## _MASK \
 	},\
 	.ack_reg = SRI(reg2, block, reg_num),\
 	.ack_mask = \

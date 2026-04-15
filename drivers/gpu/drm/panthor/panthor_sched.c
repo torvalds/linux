@@ -3916,7 +3916,7 @@ static void job_release(struct kref *ref)
 	if (job->base.s_fence)
 		drm_sched_job_cleanup(&job->base);
 
-	if (job->done_fence && job->done_fence->ops)
+	if (dma_fence_was_initialized(job->done_fence))
 		dma_fence_put(job->done_fence);
 	else
 		dma_fence_free(job->done_fence);

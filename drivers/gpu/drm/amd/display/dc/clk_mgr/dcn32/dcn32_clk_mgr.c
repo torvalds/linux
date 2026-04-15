@@ -872,6 +872,7 @@ static uint32_t dcn32_get_vco_frequency_from_reg(struct clk_mgr_internal *clk_mg
 static void dcn32_dump_clk_registers(struct clk_state_registers_and_bypass *regs_and_bypass,
 		struct clk_mgr *clk_mgr_base, struct clk_log_info *log_info)
 {
+	(void)log_info;
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 	uint32_t dprefclk_did = 0;
 	uint32_t dcfclk_did = 0;
@@ -1059,11 +1060,9 @@ static void dcn32_get_memclk_states_from_smu(struct clk_mgr *clk_mgr_base)
 	if (!clk_mgr->dpm_present)
 		dcn32_patch_dpm_table(clk_mgr_base->bw_params);
 
-	DC_FP_START();
 	/* Refresh bounding box */
 	clk_mgr_base->ctx->dc->res_pool->funcs->update_bw_bounding_box(
 			clk_mgr->base.ctx->dc, clk_mgr_base->bw_params);
-	DC_FP_END();
 }
 
 static bool dcn32_are_clock_states_equal(struct dc_clocks *a,
@@ -1147,6 +1146,7 @@ void dcn32_clk_mgr_construct(
 		struct pp_smu_funcs *pp_smu,
 		struct dccg *dccg)
 {
+	(void)pp_smu;
 	struct clk_log_info log_info = {0};
 
 	clk_mgr->base.ctx = ctx;

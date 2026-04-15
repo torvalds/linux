@@ -405,7 +405,7 @@ static int __smu_msg_v1_ras_filter(struct smu_msg_ctl *ctl,
 }
 
 /**
- * smu_msg_proto_v1_send_msg - Complete V1 protocol with all filtering
+ * smu_msg_v1_send_msg - Complete V1 protocol with all filtering
  * @ctl: Message control block
  * @args: Message arguments
  *
@@ -880,7 +880,7 @@ static const char *smu_get_feature_name(struct smu_context *smu,
 size_t smu_cmn_get_pp_feature_mask(struct smu_context *smu,
 				   char *buf)
 {
-	int8_t sort_feature[MAX(SMU_FEATURE_COUNT, SMU_FEATURE_MAX)];
+	int16_t sort_feature[MAX(SMU_FEATURE_COUNT, SMU_FEATURE_MAX)];
 	struct smu_feature_bits feature_mask;
 	uint32_t features[2];
 	int i, feature_index;
@@ -1033,6 +1033,31 @@ int smu_cmn_get_smc_version(struct smu_context *smu,
 	}
 
 	return ret;
+}
+
+int smu_cmn_check_fw_version(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t if_version = 0xff, smu_version = 0xff;
+	uint8_t smu_program, smu_major, smu_minor, smu_debug;
+	int ret;
+
+	ret = smu_cmn_get_smc_version(smu, &if_version, &smu_version);
+	if (ret)
+		return ret;
+
+	smu_program = (smu_version >> 24) & 0xff;
+	smu_major = (smu_version >> 16) & 0xff;
+	smu_minor = (smu_version >> 8) & 0xff;
+	smu_debug = (smu_version >> 0) & 0xff;
+	adev->pm.fw_version = smu_version;
+
+	dev_info_once(adev->dev, "smu driver if version = 0x%08x, smu fw if version = 0x%08x, "
+		      "smu fw program = %d, smu fw version = 0x%08x (%d.%d.%d)\n",
+		      smu->smc_driver_if_version, if_version,
+		      smu_program, smu_version, smu_major, smu_minor, smu_debug);
+
+	return 0;
 }
 
 int smu_cmn_update_table(struct smu_context *smu,
@@ -1274,6 +1299,16 @@ void smu_cmn_get_backend_workload_mask(struct smu_context *smu,
 
 		*backend_workload_mask |= 1 << workload_type;
 	}
+}
+
+void smu_cmn_reset_custom_level(struct smu_context *smu)
+{
+	struct smu_umd_pstate_table *pstate_table = &smu->pstate_table;
+
+	pstate_table->gfxclk_pstate.custom.min = 0;
+	pstate_table->gfxclk_pstate.custom.max = 0;
+	pstate_table->uclk_pstate.custom.min = 0;
+	pstate_table->uclk_pstate.custom.max = 0;
 }
 
 static inline bool smu_cmn_freqs_match(uint32_t freq1, uint32_t freq2)

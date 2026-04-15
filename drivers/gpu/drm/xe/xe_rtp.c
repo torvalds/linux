@@ -55,6 +55,13 @@ static bool rule_matches(const struct xe_device *xe,
 			match = xe->info.platform == r->platform &&
 				xe->info.subplatform == r->subplatform;
 			break;
+		case XE_RTP_MATCH_PLATFORM_STEP:
+			if (drm_WARN_ON(&xe->drm, xe->info.step.platform == STEP_NONE))
+				return false;
+
+			match = xe->info.step.platform >= r->step_start &&
+				xe->info.step.platform < r->step_end;
+			break;
 		case XE_RTP_MATCH_GRAPHICS_VERSION:
 			if (drm_WARN_ON(&xe->drm, !gt))
 				return false;
@@ -270,6 +277,8 @@ static void rtp_mark_active(struct xe_device *xe,
  * @sr: Save-restore struct where matching rules execute the action. This can be
  *      viewed as the "coalesced view" of multiple the tables. The bits for each
  *      register set are expected not to collide with previously added entries
+ * @process_in_vf: Whether this RTP table should get processed for SR-IOV VF
+ *      devices.  Should generally only be 'true' for LRC tables.
  *
  * Walk the table pointed by @entries (with an empty sentinel) and add all
  * entries with matching rules to @sr. If @hwe is not NULL, its mmio_base is
@@ -278,7 +287,8 @@ static void rtp_mark_active(struct xe_device *xe,
 void xe_rtp_process_to_sr(struct xe_rtp_process_ctx *ctx,
 			  const struct xe_rtp_entry_sr *entries,
 			  size_t n_entries,
-			  struct xe_reg_sr *sr)
+			  struct xe_reg_sr *sr,
+			  bool process_in_vf)
 {
 	const struct xe_rtp_entry_sr *entry;
 	struct xe_hw_engine *hwe = NULL;
@@ -286,6 +296,9 @@ void xe_rtp_process_to_sr(struct xe_rtp_process_ctx *ctx,
 	struct xe_device *xe = NULL;
 
 	rtp_get_context(ctx, &hwe, &gt, &xe);
+
+	if (!process_in_vf && IS_SRIOV_VF(xe))
+		return;
 
 	xe_assert(xe, entries);
 

@@ -115,6 +115,12 @@ static void dce80_timing_generator_program_timing(struct timing_generator *tg,
 	const enum signal_type signal,
 	bool use_vbios)
 {
+	(void)vready_offset;
+	(void)vstartup_start;
+	(void)vupdate_offset;
+	(void)vupdate_width;
+	(void)pstate_keepout;
+	(void)signal;
 	if (!use_vbios)
 		program_pix_dur(tg, timing->pix_clk_100hz);
 

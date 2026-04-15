@@ -17,9 +17,6 @@
  * a specific data path ID - REG_MDP5_CTL_*(<id>, ...)
  *
  * Hardware capabilities determine the number of concurrent data paths
- *
- * In certain use cases (high-resolution dual pipe), one single CTL can be
- * shared across multiple CRTCs.
  */
 
 #define CTL_STAT_BUSY		0x1
@@ -46,11 +43,6 @@ struct mdp5_ctl {
 	u32 pending_ctl_trigger;
 
 	bool cursor_on;
-
-	/* True if the current CTL has FLUSH bits pending for single FLUSH. */
-	bool flush_pending;
-
-	struct mdp5_ctl *pair; /* Paired CTL to be flushed together */
 };
 
 struct mdp5_ctl_manager {
@@ -62,10 +54,6 @@ struct mdp5_ctl_manager {
 
 	/* to filter out non-present bits in the current hardware config */
 	u32 flush_hw_mask;
-
-	/* status for single FLUSH */
-	bool single_flush_supported;
-	u32 single_flush_pending_mask;
 
 	/* pool of CTLs + lock to protect resource allocation (ctls[i].busy) */
 	spinlock_t pool_lock;
@@ -485,31 +473,6 @@ static u32 fix_sw_flush(struct mdp5_ctl *ctl, struct mdp5_pipeline *pipeline,
 	return sw_mask;
 }
 
-static void fix_for_single_flush(struct mdp5_ctl *ctl, u32 *flush_mask,
-		u32 *flush_id)
-{
-	struct mdp5_ctl_manager *ctl_mgr = ctl->ctlm;
-
-	if (ctl->pair) {
-		DBG("CTL %d FLUSH pending mask %x", ctl->id, *flush_mask);
-		ctl->flush_pending = true;
-		ctl_mgr->single_flush_pending_mask |= (*flush_mask);
-		*flush_mask = 0;
-
-		if (ctl->pair->flush_pending) {
-			*flush_id = min_t(u32, ctl->id, ctl->pair->id);
-			*flush_mask = ctl_mgr->single_flush_pending_mask;
-
-			ctl->flush_pending = false;
-			ctl->pair->flush_pending = false;
-			ctl_mgr->single_flush_pending_mask = 0;
-
-			DBG("Single FLUSH mask %x,ID %d", *flush_mask,
-				*flush_id);
-		}
-	}
-}
-
 /**
  * mdp5_ctl_commit() - Register Flush
  *
@@ -555,8 +518,6 @@ u32 mdp5_ctl_commit(struct mdp5_ctl *ctl,
 
 	curr_ctl_flush_mask = flush_mask;
 
-	fix_for_single_flush(ctl, &flush_mask, &flush_id);
-
 	if (!start) {
 		ctl->flush_mask |= flush_mask;
 		return curr_ctl_flush_mask;
@@ -586,40 +547,6 @@ u32 mdp5_ctl_get_commit_status(struct mdp5_ctl *ctl)
 int mdp5_ctl_get_ctl_id(struct mdp5_ctl *ctl)
 {
 	return WARN_ON(!ctl) ? -EINVAL : ctl->id;
-}
-
-/*
- * mdp5_ctl_pair() - Associate 2 booked CTLs for single FLUSH
- */
-int mdp5_ctl_pair(struct mdp5_ctl *ctlx, struct mdp5_ctl *ctly, bool enable)
-{
-	struct mdp5_ctl_manager *ctl_mgr = ctlx->ctlm;
-	struct mdp5_kms *mdp5_kms = get_kms(ctl_mgr);
-
-	/* do nothing silently if hw doesn't support */
-	if (!ctl_mgr->single_flush_supported)
-		return 0;
-
-	if (!enable) {
-		ctlx->pair = NULL;
-		ctly->pair = NULL;
-		mdp5_write(mdp5_kms, REG_MDP5_SPARE_0, 0);
-		return 0;
-	} else if ((ctlx->pair != NULL) || (ctly->pair != NULL)) {
-		DRM_DEV_ERROR(ctl_mgr->dev->dev, "CTLs already paired\n");
-		return -EINVAL;
-	} else if (!(ctlx->status & ctly->status & CTL_STAT_BOOKED)) {
-		DRM_DEV_ERROR(ctl_mgr->dev->dev, "Only pair booked CTLs\n");
-		return -EINVAL;
-	}
-
-	ctlx->pair = ctly;
-	ctly->pair = ctlx;
-
-	mdp5_write(mdp5_kms, REG_MDP5_SPARE_0,
-		   MDP5_SPARE_0_SPLIT_DPL_SINGLE_FLUSH_EN);
-
-	return 0;
 }
 
 /*
@@ -687,8 +614,6 @@ struct mdp5_ctl_manager *mdp5_ctlm_init(struct drm_device *dev,
 {
 	struct mdp5_ctl_manager *ctl_mgr;
 	const struct mdp5_cfg_hw *hw_cfg = mdp5_cfg_get_hw_config(cfg_hnd);
-	int rev = mdp5_cfg_get_hw_rev(cfg_hnd);
-	unsigned dsi_cnt = 0;
 	const struct mdp5_ctl_block *ctl_cfg = &hw_cfg->ctl;
 	unsigned long flags;
 	int c, ret;
@@ -730,21 +655,6 @@ struct mdp5_ctl_manager *mdp5_ctlm_init(struct drm_device *dev,
 		spin_lock_init(&ctl->hw_lock);
 	}
 
-	/*
-	 * In bonded DSI case, CTL0 and CTL1 are always assigned to two DSI
-	 * interfaces to support single FLUSH feature (Flush CTL0 and CTL1 when
-	 * only write into CTL0's FLUSH register) to keep two DSI pipes in sync.
-	 * Single FLUSH is supported from hw rev v3.0.
-	 */
-	for (c = 0; c < ARRAY_SIZE(hw_cfg->intf.connect); c++)
-		if (hw_cfg->intf.connect[c] == INTF_DSI)
-			dsi_cnt++;
-	if ((rev >= 3) && (dsi_cnt > 1)) {
-		ctl_mgr->single_flush_supported = true;
-		/* Reserve CTL0/1 for INTF1/2 */
-		ctl_mgr->ctls[0].status |= CTL_STAT_BOOKED;
-		ctl_mgr->ctls[1].status |= CTL_STAT_BOOKED;
-	}
 	spin_unlock_irqrestore(&ctl_mgr->pool_lock, flags);
 	DBG("Pool of %d CTLs created.", ctl_mgr->nctl);
 

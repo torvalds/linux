@@ -740,7 +740,8 @@ void rn_clk_mgr_construct(
 	if (clk_mgr->base.dentist_vco_freq_khz == 0)
 		clk_mgr->base.dentist_vco_freq_khz = 3600000;
 
-	if (ctx->dc_bios->integrated_info->memory_type == LpDdr4MemType) {
+	if (ctx->dc_bios->integrated_info &&
+	    ctx->dc_bios->integrated_info->memory_type == LpDdr4MemType) {
 		if (clk_mgr->periodic_retraining_disabled) {
 			rn_bw_params.wm_table = lpddr4_wm_table_with_disabled_ppt;
 		} else {

@@ -47,6 +47,7 @@
 #include "smu_v14_0_0_ppt.h"
 #include "smu_v14_0_2_ppt.h"
 #include "smu_v15_0_0_ppt.h"
+#include "smu_v15_0_8_ppt.h"
 #include "amd_pcie.h"
 
 /*
@@ -628,6 +629,18 @@ int amdgpu_smu_ras_send_msg(struct amdgpu_device *adev, enum smu_message_type ms
 	return ret;
 }
 
+int amdgpu_smu_ras_feature_is_enabled(struct amdgpu_device *adev,
+						enum smu_feature_mask mask)
+{
+	struct smu_context *smu = adev->powerplay.pp_handle;
+	int ret = 0;
+
+	if (smu->ppt_funcs && smu->ppt_funcs->feature_is_enabled)
+		ret = smu->ppt_funcs->feature_is_enabled(smu, mask);
+
+	return ret;
+}
+
 static int smu_sys_get_pp_table(void *handle,
 				char **table)
 {
@@ -789,6 +802,10 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 		break;
 	case IP_VERSION(15, 0, 0):
 		smu_v15_0_0_set_ppt_funcs(smu);
+		break;
+	case IP_VERSION(15, 0, 8):
+		smu_v15_0_8_set_ppt_funcs(smu);
+		smu->od_enabled = true;
 		break;
 	default:
 		return -EINVAL;
@@ -2953,6 +2970,7 @@ int smu_get_power_limit(void *handle,
 			case IP_VERSION(11, 0, 11):
 			case IP_VERSION(11, 0, 12):
 			case IP_VERSION(11, 0, 13):
+			case IP_VERSION(15, 0, 8):
 				ret = smu_get_asic_power_limits(smu,
 								&smu->current_power_limit,
 								NULL, NULL, NULL);
@@ -3044,6 +3062,8 @@ static enum smu_clk_type smu_convert_to_smuclk(enum pp_clock_type type)
 		clk_type = SMU_OD_SCLK; break;
 	case OD_MCLK:
 		clk_type = SMU_OD_MCLK; break;
+	case OD_FCLK:
+		clk_type = SMU_OD_FCLK; break;
 	case OD_VDDC_CURVE:
 		clk_type = SMU_OD_VDDC_CURVE; break;
 	case OD_RANGE:

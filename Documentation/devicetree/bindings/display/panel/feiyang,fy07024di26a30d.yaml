@@ -28,7 +28,6 @@ properties:
 
   port: true
   reset-gpios: true
-
   backlight: true
 
 required:

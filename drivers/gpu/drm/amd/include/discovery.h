@@ -64,6 +64,19 @@ typedef struct binary_header
 	table_info table_list[TOTAL_TABLES];
 } binary_header;
 
+typedef struct binary_header_v2
+{
+	/* psp structure should go at the top of this structure */
+	uint32_t binary_signature; /* 0x7, 0x14, 0x21, 0x28 */
+	uint16_t version_major;     /* 0x02 */
+	uint16_t version_minor;
+	uint16_t binary_checksum;  /* Byte sum of the binary after this field */
+	uint16_t binary_size;      /* Binary Size*/
+	uint16_t num_tables;
+	uint16_t padding;
+	table_info table_list[] __counted_by(num_tables);
+} binary_header_v2;
+
 typedef struct die_info
 {
 	uint16_t die_id;

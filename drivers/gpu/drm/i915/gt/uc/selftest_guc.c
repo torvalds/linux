@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 /*
- * Copyright �� 2021 Intel Corporation
+ * Copyright © 2021 Intel Corporation
  */
 
 #include "gt/intel_gt_print.h"

@@ -4089,8 +4089,8 @@ static void CalculateSwathAndDETConfiguration(struct display_mode_lib_scratch_st
 	dml_uint_t MaximumSwathHeightC[__DML_NUM_PLANES__];
 	dml_uint_t RoundedUpMaxSwathSizeBytesY[__DML_NUM_PLANES__];
 	dml_uint_t RoundedUpMaxSwathSizeBytesC[__DML_NUM_PLANES__];
-	dml_uint_t RoundedUpSwathSizeBytesY[__DML_NUM_PLANES__];
-	dml_uint_t RoundedUpSwathSizeBytesC[__DML_NUM_PLANES__];
+	dml_uint_t RoundedUpSwathSizeBytesY[__DML_NUM_PLANES__] = { 0 };
+	dml_uint_t RoundedUpSwathSizeBytesC[__DML_NUM_PLANES__] = { 0 };
 	dml_uint_t SwathWidthSingleDPP[__DML_NUM_PLANES__];
 	dml_uint_t SwathWidthSingleDPPChroma[__DML_NUM_PLANES__];
 

@@ -63,7 +63,8 @@ static void populate_inits_from_splinits(struct scl_inits *inits,
 	inits->h_c = dc_fixpt_from_int_dy(spl_inits->h_filter_init_int_c, spl_inits->h_filter_init_frac_c >> 5, 0, 19);
 	inits->v_c = dc_fixpt_from_int_dy(spl_inits->v_filter_init_int_c, spl_inits->v_filter_init_frac_c >> 5, 0, 19);
 }
-static void populate_splformat_from_format(enum spl_pixel_format *spl_pixel_format, const enum pixel_format pixel_format)
+static void populate_splformat_from_format(enum spl_pixel_format *spl_pixel_format,
+					   const enum dc_pixel_format pixel_format)
 {
 	if (pixel_format < PIXEL_FORMAT_INVALID)
 		*spl_pixel_format = (enum spl_pixel_format)pixel_format;
@@ -89,6 +90,7 @@ void translate_SPL_in_params_from_pipe_ctx(struct pipe_ctx *pipe_ctx, struct spl
 		spl_in->callbacks = dcn32_spl_callbacks;
 		break;
 	case DCN_VERSION_4_01:
+	case DCN_VERSION_4_2:
 		spl_in->callbacks = dcn401_spl_callbacks;
 		break;
 	default:

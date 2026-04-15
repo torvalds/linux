@@ -161,6 +161,7 @@ void dccg401_set_pixel_rate_div(
 		enum pixel_rate_div tmds_div,
 		enum pixel_rate_div unused)
 {
+	(void)unused;
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 	uint32_t cur_tmds_div = PIXEL_RATE_DIV_NA;
 	uint32_t dp_dto_int;
@@ -353,6 +354,7 @@ void dccg401_get_dccg_ref_freq(struct dccg *dccg,
 		unsigned int xtalin_freq_inKhz,
 		unsigned int *dccg_ref_freq_inKhz)
 {
+	(void)dccg;
 	/*
 	 * Assume refclk is sourced from xtalin
 	 * expect 100MHz
@@ -526,10 +528,6 @@ static void dccg401_enable_dpstreamclk(struct dccg *dccg, int otg_inst, int dp_h
 		BREAK_TO_DEBUGGER();
 		return;
 	}
-	if (dccg->ctx->dc->debug.root_clock_optimization.bits.dpstream)
-		REG_UPDATE_2(DCCG_GATE_DISABLE_CNTL3,
-			DPSTREAMCLK_GATE_DISABLE, 1,
-			DPSTREAMCLK_ROOT_GATE_DISABLE, 1);
 }
 
 void dccg401_disable_dpstreamclk(struct dccg *dccg, int dp_hpo_inst)
@@ -725,6 +723,7 @@ void dccg401_init(struct dccg *dccg)
 
 void dccg401_set_dto_dscclk(struct dccg *dccg, uint32_t inst, uint32_t num_slices_h)
 {
+	(void)num_slices_h;
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
 	switch (inst) {
@@ -827,11 +826,22 @@ void dccg401_enable_symclk_se(struct dccg *dccg, uint32_t stream_enc_inst, uint3
 		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_se)
 			REG_UPDATE(DCCG_GATE_DISABLE_CNTL5, SYMCLKD_FE_ROOT_GATE_DISABLE, 1);
 		break;
+	case 4:
+		if (dccg_dcn->dccg_mask->SYMCLKE_FE_ROOT_GATE_DISABLE) {
+			REG_UPDATE_2(SYMCLKE_CLOCK_ENABLE,
+					SYMCLKE_FE_EN, 1,
+					SYMCLKE_FE_SRC_SEL, link_enc_inst);
+			REG_UPDATE(DCCG_GATE_DISABLE_CNTL5, SYMCLKE_FE_ROOT_GATE_DISABLE, 1);
+		}
+		break;
+	default:
+		return;
 	}
 }
 
 void dccg401_disable_symclk_se(struct dccg *dccg, uint32_t stream_enc_inst, uint32_t link_enc_inst)
 {
+	(void)link_enc_inst;
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
 	switch (stream_enc_inst) {
@@ -855,6 +865,16 @@ void dccg401_disable_symclk_se(struct dccg *dccg, uint32_t stream_enc_inst, uint
 				SYMCLKD_FE_EN, 0,
 				SYMCLKD_FE_SRC_SEL, 0);
 		break;
+	case 4:
+		if (dccg_dcn->dccg_mask->SYMCLKE_FE_ROOT_GATE_DISABLE) {
+			REG_UPDATE(DCCG_GATE_DISABLE_CNTL5, SYMCLKE_FE_ROOT_GATE_DISABLE, 0);
+			REG_UPDATE_2(SYMCLKE_CLOCK_ENABLE,
+					SYMCLKE_FE_EN, 0,
+					SYMCLKE_FE_SRC_SEL, 0);
+		}
+		break;
+	default:
+		return;
 	}
 }
 

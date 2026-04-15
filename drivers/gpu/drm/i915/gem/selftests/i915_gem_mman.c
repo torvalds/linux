@@ -1159,6 +1159,7 @@ static int __igt_mmap_migrate(struct intel_memory_region **placements,
 	struct drm_i915_gem_object *obj;
 	struct i915_request *rq = NULL;
 	struct vm_area_struct *area;
+	struct file *mock_file;
 	unsigned long addr;
 	LIST_HEAD(objects);
 	u64 offset;
@@ -1178,16 +1179,25 @@ static int __igt_mmap_migrate(struct intel_memory_region **placements,
 		goto out_put;
 
 	/*
-	 * This will eventually create a GEM context, due to opening dummy drm
-	 * file, which needs a tiny amount of mappable device memory for the top
-	 * level paging structures(and perhaps scratch), so make sure we
-	 * allocate early, to avoid tears.
+	 * Pretend to open("/dev/dri/card0"), which will eventually create a GEM
+	 * context along with multiple GEM objects (for paging structures and
+	 * scratch) that are placed in mappable portion of GPU memory.
+	 * Calling fput() on the file places objects' cleanup routines in delayed
+	 * worqueues, which execute after unspecified amount of time.
+	 * Keep the file open until migration and page fault checks are done to
+	 * make sure object cleanup is not executed after igt_fill_mappable()
+	 * finishes and before migration is attempted - that would leave a gap
+	 * large enough for the migration to succeed, when we'd expect it to fail.
 	 */
-	addr = igt_mmap_offset(i915, offset, obj->base.size,
-			       PROT_WRITE, MAP_SHARED);
+	mock_file = mock_drm_getfile(i915->drm.primary, O_RDWR);
+	if (IS_ERR(mock_file))
+		return PTR_ERR(mock_file);
+
+	addr = igt_mmap_offset_with_file(i915, offset, obj->base.size,
+					 PROT_WRITE, MAP_SHARED, mock_file);
 	if (IS_ERR_VALUE(addr)) {
 		err = addr;
-		goto out_put;
+		goto out_fput;
 	}
 
 	mmap_read_lock(current->mm);
@@ -1293,6 +1303,9 @@ static int __igt_mmap_migrate(struct intel_memory_region **placements,
 
 out_addr:
 	vm_munmap(addr, obj->base.size);
+
+out_fput:
+	fput(mock_file);
 
 out_put:
 	i915_gem_object_put(obj);

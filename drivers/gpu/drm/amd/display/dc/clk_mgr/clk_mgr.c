@@ -34,7 +34,6 @@
 #include "dce110/dce110_clk_mgr.h"
 #include "dce112/dce112_clk_mgr.h"
 #include "dce120/dce120_clk_mgr.h"
-#include "dce60/dce60_clk_mgr.h"
 #include "dcn10/rv1_clk_mgr.h"
 #include "dcn10/rv2_clk_mgr.h"
 #include "dcn20/dcn20_clk_mgr.h"
@@ -49,6 +48,7 @@
 #include "dcn32/dcn32_clk_mgr.h"
 #include "dcn35/dcn35_clk_mgr.h"
 #include "dcn401/dcn401_clk_mgr.h"
+#include "dcn42/dcn42_clk_mgr.h"
 
 int clk_mgr_helper_get_active_display_cnt(
 		struct dc *dc,
@@ -78,6 +78,7 @@ int clk_mgr_helper_get_active_plane_cnt(
 		struct dc *dc,
 		struct dc_state *context)
 {
+	(void)dc;
 	int i, total_plane_count;
 
 	total_plane_count = 0;
@@ -97,7 +98,7 @@ void clk_mgr_exit_optimized_pwr_state(const struct dc *dc, struct clk_mgr *clk_m
 {
 	struct dc_link *edp_links[MAX_NUM_EDP];
 	struct dc_link *edp_link = NULL;
-	int edp_num;
+	unsigned int edp_num;
 	unsigned int panel_inst;
 
 	dc_get_edp_links(dc, edp_links, &edp_num);
@@ -123,7 +124,7 @@ void clk_mgr_optimize_pwr_state(const struct dc *dc, struct clk_mgr *clk_mgr)
 {
 	struct dc_link *edp_links[MAX_NUM_EDP];
 	struct dc_link *edp_link = NULL;
-	int edp_num;
+	unsigned int edp_num;
 	unsigned int panel_inst;
 
 	dc_get_edp_links(dc, edp_links, &edp_num);
@@ -149,18 +150,7 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 	struct hw_asic_id asic_id = ctx->asic_id;
 
 	switch (asic_id.chip_family) {
-#if defined(CONFIG_DRM_AMD_DC_SI)
-	case FAMILY_SI: {
-		struct clk_mgr_internal *clk_mgr = kzalloc_obj(*clk_mgr);
-
-		if (clk_mgr == NULL) {
-			BREAK_TO_DEBUGGER();
-			return NULL;
-		}
-		dce60_clk_mgr_construct(ctx, clk_mgr);
-		return &clk_mgr->base;
-	}
-#endif
+	case FAMILY_SI:
 	case FAMILY_CI:
 	case FAMILY_KV: {
 		struct clk_mgr_internal *clk_mgr = kzalloc_obj(*clk_mgr);
@@ -374,6 +364,18 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 		return &clk_mgr->base;
 	}
 	break;
+	case AMDGPU_FAMILY_GC_11_5_4: {
+		struct clk_mgr_dcn42 *clk_mgr = kzalloc(sizeof(*clk_mgr), GFP_KERNEL);
+
+		if (clk_mgr == NULL) {
+			BREAK_TO_DEBUGGER();
+			return NULL;
+		}
+
+		dcn42_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
+		return &clk_mgr->base.base;
+	}
+	break;
 #endif	/* CONFIG_DRM_AMD_DC_FP */
 	default:
 		ASSERT(0); /* Unknown Asic */
@@ -430,6 +432,9 @@ void dc_destroy_clk_mgr(struct clk_mgr *clk_mgr_base)
 		break;
 	case AMDGPU_FAMILY_GC_12_0_0:
 		dcn401_clk_mgr_destroy(clk_mgr);
+		break;
+	case AMDGPU_FAMILY_GC_11_5_4:
+		dcn42_clk_mgr_destroy(clk_mgr);
 		break;
 
 	default:

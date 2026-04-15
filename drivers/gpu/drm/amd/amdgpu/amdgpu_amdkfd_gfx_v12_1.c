@@ -330,7 +330,7 @@ static uint32_t kgd_gfx_v12_1_set_address_watch(struct amdgpu_device *adev,
 
 	watch_address_cntl = 0;
 	watch_address_low = lower_32_bits(watch_address);
-	watch_address_high = upper_32_bits(watch_address) & 0xffff;
+	watch_address_high = upper_32_bits(watch_address) & 0x1ffffff;
 
 	watch_address_cntl = REG_SET_FIELD(watch_address_cntl,
 			TCP_WATCH0_CNTL,

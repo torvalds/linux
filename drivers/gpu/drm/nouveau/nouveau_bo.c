@@ -144,7 +144,7 @@ nouveau_bo_del_ttm(struct ttm_buffer_object *bo)
 	nouveau_bo_del_io_reserve_lru(bo);
 	nv10_bo_put_tile_region(dev, nvbo->tile, NULL);
 
-	if (bo->base.import_attach)
+	if (drm_gem_is_imported(&bo->base))
 		drm_prime_gem_destroy(&bo->base, bo->sg);
 
 	/*

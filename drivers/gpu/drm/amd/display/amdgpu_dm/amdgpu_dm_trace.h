@@ -753,6 +753,69 @@ TRACE_EVENT(amdgpu_dm_brightness,
 	)
 );
 
+TRACE_EVENT(amdgpu_dm_ism_commit,
+	TP_PROTO(
+		int active_vblank_irq_count,
+		bool vblank_enabled,
+		bool allow_panel_sso
+	),
+	TP_ARGS(
+		active_vblank_irq_count,
+		vblank_enabled,
+		allow_panel_sso
+	),
+	TP_STRUCT__entry(
+		__field(int, active_vblank_irq_count)
+		__field(bool, vblank_enabled)
+		__field(bool, allow_panel_sso)
+	),
+	TP_fast_assign(
+		__entry->active_vblank_irq_count = active_vblank_irq_count;
+		__entry->vblank_enabled = vblank_enabled;
+		__entry->allow_panel_sso = allow_panel_sso;
+	),
+	TP_printk(
+		"active_vblank_irq_count=%d vblank_enabled=%d allow_panel_sso=%d",
+		__entry->active_vblank_irq_count,
+		__entry->vblank_enabled,
+		__entry->allow_panel_sso
+	)
+);
+
+TRACE_EVENT(amdgpu_dm_ism_event,
+	TP_PROTO(
+		int crtc_id,
+		const char *prev_state,
+		const char *curr_state,
+		const char *event
+	),
+	TP_ARGS(
+		crtc_id,
+		prev_state,
+		curr_state,
+		event
+	),
+	TP_STRUCT__entry(
+		__field(int, crtc_id)
+		__string(prev_state, prev_state)
+		__string(curr_state, curr_state)
+		__string(event, event)
+	),
+	TP_fast_assign(
+		__entry->crtc_id = crtc_id;
+		__assign_str(prev_state);
+		__assign_str(curr_state);
+		__assign_str(event);
+	),
+	TP_printk(
+		"[CRTC %d] %s -> %s on event %s",
+		__entry->crtc_id,
+		__get_str(prev_state),
+		__get_str(curr_state),
+		__get_str(event))
+);
+
+
 #endif /* _AMDGPU_DM_TRACE_H_ */
 
 #undef TRACE_INCLUDE_PATH

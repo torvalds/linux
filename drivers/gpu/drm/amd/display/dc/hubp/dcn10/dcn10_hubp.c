@@ -143,6 +143,7 @@ void hubp1_program_tiling(
 	const struct dc_tiling_info *info,
 	const enum surface_pixel_format pixel_format)
 {
+	(void)pixel_format;
 	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 
 	REG_UPDATE_6(DCSURF_ADDR_CONFIG,
@@ -563,6 +564,7 @@ void hubp1_program_surface_config(
 	bool horizontal_mirror,
 	unsigned int compat_level)
 {
+	(void)compat_level;
 	hubp1_dcc_control(hubp, dcc->enable, dcc->independent_64b_blks);
 	hubp1_program_tiling(hubp, tiling_info, format);
 	hubp1_program_size(hubp, format, plane_size, dcc);

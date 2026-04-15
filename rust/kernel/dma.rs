@@ -5,14 +5,31 @@
 //! C header: [`include/linux/dma-mapping.h`](srctree/include/linux/dma-mapping.h)
 
 use crate::{
-    bindings, build_assert, device,
-    device::{Bound, Core},
-    error::{to_result, Result},
+    bindings,
+    debugfs,
+    device::{
+        self,
+        Bound,
+        Core, //
+    },
+    error::to_result,
+    fs::file,
     prelude::*,
+    ptr::KnownSize,
     sync::aref::ARef,
-    transmute::{AsBytes, FromBytes},
+    transmute::{
+        AsBytes,
+        FromBytes, //
+    }, //
+    uaccess::UserSliceWriter,
 };
-use core::ptr::NonNull;
+use core::{
+    ops::{
+        Deref,
+        DerefMut, //
+    },
+    ptr::NonNull, //
+};
 
 /// DMA address type.
 ///
@@ -39,7 +56,7 @@ pub trait Device: AsRef<device::Device<Core>> {
     /// # Safety
     ///
     /// This method must not be called concurrently with any DMA allocation or mapping primitives,
-    /// such as [`CoherentAllocation::alloc_attrs`].
+    /// such as [`Coherent::zeroed`].
     unsafe fn dma_set_mask(&self, mask: DmaMask) -> Result {
         // SAFETY:
         // - By the type invariant of `device::Device`, `self.as_ref().as_raw()` is valid.
@@ -56,7 +73,7 @@ pub trait Device: AsRef<device::Device<Core>> {
     /// # Safety
     ///
     /// This method must not be called concurrently with any DMA allocation or mapping primitives,
-    /// such as [`CoherentAllocation::alloc_attrs`].
+    /// such as [`Coherent::zeroed`].
     unsafe fn dma_set_coherent_mask(&self, mask: DmaMask) -> Result {
         // SAFETY:
         // - By the type invariant of `device::Device`, `self.as_ref().as_raw()` is valid.
@@ -75,7 +92,7 @@ pub trait Device: AsRef<device::Device<Core>> {
     /// # Safety
     ///
     /// This method must not be called concurrently with any DMA allocation or mapping primitives,
-    /// such as [`CoherentAllocation::alloc_attrs`].
+    /// such as [`Coherent::zeroed`].
     unsafe fn dma_set_mask_and_coherent(&self, mask: DmaMask) -> Result {
         // SAFETY:
         // - By the type invariant of `device::Device`, `self.as_ref().as_raw()` is valid.
@@ -94,7 +111,7 @@ pub trait Device: AsRef<device::Device<Core>> {
     /// # Safety
     ///
     /// This method must not be called concurrently with any DMA allocation or mapping primitives,
-    /// such as [`CoherentAllocation::alloc_attrs`].
+    /// such as [`Coherent::zeroed`].
     unsafe fn dma_set_max_seg_size(&self, size: u32) {
         // SAFETY:
         // - By the type invariant of `device::Device`, `self.as_ref().as_raw()` is valid.
@@ -194,12 +211,12 @@ impl DmaMask {
 ///
 /// ```
 /// # use kernel::device::{Bound, Device};
-/// use kernel::dma::{attrs::*, CoherentAllocation};
+/// use kernel::dma::{attrs::*, Coherent};
 ///
 /// # fn test(dev: &Device<Bound>) -> Result {
 /// let attribs = DMA_ATTR_FORCE_CONTIGUOUS | DMA_ATTR_NO_WARN;
-/// let c: CoherentAllocation<u64> =
-///     CoherentAllocation::alloc_attrs(dev, 4, GFP_KERNEL, attribs)?;
+/// let c: Coherent<[u64]> =
+///     Coherent::zeroed_slice_with_attrs(dev, 4, GFP_KERNEL, attribs)?;
 /// # Ok::<(), Error>(()) }
 /// ```
 #[derive(Clone, Copy, PartialEq)]
@@ -249,9 +266,6 @@ pub mod attrs {
 
     /// Specifies that writes to the mapping may be buffered to improve performance.
     pub const DMA_ATTR_WRITE_COMBINE: Attrs = Attrs(bindings::DMA_ATTR_WRITE_COMBINE);
-
-    /// Lets the platform to avoid creating a kernel virtual mapping for the allocated buffer.
-    pub const DMA_ATTR_NO_KERNEL_MAPPING: Attrs = Attrs(bindings::DMA_ATTR_NO_KERNEL_MAPPING);
 
     /// Allows platform code to skip synchronization of the CPU cache for the given buffer assuming
     /// that it has been already transferred to 'device' domain.
@@ -344,23 +358,228 @@ impl From<DataDirection> for bindings::dma_data_direction {
     }
 }
 
+/// CPU-owned DMA allocation that can be converted into a device-shared [`Coherent`] object.
+///
+/// Unlike [`Coherent`], a [`CoherentBox`] is guaranteed to be fully owned by the CPU -- its DMA
+/// address is not exposed and it cannot be accessed by a device. This means it can safely be used
+/// like a normal boxed allocation (e.g. direct reads, writes, and mutable slices are all safe).
+///
+/// A typical use is to allocate a [`CoherentBox`], populate it with normal CPU access, and then
+/// convert it into a [`Coherent`] object to share it with the device.
+///
+/// # Examples
+///
+/// `CoherentBox<T>`:
+///
+/// ```
+/// # use kernel::device::{
+/// #     Bound,
+/// #     Device,
+/// # };
+/// use kernel::dma::{attrs::*,
+///     Coherent,
+///     CoherentBox,
+/// };
+///
+/// # fn test(dev: &Device<Bound>) -> Result {
+/// let mut dmem: CoherentBox<u64> = CoherentBox::zeroed(dev, GFP_KERNEL)?;
+/// *dmem = 42;
+/// let dmem: Coherent<u64> = dmem.into();
+/// # Ok::<(), Error>(()) }
+/// ```
+///
+/// `CoherentBox<[T]>`:
+///
+///
+/// ```
+/// # use kernel::device::{
+/// #     Bound,
+/// #     Device,
+/// # };
+/// use kernel::dma::{attrs::*,
+///     Coherent,
+///     CoherentBox,
+/// };
+///
+/// # fn test(dev: &Device<Bound>) -> Result {
+/// let mut dmem: CoherentBox<[u64]> = CoherentBox::zeroed_slice(dev, 4, GFP_KERNEL)?;
+/// dmem.fill(42);
+/// let dmem: Coherent<[u64]> = dmem.into();
+/// # Ok::<(), Error>(()) }
+/// ```
+pub struct CoherentBox<T: KnownSize + ?Sized>(Coherent<T>);
+
+impl<T: AsBytes + FromBytes> CoherentBox<[T]> {
+    /// [`CoherentBox`] variant of [`Coherent::zeroed_slice_with_attrs`].
+    #[inline]
+    pub fn zeroed_slice_with_attrs(
+        dev: &device::Device<Bound>,
+        count: usize,
+        gfp_flags: kernel::alloc::Flags,
+        dma_attrs: Attrs,
+    ) -> Result<Self> {
+        Coherent::zeroed_slice_with_attrs(dev, count, gfp_flags, dma_attrs).map(Self)
+    }
+
+    /// Same as [CoherentBox::zeroed_slice_with_attrs], but with `dma::Attrs(0)`.
+    #[inline]
+    pub fn zeroed_slice(
+        dev: &device::Device<Bound>,
+        count: usize,
+        gfp_flags: kernel::alloc::Flags,
+    ) -> Result<Self> {
+        Self::zeroed_slice_with_attrs(dev, count, gfp_flags, Attrs(0))
+    }
+
+    /// Initializes the element at `i` using the given initializer.
+    ///
+    /// Returns `EINVAL` if `i` is out of bounds.
+    pub fn init_at<E>(&mut self, i: usize, init: impl Init<T, E>) -> Result
+    where
+        Error: From<E>,
+    {
+        if i >= self.0.len() {
+            return Err(EINVAL);
+        }
+
+        let ptr = &raw mut self[i];
+
+        // SAFETY:
+        // - `ptr` is valid, properly aligned, and within this allocation.
+        // - `T: AsBytes + FromBytes` guarantees all bit patterns are valid, so partial writes on
+        //   error cannot leave the element in an invalid state.
+        // - The DMA address has not been exposed yet, so there is no concurrent device access.
+        unsafe { init.__init(ptr)? };
+
+        Ok(())
+    }
+
+    /// Allocates a region of coherent memory of the same size as `data` and initializes it with a
+    /// copy of its contents.
+    ///
+    /// This is the [`CoherentBox`] variant of [`Coherent::from_slice_with_attrs`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use core::ops::Deref;
+    ///
+    /// # use kernel::device::{Bound, Device};
+    /// use kernel::dma::{
+    ///     attrs::*,
+    ///     CoherentBox
+    /// };
+    ///
+    /// # fn test(dev: &Device<Bound>) -> Result {
+    /// let data = [0u8, 1u8, 2u8, 3u8];
+    /// let c: CoherentBox<[u8]> =
+    ///     CoherentBox::from_slice_with_attrs(dev, &data, GFP_KERNEL, DMA_ATTR_NO_WARN)?;
+    ///
+    /// assert_eq!(c.deref(), &data);
+    /// # Ok::<(), Error>(()) }
+    /// ```
+    pub fn from_slice_with_attrs(
+        dev: &device::Device<Bound>,
+        data: &[T],
+        gfp_flags: kernel::alloc::Flags,
+        dma_attrs: Attrs,
+    ) -> Result<Self>
+    where
+        T: Copy,
+    {
+        let mut slice = Self(Coherent::<T>::alloc_slice_with_attrs(
+            dev,
+            data.len(),
+            gfp_flags,
+            dma_attrs,
+        )?);
+
+        // PANIC: `slice` was created with length `data.len()`.
+        slice.copy_from_slice(data);
+
+        Ok(slice)
+    }
+
+    /// Performs the same functionality as [`CoherentBox::from_slice_with_attrs`], except the
+    /// `dma_attrs` is 0 by default.
+    #[inline]
+    pub fn from_slice(
+        dev: &device::Device<Bound>,
+        data: &[T],
+        gfp_flags: kernel::alloc::Flags,
+    ) -> Result<Self>
+    where
+        T: Copy,
+    {
+        Self::from_slice_with_attrs(dev, data, gfp_flags, Attrs(0))
+    }
+}
+
+impl<T: AsBytes + FromBytes> CoherentBox<T> {
+    /// Same as [`CoherentBox::zeroed_slice_with_attrs`], but for a single element.
+    #[inline]
+    pub fn zeroed_with_attrs(
+        dev: &device::Device<Bound>,
+        gfp_flags: kernel::alloc::Flags,
+        dma_attrs: Attrs,
+    ) -> Result<Self> {
+        Coherent::zeroed_with_attrs(dev, gfp_flags, dma_attrs).map(Self)
+    }
+
+    /// Same as [`CoherentBox::zeroed_slice`], but for a single element.
+    #[inline]
+    pub fn zeroed(dev: &device::Device<Bound>, gfp_flags: kernel::alloc::Flags) -> Result<Self> {
+        Self::zeroed_with_attrs(dev, gfp_flags, Attrs(0))
+    }
+}
+
+impl<T: KnownSize + ?Sized> Deref for CoherentBox<T> {
+    type Target = T;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        // SAFETY:
+        // - We have not exposed the DMA address yet, so there can't be any concurrent access by a
+        //   device.
+        // - We have exclusive access to `self.0`.
+        unsafe { self.0.as_ref() }
+    }
+}
+
+impl<T: AsBytes + FromBytes + KnownSize + ?Sized> DerefMut for CoherentBox<T> {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        // SAFETY:
+        // - We have not exposed the DMA address yet, so there can't be any concurrent access by a
+        //   device.
+        // - We have exclusive access to `self.0`.
+        unsafe { self.0.as_mut() }
+    }
+}
+
+impl<T: AsBytes + FromBytes + KnownSize + ?Sized> From<CoherentBox<T>> for Coherent<T> {
+    #[inline]
+    fn from(value: CoherentBox<T>) -> Self {
+        value.0
+    }
+}
+
 /// An abstraction of the `dma_alloc_coherent` API.
 ///
 /// This is an abstraction around the `dma_alloc_coherent` API which is used to allocate and map
 /// large coherent DMA regions.
 ///
-/// A [`CoherentAllocation`] instance contains a pointer to the allocated region (in the
+/// A [`Coherent`] instance contains a pointer to the allocated region (in the
 /// processor's virtual address space) and the device address which can be given to the device
-/// as the DMA address base of the region. The region is released once [`CoherentAllocation`]
+/// as the DMA address base of the region. The region is released once [`Coherent`]
 /// is dropped.
 ///
 /// # Invariants
 ///
-/// - For the lifetime of an instance of [`CoherentAllocation`], the `cpu_addr` is a valid pointer
+/// - For the lifetime of an instance of [`Coherent`], the `cpu_addr` is a valid pointer
 ///   to an allocated region of coherent memory and `dma_handle` is the DMA address base of the
 ///   region.
-/// - The size in bytes of the allocation is equal to `size_of::<T> * count`.
-/// - `size_of::<T> * count` fits into a `usize`.
+/// - The size in bytes of the allocation is equal to size information via pointer.
 // TODO
 //
 // DMA allocations potentially carry device resources (e.g.IOMMU mappings), hence for soundness
@@ -371,155 +590,43 @@ impl From<DataDirection> for bindings::dma_data_direction {
 // allocation from surviving device unbind; it would require RCU read side critical sections to
 // access the memory, which may require subsequent unnecessary copies.
 //
-// Hence, find a way to revoke the device resources of a `CoherentAllocation`, but not the
-// entire `CoherentAllocation` including the allocated memory itself.
-pub struct CoherentAllocation<T: AsBytes + FromBytes> {
+// Hence, find a way to revoke the device resources of a `Coherent`, but not the
+// entire `Coherent` including the allocated memory itself.
+pub struct Coherent<T: KnownSize + ?Sized> {
     dev: ARef<device::Device>,
     dma_handle: DmaAddress,
-    count: usize,
     cpu_addr: NonNull<T>,
     dma_attrs: Attrs,
 }
 
-impl<T: AsBytes + FromBytes> CoherentAllocation<T> {
-    /// Allocates a region of `size_of::<T> * count` of coherent memory.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use kernel::device::{Bound, Device};
-    /// use kernel::dma::{attrs::*, CoherentAllocation};
-    ///
-    /// # fn test(dev: &Device<Bound>) -> Result {
-    /// let c: CoherentAllocation<u64> =
-    ///     CoherentAllocation::alloc_attrs(dev, 4, GFP_KERNEL, DMA_ATTR_NO_WARN)?;
-    /// # Ok::<(), Error>(()) }
-    /// ```
-    pub fn alloc_attrs(
-        dev: &device::Device<Bound>,
-        count: usize,
-        gfp_flags: kernel::alloc::Flags,
-        dma_attrs: Attrs,
-    ) -> Result<CoherentAllocation<T>> {
-        build_assert!(
-            core::mem::size_of::<T>() > 0,
-            "It doesn't make sense for the allocated type to be a ZST"
-        );
-
-        let size = count
-            .checked_mul(core::mem::size_of::<T>())
-            .ok_or(EOVERFLOW)?;
-        let mut dma_handle = 0;
-        // SAFETY: Device pointer is guaranteed as valid by the type invariant on `Device`.
-        let addr = unsafe {
-            bindings::dma_alloc_attrs(
-                dev.as_raw(),
-                size,
-                &mut dma_handle,
-                gfp_flags.as_raw(),
-                dma_attrs.as_raw(),
-            )
-        };
-        let addr = NonNull::new(addr).ok_or(ENOMEM)?;
-        // INVARIANT:
-        // - We just successfully allocated a coherent region which is accessible for
-        //   `count` elements, hence the cpu address is valid. We also hold a refcounted reference
-        //   to the device.
-        // - The allocated `size` is equal to `size_of::<T> * count`.
-        // - The allocated `size` fits into a `usize`.
-        Ok(Self {
-            dev: dev.into(),
-            dma_handle,
-            count,
-            cpu_addr: addr.cast(),
-            dma_attrs,
-        })
-    }
-
-    /// Performs the same functionality as [`CoherentAllocation::alloc_attrs`], except the
-    /// `dma_attrs` is 0 by default.
-    pub fn alloc_coherent(
-        dev: &device::Device<Bound>,
-        count: usize,
-        gfp_flags: kernel::alloc::Flags,
-    ) -> Result<CoherentAllocation<T>> {
-        CoherentAllocation::alloc_attrs(dev, count, gfp_flags, Attrs(0))
-    }
-
-    /// Returns the number of elements `T` in this allocation.
-    ///
-    /// Note that this is not the size of the allocation in bytes, which is provided by
-    /// [`Self::size`].
-    pub fn count(&self) -> usize {
-        self.count
-    }
-
+impl<T: KnownSize + ?Sized> Coherent<T> {
     /// Returns the size in bytes of this allocation.
+    #[inline]
     pub fn size(&self) -> usize {
-        // INVARIANT: The type invariant of `Self` guarantees that `size_of::<T> * count` fits into
-        // a `usize`.
-        self.count * core::mem::size_of::<T>()
+        T::size(self.cpu_addr.as_ptr())
     }
 
     /// Returns the raw pointer to the allocated region in the CPU's virtual address space.
     #[inline]
-    pub fn as_ptr(&self) -> *const [T] {
-        core::ptr::slice_from_raw_parts(self.cpu_addr.as_ptr(), self.count)
+    pub fn as_ptr(&self) -> *const T {
+        self.cpu_addr.as_ptr()
     }
 
     /// Returns the raw pointer to the allocated region in the CPU's virtual address space as
     /// a mutable pointer.
     #[inline]
-    pub fn as_mut_ptr(&self) -> *mut [T] {
-        core::ptr::slice_from_raw_parts_mut(self.cpu_addr.as_ptr(), self.count)
-    }
-
-    /// Returns the base address to the allocated region in the CPU's virtual address space.
-    pub fn start_ptr(&self) -> *const T {
-        self.cpu_addr.as_ptr()
-    }
-
-    /// Returns the base address to the allocated region in the CPU's virtual address space as
-    /// a mutable pointer.
-    pub fn start_ptr_mut(&mut self) -> *mut T {
+    pub fn as_mut_ptr(&self) -> *mut T {
         self.cpu_addr.as_ptr()
     }
 
     /// Returns a DMA handle which may be given to the device as the DMA address base of
     /// the region.
+    #[inline]
     pub fn dma_handle(&self) -> DmaAddress {
         self.dma_handle
     }
 
-    /// Returns a DMA handle starting at `offset` (in units of `T`) which may be given to the
-    /// device as the DMA address base of the region.
-    ///
-    /// Returns `EINVAL` if `offset` is not within the bounds of the allocation.
-    pub fn dma_handle_with_offset(&self, offset: usize) -> Result<DmaAddress> {
-        if offset >= self.count {
-            Err(EINVAL)
-        } else {
-            // INVARIANT: The type invariant of `Self` guarantees that `size_of::<T> * count` fits
-            // into a `usize`, and `offset` is inferior to `count`.
-            Ok(self.dma_handle + (offset * core::mem::size_of::<T>()) as DmaAddress)
-        }
-    }
-
-    /// Common helper to validate a range applied from the allocated region in the CPU's virtual
-    /// address space.
-    fn validate_range(&self, offset: usize, count: usize) -> Result {
-        if offset.checked_add(count).ok_or(EOVERFLOW)? > self.count {
-            return Err(EINVAL);
-        }
-        Ok(())
-    }
-
-    /// Returns the data from the region starting from `offset` as a slice.
-    /// `offset` and `count` are in units of `T`, not the number of bytes.
-    ///
-    /// For ringbuffer type of r/w access or use-cases where the pointer to the live data is needed,
-    /// [`CoherentAllocation::start_ptr`] or [`CoherentAllocation::start_ptr_mut`] could be used
-    /// instead.
+    /// Returns a reference to the data in the region.
     ///
     /// # Safety
     ///
@@ -527,19 +634,13 @@ impl<T: AsBytes + FromBytes> CoherentAllocation<T> {
     ///   slice is live.
     /// * Callers must ensure that this call does not race with a write to the same region while
     ///   the returned slice is live.
-    pub unsafe fn as_slice(&self, offset: usize, count: usize) -> Result<&[T]> {
-        self.validate_range(offset, count)?;
-        // SAFETY:
-        // - The pointer is valid due to type invariant on `CoherentAllocation`,
-        //   we've just checked that the range and index is within bounds. The immutability of the
-        //   data is also guaranteed by the safety requirements of the function.
-        // - `offset + count` can't overflow since it is smaller than `self.count` and we've checked
-        //   that `self.count` won't overflow early in the constructor.
-        Ok(unsafe { core::slice::from_raw_parts(self.start_ptr().add(offset), count) })
+    #[inline]
+    pub unsafe fn as_ref(&self) -> &T {
+        // SAFETY: per safety requirement.
+        unsafe { &*self.as_ptr() }
     }
 
-    /// Performs the same functionality as [`CoherentAllocation::as_slice`], except that a mutable
-    /// slice is returned.
+    /// Returns a mutable reference to the data in the region.
     ///
     /// # Safety
     ///
@@ -547,51 +648,11 @@ impl<T: AsBytes + FromBytes> CoherentAllocation<T> {
     ///   slice is live.
     /// * Callers must ensure that this call does not race with a read or write to the same region
     ///   while the returned slice is live.
-    pub unsafe fn as_slice_mut(&mut self, offset: usize, count: usize) -> Result<&mut [T]> {
-        self.validate_range(offset, count)?;
-        // SAFETY:
-        // - The pointer is valid due to type invariant on `CoherentAllocation`,
-        //   we've just checked that the range and index is within bounds. The immutability of the
-        //   data is also guaranteed by the safety requirements of the function.
-        // - `offset + count` can't overflow since it is smaller than `self.count` and we've checked
-        //   that `self.count` won't overflow early in the constructor.
-        Ok(unsafe { core::slice::from_raw_parts_mut(self.start_ptr_mut().add(offset), count) })
-    }
-
-    /// Writes data to the region starting from `offset`. `offset` is in units of `T`, not the
-    /// number of bytes.
-    ///
-    /// # Safety
-    ///
-    /// * Callers must ensure that this call does not race with a read or write to the same region
-    ///   that overlaps with this write.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # fn test(alloc: &mut kernel::dma::CoherentAllocation<u8>) -> Result {
-    /// let somedata: [u8; 4] = [0xf; 4];
-    /// let buf: &[u8] = &somedata;
-    /// // SAFETY: There is no concurrent HW operation on the device and no other R/W access to the
-    /// // region.
-    /// unsafe { alloc.write(buf, 0)?; }
-    /// # Ok::<(), Error>(()) }
-    /// ```
-    pub unsafe fn write(&mut self, src: &[T], offset: usize) -> Result {
-        self.validate_range(offset, src.len())?;
-        // SAFETY:
-        // - The pointer is valid due to type invariant on `CoherentAllocation`
-        //   and we've just checked that the range and index is within bounds.
-        // - `offset + count` can't overflow since it is smaller than `self.count` and we've checked
-        //   that `self.count` won't overflow early in the constructor.
-        unsafe {
-            core::ptr::copy_nonoverlapping(
-                src.as_ptr(),
-                self.start_ptr_mut().add(offset),
-                src.len(),
-            )
-        };
-        Ok(())
+    #[expect(clippy::mut_from_ref, reason = "unsafe to use API")]
+    #[inline]
+    pub unsafe fn as_mut(&self) -> &mut T {
+        // SAFETY: per safety requirement.
+        unsafe { &mut *self.as_mut_ptr() }
     }
 
     /// Reads the value of `field` and ensures that its type is [`FromBytes`].
@@ -641,18 +702,276 @@ impl<T: AsBytes + FromBytes> CoherentAllocation<T> {
     }
 }
 
+impl<T: AsBytes + FromBytes> Coherent<T> {
+    /// Allocates a region of `T` of coherent memory.
+    fn alloc_with_attrs(
+        dev: &device::Device<Bound>,
+        gfp_flags: kernel::alloc::Flags,
+        dma_attrs: Attrs,
+    ) -> Result<Self> {
+        const {
+            assert!(
+                core::mem::size_of::<T>() > 0,
+                "It doesn't make sense for the allocated type to be a ZST"
+            );
+        }
+
+        let mut dma_handle = 0;
+        // SAFETY: Device pointer is guaranteed as valid by the type invariant on `Device`.
+        let addr = unsafe {
+            bindings::dma_alloc_attrs(
+                dev.as_raw(),
+                core::mem::size_of::<T>(),
+                &mut dma_handle,
+                gfp_flags.as_raw(),
+                dma_attrs.as_raw(),
+            )
+        };
+        let cpu_addr = NonNull::new(addr.cast()).ok_or(ENOMEM)?;
+        // INVARIANT:
+        // - We just successfully allocated a coherent region which is adequately sized for `T`,
+        //   hence the cpu address is valid.
+        // - We also hold a refcounted reference to the device.
+        Ok(Self {
+            dev: dev.into(),
+            dma_handle,
+            cpu_addr,
+            dma_attrs,
+        })
+    }
+
+    /// Allocates a region of type `T` of coherent memory.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use kernel::device::{
+    /// #     Bound,
+    /// #     Device,
+    /// # };
+    /// use kernel::dma::{
+    ///     attrs::*,
+    ///     Coherent,
+    /// };
+    ///
+    /// # fn test(dev: &Device<Bound>) -> Result {
+    /// let c: Coherent<[u64; 4]> =
+    ///     Coherent::zeroed_with_attrs(dev, GFP_KERNEL, DMA_ATTR_NO_WARN)?;
+    /// # Ok::<(), Error>(()) }
+    /// ```
+    #[inline]
+    pub fn zeroed_with_attrs(
+        dev: &device::Device<Bound>,
+        gfp_flags: kernel::alloc::Flags,
+        dma_attrs: Attrs,
+    ) -> Result<Self> {
+        Self::alloc_with_attrs(dev, gfp_flags | __GFP_ZERO, dma_attrs)
+    }
+
+    /// Performs the same functionality as [`Coherent::zeroed_with_attrs`], except the
+    /// `dma_attrs` is 0 by default.
+    #[inline]
+    pub fn zeroed(dev: &device::Device<Bound>, gfp_flags: kernel::alloc::Flags) -> Result<Self> {
+        Self::zeroed_with_attrs(dev, gfp_flags, Attrs(0))
+    }
+
+    /// Same as [`Coherent::zeroed_with_attrs`], but instead of a zero-initialization the memory is
+    /// initialized with `init`.
+    pub fn init_with_attrs<E>(
+        dev: &device::Device<Bound>,
+        gfp_flags: kernel::alloc::Flags,
+        dma_attrs: Attrs,
+        init: impl Init<T, E>,
+    ) -> Result<Self>
+    where
+        Error: From<E>,
+    {
+        let dmem = Self::alloc_with_attrs(dev, gfp_flags, dma_attrs)?;
+        let ptr = dmem.as_mut_ptr();
+
+        // SAFETY:
+        // - `ptr` is valid, properly aligned, and points to exclusively owned memory.
+        // - If `__init` fails, `self` is dropped, which safely frees the underlying `Coherent`'s
+        //   DMA memory. `T: AsBytes + FromBytes` ensures there are no complex `Drop` requirements
+        //   we are bypassing.
+        unsafe { init.__init(ptr)? };
+
+        Ok(dmem)
+    }
+
+    /// Same as [`Coherent::zeroed`], but instead of a zero-initialization the memory is initialized
+    /// with `init`.
+    #[inline]
+    pub fn init<E>(
+        dev: &device::Device<Bound>,
+        gfp_flags: kernel::alloc::Flags,
+        init: impl Init<T, E>,
+    ) -> Result<Self>
+    where
+        Error: From<E>,
+    {
+        Self::init_with_attrs(dev, gfp_flags, Attrs(0), init)
+    }
+
+    /// Allocates a region of `[T; len]` of coherent memory.
+    fn alloc_slice_with_attrs(
+        dev: &device::Device<Bound>,
+        len: usize,
+        gfp_flags: kernel::alloc::Flags,
+        dma_attrs: Attrs,
+    ) -> Result<Coherent<[T]>> {
+        const {
+            assert!(
+                core::mem::size_of::<T>() > 0,
+                "It doesn't make sense for the allocated type to be a ZST"
+            );
+        }
+
+        // `dma_alloc_attrs` cannot handle zero-length allocation, bail early.
+        if len == 0 {
+            Err(EINVAL)?;
+        }
+
+        let size = core::mem::size_of::<T>().checked_mul(len).ok_or(ENOMEM)?;
+        let mut dma_handle = 0;
+        // SAFETY: Device pointer is guaranteed as valid by the type invariant on `Device`.
+        let addr = unsafe {
+            bindings::dma_alloc_attrs(
+                dev.as_raw(),
+                size,
+                &mut dma_handle,
+                gfp_flags.as_raw(),
+                dma_attrs.as_raw(),
+            )
+        };
+        let cpu_addr = NonNull::slice_from_raw_parts(NonNull::new(addr.cast()).ok_or(ENOMEM)?, len);
+        // INVARIANT:
+        // - We just successfully allocated a coherent region which is adequately sized for
+        //   `[T; len]`, hence the cpu address is valid.
+        // - We also hold a refcounted reference to the device.
+        Ok(Coherent {
+            dev: dev.into(),
+            dma_handle,
+            cpu_addr,
+            dma_attrs,
+        })
+    }
+
+    /// Allocates a zeroed region of type `T` of coherent memory.
+    ///
+    /// Unlike `Coherent::<[T; N]>::zeroed_with_attrs`, `Coherent::<T>::zeroed_slices` support
+    /// a runtime length.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use kernel::device::{
+    /// #     Bound,
+    /// #     Device,
+    /// # };
+    /// use kernel::dma::{
+    ///     attrs::*,
+    ///     Coherent,
+    /// };
+    ///
+    /// # fn test(dev: &Device<Bound>) -> Result {
+    /// let c: Coherent<[u64]> =
+    ///     Coherent::zeroed_slice_with_attrs(dev, 4, GFP_KERNEL, DMA_ATTR_NO_WARN)?;
+    /// # Ok::<(), Error>(()) }
+    /// ```
+    #[inline]
+    pub fn zeroed_slice_with_attrs(
+        dev: &device::Device<Bound>,
+        len: usize,
+        gfp_flags: kernel::alloc::Flags,
+        dma_attrs: Attrs,
+    ) -> Result<Coherent<[T]>> {
+        Coherent::alloc_slice_with_attrs(dev, len, gfp_flags | __GFP_ZERO, dma_attrs)
+    }
+
+    /// Performs the same functionality as [`Coherent::zeroed_slice_with_attrs`], except the
+    /// `dma_attrs` is 0 by default.
+    #[inline]
+    pub fn zeroed_slice(
+        dev: &device::Device<Bound>,
+        len: usize,
+        gfp_flags: kernel::alloc::Flags,
+    ) -> Result<Coherent<[T]>> {
+        Self::zeroed_slice_with_attrs(dev, len, gfp_flags, Attrs(0))
+    }
+
+    /// Allocates a region of coherent memory of the same size as `data` and initializes it with a
+    /// copy of its contents.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use kernel::device::{Bound, Device};
+    /// use kernel::dma::{
+    ///     attrs::*,
+    ///     Coherent
+    /// };
+    ///
+    /// # fn test(dev: &Device<Bound>) -> Result {
+    /// let data = [0u8, 1u8, 2u8, 3u8];
+    /// // `c` has the same content as `data`.
+    /// let c: Coherent<[u8]> =
+    ///     Coherent::from_slice_with_attrs(dev, &data, GFP_KERNEL, DMA_ATTR_NO_WARN)?;
+    ///
+    /// # Ok::<(), Error>(()) }
+    /// ```
+    #[inline]
+    pub fn from_slice_with_attrs(
+        dev: &device::Device<Bound>,
+        data: &[T],
+        gfp_flags: kernel::alloc::Flags,
+        dma_attrs: Attrs,
+    ) -> Result<Coherent<[T]>>
+    where
+        T: Copy,
+    {
+        CoherentBox::from_slice_with_attrs(dev, data, gfp_flags, dma_attrs).map(Into::into)
+    }
+
+    /// Performs the same functionality as [`Coherent::from_slice_with_attrs`], except the
+    /// `dma_attrs` is 0 by default.
+    #[inline]
+    pub fn from_slice(
+        dev: &device::Device<Bound>,
+        data: &[T],
+        gfp_flags: kernel::alloc::Flags,
+    ) -> Result<Coherent<[T]>>
+    where
+        T: Copy,
+    {
+        Self::from_slice_with_attrs(dev, data, gfp_flags, Attrs(0))
+    }
+}
+
+impl<T> Coherent<[T]> {
+    /// Returns the number of elements `T` in this allocation.
+    ///
+    /// Note that this is not the size of the allocation in bytes, which is provided by
+    /// [`Self::size`].
+    #[inline]
+    #[expect(clippy::len_without_is_empty, reason = "Coherent slice is never empty")]
+    pub fn len(&self) -> usize {
+        self.cpu_addr.len()
+    }
+}
+
 /// Note that the device configured to do DMA must be halted before this object is dropped.
-impl<T: AsBytes + FromBytes> Drop for CoherentAllocation<T> {
+impl<T: KnownSize + ?Sized> Drop for Coherent<T> {
     fn drop(&mut self) {
-        let size = self.count * core::mem::size_of::<T>();
+        let size = T::size(self.cpu_addr.as_ptr());
         // SAFETY: Device pointer is guaranteed as valid by the type invariant on `Device`.
         // The cpu address, and the dma handle are valid due to the type invariants on
-        // `CoherentAllocation`.
+        // `Coherent`.
         unsafe {
             bindings::dma_free_attrs(
                 self.dev.as_raw(),
                 size,
-                self.start_ptr_mut().cast(),
+                self.cpu_addr.as_ptr().cast(),
                 self.dma_handle,
                 self.dma_attrs.as_raw(),
             )
@@ -660,20 +979,170 @@ impl<T: AsBytes + FromBytes> Drop for CoherentAllocation<T> {
     }
 }
 
-// SAFETY: It is safe to send a `CoherentAllocation` to another thread if `T`
+// SAFETY: It is safe to send a `Coherent` to another thread if `T`
 // can be sent to another thread.
-unsafe impl<T: AsBytes + FromBytes + Send> Send for CoherentAllocation<T> {}
+unsafe impl<T: KnownSize + Send + ?Sized> Send for Coherent<T> {}
+
+// SAFETY: Sharing `&Coherent` across threads is safe if `T` is `Sync`, because all
+// methods that access the buffer contents (`field_read`, `field_write`, `as_slice`,
+// `as_slice_mut`) are `unsafe`, and callers are responsible for ensuring no data races occur.
+// The safe methods only return metadata or raw pointers whose use requires `unsafe`.
+unsafe impl<T: KnownSize + ?Sized + AsBytes + FromBytes + Sync> Sync for Coherent<T> {}
+
+impl<T: KnownSize + AsBytes + ?Sized> debugfs::BinaryWriter for Coherent<T> {
+    fn write_to_slice(
+        &self,
+        writer: &mut UserSliceWriter,
+        offset: &mut file::Offset,
+    ) -> Result<usize> {
+        if offset.is_negative() {
+            return Err(EINVAL);
+        }
+
+        // If the offset is too large for a usize (e.g. on 32-bit platforms),
+        // then consider that as past EOF and just return 0 bytes.
+        let Ok(offset_val) = usize::try_from(*offset) else {
+            return Ok(0);
+        };
+
+        let count = self.size().saturating_sub(offset_val).min(writer.len());
+
+        writer.write_dma(self, offset_val, count)?;
+
+        *offset += count as i64;
+        Ok(count)
+    }
+}
+
+/// An opaque DMA allocation without a kernel virtual mapping.
+///
+/// Unlike [`Coherent`], a `CoherentHandle` does not provide CPU access to the allocated memory.
+/// The allocation is always performed with `DMA_ATTR_NO_KERNEL_MAPPING`, meaning no kernel
+/// virtual mapping is created for the buffer. The value returned by the C API as the CPU
+/// address is an opaque handle used only to free the allocation.
+///
+/// This is useful for buffers that are only ever accessed by hardware.
+///
+/// # Invariants
+///
+/// - `cpu_handle` holds the opaque handle returned by `dma_alloc_attrs` with
+///   `DMA_ATTR_NO_KERNEL_MAPPING` set, and is only valid for passing back to `dma_free_attrs`.
+/// - `dma_handle` is the corresponding bus address for device DMA.
+/// - `size` is the allocation size in bytes as passed to `dma_alloc_attrs`.
+/// - `dma_attrs` contains the attributes used for the allocation, always including
+///   `DMA_ATTR_NO_KERNEL_MAPPING`.
+pub struct CoherentHandle {
+    dev: ARef<device::Device>,
+    dma_handle: DmaAddress,
+    cpu_handle: NonNull<c_void>,
+    size: usize,
+    dma_attrs: Attrs,
+}
+
+impl CoherentHandle {
+    /// Allocates `size` bytes of coherent DMA memory without creating a kernel virtual mapping.
+    ///
+    /// Additional DMA attributes may be passed via `dma_attrs`; `DMA_ATTR_NO_KERNEL_MAPPING` is
+    /// always set implicitly.
+    ///
+    /// Returns `EINVAL` if `size` is zero, `ENOMEM` if the allocation fails.
+    pub fn alloc_with_attrs(
+        dev: &device::Device<Bound>,
+        size: usize,
+        gfp_flags: kernel::alloc::Flags,
+        dma_attrs: Attrs,
+    ) -> Result<Self> {
+        if size == 0 {
+            return Err(EINVAL);
+        }
+
+        let dma_attrs = dma_attrs | Attrs(bindings::DMA_ATTR_NO_KERNEL_MAPPING);
+        let mut dma_handle = 0;
+        // SAFETY: `dev.as_raw()` is valid by the type invariant on `device::Device`.
+        let cpu_handle = unsafe {
+            bindings::dma_alloc_attrs(
+                dev.as_raw(),
+                size,
+                &mut dma_handle,
+                gfp_flags.as_raw(),
+                dma_attrs.as_raw(),
+            )
+        };
+
+        let cpu_handle = NonNull::new(cpu_handle).ok_or(ENOMEM)?;
+
+        // INVARIANT: `cpu_handle` is the opaque handle from a successful `dma_alloc_attrs` call
+        // with `DMA_ATTR_NO_KERNEL_MAPPING`, `dma_handle` is the corresponding DMA address,
+        // and we hold a refcounted reference to the device.
+        Ok(Self {
+            dev: dev.into(),
+            dma_handle,
+            cpu_handle,
+            size,
+            dma_attrs,
+        })
+    }
+
+    /// Allocates `size` bytes of coherent DMA memory without creating a kernel virtual mapping.
+    #[inline]
+    pub fn alloc(
+        dev: &device::Device<Bound>,
+        size: usize,
+        gfp_flags: kernel::alloc::Flags,
+    ) -> Result<Self> {
+        Self::alloc_with_attrs(dev, size, gfp_flags, Attrs(0))
+    }
+
+    /// Returns the DMA handle for this allocation.
+    ///
+    /// This address can be programmed into device hardware for DMA access.
+    #[inline]
+    pub fn dma_handle(&self) -> DmaAddress {
+        self.dma_handle
+    }
+
+    /// Returns the size in bytes of this allocation.
+    #[inline]
+    pub fn size(&self) -> usize {
+        self.size
+    }
+}
+
+impl Drop for CoherentHandle {
+    fn drop(&mut self) {
+        // SAFETY: All values are valid by the type invariants on `CoherentHandle`.
+        // `cpu_handle` is the opaque handle from `dma_alloc_attrs` and is passed back unchanged.
+        unsafe {
+            bindings::dma_free_attrs(
+                self.dev.as_raw(),
+                self.size,
+                self.cpu_handle.as_ptr(),
+                self.dma_handle,
+                self.dma_attrs.as_raw(),
+            )
+        }
+    }
+}
+
+// SAFETY: `CoherentHandle` only holds a device reference, a DMA handle, an opaque CPU handle,
+// and a size. None of these are tied to a specific thread.
+unsafe impl Send for CoherentHandle {}
+
+// SAFETY: `CoherentHandle` provides no CPU access to the underlying allocation. The only
+// operations on `&CoherentHandle` are reading the DMA handle and size, both of which are
+// plain `Copy` values.
+unsafe impl Sync for CoherentHandle {}
 
 /// Reads a field of an item from an allocated region of structs.
 ///
 /// The syntax is of the form `kernel::dma_read!(dma, proj)` where `dma` is an expression evaluating
-/// to a [`CoherentAllocation`] and `proj` is a [projection specification](kernel::ptr::project!).
+/// to a [`Coherent`] and `proj` is a [projection specification](kernel::ptr::project!).
 ///
 /// # Examples
 ///
 /// ```
 /// use kernel::device::Device;
-/// use kernel::dma::{attrs::*, CoherentAllocation};
+/// use kernel::dma::{attrs::*, Coherent};
 ///
 /// struct MyStruct { field: u32, }
 ///
@@ -682,7 +1151,7 @@ unsafe impl<T: AsBytes + FromBytes + Send> Send for CoherentAllocation<T> {}
 /// // SAFETY: Instances of `MyStruct` have no uninitialized portions.
 /// unsafe impl kernel::transmute::AsBytes for MyStruct{};
 ///
-/// # fn test(alloc: &kernel::dma::CoherentAllocation<MyStruct>) -> Result {
+/// # fn test(alloc: &kernel::dma::Coherent<[MyStruct]>) -> Result {
 /// let whole = kernel::dma_read!(alloc, [2]?);
 /// let field = kernel::dma_read!(alloc, [1]?.field);
 /// # Ok::<(), Error>(()) }
@@ -692,17 +1161,17 @@ macro_rules! dma_read {
     ($dma:expr, $($proj:tt)*) => {{
         let dma = &$dma;
         let ptr = $crate::ptr::project!(
-            $crate::dma::CoherentAllocation::as_ptr(dma), $($proj)*
+            $crate::dma::Coherent::as_ptr(dma), $($proj)*
         );
         // SAFETY: The pointer created by the projection is within the DMA region.
-        unsafe { $crate::dma::CoherentAllocation::field_read(dma, ptr) }
+        unsafe { $crate::dma::Coherent::field_read(dma, ptr) }
     }};
 }
 
 /// Writes to a field of an item from an allocated region of structs.
 ///
 /// The syntax is of the form `kernel::dma_write!(dma, proj, val)` where `dma` is an expression
-/// evaluating to a [`CoherentAllocation`], `proj` is a
+/// evaluating to a [`Coherent`], `proj` is a
 /// [projection specification](kernel::ptr::project!), and `val` is the value to be written to the
 /// projected location.
 ///
@@ -710,7 +1179,7 @@ macro_rules! dma_read {
 ///
 /// ```
 /// use kernel::device::Device;
-/// use kernel::dma::{attrs::*, CoherentAllocation};
+/// use kernel::dma::{attrs::*, Coherent};
 ///
 /// struct MyStruct { member: u32, }
 ///
@@ -719,7 +1188,7 @@ macro_rules! dma_read {
 /// // SAFETY: Instances of `MyStruct` have no uninitialized portions.
 /// unsafe impl kernel::transmute::AsBytes for MyStruct{};
 ///
-/// # fn test(alloc: &kernel::dma::CoherentAllocation<MyStruct>) -> Result {
+/// # fn test(alloc: &kernel::dma::Coherent<[MyStruct]>) -> Result {
 /// kernel::dma_write!(alloc, [2]?.member, 0xf);
 /// kernel::dma_write!(alloc, [1]?, MyStruct { member: 0xf });
 /// # Ok::<(), Error>(()) }
@@ -729,11 +1198,11 @@ macro_rules! dma_write {
     (@parse [$dma:expr] [$($proj:tt)*] [, $val:expr]) => {{
         let dma = &$dma;
         let ptr = $crate::ptr::project!(
-            mut $crate::dma::CoherentAllocation::as_mut_ptr(dma), $($proj)*
+            mut $crate::dma::Coherent::as_mut_ptr(dma), $($proj)*
         );
         let val = $val;
         // SAFETY: The pointer created by the projection is within the DMA region.
-        unsafe { $crate::dma::CoherentAllocation::field_write(dma, ptr, val) }
+        unsafe { $crate::dma::Coherent::field_write(dma, ptr, val) }
     }};
     (@parse [$dma:expr] [$($proj:tt)*] [.$field:tt $($rest:tt)*]) => {
         $crate::dma_write!(@parse [$dma] [$($proj)* .$field] [$($rest)*])

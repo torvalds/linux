@@ -250,6 +250,7 @@ void opp1_set_dyn_expansion(
 	enum dc_color_depth color_dpth,
 	enum signal_type signal)
 {
+	(void)color_sp;
 	struct dcn10_opp *oppn10 = TO_DCN10_OPP(opp);
 
 	REG_UPDATE_2(FMT_DYNAMIC_EXP_CNTL,

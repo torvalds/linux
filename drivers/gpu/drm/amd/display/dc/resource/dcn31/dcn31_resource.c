@@ -1118,6 +1118,7 @@ static struct link_encoder *dcn31_link_encoder_create(
 	struct dc_context *ctx,
 	const struct encoder_init_data *enc_init_data)
 {
+	(void)ctx;
 	struct dcn20_link_encoder *enc20 =
 		kzalloc_obj(struct dcn20_link_encoder);
 
@@ -1731,12 +1732,9 @@ int dcn31_populate_dml_pipes_from_context(
 		pipe_cnt++;
 	}
 	context->bw_ctx.dml.ip.det_buffer_size_kbytes = DCN3_1_DEFAULT_DET_SIZE;
-	dc->config.enable_4to1MPC = false;
+
 	if (pipe_cnt == 1 && pipe->plane_state && !dc->debug.disable_z9_mpc) {
-		if (is_dual_plane(pipe->plane_state->format)
-				&& pipe->plane_state->src_rect.width <= 1920 && pipe->plane_state->src_rect.height <= 1080) {
-			dc->config.enable_4to1MPC = true;
-		} else if (!is_dual_plane(pipe->plane_state->format) && pipe->plane_state->src_rect.width <= 5120) {
+		if (!is_dual_plane(pipe->plane_state->format) && pipe->plane_state->src_rect.width <= 5120) {
 			/* Limit to 5k max to avoid forced pipe split when there is not enough detile for swath */
 			context->bw_ctx.dml.ip.det_buffer_size_kbytes = 192;
 			pipes[0].pipe.src.unbounded_req_mode = true;
@@ -1883,6 +1881,7 @@ static struct resource_funcs dcn31_res_pool_funcs = {
 	.get_det_buffer_size = dcn31_get_det_buffer_size,
 	.get_vstartup_for_pipe = dcn10_get_vstartup_for_pipe,
 	.update_dc_state_for_encoder_switch = dcn31_update_dc_state_for_encoder_switch,
+	.get_default_tiling_info = dcn10_get_default_tiling_info,
 	.build_pipe_pix_clk_params = dcn20_build_pipe_pix_clk_params
 };
 
@@ -1928,7 +1927,7 @@ static bool dcn31_resource_construct(
 	/*************************************************
 	 *  Resource + asic cap harcoding                *
 	 *************************************************/
-	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
+	pool->base.underlay_pipe_index = (unsigned int)NO_UNDERLAY_PIPE;
 	pool->base.pipe_count = pool->base.res_cap->num_timing_generator;
 	pool->base.mpcc_count = pool->base.res_cap->num_timing_generator;
 	dc->caps.max_downscale_ratio = 600;
@@ -1952,6 +1951,9 @@ static bool dcn31_resource_construct(
 	dc->caps.dmcub_support = true;
 	dc->caps.is_apu = true;
 	dc->caps.zstate_support = true;
+
+	/* Enable 4to1MPC by default */
+	dc->config.allow_4to1MPC = true;
 
 	/* Color pipeline capabilities */
 	dc->caps.color.dpp.dcn_arch = 1;
@@ -2282,6 +2284,7 @@ enum dc_status dcn31_update_dc_state_for_encoder_switch(struct dc_link *link,
 	struct pipe_ctx *pipes,
 	struct audio_output *audio_output)
 {
+	(void)link_setting;
 	struct dc_state *state = link->dc->current_state;
 	int i;
 

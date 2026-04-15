@@ -127,6 +127,7 @@ void dmub_dcn30_setup_windows(struct dmub_srv *dmub,
 			      const struct dmub_window *cw6,
 			      const struct dmub_window *region6)
 {
+	(void)region6;
 	union dmub_addr offset;
 
 	/* sienna_cichlid  has hardwired virtual addressing for CW2-CW7 */

@@ -783,6 +783,8 @@ static enum bp_result external_encoder_control_v3(
 	struct bios_parser *bp,
 	struct bp_external_encoder_control *cntl)
 {
+	(void)bp;
+	(void)cntl;
 	/* TODO */
 	return BP_RESULT_OK;
 }

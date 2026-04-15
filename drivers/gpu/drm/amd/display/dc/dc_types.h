@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-15 Advanced Micro Devices, Inc.
+ * Copyright 2012-2026 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -1144,10 +1144,12 @@ union replay_low_refresh_rate_enable_options {
 
 union replay_optimization {
 	struct {
-		//BIT[0-3]: Replay Teams Optimization
+		//BIT[0-1]: Replay Teams Optimization
 		unsigned int TEAMS_OPTIMIZATION_VER_1           :1;
 		unsigned int TEAMS_OPTIMIZATION_VER_2           :1;
-		unsigned int RESERVED_2_3                       :2;
+		//BIT[2]: Replay Live Capture with CVT
+		unsigned int LIVE_CAPTURE_WITH_CVT              :1;
+		unsigned int RESERVED_3                         :1;
 	} bits;
 
 	unsigned int raw;
@@ -1194,6 +1196,10 @@ struct replay_config {
 	union replay_optimization replay_optimization;
 	/* Replay sub feature Frame Skipping is supported */
 	bool frame_skip_supported;
+	/* Replay Received Frame Skipping Error HPD. */
+	bool received_frame_skipping_error_hpd;
+	/* Live capture with CVT is activated */
+	bool live_capture_with_cvt_activated;
 };
 
 /* Replay feature flags*/
@@ -1346,6 +1352,7 @@ enum dc_cm2_gpu_mem_layout {
 
 enum dc_cm2_gpu_mem_pixel_component_order {
 	DC_CM2_GPU_MEM_PIXEL_COMPONENT_ORDER_RGBA,
+	DC_CM2_GPU_MEM_PIXEL_COMPONENT_ORDER_BGRA
 };
 
 enum dc_cm2_gpu_mem_format {
@@ -1367,6 +1374,9 @@ struct dc_cm2_gpu_mem_format_parameters {
 
 enum dc_cm2_gpu_mem_size {
 	DC_CM2_GPU_MEM_SIZE_171717,
+	DC_CM2_GPU_MEM_SIZE_333333,
+	DC_CM2_GPU_MEM_SIZE_454545,
+	DC_CM2_GPU_MEM_SIZE_656565,
 	DC_CM2_GPU_MEM_SIZE_TRANSFORMED,
 };
 
@@ -1475,6 +1485,30 @@ struct dc_validation_dpia_set {
 	const struct dc_link *link;
 	const struct dc_tunnel_settings *tunnel_settings;
 	uint32_t required_bw;
+};
+
+enum dc_cm_lut_swizzle {
+	CM_LUT_3D_SWIZZLE_LINEAR_RGB,
+	CM_LUT_3D_SWIZZLE_LINEAR_BGR,
+	CM_LUT_1D_PACKED_LINEAR
+};
+
+enum dc_cm_lut_pixel_format {
+	CM_LUT_PIXEL_FORMAT_RGBA16161616_UNORM_12MSB,
+	CM_LUT_PIXEL_FORMAT_BGRA16161616_UNORM_12MSB,
+	CM_LUT_PIXEL_FORMAT_RGBA16161616_UNORM_12LSB,
+	CM_LUT_PIXEL_FORMAT_BGRA16161616_UNORM_12LSB,
+	CM_LUT_PIXEL_FORMAT_RGBA16161616_FLOAT_FP1_5_10,
+	CM_LUT_PIXEL_FORMAT_BGRA16161616_FLOAT_FP1_5_10
+};
+
+enum dc_cm_lut_size {
+	CM_LUT_SIZE_NONE,
+	CM_LUT_SIZE_999,
+	CM_LUT_SIZE_171717,
+	CM_LUT_SIZE_333333,
+	CM_LUT_SIZE_454545,
+	CM_LUT_SIZE_656565,
 };
 
 #endif /* DC_TYPES_H_ */

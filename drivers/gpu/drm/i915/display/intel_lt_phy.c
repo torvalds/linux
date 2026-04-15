@@ -5,15 +5,16 @@
 
 #include <drm/drm_print.h>
 
-#include "i915_reg.h"
 #include "intel_cx0_phy.h"
 #include "intel_cx0_phy_regs.h"
 #include "intel_ddi.h"
 #include "intel_ddi_buf_trans.h"
 #include "intel_de.h"
 #include "intel_display.h"
+#include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_display_utils.h"
+#include "intel_dpll.h"
 #include "intel_dpll_mgr.h"
 #include "intel_hdmi.h"
 #include "intel_lt_phy.h"
@@ -32,6 +33,7 @@
 					 INTEL_LT_PHY_LANE0)
 #define MODE_DP				3
 #define MODE_HDMI_20			4
+#define MODE_HDMI_FRL			5
 #define Q32_TO_INT(x)	((x) >> 32)
 #define Q32_TO_FRAC(x)	((x) & 0xFFFFFFFF)
 #define DCO_MIN_FREQ_MHZ	11850
@@ -60,7 +62,6 @@ struct lt_phy_params {
 };
 
 static const struct intel_lt_phy_pll_state xe3plpd_lt_dp_rbr = {
-	.clock = 162000,
 	.config = {
 		0x83,
 		0x2d,
@@ -114,7 +115,6 @@ static const struct intel_lt_phy_pll_state xe3plpd_lt_dp_rbr = {
 };
 
 static const struct intel_lt_phy_pll_state xe3plpd_lt_dp_hbr1 = {
-	.clock = 270000,
 	.config = {
 		0x8b,
 		0x2d,
@@ -168,7 +168,6 @@ static const struct intel_lt_phy_pll_state xe3plpd_lt_dp_hbr1 = {
 };
 
 static const struct intel_lt_phy_pll_state xe3plpd_lt_dp_hbr2 = {
-	.clock = 540000,
 	.config = {
 		0x93,
 		0x2d,
@@ -222,7 +221,6 @@ static const struct intel_lt_phy_pll_state xe3plpd_lt_dp_hbr2 = {
 };
 
 static const struct intel_lt_phy_pll_state xe3plpd_lt_dp_hbr3 = {
-	.clock = 810000,
 	.config = {
 		0x9b,
 		0x2d,
@@ -276,7 +274,6 @@ static const struct intel_lt_phy_pll_state xe3plpd_lt_dp_hbr3 = {
 };
 
 static const struct intel_lt_phy_pll_state xe3plpd_lt_dp_uhbr10 = {
-	.clock = 1000000,
 	.config = {
 		0x43,
 		0x2d,
@@ -330,7 +327,6 @@ static const struct intel_lt_phy_pll_state xe3plpd_lt_dp_uhbr10 = {
 };
 
 static const struct intel_lt_phy_pll_state xe3plpd_lt_dp_uhbr13_5 = {
-	.clock = 1350000,
 	.config = {
 		0xcb,
 		0x2d,
@@ -384,7 +380,6 @@ static const struct intel_lt_phy_pll_state xe3plpd_lt_dp_uhbr13_5 = {
 };
 
 static const struct intel_lt_phy_pll_state xe3plpd_lt_dp_uhbr20 = {
-	.clock = 2000000,
 	.config = {
 		0x53,
 		0x2d,
@@ -437,19 +432,35 @@ static const struct intel_lt_phy_pll_state xe3plpd_lt_dp_uhbr20 = {
 	},
 };
 
-static const struct intel_lt_phy_pll_state * const xe3plpd_lt_dp_tables[] = {
-	&xe3plpd_lt_dp_rbr,
-	&xe3plpd_lt_dp_hbr1,
-	&xe3plpd_lt_dp_hbr2,
-	&xe3plpd_lt_dp_hbr3,
-	&xe3plpd_lt_dp_uhbr10,
-	&xe3plpd_lt_dp_uhbr13_5,
-	&xe3plpd_lt_dp_uhbr20,
-	NULL,
+struct intel_lt_phy_pll_params {
+	const char *name;
+	bool is_hdmi;
+	int clock_rate;
+	const struct intel_lt_phy_pll_state *state;
+};
+
+#define __LT_PHY_PLL_PARAMS(__is_hdmi, __clock_rate, __state)    { \
+	.name = __stringify(__state), \
+	.is_hdmi = __is_hdmi, \
+	.clock_rate = __clock_rate, \
+	.state = &__state, \
+}
+
+#define LT_PHY_PLL_HDMI_PARAMS(__clock_rate, __state)	__LT_PHY_PLL_PARAMS(true, __clock_rate, __state)
+#define LT_PHY_PLL_DP_PARAMS(__clock_rate, __state)	__LT_PHY_PLL_PARAMS(false, __clock_rate, __state)
+
+static const struct intel_lt_phy_pll_params xe3plpd_lt_dp_tables[] = {
+	LT_PHY_PLL_DP_PARAMS(162000, xe3plpd_lt_dp_rbr),
+	LT_PHY_PLL_DP_PARAMS(270000, xe3plpd_lt_dp_hbr1),
+	LT_PHY_PLL_DP_PARAMS(540000, xe3plpd_lt_dp_hbr2),
+	LT_PHY_PLL_DP_PARAMS(810000, xe3plpd_lt_dp_hbr3),
+	LT_PHY_PLL_DP_PARAMS(1000000, xe3plpd_lt_dp_uhbr10),
+	LT_PHY_PLL_DP_PARAMS(1350000, xe3plpd_lt_dp_uhbr13_5),
+	LT_PHY_PLL_DP_PARAMS(2000000, xe3plpd_lt_dp_uhbr20),
+	{}
 };
 
 static const struct intel_lt_phy_pll_state xe3plpd_lt_edp_2_16 = {
-	.clock = 216000,
 	.config = {
 		0xa3,
 		0x2d,
@@ -503,7 +514,6 @@ static const struct intel_lt_phy_pll_state xe3plpd_lt_edp_2_16 = {
 };
 
 static const struct intel_lt_phy_pll_state xe3plpd_lt_edp_2_43 = {
-	.clock = 243000,
 	.config = {
 		0xab,
 		0x2d,
@@ -557,7 +567,6 @@ static const struct intel_lt_phy_pll_state xe3plpd_lt_edp_2_43 = {
 };
 
 static const struct intel_lt_phy_pll_state xe3plpd_lt_edp_3_24 = {
-	.clock = 324000,
 	.config = {
 		0xb3,
 		0x2d,
@@ -611,7 +620,6 @@ static const struct intel_lt_phy_pll_state xe3plpd_lt_edp_3_24 = {
 };
 
 static const struct intel_lt_phy_pll_state xe3plpd_lt_edp_4_32 = {
-	.clock = 432000,
 	.config = {
 		0xbb,
 		0x2d,
@@ -665,7 +673,6 @@ static const struct intel_lt_phy_pll_state xe3plpd_lt_edp_4_32 = {
 };
 
 static const struct intel_lt_phy_pll_state xe3plpd_lt_edp_6_75 = {
-	.clock = 675000,
 	.config = {
 		0xdb,
 		0x2d,
@@ -718,21 +725,20 @@ static const struct intel_lt_phy_pll_state xe3plpd_lt_edp_6_75 = {
 	},
 };
 
-static const struct intel_lt_phy_pll_state * const xe3plpd_lt_edp_tables[] = {
-	&xe3plpd_lt_dp_rbr,
-	&xe3plpd_lt_edp_2_16,
-	&xe3plpd_lt_edp_2_43,
-	&xe3plpd_lt_dp_hbr1,
-	&xe3plpd_lt_edp_3_24,
-	&xe3plpd_lt_edp_4_32,
-	&xe3plpd_lt_dp_hbr2,
-	&xe3plpd_lt_edp_6_75,
-	&xe3plpd_lt_dp_hbr3,
-	NULL,
+static const struct intel_lt_phy_pll_params xe3plpd_lt_edp_tables[] = {
+	LT_PHY_PLL_DP_PARAMS(162000, xe3plpd_lt_dp_rbr),
+	LT_PHY_PLL_DP_PARAMS(216000, xe3plpd_lt_edp_2_16),
+	LT_PHY_PLL_DP_PARAMS(243000, xe3plpd_lt_edp_2_43),
+	LT_PHY_PLL_DP_PARAMS(270000, xe3plpd_lt_dp_hbr1),
+	LT_PHY_PLL_DP_PARAMS(324000, xe3plpd_lt_edp_3_24),
+	LT_PHY_PLL_DP_PARAMS(432000, xe3plpd_lt_edp_4_32),
+	LT_PHY_PLL_DP_PARAMS(540000, xe3plpd_lt_dp_hbr2),
+	LT_PHY_PLL_DP_PARAMS(675000, xe3plpd_lt_edp_6_75),
+	LT_PHY_PLL_DP_PARAMS(810000, xe3plpd_lt_dp_hbr3),
+	{}
 };
 
 static const struct intel_lt_phy_pll_state xe3plpd_lt_hdmi_252 = {
-	.clock = 25200,
 	.config = {
 		0x84,
 		0x2d,
@@ -785,62 +791,7 @@ static const struct intel_lt_phy_pll_state xe3plpd_lt_hdmi_252 = {
 	},
 };
 
-static const struct intel_lt_phy_pll_state xe3plpd_lt_hdmi_272 = {
-	.clock = 27200,
-	.config = {
-		0x84,
-		0x2d,
-		0x0,
-	},
-	.addr_msb = {
-		0x87,
-		0x87,
-		0x87,
-		0x87,
-		0x88,
-		0x88,
-		0x88,
-		0x88,
-		0x88,
-		0x88,
-		0x88,
-		0x88,
-		0x88,
-	},
-	.addr_lsb = {
-		0x10,
-		0x0c,
-		0x14,
-		0xe4,
-		0x0c,
-		0x10,
-		0x14,
-		0x18,
-		0x48,
-		0x40,
-		0x4c,
-		0x24,
-		0x44,
-	},
-	.data = {
-		{ 0x0,  0x4c, 0x2,  0x0  },
-		{ 0x0b, 0x15, 0x26, 0xa0 },
-		{ 0x60, 0x0,  0x0,  0x0  },
-		{ 0x8,  0x4,  0x96, 0x28 },
-		{ 0xfa, 0x0c, 0x84, 0x11 },
-		{ 0x80, 0x0f, 0xd9, 0x53 },
-		{ 0x86, 0x0,  0x0,  0x0  },
-		{ 0x1,  0xa0, 0x1,  0x0  },
-		{ 0x4b, 0x0,  0x0,  0x0  },
-		{ 0x28, 0x0,  0x0,  0x0  },
-		{ 0x0,  0x14, 0x2a, 0x14 },
-		{ 0x0,  0x0,  0x0,  0x0  },
-		{ 0x0,  0x0,  0x0,  0x0  },
-	},
-};
-
 static const struct intel_lt_phy_pll_state xe3plpd_lt_hdmi_742p5 = {
-	.clock = 74250,
 	.config = {
 		0x84,
 		0x2d,
@@ -894,7 +845,6 @@ static const struct intel_lt_phy_pll_state xe3plpd_lt_hdmi_742p5 = {
 };
 
 static const struct intel_lt_phy_pll_state xe3plpd_lt_hdmi_1p485 = {
-	.clock = 148500,
 	.config = {
 		0x84,
 		0x2d,
@@ -948,7 +898,6 @@ static const struct intel_lt_phy_pll_state xe3plpd_lt_hdmi_1p485 = {
 };
 
 static const struct intel_lt_phy_pll_state xe3plpd_lt_hdmi_5p94 = {
-	.clock = 594000,
 	.config = {
 		0x84,
 		0x2d,
@@ -1001,13 +950,12 @@ static const struct intel_lt_phy_pll_state xe3plpd_lt_hdmi_5p94 = {
 	},
 };
 
-static const struct intel_lt_phy_pll_state * const xe3plpd_lt_hdmi_tables[] = {
-	&xe3plpd_lt_hdmi_252,
-	&xe3plpd_lt_hdmi_272,
-	&xe3plpd_lt_hdmi_742p5,
-	&xe3plpd_lt_hdmi_1p485,
-	&xe3plpd_lt_hdmi_5p94,
-	NULL,
+static const struct intel_lt_phy_pll_params xe3plpd_lt_hdmi_tables[] = {
+	LT_PHY_PLL_HDMI_PARAMS(25200, xe3plpd_lt_hdmi_252),
+	LT_PHY_PLL_HDMI_PARAMS(74250, xe3plpd_lt_hdmi_742p5),
+	LT_PHY_PLL_HDMI_PARAMS(148500, xe3plpd_lt_hdmi_1p485),
+	LT_PHY_PLL_HDMI_PARAMS(594000, xe3plpd_lt_hdmi_5p94),
+	{}
 };
 
 static u8 intel_lt_phy_get_owned_lane_mask(struct intel_encoder *encoder)
@@ -1106,7 +1054,7 @@ static int __intel_lt_phy_p2p_write_once(struct intel_encoder *encoder,
 	 * This is the time PHY takes to settle down after programming the PHY.
 	 */
 	udelay(150);
-	intel_clear_response_ready_flag(encoder, lane);
+	intel_cx0_clear_response_ready_flag(encoder, lane);
 	intel_lt_phy_clear_status_p2p(encoder, lane);
 
 	return 0;
@@ -1230,9 +1178,30 @@ intel_lt_phy_lane_reset(struct intel_encoder *encoder,
 	intel_de_rmw(display, XELPDP_PORT_BUF_CTL2(display, port), lane_phy_pulse_status, 0);
 }
 
+static bool intel_lt_phy_is_hdmi(const struct intel_lt_phy_pll_state *ltpll)
+{
+	u8 mode = REG_FIELD_GET8(LT_PHY_VDR_MODE_ENCODING_MASK, ltpll->config[0]);
+
+	if (mode == MODE_HDMI_20 || mode == MODE_HDMI_FRL)
+		return true;
+
+	return false;
+}
+
+static bool intel_lt_phy_is_dp(const struct intel_lt_phy_pll_state *ltpll)
+{
+	u8 mode = REG_FIELD_GET8(LT_PHY_VDR_MODE_ENCODING_MASK, ltpll->config[0]);
+
+	if (mode == MODE_DP)
+		return true;
+
+	return false;
+}
+
 static void
 intel_lt_phy_program_port_clock_ctl(struct intel_encoder *encoder,
-				    const struct intel_crtc_state *crtc_state,
+				    const struct intel_lt_phy_pll_state *ltpll,
+				    int port_clock,
 				    bool lane_reversal)
 {
 	struct intel_display *display = to_intel_display(encoder);
@@ -1249,17 +1218,16 @@ intel_lt_phy_program_port_clock_ctl(struct intel_encoder *encoder,
 	 * but since the register bits still remain the same we use
 	 * the same definition
 	 */
-	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI) &&
-	    intel_hdmi_is_frl(crtc_state->port_clock))
+	if (intel_lt_phy_is_hdmi(ltpll) && intel_hdmi_is_frl(port_clock))
 		val |= XELPDP_DDI_CLOCK_SELECT_PREP(display, XELPDP_DDI_CLOCK_SELECT_DIV18CLK);
 	else
 		val |= XELPDP_DDI_CLOCK_SELECT_PREP(display, XELPDP_DDI_CLOCK_SELECT_MAXPCLK);
 
 	 /* DP2.0 10G and 20G rates enable MPLLA*/
-	if (crtc_state->port_clock == 1000000 || crtc_state->port_clock == 2000000)
+	if (port_clock == 1000000 || port_clock == 2000000)
 		val |= XELPDP_SSC_ENABLE_PLLA;
 	else
-		val |= crtc_state->dpll_hw_state.ltpll.ssc_enabled ? XELPDP_SSC_ENABLE_PLLB : 0;
+		val |= ltpll->ssc_enabled ? XELPDP_SSC_ENABLE_PLLB : 0;
 
 	intel_de_rmw(display, XELPDP_PORT_CLOCK_CTL(display, encoder->port),
 		     XELPDP_LANE1_PHY_CLOCK_SELECT | XELPDP_FORWARD_CLOCK_UNGATE |
@@ -1302,7 +1270,8 @@ static u32 intel_lt_phy_get_dp_clock(u8 rate)
 
 static bool
 intel_lt_phy_config_changed(struct intel_encoder *encoder,
-			    const struct intel_crtc_state *crtc_state)
+			    const struct intel_lt_phy_pll_state *ltpll,
+			    u32 port_clock)
 {
 	u8 val, rate;
 	u32 clock;
@@ -1316,9 +1285,9 @@ intel_lt_phy_config_changed(struct intel_encoder *encoder,
 	 * using 1.62 Gbps clock since PHY PLL defaults to that
 	 * otherwise we always need to reconfigure it.
 	 */
-	if (intel_crtc_has_dp_encoder(crtc_state)) {
+	if (intel_lt_phy_is_dp(ltpll)) {
 		clock = intel_lt_phy_get_dp_clock(rate);
-		if (crtc_state->port_clock == 1620000 && crtc_state->port_clock == clock)
+		if (port_clock == 1620000 && port_clock == clock)
 			return false;
 	}
 
@@ -1346,7 +1315,7 @@ static void intel_lt_phy_transaction_end(struct intel_encoder *encoder, struct r
 	intel_display_power_put(display, POWER_DOMAIN_DC_OFF, wakeref);
 }
 
-static const struct intel_lt_phy_pll_state * const *
+static const struct intel_lt_phy_pll_params *
 intel_lt_phy_pll_tables_get(struct intel_crtc_state *crtc_state,
 			    struct intel_encoder *encoder)
 {
@@ -1680,7 +1649,8 @@ intel_lt_phy_calculate_hdmi_state(struct intel_lt_phy_pll_state *lt_state,
 }
 
 static int
-intel_lt_phy_calc_hdmi_port_clock(const struct intel_crtc_state *crtc_state)
+intel_lt_phy_calc_hdmi_port_clock(struct intel_display *display,
+				  const struct intel_lt_phy_pll_state *lt_state)
 {
 #define REGVAL(i) (				\
 	(lt_state->data[i][3])		|	\
@@ -1689,9 +1659,6 @@ intel_lt_phy_calc_hdmi_port_clock(const struct intel_crtc_state *crtc_state)
 	(lt_state->data[i][0] << 24)		\
 )
 
-	struct intel_display *display = to_intel_display(crtc_state);
-	const struct intel_lt_phy_pll_state *lt_state =
-		&crtc_state->dpll_hw_state.ltpll;
 	int clk = 0;
 	u32 d8, pll_reg_5, pll_reg_3, pll_reg_57, m2div_frac, m2div_int;
 	u64 temp0, temp1;
@@ -1737,7 +1704,7 @@ intel_lt_phy_calc_hdmi_port_clock(const struct intel_crtc_state *crtc_state)
 	if (d8 == 0) {
 		drm_WARN_ON(display->drm,
 			    "Invalid port clock using lowest HDMI portclock\n");
-		return xe3plpd_lt_hdmi_252.clock;
+		return xe3plpd_lt_hdmi_tables[0].clock_rate;
 	}
 	m2div_int = (pll_reg_3  & REG_GENMASK(14, 5)) >> 5;
 	temp0 = ((u64)m2div_frac * REF_CLK_KHZ) >> 32;
@@ -1749,13 +1716,10 @@ intel_lt_phy_calc_hdmi_port_clock(const struct intel_crtc_state *crtc_state)
 }
 
 int
-intel_lt_phy_calc_port_clock(struct intel_encoder *encoder,
-			     const struct intel_crtc_state *crtc_state)
+intel_lt_phy_calc_port_clock(struct intel_display *display,
+			     const struct intel_lt_phy_pll_state *lt_state)
 {
-	struct intel_display *display = to_intel_display(encoder);
 	int clk;
-	const struct intel_lt_phy_pll_state *lt_state =
-		&crtc_state->dpll_hw_state.ltpll;
 	u8 mode, rate;
 
 	mode = REG_FIELD_GET8(LT_PHY_VDR_MODE_ENCODING_MASK,
@@ -1771,10 +1735,10 @@ intel_lt_phy_calc_port_clock(struct intel_encoder *encoder,
 				      lt_state->config[0]);
 		clk = intel_lt_phy_get_dp_clock(rate);
 	} else if (mode == MODE_HDMI_20) {
-		clk = intel_lt_phy_calc_hdmi_port_clock(crtc_state);
+		clk = intel_lt_phy_calc_hdmi_port_clock(display, lt_state);
 	} else {
 		drm_WARN_ON(display->drm, "Unsupported LT PHY Mode!\n");
-		clk = xe3plpd_lt_hdmi_252.clock;
+		clk = 25200;
 	}
 
 	return clk;
@@ -1782,73 +1746,89 @@ intel_lt_phy_calc_port_clock(struct intel_encoder *encoder,
 
 int
 intel_lt_phy_pll_calc_state(struct intel_crtc_state *crtc_state,
-			    struct intel_encoder *encoder)
+			    struct intel_encoder *encoder,
+			    struct intel_dpll_hw_state *hw_state)
 {
-	const struct intel_lt_phy_pll_state * const *tables;
+	struct intel_display *display = to_intel_display(crtc_state);
+	const struct intel_lt_phy_pll_params *tables;
 	int i;
+
+	memset(hw_state, 0, sizeof(*hw_state));
 
 	tables = intel_lt_phy_pll_tables_get(crtc_state, encoder);
 	if (!tables)
 		return -EINVAL;
 
-	for (i = 0; tables[i]; i++) {
-		if (crtc_state->port_clock == tables[i]->clock) {
-			crtc_state->dpll_hw_state.ltpll = *tables[i];
+	for (i = 0; tables[i].name; i++) {
+		int clock = intel_lt_phy_calc_port_clock(display, tables[i].state);
+
+		drm_WARN_ON(display->drm, !intel_dpll_clock_matches(clock, tables[i].clock_rate));
+		if (intel_dpll_clock_matches(crtc_state->port_clock, clock)) {
+			hw_state->ltpll = *tables[i].state;
 			if (intel_crtc_has_dp_encoder(crtc_state)) {
 				if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP))
-					crtc_state->dpll_hw_state.ltpll.config[2] = 1;
+					hw_state->ltpll.config[2] = 1;
 			}
-			crtc_state->dpll_hw_state.ltpll.ssc_enabled =
+			hw_state->ltpll.ssc_enabled =
 				intel_lt_phy_pll_is_ssc_enabled(crtc_state, encoder);
+			hw_state->ltpll.lane_count = crtc_state->lane_count;
 			return 0;
 		}
 	}
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
-		return intel_lt_phy_calculate_hdmi_state(&crtc_state->dpll_hw_state.ltpll,
+		hw_state->ltpll.lane_count = crtc_state->lane_count;
+		return intel_lt_phy_calculate_hdmi_state(&hw_state->ltpll,
 							 crtc_state->port_clock);
 	}
 
 	return -EINVAL;
 }
 
+void intel_lt_phy_tbt_pll_calc_state(struct intel_dpll_hw_state *hw_state)
+{
+	memset(hw_state, 0, sizeof(*hw_state));
+
+	hw_state->ltpll.tbt_mode = true;
+}
+
 static void
 intel_lt_phy_program_pll(struct intel_encoder *encoder,
-			 const struct intel_crtc_state *crtc_state)
+			 const struct intel_lt_phy_pll_state *ltpll)
 {
 	u8 owned_lane_mask = intel_lt_phy_get_owned_lane_mask(encoder);
 	int i, j, k;
 
 	intel_lt_phy_write(encoder, owned_lane_mask, LT_PHY_VDR_0_CONFIG,
-			   crtc_state->dpll_hw_state.ltpll.config[0], MB_WRITE_COMMITTED);
+			   ltpll->config[0], MB_WRITE_COMMITTED);
 	intel_lt_phy_write(encoder, INTEL_LT_PHY_LANE0, LT_PHY_VDR_1_CONFIG,
-			   crtc_state->dpll_hw_state.ltpll.config[1], MB_WRITE_COMMITTED);
+			   ltpll->config[1], MB_WRITE_COMMITTED);
 	intel_lt_phy_write(encoder, owned_lane_mask, LT_PHY_VDR_2_CONFIG,
-			   crtc_state->dpll_hw_state.ltpll.config[2], MB_WRITE_COMMITTED);
+			   ltpll->config[2], MB_WRITE_COMMITTED);
 
 	for (i = 0; i <= 12; i++) {
 		intel_lt_phy_write(encoder, INTEL_LT_PHY_LANE0, LT_PHY_VDR_X_ADDR_MSB(i),
-				   crtc_state->dpll_hw_state.ltpll.addr_msb[i],
+				   ltpll->addr_msb[i],
 				   MB_WRITE_COMMITTED);
 		intel_lt_phy_write(encoder, INTEL_LT_PHY_LANE0, LT_PHY_VDR_X_ADDR_LSB(i),
-				   crtc_state->dpll_hw_state.ltpll.addr_lsb[i],
+				   ltpll->addr_lsb[i],
 				   MB_WRITE_COMMITTED);
 
 		for (j = 3, k = 0; j >= 0; j--, k++)
 			intel_lt_phy_write(encoder, INTEL_LT_PHY_LANE0,
 					   LT_PHY_VDR_X_DATAY(i, j),
-					   crtc_state->dpll_hw_state.ltpll.data[i][k],
+					   ltpll->data[i][k],
 					   MB_WRITE_COMMITTED);
 	}
 }
 
 static void
 intel_lt_phy_enable_disable_tx(struct intel_encoder *encoder,
-			       const struct intel_crtc_state *crtc_state)
+			       const struct intel_lt_phy_pll_state *ltpll)
 {
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	bool lane_reversal = dig_port->lane_reversal;
-	u8 lane_count = crtc_state->lane_count;
+	u8 lane_count = ltpll->lane_count;
 	bool is_dp_alt =
 		intel_tc_port_in_dp_alt_mode(dig_port);
 	enum intel_tc_pin_assignment tc_pin =
@@ -1929,9 +1909,11 @@ intel_lt_phy_enable_disable_tx(struct intel_encoder *encoder,
 }
 
 void intel_lt_phy_pll_enable(struct intel_encoder *encoder,
-			     const struct intel_crtc_state *crtc_state)
+			     struct intel_dpll *pll,
+			     const struct intel_dpll_hw_state *dpll_hw_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
+	int port_clock = intel_lt_phy_calc_port_clock(display, &dpll_hw_state->ltpll);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	bool lane_reversal = dig_port->lane_reversal;
 	u8 owned_lane_mask = intel_lt_phy_get_owned_lane_mask(encoder);
@@ -1947,10 +1929,11 @@ void intel_lt_phy_pll_enable(struct intel_encoder *encoder,
 	wakeref = intel_lt_phy_transaction_begin(encoder);
 
 	/* 1. Enable MacCLK at default 162 MHz frequency. */
-	intel_lt_phy_lane_reset(encoder, crtc_state->lane_count);
+	intel_lt_phy_lane_reset(encoder, dpll_hw_state->ltpll.lane_count);
 
 	/* 2. Program PORT_CLOCK_CTL register to configure clock muxes, gating, and SSC. */
-	intel_lt_phy_program_port_clock_ctl(encoder, crtc_state, lane_reversal);
+	intel_lt_phy_program_port_clock_ctl(encoder, &dpll_hw_state->ltpll,
+					    port_clock, lane_reversal);
 
 	/* 3. Change owned PHY lanes power to Ready state. */
 	intel_lt_phy_powerdown_change_sequence(encoder, owned_lane_mask,
@@ -1960,12 +1943,12 @@ void intel_lt_phy_pll_enable(struct intel_encoder *encoder,
 	 * 4. Read the PHY message bus VDR register PHY_VDR_0_Config check enabled PLL type,
 	 * encoded rate and encoded mode.
 	 */
-	if (intel_lt_phy_config_changed(encoder, crtc_state)) {
+	if (intel_lt_phy_config_changed(encoder, &dpll_hw_state->ltpll, port_clock)) {
 		/*
 		 * 5. Program the PHY internal PLL registers over PHY message bus for the desired
 		 * frequency and protocol type
 		 */
-		intel_lt_phy_program_pll(encoder, crtc_state);
+		intel_lt_phy_program_pll(encoder, &dpll_hw_state->ltpll);
 
 		/* 6. Use the P2P transaction flow */
 		/*
@@ -1997,8 +1980,7 @@ void intel_lt_phy_pll_enable(struct intel_encoder *encoder,
 		 * Change. We handle this step in bxt_set_cdclk().
 		 */
 		/* 10. Program DDI_CLK_VALFREQ to match intended DDI clock frequency. */
-		intel_de_write(display, DDI_CLK_VALFREQ(encoder->port),
-			       crtc_state->port_clock);
+		intel_de_write(display, DDI_CLK_VALFREQ(encoder->port), port_clock);
 
 		/* 11. Program PORT_CLOCK_CTL[PCLK PLL Request LN0] = 1. */
 		intel_de_rmw(display, XELPDP_PORT_CLOCK_CTL(display, port),
@@ -2045,7 +2027,7 @@ void intel_lt_phy_pll_enable(struct intel_encoder *encoder,
 			     lane_phy_pulse_status,
 			     lane_phy_pulse_status);
 	} else {
-		intel_de_write(display, DDI_CLK_VALFREQ(encoder->port), crtc_state->port_clock);
+		intel_de_write(display, DDI_CLK_VALFREQ(encoder->port), port_clock);
 	}
 
 	/*
@@ -2056,7 +2038,7 @@ void intel_lt_phy_pll_enable(struct intel_encoder *encoder,
 	intel_lt_phy_powerdown_change_sequence(encoder, owned_lane_mask,
 					       XELPDP_P0_STATE_ACTIVE);
 
-	intel_lt_phy_enable_disable_tx(encoder, crtc_state);
+	intel_lt_phy_enable_disable_tx(encoder, &dpll_hw_state->ltpll);
 	intel_lt_phy_transaction_end(encoder, wakeref);
 }
 
@@ -2191,27 +2173,32 @@ void intel_lt_phy_set_signal_levels(struct intel_encoder *encoder,
 	intel_lt_phy_transaction_end(encoder, wakeref);
 }
 
-void intel_lt_phy_dump_hw_state(struct intel_display *display,
+void intel_lt_phy_dump_hw_state(struct drm_printer *p,
 				const struct intel_lt_phy_pll_state *hw_state)
 {
 	int i, j;
 
-	drm_dbg_kms(display->drm, "lt_phy_pll_hw_state:\n");
+	drm_printf(p, "lt_phy_pll_hw_state: lane count: %d, ssc enabled: %d, tbt mode: %d\n",
+		   hw_state->lane_count, hw_state->ssc_enabled, hw_state->tbt_mode);
+
 	for (i = 0; i < 3; i++) {
-		drm_dbg_kms(display->drm, "config[%d] = 0x%.4x,\n",
-			    i, hw_state->config[i]);
+		drm_printf(p, "config[%d] = 0x%.4x,\n",
+			   i, hw_state->config[i]);
 	}
 
 	for (i = 0; i <= 12; i++)
 		for (j = 3; j >= 0; j--)
-			drm_dbg_kms(display->drm, "vdr_data[%d][%d] = 0x%.4x,\n",
-				    i, j, hw_state->data[i][j]);
+			drm_printf(p, "vdr_data[%d][%d] = 0x%.4x,\n",
+				   i, j, hw_state->data[i][j]);
 }
 
 bool
 intel_lt_phy_pll_compare_hw_state(const struct intel_lt_phy_pll_state *a,
 				  const struct intel_lt_phy_pll_state *b)
 {
+	if (a->tbt_mode || b->tbt_mode)
+		return true;
+
 	/*
 	 * With LT PHY values other than VDR0_CONFIG and VDR2_CONFIG are
 	 * unreliable. They cannot always be read back since internally
@@ -2226,8 +2213,26 @@ intel_lt_phy_pll_compare_hw_state(const struct intel_lt_phy_pll_state *a,
 	return false;
 }
 
-void intel_lt_phy_pll_readout_hw_state(struct intel_encoder *encoder,
-				       const struct intel_crtc_state *crtc_state,
+static bool intel_lt_phy_pll_is_enabled(struct intel_encoder *encoder)
+{
+	struct intel_display *display = to_intel_display(encoder);
+
+	return intel_de_read(display, XELPDP_PORT_CLOCK_CTL(display, encoder->port)) &
+			     XELPDP_LANE_PCLK_PLL_ACK(0);
+}
+
+bool intel_lt_phy_tbt_pll_readout_hw_state(struct intel_display *display,
+					   struct intel_dpll *pll,
+					   struct intel_dpll_hw_state *hw_state)
+{
+	memset(hw_state, 0, sizeof(*hw_state));
+
+	hw_state->ltpll.tbt_mode = true;
+
+	return true;
+}
+
+bool intel_lt_phy_pll_readout_hw_state(struct intel_encoder *encoder,
 				       struct intel_lt_phy_pll_state *pll_state)
 {
 	u8 owned_lane_mask;
@@ -2235,14 +2240,19 @@ void intel_lt_phy_pll_readout_hw_state(struct intel_encoder *encoder,
 	struct ref_tracker *wakeref;
 	int i, j, k;
 
+	if (!intel_lt_phy_pll_is_enabled(encoder))
+		return false;
+
 	pll_state->tbt_mode = intel_tc_port_in_tbt_alt_mode(enc_to_dig_port(encoder));
 	if (pll_state->tbt_mode)
-		return;
+		return false;
 
 	owned_lane_mask = intel_lt_phy_get_owned_lane_mask(encoder);
 	lane = owned_lane_mask & INTEL_LT_PHY_LANE0 ? : INTEL_LT_PHY_LANE1;
 	wakeref = intel_lt_phy_transaction_begin(encoder);
 
+	pll_state->lane_count = intel_readout_lane_count(encoder, INTEL_LT_PHY_LANE0,
+							 INTEL_LT_PHY_LANE1);
 	pll_state->config[0] = intel_lt_phy_read(encoder, lane, LT_PHY_VDR_0_CONFIG);
 	pll_state->config[1] = intel_lt_phy_read(encoder, INTEL_LT_PHY_LANE0, LT_PHY_VDR_1_CONFIG);
 	pll_state->config[2] = intel_lt_phy_read(encoder, lane, LT_PHY_VDR_2_CONFIG);
@@ -2254,59 +2264,16 @@ void intel_lt_phy_pll_readout_hw_state(struct intel_encoder *encoder,
 						  LT_PHY_VDR_X_DATAY(i, j));
 	}
 
-	pll_state->clock =
-		intel_lt_phy_calc_port_clock(encoder, crtc_state);
 	intel_lt_phy_transaction_end(encoder, wakeref);
-}
 
-void intel_lt_phy_pll_state_verify(struct intel_atomic_state *state,
-				   struct intel_crtc *crtc)
-{
-	struct intel_display *display = to_intel_display(state);
-	struct intel_digital_port *dig_port;
-	const struct intel_crtc_state *new_crtc_state =
-		intel_atomic_get_new_crtc_state(state, crtc);
-	struct intel_encoder *encoder;
-	struct intel_lt_phy_pll_state pll_hw_state = {};
-	const struct intel_lt_phy_pll_state *pll_sw_state = &new_crtc_state->dpll_hw_state.ltpll;
-
-	if (DISPLAY_VER(display) < 35)
-		return;
-
-	if (!new_crtc_state->hw.active)
-		return;
-
-	/* intel_get_crtc_new_encoder() only works for modeset/fastset commits */
-	if (!intel_crtc_needs_modeset(new_crtc_state) &&
-	    !intel_crtc_needs_fastset(new_crtc_state))
-		return;
-
-	encoder = intel_get_crtc_new_encoder(state, new_crtc_state);
-	intel_lt_phy_pll_readout_hw_state(encoder, new_crtc_state, &pll_hw_state);
-
-	dig_port = enc_to_dig_port(encoder);
-	if (intel_tc_port_in_tbt_alt_mode(dig_port))
-		return;
-
-	INTEL_DISPLAY_STATE_WARN(display, pll_hw_state.config[0] != pll_sw_state->config[0],
-				 "[CRTC:%d:%s] mismatch in LT PHY PLL CONFIG 0: (expected 0x%04x, found 0x%04x)",
-				 crtc->base.base.id, crtc->base.name,
-				 pll_sw_state->config[0], pll_hw_state.config[0]);
-	INTEL_DISPLAY_STATE_WARN(display, pll_hw_state.config[2] != pll_sw_state->config[2],
-				 "[CRTC:%d:%s] mismatch in LT PHY PLL CONFIG 2: (expected 0x%04x, found 0x%04x)",
-				 crtc->base.base.id, crtc->base.name,
-				 pll_sw_state->config[2], pll_hw_state.config[2]);
+	return true;
 }
 
 void intel_xe3plpd_pll_enable(struct intel_encoder *encoder,
-			      const struct intel_crtc_state *crtc_state)
+			      struct intel_dpll *pll,
+			      const struct intel_dpll_hw_state *dpll_hw_state)
 {
-	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
-
-	if (intel_tc_port_in_tbt_alt_mode(dig_port))
-		intel_mtl_tbt_pll_enable_clock(encoder, crtc_state->port_clock);
-	else
-		intel_lt_phy_pll_enable(encoder, crtc_state);
+	intel_lt_phy_pll_enable(encoder, pll, dpll_hw_state);
 }
 
 void intel_xe3plpd_pll_disable(struct intel_encoder *encoder)
@@ -2318,4 +2285,67 @@ void intel_xe3plpd_pll_disable(struct intel_encoder *encoder)
 	else
 		intel_lt_phy_pll_disable(encoder);
 
+}
+
+static void intel_lt_phy_pll_verify_clock(struct intel_display *display,
+					  int precomputed_clock,
+					  const char *pll_state_name,
+					  const struct intel_lt_phy_pll_state *pll_state,
+					  bool is_precomputed_state)
+{
+	struct drm_printer p;
+	int clock;
+
+	clock = intel_lt_phy_calc_port_clock(display, pll_state);
+
+	if (intel_dpll_clock_matches(clock, precomputed_clock))
+		return;
+
+	drm_warn(display->drm,
+		 "PLL state %s (%s): clock difference too high: computed %d, pre-computed %d\n",
+		 pll_state_name,
+		 is_precomputed_state ? "precomputed" : "computed",
+		 clock, precomputed_clock);
+
+	if (!drm_debug_enabled(DRM_UT_KMS))
+		return;
+
+	p = drm_dbg_printer(display->drm, DRM_UT_KMS, NULL);
+
+	drm_printf(&p, "PLL state %s (%s):\n",
+		   pll_state_name,
+		   is_precomputed_state ? "precomputed" : "computed");
+	intel_lt_phy_dump_hw_state(&p, pll_state);
+}
+
+static void intel_lt_phy_pll_verify_params(struct intel_display *display,
+					   const struct intel_lt_phy_pll_params *pll_params)
+{
+	struct intel_lt_phy_pll_state pll_state;
+
+	intel_lt_phy_pll_verify_clock(display, pll_params->clock_rate, pll_params->name, pll_params->state, true);
+
+	if (!pll_params->is_hdmi)
+		return;
+
+	if (intel_lt_phy_calculate_hdmi_state(&pll_state, pll_params->clock_rate) != 0)
+		return;
+
+	intel_lt_phy_pll_verify_clock(display, pll_params->clock_rate, pll_params->name, &pll_state, false);
+}
+
+static void intel_lt_phy_pll_verify_tables(struct intel_display *display,
+					   const struct intel_lt_phy_pll_params *tables)
+{
+	int i;
+
+	for (i = 0; tables[i].name; i++)
+		intel_lt_phy_pll_verify_params(display, &tables[i]);
+}
+
+void intel_lt_phy_verify_plls(struct intel_display *display)
+{
+	intel_lt_phy_pll_verify_tables(display, xe3plpd_lt_dp_tables);
+	intel_lt_phy_pll_verify_tables(display, xe3plpd_lt_edp_tables);
+	intel_lt_phy_pll_verify_tables(display, xe3plpd_lt_hdmi_tables);
 }

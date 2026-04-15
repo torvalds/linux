@@ -162,6 +162,7 @@ enum AMDGIM_FEATURE_FLAG {
 	AMDGIM_FEATURE_RAS_TELEMETRY = (1 << 10),
 	AMDGIM_FEATURE_RAS_CPER = (1 << 11),
 	AMDGIM_FEATURE_XGMI_TA_EXT_PEER_LINK = (1 << 12),
+	AMDGIM_FEATURE_XGMI_CONNECTED_TO_CPU = (1 << 13),
 };
 
 enum AMDGIM_REG_ACCESS_FLAG {
@@ -411,6 +412,9 @@ struct amdgpu_video_codec_info;
 
 #define amdgpu_sriov_xgmi_ta_ext_peer_link_en(adev) \
 ((adev)->virt.gim_feature & AMDGIM_FEATURE_XGMI_TA_EXT_PEER_LINK)
+
+#define amdgpu_sriov_xgmi_connected_to_cpu(adev) \
+((adev)->virt.gim_feature & AMDGIM_FEATURE_XGMI_CONNECTED_TO_CPU)
 
 static inline bool is_virtual_machine(void)
 {

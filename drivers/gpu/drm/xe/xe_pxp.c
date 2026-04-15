@@ -312,8 +312,8 @@ void xe_pxp_irq_handler(struct xe_device *xe, u16 iir)
 
 static int kcr_pxp_set_status(const struct xe_pxp *pxp, bool enable)
 {
-	u32 val = enable ? _MASKED_BIT_ENABLE(KCR_INIT_ALLOW_DISPLAY_ME_WRITES) :
-		  _MASKED_BIT_DISABLE(KCR_INIT_ALLOW_DISPLAY_ME_WRITES);
+	u32 val = enable ? REG_MASKED_FIELD_ENABLE(KCR_INIT_ALLOW_DISPLAY_ME_WRITES) :
+		  REG_MASKED_FIELD_DISABLE(KCR_INIT_ALLOW_DISPLAY_ME_WRITES);
 
 	CLASS(xe_force_wake, fw_ref)(gt_to_fw(pxp->gt), XE_FW_GT);
 	if (!xe_force_wake_ref_has_domain(fw_ref.domains, XE_FW_GT))

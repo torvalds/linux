@@ -1,2 +1,3 @@
+core_setmaster@master-drop-set-user,Crash
 panfrost/panfrost_prime@gem-prime-import,Crash
 panfrost/panfrost_submit@pan-submit-error-bad-requirements,Crash

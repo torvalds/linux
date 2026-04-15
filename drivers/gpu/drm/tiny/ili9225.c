@@ -17,6 +17,7 @@
 #include <video/mipi_display.h>
 
 #include <drm/clients/drm_client_setup.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_drv.h>
@@ -24,9 +25,7 @@
 #include <drm/drm_fbdev_dma.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
-#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_dma_helper.h>
-#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_mipi_dbi.h>
 #include <drm/drm_print.h>
@@ -71,6 +70,20 @@
 #define ILI9225_GAMMA_CONTROL_8		0x57
 #define ILI9225_GAMMA_CONTROL_9		0x58
 #define ILI9225_GAMMA_CONTROL_10	0x59
+
+struct ili9225_device {
+	struct mipi_dbi_dev dbidev;
+
+	struct drm_plane plane;
+	struct drm_crtc crtc;
+	struct drm_encoder encoder;
+	struct drm_connector connector;
+};
+
+static struct ili9225_device *to_ili9225_device(struct drm_device *dev)
+{
+	return container_of(drm_to_mipi_dbi_dev(dev), struct ili9225_device, dbidev);
+}
 
 static inline int ili9225_command(struct mipi_dbi *dbi, u8 cmd, u16 data)
 {
@@ -157,47 +170,61 @@ err_msg:
 		dev_err_once(fb->dev->dev, "Failed to update display %d\n", ret);
 }
 
-static void ili9225_pipe_update(struct drm_simple_display_pipe *pipe,
-				struct drm_plane_state *old_state)
+static const u32 ili9225_plane_formats[] = {
+	DRM_MIPI_DBI_PLANE_FORMATS,
+};
+
+static const u64 ili9225_plane_format_modifiers[] = {
+	DRM_MIPI_DBI_PLANE_FORMAT_MODIFIERS,
+};
+
+static void ili9225_plane_helper_atomic_update(struct drm_plane *plane,
+					       struct drm_atomic_state *state)
 {
-	struct drm_plane_state *state = pipe->plane.state;
-	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(state);
-	struct drm_framebuffer *fb = state->fb;
+	struct drm_device *drm = plane->dev;
+	struct drm_plane_state *plane_state = plane->state;
+	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
+	struct drm_framebuffer *fb = plane_state->fb;
+	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
 	struct drm_rect rect;
 	int idx;
 
-	if (!pipe->crtc.state->active)
+	if (!plane_state->fb)
 		return;
 
-	if (!drm_dev_enter(fb->dev, &idx))
+	if (!drm_dev_enter(drm, &idx))
 		return;
 
-	if (drm_atomic_helper_damage_merged(old_state, state, &rect))
+	if (drm_atomic_helper_damage_merged(old_plane_state, plane_state, &rect))
 		ili9225_fb_dirty(&shadow_plane_state->data[0], fb, &rect,
 				 &shadow_plane_state->fmtcnv_state);
 
 	drm_dev_exit(idx);
 }
 
-static void ili9225_pipe_enable(struct drm_simple_display_pipe *pipe,
-				struct drm_crtc_state *crtc_state,
-				struct drm_plane_state *plane_state)
+static const struct drm_plane_helper_funcs ili9225_plane_helper_funcs = {
+	DRM_GEM_SHADOW_PLANE_HELPER_FUNCS,
+	.atomic_check = drm_mipi_dbi_plane_helper_atomic_check,
+	.atomic_update = ili9225_plane_helper_atomic_update,
+};
+
+static const struct drm_plane_funcs ili9225_plane_funcs = {
+	DRM_MIPI_DBI_PLANE_FUNCS,
+	.destroy = drm_plane_cleanup,
+};
+
+static void ili9225_crtc_helper_atomic_enable(struct drm_crtc *crtc,
+					      struct drm_atomic_state *state)
 {
-	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(pipe->crtc.dev);
-	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
-	struct drm_framebuffer *fb = plane_state->fb;
-	struct device *dev = pipe->crtc.dev->dev;
+	struct drm_device *drm = crtc->dev;
+	struct ili9225_device *ili9225 = to_ili9225_device(drm);
+	struct mipi_dbi_dev *dbidev = &ili9225->dbidev;
+	struct device *dev = drm->dev;
 	struct mipi_dbi *dbi = &dbidev->dbi;
-	struct drm_rect rect = {
-		.x1 = 0,
-		.x2 = fb->width,
-		.y1 = 0,
-		.y2 = fb->height,
-	};
 	int ret, idx;
 	u8 am_id;
 
-	if (!drm_dev_enter(pipe->crtc.dev, &idx))
+	if (!drm_dev_enter(drm, &idx))
 		return;
 
 	DRM_DEBUG_KMS("\n");
@@ -284,16 +311,16 @@ static void ili9225_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	ili9225_command(dbi, ILI9225_DISPLAY_CONTROL_1, 0x1017);
 
-	ili9225_fb_dirty(&shadow_plane_state->data[0], fb, &rect,
-			 &shadow_plane_state->fmtcnv_state);
-
 out_exit:
 	drm_dev_exit(idx);
 }
 
-static void ili9225_pipe_disable(struct drm_simple_display_pipe *pipe)
+static void ili9225_crtc_helper_atomic_disable(struct drm_crtc *crtc,
+					       struct drm_atomic_state *state)
 {
-	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(pipe->crtc.dev);
+	struct drm_device *drm = crtc->dev;
+	struct ili9225_device *ili9225 = to_ili9225_device(drm);
+	struct mipi_dbi_dev *dbidev = &ili9225->dbidev;
 	struct mipi_dbi *dbi = &dbidev->dbi;
 
 	DRM_DEBUG_KMS("\n");
@@ -311,6 +338,39 @@ static void ili9225_pipe_disable(struct drm_simple_display_pipe *pipe)
 	msleep(50);
 	ili9225_command(dbi, ILI9225_POWER_CONTROL_1, 0x0a02);
 }
+
+static const struct drm_crtc_helper_funcs ili9225_crtc_helper_funcs = {
+	.mode_valid = drm_mipi_dbi_crtc_helper_mode_valid,
+	.atomic_check = drm_mipi_dbi_crtc_helper_atomic_check,
+	.atomic_enable = ili9225_crtc_helper_atomic_enable,
+	.atomic_disable = ili9225_crtc_helper_atomic_disable,
+};
+
+static const struct drm_crtc_funcs ili9225_crtc_funcs = {
+	DRM_MIPI_DBI_CRTC_FUNCS,
+	.destroy = drm_crtc_cleanup,
+};
+
+static const struct drm_encoder_funcs ili9225_encoder_funcs = {
+	.destroy = drm_encoder_cleanup,
+};
+
+static const struct drm_connector_helper_funcs ili9225_connector_helper_funcs = {
+	DRM_MIPI_DBI_CONNECTOR_HELPER_FUNCS,
+};
+
+static const struct drm_connector_funcs ili9225_connector_funcs = {
+	DRM_MIPI_DBI_CONNECTOR_FUNCS,
+	.destroy = drm_connector_cleanup,
+};
+
+static const struct drm_mode_config_helper_funcs ili9225_mode_config_helper_funcs = {
+	DRM_MIPI_DBI_MODE_CONFIG_HELPER_FUNCS,
+};
+
+static const struct drm_mode_config_funcs ili9225_mode_config_funcs = {
+	DRM_MIPI_DBI_MODE_CONFIG_FUNCS,
+};
 
 static int ili9225_dbi_command(struct mipi_dbi *dbi, u8 *cmd, u8 *par,
 			       size_t num)
@@ -339,18 +399,6 @@ static int ili9225_dbi_command(struct mipi_dbi *dbi, u8 *cmd, u8 *par,
 
 	return ret;
 }
-
-static const struct drm_simple_display_pipe_funcs ili9225_pipe_funcs = {
-	.mode_valid	= mipi_dbi_pipe_mode_valid,
-	.enable		= ili9225_pipe_enable,
-	.disable	= ili9225_pipe_disable,
-	.update		= ili9225_pipe_update,
-	.begin_fb_access = mipi_dbi_pipe_begin_fb_access,
-	.end_fb_access	= mipi_dbi_pipe_end_fb_access,
-	.reset_plane	= mipi_dbi_pipe_reset_plane,
-	.duplicate_plane_state = mipi_dbi_pipe_duplicate_plane_state,
-	.destroy_plane_state = mipi_dbi_pipe_destroy_plane_state,
-};
 
 static const struct drm_display_mode ili9225_mode = {
 	DRM_SIMPLE_MODE(176, 220, 35, 44),
@@ -384,18 +432,22 @@ MODULE_DEVICE_TABLE(spi, ili9225_id);
 static int ili9225_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
+	struct ili9225_device *ili9225;
 	struct mipi_dbi_dev *dbidev;
 	struct drm_device *drm;
 	struct mipi_dbi *dbi;
 	struct gpio_desc *rs;
+	struct drm_plane *plane;
+	struct drm_crtc *crtc;
+	struct drm_encoder *encoder;
+	struct drm_connector *connector;
 	u32 rotation = 0;
 	int ret;
 
-	dbidev = devm_drm_dev_alloc(dev, &ili9225_driver,
-				    struct mipi_dbi_dev, drm);
-	if (IS_ERR(dbidev))
-		return PTR_ERR(dbidev);
-
+	ili9225 = devm_drm_dev_alloc(dev, &ili9225_driver, struct ili9225_device, dbidev.drm);
+	if (IS_ERR(ili9225))
+		return PTR_ERR(ili9225);
+	dbidev = &ili9225->dbidev;
 	dbi = &dbidev->dbi;
 	drm = &dbidev->drm;
 
@@ -416,7 +468,53 @@ static int ili9225_probe(struct spi_device *spi)
 	/* override the command function set in  mipi_dbi_spi_init() */
 	dbi->command = ili9225_dbi_command;
 
-	ret = mipi_dbi_dev_init(dbidev, &ili9225_pipe_funcs, &ili9225_mode, rotation);
+	ret = drm_mipi_dbi_dev_init(dbidev, &ili9225_mode, ili9225_plane_formats[0],
+				    rotation, 0);
+	if (ret)
+		return ret;
+
+	ret = drmm_mode_config_init(drm);
+	if (ret)
+		return ret;
+
+	drm->mode_config.min_width = dbidev->mode.hdisplay;
+	drm->mode_config.max_width = dbidev->mode.hdisplay;
+	drm->mode_config.min_height = dbidev->mode.vdisplay;
+	drm->mode_config.max_height = dbidev->mode.vdisplay;
+	drm->mode_config.funcs = &ili9225_mode_config_funcs;
+	drm->mode_config.preferred_depth = 16;
+	drm->mode_config.helper_private = &ili9225_mode_config_helper_funcs;
+
+	plane = &ili9225->plane;
+	ret = drm_universal_plane_init(drm, plane, 0, &ili9225_plane_funcs,
+				       ili9225_plane_formats, ARRAY_SIZE(ili9225_plane_formats),
+				       ili9225_plane_format_modifiers,
+				       DRM_PLANE_TYPE_PRIMARY, NULL);
+	if (ret)
+		return ret;
+	drm_plane_helper_add(plane, &ili9225_plane_helper_funcs);
+	drm_plane_enable_fb_damage_clips(plane);
+
+	crtc = &ili9225->crtc;
+	ret = drm_crtc_init_with_planes(drm, crtc, plane, NULL, &ili9225_crtc_funcs, NULL);
+	if (ret)
+		return ret;
+	drm_crtc_helper_add(crtc, &ili9225_crtc_helper_funcs);
+
+	encoder = &ili9225->encoder;
+	ret = drm_encoder_init(drm, encoder, &ili9225_encoder_funcs, DRM_MODE_ENCODER_NONE, NULL);
+	if (ret)
+		return ret;
+	encoder->possible_crtcs = drm_crtc_mask(crtc);
+
+	connector = &ili9225->connector;
+	ret = drm_connector_init(drm, connector, &ili9225_connector_funcs,
+				 DRM_MODE_CONNECTOR_SPI);
+	if (ret)
+		return ret;
+	drm_connector_helper_add(connector, &ili9225_connector_helper_funcs);
+
+	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret)
 		return ret;
 

@@ -916,8 +916,7 @@ static bool
 dma_buf_pin_on_map(struct dma_buf_attachment *attach)
 {
 	return attach->dmabuf->ops->pin &&
-		(!dma_buf_attachment_is_dynamic(attach) ||
-		 !IS_ENABLED(CONFIG_DMABUF_MOVE_NOTIFY));
+	       !dma_buf_attachment_is_dynamic(attach);
 }
 
 /**
@@ -981,7 +980,7 @@ dma_buf_pin_on_map(struct dma_buf_attachment *attach)
  * 3. Exporters must hold the dma-buf reservation lock when calling these
  *    functions:
  *
- *     - dma_buf_move_notify()
+ *     - dma_buf_invalidate_mappings()
  */
 
 /**
@@ -1015,9 +1014,6 @@ dma_buf_dynamic_attach(struct dma_buf *dmabuf, struct device *dev,
 	int ret;
 
 	if (WARN_ON(!dmabuf || !dev))
-		return ERR_PTR(-EINVAL);
-
-	if (WARN_ON(importer_ops && !importer_ops->move_notify))
 		return ERR_PTR(-EINVAL);
 
 	attach = kzalloc_obj(*attach);
@@ -1130,7 +1126,7 @@ EXPORT_SYMBOL_NS_GPL(dma_buf_pin, "DMA_BUF");
  *
  * This unpins a buffer pinned by dma_buf_pin() and allows the exporter to move
  * any mapping of @attach again and inform the importer through
- * &dma_buf_attach_ops.move_notify.
+ * &dma_buf_attach_ops.invalidate_mappings.
  */
 void dma_buf_unpin(struct dma_buf_attachment *attach)
 {
@@ -1323,24 +1319,71 @@ void dma_buf_unmap_attachment_unlocked(struct dma_buf_attachment *attach,
 EXPORT_SYMBOL_NS_GPL(dma_buf_unmap_attachment_unlocked, "DMA_BUF");
 
 /**
- * dma_buf_move_notify - notify attachments that DMA-buf is moving
+ * dma_buf_attach_revocable - check if a DMA-buf importer implements
+ * revoke semantics.
+ * @attach: the DMA-buf attachment to check
+ *
+ * Returns true if the DMA-buf importer can support the revoke sequence
+ * explained in dma_buf_invalidate_mappings() within bounded time. Meaning the
+ * importer implements invalidate_mappings() and ensures that unmap is called as
+ * a result.
+ */
+bool dma_buf_attach_revocable(struct dma_buf_attachment *attach)
+{
+	return attach->importer_ops &&
+	       attach->importer_ops->invalidate_mappings;
+}
+EXPORT_SYMBOL_NS_GPL(dma_buf_attach_revocable, "DMA_BUF");
+
+/**
+ * dma_buf_invalidate_mappings - notify attachments that DMA-buf is moving
  *
  * @dmabuf:	[in]	buffer which is moving
  *
  * Informs all attachments that they need to destroy and recreate all their
- * mappings.
+ * mappings. If the attachment is dynamic then the dynamic importer is expected
+ * to invalidate any caches it has of the mapping result and perform a new
+ * mapping request before allowing HW to do any further DMA.
+ *
+ * If the attachment is pinned then this informs the pinned importer that the
+ * underlying mapping is no longer available. Pinned importers may take this is
+ * as a permanent revocation and never establish new mappings so exporters
+ * should not trigger it lightly.
+ *
+ * Upon return importers may continue to access the DMA-buf memory. The caller
+ * must do two additional waits to ensure that the memory is no longer being
+ * accessed:
+ *  1) Until dma_resv_wait_timeout() retires fences the importer is allowed to
+ *     fully access the memory.
+ *  2) Until the importer calls unmap it is allowed to speculatively
+ *     read-and-discard the memory. It must not write to the memory.
+ *
+ * A caller wishing to use dma_buf_invalidate_mappings() to fully stop access to
+ * the DMA-buf must wait for both. Dynamic callers can often use just the first.
+ *
+ * All importers providing a invalidate_mappings() op must ensure that unmap is
+ * called within bounded time after the op.
+ *
+ * Pinned importers that do not support a invalidate_mappings() op will
+ * eventually perform unmap when they are done with the buffer, which may be an
+ * ubounded time from calling this function. dma_buf_attach_revocable() can be
+ * used to prevent such importers from attaching.
+ *
+ * Importers are free to request a new mapping in parallel as this function
+ * returns.
  */
-void dma_buf_move_notify(struct dma_buf *dmabuf)
+void dma_buf_invalidate_mappings(struct dma_buf *dmabuf)
 {
 	struct dma_buf_attachment *attach;
 
 	dma_resv_assert_held(dmabuf->resv);
 
 	list_for_each_entry(attach, &dmabuf->attachments, node)
-		if (attach->importer_ops)
-			attach->importer_ops->move_notify(attach);
+		if (attach->importer_ops &&
+		    attach->importer_ops->invalidate_mappings)
+			attach->importer_ops->invalidate_mappings(attach);
 }
-EXPORT_SYMBOL_NS_GPL(dma_buf_move_notify, "DMA_BUF");
+EXPORT_SYMBOL_NS_GPL(dma_buf_invalidate_mappings, "DMA_BUF");
 
 /**
  * DOC: cpu access

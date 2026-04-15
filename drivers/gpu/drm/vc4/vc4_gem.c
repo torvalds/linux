@@ -1253,7 +1253,7 @@ int vc4_gem_madvise_ioctl(struct drm_device *dev, void *data,
 	/* Not sure it's safe to purge imported BOs. Let's just assume it's
 	 * not until proven otherwise.
 	 */
-	if (gem_obj->import_attach) {
+	if (drm_gem_is_imported(gem_obj)) {
 		DRM_DEBUG("madvise not supported on imported BOs\n");
 		ret = -EINVAL;
 		goto out_put_gem;

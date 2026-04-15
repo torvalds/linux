@@ -338,7 +338,7 @@ static u32 xgmi_v6_4_get_link_status(struct amdgpu_device *adev, int global_link
 	if (!(adev->aid_mask & BIT(i)))
 		return U32_MAX;
 
-	addr += adev->asic_funcs->encode_ext_smn_addressing(i);
+	addr += amdgpu_reg_get_smn_base64(adev, XGMI_HWIP, i);
 
 	return RREG32_PCIE_EXT(addr);
 }
@@ -346,6 +346,9 @@ static u32 xgmi_v6_4_get_link_status(struct amdgpu_device *adev, int global_link
 int amdgpu_get_xgmi_link_status(struct amdgpu_device *adev, int global_link_num)
 {
 	u32 xgmi_state_reg_val;
+
+	if (amdgpu_sriov_vf(adev))
+		return AMDGPU_XGMI_LINK_NA;
 
 	if (adev->gmc.xgmi.num_physical_nodes <= 1)
 		return -EINVAL;
@@ -469,12 +472,12 @@ static ssize_t amdgpu_xgmi_show_num_hops(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 	struct psp_xgmi_topology_info *top = &adev->psp.xgmi_context.top_info;
-	int i;
+	int i, offset = 0;
 
 	for (i = 0; i < top->num_nodes; i++)
-		sprintf(buf + 3 * i, "%02x ", top->nodes[i].num_hops);
+		offset += sysfs_emit_at(buf, offset, "%02x ", top->nodes[i].num_hops);
 
-	return sysfs_emit(buf, "%s\n", buf);
+	return offset + sysfs_emit_at(buf, offset, "\n");
 }
 
 static ssize_t amdgpu_xgmi_show_num_links(struct device *dev,
@@ -484,12 +487,12 @@ static ssize_t amdgpu_xgmi_show_num_links(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 	struct psp_xgmi_topology_info *top = &adev->psp.xgmi_context.top_info;
-	int i;
+	int i, offset = 0;
 
 	for (i = 0; i < top->num_nodes; i++)
-		sprintf(buf + 3 * i, "%02x ", top->nodes[i].num_links);
+		offset += sysfs_emit_at(buf, offset, "%02x ", top->nodes[i].num_links);
 
-	return sysfs_emit(buf, "%s\n", buf);
+	return offset + sysfs_emit_at(buf, offset, "\n");
 }
 
 static ssize_t amdgpu_xgmi_show_connected_port_num(struct device *dev,
@@ -1290,7 +1293,10 @@ static void amdgpu_xgmi_legacy_reset_ras_error_count(struct amdgpu_device *adev)
 
 static void __xgmi_v6_4_0_reset_error_count(struct amdgpu_device *adev, int xgmi_inst, u64 mca_base)
 {
-	WREG64_MCA(xgmi_inst, mca_base, ACA_REG_IDX_STATUS, 0ULL);
+	uint64_t smn_base =
+		amdgpu_reg_get_smn_base64(adev, XGMI_HWIP, xgmi_inst);
+
+	WREG64_MCA(smn_base, mca_base, ACA_REG_IDX_STATUS, 0ULL);
 }
 
 static void xgmi_v6_4_0_reset_error_count(struct amdgpu_device *adev, int xgmi_inst)
@@ -1500,6 +1506,7 @@ static void __xgmi_v6_4_0_query_error_count(struct amdgpu_device *adev, struct a
 					    u64 mca_base, struct ras_err_data *err_data)
 {
 	int xgmi_inst = mcm_info->die_id;
+	uint64_t smn_base;
 	u64 status = 0;
 
 	status = RREG64_MCA(xgmi_inst, mca_base, ACA_REG_IDX_STATUS);
@@ -1516,8 +1523,8 @@ static void __xgmi_v6_4_0_query_error_count(struct amdgpu_device *adev, struct a
 	default:
 		break;
 	}
-
-	WREG64_MCA(xgmi_inst, mca_base, ACA_REG_IDX_STATUS, 0ULL);
+	smn_base = amdgpu_reg_get_smn_base64(adev, XGMI_HWIP, xgmi_inst);
+	WREG64_MCA(smn_base, mca_base, ACA_REG_IDX_STATUS, 0ULL);
 }
 
 static void xgmi_v6_4_0_query_error_count(struct amdgpu_device *adev, int xgmi_inst, struct ras_err_data *err_data)

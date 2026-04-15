@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Advanced Micro Devices, Inc.
+ * Copyright 2016, 2026 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -700,6 +700,8 @@ struct dce_hwseq_registers {
 	uint32_t DOMAIN23_PG_STATUS;
 	uint32_t DOMAIN24_PG_STATUS;
 	uint32_t DOMAIN25_PG_STATUS;
+	uint32_t DOMAIN26_PG_CONFIG;
+	uint32_t DOMAIN26_PG_STATUS;
 };
  /* set field name */
 #define HWS_SF(blk_name, reg_name, field_name, post_fix)\
@@ -1245,6 +1247,13 @@ struct dce_hwseq_registers {
 	type DOMAIN25_PGFSM_PWR_STATUS; \
 	type DOMAIN_DESIRED_PWR_STATE;
 
+#define HWSEQ_DCN42_REG_FIELD_LIST(type) \
+	type DPIASYMCLK4_GATE_DISABLE;\
+	type DPIASYMCLK5_GATE_DISABLE;\
+	type DOMAIN26_POWER_FORCEON; \
+	type DOMAIN26_POWER_GATE; \
+	type DOMAIN26_PGFSM_PWR_STATUS;
+
 struct dce_hwseq_shift {
 	HWSEQ_REG_FIELD_LIST(uint8_t)
 	HWSEQ_DCN_REG_FIELD_LIST(uint8_t)
@@ -1253,6 +1262,7 @@ struct dce_hwseq_shift {
 	HWSEQ_DCN31_REG_FIELD_LIST(uint8_t)
 	HWSEQ_DCN35_REG_FIELD_LIST(uint8_t)
 	HWSEQ_DCN401_REG_FIELD_LIST(uint8_t)
+	HWSEQ_DCN42_REG_FIELD_LIST(uint8_t)
 };
 
 struct dce_hwseq_mask {
@@ -1263,6 +1273,7 @@ struct dce_hwseq_mask {
 	HWSEQ_DCN31_REG_FIELD_LIST(uint32_t)
 	HWSEQ_DCN35_REG_FIELD_LIST(uint32_t)
 	HWSEQ_DCN401_REG_FIELD_LIST(uint32_t)
+	HWSEQ_DCN42_REG_FIELD_LIST(uint32_t)
 };
 
 

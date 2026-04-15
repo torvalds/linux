@@ -14,3 +14,5 @@ panthor-y := \
 	panthor_sched.o
 
 obj-$(CONFIG_DRM_PANTHOR) += panthor.o
+
+CFLAGS_panthor_gpu.o := -I$(src)

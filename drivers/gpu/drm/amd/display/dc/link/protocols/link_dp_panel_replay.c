@@ -252,23 +252,24 @@ bool dp_pr_enable(struct dc_link *link, bool enable)
 	if (!dp_pr_get_panel_inst(dc, link, &panel_inst))
 		return false;
 
+	if (link->replay_settings.replay_allow_active == enable)
+		return true;
+
 	if (enable && !dc_is_embedded_signal(link->connector_signal))
 		dp_pr_set_static_screen_param(link);
 
-	if (link->replay_settings.replay_allow_active != enable) {
-		//for sending PR enable commands to DMUB
-		memset(&cmd, 0, sizeof(cmd));
+	// for sending PR enable commands to DMUB
+	memset(&cmd, 0, sizeof(cmd));
 
-		cmd.pr_enable.header.type = DMUB_CMD__PR;
-		cmd.pr_enable.header.sub_type = DMUB_CMD__PR_ENABLE;
-		cmd.pr_enable.header.payload_bytes = sizeof(struct dmub_cmd_pr_enable_data);
-		cmd.pr_enable.data.panel_inst = panel_inst;
-		cmd.pr_enable.data.enable = enable ? 1 : 0;
+	cmd.pr_enable.header.type = DMUB_CMD__PR;
+	cmd.pr_enable.header.sub_type = DMUB_CMD__PR_ENABLE;
+	cmd.pr_enable.header.payload_bytes = sizeof(struct dmub_cmd_pr_enable_data);
+	cmd.pr_enable.data.panel_inst = panel_inst;
+	cmd.pr_enable.data.enable = enable ? 1 : 0;
+	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 
-		dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	link->replay_settings.replay_allow_active = enable;
 
-		link->replay_settings.replay_allow_active = enable;
-	}
 	return true;
 }
 
@@ -389,7 +390,7 @@ bool dp_pr_get_state(const struct dc_link *link, uint64_t *state)
 	const struct dc *dc = link->ctx->dc;
 	unsigned int panel_inst = 0;
 	uint32_t retry_count = 0;
-	uint32_t replay_state = 0;
+	uint32_t replay_state = PR_STATE_INVALID;
 
 	if (!dp_pr_get_panel_inst(dc, link, &panel_inst))
 		return false;

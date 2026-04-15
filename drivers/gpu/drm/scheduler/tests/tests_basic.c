@@ -421,7 +421,7 @@ static void drm_sched_change_priority(struct kunit *test)
 
 static struct kunit_case drm_sched_priority_tests[] = {
 	KUNIT_CASE(drm_sched_priorities),
-	KUNIT_CASE(drm_sched_change_priority),
+	KUNIT_CASE_SLOW(drm_sched_change_priority),
 	{}
 };
 
@@ -546,7 +546,7 @@ static void drm_sched_test_credits(struct kunit *test)
 }
 
 static struct kunit_case drm_sched_credits_tests[] = {
-	KUNIT_CASE(drm_sched_test_credits),
+	KUNIT_CASE_SLOW(drm_sched_test_credits),
 	{}
 };
 

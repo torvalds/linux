@@ -27,6 +27,19 @@ enum dml2_swizzle_mode {
 	dml2_gfx11_sw_256kb_d_x,
 	dml2_gfx11_sw_256kb_r_x,
 
+	dml2_sw_linear_256b, // GFX10 SW_LINEAR only accepts 256 byte aligned pitch
+	dml2_gfx10_sw_64kb_r_x,
+	dml2_gfx102_sw_64kb_s,
+	dml2_gfx102_sw_64kb_s_t,
+	dml2_gfx102_sw_64kb_s_x,
+	dml2_gfx102_sw_64kb_r_x,
+
+	dml2_linear_64elements, // GFX7 LINEAR_ALIGNED accepts pitch alignment of the maximum of 64 elements or 256 bytes
+	dml2_gfx7_1d_thin,
+	dml2_gfx7_2d_thin_gen_zero,
+	dml2_gfx7_2d_thin_gen_one,
+	dml2_gfx7_2d_thin_arlene,
+	dml2_gfx7_2d_thin_anubis
 };
 
 enum dml2_source_format_class {

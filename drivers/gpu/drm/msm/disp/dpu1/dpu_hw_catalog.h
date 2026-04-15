@@ -524,7 +524,6 @@ struct dpu_intf_cfg  {
 /**
  * struct dpu_wb_cfg - information of writeback blocks
  * @DPU_HW_BLK_INFO:    refer to the description above for DPU_HW_BLK_INFO
- * @vbif_idx:           vbif client index
  * @maxlinewidth:       max line width supported by writeback block
  * @xin_id:             bus client identifier
  * @intr_wb_done:       interrupt index for WB_DONE
@@ -535,7 +534,6 @@ struct dpu_intf_cfg  {
 struct dpu_wb_cfg {
 	DPU_HW_BLK_INFO;
 	unsigned long features;
-	u8 vbif_idx;
 	u32 maxlinewidth;
 	u32 xin_id;
 	unsigned int intr_wb_done;
@@ -587,8 +585,7 @@ struct dpu_vbif_qos_tbl {
 
 /**
  * struct dpu_vbif_cfg - information of VBIF blocks
- * @id                 enum identifying this block
- * @base               register offset of this block
+ * @len:               length of hardware block
  * @features           bit mask identifying sub-blocks/features
  * @ot_rd_limit        default OT read limit
  * @ot_wr_limit        default OT write limit
@@ -602,7 +599,7 @@ struct dpu_vbif_qos_tbl {
  * @memtype            array of xin memtype definitions
  */
 struct dpu_vbif_cfg {
-	DPU_HW_BLK_INFO;
+	u32 len;
 	unsigned long features;
 	u32 default_ot_rd_limit;
 	u32 default_ot_wr_limit;
@@ -743,7 +740,6 @@ struct dpu_mdss_cfg {
 	u32 intf_count;
 	const struct dpu_intf_cfg *intf;
 
-	u32 vbif_count;
 	const struct dpu_vbif_cfg *vbif;
 
 	u32 wb_count;
@@ -767,6 +763,7 @@ struct dpu_mdss_cfg {
 	const struct dpu_format_extended *vig_formats;
 };
 
+extern const struct dpu_mdss_cfg dpu_eliza_cfg;
 extern const struct dpu_mdss_cfg dpu_glymur_cfg;
 extern const struct dpu_mdss_cfg dpu_kaanapali_cfg;
 extern const struct dpu_mdss_cfg dpu_msm8917_cfg;

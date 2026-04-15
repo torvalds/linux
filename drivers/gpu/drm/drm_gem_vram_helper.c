@@ -49,15 +49,12 @@ static const struct drm_gem_object_funcs drm_gem_vram_object_funcs;
  * To initialize the VRAM helper library call drmm_vram_helper_init().
  * The function allocates and initializes an instance of &struct drm_vram_mm
  * in &struct drm_device.vram_mm . Use &DRM_GEM_VRAM_DRIVER to initialize
- * &struct drm_driver and  &DRM_VRAM_MM_FILE_OPERATIONS to initialize
+ * &struct drm_driver and &DEFINE_DRM_GEM_FOPS to define
  * &struct file_operations; as illustrated below.
  *
  * .. code-block:: c
  *
- *	struct file_operations fops ={
- *		.owner = THIS_MODULE,
- *		DRM_VRAM_MM_FILE_OPERATION
- *	};
+ *	DEFINE_DRM_GEM_FOPS(fops);
  *	struct drm_driver drv = {
  *		.driver_feature = DRM_ ... ,
  *		.fops = &fops,

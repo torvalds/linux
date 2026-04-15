@@ -34,10 +34,6 @@ properties:
     maxItems: 1
     description: Display data/command selection (D/CX)
 
-  backlight: true
-  reset-gpios: true
-  rotation: true
-
 required:
   - compatible
   - reg

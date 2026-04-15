@@ -510,13 +510,11 @@ static struct ttm_tt *xe_ttm_tt_create(struct ttm_buffer_object *ttm_bo,
 		WARN_ON((bo->flags & XE_BO_FLAG_USER) && !bo->cpu_caching);
 
 		/*
-		 * Display scanout is always non-coherent with the CPU cache.
-		 *
-		 * For Xe_LPG and beyond, PPGTT PTE lookups are also
-		 * non-coherent and require a CPU:WC mapping.
+		 * For Xe_LPG and beyond up to NVL-P (excluding), PPGTT PTE
+		 * lookups are also non-coherent and require a CPU:WC mapping.
 		 */
-		if ((!bo->cpu_caching && bo->flags & XE_BO_FLAG_SCANOUT) ||
-		     (!xe->info.has_cached_pt && bo->flags & XE_BO_FLAG_PAGETABLE))
+		if ((!bo->cpu_caching && bo->flags & XE_BO_FLAG_FORCE_WC) ||
+		    (!xe->info.has_cached_pt && bo->flags & XE_BO_FLAG_PAGETABLE))
 			caching = ttm_write_combined;
 	}
 
@@ -689,7 +687,12 @@ static int xe_bo_trigger_rebind(struct xe_device *xe, struct xe_bo *bo,
 
 		if (!xe_vm_in_fault_mode(vm)) {
 			drm_gpuvm_bo_evict(vm_bo, true);
-			continue;
+			/*
+			 * L2 cache may not be flushed, so ensure that is done in
+			 * xe_vm_invalidate_vma() below
+			 */
+			if (!xe_device_is_l2_flush_optimized(xe))
+				continue;
 		}
 
 		if (!idle) {
@@ -818,7 +821,7 @@ static int xe_bo_move_notify(struct xe_bo *bo,
 
 	/* Don't call move_notify() for imported dma-bufs. */
 	if (ttm_bo->base.dma_buf && !ttm_bo->base.import_attach)
-		dma_buf_move_notify(ttm_bo->base.dma_buf);
+		dma_buf_invalidate_mappings(ttm_bo->base.dma_buf);
 
 	/*
 	 * TTM has already nuked the mmap for us (see ttm_bo_unmap_virtual),
@@ -831,6 +834,122 @@ static int xe_bo_move_notify(struct xe_bo *bo,
 			list_del_init(&bo->vram_userfault_link);
 		mutex_unlock(&xe->mem_access.vram_userfault.lock);
 	}
+
+	return 0;
+}
+
+/**
+ * xe_bo_set_purgeable_shrinker() - Update shrinker accounting for purgeable state
+ * @bo: Buffer object
+ * @new_state: New purgeable state being set
+ *
+ * Transfers pages between shrinkable and purgeable buckets when the BO
+ * purgeable state changes. Called automatically from xe_bo_set_purgeable_state().
+ */
+static void xe_bo_set_purgeable_shrinker(struct xe_bo *bo,
+					 enum xe_madv_purgeable_state new_state)
+{
+	struct ttm_buffer_object *ttm_bo = &bo->ttm;
+	struct ttm_tt *tt = ttm_bo->ttm;
+	struct xe_device *xe = ttm_to_xe_device(ttm_bo->bdev);
+	struct xe_ttm_tt *xe_tt;
+	long tt_pages;
+
+	xe_bo_assert_held(bo);
+
+	if (!tt || !ttm_tt_is_populated(tt))
+		return;
+
+	xe_tt = container_of(tt, struct xe_ttm_tt, ttm);
+	tt_pages = tt->num_pages;
+
+	if (!xe_tt->purgeable && new_state == XE_MADV_PURGEABLE_DONTNEED) {
+		xe_tt->purgeable = true;
+		/* Transfer pages from shrinkable to purgeable count */
+		xe_shrinker_mod_pages(xe->mem.shrinker, -tt_pages, tt_pages);
+	} else if (xe_tt->purgeable && new_state == XE_MADV_PURGEABLE_WILLNEED) {
+		xe_tt->purgeable = false;
+		/* Transfer pages from purgeable to shrinkable count */
+		xe_shrinker_mod_pages(xe->mem.shrinker, tt_pages, -tt_pages);
+	}
+}
+
+/**
+ * xe_bo_set_purgeable_state() - Set BO purgeable state with validation
+ * @bo: Buffer object
+ * @new_state: New purgeable state
+ *
+ * Sets the purgeable state with lockdep assertions and validates state
+ * transitions. Once a BO is PURGED, it cannot transition to any other state.
+ * Invalid transitions are caught with xe_assert(). Shrinker page accounting
+ * is updated automatically.
+ */
+void xe_bo_set_purgeable_state(struct xe_bo *bo,
+			       enum xe_madv_purgeable_state new_state)
+{
+	struct xe_device *xe = xe_bo_device(bo);
+
+	xe_bo_assert_held(bo);
+
+	/* Validate state is one of the known values */
+	xe_assert(xe, new_state == XE_MADV_PURGEABLE_WILLNEED ||
+		  new_state == XE_MADV_PURGEABLE_DONTNEED ||
+		  new_state == XE_MADV_PURGEABLE_PURGED);
+
+	/* Once purged, always purged - cannot transition out */
+	xe_assert(xe, !(bo->madv_purgeable == XE_MADV_PURGEABLE_PURGED &&
+			new_state != XE_MADV_PURGEABLE_PURGED));
+
+	bo->madv_purgeable = new_state;
+	xe_bo_set_purgeable_shrinker(bo, new_state);
+}
+
+/**
+ * xe_ttm_bo_purge() - Purge buffer object backing store
+ * @ttm_bo: The TTM buffer object to purge
+ * @ctx: TTM operation context
+ *
+ * This function purges the backing store of a BO marked as DONTNEED and
+ * triggers rebind to invalidate stale GPU mappings. For fault-mode VMs,
+ * this zaps the PTEs. The next GPU access will trigger a page fault and
+ * perform NULL rebind (scratch pages or clear PTEs based on VM config).
+ *
+ * Return: 0 on success, negative error code on failure
+ */
+static int xe_ttm_bo_purge(struct ttm_buffer_object *ttm_bo, struct ttm_operation_ctx *ctx)
+{
+	struct xe_bo *bo = ttm_to_xe_bo(ttm_bo);
+	struct ttm_placement place = {};
+	int ret;
+
+	xe_bo_assert_held(bo);
+
+	if (!ttm_bo->ttm)
+		return 0;
+
+	if (!xe_bo_madv_is_dontneed(bo))
+		return 0;
+
+	/*
+	 * Use the standard pre-move hook so we share the same cleanup/invalidate
+	 * path as migrations: drop any CPU vmap and schedule the necessary GPU
+	 * unbind/rebind work.
+	 *
+	 * This must be called before ttm_bo_validate() frees the pages.
+	 * May fail in no-wait contexts (fault/shrinker) or if the BO is
+	 * pinned. Keep state unchanged on failure so we don't end up "PURGED"
+	 * with stale mappings.
+	 */
+	ret = xe_bo_move_notify(bo, ctx);
+	if (ret)
+		return ret;
+
+	ret = ttm_bo_validate(ttm_bo, &place, ctx);
+	if (ret)
+		return ret;
+
+	/* Commit the state transition only once invalidation was queued */
+	xe_bo_set_purgeable_state(bo, XE_MADV_PURGEABLE_PURGED);
 
 	return 0;
 }
@@ -853,6 +972,20 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 	bool handle_system_ccs = (!IS_DGFX(xe) && xe_bo_needs_ccs_pages(bo) &&
 				  ttm && ttm_tt_is_populated(ttm)) ? true : false;
 	int ret = 0;
+
+	/*
+	 * Purge only non-shared BOs explicitly marked DONTNEED by userspace.
+	 * The move_notify callback will handle invalidation asynchronously.
+	 */
+	if (evict && xe_bo_madv_is_dontneed(bo)) {
+		ret = xe_ttm_bo_purge(ttm_bo, ctx);
+		if (ret)
+			return ret;
+
+		/* Free the unused eviction destination resource */
+		ttm_resource_free(ttm_bo, &new_mem);
+		return 0;
+	}
 
 	/* Bo creation path, moving to system or TT. */
 	if ((!old_mem && ttm) && !handle_system_ccs) {
@@ -1151,6 +1284,9 @@ long xe_bo_shrink(struct ttm_operation_ctx *ctx, struct ttm_buffer_object *bo,
 			lret = xe_bo_move_notify(xe_bo, ctx);
 		if (!lret)
 			lret = xe_bo_shrink_purge(ctx, bo, scanned);
+		if (lret > 0 && xe_bo_madv_is_dontneed(xe_bo))
+			xe_bo_set_purgeable_state(xe_bo,
+						  XE_MADV_PURGEABLE_PURGED);
 		goto out_unref;
 	}
 
@@ -1603,18 +1739,6 @@ static void xe_ttm_bo_delete_mem_notify(struct ttm_buffer_object *ttm_bo)
 	}
 }
 
-static void xe_ttm_bo_purge(struct ttm_buffer_object *ttm_bo, struct ttm_operation_ctx *ctx)
-{
-	struct xe_device *xe = ttm_to_xe_device(ttm_bo->bdev);
-
-	if (ttm_bo->ttm) {
-		struct ttm_placement place = {};
-		int ret = ttm_bo_validate(ttm_bo, &place, ctx);
-
-		drm_WARN_ON(&xe->drm, ret);
-	}
-}
-
 static void xe_ttm_bo_swap_notify(struct ttm_buffer_object *ttm_bo)
 {
 	struct ttm_operation_ctx ctx = {
@@ -1899,6 +2023,16 @@ static vm_fault_t xe_bo_cpu_fault_fastpath(struct vm_fault *vmf, struct xe_devic
 	if (!dma_resv_trylock(tbo->base.resv))
 		goto out_validation;
 
+	/*
+	 * Reject CPU faults to purgeable BOs. DONTNEED BOs can be purged
+	 * at any time, and purged BOs have no backing store. Either case
+	 * is undefined behavior for CPU access.
+	 */
+	if (xe_bo_madv_is_dontneed(bo) || xe_bo_is_purged(bo)) {
+		ret = VM_FAULT_SIGBUS;
+		goto out_unlock;
+	}
+
 	if (xe_ttm_bo_is_imported(tbo)) {
 		ret = VM_FAULT_SIGBUS;
 		drm_dbg(&xe->drm, "CPU trying to access an imported buffer object.\n");
@@ -1989,6 +2123,15 @@ static vm_fault_t xe_bo_cpu_fault(struct vm_fault *vmf)
 		if (err)
 			break;
 
+		/*
+		 * Reject CPU faults to purgeable BOs. DONTNEED BOs can be
+		 * purged at any time, and purged BOs have no backing store.
+		 */
+		if (xe_bo_madv_is_dontneed(bo) || xe_bo_is_purged(bo)) {
+			err = -EFAULT;
+			break;
+		}
+
 		if (xe_ttm_bo_is_imported(tbo)) {
 			err = -EFAULT;
 			drm_dbg(&xe->drm, "CPU trying to access an imported buffer object.\n");
@@ -2066,10 +2209,35 @@ static const struct vm_operations_struct xe_gem_vm_ops = {
 	.access = xe_bo_vm_access,
 };
 
+static int xe_gem_object_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
+{
+	struct xe_bo *bo = gem_to_xe_bo(obj);
+	int err = 0;
+
+	/*
+	 * Reject mmap of purgeable BOs. DONTNEED BOs can be purged
+	 * at any time, making CPU access undefined behavior. Purged BOs have
+	 * no backing store and are permanently invalid.
+	 */
+	err = xe_bo_lock(bo, true);
+	if (err)
+		return err;
+
+	if (xe_bo_madv_is_dontneed(bo))
+		err = -EBUSY;
+	else if (xe_bo_is_purged(bo))
+		err = -EINVAL;
+	xe_bo_unlock(bo);
+	if (err)
+		return err;
+
+	return drm_gem_ttm_mmap(obj, vma);
+}
+
 static const struct drm_gem_object_funcs xe_gem_object_funcs = {
 	.free = xe_gem_object_free,
 	.close = xe_gem_object_close,
-	.mmap = drm_gem_ttm_mmap,
+	.mmap = xe_gem_object_mmap,
 	.export = xe_gem_prime_export,
 	.vm_ops = &xe_gem_vm_ops,
 };
@@ -2194,6 +2362,9 @@ struct xe_bo *xe_bo_init_locked(struct xe_device *xe, struct xe_bo *bo,
 	INIT_LIST_HEAD(&bo->client_link);
 #endif
 	INIT_LIST_HEAD(&bo->vram_userfault_link);
+
+	/* Initialize purge advisory state */
+	bo->madv_purgeable = XE_MADV_PURGEABLE_WILLNEED;
 
 	drm_gem_private_object_init(&xe->drm, &bo->ttm.base, size);
 
@@ -3196,8 +3367,11 @@ int xe_gem_create_ioctl(struct drm_device *dev, void *data,
 	if (args->flags & DRM_XE_GEM_CREATE_FLAG_DEFER_BACKING)
 		bo_flags |= XE_BO_FLAG_DEFER_BACKING;
 
+	/*
+	 * Display scanout is always non-coherent with the CPU cache.
+	 */
 	if (args->flags & DRM_XE_GEM_CREATE_FLAG_SCANOUT)
-		bo_flags |= XE_BO_FLAG_SCANOUT;
+		bo_flags |= XE_BO_FLAG_FORCE_WC;
 
 	if (args->flags & DRM_XE_GEM_CREATE_FLAG_NO_COMPRESSION) {
 		if (XE_IOCTL_DBG(xe, GRAPHICS_VER(xe) < 20))
@@ -3209,7 +3383,7 @@ int xe_gem_create_ioctl(struct drm_device *dev, void *data,
 
 	/* CCS formats need physical placement at a 64K alignment in VRAM. */
 	if ((bo_flags & XE_BO_FLAG_VRAM_MASK) &&
-	    (bo_flags & XE_BO_FLAG_SCANOUT) &&
+	    (args->flags & DRM_XE_GEM_CREATE_FLAG_SCANOUT) &&
 	    !(xe->info.vram_flags & XE_VRAM_FLAGS_NEED64K) &&
 	    IS_ALIGNED(args->size, SZ_64K))
 		bo_flags |= XE_BO_FLAG_NEEDS_64K;
@@ -3229,7 +3403,7 @@ int xe_gem_create_ioctl(struct drm_device *dev, void *data,
 			 args->cpu_caching != DRM_XE_GEM_CPU_CACHING_WC))
 		return -EINVAL;
 
-	if (XE_IOCTL_DBG(xe, bo_flags & XE_BO_FLAG_SCANOUT &&
+	if (XE_IOCTL_DBG(xe, bo_flags & XE_BO_FLAG_FORCE_WC &&
 			 args->cpu_caching == DRM_XE_GEM_CPU_CACHING_WB))
 		return -EINVAL;
 
@@ -3327,6 +3501,61 @@ int xe_gem_mmap_offset_ioctl(struct drm_device *dev, void *data,
 	args->offset = drm_vma_node_offset_addr(&gem_obj->vma_node);
 
 	xe_bo_put(gem_to_xe_bo(gem_obj));
+	return 0;
+}
+
+/**
+ * xe_bo_decompress - schedule in-place decompress and install fence
+ * @bo: buffer object (caller should hold drm_exec reservations for VM+BO)
+ *
+ * Schedules an in-place resolve via the migrate layer and installs the
+ * returned dma_fence into the BO kernel reservation slot (DMA_RESV_USAGE_KERNEL).
+ * In preempt fence mode, this operation interrupts hardware execution
+ * which is expensive. Page fault mode is recommended for better performance.
+ *
+ * The resolve path only runs for VRAM-backed buffers (currently dGPU-only);
+ * iGPU/system-memory objects fail the resource check and bypass the resolve.
+ *
+ * Returns 0 on success, negative errno on error.
+ */
+int xe_bo_decompress(struct xe_bo *bo)
+{
+	struct xe_device *xe = xe_bo_device(bo);
+	struct xe_tile *tile = xe_device_get_root_tile(xe);
+	struct dma_fence *decomp_fence = NULL;
+	struct ttm_operation_ctx op_ctx = {
+		.interruptible = true,
+		.no_wait_gpu = false,
+		.gfp_retry_mayfail = false,
+	};
+	int err = 0;
+
+	/* Silently skip decompression for non-VRAM buffers */
+	if (!bo->ttm.resource || !mem_type_is_vram(bo->ttm.resource->mem_type))
+		return 0;
+
+	/* Notify before scheduling resolve */
+	err = xe_bo_move_notify(bo, &op_ctx);
+	if (err)
+		return err;
+
+	/* Reserve fence slot before scheduling */
+	err = dma_resv_reserve_fences(bo->ttm.base.resv, 1);
+	if (err)
+		return err;
+
+	/* Schedule the in-place decompression */
+	decomp_fence = xe_migrate_resolve(tile->migrate,
+					  bo,
+					  bo->ttm.resource);
+
+	if (IS_ERR(decomp_fence))
+		return PTR_ERR(decomp_fence);
+
+	/* Install kernel-usage fence */
+	dma_resv_add_fence(bo->ttm.base.resv, decomp_fence, DMA_RESV_USAGE_KERNEL);
+	dma_fence_put(decomp_fence);
+
 	return 0;
 }
 
@@ -3642,7 +3871,7 @@ int xe_bo_dumb_create(struct drm_file *file_priv,
 	bo = xe_bo_create_user(xe, NULL, args->size,
 			       DRM_XE_GEM_CPU_CACHING_WC,
 			       XE_BO_FLAG_VRAM_IF_DGFX(xe_device_get_root_tile(xe)) |
-			       XE_BO_FLAG_SCANOUT |
+			       XE_BO_FLAG_FORCE_WC |
 			       XE_BO_FLAG_NEEDS_CPU_ACCESS, NULL);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);

@@ -764,6 +764,7 @@ static struct link_encoder *dcn10_link_encoder_create(
 	struct dc_context *ctx,
 	const struct encoder_init_data *enc_init_data)
 {
+	(void)ctx;
 	struct dcn10_link_encoder *enc10 =
 		kzalloc_obj(struct dcn10_link_encoder);
 	int link_regs_id;
@@ -1082,6 +1083,7 @@ static enum dc_status build_mapped_resource(
 		struct dc_state *context,
 		struct dc_stream_state *stream)
 {
+	(void)dc;
 	struct pipe_ctx *pipe_ctx = resource_get_otg_master_for_stream(&context->res_ctx, stream);
 
 	if (!pipe_ctx)
@@ -1116,6 +1118,7 @@ static struct pipe_ctx *dcn10_acquire_free_pipe_for_layer(
 		const struct resource_pool *pool,
 		const struct pipe_ctx *opp_head_pipe)
 {
+	(void)cur_ctx;
 	struct resource_context *res_ctx = &new_ctx->res_ctx;
 	struct pipe_ctx *head_pipe = resource_get_otg_master_for_stream(res_ctx, opp_head_pipe->stream);
 	struct pipe_ctx *idle_pipe = resource_find_free_secondary_pipe_legacy(res_ctx, pool, head_pipe);
@@ -1306,6 +1309,12 @@ static const struct dc_cap_funcs cap_funcs = {
 	.get_dcc_compression_cap = dcn10_get_dcc_compression_cap
 };
 
+void dcn10_get_default_tiling_info(struct dc_tiling_info *tiling_info)
+{
+	tiling_info->gfxversion = DcGfxVersion9;
+	tiling_info->gfx9.swizzle = DC_SW_LINEAR;
+}
+
 static const struct resource_funcs dcn10_res_pool_funcs = {
 	.destroy = dcn10_destroy_resource_pool,
 	.link_enc_create = dcn10_link_encoder_create,
@@ -1317,7 +1326,8 @@ static const struct resource_funcs dcn10_res_pool_funcs = {
 	.add_stream_to_ctx = dcn10_add_stream_to_ctx,
 	.patch_unknown_plane_state = dcn10_patch_unknown_plane_state,
 	.find_first_free_match_stream_enc_for_link = dcn10_find_first_free_match_stream_enc_for_link,
-	.get_vstartup_for_pipe = dcn10_get_vstartup_for_pipe
+	.get_vstartup_for_pipe = dcn10_get_vstartup_for_pipe,
+	.get_default_tiling_info = dcn10_get_default_tiling_info
 };
 
 static uint32_t read_pipe_fuses(struct dc_context *ctx)
@@ -1372,7 +1382,7 @@ static bool dcn10_resource_construct(
 	/*************************************************
 	 *  Resource + asic cap harcoding                *
 	 *************************************************/
-	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
+	pool->base.underlay_pipe_index = (unsigned int)NO_UNDERLAY_PIPE;
 
 	/* max pipe num for ASIC before check pipe fuses */
 	pool->base.pipe_count = pool->base.res_cap->num_timing_generator;

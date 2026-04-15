@@ -80,6 +80,7 @@ static void dpp3_program_gammcor_lut(
 		uint32_t num,
 		bool is_ram_a)
 {
+	(void)is_ram_a;
 	uint32_t i;
 	struct dcn3_dpp *dpp = TO_DCN30_DPP(dpp_base);
 	uint32_t last_base_value_red = rgb[num-1].red_reg + rgb[num-1].delta_red_reg;
@@ -132,6 +133,8 @@ static void dpp3_power_on_gamcor_lut(
 	if (dpp_base->ctx->dc->debug.enable_mem_low_power.bits.cm) {
 		if (power_on) {
 			REG_UPDATE(CM_MEM_PWR_CTRL, GAMCOR_MEM_PWR_FORCE, 0);
+			if (dpp_base->ctx->dc->caps.ips_v2_support)
+				REG_UPDATE(CM_MEM_PWR_CTRL, GAMCOR_MEM_PWR_DIS, 1);
 			REG_WAIT(CM_MEM_PWR_STATUS, GAMCOR_MEM_PWR_STATE, 0, 1, 5);
 		} else {
 			dpp_base->ctx->dc->optimized_required = true;

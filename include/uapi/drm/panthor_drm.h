@@ -410,6 +410,38 @@ struct drm_panthor_csif_info {
 };
 
 /**
+ * enum drm_panthor_timestamp_info_flags - drm_panthor_timestamp_info.flags
+ */
+enum drm_panthor_timestamp_info_flags {
+	/** @DRM_PANTHOR_TIMESTAMP_GPU: Query GPU time. */
+	DRM_PANTHOR_TIMESTAMP_GPU = 1 << 0,
+
+	/** @DRM_PANTHOR_TIMESTAMP_CPU_NONE: Don't query CPU time. */
+	DRM_PANTHOR_TIMESTAMP_CPU_NONE = 0 << 1,
+
+	/** @DRM_PANTHOR_TIMESTAMP_CPU_MONOTONIC: Query CPU time using CLOCK_MONOTONIC. */
+	DRM_PANTHOR_TIMESTAMP_CPU_MONOTONIC = 1 << 1,
+
+	/** @DRM_PANTHOR_TIMESTAMP_CPU_MONOTONIC_RAW: Query CPU time using CLOCK_MONOTONIC_RAW. */
+	DRM_PANTHOR_TIMESTAMP_CPU_MONOTONIC_RAW = 2 << 1,
+
+	/** @DRM_PANTHOR_TIMESTAMP_CPU_TYPE_MASK: Space reserved for CPU clock type. */
+	DRM_PANTHOR_TIMESTAMP_CPU_TYPE_MASK = 7 << 1,
+
+	/** @DRM_PANTHOR_TIMESTAMP_GPU_OFFSET: Query GPU offset. */
+	DRM_PANTHOR_TIMESTAMP_GPU_OFFSET = 1 << 4,
+
+	/** @DRM_PANTHOR_TIMESTAMP_GPU_CYCLE_COUNT: Query GPU cycle count. */
+	DRM_PANTHOR_TIMESTAMP_GPU_CYCLE_COUNT = 1 << 5,
+
+	/** @DRM_PANTHOR_TIMESTAMP_FREQ: Query timestamp frequency. */
+	DRM_PANTHOR_TIMESTAMP_FREQ = 1 << 6,
+
+	/** @DRM_PANTHOR_TIMESTAMP_DURATION: Return duration of time query. */
+	DRM_PANTHOR_TIMESTAMP_DURATION = 1 << 7,
+};
+
+/**
  * struct drm_panthor_timestamp_info - Timestamp information
  *
  * Structure grouping all queryable information relating to the GPU timestamp.
@@ -421,11 +453,38 @@ struct drm_panthor_timestamp_info {
 	 */
 	__u64 timestamp_frequency;
 
-	/** @current_timestamp: The current timestamp. */
+	/** @current_timestamp: The current GPU timestamp. */
 	__u64 current_timestamp;
 
-	/** @timestamp_offset: The offset of the timestamp timer. */
+	/** @timestamp_offset: The offset of the GPU timestamp timer. */
 	__u64 timestamp_offset;
+
+	/**
+	 * @flags: Bitmask of drm_panthor_timestamp_info_flags.
+	 *
+	 * If set to 0, then it is interpreted as:
+	 *  DRM_PANTHOR_TIMESTAMP_GPU |
+	 *  DRM_PANTHOR_TIMESTAMP_GPU_OFFSET |
+	 *  DRM_PANTHOR_TIMESTAMP_FREQ
+	 *
+	 * Note: these flags are exclusive to each other (only one can be used):
+	 * - DRM_PANTHOR_TIMESTAMP_CPU_NONE
+	 * - DRM_PANTHOR_TIMESTAMP_CPU_MONOTONIC
+	 * - DRM_PANTHOR_TIMESTAMP_CPU_MONOTONIC_RAW
+	 */
+	__u32 flags;
+
+	/** @duration_nsec: Duration of time query. */
+	__u32 duration_nsec;
+
+	/** @cycle_count: Value of GPU_CYCLE_COUNT. */
+	__u64 cycle_count;
+
+	/** @cpu_timestamp_sec: Seconds part of CPU timestamp. */
+	__u64 cpu_timestamp_sec;
+
+	/** @cpu_timestamp_nsec: Nanseconds part of CPU timestamp. */
+	__u64 cpu_timestamp_nsec;
 };
 
 /**

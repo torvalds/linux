@@ -2,6 +2,8 @@
 /* Copyright 2025 ARM Limited. All rights reserved. */
 
 #include <linux/nvmem-consumer.h>
+#include <linux/platform_device.h>
+
 #include <drm/drm_print.h>
 
 #include "panthor_device.h"
@@ -30,6 +32,8 @@ static struct panthor_hw panthor_hw_arch_v10 = {
 		.soft_reset = panthor_gpu_soft_reset,
 		.l2_power_off = panthor_gpu_l2_power_off,
 		.l2_power_on = panthor_gpu_l2_power_on,
+		.power_changed_off = panthor_gpu_power_changed_off,
+		.power_changed_on = panthor_gpu_power_changed_on,
 	},
 };
 
@@ -53,6 +57,64 @@ static struct panthor_hw_entry panthor_hw_match[] = {
 		.hwdev = &panthor_hw_arch_v14,
 	},
 };
+
+static int panthor_hw_set_power_tracing(struct device *dev, void *data)
+{
+	struct panthor_device *ptdev = dev_get_drvdata(dev);
+
+	if (!ptdev)
+		return -ENODEV;
+
+	if (!ptdev->hw)
+		return 0;
+
+	if (data) {
+		if (ptdev->hw->ops.power_changed_on)
+			return ptdev->hw->ops.power_changed_on(ptdev);
+	} else {
+		if (ptdev->hw->ops.power_changed_off)
+			ptdev->hw->ops.power_changed_off(ptdev);
+	}
+
+	return 0;
+}
+
+int panthor_hw_power_status_register(void)
+{
+	struct device_driver *drv;
+	int ret;
+
+	drv = driver_find("panthor", &platform_bus_type);
+	if (!drv)
+		return -ENODEV;
+
+	ret = driver_for_each_device(drv, NULL, (void *)true,
+				     panthor_hw_set_power_tracing);
+
+	return ret;
+}
+
+void panthor_hw_power_status_unregister(void)
+{
+	struct device_driver *drv;
+	int ret;
+
+	drv = driver_find("panthor", &platform_bus_type);
+	if (!drv)
+		return;
+
+	ret = driver_for_each_device(drv, NULL, NULL, panthor_hw_set_power_tracing);
+
+	/*
+	 * Ideally, it'd be possible to ask driver_for_each_device to hand us
+	 * another "start" to keep going after the failing device, but it
+	 * doesn't do that. Minor inconvenience in what is probably a bad day
+	 * on the computer already though.
+	 */
+	if (ret)
+		pr_warn("Couldn't mask power IRQ for at least one device: %pe\n",
+			ERR_PTR(ret));
+}
 
 static char *get_gpu_model_name(struct panthor_device *ptdev)
 {

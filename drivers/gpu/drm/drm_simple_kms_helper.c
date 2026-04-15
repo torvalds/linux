@@ -16,55 +16,10 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 
-/**
- * DOC: overview
- *
- * This helper library provides helpers for drivers for simple display
- * hardware.
- *
- * drm_simple_display_pipe_init() initializes a simple display pipeline
- * which has only one full-screen scanout buffer feeding one output. The
- * pipeline is represented by &struct drm_simple_display_pipe and binds
- * together &drm_plane, &drm_crtc and &drm_encoder structures into one fixed
- * entity. Some flexibility for code reuse is provided through a separately
- * allocated &drm_connector object and supporting optional &drm_bridge
- * encoder drivers.
- *
- * Many drivers require only a very simple encoder that fulfills the minimum
- * requirements of the display pipeline and does not add additional
- * functionality. The function drm_simple_encoder_init() provides an
- * implementation of such an encoder.
- */
-
 static const struct drm_encoder_funcs drm_simple_encoder_funcs_cleanup = {
 	.destroy = drm_encoder_cleanup,
 };
 
-/**
- * drm_simple_encoder_init - Initialize a preallocated encoder with
- *                           basic functionality.
- * @dev: drm device
- * @encoder: the encoder to initialize
- * @encoder_type: user visible type of the encoder
- *
- * Initialises a preallocated encoder that has no further functionality.
- * Settings for possible CRTC and clones are left to their initial values.
- * The encoder will be cleaned up automatically as part of the mode-setting
- * cleanup.
- *
- * The caller of drm_simple_encoder_init() is responsible for freeing
- * the encoder's memory after the encoder has been cleaned up. At the
- * moment this only works reliably if the encoder data structure is
- * stored in the device structure. Free the encoder's memory as part of
- * the device release function.
- *
- * Note: consider using drmm_simple_encoder_alloc() instead of
- * drm_simple_encoder_init() to let the DRM managed resource infrastructure
- * take care of cleanup and deallocation.
- *
- * Returns:
- * Zero on success, error code on failure.
- */
 int drm_simple_encoder_init(struct drm_device *dev,
 			    struct drm_encoder *encoder,
 			    int encoder_type)
@@ -370,20 +325,6 @@ static const struct drm_plane_funcs drm_simple_kms_plane_funcs = {
 	.format_mod_supported   = drm_simple_kms_format_mod_supported,
 };
 
-/**
- * drm_simple_display_pipe_attach_bridge - Attach a bridge to the display pipe
- * @pipe: simple display pipe object
- * @bridge: bridge to attach
- *
- * Makes it possible to still use the drm_simple_display_pipe helpers when
- * a DRM bridge has to be used.
- *
- * Note that you probably want to initialize the pipe by passing a NULL
- * connector to drm_simple_display_pipe_init().
- *
- * Returns:
- * Zero on success, negative error code on failure.
- */
 int drm_simple_display_pipe_attach_bridge(struct drm_simple_display_pipe *pipe,
 					  struct drm_bridge *bridge)
 {
@@ -391,30 +332,6 @@ int drm_simple_display_pipe_attach_bridge(struct drm_simple_display_pipe *pipe,
 }
 EXPORT_SYMBOL(drm_simple_display_pipe_attach_bridge);
 
-/**
- * drm_simple_display_pipe_init - Initialize a simple display pipeline
- * @dev: DRM device
- * @pipe: simple display pipe object to initialize
- * @funcs: callbacks for the display pipe (optional)
- * @formats: array of supported formats (DRM_FORMAT\_\*)
- * @format_count: number of elements in @formats
- * @format_modifiers: array of formats modifiers
- * @connector: connector to attach and register (optional)
- *
- * Sets up a display pipeline which consist of a really simple
- * plane-crtc-encoder pipe.
- *
- * If a connector is supplied, the pipe will be coupled with the provided
- * connector. You may supply a NULL connector when using drm bridges, that
- * handle connectors themselves (see drm_simple_display_pipe_attach_bridge()).
- *
- * Teardown of a simple display pipe is all handled automatically by the drm
- * core through calling drm_mode_config_cleanup(). Drivers afterwards need to
- * release the memory for the structure themselves.
- *
- * Returns:
- * Zero on success, negative error code on failure.
- */
 int drm_simple_display_pipe_init(struct drm_device *dev,
 			struct drm_simple_display_pipe *pipe,
 			const struct drm_simple_display_pipe_funcs *funcs,

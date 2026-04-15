@@ -632,6 +632,7 @@ static struct link_encoder *dce100_link_encoder_create(
 	struct dc_context *ctx,
 	const struct encoder_init_data *enc_init_data)
 {
+	(void)ctx;
 	struct dce110_link_encoder *enc110 =
 		kzalloc_obj(struct dce110_link_encoder);
 	int link_regs_id;
@@ -849,6 +850,7 @@ static enum dc_status build_mapped_resource(
 		struct dc_state *context,
 		struct dc_stream_state *stream)
 {
+	(void)dc;
 	struct pipe_ctx *pipe_ctx = resource_get_otg_master_for_stream(&context->res_ctx, stream);
 
 	if (!pipe_ctx)
@@ -866,6 +868,7 @@ enum dc_status dce100_validate_bandwidth(
 	struct dc_state *context,
 	enum dc_validate_mode validate_mode)
 {
+	(void)validate_mode;
 	int i;
 	bool at_least_one_pipe = false;
 	struct dc_stream_state *stream = NULL;
@@ -926,6 +929,7 @@ enum dc_status dce100_validate_global(
 		struct dc  *dc,
 		struct dc_state *context)
 {
+	(void)dc;
 	if (!dce100_validate_surface_sets(context))
 		return DC_FAIL_SURFACE_VALIDATE;
 
@@ -961,6 +965,7 @@ static void dce100_destroy_resource_pool(struct resource_pool **pool)
 
 enum dc_status dce100_validate_plane(const struct dc_plane_state *plane_state, struct dc_caps *caps)
 {
+	(void)caps;
 
 	if (plane_state->format < SURFACE_PIXEL_FORMAT_VIDEO_BEGIN)
 		return DC_OK;
@@ -1039,7 +1044,7 @@ static bool dce100_resource_construct(
 
 	pool->base.res_cap = &res_cap;
 	pool->base.funcs = &dce100_res_pool_funcs;
-	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
+	pool->base.underlay_pipe_index = (unsigned int)NO_UNDERLAY_PIPE;
 
 	bp = ctx->dc_bios;
 
@@ -1111,7 +1116,7 @@ static bool dce100_resource_construct(
 	/*************************************************
 	*  Resource + asic cap harcoding                *
 	*************************************************/
-	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
+	pool->base.underlay_pipe_index = (unsigned int)NO_UNDERLAY_PIPE;
 	pool->base.pipe_count = res_cap.num_timing_generator;
 	pool->base.timing_generator_count = pool->base.res_cap->num_timing_generator;
 	dc->caps.max_downscale_ratio = 200;

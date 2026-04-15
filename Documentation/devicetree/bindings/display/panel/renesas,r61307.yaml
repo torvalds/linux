@@ -33,8 +33,6 @@ properties:
   iovcc-supply:
     description: Regulator for 1.8V IO power supply.
 
-  backlight: true
-
   renesas,gamma:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
@@ -51,6 +49,7 @@ properties:
     type: boolean
     description: digital contrast adjustment
 
+  backlight: true
   reset-gpios: true
   port: true
 

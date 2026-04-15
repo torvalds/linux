@@ -161,7 +161,8 @@ union amd_sriov_msg_feature_flags {
 		uint32_t ras_telemetry		: 1;
 		uint32_t ras_cper		: 1;
 		uint32_t xgmi_ta_ext_peer_link	: 1;
-		uint32_t reserved		: 19;
+		uint32_t xgmi_connected_to_cpu  : 1;
+		uint32_t reserved		: 18;
 	} flags;
 	uint32_t all;
 };
@@ -470,14 +471,23 @@ struct amd_sriov_ras_chk_criti {
 	uint32_t hit;
 };
 
+union amd_sriov_ras_host_push {
+	struct amd_sriov_ras_telemetry_error_count error_count;
+	struct amd_sriov_ras_cper_dump cper_dump;
+	struct amd_sriov_ras_chk_criti chk_criti;
+};
+
+#define AMD_SRIOV_UNIRAS_BLOCKS_BUF_SIZE 4096
+#define AMD_SRIOV_UNIRAS_CMD_MAX_SIZE (4096 * 13)
+struct amd_sriov_uniras_shared_mem {
+	uint8_t blocks_ecc_buf[AMD_SRIOV_UNIRAS_BLOCKS_BUF_SIZE];
+	uint8_t cmd_buf[AMD_SRIOV_UNIRAS_CMD_MAX_SIZE];
+};
+
 struct amdsriov_ras_telemetry {
 	struct amd_sriov_ras_telemetry_header header;
-
-	union {
-		struct amd_sriov_ras_telemetry_error_count error_count;
-		struct amd_sriov_ras_cper_dump cper_dump;
-		struct amd_sriov_ras_chk_criti chk_criti;
-	} body;
+	union amd_sriov_ras_host_push body;
+	struct amd_sriov_uniras_shared_mem uniras_shared_mem;
 };
 
 /* version data stored in MAILBOX_MSGBUF_RCV_DW1 for future expansion */
@@ -509,6 +519,10 @@ _Static_assert(AMD_SRIOV_MSG_RESERVE_UCODE % 4 == 0,
 
 _Static_assert(AMD_SRIOV_MSG_RESERVE_UCODE > AMD_SRIOV_UCODE_ID__MAX,
 	       "AMD_SRIOV_MSG_RESERVE_UCODE must be bigger than AMD_SRIOV_UCODE_ID__MAX");
+
+_Static_assert(
+	sizeof(struct amdsriov_ras_telemetry) <= AMD_SRIOV_MSG_RAS_TELEMETRY_SIZE_KB_V1 << 10,
+"amdsriov_ras_telemetry must be " stringification(AMD_SRIOV_MSG_RAS_TELEMETRY_SIZE_KB_V1) " KB");
 
 #undef _stringification
 #undef stringification

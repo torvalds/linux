@@ -6,8 +6,24 @@
  */
 
 #include "dml2_internal_types.h"
+#include "dml2_wrapper.h"
 #include "dml2_wrapper_fpu.h"
+#include "dml21_wrapper.h"
+#include "dml21_wrapper_fpu.h"
 
+#include "dc_fpu.h"
+
+#if !defined(DC_RUN_WITH_PREEMPTION_ENABLED)
+#define DC_RUN_WITH_PREEMPTION_ENABLED(code) code
+#endif // !DC_RUN_WITH_PREEMPTION_ENABLED
+
+struct dml2_context *dml2_allocate_memory(void)
+{
+	struct dml2_context *dml2;
+
+	DC_RUN_WITH_PREEMPTION_ENABLED(dml2 = vzalloc(sizeof(struct dml2_context)));
+	return dml2;
+}
 bool dml2_validate(const struct dc *in_dc, struct dc_state *context, struct dml2_context *dml2,
 	enum dc_validate_mode validate_mode)
 {
@@ -23,15 +39,11 @@ bool dml2_validate(const struct dc *in_dc, struct dc_state *context, struct dml2
 		return out;
 	}
 
-	DC_FP_START();
-
 	/* Use dml_validate_only for DC_VALIDATE_MODE_ONLY and DC_VALIDATE_MODE_AND_STATE_INDEX path */
 	if (validate_mode != DC_VALIDATE_MODE_AND_PROGRAMMING)
 		out = dml2_validate_only(context, validate_mode);
 	else
 		out = dml2_validate_and_build_resource(in_dc, context, validate_mode);
-
-	DC_FP_END();
 
 	return out;
 }
@@ -70,22 +82,20 @@ static void dml2_init(const struct dc *in_dc, const struct dml2_configuration_op
 		break;
 	}
 
-	DC_FP_START();
-
 	initialize_dml2_ip_params(*dml2, in_dc, &(*dml2)->v20.dml_core_ctx.ip);
 
 	initialize_dml2_soc_bbox(*dml2, in_dc, &(*dml2)->v20.dml_core_ctx.soc);
 
 	initialize_dml2_soc_states(*dml2, in_dc, &(*dml2)->v20.dml_core_ctx.soc, &(*dml2)->v20.dml_core_ctx.states);
 
-	DC_FP_END();
 }
 
 bool dml2_create(const struct dc *in_dc, const struct dml2_configuration_options *config, struct dml2_context **dml2)
 {
 	// TODO : Temporarily add DCN_VERSION_3_2 for N-1 validation. Remove DCN_VERSION_3_2 after N-1 validation phase is complete.
-	if ((in_dc->debug.using_dml21) && (in_dc->ctx->dce_version >= DCN_VERSION_4_01))
+	if ((in_dc->debug.using_dml21) && (in_dc->ctx->dce_version >= DCN_VERSION_4_01)) {
 		return dml21_create(in_dc, dml2, config);
+	}
 
 	// Allocate Mode Lib Ctx
 	*dml2 = dml2_allocate_memory();

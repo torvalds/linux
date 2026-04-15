@@ -85,6 +85,19 @@ again:
 	spin_unlock(&xe_vdev->reset_lock);
 }
 
+static void xe_vfio_pci_reset_prepare(struct pci_dev *pdev)
+{
+	struct xe_vfio_pci_core_device *xe_vdev = pci_get_drvdata(pdev);
+	int ret;
+
+	if (!pdev->is_virtfn)
+		return;
+
+	ret = xe_sriov_vfio_flr_prepare(xe_vdev->xe, xe_vdev->vfid);
+	if (ret)
+		dev_err(&pdev->dev, "Failed to prepare FLR: %d\n", ret);
+}
+
 static void xe_vfio_pci_reset_done(struct pci_dev *pdev)
 {
 	struct xe_vfio_pci_core_device *xe_vdev = pci_get_drvdata(pdev);
@@ -127,6 +140,7 @@ static void xe_vfio_pci_reset_done(struct pci_dev *pdev)
 }
 
 static const struct pci_error_handlers xe_vfio_pci_err_handlers = {
+	.reset_prepare = xe_vfio_pci_reset_prepare,
 	.reset_done = xe_vfio_pci_reset_done,
 	.error_detected = vfio_pci_core_aer_err_detected,
 };

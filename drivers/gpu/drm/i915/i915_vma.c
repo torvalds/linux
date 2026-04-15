@@ -27,6 +27,7 @@
 
 #include <drm/drm_gem.h>
 #include <drm/drm_print.h>
+#include <drm/intel/display_parent_interface.h>
 
 #include "display/intel_fb.h"
 #include "display/intel_frontbuffer.h"
@@ -2332,3 +2333,12 @@ int __init i915_vma_module_init(void)
 
 	return 0;
 }
+
+static int i915_vma_fence_id(const struct i915_vma *vma)
+{
+	return vma->fence ? vma->fence->id : -1;
+}
+
+const struct intel_display_vma_interface i915_display_vma_interface = {
+	.fence_id = i915_vma_fence_id,
+};

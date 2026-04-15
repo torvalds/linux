@@ -19,7 +19,9 @@ properties:
   compatible:
     oneOf:
       - items:
-          - const: arm,mali-d32
+          - enum:
+              - arm,mali-d32
+              - armchina,linlon-d6
           - const: arm,mali-d71
       - const: arm,mali-d71
 

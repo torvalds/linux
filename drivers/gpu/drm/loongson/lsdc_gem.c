@@ -234,21 +234,6 @@ int lsdc_dumb_create(struct drm_file *file, struct drm_device *ddev,
 	return 0;
 }
 
-int lsdc_dumb_map_offset(struct drm_file *filp, struct drm_device *ddev,
-			 u32 handle, uint64_t *offset)
-{
-	struct drm_gem_object *gobj;
-
-	gobj = drm_gem_object_lookup(filp, handle);
-	if (!gobj)
-		return -ENOENT;
-
-	*offset = drm_vma_node_offset_addr(&gobj->vma_node);
-
-	drm_gem_object_put(gobj);
-
-	return 0;
-}
 
 void lsdc_gem_init(struct drm_device *ddev)
 {

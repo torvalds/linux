@@ -1,44 +1,56 @@
 // SPDX-License-Identifier: GPL-2.0 or MIT
 
-use kernel::clk::Clk;
-use kernel::clk::OptionalClk;
-use kernel::device::Bound;
-use kernel::device::Core;
-use kernel::device::Device;
-use kernel::devres::Devres;
-use kernel::drm;
-use kernel::drm::ioctl;
-use kernel::io::poll;
-use kernel::new_mutex;
-use kernel::of;
-use kernel::platform;
-use kernel::prelude::*;
-use kernel::regulator;
-use kernel::regulator::Regulator;
-use kernel::sizes::SZ_2M;
-use kernel::sync::aref::ARef;
-use kernel::sync::Arc;
-use kernel::sync::Mutex;
-use kernel::time;
+use kernel::{
+    clk::{
+        Clk,
+        OptionalClk, //
+    },
+    device::{
+        Bound,
+        Core,
+        Device, //
+    },
+    devres::Devres,
+    drm,
+    drm::ioctl,
+    io::poll,
+    new_mutex,
+    of,
+    platform,
+    prelude::*,
+    regulator,
+    regulator::Regulator,
+    sizes::SZ_2M,
+    sync::{
+        aref::ARef,
+        Arc,
+        Mutex, //
+    },
+    time, //
+};
 
-use crate::file::File;
-use crate::gem::TyrObject;
-use crate::gpu;
-use crate::gpu::GpuInfo;
-use crate::regs;
+use crate::{
+    file::TyrDrmFileData,
+    gem::TyrObject,
+    gpu,
+    gpu::GpuInfo,
+    regs, //
+};
 
 pub(crate) type IoMem = kernel::io::mem::IoMem<SZ_2M>;
 
+pub(crate) struct TyrDrmDriver;
+
 /// Convenience type alias for the DRM device type for this driver.
-pub(crate) type TyrDevice = drm::Device<TyrDriver>;
+pub(crate) type TyrDrmDevice = drm::Device<TyrDrmDriver>;
 
 #[pin_data(PinnedDrop)]
-pub(crate) struct TyrDriver {
-    _device: ARef<TyrDevice>,
+pub(crate) struct TyrPlatformDriverData {
+    _device: ARef<TyrDrmDevice>,
 }
 
 #[pin_data(PinnedDrop)]
-pub(crate) struct TyrData {
+pub(crate) struct TyrDrmDeviceData {
     pub(crate) pdev: ARef<platform::Device>,
 
     #[pin]
@@ -70,14 +82,14 @@ fn issue_soft_reset(dev: &Device<Bound>, iomem: &Devres<IoMem>) -> Result {
 kernel::of_device_table!(
     OF_TABLE,
     MODULE_OF_TABLE,
-    <TyrDriver as platform::Driver>::IdInfo,
+    <TyrPlatformDriverData as platform::Driver>::IdInfo,
     [
         (of::DeviceId::new(c"rockchip,rk3588-mali"), ()),
         (of::DeviceId::new(c"arm,mali-valhall-csf"), ())
     ]
 );
 
-impl platform::Driver for TyrDriver {
+impl platform::Driver for TyrPlatformDriverData {
     type IdInfo = ();
     const OF_ID_TABLE: Option<of::IdTable<Self::IdInfo>> = Some(&OF_TABLE);
 
@@ -107,7 +119,7 @@ impl platform::Driver for TyrDriver {
 
         let platform: ARef<platform::Device> = pdev.into();
 
-        let data = try_pin_init!(TyrData {
+        let data = try_pin_init!(TyrDrmDeviceData {
                 pdev: platform.clone(),
                 clks <- new_mutex!(Clocks {
                     core: core_clk,
@@ -121,10 +133,10 @@ impl platform::Driver for TyrDriver {
                 gpu_info,
         });
 
-        let tdev: ARef<TyrDevice> = drm::Device::new(pdev.as_ref(), data)?;
-        drm::driver::Registration::new_foreign_owned(&tdev, pdev.as_ref(), 0)?;
+        let ddev: ARef<TyrDrmDevice> = drm::Device::new(pdev.as_ref(), data)?;
+        drm::driver::Registration::new_foreign_owned(&ddev, pdev.as_ref(), 0)?;
 
-        let driver = TyrDriver { _device: tdev };
+        let driver = TyrPlatformDriverData { _device: ddev };
 
         // We need this to be dev_info!() because dev_dbg!() does not work at
         // all in Rust for now, and we need to see whether probe succeeded.
@@ -134,12 +146,12 @@ impl platform::Driver for TyrDriver {
 }
 
 #[pinned_drop]
-impl PinnedDrop for TyrDriver {
+impl PinnedDrop for TyrPlatformDriverData {
     fn drop(self: Pin<&mut Self>) {}
 }
 
 #[pinned_drop]
-impl PinnedDrop for TyrData {
+impl PinnedDrop for TyrDrmDeviceData {
     fn drop(self: Pin<&mut Self>) {
         // TODO: the type-state pattern for Clks will fix this.
         let clks = self.clks.lock();
@@ -160,15 +172,15 @@ const INFO: drm::DriverInfo = drm::DriverInfo {
 };
 
 #[vtable]
-impl drm::Driver for TyrDriver {
-    type Data = TyrData;
-    type File = File;
+impl drm::Driver for TyrDrmDriver {
+    type Data = TyrDrmDeviceData;
+    type File = TyrDrmFileData;
     type Object = drm::gem::Object<TyrObject>;
 
     const INFO: drm::DriverInfo = INFO;
 
     kernel::declare_drm_ioctls! {
-        (PANTHOR_DEV_QUERY, drm_panthor_dev_query, ioctl::RENDER_ALLOW, File::dev_query),
+        (PANTHOR_DEV_QUERY, drm_panthor_dev_query, ioctl::RENDER_ALLOW, TyrDrmFileData::dev_query),
     }
 }
 

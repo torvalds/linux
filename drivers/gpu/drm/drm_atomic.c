@@ -475,6 +475,7 @@ static void drm_atomic_crtc_print_state(struct drm_printer *p,
 	drm_printf(p, "\tconnector_mask=%x\n", state->connector_mask);
 	drm_printf(p, "\tencoder_mask=%x\n", state->encoder_mask);
 	drm_printf(p, "\tmode: " DRM_MODE_FMT "\n", DRM_MODE_ARG(&state->mode));
+	drm_printf(p, "\tbackground_color=%llx\n", state->background_color);
 
 	if (crtc->funcs->atomic_print_state)
 		crtc->funcs->atomic_print_state(p, state);
@@ -920,29 +921,35 @@ static void drm_atomic_plane_print_state(struct drm_printer *p,
  * drm_atomic_private_obj_init - initialize private object
  * @dev: DRM device this object will be attached to
  * @obj: private object
- * @state: initial private object state
  * @funcs: pointer to the struct of function pointers that identify the object
  * type
  *
  * Initialize the private object, which can be embedded into any
  * driver private object that needs its own atomic state.
+ *
+ * RETURNS:
+ * Zero on success, error code on failure
  */
-void
-drm_atomic_private_obj_init(struct drm_device *dev,
-			    struct drm_private_obj *obj,
-			    struct drm_private_state *state,
-			    const struct drm_private_state_funcs *funcs)
+int drm_atomic_private_obj_init(struct drm_device *dev,
+				struct drm_private_obj *obj,
+				const struct drm_private_state_funcs *funcs)
 {
+	struct drm_private_state *state;
 	memset(obj, 0, sizeof(*obj));
 
 	drm_modeset_lock_init(&obj->lock);
 
 	obj->dev = dev;
-	obj->state = state;
 	obj->funcs = funcs;
 	list_add_tail(&obj->head, &dev->mode_config.privobj_list);
 
-	state->obj = obj;
+	state = obj->funcs->atomic_create_state(obj);
+	if (IS_ERR(state))
+		return PTR_ERR(state);
+
+	obj->state = state;
+
+	return 0;
 }
 EXPORT_SYMBOL(drm_atomic_private_obj_init);
 
@@ -1569,6 +1576,7 @@ drm_atomic_add_affected_planes(struct drm_atomic_state *state,
 	const struct drm_crtc_state *old_crtc_state =
 		drm_atomic_get_old_crtc_state(state, crtc);
 	struct drm_plane *plane;
+	int ret;
 
 	WARN_ON(!drm_atomic_get_new_crtc_state(state, crtc));
 
@@ -1582,6 +1590,12 @@ drm_atomic_add_affected_planes(struct drm_atomic_state *state,
 
 		if (IS_ERR(plane_state))
 			return PTR_ERR(plane_state);
+
+		if (plane_state->color_pipeline) {
+			ret = drm_atomic_add_affected_colorops(state, plane);
+			if (ret)
+				return ret;
+		}
 	}
 	return 0;
 }

@@ -44,6 +44,7 @@
 
 static bool dwb1_get_caps(struct dwbc *dwbc, struct dwb_caps *caps)
 {
+	(void)dwbc;
 	if (caps) {
 		caps->adapter_id = 0;	/* we only support 1 adapter currently */
 		caps->hw_version = DCN_VERSION_1_0;
@@ -63,6 +64,7 @@ static bool dwb1_get_caps(struct dwbc *dwbc, struct dwb_caps *caps)
 
 static bool dwb1_enable(struct dwbc *dwbc, struct dc_dwb_params *params)
 {
+	(void)params;
 	struct dcn10_dwbc *dwbc10 = TO_DCN10_DWBC(dwbc);
 
 	/* disable first. */

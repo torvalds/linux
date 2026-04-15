@@ -23,6 +23,7 @@ static const struct dml2_pmo_pstate_strategy base_strategy_list_1_display[] = {
 		.allow_state_increase = true,
 	},
 
+
 	// Then VBlank
 	{
 		.per_stream_pstate_method = { dml2_pstate_method_vblank, dml2_pstate_method_na, dml2_pstate_method_na, dml2_pstate_method_na },
@@ -52,6 +53,7 @@ static const struct dml2_pmo_pstate_strategy base_strategy_list_2_display[] = {
 		.per_stream_pstate_method = { dml2_pstate_method_vactive, dml2_pstate_method_vactive, dml2_pstate_method_na, dml2_pstate_method_na },
 		.allow_state_increase = true,
 	},
+
 
 	// Then VActive + VBlank
 	{
@@ -113,6 +115,7 @@ static const struct dml2_pmo_pstate_strategy base_strategy_list_3_display[] = {
 		.allow_state_increase = true,
 	},
 
+
 	// VActive + 1 VBlank
 	{
 		.per_stream_pstate_method = { dml2_pstate_method_vactive, dml2_pstate_method_vactive, dml2_pstate_method_vblank, dml2_pstate_method_na },
@@ -148,6 +151,7 @@ static const struct dml2_pmo_pstate_strategy base_strategy_list_4_display[] = {
 		.per_stream_pstate_method = { dml2_pstate_method_vactive, dml2_pstate_method_vactive, dml2_pstate_method_vactive, dml2_pstate_method_vactive },
 		.allow_state_increase = true,
 	},
+
 
 	// VActive + 1 VBlank
 	{
@@ -1651,6 +1655,7 @@ static bool validate_pstate_support_strategy_cofunctionality(struct dml2_pmo_ins
 	if (svp_count > 0 && (pmo->options->disable_svp || !all_timings_support_svp(pmo, display_cfg, svp_stream_mask)))
 		return false;
 
+
 	return is_config_schedulable(pmo, display_cfg, pstate_strategy);
 }
 
@@ -1979,6 +1984,7 @@ static void reset_display_configuration(struct display_configuation_with_meta *d
 		display_config->stage3.pstate_switch_modes[plane_index] = dml2_pstate_method_na;
 	}
 }
+
 
 static void setup_planes_for_drr_by_mask(struct display_configuation_with_meta *display_config,
 	struct dml2_pmo_instance *pmo,

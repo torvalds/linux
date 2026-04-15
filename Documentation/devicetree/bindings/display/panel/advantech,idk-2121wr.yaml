@@ -56,14 +56,14 @@ properties:
       - port@0
       - port@1
 
-additionalProperties: false
-
 required:
   - compatible
   - width-mm
   - height-mm
   - data-mapping
   - panel-timing
+
+additionalProperties: false
 
 examples:
   - |+

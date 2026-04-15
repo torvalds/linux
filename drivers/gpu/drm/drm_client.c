@@ -204,7 +204,7 @@ void drm_client_buffer_delete(struct drm_client_buffer *buffer)
 }
 EXPORT_SYMBOL(drm_client_buffer_delete);
 
-static struct drm_client_buffer *
+struct drm_client_buffer *
 drm_client_buffer_create(struct drm_client_dev *client, u32 width, u32 height,
 			 u32 format, u32 handle, u32 pitch)
 {
@@ -265,6 +265,7 @@ err_delete:
 	kfree(buffer);
 	return ERR_PTR(ret);
 }
+EXPORT_SYMBOL(drm_client_buffer_create);
 
 /**
  * drm_client_buffer_vmap_local - Map DRM client buffer into address space

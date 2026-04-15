@@ -192,7 +192,7 @@ struct device_queue_manager_ops {
 
 	int (*reset_queues)(struct device_queue_manager *dqm,
 					uint16_t pasid);
-	void	(*get_queue_checkpoint_info)(struct device_queue_manager *dqm,
+	int	(*get_queue_checkpoint_info)(struct device_queue_manager *dqm,
 				  const struct queue *q, u32 *mqd_size,
 				  u32 *ctl_stack_size);
 

@@ -46,16 +46,48 @@
 #define HX8357D_MADCTL_BGR 0x08
 #define HX8357D_MADCTL_MH  0x04
 
-static void yx240qv29_enable(struct drm_simple_display_pipe *pipe,
-			     struct drm_crtc_state *crtc_state,
-			     struct drm_plane_state *plane_state)
+struct hx8357d_device {
+	struct mipi_dbi_dev dbidev;
+
+	struct drm_plane plane;
+	struct drm_crtc crtc;
+	struct drm_encoder encoder;
+	struct drm_connector connector;
+};
+
+static struct hx8357d_device *to_hx8357d_device(struct drm_device *dev)
 {
-	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(pipe->crtc.dev);
+	return container_of(drm_to_mipi_dbi_dev(dev), struct hx8357d_device, dbidev);
+}
+
+static const u32 hx8357d_plane_formats[] = {
+	DRM_MIPI_DBI_PLANE_FORMATS,
+};
+
+static const u64 hx8357d_plane_format_modifiers[] = {
+	DRM_MIPI_DBI_PLANE_FORMAT_MODIFIERS,
+};
+
+static const struct drm_plane_helper_funcs hx8357d_plane_helper_funcs = {
+	DRM_MIPI_DBI_PLANE_HELPER_FUNCS,
+};
+
+static const struct drm_plane_funcs hx8357d_plane_funcs = {
+	DRM_MIPI_DBI_PLANE_FUNCS,
+	.destroy = drm_plane_cleanup,
+};
+
+static void hx8357d_crtc_helper_atomic_enable(struct drm_crtc *crtc,
+					      struct drm_atomic_state *state)
+{
+	struct drm_device *drm = crtc->dev;
+	struct hx8357d_device *hx8357d = to_hx8357d_device(drm);
+	struct mipi_dbi_dev *dbidev = &hx8357d->dbidev;
 	struct mipi_dbi *dbi = &dbidev->dbi;
 	u8 addr_mode;
 	int ret, idx;
 
-	if (!drm_dev_enter(pipe->crtc.dev, &idx))
+	if (!drm_dev_enter(drm, &idx))
 		return;
 
 	DRM_DEBUG_KMS("\n");
@@ -177,13 +209,41 @@ out_enable:
 		break;
 	}
 	mipi_dbi_command(dbi, MIPI_DCS_SET_ADDRESS_MODE, addr_mode);
-	mipi_dbi_enable_flush(dbidev, crtc_state, plane_state);
+
+	backlight_enable(dbidev->backlight);
 out_exit:
 	drm_dev_exit(idx);
 }
 
-static const struct drm_simple_display_pipe_funcs hx8357d_pipe_funcs = {
-	DRM_MIPI_DBI_SIMPLE_DISPLAY_PIPE_FUNCS(yx240qv29_enable),
+static const struct drm_crtc_helper_funcs hx8357d_crtc_helper_funcs = {
+	DRM_MIPI_DBI_CRTC_HELPER_FUNCS,
+	.atomic_enable = hx8357d_crtc_helper_atomic_enable,
+};
+
+static const struct drm_crtc_funcs hx8357d_crtc_funcs = {
+	DRM_MIPI_DBI_CRTC_FUNCS,
+	.destroy = drm_crtc_cleanup,
+};
+
+static const struct drm_encoder_funcs hx8357d_encoder_funcs = {
+	.destroy = drm_encoder_cleanup,
+};
+
+static const struct drm_connector_helper_funcs hx8357d_connector_helper_funcs = {
+	DRM_MIPI_DBI_CONNECTOR_HELPER_FUNCS,
+};
+
+static const struct drm_connector_funcs hx8357d_connector_funcs = {
+	DRM_MIPI_DBI_CONNECTOR_FUNCS,
+	.destroy = drm_connector_cleanup,
+};
+
+static const struct drm_mode_config_helper_funcs hx8357d_mode_config_helper_funcs = {
+	DRM_MIPI_DBI_MODE_CONFIG_HELPER_FUNCS,
+};
+
+static const struct drm_mode_config_funcs hx8357d_mode_config_funcs = {
+	DRM_MIPI_DBI_MODE_CONFIG_FUNCS,
 };
 
 static const struct drm_display_mode yx350hv15_mode = {
@@ -219,17 +279,21 @@ MODULE_DEVICE_TABLE(spi, hx8357d_id);
 static int hx8357d_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
+	struct hx8357d_device *hx8357d;
 	struct mipi_dbi_dev *dbidev;
 	struct drm_device *drm;
 	struct gpio_desc *dc;
+	struct drm_plane *plane;
+	struct drm_crtc *crtc;
+	struct drm_encoder *encoder;
+	struct drm_connector *connector;
 	u32 rotation = 0;
 	int ret;
 
-	dbidev = devm_drm_dev_alloc(dev, &hx8357d_driver,
-				    struct mipi_dbi_dev, drm);
-	if (IS_ERR(dbidev))
-		return PTR_ERR(dbidev);
-
+	hx8357d = devm_drm_dev_alloc(dev, &hx8357d_driver, struct hx8357d_device, dbidev.drm);
+	if (IS_ERR(hx8357d))
+		return PTR_ERR(hx8357d);
+	dbidev = &hx8357d->dbidev;
 	drm = &dbidev->drm;
 
 	dc = devm_gpiod_get(dev, "dc", GPIOD_OUT_LOW);
@@ -246,7 +310,53 @@ static int hx8357d_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = mipi_dbi_dev_init(dbidev, &hx8357d_pipe_funcs, &yx350hv15_mode, rotation);
+	ret = drm_mipi_dbi_dev_init(dbidev, &yx350hv15_mode, hx8357d_plane_formats[0],
+				    rotation, 0);
+	if (ret)
+		return ret;
+
+	ret = drmm_mode_config_init(drm);
+	if (ret)
+		return ret;
+
+	drm->mode_config.min_width = dbidev->mode.hdisplay;
+	drm->mode_config.max_width = dbidev->mode.hdisplay;
+	drm->mode_config.min_height = dbidev->mode.vdisplay;
+	drm->mode_config.max_height = dbidev->mode.vdisplay;
+	drm->mode_config.funcs = &hx8357d_mode_config_funcs;
+	drm->mode_config.preferred_depth = 16;
+	drm->mode_config.helper_private = &hx8357d_mode_config_helper_funcs;
+
+	plane = &hx8357d->plane;
+	ret = drm_universal_plane_init(drm, plane, 0, &hx8357d_plane_funcs,
+				       hx8357d_plane_formats, ARRAY_SIZE(hx8357d_plane_formats),
+				       hx8357d_plane_format_modifiers,
+				       DRM_PLANE_TYPE_PRIMARY, NULL);
+	if (ret)
+		return ret;
+	drm_plane_helper_add(plane, &hx8357d_plane_helper_funcs);
+	drm_plane_enable_fb_damage_clips(plane);
+
+	crtc = &hx8357d->crtc;
+	ret = drm_crtc_init_with_planes(drm, crtc, plane, NULL, &hx8357d_crtc_funcs, NULL);
+	if (ret)
+		return ret;
+	drm_crtc_helper_add(crtc, &hx8357d_crtc_helper_funcs);
+
+	encoder = &hx8357d->encoder;
+	ret = drm_encoder_init(drm, encoder, &hx8357d_encoder_funcs, DRM_MODE_ENCODER_NONE, NULL);
+	if (ret)
+		return ret;
+	encoder->possible_crtcs = drm_crtc_mask(crtc);
+
+	connector = &hx8357d->connector;
+	ret = drm_connector_init(drm, connector, &hx8357d_connector_funcs,
+				 DRM_MODE_CONNECTOR_SPI);
+	if (ret)
+		return ret;
+	drm_connector_helper_add(connector, &hx8357d_connector_helper_funcs);
+
+	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret)
 		return ret;
 

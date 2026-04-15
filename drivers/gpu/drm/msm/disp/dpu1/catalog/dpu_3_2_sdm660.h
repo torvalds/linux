@@ -269,8 +269,7 @@ const struct dpu_mdss_cfg dpu_sdm660_cfg = {
 	.dsc = sdm660_dsc,
 	.intf_count = ARRAY_SIZE(sdm660_intf),
 	.intf = sdm660_intf,
-	.vbif_count = ARRAY_SIZE(msm8998_vbif),
-	.vbif = msm8998_vbif,
+	.vbif = &msm8998_vbif,
 	.perf = &sdm660_perf_data,
 };
 

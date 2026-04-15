@@ -150,14 +150,6 @@ static enum signal_type get_basic_signal_type(struct graphics_object_id encoder,
 		default:
 			return SIGNAL_TYPE_NONE;
 		}
-	} else if (downstream.type == OBJECT_TYPE_ENCODER) {
-		switch (downstream.id) {
-		case ENCODER_ID_EXTERNAL_NUTMEG:
-		case ENCODER_ID_EXTERNAL_TRAVIS:
-			return SIGNAL_TYPE_DISPLAY_PORT;
-		default:
-			return SIGNAL_TYPE_NONE;
-		}
 	}
 
 	return SIGNAL_TYPE_NONE;
@@ -173,6 +165,10 @@ static enum signal_type link_detect_sink_signal_type(struct dc_link *link,
 	enum signal_type result;
 	struct audio_support *aud_support;
 	struct graphics_object_id enc_id;
+
+	/* External DP bridges should use DP signal regardless of connector type. */
+	if (link->ext_enc_id.id)
+		return SIGNAL_TYPE_DISPLAY_PORT;
 
 	if (link->is_dig_mapping_flexible)
 		enc_id = (struct graphics_object_id){.id = ENCODER_ID_UNKNOWN};
@@ -356,7 +352,7 @@ static void query_dp_dual_mode_adaptor(
 			*dongle = DISPLAY_DONGLE_DP_DVI_DONGLE;
 			sink_cap->max_hdmi_pixel_clock = DP_ADAPTOR_DVI_MAX_TMDS_CLK;
 
-			CONN_DATA_DETECT(ddc->link, type2_dongle_buf, sizeof(type2_dongle_buf),
+			CONN_DATA_DETECT(link, type2_dongle_buf, sizeof(type2_dongle_buf),
 					"DP-DVI passive dongle %dMhz: ",
 					DP_ADAPTOR_DVI_MAX_TMDS_CLK / 1000);
 			return;
@@ -620,6 +616,14 @@ static bool detect_dp(struct dc_link *link,
 		link->dpcd_caps.usb4_dp_tun_info.dp_tun_cap.raw = 0;
 	}
 
+	if (link->ext_enc_id.id) {
+		/* Fix number of connected sinks reported by external DP bridge */
+		link->dpcd_caps.sink_count.bits.SINK_COUNT = 1;
+		/* NUTMEG requires that we use HBR, doesn't work with RBR. */
+		if (link->dpcd_caps.branch_dev_id == DP_BRANCH_DEVICE_ID_00001A)
+			link->preferred_link_setting.link_rate = LINK_RATE_HIGH;
+	}
+
 	return true;
 }
 
@@ -652,8 +656,6 @@ static bool wait_for_entering_dp_alt_mode(struct dc_link *link)
 	unsigned long long finish_timestamp;
 	unsigned long long time_taken_in_ns;
 	int tries_taken;
-
-	DC_LOGGER_INIT(link->ctx->logger);
 
 	/**
 	 * this function will only exist if we are on dcn21 (is_in_alt_mode is a
@@ -725,8 +727,6 @@ static void revert_dpia_mst_dsc_always_on_wa(struct dc_link *link)
 
 static bool discover_dp_mst_topology(struct dc_link *link, enum dc_detect_reason reason)
 {
-	DC_LOGGER_INIT(link->ctx->logger);
-
 	LINK_INFO("link=%d, mst branch is now Connected\n",
 		  link->link_index);
 
@@ -746,8 +746,6 @@ static bool discover_dp_mst_topology(struct dc_link *link, enum dc_detect_reason
 
 bool link_reset_cur_dp_mst_topology(struct dc_link *link)
 {
-	DC_LOGGER_INIT(link->ctx->logger);
-
 	LINK_INFO("link=%d, mst branch is now Disconnected\n",
 		  link->link_index);
 
@@ -786,6 +784,7 @@ static void verify_link_capability_destructive(struct dc_link *link,
 		struct dc_sink *sink,
 		enum dc_detect_reason reason)
 {
+	(void)sink;
 	bool should_prepare_phy_clocks =
 			should_prepare_phy_clocks_for_link_verification(link->dc, reason);
 
@@ -824,6 +823,7 @@ static void verify_link_capability_non_destructive(struct dc_link *link)
 static bool should_verify_link_capability_destructively(struct dc_link *link,
 		enum dc_detect_reason reason)
 {
+	(void)reason;
 	bool destrictive = false;
 	struct dc_link_settings max_link_cap;
 	bool is_link_enc_unavailable = false;
@@ -903,11 +903,21 @@ static bool link_detect_evaluate_edid_header(uint8_t edid_header[8])
  */
 static bool link_detect_ddc_probe(struct dc_link *link)
 {
+	enum signal_type signal = link_detect_sink_signal_type(link, DETECT_REASON_HPD);
+	enum ddc_transaction_type transaction_type = get_ddc_transaction_type(signal);
+	uint8_t edid_header[8] = {0};
+	uint8_t zero = 0;
+	bool ddc_probed;
+
 	if (!link->ddc)
 		return false;
 
-	uint8_t edid_header[8] = {0};
-	bool ddc_probed = i2c_read(link->ddc, 0x50, edid_header, sizeof(edid_header));
+	if (link->dc->hwss.prepare_ddc)
+		link->dc->hwss.prepare_ddc(link);
+
+	set_ddc_transaction_type(link->ddc, transaction_type);
+
+	ddc_probed = link_query_ddc_data(link->ddc, 0x50, &zero, 1, edid_header, sizeof(edid_header));
 
 	if (!ddc_probed)
 		return false;
@@ -932,28 +942,10 @@ static bool link_detect_ddc_probe(struct dc_link *link)
  */
 static bool link_detect_dac_load_detect(struct dc_link *link)
 {
-	struct dc_bios *bios = link->ctx->dc_bios;
-	struct link_encoder *link_enc = link->link_enc;
-	enum engine_id engine_id = link_enc->preferred_engine;
-	enum dal_device_type device_type = DEVICE_TYPE_CRT;
-	enum bp_result bp_result = BP_RESULT_UNSUPPORTED;
-	uint32_t enum_id;
+	if (!link->dc->hwss.dac_load_detect)
+		return false;
 
-	switch (engine_id) {
-	case ENGINE_ID_DACB:
-		enum_id = 2;
-		break;
-	case ENGINE_ID_DACA:
-	default:
-		engine_id = ENGINE_ID_DACA;
-		enum_id = 1;
-		break;
-	}
-
-	if (bios->funcs->dac_load_detection)
-		bp_result = bios->funcs->dac_load_detection(bios, engine_id, device_type, enum_id);
-
-	return bp_result == BP_RESULT_OK;
+	return link->dc->hwss.dac_load_detect(link);
 }
 
 /*
@@ -980,8 +972,6 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 	struct dpcd_caps prev_dpcd_caps;
 	enum dc_connection_type new_connection_type = dc_connection_none;
 	const uint32_t post_oui_delay = 30; // 30ms
-
-	DC_LOGGER_INIT(link->ctx->logger);
 
 	if (dc_is_virtual_signal(link->connector_signal))
 		return false;
@@ -1462,8 +1452,6 @@ bool link_detect(struct dc_link *link, enum dc_detect_reason reason)
 	bool is_local_sink_detect_success;
 	bool is_delegated_to_mst_top_mgr = false;
 	enum dc_connection_type pre_link_type = link->type;
-
-	DC_LOGGER_INIT(link->ctx->logger);
 
 	is_local_sink_detect_success = detect_link_and_local_sink(link, reason);
 

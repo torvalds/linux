@@ -32,6 +32,7 @@
 #include <linux/eventfd.h>
 
 #include <drm/drm_print.h>
+#include <drm/intel/intel_gmd_interrupt_regs.h>
 
 #include "display/intel_display_regs.h"
 

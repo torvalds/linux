@@ -144,3 +144,38 @@ kms_bw@connected-linear-tiling-1-displays-2160x1440p
 # IGT Version: 1.30-g04bedb923
 # Linux Version: 6.14.0-rc4
 kms_bw@linear-tiling-1-displays-3840x2160p
+
+# Board Name: rk3399-gru-kevin
+# Bug Report: https://lore.kernel.org/dri-devel/7b6e2e3b-2ea2-4cd7-92a5-68d23a63e426@collabora.com/T/#u
+# Failure Rate: 60
+# IGT Version: 2.1-g26ddb59c1
+# Linux Version: 6.16.0-rc2
+kms_color@gamma
+
+# Board Name: rk3399-gru-kevin
+# Bug Report: https://lore.kernel.org/dri-devel/e29c2892-08f2-423f-af72-e4d8b207fd1c@collabora.com/T/#u
+# Failure Rate: 60
+# IGT Version: 2.1-g26ddb59c1
+# Linux Version: 6.16.0-rc2
+kms_bw@connected-linear-tiling-1-displays-3840x2160p
+
+# Board Name: rk3399-gru-kevin
+# Bug Report: https://lore.kernel.org/dri-devel/ad9ce463-c803-4502-ae89-381a6b6eb19f@collabora.com/T/#u
+# Failure Rate: 40
+# IGT Version: 2.1-g26ddb59c1
+# Linux Version: 6.16.0-rc2
+kms_color@legacy-gamma
+
+# Board Name: rk3399-gru-kevin
+# Bug Report: https://lore.kernel.org/dri-devel/59724e10-12ca-4481-b0e4-72d7b6e4dae0@collabora.com/T/#u
+# Failure Rate: 40
+# IGT Version: 2.1-g26ddb59c1
+# Linux Version: 6.16.0-rc2
+kms_flip@plain-flip-ts-check-interruptible
+
+# Board Name: rk3399-gru-kevin
+# Bug Report: https://lore.kernel.org/dri-devel/d790db5f-a1ba-47f9-9af0-d3287ef3274c@collabora.com/T/#u
+# Failure Rate: 20
+# IGT Version: 2.1-g26ddb59c1
+# Linux Version: 6.16.0-rc2
+kms_bw@linear-tiling-2-displays-3840x2160p

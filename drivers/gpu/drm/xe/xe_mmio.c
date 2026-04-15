@@ -154,6 +154,15 @@ u8 xe_mmio_read8(struct xe_mmio *mmio, struct xe_reg reg)
 	return val;
 }
 
+void xe_mmio_write8(struct xe_mmio *mmio, struct xe_reg reg, u8 val)
+{
+	u32 addr = xe_mmio_adjusted_addr(mmio, reg.addr);
+
+	trace_xe_reg_rw(mmio, true, addr, val, sizeof(val));
+
+	writeb(val, mmio->regs + addr);
+}
+
 u16 xe_mmio_read16(struct xe_mmio *mmio, struct xe_reg reg)
 {
 	u32 addr = xe_mmio_adjusted_addr(mmio, reg.addr);

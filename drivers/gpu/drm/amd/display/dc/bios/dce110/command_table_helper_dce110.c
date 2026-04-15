@@ -94,6 +94,7 @@ static uint8_t hpd_sel_to_atom(enum hpd_source_id id)
 
 static uint8_t dig_encoder_sel_to_atom(enum engine_id id)
 {
+	(void)id;
 	/* On any ASIC after DCE80, we manually program the DIG_FE
 	 * selection (see connect_dig_be_to_fe function of the link
 	 * encoder), so translation should always return 0 (no FE).

@@ -10,6 +10,7 @@
 #include <linux/notifier.h>
 #include <linux/soc/qcom/qcom_aoss.h>
 #include "msm_drv.h"
+#include "adreno_gpu.h"
 #include "a6xx_hfi.h"
 
 struct a6xx_gmu_bo {
@@ -110,7 +111,7 @@ struct a6xx_gmu {
 
 	unsigned long freq;
 
-	struct a6xx_hfi_queue queues[2];
+	struct a6xx_hfi_queue queues[HFI_MAX_QUEUES];
 
 	bool initialized;
 	bool hung;
@@ -129,6 +130,8 @@ struct a6xx_gmu {
 #define GMU_STATUS_PDC_SLEEP	1
 /* To track Perfcounter OOB set status */
 #define GMU_STATUS_OOB_PERF_SET 2
+/* To track whether secure world init was done */
+#define GMU_STATUS_SECURE_INIT	3
 	unsigned long status;
 };
 
@@ -231,7 +234,9 @@ void a6xx_hfi_stop(struct a6xx_gmu *gmu);
 int a6xx_hfi_send_prep_slumber(struct a6xx_gmu *gmu);
 int a6xx_hfi_set_freq(struct a6xx_gmu *gmu, u32 perf_index, u32 bw_index);
 
-bool a6xx_gmu_gx_is_on(struct a6xx_gmu *gmu);
+bool a6xx_gmu_gx_is_on(struct adreno_gpu *adreno_gpu);
+bool a7xx_gmu_gx_is_on(struct adreno_gpu *adreno_gpu);
+bool a8xx_gmu_gx_is_on(struct adreno_gpu *adreno_gpu);
 bool a6xx_gmu_sptprac_is_on(struct a6xx_gmu *gmu);
 void a6xx_sptprac_disable(struct a6xx_gmu *gmu);
 int a6xx_sptprac_enable(struct a6xx_gmu *gmu);

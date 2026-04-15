@@ -798,7 +798,8 @@ bool dcn21_fast_validate_bw(struct dc *dc,
 			    int *pipe_cnt_out,
 			    int *pipe_split_from,
 			    int *vlevel_out,
-			    enum dc_validate_mode validate_mode)
+			    enum dc_validate_mode validate_mode,
+			    bool allow_self_refresh_only)
 {
 	bool out = false;
 	int split[MAX_PIPES] = { 0 };
@@ -829,18 +830,23 @@ bool dcn21_fast_validate_bw(struct dc *dc,
 	vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
 
 	if (vlevel > context->bw_ctx.dml.soc.num_states) {
-		/*
-		 * If mode is unsupported or there's still no p-state support then
-		 * fall back to favoring voltage.
-		 *
-		 * We don't actually support prefetch mode 2, so require that we
-		 * at least support prefetch mode 1.
-		 */
-		context->bw_ctx.dml.soc.allow_dram_self_refresh_or_dram_clock_change_in_vblank =
-					dm_allow_self_refresh;
-		vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
-		if (vlevel > context->bw_ctx.dml.soc.num_states)
+
+		if (allow_self_refresh_only) {
+			/*
+			 * If mode is unsupported or there's still no p-state support then
+			 * fall back to favoring voltage.
+			 *
+			 * We don't actually support prefetch mode 2, so require that we
+			 * at least support prefetch mode 1.
+			 */
+			context->bw_ctx.dml.soc.allow_dram_self_refresh_or_dram_clock_change_in_vblank =
+						dm_allow_self_refresh;
+			vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
+			if (vlevel > context->bw_ctx.dml.soc.num_states)
+				goto validate_fail;
+		} else {
 			goto validate_fail;
+		}
 	}
 
 	vlevel = dcn20_validate_apply_pipe_split_flags(dc, context, vlevel, split, merge);
@@ -1319,6 +1325,7 @@ static struct link_encoder *dcn21_link_encoder_create(
 	struct dc_context *ctx,
 	const struct encoder_init_data *enc_init_data)
 {
+	(void)ctx;
 	struct dcn21_link_encoder *enc21 =
 		kzalloc_obj(struct dcn21_link_encoder);
 	int link_regs_id;
@@ -1404,7 +1411,8 @@ static const struct resource_funcs dcn21_res_pool_funcs = {
 	.find_first_free_match_stream_enc_for_link = dcn10_find_first_free_match_stream_enc_for_link,
 	.update_bw_bounding_box = dcn21_update_bw_bounding_box,
 	.get_panel_config_defaults = dcn21_get_panel_config_defaults,
-	.get_vstartup_for_pipe = dcn10_get_vstartup_for_pipe
+	.get_vstartup_for_pipe = dcn10_get_vstartup_for_pipe,
+	.get_default_tiling_info = dcn10_get_default_tiling_info
 };
 
 static bool dcn21_resource_construct(
@@ -1427,7 +1435,7 @@ static bool dcn21_resource_construct(
 	/*************************************************
 	 *  Resource + asic cap harcoding                *
 	 *************************************************/
-	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
+	pool->base.underlay_pipe_index = (unsigned int)NO_UNDERLAY_PIPE;
 
 	/* max pipe num for ASIC before check pipe fuses */
 	pool->base.pipe_count = pool->base.res_cap->num_timing_generator;

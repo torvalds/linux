@@ -653,7 +653,7 @@ static int inno_hdmi_config_video_csc(struct inno_hdmi *hdmi,
 		v_VIDEO_INPUT_CSP(0);
 	hdmi_writeb(hdmi, HDMI_VIDEO_CONTRL2, value);
 
-	if (conn_state->hdmi.output_format == HDMI_COLORSPACE_RGB) {
+	if (conn_state->hdmi.output_format == DRM_OUTPUT_COLOR_FORMAT_RGB444) {
 		if (conn_state->hdmi.is_limited_range) {
 			csc_mode = CSC_RGB_0_255_TO_RGB_16_235_8BIT;
 			auto_csc = AUTO_CSC_DISABLE;
@@ -672,14 +672,14 @@ static int inno_hdmi_config_video_csc(struct inno_hdmi *hdmi,
 		}
 	} else {
 		if (colorimetry == HDMI_COLORIMETRY_ITU_601) {
-			if (conn_state->hdmi.output_format == HDMI_COLORSPACE_YUV444) {
+			if (conn_state->hdmi.output_format == DRM_OUTPUT_COLOR_FORMAT_YCBCR444) {
 				csc_mode = CSC_RGB_0_255_TO_ITU601_16_235_8BIT;
 				auto_csc = AUTO_CSC_DISABLE;
 				c0_c2_change = C0_C2_CHANGE_DISABLE;
 				csc_enable = v_CSC_ENABLE;
 			}
 		} else {
-			if (conn_state->hdmi.output_format == HDMI_COLORSPACE_YUV444) {
+			if (conn_state->hdmi.output_format == DRM_OUTPUT_COLOR_FORMAT_YCBCR444) {
 				csc_mode = CSC_RGB_0_255_TO_ITU709_16_235_8BIT;
 				auto_csc = AUTO_CSC_DISABLE;
 				c0_c2_change = C0_C2_CHANGE_DISABLE;

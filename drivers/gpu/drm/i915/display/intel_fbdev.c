@@ -47,7 +47,6 @@
 #include <drm/drm_managed.h>
 #include <drm/drm_print.h>
 
-#include "i915_vma.h"
 #include "intel_bo.h"
 #include "intel_display_core.h"
 #include "intel_display_rpm.h"
@@ -343,9 +342,7 @@ int intel_fbdev_driver_fbdev_probe(struct drm_fb_helper *helper,
 
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
 
-	drm_dbg_kms(display->drm, "allocated %dx%d fb: 0x%08x\n",
-		    fb->base.width, fb->base.height,
-		    i915_ggtt_offset(vma));
+	drm_dbg_kms(display->drm, "allocated %dx%d fb\n", fb->base.width, fb->base.height);
 	ifbdev->fb = fb;
 	ifbdev->vma = vma;
 	ifbdev->vma_flags = flags;

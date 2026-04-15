@@ -605,10 +605,10 @@ static int amdgpu_virt_write_vf2pf_data(struct amdgpu_device *adev)
 
 #ifdef MODULE
 	if (THIS_MODULE->version != NULL)
-		strcpy(vf2pf_info->driver_version, THIS_MODULE->version);
+		strscpy(vf2pf_info->driver_version, THIS_MODULE->version);
 	else
 #endif
-		strcpy(vf2pf_info->driver_version, "N/A");
+		strscpy(vf2pf_info->driver_version, "N/A");
 
 	vf2pf_info->pf2vf_version_required = 0; // no requirement, guest understands all
 	vf2pf_info->driver_cert = 0;
@@ -949,11 +949,6 @@ int amdgpu_virt_init_critical_region(struct amdgpu_device *adev)
 	/* Skip below init if critical region version != v2 */
 	if (adev->virt.req_init_data_ver != GPU_CRIT_REGION_V2)
 		return 0;
-
-	if (init_hdr_offset < 0) {
-		dev_err(adev->dev, "Invalid init header offset\n");
-		return -EINVAL;
-	}
 
 	vram_size = RREG32(mmRCC_CONFIG_MEMSIZE);
 	if (!vram_size || vram_size == U32_MAX)

@@ -33,6 +33,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/nospec.h>
 #include <linux/pm_runtime.h>
+#include <linux/string_choices.h>
 #include <asm/processor.h>
 
 #define MAX_NUM_OF_FEATURES_PER_SUBSET		8
@@ -680,6 +681,8 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
  * - minimum(not available for Vega20 and Navi1x) and maximum memory
  *   clock labeled OD_MCLK
  *
+ * - minimum and maximum fabric clock labeled OD_FCLK (SMU13)
+ *
  * - three <frequency, voltage> points labeled OD_VDDC_CURVE.
  *   They can be used to calibrate the sclk voltage curve. This is
  *   available for Vega20 and NV1X.
@@ -715,10 +718,11 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
  * - First select manual using power_dpm_force_performance_level
  *
  * - For clock frequency setting, enter a new value by writing a
- *   string that contains "s/m index clock" to the file. The index
+ *   string that contains "s/m/f index clock" to the file. The index
  *   should be 0 if to set minimum clock. And 1 if to set maximum
  *   clock. E.g., "s 0 500" will update minimum sclk to be 500 MHz.
- *   "m 1 800" will update maximum mclk to be 800Mhz. For core
+ *   "m 1 800" will update maximum mclk to be 800Mhz. "f 1 1600" will
+ *   update maximum fabric clock to be 1600Mhz. For core
  *   clocks on VanGogh, the string contains "p core index clock".
  *   E.g., "p 2 0 800" would set the minimum core clock on core
  *   2 to 800Mhz.
@@ -768,6 +772,8 @@ static ssize_t amdgpu_set_pp_od_clk_voltage(struct device *dev,
 		type = PP_OD_EDIT_CCLK_VDDC_TABLE;
 	else if (*buf == 'm')
 		type = PP_OD_EDIT_MCLK_VDDC_TABLE;
+	else if (*buf == 'f')
+		type = PP_OD_EDIT_FCLK_TABLE;
 	else if (*buf == 'r')
 		type = PP_OD_RESTORE_DEFAULT_TABLE;
 	else if (*buf == 'c')
@@ -843,9 +849,10 @@ static ssize_t amdgpu_get_pp_od_clk_voltage(struct device *dev,
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 	int size = 0;
 	int ret;
-	enum pp_clock_type od_clocks[6] = {
+	enum pp_clock_type od_clocks[] = {
 		OD_SCLK,
 		OD_MCLK,
+		OD_FCLK,
 		OD_VDDC_CURVE,
 		OD_RANGE,
 		OD_VDDGFX_OFFSET,
@@ -857,10 +864,8 @@ static ssize_t amdgpu_get_pp_od_clk_voltage(struct device *dev,
 	if (ret)
 		return ret;
 
-	for (clk_index = 0 ; clk_index < 6 ; clk_index++) {
-		ret = amdgpu_dpm_emit_clock_levels(adev, od_clocks[clk_index], buf, &size);
-		if (ret)
-			break;
+	for (clk_index = 0 ; clk_index < ARRAY_SIZE(od_clocks) ; clk_index++) {
+		amdgpu_dpm_emit_clock_levels(adev, od_clocks[clk_index], buf, &size);
 	}
 
 	if (size == 0)
@@ -1588,7 +1593,7 @@ static ssize_t amdgpu_get_thermal_throttling_logging(struct device *dev,
 
 	return sysfs_emit(buf, "%s: thermal throttling logging %s, with interval %d seconds\n",
 			  adev_to_drm(adev)->unique,
-			  atomic_read(&adev->throttling_logging_enabled) ? "enabled" : "disabled",
+			  str_enabled_disabled(atomic_read(&adev->throttling_logging_enabled)),
 			  adev->throttling_logging_rs.interval / HZ + 1);
 }
 
@@ -1910,8 +1915,6 @@ static int ss_bias_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 static int pp_od_clk_voltage_attr_update(struct amdgpu_device *adev, struct amdgpu_device_attr *attr,
 					 uint32_t mask, enum amdgpu_device_attr_states *states)
 {
-	uint32_t gc_ver = amdgpu_ip_version(adev, GC_HWIP, 0);
-
 	*states = ATTR_STATE_SUPPORTED;
 
 	if (!amdgpu_dpm_is_overdrive_supported(adev)) {
@@ -1919,10 +1922,8 @@ static int pp_od_clk_voltage_attr_update(struct amdgpu_device *adev, struct amdg
 		return 0;
 	}
 
-	/* Enable pp_od_clk_voltage node for gc 9.4.3, 9.4.4, 9.5.0 SRIOV/BM support */
-	if (gc_ver == IP_VERSION(9, 4, 3) ||
-	    gc_ver == IP_VERSION(9, 4, 4) ||
-	    gc_ver == IP_VERSION(9, 5, 0)) {
+	/* Enable pp_od_clk_voltage node for gc 9.4.3, 9.4.4, 9.5.0, 12.1.0 SRIOV/BM support */
+	if (amdgpu_is_multi_aid(adev)) {
 		if (amdgpu_sriov_multi_vf_mode(adev))
 			*states = ATTR_STATE_UNSUPPORTED;
 		return 0;
@@ -2000,9 +2001,7 @@ static int pp_dpm_clk_default_attr_update(struct amdgpu_device *adev, struct amd
 		      gc_ver == IP_VERSION(11, 5, 0) ||
 		      gc_ver == IP_VERSION(11, 0, 2) ||
 		      gc_ver == IP_VERSION(11, 0, 3) ||
-		      gc_ver == IP_VERSION(9, 4, 3) ||
-		      gc_ver == IP_VERSION(9, 4, 4) ||
-		      gc_ver == IP_VERSION(9, 5, 0)))
+		      amdgpu_is_multi_aid(adev)))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_dpm_vclk1)) {
 		if (!((gc_ver == IP_VERSION(10, 3, 1) ||
@@ -2023,9 +2022,7 @@ static int pp_dpm_clk_default_attr_update(struct amdgpu_device *adev, struct amd
 		      gc_ver == IP_VERSION(11, 5, 0) ||
 		      gc_ver == IP_VERSION(11, 0, 2) ||
 		      gc_ver == IP_VERSION(11, 0, 3) ||
-		      gc_ver == IP_VERSION(9, 4, 3) ||
-		      gc_ver == IP_VERSION(9, 4, 4) ||
-		      gc_ver == IP_VERSION(9, 5, 0)))
+		      amdgpu_is_multi_aid(adev)))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_dpm_dclk1)) {
 		if (!((gc_ver == IP_VERSION(10, 3, 1) ||
@@ -2035,9 +2032,7 @@ static int pp_dpm_clk_default_attr_update(struct amdgpu_device *adev, struct amd
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_dpm_pcie)) {
 		if (gc_ver == IP_VERSION(9, 4, 2) ||
-		    gc_ver == IP_VERSION(9, 4, 3) ||
-		    gc_ver == IP_VERSION(9, 4, 4) ||
-		    gc_ver == IP_VERSION(9, 5, 0))
+		    amdgpu_is_multi_aid(adev))
 			*states = ATTR_STATE_UNSUPPORTED;
 	}
 
@@ -2241,7 +2236,7 @@ static ssize_t amdgpu_show_npm_status(struct device *dev,
 	if (r)
 		return r;
 
-	return sysfs_emit(buf, "%s\n", npower ? "enabled" : "disabled");
+	return sysfs_emit(buf, "%s\n", str_enabled_disabled(npower));
 }
 
 /**
@@ -2651,6 +2646,7 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 		case IP_VERSION(11, 0, 3):
 		case IP_VERSION(12, 0, 0):
 		case IP_VERSION(12, 0, 1):
+		case IP_VERSION(12, 1, 0):
 			*states = ATTR_STATE_SUPPORTED;
 			break;
 		default:
@@ -3732,8 +3728,7 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 
 	/* Skip crit temp on APU */
 	if ((((adev->flags & AMD_IS_APU) && (adev->family >= AMDGPU_FAMILY_CZ)) ||
-	    (gc_ver == IP_VERSION(9, 4, 3) || gc_ver == IP_VERSION(9, 4, 4) ||
-	     gc_ver == IP_VERSION(9, 5, 0))) &&
+	     amdgpu_is_multi_aid(adev)) &&
 	    (attr == &sensor_dev_attr_temp1_crit.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp1_crit_hyst.dev_attr.attr))
 		return 0;
@@ -3815,18 +3810,14 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 
 	if ((adev->family == AMDGPU_FAMILY_SI ||	/* not implemented yet */
 	     adev->family == AMDGPU_FAMILY_KV ||	/* not implemented yet */
-	     (gc_ver == IP_VERSION(9, 4, 3) ||
-	      gc_ver == IP_VERSION(9, 4, 4) ||
-	      gc_ver == IP_VERSION(9, 5, 0))) &&
+	     amdgpu_is_multi_aid(adev)) &&
 	    (attr == &sensor_dev_attr_in0_input.dev_attr.attr ||
 	     attr == &sensor_dev_attr_in0_label.dev_attr.attr))
 		return 0;
 
 	/* only APUs other than gc 9,4,3 have vddnb */
 	if ((!(adev->flags & AMD_IS_APU) ||
-	     (gc_ver == IP_VERSION(9, 4, 3) ||
-	      gc_ver == IP_VERSION(9, 4, 4) ||
-	      gc_ver == IP_VERSION(9, 5, 0))) &&
+	     amdgpu_is_multi_aid(adev)) &&
 	    (attr == &sensor_dev_attr_in1_input.dev_attr.attr ||
 	     attr == &sensor_dev_attr_in1_label.dev_attr.attr))
 		return 0;
@@ -3855,9 +3846,7 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 		return 0;
 
 	/* hotspot temperature for gc 9,4,3*/
-	if (gc_ver == IP_VERSION(9, 4, 3) ||
-	    gc_ver == IP_VERSION(9, 4, 4) ||
-	    gc_ver == IP_VERSION(9, 5, 0)) {
+	if (amdgpu_is_multi_aid(adev)) {
 		if (attr == &sensor_dev_attr_temp1_input.dev_attr.attr ||
 		    attr == &sensor_dev_attr_temp1_emergency.dev_attr.attr ||
 		    attr == &sensor_dev_attr_temp1_label.dev_attr.attr)

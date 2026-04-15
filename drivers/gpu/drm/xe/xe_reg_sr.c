@@ -13,6 +13,7 @@
 #include <drm/drm_managed.h>
 #include <drm/drm_print.h>
 
+#include "xe_assert.h"
 #include "xe_device.h"
 #include "xe_device_types.h"
 #include "xe_force_wake.h"
@@ -20,6 +21,7 @@
 #include "xe_gt_printk.h"
 #include "xe_gt_types.h"
 #include "xe_hw_engine_types.h"
+#include "xe_lrc.h"
 #include "xe_mmio.h"
 #include "xe_rtp_types.h"
 
@@ -171,8 +173,11 @@ void xe_reg_sr_apply_mmio(struct xe_reg_sr *sr, struct xe_gt *gt)
 	if (xa_empty(&sr->xa))
 		return;
 
-	if (IS_SRIOV_VF(gt_to_xe(gt)))
-		return;
+	/*
+	 * We don't process non-LRC reg_sr lists in VF, so they should have
+	 * been empty in the check above.
+	 */
+	xe_gt_assert(gt, !IS_SRIOV_VF(gt_to_xe(gt)));
 
 	xe_gt_dbg(gt, "Applying %s save-restore MMIOs\n", sr->name);
 
@@ -205,4 +210,67 @@ void xe_reg_sr_dump(struct xe_reg_sr *sr, struct drm_printer *p)
 			   reg, entry->clr_bits, entry->set_bits,
 			   str_yes_no(entry->reg.masked),
 			   str_yes_no(entry->reg.mcr));
+}
+
+static u32 readback_reg(struct xe_gt *gt, struct xe_reg reg)
+{
+	struct xe_reg_mcr mcr_reg = to_xe_reg_mcr(reg);
+
+	if (reg.mcr)
+		return xe_gt_mcr_unicast_read_any(gt, mcr_reg);
+	else
+		return xe_mmio_read32(&gt->mmio, reg);
+}
+
+/**
+ * xe_reg_sr_readback_check() - Readback registers referenced in save/restore
+ *     entries and check whether the programming is in place.
+ * @sr: Save/restore entries
+ * @gt: GT to read register from
+ * @p: DRM printer to report discrepancies on
+ */
+void xe_reg_sr_readback_check(struct xe_reg_sr *sr,
+			      struct xe_gt *gt,
+			      struct drm_printer *p)
+{
+	struct xe_reg_sr_entry *entry;
+	unsigned long offset;
+
+	xa_for_each(&sr->xa, offset, entry) {
+		u32 val = readback_reg(gt, entry->reg);
+		u32 mask = entry->clr_bits | entry->set_bits;
+
+		if ((val & mask) != entry->set_bits)
+			drm_printf(p, "%#8lx & %#10x :: expected %#10x got %#10x\n",
+				   offset, mask, entry->set_bits, val & mask);
+	}
+}
+
+/**
+ * xe_reg_sr_lrc_check() - Check LRC for registers referenced in save/restore
+ *     entries and check whether the programming is in place.
+ * @sr: Save/restore entries
+ * @gt: GT to read register from
+ * @hwe: Hardware engine type to check LRC for
+ * @p: DRM printer to report discrepancies on
+ */
+void xe_reg_sr_lrc_check(struct xe_reg_sr *sr,
+			 struct xe_gt *gt,
+			 struct xe_hw_engine *hwe,
+			 struct drm_printer *p)
+{
+	struct xe_reg_sr_entry *entry;
+	unsigned long offset;
+
+	xa_for_each(&sr->xa, offset, entry) {
+		u32 val;
+		int ret = xe_lrc_lookup_default_reg_value(gt, hwe->class, offset, &val);
+		u32 mask = entry->clr_bits | entry->set_bits;
+
+		if (ret == -ENOENT)
+			drm_printf(p, "%#8lx :: not found in LRC for %s\n", offset, hwe->name);
+		else if ((val & mask) != entry->set_bits)
+			drm_printf(p, "%#8lx & %#10x :: expected %#10x got %#10x\n",
+				   offset, mask, entry->set_bits, val & mask);
+	}
 }

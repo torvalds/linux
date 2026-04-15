@@ -230,13 +230,12 @@ struct dpu_hw_vbif *dpu_hw_vbif_init(struct drm_device *dev,
 	if (!c)
 		return ERR_PTR(-ENOMEM);
 
-	c->hw.blk_addr = addr + cfg->base;
+	c->hw.blk_addr = addr;
 	c->hw.log_mask = DPU_DBG_MASK_VBIF;
 
 	/*
 	 * Assign ops
 	 */
-	c->idx = cfg->id;
 	c->cap = cfg;
 	_setup_vbif_ops(&c->ops, c->cap->features);
 

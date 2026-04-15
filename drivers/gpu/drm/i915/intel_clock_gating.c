@@ -26,11 +26,14 @@
  */
 
 #include <drm/drm_print.h>
+#include <drm/intel/intel_gmd_misc_regs.h>
+#include <drm/intel/intel_gmd_interrupt_regs.h>
 
 #include "display/i9xx_plane_regs.h"
 #include "display/intel_display.h"
 #include "display/intel_display_core.h"
-
+#include "display/intel_display_regs.h"
+#include "display/intel_pch.h"
 #include "gt/intel_engine_regs.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_mcr.h"
@@ -122,16 +125,6 @@ static void glk_init_clock_gating(struct drm_i915_private *i915)
 			   PWM1_GATING_DIS | PWM2_GATING_DIS);
 }
 
-static void ibx_init_clock_gating(struct drm_i915_private *i915)
-{
-	/*
-	 * On Ibex Peak and Cougar Point, we need to disable clock
-	 * gating for the panel power sequencer or it will fail to
-	 * start up when no ports are active.
-	 */
-	intel_uncore_write(&i915->uncore, SOUTH_DSPCLK_GATE_D, PCH_DPLSUNIT_CLOCK_GATE_DISABLE);
-}
-
 static void g4x_disable_trickle_feed(struct drm_i915_private *dev_priv)
 {
 	struct intel_display *display = dev_priv->display;
@@ -200,42 +193,7 @@ static void ilk_init_clock_gating(struct drm_i915_private *i915)
 
 	g4x_disable_trickle_feed(i915);
 
-	ibx_init_clock_gating(i915);
-}
-
-static void cpt_init_clock_gating(struct drm_i915_private *i915)
-{
-	struct intel_display *display = i915->display;
-	enum pipe pipe;
-	u32 val;
-
-	/*
-	 * On Ibex Peak and Cougar Point, we need to disable clock
-	 * gating for the panel power sequencer or it will fail to
-	 * start up when no ports are active.
-	 */
-	intel_uncore_write(&i915->uncore, SOUTH_DSPCLK_GATE_D, PCH_DPLSUNIT_CLOCK_GATE_DISABLE |
-			   PCH_DPLUNIT_CLOCK_GATE_DISABLE |
-			   PCH_CPUNIT_CLOCK_GATE_DISABLE);
-	intel_uncore_rmw(&i915->uncore, SOUTH_CHICKEN2, 0, DPLS_EDP_PPS_FIX_DIS);
-	/* The below fixes the weird display corruption, a few pixels shifted
-	 * downward, on (only) LVDS of some HP laptops with IVY.
-	 */
-	for_each_pipe(display, pipe) {
-		val = intel_uncore_read(&i915->uncore, TRANS_CHICKEN2(pipe));
-		val |= TRANS_CHICKEN2_TIMING_OVERRIDE;
-		val &= ~TRANS_CHICKEN2_FDI_POLARITY_REVERSED;
-		if (display->vbt.fdi_rx_polarity_inverted)
-			val |= TRANS_CHICKEN2_FDI_POLARITY_REVERSED;
-		val &= ~TRANS_CHICKEN2_DISABLE_DEEP_COLOR_COUNTER;
-		val &= ~TRANS_CHICKEN2_DISABLE_DEEP_COLOR_MODESWITCH;
-		intel_uncore_write(&i915->uncore, TRANS_CHICKEN2(pipe), val);
-	}
-	/* WADP0ClockGatingDisable */
-	for_each_pipe(display, pipe) {
-		intel_uncore_write(&i915->uncore, TRANS_CHICKEN1(pipe),
-				   TRANS_CHICKEN1_DP0UNIT_GC_DISABLE);
-	}
+	intel_pch_init_clock_gating(i915->display);
 }
 
 static void gen6_check_mch_setup(struct drm_i915_private *i915)
@@ -303,26 +261,9 @@ static void gen6_init_clock_gating(struct drm_i915_private *i915)
 
 	g4x_disable_trickle_feed(i915);
 
-	cpt_init_clock_gating(i915);
+	intel_pch_init_clock_gating(i915->display);
 
 	gen6_check_mch_setup(i915);
-}
-
-static void lpt_init_clock_gating(struct drm_i915_private *i915)
-{
-	struct intel_display *display = i915->display;
-
-	/*
-	 * TODO: this bit should only be enabled when really needed, then
-	 * disabled when not needed anymore in order to save power.
-	 */
-	if (HAS_PCH_LPT_LP(display))
-		intel_uncore_rmw(&i915->uncore, SOUTH_DSPCLK_GATE_D,
-				 0, PCH_LP_PARTITION_LEVEL_DISABLE);
-
-	/* WADPOClockGatingDisable:hsw */
-	intel_uncore_rmw(&i915->uncore, TRANS_CHICKEN1(PIPE_A),
-			 0, TRANS_CHICKEN1_DP0UNIT_GC_DISABLE);
 }
 
 static void gen8_set_l3sqc_credits(struct drm_i915_private *i915,
@@ -358,20 +299,9 @@ static void dg2_init_clock_gating(struct drm_i915_private *i915)
 			 SGSI_SIDECLK_DIS);
 }
 
-static void cnp_init_clock_gating(struct drm_i915_private *i915)
-{
-	struct intel_display *display = i915->display;
-
-	if (!HAS_PCH_CNP(display))
-		return;
-
-	/* Display WA #1181 WaSouthDisplayDisablePWMCGEGating: cnp */
-	intel_uncore_rmw(&i915->uncore, SOUTH_DSPCLK_GATE_D, 0, CNP_PWM_CGE_GATING_DISABLE);
-}
-
 static void cfl_init_clock_gating(struct drm_i915_private *i915)
 {
-	cnp_init_clock_gating(i915);
+	intel_pch_init_clock_gating(i915->display);
 	gen9_init_clock_gating(i915);
 
 	/* WAC6entrylatency:cfl */
@@ -452,7 +382,7 @@ static void bdw_init_clock_gating(struct drm_i915_private *i915)
 			 GEN8_FF_DS_REF_CNT_FFME | GEN7_FF_VS_REF_CNT_FFME, 0);
 
 	intel_uncore_write(&i915->uncore, RING_PSMI_CTL(RENDER_RING_BASE),
-			   _MASKED_BIT_ENABLE(GEN8_RC_SEMA_IDLE_MSG_DISABLE));
+			   REG_MASKED_FIELD_ENABLE(GEN8_RC_SEMA_IDLE_MSG_DISABLE));
 
 	/* WaDisableSDEUnitClockGating:bdw */
 	intel_uncore_rmw(&i915->uncore, GEN8_UCGCTL6, 0, GEN8_SDEUNIT_CLOCK_GATE_DISABLE);
@@ -464,7 +394,7 @@ static void bdw_init_clock_gating(struct drm_i915_private *i915)
 	intel_uncore_rmw(&i915->uncore, CHICKEN_PAR2_1,
 			 0, KVM_CONFIG_CHANGE_NOTIFICATION_SELECT);
 
-	lpt_init_clock_gating(i915);
+	intel_pch_init_clock_gating(i915->display);
 
 	/* WaDisableDopClockGating:bdw
 	 *
@@ -498,7 +428,7 @@ static void hsw_init_clock_gating(struct drm_i915_private *i915)
 	/* WaSwitchSolVfFArbitrationPriority:hsw */
 	intel_uncore_rmw(&i915->uncore, GAM_ECOCHK, 0, HSW_ECOCHK_ARB_PRIO_SOL);
 
-	lpt_init_clock_gating(i915);
+	intel_pch_init_clock_gating(i915->display);
 }
 
 static void ivb_init_clock_gating(struct drm_i915_private *i915)
@@ -517,13 +447,13 @@ static void ivb_init_clock_gating(struct drm_i915_private *i915)
 
 	if (INTEL_INFO(i915)->gt == 1)
 		intel_uncore_write(&i915->uncore, GEN7_ROW_CHICKEN2,
-				   _MASKED_BIT_ENABLE(DOP_CLOCK_GATING_DISABLE));
+				   REG_MASKED_FIELD_ENABLE(DOP_CLOCK_GATING_DISABLE));
 	else {
 		/* must write both registers */
 		intel_uncore_write(&i915->uncore, GEN7_ROW_CHICKEN2,
-				   _MASKED_BIT_ENABLE(DOP_CLOCK_GATING_DISABLE));
+				   REG_MASKED_FIELD_ENABLE(DOP_CLOCK_GATING_DISABLE));
 		intel_uncore_write(&i915->uncore, GEN7_ROW_CHICKEN2_GT2,
-				   _MASKED_BIT_ENABLE(DOP_CLOCK_GATING_DISABLE));
+				   REG_MASKED_FIELD_ENABLE(DOP_CLOCK_GATING_DISABLE));
 	}
 
 	/*
@@ -543,7 +473,7 @@ static void ivb_init_clock_gating(struct drm_i915_private *i915)
 			 GEN6_MBC_SNPCR_MED);
 
 	if (!HAS_PCH_NOP(display))
-		cpt_init_clock_gating(i915);
+		intel_pch_init_clock_gating(display);
 
 	gen6_check_mch_setup(i915);
 }
@@ -557,7 +487,7 @@ static void vlv_init_clock_gating(struct drm_i915_private *i915)
 
 	/* WaDisableDopClockGating:vlv */
 	intel_uncore_write(&i915->uncore, GEN7_ROW_CHICKEN2,
-			   _MASKED_BIT_ENABLE(DOP_CLOCK_GATING_DISABLE));
+			   REG_MASKED_FIELD_ENABLE(DOP_CLOCK_GATING_DISABLE));
 
 	/* This is required by WaCatErrorRejectionIssue:vlv */
 	intel_uncore_rmw(&i915->uncore, GEN7_SQ_CHICKEN_MBCUNIT_CONFIG,
@@ -592,7 +522,7 @@ static void chv_init_clock_gating(struct drm_i915_private *i915)
 
 	/* WaDisableSemaphoreAndSyncFlipWait:chv */
 	intel_uncore_write(&i915->uncore, RING_PSMI_CTL(RENDER_RING_BASE),
-			   _MASKED_BIT_ENABLE(GEN8_RC_SEMA_IDLE_MSG_DISABLE));
+			   REG_MASKED_FIELD_ENABLE(GEN8_RC_SEMA_IDLE_MSG_DISABLE));
 
 	/* WaDisableCSUnitClockGating:chv */
 	intel_uncore_rmw(&i915->uncore, GEN6_UCGCTL1, 0, GEN6_CSUNIT_CLOCK_GATE_DISABLE);
@@ -638,7 +568,7 @@ static void i965gm_init_clock_gating(struct drm_i915_private *i915)
 	intel_uncore_write16(uncore, DEUC, 0);
 	intel_uncore_write(uncore,
 			   MI_ARB_STATE,
-			   _MASKED_BIT_ENABLE(MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE));
+			   REG_MASKED_FIELD_ENABLE(MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE));
 }
 
 static void i965g_init_clock_gating(struct drm_i915_private *i915)
@@ -650,7 +580,7 @@ static void i965g_init_clock_gating(struct drm_i915_private *i915)
 			   I965_FBC_CLOCK_GATE_DISABLE);
 	intel_uncore_write(&i915->uncore, RENCLK_GATE_D2, 0);
 	intel_uncore_write(&i915->uncore, MI_ARB_STATE,
-			   _MASKED_BIT_ENABLE(MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE));
+			   REG_MASKED_FIELD_ENABLE(MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE));
 }
 
 static void gen3_init_clock_gating(struct drm_i915_private *i915)
@@ -663,21 +593,21 @@ static void gen3_init_clock_gating(struct drm_i915_private *i915)
 
 	if (IS_PINEVIEW(i915))
 		intel_uncore_write(&i915->uncore, ECOSKPD(RENDER_RING_BASE),
-				   _MASKED_BIT_ENABLE(ECO_GATING_CX_ONLY));
+				   REG_MASKED_FIELD_ENABLE(ECO_GATING_CX_ONLY));
 
 	/* IIR "flip pending" means done if this bit is set */
 	intel_uncore_write(&i915->uncore, ECOSKPD(RENDER_RING_BASE),
-			   _MASKED_BIT_DISABLE(ECO_FLIP_DONE));
+			   REG_MASKED_FIELD_DISABLE(ECO_FLIP_DONE));
 
 	/* interrupts should cause a wake up from C3 */
-	intel_uncore_write(&i915->uncore, INSTPM, _MASKED_BIT_ENABLE(INSTPM_AGPBUSY_INT_EN));
+	intel_uncore_write(&i915->uncore, INSTPM, REG_MASKED_FIELD_ENABLE(INSTPM_AGPBUSY_INT_EN));
 
 	/* On GEN3 we really need to make sure the ARB C3 LP bit is set */
 	intel_uncore_write(&i915->uncore, MI_ARB_STATE,
-			   _MASKED_BIT_ENABLE(MI_ARB_C3_LP_WRITE_ENABLE));
+			   REG_MASKED_FIELD_ENABLE(MI_ARB_C3_LP_WRITE_ENABLE));
 
 	intel_uncore_write(&i915->uncore, MI_ARB_STATE,
-			   _MASKED_BIT_ENABLE(MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE));
+			   REG_MASKED_FIELD_ENABLE(MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE));
 }
 
 static void i85x_init_clock_gating(struct drm_i915_private *i915)
@@ -685,11 +615,11 @@ static void i85x_init_clock_gating(struct drm_i915_private *i915)
 	intel_uncore_write(&i915->uncore, RENCLK_GATE_D1, SV_CLOCK_GATE_DISABLE);
 
 	/* interrupts should cause a wake up from C3 */
-	intel_uncore_write(&i915->uncore, MI_STATE, _MASKED_BIT_ENABLE(MI_AGPBUSY_INT_EN) |
-			   _MASKED_BIT_DISABLE(MI_AGPBUSY_830_MODE));
+	intel_uncore_write(&i915->uncore, MI_STATE, REG_MASKED_FIELD_ENABLE(MI_AGPBUSY_INT_EN) |
+			   REG_MASKED_FIELD_DISABLE(MI_AGPBUSY_830_MODE));
 
 	intel_uncore_write(&i915->uncore, MEM_MODE,
-			   _MASKED_BIT_ENABLE(MEM_DISPLAY_TRICKLE_FEED_DISABLE));
+			   REG_MASKED_FIELD_ENABLE(MEM_DISPLAY_TRICKLE_FEED_DISABLE));
 
 	/*
 	 * Have FBC ignore 3D activity since we use software
@@ -699,14 +629,14 @@ static void i85x_init_clock_gating(struct drm_i915_private *i915)
 	 * until a 2D blit occurs.
 	 */
 	intel_uncore_write(&i915->uncore, SCPD0,
-			   _MASKED_BIT_ENABLE(SCPD_FBC_IGNORE_3D));
+			   REG_MASKED_FIELD_ENABLE(SCPD_FBC_IGNORE_3D));
 }
 
 static void i830_init_clock_gating(struct drm_i915_private *i915)
 {
 	intel_uncore_write(&i915->uncore, MEM_MODE,
-			   _MASKED_BIT_ENABLE(MEM_DISPLAY_A_TRICKLE_FEED_DISABLE) |
-			   _MASKED_BIT_ENABLE(MEM_DISPLAY_B_TRICKLE_FEED_DISABLE));
+			   REG_MASKED_FIELD_ENABLE(MEM_DISPLAY_A_TRICKLE_FEED_DISABLE) |
+			   REG_MASKED_FIELD_ENABLE(MEM_DISPLAY_B_TRICKLE_FEED_DISABLE));
 }
 
 void intel_clock_gating_init(struct drm_device *drm)

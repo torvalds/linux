@@ -37,6 +37,7 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_print.h>
 #include <drm/drm_vblank.h>
@@ -343,18 +344,6 @@ EXPORT_SYMBOL(drm_fb_helper_unprepare);
 int drm_fb_helper_init(struct drm_device *dev,
 		       struct drm_fb_helper *fb_helper)
 {
-	int ret;
-
-	/*
-	 * If this is not the generic fbdev client, initialize a drm_client
-	 * without callbacks so we can use the modesets.
-	 */
-	if (!fb_helper->client.funcs) {
-		ret = drm_client_init(dev, &fb_helper->client, "drm_fb_helper", NULL);
-		if (ret)
-			return ret;
-	}
-
 	dev->fb_helper = fb_helper;
 
 	return 0;
@@ -437,9 +426,6 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 	cancel_work_sync(&fb_helper->damage_work);
 
 	drm_fb_helper_release_info(fb_helper);
-
-	if (!fb_helper->client.funcs)
-		drm_client_release(&fb_helper->client);
 }
 EXPORT_SYMBOL(drm_fb_helper_fini);
 
@@ -1641,8 +1627,10 @@ __drm_fb_helper_initial_config_and_unlock(struct drm_fb_helper *fb_helper)
 	drm_client_modeset_probe(&fb_helper->client, width, height);
 
 	info = drm_fb_helper_alloc_info(fb_helper);
-	if (IS_ERR(info))
+	if (IS_ERR(info)) {
+		mutex_unlock(&fb_helper->lock);
 		return PTR_ERR(info);
+	}
 
 	ret = drm_fb_helper_single_fb_probe(fb_helper);
 	if (ret < 0) {
@@ -1786,3 +1774,32 @@ int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 	return 0;
 }
 EXPORT_SYMBOL(drm_fb_helper_hotplug_event);
+
+/**
+ * drm_fb_helper_gem_is_fb - Tests if GEM object is framebuffer
+ * @fb_helper: fb_helper instance, can be NULL
+ * @obj: The GEM object to test, can be NULL
+ *
+ * Call drm_fb_helper_gem_is_fb to test is a DRM device's fbdev emulation
+ * uses the specified GEM object for its framebuffer. The result is always
+ * false if either poiner is NULL.
+ *
+ * Returns:
+ * True if fbdev emulation uses the provided GEM object, or false otherwise.
+ */
+bool drm_fb_helper_gem_is_fb(const struct drm_fb_helper *fb_helper,
+			     const struct drm_gem_object *obj)
+{
+	const struct drm_gem_object *gem = NULL;
+
+	if (!fb_helper || !obj)
+		return false;
+	if (fb_helper->buffer && fb_helper->buffer->gem)
+		gem = fb_helper->buffer->gem;
+	else if (fb_helper->fb)
+		gem = drm_gem_fb_get_obj(fb_helper->fb, 0);
+
+	return gem == obj;
+}
+EXPORT_SYMBOL_GPL(drm_fb_helper_gem_is_fb);
+

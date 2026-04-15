@@ -53,12 +53,14 @@
 #include "dcn315/hw_factory_dcn315.h"
 #include "dcn32/hw_factory_dcn32.h"
 #include "dcn401/hw_factory_dcn401.h"
+#include "dcn42/hw_factory_dcn42.h"
 
 bool dal_hw_factory_init(
 	struct hw_factory *factory,
 	enum dce_version dce_version,
 	enum dce_environment dce_environment)
 {
+	(void)dce_environment;
 	switch (dce_version) {
 #if defined(CONFIG_DRM_AMD_DC_SI)
 	case DCE_VERSION_6_0:
@@ -117,6 +119,9 @@ bool dal_hw_factory_init(
 		return true;
 	case DCN_VERSION_4_01:
 		dal_hw_factory_dcn401_init(factory);
+		return true;
+	case DCN_VERSION_4_2:
+		dal_hw_factory_dcn42_init(factory);
 		return true;
 	default:
 		ASSERT_CRITICAL(false);

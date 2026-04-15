@@ -226,6 +226,28 @@ static enum bp_result encoder_control_dig2_v1(
 	return result;
 }
 
+static uint8_t dc_color_depth_to_atom(enum dc_color_depth color_depth)
+{
+	switch (color_depth) {
+	case COLOR_DEPTH_UNDEFINED:
+		return PANEL_BPC_UNDEFINE;
+	case COLOR_DEPTH_666:
+		return PANEL_6BIT_PER_COLOR;
+	default:
+	case COLOR_DEPTH_888:
+		return PANEL_8BIT_PER_COLOR;
+	case COLOR_DEPTH_101010:
+		return PANEL_10BIT_PER_COLOR;
+	case COLOR_DEPTH_121212:
+		return PANEL_12BIT_PER_COLOR;
+	case COLOR_DEPTH_141414:
+		dm_error("14-bit color not supported by ATOMBIOS\n");
+		return PANEL_BPC_UNDEFINE;
+	case COLOR_DEPTH_161616:
+		return PANEL_16BIT_PER_COLOR;
+	}
+}
+
 static enum bp_result encoder_control_digx_v3(
 	struct bios_parser *bp,
 	struct bp_encoder_control *cntl)
@@ -248,23 +270,7 @@ static enum bp_result encoder_control_digx_v3(
 					cntl->signal,
 					cntl->enable_dp_audio);
 	params.ucLaneNum = (uint8_t)(cntl->lanes_number);
-
-	switch (cntl->color_depth) {
-	case COLOR_DEPTH_888:
-		params.ucBitPerColor = PANEL_8BIT_PER_COLOR;
-		break;
-	case COLOR_DEPTH_101010:
-		params.ucBitPerColor = PANEL_10BIT_PER_COLOR;
-		break;
-	case COLOR_DEPTH_121212:
-		params.ucBitPerColor = PANEL_12BIT_PER_COLOR;
-		break;
-	case COLOR_DEPTH_161616:
-		params.ucBitPerColor = PANEL_16BIT_PER_COLOR;
-		break;
-	default:
-		break;
-	}
+	params.ucBitPerColor = dc_color_depth_to_atom(cntl->color_depth);
 
 	if (EXEC_BIOS_CMD_TABLE(DIGxEncoderControl, params))
 		result = BP_RESULT_OK;
@@ -294,23 +300,7 @@ static enum bp_result encoder_control_digx_v4(
 					cntl->signal,
 					cntl->enable_dp_audio));
 	params.ucLaneNum = (uint8_t)(cntl->lanes_number);
-
-	switch (cntl->color_depth) {
-	case COLOR_DEPTH_888:
-		params.ucBitPerColor = PANEL_8BIT_PER_COLOR;
-		break;
-	case COLOR_DEPTH_101010:
-		params.ucBitPerColor = PANEL_10BIT_PER_COLOR;
-		break;
-	case COLOR_DEPTH_121212:
-		params.ucBitPerColor = PANEL_12BIT_PER_COLOR;
-		break;
-	case COLOR_DEPTH_161616:
-		params.ucBitPerColor = PANEL_16BIT_PER_COLOR;
-		break;
-	default:
-		break;
-	}
+	params.ucBitPerColor = dc_color_depth_to_atom(cntl->color_depth);
 
 	if (EXEC_BIOS_CMD_TABLE(DIGxEncoderControl, params))
 		result = BP_RESULT_OK;
@@ -334,23 +324,7 @@ static enum bp_result encoder_control_digx_v5(
 					cntl->signal,
 					cntl->enable_dp_audio));
 	params.ucLaneNum = (uint8_t)(cntl->lanes_number);
-
-	switch (cntl->color_depth) {
-	case COLOR_DEPTH_888:
-		params.ucBitPerColor = PANEL_8BIT_PER_COLOR;
-		break;
-	case COLOR_DEPTH_101010:
-		params.ucBitPerColor = PANEL_10BIT_PER_COLOR;
-		break;
-	case COLOR_DEPTH_121212:
-		params.ucBitPerColor = PANEL_12BIT_PER_COLOR;
-		break;
-	case COLOR_DEPTH_161616:
-		params.ucBitPerColor = PANEL_16BIT_PER_COLOR;
-		break;
-	default:
-		break;
-	}
+	params.ucBitPerColor = dc_color_depth_to_atom(cntl->color_depth);
 
 	if (cntl->signal == SIGNAL_TYPE_HDMI_TYPE_A)
 		switch (cntl->color_depth) {
@@ -1797,30 +1771,7 @@ static enum bp_result select_crtc_source_v3(
 		&params.ucEncodeMode))
 		return BP_RESULT_BADINPUT;
 
-	switch (bp_params->color_depth) {
-	case COLOR_DEPTH_UNDEFINED:
-		params.ucDstBpc = PANEL_BPC_UNDEFINE;
-		break;
-	case COLOR_DEPTH_666:
-		params.ucDstBpc = PANEL_6BIT_PER_COLOR;
-		break;
-	default:
-	case COLOR_DEPTH_888:
-		params.ucDstBpc = PANEL_8BIT_PER_COLOR;
-		break;
-	case COLOR_DEPTH_101010:
-		params.ucDstBpc = PANEL_10BIT_PER_COLOR;
-		break;
-	case COLOR_DEPTH_121212:
-		params.ucDstBpc = PANEL_12BIT_PER_COLOR;
-		break;
-	case COLOR_DEPTH_141414:
-		dm_error("14-bit color not supported by SelectCRTC_Source v3\n");
-		break;
-	case COLOR_DEPTH_161616:
-		params.ucDstBpc = PANEL_16BIT_PER_COLOR;
-		break;
-	}
+	params.ucDstBpc = dc_color_depth_to_atom(bp_params->color_depth);
 
 	if (EXEC_BIOS_CMD_TABLE(SelectCRTC_Source, params))
 		result = BP_RESULT_OK;
@@ -2569,6 +2520,7 @@ static enum bp_result external_encoder_control_v3(
 				cpu_to_le16((uint16_t)cntl->connector_obj_id.id);
 		break;
 	case EXTERNAL_ENCODER_CONTROL_SETUP:
+	case EXTERNAL_ENCODER_CONTROL_ENABLE:
 		/* EXTERNAL_ENCODER_CONTROL_PARAMETERS_V3 pixel clock unit in
 		 * 10KHz
 		 * output display device pixel clock frequency in unit of 10KHz.
@@ -2585,25 +2537,23 @@ static enum bp_result external_encoder_control_v3(
 		if (is_input_signal_dp) {
 			/* Bit[0]: indicate link rate, =1: 2.7Ghz, =0: 1.62Ghz,
 			 * only valid in encoder setup with DP mode. */
-			if (LINK_RATE_HIGH == cntl->link_rate)
-				cntl_params->ucConfig |= 1;
+			if (cntl->link_rate == LINK_RATE_LOW)
+				cntl_params->ucConfig |=
+					EXTERNAL_ENCODER_CONFIG_V3_DPLINKRATE_1_62GHZ;
+			else if (cntl->link_rate == LINK_RATE_HIGH)
+				cntl_params->ucConfig |=
+					EXTERNAL_ENCODER_CONFIG_V3_DPLINKRATE_2_70GHZ;
+			else
+				dm_error("Link rate not supported by external encoder");
+
 			/* output color depth Indicate encoder data bpc format
 			 * in DP mode, only valid in encoder setup in DP mode.
 			 */
-			cntl_params->ucBitPerColor =
-					(uint8_t)(cntl->color_depth);
+			cntl_params->ucBitPerColor = dc_color_depth_to_atom(cntl->color_depth);
 		}
 		/* Indicate how many lanes used by external encoder, only valid
 		 * in encoder setup and enableoutput. */
 		cntl_params->ucLaneNum = (uint8_t)(cntl->lanes_number);
-		break;
-	case EXTERNAL_ENCODER_CONTROL_ENABLE:
-		cntl_params->usPixelClock =
-				cpu_to_le16((uint16_t)(cntl->pixel_clock / 10));
-		cntl_params->ucEncoderMode =
-				(uint8_t)bp->cmd_helper->encoder_mode_bp_to_atom(
-						cntl->signal, false);
-		cntl_params->ucLaneNum = (uint8_t)cntl->lanes_number;
 		break;
 	default:
 		break;

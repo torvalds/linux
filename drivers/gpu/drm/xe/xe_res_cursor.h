@@ -58,7 +58,7 @@ struct xe_res_cursor {
 	/** @dma_addr: Current element in a struct drm_pagemap_addr array */
 	const struct drm_pagemap_addr *dma_addr;
 	/** @mm: Buddy allocator for VRAM cursor */
-	struct drm_buddy *mm;
+	struct gpu_buddy *mm;
 	/**
 	 * @dma_start: DMA start address for the current segment.
 	 * This may be different to @dma_addr.addr since elements in
@@ -69,7 +69,7 @@ struct xe_res_cursor {
 	u64 dma_seg_size;
 };
 
-static struct drm_buddy *xe_res_get_buddy(struct ttm_resource *res)
+static struct gpu_buddy *xe_res_get_buddy(struct ttm_resource *res)
 {
 	struct ttm_resource_manager *mgr;
 
@@ -104,30 +104,30 @@ static inline void xe_res_first(struct ttm_resource *res,
 	case XE_PL_STOLEN:
 	case XE_PL_VRAM0:
 	case XE_PL_VRAM1: {
-		struct drm_buddy_block *block;
+		struct gpu_buddy_block *block;
 		struct list_head *head, *next;
-		struct drm_buddy *mm = xe_res_get_buddy(res);
+		struct gpu_buddy *mm = xe_res_get_buddy(res);
 
 		head = &to_xe_ttm_vram_mgr_resource(res)->blocks;
 
 		block = list_first_entry_or_null(head,
-						 struct drm_buddy_block,
+						 struct gpu_buddy_block,
 						 link);
 		if (!block)
 			goto fallback;
 
-		while (start >= drm_buddy_block_size(mm, block)) {
-			start -= drm_buddy_block_size(mm, block);
+		while (start >= gpu_buddy_block_size(mm, block)) {
+			start -= gpu_buddy_block_size(mm, block);
 
 			next = block->link.next;
 			if (next != head)
-				block = list_entry(next, struct drm_buddy_block,
+				block = list_entry(next, struct gpu_buddy_block,
 						   link);
 		}
 
 		cur->mm = mm;
-		cur->start = drm_buddy_block_offset(block) + start;
-		cur->size = min(drm_buddy_block_size(mm, block) - start,
+		cur->start = gpu_buddy_block_offset(block) + start;
+		cur->size = min(gpu_buddy_block_size(mm, block) - start,
 				size);
 		cur->remaining = size;
 		cur->node = block;
@@ -259,7 +259,7 @@ static inline void xe_res_first_dma(const struct drm_pagemap_addr *dma_addr,
  */
 static inline void xe_res_next(struct xe_res_cursor *cur, u64 size)
 {
-	struct drm_buddy_block *block;
+	struct gpu_buddy_block *block;
 	struct list_head *next;
 	u64 start;
 
@@ -295,18 +295,18 @@ static inline void xe_res_next(struct xe_res_cursor *cur, u64 size)
 		block = cur->node;
 
 		next = block->link.next;
-		block = list_entry(next, struct drm_buddy_block, link);
+		block = list_entry(next, struct gpu_buddy_block, link);
 
 
-		while (start >= drm_buddy_block_size(cur->mm, block)) {
-			start -= drm_buddy_block_size(cur->mm, block);
+		while (start >= gpu_buddy_block_size(cur->mm, block)) {
+			start -= gpu_buddy_block_size(cur->mm, block);
 
 			next = block->link.next;
-			block = list_entry(next, struct drm_buddy_block, link);
+			block = list_entry(next, struct gpu_buddy_block, link);
 		}
 
-		cur->start = drm_buddy_block_offset(block) + start;
-		cur->size = min(drm_buddy_block_size(cur->mm, block) - start,
+		cur->start = gpu_buddy_block_offset(block) + start;
+		cur->size = min(gpu_buddy_block_size(cur->mm, block) - start,
 				cur->remaining);
 		cur->node = block;
 		break;

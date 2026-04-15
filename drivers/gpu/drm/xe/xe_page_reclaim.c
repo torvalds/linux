@@ -11,6 +11,7 @@
 #include "xe_page_reclaim.h"
 
 #include "xe_gt_stats.h"
+#include "xe_guc_tlb_inval.h"
 #include "xe_macros.h"
 #include "xe_pat.h"
 #include "xe_sa.h"
@@ -26,11 +27,17 @@
  * flushes.
  * - pat_index is transient display (1)
  *
+ * For cases of NULL VMA, there should be no corresponding PRL entry
+ * so skip over.
+ *
  * Return: true when page reclamation is unnecessary, false otherwise.
  */
 bool xe_page_reclaim_skip(struct xe_tile *tile, struct xe_vma *vma)
 {
 	u8 l3_policy;
+
+	if (xe_vma_is_null(vma))
+		return true;
 
 	l3_policy = xe_pat_index_get_l3_policy(tile->xe, vma->attr.pat_index);
 
@@ -129,4 +136,23 @@ int xe_page_reclaim_list_alloc_entries(struct xe_page_reclaim_list *prl)
 	}
 
 	return page ? 0 : -ENOMEM;
+}
+
+/**
+ * xe_guc_page_reclaim_done_handler() - Page reclaim done handler
+ * @guc: guc
+ * @msg: message indicating page reclamation done
+ * @len: length of message
+ *
+ * Page reclamation is an extension of TLB invalidation. Both
+ * operations share the same seqno and fence. When either
+ * action completes, we need to signal the corresponding
+ * fence. Since the handling logic is currently identical, this
+ * function delegates to the TLB invalidation handler.
+ *
+ * Return: 0 on success, -EPROTO for malformed messages.
+ */
+int xe_guc_page_reclaim_done_handler(struct xe_guc *guc, u32 *msg, u32 len)
+{
+	return xe_guc_tlb_inval_done_handler(guc, msg, len);
 }

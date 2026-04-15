@@ -2720,7 +2720,7 @@ static int get_wave_state(struct device_queue_manager *dqm,
 			ctl_stack, ctl_stack_used_size, save_area_used_size);
 }
 
-static void get_queue_checkpoint_info(struct device_queue_manager *dqm,
+static int get_queue_checkpoint_info(struct device_queue_manager *dqm,
 			const struct queue *q,
 			u32 *mqd_size,
 			u32 *ctl_stack_size)
@@ -2728,6 +2728,7 @@ static void get_queue_checkpoint_info(struct device_queue_manager *dqm,
 	struct mqd_manager *mqd_mgr;
 	enum KFD_MQD_TYPE mqd_type =
 			get_mqd_type_from_queue_type(q->properties.type);
+	int ret = 0;
 
 	dqm_lock(dqm);
 	mqd_mgr = dqm->mqd_mgrs[mqd_type];
@@ -2735,9 +2736,11 @@ static void get_queue_checkpoint_info(struct device_queue_manager *dqm,
 	*ctl_stack_size = 0;
 
 	if (q->properties.type == KFD_QUEUE_TYPE_COMPUTE && mqd_mgr->get_checkpoint_info)
-		mqd_mgr->get_checkpoint_info(mqd_mgr, q->mqd, ctl_stack_size);
+		ret = mqd_mgr->get_checkpoint_info(mqd_mgr, q->mqd, ctl_stack_size);
 
 	dqm_unlock(dqm);
+
+	return ret;
 }
 
 static int checkpoint_mqd(struct device_queue_manager *dqm,

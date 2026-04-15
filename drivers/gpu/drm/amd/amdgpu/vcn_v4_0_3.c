@@ -134,6 +134,21 @@ static int vcn_v4_0_3_early_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
+static bool vcn_v4_0_3_is_psp_fw_reset_supported(struct amdgpu_device *adev)
+{
+	uint32_t fw_ver = adev->psp.sos.fw_version;
+	uint32_t pgm = (fw_ver >> 8) & 0xFF;
+
+	/*
+	 * FWDEV-159155: PSP SOS FW must be >= 0x0036015f for program 0x01
+	 * before enabling VCN per-queue reset.
+	 */
+	if (pgm == 1)
+		return fw_ver >= 0x0036015f;
+
+	return true;
+}
+
 static int vcn_v4_0_3_late_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
@@ -141,7 +156,9 @@ static int vcn_v4_0_3_late_init(struct amdgpu_ip_block *ip_block)
 	adev->vcn.supported_reset =
 		amdgpu_get_soft_full_reset_mask(&adev->vcn.inst[0].ring_enc[0]);
 
-	if (amdgpu_dpm_reset_vcn_is_supported(adev) && !amdgpu_sriov_vf(adev))
+	if (amdgpu_dpm_reset_vcn_is_supported(adev) &&
+	    vcn_v4_0_3_is_psp_fw_reset_supported(adev) &&
+	    !amdgpu_sriov_vf(adev))
 		adev->vcn.supported_reset |= AMDGPU_RESET_TYPE_PER_QUEUE;
 
 	return 0;

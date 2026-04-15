@@ -17,7 +17,7 @@
 #include "intel_display_core.h"
 #include "intel_display_rpm.h"
 #include "intel_display_types.h"
-#include "intel_dpt.h"
+#include "i915_dpt.h"
 #include "intel_fb.h"
 #include "intel_fb_pin.h"
 #include "intel_plane.h"
@@ -27,13 +27,14 @@ intel_fb_pin_to_dpt(const struct drm_framebuffer *fb,
 		    const struct i915_gtt_view *view,
 		    unsigned int alignment,
 		    unsigned long *out_flags,
-		    struct i915_address_space *vm)
+		    struct intel_dpt *dpt)
 {
 	struct drm_device *dev = fb->dev;
 	struct intel_display *display = to_intel_display(dev);
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_gem_object *_obj = intel_fb_bo(fb);
 	struct drm_i915_gem_object *obj = to_intel_bo(_obj);
+	struct i915_address_space *vm = i915_dpt_to_vm(dpt);
 	struct i915_gem_ww_ctx ww;
 	struct i915_vma *vma;
 	int ret;
@@ -284,7 +285,7 @@ int intel_plane_pin_fb(struct intel_plane_state *plane_state,
 	} else {
 		unsigned int alignment = intel_plane_fb_min_alignment(plane_state);
 
-		vma = intel_dpt_pin_to_ggtt(fb->dpt_vm, alignment / 512);
+		vma = i915_dpt_pin_to_ggtt(fb->dpt, alignment / 512);
 		if (IS_ERR(vma))
 			return PTR_ERR(vma);
 
@@ -292,9 +293,9 @@ int intel_plane_pin_fb(struct intel_plane_state *plane_state,
 
 		vma = intel_fb_pin_to_dpt(&fb->base, &plane_state->view.gtt,
 					  alignment, &plane_state->flags,
-					  fb->dpt_vm);
+					  fb->dpt);
 		if (IS_ERR(vma)) {
-			intel_dpt_unpin_from_ggtt(fb->dpt_vm);
+			i915_dpt_unpin_from_ggtt(fb->dpt);
 			plane_state->ggtt_vma = NULL;
 			return PTR_ERR(vma);
 		}
@@ -307,7 +308,7 @@ int intel_plane_pin_fb(struct intel_plane_state *plane_state,
 		 * The DPT object contains only one vma, and there is no VT-d
 		 * guard, so the VMA's offset within the DPT is always 0.
 		 */
-		drm_WARN_ON(display->drm, intel_dpt_offset(plane_state->dpt_vma));
+		drm_WARN_ON(display->drm, i915_dpt_offset(plane_state->dpt_vma));
 	}
 
 	/*
@@ -346,7 +347,7 @@ void intel_plane_unpin_fb(struct intel_plane_state *old_plane_state)
 
 		vma = fetch_and_zero(&old_plane_state->ggtt_vma);
 		if (vma)
-			intel_dpt_unpin_from_ggtt(fb->dpt_vm);
+			i915_dpt_unpin_from_ggtt(fb->dpt);
 	}
 }
 

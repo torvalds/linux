@@ -28,6 +28,17 @@ struct xe_device *xe_sriov_vfio_get_pf(struct pci_dev *pdev);
 bool xe_sriov_vfio_migration_supported(struct xe_device *xe);
 
 /**
+ * xe_sriov_vfio_flr_prepare() - Notify PF that VF FLR prepare has started.
+ * @xe: the PF &xe_device obtained by calling xe_sriov_vfio_get_pf()
+ * @vfid: the VF identifier (can't be 0)
+ *
+ * This function marks VF FLR as pending before PF receives GuC FLR event.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_vfio_flr_prepare(struct xe_device *xe, unsigned int vfid);
+
+/**
  * xe_sriov_vfio_wait_flr_done() - Wait for VF FLR completion.
  * @xe: the PF &xe_device obtained by calling xe_sriov_vfio_get_pf()
  * @vfid: the VF identifier (can't be 0)

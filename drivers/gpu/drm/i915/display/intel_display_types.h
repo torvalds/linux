@@ -145,7 +145,7 @@ struct intel_framebuffer {
 		struct intel_fb_view remapped_view;
 	};
 
-	struct i915_address_space *dpt_vm;
+	struct intel_dpt *dpt;
 
 	unsigned int min_alignment;
 	unsigned int vtd_guard;
@@ -351,6 +351,7 @@ struct intel_vbt_panel_data {
 		bool low_vswing;
 		bool hobl;
 		bool dsc_disable;
+		bool pipe_joiner_enable;
 	} edp;
 
 	struct {
@@ -834,6 +835,7 @@ struct intel_pipe_wm {
 
 struct skl_wm_level {
 	u16 min_ddb_alloc;
+	u16 min_ddb_alloc_uv; /* for pre-icl */
 	u16 blocks;
 	u8 lines;
 	bool enable;
@@ -844,13 +846,11 @@ struct skl_wm_level {
 
 struct skl_plane_wm {
 	struct skl_wm_level wm[8];
-	struct skl_wm_level uv_wm[8];
 	struct skl_wm_level trans_wm;
 	struct {
 		struct skl_wm_level wm0;
 		struct skl_wm_level trans_wm;
 	} sagv;
-	bool is_planar;
 };
 
 struct skl_pipe_wm {
@@ -1162,6 +1162,7 @@ struct intel_crtc_state {
 	} dsi_pll;
 
 	int max_link_bpp_x16;	/* in 1/16 bpp units */
+	int max_pipe_bpp;	/* in 1 bpp units */
 	int pipe_bpp;		/* in 1 bpp units */
 	int min_hblank;
 	struct intel_link_m_n dp_m_n;
@@ -1334,10 +1335,13 @@ struct intel_crtc_state {
 		/* Only used for state computation, not read out from the HW. */
 		bool compression_enabled_on_link;
 		bool compression_enable;
-		int num_streams;
+		struct intel_dsc_slice_config {
+			int pipes_per_line;
+			int streams_per_pipe;
+			int slices_per_stream;
+		} slice_config;
 		/* Compressed Bpp in U6.4 format (first 4 bits for fractional part) */
 		u16 compressed_bpp_x16;
-		u8 slice_count;
 		struct drm_dsc_config config;
 	} dsc;
 
@@ -1792,6 +1796,7 @@ struct intel_dp {
 	int link_rate;
 	u8 lane_count;
 	u8 sink_count;
+	bool downstream_port_changed;
 	bool needs_modeset_retry;
 	bool use_max_params;
 	u8 dpcd[DP_RECEIVER_CAP_SIZE];

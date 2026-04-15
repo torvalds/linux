@@ -6,10 +6,10 @@
 #ifndef _XE_TILE_H_
 #define _XE_TILE_H_
 
-#include "xe_device_types.h"
+#include "xe_tile_types.h"
 
+struct xe_device;
 struct xe_pagemap;
-struct xe_tile;
 
 int xe_tile_init_early(struct xe_tile *tile, struct xe_device *xe, u8 id);
 int xe_tile_init_noalloc(struct xe_tile *tile);

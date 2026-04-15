@@ -40,9 +40,12 @@ properties:
             properties:
               data-lanes:
                 description: array of physical DSI data lane indexes.
+                minItems: 1
                 items:
                   - const: 1
                   - const: 2
+                  - const: 3
+                  - const: 4
 
             required:
               - data-lanes

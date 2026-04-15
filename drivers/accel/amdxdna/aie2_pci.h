@@ -7,8 +7,10 @@
 #define _AIE2_PCI_H_
 
 #include <drm/amdxdna_accel.h>
+#include <linux/limits.h>
 #include <linux/semaphore.h>
 
+#include "aie2_msg_priv.h"
 #include "amdxdna_mailbox.h"
 
 #define AIE2_INTERVAL	20000	/* us */
@@ -45,6 +47,33 @@
 	((_ndev)->priv->mbox_size) ? (_ndev)->priv->mbox_size : \
 	pci_resource_len(NDEV2PDEV(_ndev), (_ndev)->xdna->dev_info->mbox_bar); \
 })
+
+#if IS_ENABLED(CONFIG_AMD_PMF)
+#define AIE2_GET_PMF_NPU_METRICS(metrics) amd_pmf_get_npu_data(metrics)
+#define AIE2_GET_PMF_NPU_DATA(field, val)				\
+({									\
+	struct amd_pmf_npu_metrics _npu_metrics;			\
+	int _ret;							\
+									\
+	_ret = amd_pmf_get_npu_data(&_npu_metrics);			\
+	val = _ret ? U32_MAX : _npu_metrics.field;			\
+	(_ret);								\
+})
+#else
+#define AIE2_GET_PMF_NPU_METRICS(metrics)				\
+({									\
+	typeof(metrics) _m = metrics;					\
+	memset(_m, 0xff, sizeof(*_m));					\
+	(-EOPNOTSUPP);							\
+})
+
+#define SENSOR_DEFAULT_npu_power	U32_MAX
+#define AIE2_GET_PMF_NPU_DATA(field, val)				\
+({									\
+	val = SENSOR_DEFAULT_##field;					\
+	(-EOPNOTSUPP);							\
+})
+#endif
 
 enum aie2_smu_reg_idx {
 	SMU_CMD_REG = 0,
@@ -233,6 +262,7 @@ enum aie2_fw_feature {
 	AIE2_NPU_COMMAND,
 	AIE2_PREEMPT,
 	AIE2_TEMPORAL_ONLY,
+	AIE2_APP_HEALTH,
 	AIE2_FEATURE_MAX
 };
 
@@ -243,6 +273,7 @@ struct aie2_fw_feature_tbl {
 	u32 min_minor;
 };
 
+#define AIE2_ALL_FEATURES	GENMASK_ULL(AIE2_FEATURE_MAX - 1, AIE2_NPU_COMMAND)
 #define AIE2_FEATURE_ON(ndev, feature)	test_bit(feature, &(ndev)->feature_mask)
 
 struct amdxdna_dev_priv {
@@ -313,6 +344,8 @@ int aie2_query_aie_version(struct amdxdna_dev_hdl *ndev, struct aie_version *ver
 int aie2_query_aie_metadata(struct amdxdna_dev_hdl *ndev, struct aie_metadata *metadata);
 int aie2_query_firmware_version(struct amdxdna_dev_hdl *ndev,
 				struct amdxdna_fw_ver *fw_ver);
+int aie2_query_app_health(struct amdxdna_dev_hdl *ndev, u32 context_id,
+			  struct app_health_report *report);
 int aie2_create_context(struct amdxdna_dev_hdl *ndev, struct amdxdna_hwctx *hwctx);
 int aie2_destroy_context(struct amdxdna_dev_hdl *ndev, struct amdxdna_hwctx *hwctx);
 int aie2_map_host_buf(struct amdxdna_dev_hdl *ndev, u32 context_id, u64 addr, u64 size);
@@ -338,9 +371,8 @@ int aie2_config_debug_bo(struct amdxdna_hwctx *hwctx, struct amdxdna_sched_job *
 			 int (*notify_cb)(void *, void __iomem *, size_t));
 void *aie2_alloc_msg_buffer(struct amdxdna_dev_hdl *ndev, u32 *size,
 			    dma_addr_t *dma_addr);
-#define aie2_free_msg_buffer(ndev, size, buff_addr, dma_addr)		\
-	dma_free_noncoherent((ndev)->xdna->ddev.dev, size, buff_addr,	\
-			     dma_addr, DMA_FROM_DEVICE)
+void aie2_free_msg_buffer(struct amdxdna_dev_hdl *ndev, size_t size,
+			  void *cpu_addr, dma_addr_t dma_addr);
 
 /* aie2_hwctx.c */
 int aie2_hwctx_init(struct amdxdna_hwctx *hwctx);

@@ -168,6 +168,24 @@ void xe_gt_idle_disable_pg(struct xe_gt *gt)
 	xe_mmio_write32(&gt->mmio, POWERGATE_ENABLE, gtidle->powergate_enable);
 }
 
+static void force_wake_domains_show(struct xe_gt *gt, struct drm_printer *p)
+{
+	struct xe_force_wake_domain *domain;
+	struct xe_force_wake *fw = gt_to_fw(gt);
+	unsigned int tmp;
+	unsigned long flags;
+
+	spin_lock_irqsave(&fw->lock, flags);
+	for_each_fw_domain(domain, fw, tmp) {
+		drm_printf(p, "%s.ref_count=%u, %s.fwake=0x%x\n",
+			   xe_force_wake_domain_to_str(domain->id),
+			   READ_ONCE(domain->ref),
+			   xe_force_wake_domain_to_str(domain->id),
+			   xe_mmio_read32(&gt->mmio, domain->reg_ctl));
+	}
+	spin_unlock_irqrestore(&fw->lock, flags);
+}
+
 /**
  * xe_gt_idle_pg_print - Xe powergating info
  * @gt: GT object
@@ -253,6 +271,13 @@ int xe_gt_idle_pg_print(struct xe_gt *gt, struct drm_printer *p)
 	if (MEDIA_VERx100(xe) >= 1100 && MEDIA_VERx100(xe) < 1255)
 		drm_printf(p, "Media Samplers Power Gating Enabled: %s\n",
 			   str_yes_no(pg_enabled & MEDIA_SAMPLERS_POWERGATE_ENABLE));
+
+	if (gt->info.engine_mask & BIT(XE_HW_ENGINE_GSCCS0)) {
+		drm_printf(p, "GSC Power Gate Status: %s\n",
+			   str_up_down(pg_status & GSC_AWAKE_STATUS));
+	}
+
+	force_wake_domains_show(gt, p);
 
 	return 0;
 }

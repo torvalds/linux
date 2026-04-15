@@ -60,6 +60,7 @@ struct resource_caps {
 	int num_hpo_dp_stream_encoder;
 	int num_hpo_dp_link_encoder;
 	int num_mpc_3dlut;
+	int num_rmcm;
 };
 
 struct resource_straps {

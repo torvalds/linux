@@ -74,6 +74,7 @@ static void dp_hpo_fixed_vs_pe_retimer_set_tx_ffe(struct dc_link *link,
 static void dp_hpo_fixed_vs_pe_retimer_program_override_test_pattern(struct dc_link *link,
 		struct encoder_set_dp_phy_pattern_param *tp_params)
 {
+	(void)tp_params;
 	uint8_t clk_src = 0xC4;
 	uint8_t pattern = 0x4F; /* SQ128 */
 

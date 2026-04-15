@@ -367,6 +367,18 @@ static enum transmitter translate_encoder_to_transmitter(
 	}
 }
 
+static bool encoder_is_external_dp(
+		struct graphics_object_id encoder)
+{
+	switch (encoder.id) {
+	case ENCODER_ID_EXTERNAL_NUTMEG:
+	case ENCODER_ID_EXTERNAL_TRAVIS:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static void link_destruct(struct dc_link *link)
 {
 	int i;
@@ -514,6 +526,13 @@ static bool construct_phy(struct dc_link *link,
 	 * so that we avoid initializing DDC and HPD, etc.
 	 */
 	bp_funcs->get_src_obj(bios, link->link_id, 0, &link_encoder);
+
+	if (encoder_is_external_dp(link_encoder)) {
+		/* External DP bridge encoders: find the actual link encoder and use that. */
+		link->ext_enc_id = link_encoder;
+		bp_funcs->get_src_obj(bios, link->ext_enc_id, 0, &link_encoder);
+	}
+
 	transmitter_from_encoder = translate_encoder_to_transmitter(link_encoder);
 	link_analog_engine = find_analog_engine(link, &enc_init_data.analog_encoder);
 
@@ -691,6 +710,13 @@ static bool construct_phy(struct dc_link *link,
 		goto create_fail;
 	}
 
+	/* For external DP bridge encoders:
+	 * Set the connector signal to DisplayPort so that they can work with
+	 * the pre-existing code paths for DP without a lot of code churn.
+	 */
+	if (link->ext_enc_id.id != ENCODER_ID_UNKNOWN)
+		link->connector_signal = SIGNAL_TYPE_DISPLAY_PORT;
+
 	LINK_INFO("Connector[%d] description: signal: %s\n",
 		  init_params->connector_index,
 		  signal_type_to_string(link->connector_signal));
@@ -735,7 +761,8 @@ static bool construct_phy(struct dc_link *link,
 						      link->device_tag.dev_id))
 			continue;
 		if (link->device_tag.dev_id.device_type == DEVICE_TYPE_CRT &&
-		    link->connector_signal != SIGNAL_TYPE_RGB)
+		    link->connector_signal != SIGNAL_TYPE_RGB &&
+		    link->ext_enc_id.id == ENCODER_ID_UNKNOWN)
 			continue;
 		if (link->device_tag.dev_id.device_type == DEVICE_TYPE_LCD &&
 		    link->connector_signal == SIGNAL_TYPE_RGB)

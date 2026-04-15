@@ -66,8 +66,8 @@ bool intel_pxp_is_active(const struct intel_pxp *pxp)
 
 static void kcr_pxp_set_status(const struct intel_pxp *pxp, bool enable)
 {
-	u32 val = enable ? _MASKED_BIT_ENABLE(KCR_INIT_ALLOW_DISPLAY_ME_WRITES) :
-		  _MASKED_BIT_DISABLE(KCR_INIT_ALLOW_DISPLAY_ME_WRITES);
+	u32 val = enable ? REG_MASKED_FIELD_ENABLE(KCR_INIT_ALLOW_DISPLAY_ME_WRITES) :
+		  REG_MASKED_FIELD_DISABLE(KCR_INIT_ALLOW_DISPLAY_ME_WRITES);
 
 	intel_uncore_write(pxp->ctrl_gt->uncore, KCR_INIT(pxp->kcr_base), val);
 }
@@ -278,7 +278,7 @@ static void pxp_queue_termination(struct intel_pxp *pxp)
 	spin_lock_irq(gt->irq_lock);
 	intel_pxp_mark_termination_in_progress(pxp);
 	pxp->session_events |= PXP_TERMINATION_REQUEST;
-	queue_work(system_unbound_wq, &pxp->session_work);
+	queue_work(system_dfl_wq, &pxp->session_work);
 	spin_unlock_irq(gt->irq_lock);
 }
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 /*
- * Copyright 2022 Advanced Micro Devices, Inc.
+ * Copyright 2022-2026 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -704,21 +704,21 @@ static void amdgpu_dm_plane_add_gfx12_modifiers(struct amdgpu_device *adev,
 	uint8_t max_comp_block[] = {2, 1, 0};
 	uint64_t max_comp_block_mod[ARRAY_SIZE(max_comp_block)] = {0};
 	uint8_t i = 0, j = 0;
-	uint64_t gfx12_modifiers[] = {mod_256k, mod_64k, mod_4k, mod_256b, DRM_FORMAT_MOD_LINEAR};
+	/* Note, linear (no DCC) gets added to the modifier list for all chips by the caller. */
+	uint64_t gfx12_modifiers[] = {mod_256k, mod_64k, mod_4k, mod_256b};
 
 	for (i = 0; i < ARRAY_SIZE(max_comp_block); i++)
 		max_comp_block_mod[i] = AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, max_comp_block[i]);
 
 	/* With DCC: Best choice should be kept first. Hence, add all 256k modifiers of different
 	 * max compressed blocks first and then move on to the next smaller sized layouts.
-	 * Do not add the linear modifier here, and hence the condition of size-1 for the loop
 	 */
-	for (j = 0; j < ARRAY_SIZE(gfx12_modifiers) - 1; j++)
+	for (j = 0; j < ARRAY_SIZE(gfx12_modifiers); j++)
 		for (i = 0; i < ARRAY_SIZE(max_comp_block); i++)
 			amdgpu_dm_plane_add_modifier(mods, size, capacity,
 						     ver | dcc | max_comp_block_mod[i] | gfx12_modifiers[j]);
 
-	/* Without DCC. Add all modifiers including linear at the end */
+	/* Without DCC. */
 	for (i = 0; i < ARRAY_SIZE(gfx12_modifiers); i++)
 		amdgpu_dm_plane_add_modifier(mods, size, capacity, gfx12_modifiers[i]);
 
@@ -759,6 +759,7 @@ static int amdgpu_dm_plane_get_plane_modifiers(struct amdgpu_device *adev, unsig
 	case AMDGPU_FAMILY_GC_11_0_0:
 	case AMDGPU_FAMILY_GC_11_0_1:
 	case AMDGPU_FAMILY_GC_11_5_0:
+	case AMDGPU_FAMILY_GC_11_5_4:
 		amdgpu_dm_plane_add_gfx11_modifiers(adev, mods, &size, &capacity);
 		break;
 	case AMDGPU_FAMILY_GC_12_0_0:
@@ -953,11 +954,9 @@ static int amdgpu_dm_plane_helper_prepare_fb(struct drm_plane *plane,
 		return r;
 	}
 
-	r = dma_resv_reserve_fences(rbo->tbo.base.resv, 1);
-	if (r) {
-		drm_err(adev_to_drm(adev), "reserving fence slot failed (%d)\n", r);
+	r = dma_resv_reserve_fences(rbo->tbo.base.resv, TTM_NUM_MOVE_FENCES);
+	if (r)
 		goto error_unlock;
-	}
 
 	if (plane->type != DRM_PLANE_TYPE_CURSOR)
 		domain = amdgpu_display_supported_domains(adev, rbo->flags);
@@ -1373,8 +1372,16 @@ void amdgpu_dm_plane_handle_cursor_update(struct drm_plane *plane,
 		/* turn off cursor */
 		if (crtc_state && crtc_state->stream) {
 			mutex_lock(&adev->dm.dc_lock);
+			amdgpu_dm_ism_commit_event(
+				&amdgpu_crtc->ism,
+				DM_ISM_EVENT_BEGIN_CURSOR_UPDATE);
+
 			dc_stream_program_cursor_position(crtc_state->stream,
 						      &position);
+
+			amdgpu_dm_ism_commit_event(
+				&amdgpu_crtc->ism,
+				DM_ISM_EVENT_END_CURSOR_UPDATE);
 			mutex_unlock(&adev->dm.dc_lock);
 		}
 		return;
@@ -1404,6 +1411,10 @@ void amdgpu_dm_plane_handle_cursor_update(struct drm_plane *plane,
 
 	if (crtc_state->stream) {
 		mutex_lock(&adev->dm.dc_lock);
+		amdgpu_dm_ism_commit_event(
+			&amdgpu_crtc->ism,
+			DM_ISM_EVENT_BEGIN_CURSOR_UPDATE);
+
 		if (!dc_stream_program_cursor_attributes(crtc_state->stream,
 							 &attributes))
 			DRM_ERROR("DC failed to set cursor attributes\n");
@@ -1411,6 +1422,10 @@ void amdgpu_dm_plane_handle_cursor_update(struct drm_plane *plane,
 		if (!dc_stream_program_cursor_position(crtc_state->stream,
 						   &position))
 			DRM_ERROR("DC failed to set cursor position\n");
+
+		amdgpu_dm_ism_commit_event(
+			&amdgpu_crtc->ism,
+			DM_ISM_EVENT_END_CURSOR_UPDATE);
 		mutex_unlock(&adev->dm.dc_lock);
 	}
 }
@@ -1907,7 +1922,8 @@ int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 		drm_plane_create_zpos_immutable_property(plane, 255);
 	}
 
-	if (plane->type == DRM_PLANE_TYPE_PRIMARY &&
+	if ((plane->type == DRM_PLANE_TYPE_PRIMARY ||
+	     plane->type == DRM_PLANE_TYPE_OVERLAY) &&
 	    plane_cap &&
 	    (plane_cap->pixel_format_support.nv12 ||
 	     plane_cap->pixel_format_support.p010)) {

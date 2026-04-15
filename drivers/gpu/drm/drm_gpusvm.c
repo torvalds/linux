@@ -819,7 +819,7 @@ retry:
 
 		if (!(pfns[i] & HMM_PFN_VALID)) {
 			state = DRM_GPUSVM_SCAN_UNPOPULATED;
-			goto err_free;
+			break;
 		}
 
 		page = hmm_pfn_to_page(pfns[i]);
@@ -856,9 +856,9 @@ retry:
 		i += 1ul << drm_gpusvm_hmm_pfn_to_order(pfns[i], i, npages);
 	}
 
-err_free:
 	drm_gpusvm_notifier_unlock(range->gpusvm);
 
+err_free:
 	kvfree(pfns);
 	return state;
 }
@@ -1488,14 +1488,17 @@ map_pages:
 		order = drm_gpusvm_hmm_pfn_to_order(pfns[i], i, npages);
 		if (is_device_private_page(page) ||
 		    is_device_coherent_page(page)) {
+			struct drm_pagemap_zdd *__zdd =
+				drm_pagemap_page_zone_device_data(page);
+
 			if (!ctx->allow_mixed &&
-			    zdd != page->zone_device_data && i > 0) {
+			    zdd != __zdd && i > 0) {
 				err = -EOPNOTSUPP;
 				goto err_unmap;
 			}
-			zdd = page->zone_device_data;
+			zdd = __zdd;
 			if (pagemap != page_pgmap(page)) {
-				if (i > 0) {
+				if (pagemap) {
 					err = -EOPNOTSUPP;
 					goto err_unmap;
 				}
@@ -1572,6 +1575,7 @@ set_seqno:
 	return 0;
 
 err_unmap:
+	svm_pages->flags.has_dma_mapping = true;
 	__drm_gpusvm_unmap_pages(gpusvm, svm_pages, num_dma_mapped);
 	drm_gpusvm_notifier_unlock(gpusvm);
 err_free:

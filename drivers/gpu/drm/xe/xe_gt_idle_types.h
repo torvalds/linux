@@ -3,8 +3,8 @@
  * Copyright © 2023 Intel Corporation
  */
 
-#ifndef _XE_GT_IDLE_SYSFS_TYPES_H_
-#define _XE_GT_IDLE_SYSFS_TYPES_H_
+#ifndef _XE_GT_IDLE_TYPES_H_
+#define _XE_GT_IDLE_TYPES_H_
 
 #include <linux/spinlock.h>
 #include <linux/types.h>
@@ -40,4 +40,4 @@ struct xe_gt_idle {
 	u64 (*idle_residency)(struct xe_guc_pc *pc);
 };
 
-#endif /* _XE_GT_IDLE_SYSFS_TYPES_H_ */
+#endif /* _XE_GT_IDLE_TYPES_H_ */

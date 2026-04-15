@@ -30,6 +30,10 @@ uint32_t amdgpu_atomfirmware_query_firmware_capability(struct amdgpu_device *ade
 bool amdgpu_atomfirmware_gpu_virtualization_supported(struct amdgpu_device *adev);
 void amdgpu_atomfirmware_scratch_regs_init(struct amdgpu_device *adev);
 int amdgpu_atomfirmware_allocate_fb_scratch(struct amdgpu_device *adev);
+int amdgpu_atomfirmware_get_integrated_system_info(struct amdgpu_device *adev,
+	int *vram_width, int *vram_type, int *vram_vendor);
+int amdgpu_atomfirmware_get_umc_info(struct amdgpu_device *adev,
+	int *vram_width, int *vram_type, int *vram_vendor);
 int amdgpu_atomfirmware_get_vram_info(struct amdgpu_device *adev,
 	int *vram_width, int *vram_type, int *vram_vendor);
 int amdgpu_atomfirmware_get_uma_carveout_info(struct amdgpu_device *adev,

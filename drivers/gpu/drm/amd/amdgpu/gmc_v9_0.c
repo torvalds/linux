@@ -660,42 +660,7 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 			gfxhub_client_ids[cid],
 			cid);
 	} else {
-		switch (amdgpu_ip_version(adev, MMHUB_HWIP, 0)) {
-		case IP_VERSION(9, 0, 0):
-			mmhub_cid = cid < ARRAY_SIZE(mmhub_client_ids_vega10) ?
-				mmhub_client_ids_vega10[cid][rw] : NULL;
-			break;
-		case IP_VERSION(9, 3, 0):
-			mmhub_cid = cid < ARRAY_SIZE(mmhub_client_ids_vega12) ?
-				mmhub_client_ids_vega12[cid][rw] : NULL;
-			break;
-		case IP_VERSION(9, 4, 0):
-			mmhub_cid = cid < ARRAY_SIZE(mmhub_client_ids_vega20) ?
-				mmhub_client_ids_vega20[cid][rw] : NULL;
-			break;
-		case IP_VERSION(9, 4, 1):
-			mmhub_cid = cid < ARRAY_SIZE(mmhub_client_ids_arcturus) ?
-				mmhub_client_ids_arcturus[cid][rw] : NULL;
-			break;
-		case IP_VERSION(9, 1, 0):
-		case IP_VERSION(9, 2, 0):
-			mmhub_cid = cid < ARRAY_SIZE(mmhub_client_ids_raven) ?
-				mmhub_client_ids_raven[cid][rw] : NULL;
-			break;
-		case IP_VERSION(1, 5, 0):
-		case IP_VERSION(2, 4, 0):
-			mmhub_cid = cid < ARRAY_SIZE(mmhub_client_ids_renoir) ?
-				mmhub_client_ids_renoir[cid][rw] : NULL;
-			break;
-		case IP_VERSION(1, 8, 0):
-		case IP_VERSION(9, 4, 2):
-			mmhub_cid = cid < ARRAY_SIZE(mmhub_client_ids_aldebaran) ?
-				mmhub_client_ids_aldebaran[cid][rw] : NULL;
-			break;
-		default:
-			mmhub_cid = NULL;
-			break;
-		}
+		mmhub_cid = amdgpu_mmhub_client_name(&adev->mmhub, cid, rw);
 		dev_err(adev->dev, "\t Faulty UTCL2 client ID: %s (0x%x)\n",
 			mmhub_cid ? mmhub_cid : "unknown", cid);
 	}
@@ -1435,6 +1400,52 @@ static void gmc_v9_0_set_umc_funcs(struct amdgpu_device *adev)
 	}
 }
 
+static void gmc_v9_0_init_mmhub_client_info(struct amdgpu_device *adev)
+{
+	switch (amdgpu_ip_version(adev, MMHUB_HWIP, 0)) {
+	case IP_VERSION(9, 0, 0):
+		amdgpu_mmhub_init_client_info(&adev->mmhub,
+					     mmhub_client_ids_vega10,
+					     ARRAY_SIZE(mmhub_client_ids_vega10));
+		break;
+	case IP_VERSION(9, 3, 0):
+		amdgpu_mmhub_init_client_info(&adev->mmhub,
+					     mmhub_client_ids_vega12,
+					     ARRAY_SIZE(mmhub_client_ids_vega12));
+		break;
+	case IP_VERSION(9, 4, 0):
+		amdgpu_mmhub_init_client_info(&adev->mmhub,
+					     mmhub_client_ids_vega20,
+					     ARRAY_SIZE(mmhub_client_ids_vega20));
+		break;
+	case IP_VERSION(9, 4, 1):
+		amdgpu_mmhub_init_client_info(&adev->mmhub,
+					     mmhub_client_ids_arcturus,
+					     ARRAY_SIZE(mmhub_client_ids_arcturus));
+		break;
+	case IP_VERSION(9, 1, 0):
+	case IP_VERSION(9, 2, 0):
+		amdgpu_mmhub_init_client_info(&adev->mmhub,
+					     mmhub_client_ids_raven,
+					     ARRAY_SIZE(mmhub_client_ids_raven));
+		break;
+	case IP_VERSION(1, 5, 0):
+	case IP_VERSION(2, 4, 0):
+		amdgpu_mmhub_init_client_info(&adev->mmhub,
+					     mmhub_client_ids_renoir,
+					     ARRAY_SIZE(mmhub_client_ids_renoir));
+		break;
+	case IP_VERSION(1, 8, 0):
+	case IP_VERSION(9, 4, 2):
+		amdgpu_mmhub_init_client_info(&adev->mmhub,
+					     mmhub_client_ids_aldebaran,
+					     ARRAY_SIZE(mmhub_client_ids_aldebaran));
+		break;
+	default:
+		break;
+	}
+}
+
 static void gmc_v9_0_set_mmhub_funcs(struct amdgpu_device *adev)
 {
 	switch (amdgpu_ip_version(adev, MMHUB_HWIP, 0)) {
@@ -1452,6 +1463,8 @@ static void gmc_v9_0_set_mmhub_funcs(struct amdgpu_device *adev)
 		adev->mmhub.funcs = &mmhub_v1_0_funcs;
 		break;
 	}
+
+	gmc_v9_0_init_mmhub_client_info(adev);
 }
 
 static void gmc_v9_0_set_mmhub_ras_funcs(struct amdgpu_device *adev)
@@ -1810,24 +1823,37 @@ static void gmc_v9_0_save_registers(struct amdgpu_device *adev)
 		adev->gmc.sdpif_register = RREG32_SOC15(DCE, 0, mmDCHUBBUB_SDPIF_MMIO_CNTRL_0);
 }
 
-static void gmc_v9_4_3_init_vram_info(struct amdgpu_device *adev)
+static void gmc_v9_0_init_vram_info(struct amdgpu_device *adev)
 {
 	static const u32 regBIF_BIOS_SCRATCH_4 = 0x50;
+	int dev_var = adev->pdev->device & 0xF;
 	u32 vram_info;
 
-	adev->gmc.vram_type = AMDGPU_VRAM_TYPE_HBM;
-	adev->gmc.vram_width = 128 * 64;
+	if (adev->gmc.is_app_apu) {
+		adev->gmc.vram_type = AMDGPU_VRAM_TYPE_HBM;
+		adev->gmc.vram_width = 128 * 64;
+	} else if (adev->flags & AMD_IS_APU) {
+		adev->gmc.vram_type = AMDGPU_VRAM_TYPE_DDR4;
+		adev->gmc.vram_width = 64 * 64;
+	} else if (amdgpu_is_multi_aid(adev)) {
+		adev->gmc.vram_type = AMDGPU_VRAM_TYPE_HBM;
+		adev->gmc.vram_width = 128 * 64;
 
-	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 5, 0))
-		adev->gmc.vram_type = AMDGPU_VRAM_TYPE_HBM3E;
+		if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 5, 0))
+			adev->gmc.vram_type = AMDGPU_VRAM_TYPE_HBM3E;
 
-	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 4) &&
-		adev->rev_id == 0x3)
-		adev->gmc.vram_type = AMDGPU_VRAM_TYPE_HBM3E;
+		if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 4) &&
+		    adev->rev_id == 0x3)
+			adev->gmc.vram_type = AMDGPU_VRAM_TYPE_HBM3E;
 
-	if (!(adev->flags & AMD_IS_APU) && !amdgpu_sriov_vf(adev)) {
-		vram_info = RREG32(regBIF_BIOS_SCRATCH_4);
-		adev->gmc.vram_vendor = vram_info & 0xF;
+		if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3) &&
+		    (dev_var == 0x5))
+			adev->gmc.vram_type = AMDGPU_VRAM_TYPE_HBM3E;
+
+		if (!(adev->flags & AMD_IS_APU) && !amdgpu_sriov_vf(adev)) {
+			vram_info = RREG32(regBIF_BIOS_SCRATCH_4);
+			adev->gmc.vram_vendor = vram_info & 0xF;
+		}
 	}
 }
 
@@ -1843,19 +1869,11 @@ static int gmc_v9_0_sw_init(struct amdgpu_ip_block *ip_block)
 
 	spin_lock_init(&adev->gmc.invalidate_lock);
 
-	if (amdgpu_is_multi_aid(adev)) {
-		gmc_v9_4_3_init_vram_info(adev);
-	} else if (!adev->bios) {
-		if (adev->flags & AMD_IS_APU) {
-			adev->gmc.vram_type = AMDGPU_VRAM_TYPE_DDR4;
-			adev->gmc.vram_width = 64 * 64;
-		} else {
-			adev->gmc.vram_type = AMDGPU_VRAM_TYPE_HBM;
-			adev->gmc.vram_width = 128 * 64;
-		}
+	if (!adev->bios) {
+		gmc_v9_0_init_vram_info(adev);
 	} else {
-		r = amdgpu_atomfirmware_get_vram_info(adev,
-			&vram_width, &vram_type, &vram_vendor);
+		r = amdgpu_gmc_get_vram_info(adev,
+				&vram_width, &vram_type, &vram_vendor);
 		if (amdgpu_sriov_vf(adev))
 			/* For Vega10 SR-IOV, vram_width can't be read from ATOM as RAVEN,
 			 * and DF related registers is not readable, seems hardcord is the
@@ -1883,6 +1901,7 @@ static int gmc_v9_0_sw_init(struct amdgpu_ip_block *ip_block)
 		adev->gmc.vram_type = vram_type;
 		adev->gmc.vram_vendor = vram_vendor;
 	}
+
 	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(9, 1, 0):
 	case IP_VERSION(9, 2, 2):

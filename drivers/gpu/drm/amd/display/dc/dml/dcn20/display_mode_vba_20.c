@@ -501,6 +501,8 @@ static bool CalculatePrefetchSchedule(
 		double *VUpdateWidthPix,
 		double *VReadyOffsetPix)
 {
+	(void)mode_lib;
+
 	bool MyError = false;
 	unsigned int DPPCycles, DISPCLKCycles;
 	double DSTTotalPixelsAfterScaler, TotalRepeaterDelayTime;
@@ -878,6 +880,7 @@ static unsigned int CalculateVMAndRowBytes(
 		unsigned int *dpte_row_height,
 		unsigned int *meta_row_height)
 {
+	(void)ViewportWidth;
 	unsigned int MetaRequestHeight;
 	unsigned int MetaRequestWidth;
 	unsigned int MetaSurfWidth;
@@ -2953,6 +2956,7 @@ static double CalculateRemoteSurfaceFlipDelay(
 		double *TInitXFill,
 		double *TslvChk)
 {
+	(void)mode_lib;
 	double TSlvSetup, AvgfillRate, result;
 
 	*SrcActiveDrainRate = VRatio * SwathWidth * Bpp / LineTime;

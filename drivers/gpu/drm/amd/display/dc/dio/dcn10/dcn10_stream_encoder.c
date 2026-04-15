@@ -249,6 +249,7 @@ void enc1_stream_encoder_dp_set_stream_attribute(
 	bool use_vsc_sdp_for_colorimetry,
 	uint32_t enable_sdp_splitting)
 {
+	(void)enable_sdp_splitting;
 	uint32_t h_active_start;
 	uint32_t v_active_start;
 	uint32_t misc0 = 0;
@@ -783,6 +784,7 @@ void enc1_stream_encoder_send_immediate_sdp_message(
 	const uint8_t *custom_sdp_message,
 	unsigned int sdp_message_size)
 {
+	(void)sdp_message_size;
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 	uint32_t value = 0;
 

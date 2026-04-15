@@ -63,6 +63,8 @@ struct xe_sched_job {
 	u64 sample_timestamp;
 	/** @ring_ops_flush_tlb: The ring ops need to flush TLB before payload. */
 	bool ring_ops_flush_tlb;
+	/** @ring_ops_force_reset: The ring ops need to trigger a reset before payload. */
+	bool ring_ops_force_reset;
 	/** @ggtt: mapped in ggtt. */
 	bool ggtt;
 	/** @restore_replay: job being replayed for restore */

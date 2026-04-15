@@ -59,6 +59,19 @@ static int xe_pagefault_begin(struct drm_exec *exec, struct xe_vma *vma,
 	if (!bo)
 		return 0;
 
+	/*
+	 * Skip validate/migrate for DONTNEED/purged BOs - repopulating
+	 * their pages would prevent the shrinker from reclaiming them.
+	 * For non-scratch VMs there is no safe fallback so fail the fault.
+	 * For scratch VMs let xe_vma_rebind() run normally; it will install
+	 * scratch PTEs so the GPU gets safe zero reads instead of faulting.
+	 */
+	if (unlikely(xe_bo_madv_is_dontneed(bo) || xe_bo_is_purged(bo))) {
+		if (!xe_vm_has_scratch(vm))
+			return -EACCES;
+		return 0;
+	}
+
 	return need_vram_move ? xe_bo_migrate(bo, vram->placement, NULL, exec) :
 		xe_bo_validate(bo, vm, true, exec);
 }
@@ -136,7 +149,7 @@ unlock_dma_resv:
 static bool
 xe_pagefault_access_is_atomic(enum xe_pagefault_access_type access_type)
 {
-	return access_type == XE_PAGEFAULT_ACCESS_TYPE_ATOMIC;
+	return (access_type & XE_PAGEFAULT_ACCESS_TYPE_MASK) == XE_PAGEFAULT_ACCESS_TYPE_ATOMIC;
 }
 
 static struct xe_vm *xe_pagefault_asid_to_vm(struct xe_device *xe, u32 asid)
@@ -145,7 +158,7 @@ static struct xe_vm *xe_pagefault_asid_to_vm(struct xe_device *xe, u32 asid)
 
 	down_read(&xe->usm.lock);
 	vm = xa_load(&xe->usm.asid_to_vm, asid);
-	if (vm && xe_vm_in_fault_mode(vm))
+	if (vm && (xe_vm_in_fault_mode(vm) || xe_vm_has_scratch(vm)))
 		xe_vm_get(vm);
 	else
 		vm = ERR_PTR(-EINVAL);
@@ -164,7 +177,7 @@ static int xe_pagefault_service(struct xe_pagefault *pf)
 	bool atomic;
 
 	/* Producer flagged this fault to be nacked */
-	if (pf->consumer.fault_level == XE_PAGEFAULT_LEVEL_NACK)
+	if (pf->consumer.fault_type_level == XE_PAGEFAULT_TYPE_LEVEL_NACK)
 		return -EFAULT;
 
 	vm = xe_pagefault_asid_to_vm(xe, pf->consumer.asid);
@@ -231,20 +244,48 @@ static void xe_pagefault_print(struct xe_pagefault *pf)
 {
 	xe_gt_info(pf->gt, "\n\tASID: %d\n"
 		   "\tFaulted Address: 0x%08x%08x\n"
-		   "\tFaultType: %d\n"
-		   "\tAccessType: %d\n"
-		   "\tFaultLevel: %d\n"
+		   "\tFaultType: %lu\n"
+		   "\tAccessType: %lu\n"
+		   "\tFaultLevel: %lu\n"
 		   "\tEngineClass: %d %s\n"
 		   "\tEngineInstance: %d\n",
 		   pf->consumer.asid,
 		   upper_32_bits(pf->consumer.page_addr),
 		   lower_32_bits(pf->consumer.page_addr),
-		   pf->consumer.fault_type,
-		   pf->consumer.access_type,
-		   pf->consumer.fault_level,
+		   FIELD_GET(XE_PAGEFAULT_TYPE_MASK,
+			     pf->consumer.fault_type_level),
+		   FIELD_GET(XE_PAGEFAULT_ACCESS_TYPE_MASK,
+			     pf->consumer.access_type),
+		   FIELD_GET(XE_PAGEFAULT_LEVEL_MASK,
+			     pf->consumer.fault_type_level),
 		   pf->consumer.engine_class,
 		   xe_hw_engine_class_to_str(pf->consumer.engine_class),
 		   pf->consumer.engine_instance);
+}
+
+static void xe_pagefault_save_to_vm(struct xe_device *xe, struct xe_pagefault *pf)
+{
+	struct xe_vm *vm;
+
+	/*
+	 * Pagefault may be asociated to VM that is not in fault mode.
+	 * Perform asid_to_vm behavior, except if VM is not in fault
+	 * mode, return VM anyways.
+	 */
+	down_read(&xe->usm.lock);
+	vm = xa_load(&xe->usm.asid_to_vm, pf->consumer.asid);
+	if (vm)
+		xe_vm_get(vm);
+	else
+		vm = ERR_PTR(-EINVAL);
+	up_read(&xe->usm.lock);
+
+	if (IS_ERR(vm))
+		return;
+
+	xe_vm_add_fault_entry_pf(vm, pf);
+
+	xe_vm_put(vm);
 }
 
 static void xe_pagefault_queue_work(struct work_struct *w)
@@ -265,9 +306,16 @@ static void xe_pagefault_queue_work(struct work_struct *w)
 
 		err = xe_pagefault_service(&pf);
 		if (err) {
-			xe_pagefault_print(&pf);
-			xe_gt_info(pf.gt, "Fault response: Unsuccessful %pe\n",
-				   ERR_PTR(err));
+			xe_pagefault_save_to_vm(gt_to_xe(pf.gt), &pf);
+			if (!(pf.consumer.access_type & XE_PAGEFAULT_ACCESS_PREFETCH)) {
+				xe_pagefault_print(&pf);
+				xe_gt_info(pf.gt, "Fault response: Unsuccessful %pe\n",
+					   ERR_PTR(err));
+			} else {
+				xe_gt_stats_incr(pf.gt, XE_GT_STATS_ID_INVALID_PREFETCH_PAGEFAULT_COUNT, 1);
+				xe_gt_dbg(pf.gt, "Prefetch Fault response: Unsuccessful %pe\n",
+					  ERR_PTR(err));
+			}
 		}
 
 		pf.producer.ops->ack_fault(&pf, err);

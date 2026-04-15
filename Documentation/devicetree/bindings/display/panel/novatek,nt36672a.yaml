@@ -47,9 +47,6 @@ properties:
   vddneg-supply:
     description: phandle of the negative boost supply regulator
 
-  port: true
-  backlight: true
-
 required:
   - compatible
   - reg

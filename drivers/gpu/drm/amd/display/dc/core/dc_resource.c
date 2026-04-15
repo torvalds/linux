@@ -78,6 +78,7 @@
 #include "dcn351/dcn351_resource.h"
 #include "dcn36/dcn36_resource.h"
 #include "dcn401/dcn401_resource.h"
+#include "dcn42/dcn42_resource.h"
 #if defined(CONFIG_DRM_AMD_DC_FP)
 #include "dc_spl_translate.h"
 #endif
@@ -252,6 +253,9 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 			ASICREV_IS_GC_12_0_0_A0(asic_id.hw_internal_rev))
 			dc_version = DCN_VERSION_4_01;
 		break;
+	case AMDGPU_FAMILY_GC_11_5_4:
+			dc_version = DCN_VERSION_4_2;
+	break;
 	default:
 		dc_version = DCE_VERSION_UNKNOWN;
 		break;
@@ -367,6 +371,9 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 		break;
 	case DCN_VERSION_4_01:
 		res_pool = dcn401_create_resource_pool(init_data, dc);
+		break;
+	case DCN_VERSION_4_2:
+		res_pool = dcn42_create_resource_pool(init_data, dc);
 		break;
 #endif /* CONFIG_DRM_AMD_DC_FP */
 	default:
@@ -742,10 +749,10 @@ struct clock_source *resource_find_used_clk_src_for_sharing(
 	return NULL;
 }
 
-static enum pixel_format convert_pixel_format_to_dalsurface(
+static enum dc_pixel_format convert_pixel_format_to_dalsurface(
 		enum surface_pixel_format surface_pixel_format)
 {
-	enum pixel_format dal_pixel_format = PIXEL_FORMAT_UNKNOWN;
+	enum dc_pixel_format dal_pixel_format = PIXEL_FORMAT_UNKNOWN;
 
 	switch (surface_pixel_format) {
 	case SURFACE_PIXEL_FORMAT_GRPH_PALETA_256_COLORS:
@@ -1741,6 +1748,7 @@ enum dc_status resource_build_scaling_params_for_context(
 	const struct dc  *dc,
 	struct dc_state *context)
 {
+	(void)dc;
 	int i;
 
 	for (i = 0; i < MAX_PIPES; i++) {
@@ -1818,6 +1826,7 @@ int resource_find_free_pipe_used_as_sec_opp_head_by_cur_otg_master(
 		struct resource_context *new_res_ctx,
 		const struct pipe_ctx *cur_otg_master)
 {
+	(void)cur_res_ctx;
 	const struct pipe_ctx *cur_sec_opp_head = cur_otg_master->next_odm_pipe;
 	struct pipe_ctx *new_pipe;
 	int free_pipe_idx = FREE_PIPE_INDEX_NOT_FOUND;
@@ -1839,6 +1848,7 @@ int resource_find_free_pipe_used_in_cur_mpc_blending_tree(
 		struct resource_context *new_res_ctx,
 		const struct pipe_ctx *cur_opp_head)
 {
+	(void)cur_res_ctx;
 	const struct pipe_ctx *cur_sec_dpp = cur_opp_head->bottom_pipe;
 	struct pipe_ctx *new_pipe;
 	int free_pipe_idx = FREE_PIPE_INDEX_NOT_FOUND;
@@ -2424,7 +2434,6 @@ static void resource_log_pipe_for_stream(struct dc *dc, struct dc_state *state,
 
 	int slice_idx, dpp_idx, plane_idx, slice_count, dpp_count;
 	bool is_primary;
-	DC_LOGGER_INIT(dc->ctx->logger);
 
 	slice_count = resource_get_opp_heads_for_otg_master(otg_master,
 			&state->res_ctx, opp_heads);
@@ -2935,6 +2944,7 @@ enum dc_status resource_add_otg_master_for_stream_output(struct dc_state *new_ct
 		const struct resource_pool *pool,
 		struct dc_stream_state *stream)
 {
+	(void)pool;
 	struct dc *dc = stream->ctx->dc;
 
 	return dc->res_pool->funcs->add_stream_to_ctx(dc, new_ctx, stream);
@@ -3017,6 +3027,7 @@ static bool add_plane_to_opp_head_pipes(struct pipe_ctx *otg_master_pipe,
 		struct dc_plane_state *plane_state,
 		struct dc_state *context)
 {
+	(void)context;
 	struct pipe_ctx *opp_head_pipe = otg_master_pipe;
 
 	while (opp_head_pipe) {
@@ -3609,6 +3620,7 @@ static struct hpo_dp_stream_encoder *find_first_free_match_hpo_dp_stream_enc_for
 		const struct resource_pool *pool,
 		struct dc_stream_state *stream)
 {
+	(void)stream;
 	int i;
 
 	for (i = 0; i < pool->hpo_dp_stream_enc_count; i++) {
@@ -3628,6 +3640,7 @@ static struct audio *find_first_free_audio(
 		enum engine_id id,
 		enum dce_version dc_version)
 {
+	(void)dc_version;
 	int i, available_audio_count;
 
 	if (id == ENGINE_ID_UNKNOWN)
@@ -5234,7 +5247,7 @@ unsigned int resource_pixel_format_to_bpp(enum surface_pixel_format format)
 		return 64;
 	default:
 		ASSERT_CRITICAL(false);
-		return -1;
+		return UINT_MAX;
 	}
 }
 static unsigned int get_max_audio_sample_rate(struct audio_mode *modes)

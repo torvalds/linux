@@ -556,7 +556,7 @@ static void vc4_free_object(struct drm_gem_object *gem_bo)
 	mutex_lock(&vc4->bo_lock);
 	/* If the object references someone else's memory, we can't cache it.
 	 */
-	if (gem_bo->import_attach) {
+	if (drm_gem_is_imported(gem_bo)) {
 		vc4_bo_destroy(bo);
 		goto out;
 	}

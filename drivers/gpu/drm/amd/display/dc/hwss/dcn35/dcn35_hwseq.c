@@ -60,15 +60,15 @@
 #include "dcn20/dcn20_hwseq.h"
 #include "dc_state_priv.h"
 
-#define DC_LOGGER_INIT(logger) \
-	struct dal_logger *dc_logger = logger
+#define DC_LOGGER \
+	dc_ctx->logger
+#define DC_LOGGER_INIT(ctx) \
+	struct dc_context *dc_ctx = ctx
 
 #define CTX \
 	hws->ctx
 #define REG(reg)\
 	hws->regs->reg
-#define DC_LOGGER \
-	dc_logger
 
 
 #undef FN
@@ -331,7 +331,7 @@ static void update_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 	struct pipe_ctx *odm_pipe;
 	int opp_cnt = 1;
 
-	DC_LOGGER_INIT(stream->ctx->logger);
+	DC_LOGGER_INIT(stream->ctx);
 
 	ASSERT(dsc);
 	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
@@ -428,6 +428,7 @@ static unsigned int get_odm_config(struct pipe_ctx *pipe_ctx, unsigned int *opp_
 
 void dcn35_update_odm(struct dc *dc, struct dc_state *context, struct pipe_ctx *pipe_ctx)
 {
+	(void)context;
 	struct pipe_ctx *odm_pipe;
 	int opp_cnt = 0;
 	int opp_inst[MAX_PIPES] = {0};
@@ -520,7 +521,7 @@ void dcn35_power_down_on_boot(struct dc *dc)
 {
 	struct dc_link *edp_links[MAX_NUM_EDP];
 	struct dc_link *edp_link = NULL;
-	int edp_num;
+	unsigned int edp_num;
 	int i = 0;
 
 	dc_get_edp_links(dc, edp_links, &edp_num);
@@ -816,6 +817,7 @@ void dcn35_init_pipes(struct dc *dc, struct dc_state *context)
 void dcn35_enable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx,
 			       struct dc_state *context)
 {
+	(void)context;
 	struct dpp *dpp = pipe_ctx->plane_res.dpp;
 
 	/* enable DCFCLK current DCHUB */
@@ -897,7 +899,7 @@ void dcn35_disable_plane(struct dc *dc, struct dc_state *state, struct pipe_ctx 
 	bool is_phantom = dc_state_get_pipe_subvp_type(state, pipe_ctx) == SUBVP_PHANTOM;
 	struct timing_generator *tg = is_phantom ? pipe_ctx->stream_res.tg : NULL;
 
-	DC_LOGGER_INIT(dc->ctx->logger);
+	DC_LOGGER_INIT(dc->ctx);
 
 	if (!pipe_ctx->plane_res.hubp || pipe_ctx->plane_res.hubp->power_gated)
 		return;
@@ -921,7 +923,7 @@ void dcn35_calc_blocks_to_gate(struct dc *dc, struct dc_state *context,
 	bool hpo_frl_stream_enc_acquired = false;
 	bool hpo_dp_stream_enc_acquired = false;
 	int i = 0, j = 0;
-	int edp_num = 0;
+	unsigned int edp_num = 0;
 	struct dc_link *edp_links[MAX_NUM_EDP] = { NULL };
 
 	memset(update_state, 0, sizeof(struct pg_block_update));

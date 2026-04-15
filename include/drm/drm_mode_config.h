@@ -601,6 +601,10 @@ struct drm_mode_config {
 	 */
 	struct drm_property *tile_property;
 	/**
+	 * @panel_type_property: Default connector property for panel type
+	 */
+	struct drm_property *panel_type_property;
+	/**
 	 * @link_status_property: Default connector property for link status
 	 * of a connector
 	 */
@@ -832,6 +836,11 @@ struct drm_mode_config {
 	 * gamma LUT as supported by the driver (read-only).
 	 */
 	struct drm_property *gamma_lut_size_property;
+	/**
+	 * @background_color_property: Optional CRTC property to set the
+	 * background color.
+	 */
+	struct drm_property *background_color_property;
 
 	/**
 	 * @suggested_x_property: Optional connector property with a hint for

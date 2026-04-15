@@ -233,18 +233,46 @@ static void panel_mipi_dbi_commands_execute(struct mipi_dbi *dbi,
 	}
 }
 
-static void panel_mipi_dbi_enable(struct drm_simple_display_pipe *pipe,
-				  struct drm_crtc_state *crtc_state,
-				  struct drm_plane_state *plane_state)
+struct panel_mipi_dbi_device {
+	struct mipi_dbi_dev dbidev;
+
+	struct drm_plane plane;
+	struct drm_crtc crtc;
+	struct drm_encoder encoder;
+	struct drm_connector connector;
+};
+
+static struct panel_mipi_dbi_device *to_panel_mipi_dbi_device(struct drm_device *dev)
 {
-	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(pipe->crtc.dev);
+	return container_of(drm_to_mipi_dbi_dev(dev), struct panel_mipi_dbi_device, dbidev);
+}
+
+static const u64 panel_mipi_dbi_plane_format_modifiers[] = {
+	DRM_MIPI_DBI_PLANE_FORMAT_MODIFIERS,
+};
+
+static const struct drm_plane_helper_funcs panel_mipi_dbi_plane_helper_funcs = {
+	DRM_MIPI_DBI_PLANE_HELPER_FUNCS,
+};
+
+static const struct drm_plane_funcs panel_mipi_dbi_plane_funcs = {
+	DRM_MIPI_DBI_PLANE_FUNCS,
+	.destroy = drm_plane_cleanup,
+};
+
+static void panel_mipi_dbi_crtc_helper_atomic_enable(struct drm_crtc *crtc,
+						     struct drm_atomic_state *state)
+{
+	struct drm_device *drm = crtc->dev;
+	struct panel_mipi_dbi_device *panel_mipi_dbi = to_panel_mipi_dbi_device(drm);
+	struct mipi_dbi_dev *dbidev = &panel_mipi_dbi->dbidev;
 	struct mipi_dbi *dbi = &dbidev->dbi;
 	int ret, idx;
 
-	if (!drm_dev_enter(pipe->crtc.dev, &idx))
+	if (!drm_dev_enter(drm, &idx))
 		return;
 
-	drm_dbg(pipe->crtc.dev, "\n");
+	drm_dbg(drm, "\n");
 
 	ret = mipi_dbi_poweron_conditional_reset(dbidev);
 	if (ret < 0)
@@ -252,13 +280,40 @@ static void panel_mipi_dbi_enable(struct drm_simple_display_pipe *pipe,
 	if (!ret)
 		panel_mipi_dbi_commands_execute(dbi, dbidev->driver_private);
 
-	mipi_dbi_enable_flush(dbidev, crtc_state, plane_state);
+	backlight_enable(dbidev->backlight);
 out_exit:
 	drm_dev_exit(idx);
 }
 
-static const struct drm_simple_display_pipe_funcs panel_mipi_dbi_pipe_funcs = {
-	DRM_MIPI_DBI_SIMPLE_DISPLAY_PIPE_FUNCS(panel_mipi_dbi_enable),
+static const struct drm_crtc_helper_funcs panel_mipi_dbi_crtc_helper_funcs = {
+	DRM_MIPI_DBI_CRTC_HELPER_FUNCS,
+	.atomic_enable = panel_mipi_dbi_crtc_helper_atomic_enable,
+};
+
+static const struct drm_crtc_funcs panel_mipi_dbi_crtc_funcs = {
+	DRM_MIPI_DBI_CRTC_FUNCS,
+	.destroy = drm_crtc_cleanup,
+};
+
+static const struct drm_encoder_funcs panel_mipi_dbi_encoder_funcs = {
+	.destroy = drm_encoder_cleanup,
+};
+
+static const struct drm_connector_helper_funcs panel_mipi_dbi_connector_helper_funcs = {
+	DRM_MIPI_DBI_CONNECTOR_HELPER_FUNCS,
+};
+
+static const struct drm_connector_funcs panel_mipi_dbi_connector_funcs = {
+	DRM_MIPI_DBI_CONNECTOR_FUNCS,
+	.destroy = drm_connector_cleanup,
+};
+
+static const struct drm_mode_config_helper_funcs panel_mipi_dbi_mode_config_helper_funcs = {
+	DRM_MIPI_DBI_MODE_CONFIG_HELPER_FUNCS,
+};
+
+static const struct drm_mode_config_funcs panel_mipi_dbi_mode_config_funcs = {
+	DRM_MIPI_DBI_MODE_CONFIG_FUNCS,
 };
 
 DEFINE_DRM_GEM_DMA_FOPS(panel_mipi_dbi_fops);
@@ -317,20 +372,27 @@ static int panel_mipi_dbi_get_mode(struct mipi_dbi_dev *dbidev, struct drm_displ
 static int panel_mipi_dbi_spi_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
-	struct drm_display_mode mode;
+	struct panel_mipi_dbi_device *panel_mipi_dbi;
 	struct mipi_dbi_dev *dbidev;
 	struct drm_device *drm;
+	struct drm_display_mode mode;
 	struct mipi_dbi *dbi;
 	struct gpio_desc *dc;
 	unsigned int bpp;
 	size_t buf_size;
 	u32 formats[2];
+	struct drm_plane *plane;
+	struct drm_crtc *crtc;
+	struct drm_encoder *encoder;
+	struct drm_connector *connector;
 	int ret;
 
-	dbidev = devm_drm_dev_alloc(dev, &panel_mipi_dbi_driver, struct mipi_dbi_dev, drm);
-	if (IS_ERR(dbidev))
-		return PTR_ERR(dbidev);
-
+	panel_mipi_dbi = devm_drm_dev_alloc(dev, &panel_mipi_dbi_driver,
+					    struct panel_mipi_dbi_device,
+					    dbidev.drm);
+	if (IS_ERR(panel_mipi_dbi))
+		return PTR_ERR(panel_mipi_dbi);
+	dbidev = &panel_mipi_dbi->dbidev;
 	dbi = &dbidev->dbi;
 	drm = &dbidev->drm;
 
@@ -377,9 +439,54 @@ static int panel_mipi_dbi_spi_probe(struct spi_device *spi)
 		return ret;
 
 	buf_size = DIV_ROUND_UP(mode.hdisplay * mode.vdisplay * bpp, 8);
-	ret = mipi_dbi_dev_init_with_formats(dbidev, &panel_mipi_dbi_pipe_funcs,
-					     formats, ARRAY_SIZE(formats),
-					     &mode, 0, buf_size);
+	ret = drm_mipi_dbi_dev_init(dbidev, &mode, formats[0], 0, buf_size);
+	if (ret)
+		return ret;
+
+	ret = drmm_mode_config_init(drm);
+	if (ret)
+		return ret;
+
+	drm->mode_config.min_width = dbidev->mode.hdisplay;
+	drm->mode_config.max_width = dbidev->mode.hdisplay;
+	drm->mode_config.min_height = dbidev->mode.vdisplay;
+	drm->mode_config.max_height = dbidev->mode.vdisplay;
+	drm->mode_config.funcs = &panel_mipi_dbi_mode_config_funcs;
+	drm->mode_config.preferred_depth = bpp;
+	drm->mode_config.helper_private = &panel_mipi_dbi_mode_config_helper_funcs;
+
+	plane = &panel_mipi_dbi->plane;
+	ret = drm_universal_plane_init(drm, plane, 0, &panel_mipi_dbi_plane_funcs,
+				       formats, ARRAY_SIZE(formats),
+				       panel_mipi_dbi_plane_format_modifiers,
+				       DRM_PLANE_TYPE_PRIMARY, NULL);
+	if (ret)
+		return ret;
+	drm_plane_helper_add(plane, &panel_mipi_dbi_plane_helper_funcs);
+	drm_plane_enable_fb_damage_clips(plane);
+
+	crtc = &panel_mipi_dbi->crtc;
+	ret = drm_crtc_init_with_planes(drm, crtc, plane, NULL, &panel_mipi_dbi_crtc_funcs,
+					NULL);
+	if (ret)
+		return ret;
+	drm_crtc_helper_add(crtc, &panel_mipi_dbi_crtc_helper_funcs);
+
+	encoder = &panel_mipi_dbi->encoder;
+	ret = drm_encoder_init(drm, encoder, &panel_mipi_dbi_encoder_funcs,
+			       DRM_MODE_ENCODER_NONE, NULL);
+	if (ret)
+		return ret;
+	encoder->possible_crtcs = drm_crtc_mask(crtc);
+
+	connector = &panel_mipi_dbi->connector;
+	ret = drm_connector_init(drm, connector, &panel_mipi_dbi_connector_funcs,
+				 DRM_MODE_CONNECTOR_SPI);
+	if (ret)
+		return ret;
+	drm_connector_helper_add(connector, &panel_mipi_dbi_connector_helper_funcs);
+
+	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret)
 		return ret;
 

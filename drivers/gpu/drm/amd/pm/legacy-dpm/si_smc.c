@@ -65,7 +65,7 @@ int amdgpu_si_copy_bytes_to_smc(struct amdgpu_device *adev,
 
 	addr = smc_start_address;
 
-	spin_lock_irqsave(&adev->smc_idx_lock, flags);
+	spin_lock_irqsave(&adev->reg.smc.lock, flags);
 	while (byte_count >= 4) {
 		/* SMC address space is BE */
 		data = (src[0] << 24) | (src[1] << 16) | (src[2] << 8) | src[3];
@@ -109,7 +109,7 @@ int amdgpu_si_copy_bytes_to_smc(struct amdgpu_device *adev,
 	}
 
 done:
-	spin_unlock_irqrestore(&adev->smc_idx_lock, flags);
+	spin_unlock_irqrestore(&adev->reg.smc.lock, flags);
 
 	return ret;
 }
@@ -252,7 +252,7 @@ int amdgpu_si_load_smc_ucode(struct amdgpu_device *adev, u32 limit)
 	if (ucode_size & 3)
 		return -EINVAL;
 
-	spin_lock_irqsave(&adev->smc_idx_lock, flags);
+	spin_lock_irqsave(&adev->reg.smc.lock, flags);
 	WREG32(mmSMC_IND_INDEX_0, ucode_start_address);
 	WREG32_P(mmSMC_IND_ACCESS_CNTL, SMC_IND_ACCESS_CNTL__AUTO_INCREMENT_IND_0_MASK, ~SMC_IND_ACCESS_CNTL__AUTO_INCREMENT_IND_0_MASK);
 	while (ucode_size >= 4) {
@@ -265,7 +265,7 @@ int amdgpu_si_load_smc_ucode(struct amdgpu_device *adev, u32 limit)
 		ucode_size -= 4;
 	}
 	WREG32_P(mmSMC_IND_ACCESS_CNTL, 0, ~SMC_IND_ACCESS_CNTL__AUTO_INCREMENT_IND_0_MASK);
-	spin_unlock_irqrestore(&adev->smc_idx_lock, flags);
+	spin_unlock_irqrestore(&adev->reg.smc.lock, flags);
 
 	return 0;
 }
@@ -276,11 +276,11 @@ int amdgpu_si_read_smc_sram_dword(struct amdgpu_device *adev, u32 smc_address,
 	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&adev->smc_idx_lock, flags);
+	spin_lock_irqsave(&adev->reg.smc.lock, flags);
 	ret = si_set_smc_sram_address(adev, smc_address, limit);
 	if (ret == 0)
 		*value = RREG32(mmSMC_IND_DATA_0);
-	spin_unlock_irqrestore(&adev->smc_idx_lock, flags);
+	spin_unlock_irqrestore(&adev->reg.smc.lock, flags);
 
 	return ret;
 }
@@ -291,11 +291,11 @@ int amdgpu_si_write_smc_sram_dword(struct amdgpu_device *adev, u32 smc_address,
 	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&adev->smc_idx_lock, flags);
+	spin_lock_irqsave(&adev->reg.smc.lock, flags);
 	ret = si_set_smc_sram_address(adev, smc_address, limit);
 	if (ret == 0)
 		WREG32(mmSMC_IND_DATA_0, value);
-	spin_unlock_irqrestore(&adev->smc_idx_lock, flags);
+	spin_unlock_irqrestore(&adev->reg.smc.lock, flags);
 
 	return ret;
 }

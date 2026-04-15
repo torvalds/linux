@@ -49,12 +49,6 @@ properties:
       If not set, the controller is in 3-line SPI mode.
       Disallowed for DSI.
 
-  port: true
-  reset-gpios: true
-  rotation: true
-
-  backlight: true
-
 required:
   - compatible
   - reg

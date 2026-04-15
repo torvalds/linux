@@ -45,6 +45,7 @@
 
 static bool dwb3_get_caps(struct dwbc *dwbc, struct dwb_caps *caps)
 {
+	(void)dwbc;
 	if (caps) {
 		caps->adapter_id = 0;	/* we only support 1 adapter currently */
 		caps->hw_version = DCN_VERSION_3_0;

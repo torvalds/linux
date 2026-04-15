@@ -45,6 +45,4 @@
 #define   ADPA_VSYNC_ACTIVE_HIGH		REG_BIT(4)
 #define   ADPA_HSYNC_ACTIVE_HIGH		REG_BIT(3)
 
-#define _VGA_MSR_WRITE _MMIO(0x3c2)
-
 #endif /* __INTEL_CRT_REGS_H__ */

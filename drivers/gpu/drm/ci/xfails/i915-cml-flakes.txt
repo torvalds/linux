@@ -32,3 +32,10 @@ kms_async_flips@crc
 # IGT Version: 1.29-g33adea9eb
 # Linux Version: 6.13.0-rc2
 gen9_exec_parse@unaligned-access
+
+# Board Name: asus-C436FA-Flip-hatch
+# Bug Report: https://gitlab.freedesktop.org/drm/i915/kernel/-/issues/14625
+# Failure Rate: 100
+# IGT Version: 2.1-g26ddb59c1
+# Linux Version: 6.16.0-rc2
+perf_pmu@most-busy-check-all

@@ -7,13 +7,16 @@
 
 .lava-test:
   extends:
-    - .container+build-rules
+    - .build-rules
     - .allow_failure_lockdep
   timeout: "1h30m"
   rules:
     - !reference [.scheduled_pipeline-rules, rules]
     - !reference [.collabora-farm-rules, rules]
     - when: on_success
+  before_script:
+    #  lava-submit.sh is a part of the archive, unlike Mesa CI
+    - eval "$S3_JWT_FILE_SCRIPT"
   script:
     # Note: Build dir (and thus install) may be dirty due to GIT_STRATEGY
     - rm -rf install
@@ -32,9 +35,7 @@
   dependencies:
     - testing:arm32
   needs:
-    - alpine/x86_64_lava_ssh_client
     - debian/arm32_test-gl
-    - python-artifacts
     - testing:arm32
     - igt:arm32
 
@@ -48,9 +49,7 @@
   dependencies:
     - testing:arm64
   needs:
-    - alpine/x86_64_lava_ssh_client
     - debian/arm64_test-gl
-    - python-artifacts
     - testing:arm64
     - igt:arm64
 
@@ -64,36 +63,9 @@
   dependencies:
     - testing:x86_64
   needs:
-    - alpine/x86_64_lava_ssh_client
     - debian/x86_64_test-gl
-    - python-artifacts
     - testing:x86_64
     - igt:x86_64
-
-.baremetal-igt-arm64:
-  extends:
-    - .baremetal-test-arm64-gl
-    - .use-debian/baremetal_arm64_test-gl
-    - .allow_failure_lockdep
-  timeout: "1h30m"
-  rules:
-    - !reference [.scheduled_pipeline-rules, rules]
-    - !reference [.google-freedreno-farm-rules, rules]
-    - when: on_success
-  variables:
-    FDO_CI_CONCURRENT: 10
-    HWCI_TEST_SCRIPT: "/install/igt_runner.sh"
-    S3_ARTIFACT_NAME: "arm64/kernel-files"
-    BM_KERNEL: https://${PIPELINE_ARTIFACTS_BASE}/arm64/Image.gz
-    BM_CMDLINE: "ip=dhcp console=ttyMSM0,115200n8 $BM_KERNEL_EXTRA_ARGS root=/dev/nfs rw nfsrootdebug nfsroot=,tcp,nfsvers=4.2 init=/init $BM_KERNELARGS"
-    FARM: google
-  needs:
-    - debian/baremetal_arm64_test-gl
-    - job: testing:arm64
-      artifacts: false
-    - igt:arm64
-  tags:
-    - $RUNNER_TAG
 
 .software-driver:
   stage: software-driver
@@ -110,6 +82,7 @@
     - !reference [default, before_script]
     - rm -rf install
     - tar -xf artifacts/install.tar
+    - mkdir -p /kernel
   script:
     - ln -sf $CI_PROJECT_DIR/install /install
     - mv install/bzImage /kernel/bzImage
@@ -127,6 +100,7 @@
     DRIVER_NAME: msm
     BOOT_METHOD: depthcharge
     KERNEL_IMAGE_TYPE: ""
+    LAVA_FIRMWARE: qcom-lava
 
 msm:sc7180-trogdor-lazor-limozeen:
   extends:
@@ -150,40 +124,43 @@ msm:sc7180-trogdor-kingoftown:
 
 msm:apq8016:
   extends:
-    - .baremetal-igt-arm64
+    - .lava-igt:arm64
   stage: msm
+  parallel: 3
   variables:
-    DEVICE_TYPE: apq8016-sbc-usb-host
+    BOOT_METHOD: fastboot
+    DEVICE_TYPE: dragonboard-410c
     DRIVER_NAME: msm
-    BM_DTB: https://${PIPELINE_ARTIFACTS_BASE}/arm64/${DEVICE_TYPE}.dtb
+    DTB: apq8016-sbc-usb-host
+    FARM: collabora
     GPU_VERSION: apq8016
-    # disabling unused clocks congests with the MDSS runtime PM trying to
-    # disable those clocks and causes boot to fail.
-    # Reproducer: DRM_MSM=y, DRM_I2C_ADV7511=m
-    BM_KERNEL_EXTRA_ARGS: clk_ignore_unused
-    RUNNER_TAG: google-freedreno-db410c
-  script:
-    - ./install/bare-metal/fastboot.sh || exit $?
+    KERNEL_IMAGE_NAME: "Image.gz"
+    KERNEL_IMAGE_TYPE: ""
+    RUNNER_TAG: mesa-ci-x86-64-lava-dragonboard-410c
+    LAVA_FIRMWARE: qcom-lava
 
 msm:apq8096:
   extends:
-    - .baremetal-igt-arm64
+    - .lava-igt:arm64
   stage: msm
+  parallel: 3
   variables:
-    DEVICE_TYPE: apq8096-db820c
+    BOOT_METHOD: fastboot
+    DEVICE_TYPE: dragonboard-820c
     DRIVER_NAME: msm
-    BM_KERNEL_EXTRA_ARGS: maxcpus=2
-    BM_DTB: https://${PIPELINE_ARTIFACTS_BASE}/arm64/${DEVICE_TYPE}.dtb
+    DTB: apq8096-db820c
+    FARM: collabora
     GPU_VERSION: apq8096
-    RUNNER_TAG: google-freedreno-db820c
-  script:
-    - ./install/bare-metal/fastboot.sh || exit $?
+    KERNEL_IMAGE_NAME: "Image.gz"
+    KERNEL_IMAGE_TYPE: ""
+    RUNNER_TAG: mesa-ci-x86-64-lava-dragonboard-820c
+    LAVA_FIRMWARE: qcom-lava
 
 msm:sm8350-hdk:
   extends:
     - .lava-igt:arm64
   stage: msm
-  parallel: 4
+  parallel: 2
   variables:
     BOOT_METHOD: fastboot
     DEVICE_TYPE: sm8350-hdk
@@ -194,11 +171,14 @@ msm:sm8350-hdk:
     KERNEL_IMAGE_NAME: "Image.gz"
     KERNEL_IMAGE_TYPE: ""
     RUNNER_TAG: mesa-ci-x86-64-lava-sm8350-hdk
+    LAVA_FIRMWARE: qcom-lava
+    LAVA_FASTBOOT_CMD: "set_active a"
 
 .rockchip-device:
   variables:
     DTB: ${DEVICE_TYPE}
     BOOT_METHOD: depthcharge
+    LAVA_FIRMWARE: arm
 
 .rockchip-display:
   stage: rockchip
@@ -226,6 +206,19 @@ msm:sm8350-hdk:
     KERNEL_IMAGE_TYPE: ""
     RUNNER_TAG: mesa-ci-x86-64-lava-rk3399-gru-kevin
 
+.rk3588:
+  extends:
+    - .lava-igt:arm64
+    - .rockchip-device
+  parallel: 2
+  variables:
+    DEVICE_TYPE: rk3588-rock-5b
+    GPU_VERSION: rk3588
+    BOOT_METHOD: u-boot
+    KERNEL_IMAGE_NAME: Image
+    KERNEL_IMAGE_TYPE: "image"
+    RUNNER_TAG: mesa-ci-x86-64-lava-rk3588-rock-5b
+
 rockchip:rk3288:
   extends:
     - .rk3288
@@ -246,6 +239,16 @@ panfrost:rk3399:
     - .rk3399
     - .panfrost-gpu
 
+rockchip:rk3588:
+  extends:
+    - .rk3588
+    - .rockchip-display
+
+panthor:rk3588:
+  extends:
+    - .rk3588
+    - .panthor-gpu
+
 .i915:
   extends:
     - .lava-igt:x86_64
@@ -255,6 +258,7 @@ panfrost:rk3399:
     DTB: ""
     BOOT_METHOD: depthcharge
     KERNEL_IMAGE_TYPE: ""
+    LAVA_FIRMWARE: i915
 
 i915:apl:
   extends:
@@ -277,7 +281,7 @@ i915:glk:
 i915:amly:
   extends:
     - .i915
-  parallel: 2
+  parallel: 3
   variables:
     DEVICE_TYPE: asus-C433TA-AJ0005-rammus
     GPU_VERSION: amly
@@ -304,11 +308,11 @@ i915:whl:
 i915:cml:
   extends:
     - .i915
-  parallel: 2
+  parallel: 5
   variables:
-    DEVICE_TYPE: asus-C436FA-Flip-hatch
+    DEVICE_TYPE: acer-chromebox-cxi4-puff
     GPU_VERSION: cml
-    RUNNER_TAG: mesa-ci-x86-64-lava-asus-C436FA-Flip-hatch
+    RUNNER_TAG: mesa-ci-x86-64-lava-acer-chromebox-cxi4-puff
 
 i915:tgl:
   extends:
@@ -337,6 +341,7 @@ i915:jsl:
     DTB: ""
     BOOT_METHOD: depthcharge
     KERNEL_IMAGE_TYPE: ""
+    LAVA_FIRMWARE: amdgpu-lava
 
 amdgpu:stoney:
   extends:
@@ -355,6 +360,7 @@ amdgpu:stoney:
     DTB: ${DEVICE_TYPE}
     BOOT_METHOD: depthcharge
     KERNEL_IMAGE_TYPE: ""
+    LAVA_FIRMWARE: arm
 
 .mediatek-display:
   stage: mediatek
@@ -370,6 +376,11 @@ amdgpu:stoney:
   stage: panfrost
   variables:
     DRIVER_NAME: panfrost
+
+.panthor-gpu:
+  stage: panthor
+  variables:
+    DRIVER_NAME: panthor
 
 .mt8173:
   extends:

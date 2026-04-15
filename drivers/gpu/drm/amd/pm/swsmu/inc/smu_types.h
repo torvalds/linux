@@ -42,8 +42,10 @@
        __SMU_DUMMY_MAP(SetPptLimit),                  \
        __SMU_DUMMY_MAP(SetDriverDramAddrHigh),        \
        __SMU_DUMMY_MAP(SetDriverDramAddrLow),         \
+       __SMU_DUMMY_MAP(SetDriverDramAddr),            \
        __SMU_DUMMY_MAP(SetToolsDramAddrHigh),         \
        __SMU_DUMMY_MAP(SetToolsDramAddrLow),          \
+       __SMU_DUMMY_MAP(SetToolsDramAddr),             \
        __SMU_DUMMY_MAP(TransferTableSmu2Dram),        \
        __SMU_DUMMY_MAP(TransferTableDram2Smu),        \
        __SMU_DUMMY_MAP(UseDefaultPPTable),            \
@@ -292,7 +294,12 @@
 	__SMU_DUMMY_MAP(AllowZstates), \
 	__SMU_DUMMY_MAP(GetSmartShiftStatus), \
 	__SMU_DUMMY_MAP(EnableLSdma), \
-	__SMU_DUMMY_MAP(DisableLSdma),
+	__SMU_DUMMY_MAP(DisableLSdma), \
+	__SMU_DUMMY_MAP(InitializeGfx), \
+	__SMU_DUMMY_MAP(SetSoftMaxFclk), \
+	__SMU_DUMMY_MAP(SetSoftMaxGl2clk), \
+	__SMU_DUMMY_MAP(SetSoftMinGl2clk), \
+	__SMU_DUMMY_MAP(GetSystemMetricsVersion),
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	SMU_MSG_##type
@@ -324,6 +331,7 @@ enum smu_clk_type {
 	SMU_OD_CCLK,
 	SMU_OD_SCLK,
 	SMU_OD_MCLK,
+	SMU_OD_FCLK,
 	SMU_OD_VDDC_CURVE,
 	SMU_OD_RANGE,
 	SMU_OD_VDDGFX_OFFSET,
@@ -334,6 +342,7 @@ enum smu_clk_type {
 	SMU_OD_FAN_MINIMUM_PWM,
 	SMU_OD_FAN_ZERO_RPM_ENABLE,
 	SMU_OD_FAN_ZERO_RPM_STOP_TEMP,
+	SMU_GL2CLK,
 	SMU_CLK_COUNT,
 };
 
@@ -472,6 +481,14 @@ enum smu_clk_type {
        __SMU_DUMMY_MAP(GFX_DIDT_XVMIN),				\
        __SMU_DUMMY_MAP(FAN_ABNORMAL),				\
        __SMU_DUMMY_MAP(PIT),				\
+       __SMU_DUMMY_MAP(DS_DMABECLK),				\
+       __SMU_DUMMY_MAP(DS_MPIFOECLK),				\
+       __SMU_DUMMY_MAP(DS_MPRASCLK),				\
+       __SMU_DUMMY_MAP(DS_MPNHTCLK),				\
+       __SMU_DUMMY_MAP(DS_FIOCLK),				\
+       __SMU_DUMMY_MAP(DS_DXIOCLK),				\
+       __SMU_DUMMY_MAP(DS_GL2CLK),				\
+       __SMU_DUMMY_MAP(DPM_GL2CLK),				\
        __SMU_DUMMY_MAP(HROM_EN),
 
 #undef __SMU_DUMMY_MAP

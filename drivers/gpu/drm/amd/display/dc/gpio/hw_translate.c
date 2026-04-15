@@ -53,6 +53,7 @@
 #include "dcn315/hw_translate_dcn315.h"
 #include "dcn32/hw_translate_dcn32.h"
 #include "dcn401/hw_translate_dcn401.h"
+#include "dcn42/hw_translate_dcn42.h"
 
 /*
  * This unit
@@ -63,6 +64,7 @@ bool dal_hw_translate_init(
 	enum dce_version dce_version,
 	enum dce_environment dce_environment)
 {
+	(void)dce_environment;
 	switch (dce_version) {
 #if defined(CONFIG_DRM_AMD_DC_SI)
 	case DCE_VERSION_6_0:
@@ -118,6 +120,9 @@ bool dal_hw_translate_init(
 		return true;
 	case DCN_VERSION_4_01:
 		dal_hw_translate_dcn401_init(translate);
+		return true;
+	case DCN_VERSION_4_2:
+		dal_hw_translate_dcn42_init(translate);
 		return true;
 	default:
 		BREAK_TO_DEBUGGER();

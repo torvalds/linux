@@ -1753,9 +1753,11 @@ static enum dc_status dcn351_validate_bandwidth(struct dc *dc,
 {
 	bool out = false;
 
+	DC_FP_START();
 	out = dml2_validate(dc, context,
 			context->power_source == DC_POWER_SOURCE_DC ? context->bw_ctx.dml2_dc_power_source : context->bw_ctx.dml2,
 			validate_mode);
+	DC_FP_END();
 
 	if (validate_mode != DC_VALIDATE_MODE_AND_PROGRAMMING)
 		return out ? DC_OK : DC_FAIL_BANDWIDTH_VALIDATE;
@@ -1782,6 +1784,12 @@ static int populate_dml_pipes_from_context_fpu(struct dc *dc,
 
 }
 
+static void dcn351_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params)
+{
+	DC_FP_START();
+	dcn351_update_bw_bounding_box_fpu(dc, bw_params);
+	DC_FP_END();
+}
 static struct resource_funcs dcn351_res_pool_funcs = {
 	.destroy = dcn351_destroy_resource_pool,
 	.link_enc_create = dcn35_link_encoder_create,
@@ -1803,14 +1811,15 @@ static struct resource_funcs dcn351_res_pool_funcs = {
 	.find_first_free_match_stream_enc_for_link = dcn10_find_first_free_match_stream_enc_for_link,
 	.acquire_post_bldn_3dlut = dcn30_acquire_post_bldn_3dlut,
 	.release_post_bldn_3dlut = dcn30_release_post_bldn_3dlut,
-	.update_bw_bounding_box = dcn351_update_bw_bounding_box_fpu,
+	.update_bw_bounding_box = dcn351_update_bw_bounding_box,
 	.patch_unknown_plane_state = dcn35_patch_unknown_plane_state,
 	.get_panel_config_defaults = dcn35_get_panel_config_defaults,
 	.get_preferred_eng_id_dpia = dcn351_get_preferred_eng_id_dpia,
 	.get_det_buffer_size = dcn31_get_det_buffer_size,
 	.get_vstartup_for_pipe = dcn10_get_vstartup_for_pipe,
 	.update_dc_state_for_encoder_switch = dcn31_update_dc_state_for_encoder_switch,
-	.build_pipe_pix_clk_params = dcn20_build_pipe_pix_clk_params
+	.build_pipe_pix_clk_params = dcn20_build_pipe_pix_clk_params,
+	.get_default_tiling_info = dcn10_get_default_tiling_info
 };
 
 static bool dcn351_resource_construct(
@@ -1834,6 +1843,9 @@ static bool dcn351_resource_construct(
 	clk_src_regs_init(3, D),
 	clk_src_regs_init(4, E);
 
+	/* Enable 4to1MPC by default */
+	dc->config.allow_4to1MPC = true;
+
 #undef REG_STRUCT
 #define REG_STRUCT abm_regs
 	abm_regs_init(0),
@@ -1854,7 +1866,7 @@ static bool dcn351_resource_construct(
 	/*************************************************
 	 *  Resource + asic cap harcoding                *
 	 *************************************************/
-	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
+	pool->base.underlay_pipe_index = (unsigned int)NO_UNDERLAY_PIPE;
 	pool->base.pipe_count = pool->base.res_cap->num_timing_generator;
 	pool->base.mpcc_count = pool->base.res_cap->num_timing_generator;
 	dc->caps.max_downscale_ratio = 600;

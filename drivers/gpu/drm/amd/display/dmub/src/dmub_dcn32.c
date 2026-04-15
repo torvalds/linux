@@ -237,6 +237,8 @@ void dmub_dcn32_setup_windows(struct dmub_srv *dmub,
 		const struct dmub_window *cw6,
 		const struct dmub_window *region6)
 {
+	(void)cw2;
+	(void)region6;
 	union dmub_addr offset;
 
 	offset = cw3->offset;
@@ -486,19 +488,24 @@ void dmub_dcn32_get_diagnostic_data(struct dmub_srv *dmub)
 	dmub->debug.outbox1_size = REG_READ(DMCUB_OUTBOX1_SIZE);
 
 	REG_GET(DMCUB_CNTL, DMCUB_ENABLE, &is_dmub_enabled);
-	dmub->debug.is_dmcub_enabled = is_dmub_enabled;
+	ASSERT(is_dmub_enabled <= 0xFF);
+	dmub->debug.is_dmcub_enabled = (uint8_t)is_dmub_enabled;
 
 	REG_GET(DMCUB_CNTL, DMCUB_PWAIT_MODE_STATUS, &is_pwait);
-	dmub->debug.is_pwait = is_pwait;
+	ASSERT(is_pwait <= 0xFF);
+	dmub->debug.is_pwait = (uint8_t)is_pwait;
 
 	REG_GET(DMCUB_CNTL2, DMCUB_SOFT_RESET, &is_soft_reset);
-	dmub->debug.is_dmcub_soft_reset = is_soft_reset;
+	ASSERT(is_soft_reset <= 0xFF);
+	dmub->debug.is_dmcub_soft_reset = (uint8_t)is_soft_reset;
 
 	REG_GET(DMCUB_CNTL, DMCUB_TRACEPORT_EN, &is_traceport_enabled);
-	dmub->debug.is_traceport_en  = is_traceport_enabled;
+	ASSERT(is_traceport_enabled <= 0xFF);
+	dmub->debug.is_traceport_en  = (uint8_t)is_traceport_enabled;
 
 	REG_GET(DMCUB_REGION3_CW6_TOP_ADDRESS, DMCUB_REGION3_CW6_ENABLE, &is_cw6_enabled);
-	dmub->debug.is_cw6_enabled = is_cw6_enabled;
+	ASSERT(is_cw6_enabled <= 0xFF);
+	dmub->debug.is_cw6_enabled = (uint8_t)is_cw6_enabled;
 
 	dmub->debug.gpint_datain0 = REG_READ(DMCUB_GPINT_DATAIN0);
 }

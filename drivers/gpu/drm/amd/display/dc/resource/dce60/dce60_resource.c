@@ -497,7 +497,7 @@ static void read_dce_straps(
 static struct audio *create_audio(
 		struct dc_context *ctx, unsigned int inst)
 {
-	return dce60_audio_create(ctx, inst,
+	return dce_audio_create(ctx, inst,
 			&audio_regs[inst], &audio_shift, &audio_mask);
 }
 

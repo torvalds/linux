@@ -34,6 +34,7 @@
  */
 
 #include <drm/drm_print.h>
+#include <drm/intel/intel_gmd_misc_regs.h>
 
 #include "gt/intel_context.h"
 #include "gt/intel_engine_regs.h"
@@ -475,7 +476,7 @@ bool is_inhibit_context(struct intel_context *ce)
 {
 	const u32 *reg_state = ce->lrc_reg_state;
 	u32 inhibit_mask =
-		_MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT);
+		REG_MASKED_FIELD_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT);
 
 	return inhibit_mask ==
 		(reg_state[CTX_CONTEXT_CONTROL_VAL] & inhibit_mask);

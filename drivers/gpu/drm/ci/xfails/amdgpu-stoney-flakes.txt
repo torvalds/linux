@@ -32,3 +32,10 @@ kms_async_flips@async-flip-with-page-flip-events-atomic
 # IGT Version: 1.29-g33adea9eb
 # Linux Version: 6.13.0-rc2
 kms_async_flips@crc-atomic
+
+# Board Name: hp-11A-G6-EE-grunt
+# Bug Report: https://gitlab.freedesktop.org/drm/amd/-/issues/4406
+# Failure Rate: 20
+# IGT Version: 2.1-g26ddb59c1
+# Linux Version: 6.16.0-rc2
+kms_async_flips@alternate-sync-async-flip

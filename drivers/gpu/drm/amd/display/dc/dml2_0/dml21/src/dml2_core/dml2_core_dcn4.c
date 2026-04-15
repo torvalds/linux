@@ -78,6 +78,86 @@ struct dml2_core_ip_params core_dcn4_ip_caps_base = {
 	.subvp_swath_height_margin_lines = 16,
 };
 
+struct dml2_core_ip_params core_dcn42_ip_caps_base = {
+	.vblank_nom_default_us = 668,
+	.remote_iommu_outstanding_translations = 256,
+	.rob_buffer_size_kbytes = 64,
+	.config_return_buffer_size_in_kbytes = 1792,
+	.config_return_buffer_segment_size_in_kbytes = 64,
+	.compressed_buffer_segment_size_in_kbytes = 64,
+	.dpte_buffer_size_in_pte_reqs_luma = 68,
+	.dpte_buffer_size_in_pte_reqs_chroma = 36,
+	.pixel_chunk_size_kbytes = 8,
+	.alpha_pixel_chunk_size_kbytes = 4,
+	.min_pixel_chunk_size_bytes = 1024,
+	.writeback_chunk_size_kbytes = 8,
+	.line_buffer_size_bits = 1171920,
+	.max_line_buffer_lines = 32,
+	.writeback_interface_buffer_size_kbytes = 90,
+
+	//Number of pipes after DCN Pipe harvesting
+	.max_num_dpp = 4,
+	.max_num_otg = 4,
+	.max_num_opp = 4,
+	.max_num_wb = 1,
+	.max_dchub_pscl_bw_pix_per_clk = 4,
+	.max_pscl_lb_bw_pix_per_clk = 2,
+	.max_lb_vscl_bw_pix_per_clk = 4,
+	.max_vscl_hscl_bw_pix_per_clk = 4,
+	.max_hscl_ratio = 6,
+	.max_vscl_ratio = 6,
+	.max_hscl_taps = 8,
+	.max_vscl_taps = 8,
+	.dispclk_ramp_margin_percent = 1,
+	.dppclk_delay_subtotal = 47,
+	.dppclk_delay_scl = 50,
+	.dppclk_delay_scl_lb_only = 16,
+	.dppclk_delay_cnvc_formatter = 28,
+	.dppclk_delay_cnvc_cursor = 6,
+	.cursor_buffer_size = 42,
+	.cursor_chunk_size = 2,
+	.dispclk_delay_subtotal = 125,
+	.max_inter_dcn_tile_repeaters = 8,
+	.writeback_max_hscl_ratio = 1,
+	.writeback_max_vscl_ratio = 1,
+	.writeback_min_hscl_ratio = 1,
+	.writeback_min_vscl_ratio = 1,
+	.writeback_max_hscl_taps = 1,
+	.writeback_max_vscl_taps = 1,
+	.writeback_line_buffer_buffer_size = 0,
+	.num_dsc = 4,
+	.maximum_dsc_bits_per_component = 12,
+	.maximum_pixels_per_line_per_dsc_unit = 5760,
+	.dsc422_native_support = true,
+	.dcc_supported = true,
+	.ptoi_supported = false,
+
+	.cursor_64bpp_support = true,
+	.dynamic_metadata_vm_enabled = false,
+
+	.max_num_hdmi_frl_outputs = 0,
+	.max_num_dp2p0_outputs = 2,
+	.max_num_dp2p0_streams = 4,
+	.imall_supported = 1,
+	.max_flip_time_us = 110,
+	.max_flip_time_lines = 50,
+	.words_per_channel = 16,
+
+	.subvp_fw_processing_delay_us = 15,
+	.subvp_pstate_allow_width_us = 20,
+	.subvp_swath_height_margin_lines = 16,
+
+	.dcn_mrq_present = 1,
+	.zero_size_buffer_entries = 512,
+	.compbuf_reserved_space_zs = 64,
+	.dcc_meta_buffer_size_bytes = 6272,
+	.meta_chunk_size_kbytes = 2,
+	.min_meta_chunk_size_bytes = 256,
+
+	.dchub_arb_to_ret_delay = 102,
+	.hostvm_mode = 1,
+};
+
 static void patch_ip_caps_with_explicit_ip_params(struct dml2_ip_capabilities *ip_caps, const struct dml2_core_ip_params *ip_params)
 {
 	ip_caps->pipe_count = ip_params->max_num_dpp;
@@ -107,6 +187,7 @@ static void patch_ip_params_with_ip_caps(struct dml2_core_ip_params *ip_params, 
 {
 	ip_params->max_num_dpp = ip_caps->pipe_count;
 	ip_params->max_num_otg = ip_caps->otg_count;
+	ip_params->max_num_opp = ip_caps->otg_count;
 	ip_params->num_dsc = ip_caps->num_dsc;
 	ip_params->max_num_dp2p0_streams = ip_caps->max_num_dp2p0_streams;
 	ip_params->max_num_dp2p0_outputs = ip_caps->max_num_dp2p0_outputs;
@@ -143,6 +224,37 @@ bool core_dcn4_initialize(struct dml2_core_initialize_in_out *in_out)
 		core->clean_me_up.mode_lib.ip.subvp_swath_height_margin_lines = core_dcn4_ip_caps_base.subvp_swath_height_margin_lines;
 	} else {
 		memcpy(&core->clean_me_up.mode_lib.ip, &core_dcn4_ip_caps_base, sizeof(struct dml2_core_ip_params));
+		patch_ip_params_with_ip_caps(&core->clean_me_up.mode_lib.ip, in_out->ip_caps);
+		core->clean_me_up.mode_lib.ip.imall_supported = false;
+	}
+
+	memcpy(&core->clean_me_up.mode_lib.soc, in_out->soc_bb, sizeof(struct dml2_soc_bb));
+	memcpy(&core->clean_me_up.mode_lib.ip_caps, in_out->ip_caps, sizeof(struct dml2_ip_capabilities));
+
+	return true;
+}
+
+bool core_dcn42_initialize(struct dml2_core_initialize_in_out *in_out)
+{
+	struct dml2_core_instance *core = in_out->instance;
+
+	if (!in_out->minimum_clock_table)
+		return false;
+	else
+		core->minimum_clock_table = in_out->minimum_clock_table;
+
+	if (in_out->explicit_ip_bb && in_out->explicit_ip_bb_size > 0) {
+		memcpy(&core->clean_me_up.mode_lib.ip, in_out->explicit_ip_bb, in_out->explicit_ip_bb_size);
+
+		// FIXME_STAGE2:
+		// DV still uses stage1 ip_param_st for each variant, need to patch the ip_caps with ip_param info
+		// Should move DV to use ip_caps but need move more overrides to ip_caps
+		patch_ip_caps_with_explicit_ip_params(in_out->ip_caps, in_out->explicit_ip_bb);
+		core->clean_me_up.mode_lib.ip.subvp_pstate_allow_width_us = core_dcn4_ip_caps_base.subvp_pstate_allow_width_us;
+		core->clean_me_up.mode_lib.ip.subvp_fw_processing_delay_us = core_dcn4_ip_caps_base.subvp_pstate_allow_width_us;
+		core->clean_me_up.mode_lib.ip.subvp_swath_height_margin_lines = core_dcn4_ip_caps_base.subvp_swath_height_margin_lines;
+	} else {
+		memcpy(&core->clean_me_up.mode_lib.ip, &core_dcn42_ip_caps_base, sizeof(struct dml2_core_ip_params));
 		patch_ip_params_with_ip_caps(&core->clean_me_up.mode_lib.ip, in_out->ip_caps);
 		core->clean_me_up.mode_lib.ip.imall_supported = false;
 	}

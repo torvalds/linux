@@ -554,6 +554,7 @@ enum link_training_result dp_check_link_loss_status(
 	struct dc_link *link,
 	const struct link_training_settings *link_training_setting)
 {
+	(void)link_training_setting;
 	enum link_training_result status = LINK_TRAINING_SUCCESS;
 	union lane_status lane_status;
 	union lane_align_status_updated dpcd_lane_status_updated;
@@ -1387,6 +1388,7 @@ bool dp_set_hw_training_pattern(
 	enum dc_dp_training_pattern pattern,
 	uint32_t offset)
 {
+	(void)offset;
 	enum dp_test_pattern test_pattern = DP_TEST_PATTERN_UNSUPPORTED;
 
 	switch (pattern) {

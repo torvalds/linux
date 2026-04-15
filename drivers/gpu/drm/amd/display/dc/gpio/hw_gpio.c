@@ -199,5 +199,6 @@ void dal_hw_gpio_construct(
 void dal_hw_gpio_destruct(
 	struct hw_gpio *pin)
 {
+	(void)pin;
 	ASSERT(!pin->base.opened);
 }

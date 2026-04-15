@@ -70,7 +70,6 @@ struct crc_data {
 
 struct crc_info {
 	struct crc_data crc[MAX_CRC_WINDOW_NUM];
-	struct completion completion;
 	spinlock_t lock;
 };
 

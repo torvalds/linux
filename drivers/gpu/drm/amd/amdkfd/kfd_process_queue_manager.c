@@ -590,7 +590,8 @@ int pqm_update_queue_properties(struct process_queue_manager *pqm,
 			return err;
 
 		if (kfd_queue_buffer_get(vm, (void *)p->queue_address, &p->ring_bo,
-					 p->queue_size)) {
+					 p->queue_size +
+					 pqn->q->properties.metadata_queue_size)) {
 			pr_debug("ring buf 0x%llx size 0x%llx not mapped on GPU\n",
 				 p->queue_address, p->queue_size);
 			amdgpu_bo_unreserve(vm->root.bo);
@@ -1070,6 +1071,7 @@ int pqm_get_queue_checkpoint_info(struct process_queue_manager *pqm,
 				  uint32_t *ctl_stack_size)
 {
 	struct process_queue_node *pqn;
+	int ret;
 
 	pqn = get_queue_by_qid(pqm, qid);
 	if (!pqn) {
@@ -1082,9 +1084,14 @@ int pqm_get_queue_checkpoint_info(struct process_queue_manager *pqm,
 		return -EOPNOTSUPP;
 	}
 
-	pqn->q->device->dqm->ops.get_queue_checkpoint_info(pqn->q->device->dqm,
+	ret = pqn->q->device->dqm->ops.get_queue_checkpoint_info(pqn->q->device->dqm,
 						       pqn->q, mqd_size,
 						       ctl_stack_size);
+	if (ret) {
+		pr_debug("amdkfd: Overflow while computing stack size for queue %d\n", qid);
+		return ret;
+	}
+
 	return 0;
 }
 

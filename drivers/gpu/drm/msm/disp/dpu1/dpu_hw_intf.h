@@ -35,6 +35,7 @@ struct dpu_hw_intf_timing_params {
 
 	bool wide_bus_en;
 	bool compression_en;
+	u32 dce_bytes_per_line;
 };
 
 struct dpu_hw_intf_prog_fetch {

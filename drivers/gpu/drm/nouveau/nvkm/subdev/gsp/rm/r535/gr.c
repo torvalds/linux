@@ -249,7 +249,7 @@ r535_gr_get_ctxbuf_info(struct r535_gr *gr, int i,
 }
 
 static int
-r535_gr_get_ctxbufs_info(struct r535_gr *gr)
+r535_gr_get_ctxbufs_and_zcull_info(struct r535_gr *gr)
 {
 	NV2080_CTRL_INTERNAL_STATIC_GR_GET_CONTEXT_BUFFERS_INFO_PARAMS *info;
 	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
@@ -265,6 +265,9 @@ r535_gr_get_ctxbufs_info(struct r535_gr *gr)
 		r535_gr_get_ctxbuf_info(gr, i, &info->engineContextBuffersInfo[0].engine[i]);
 
 	nvkm_gsp_rm_ctrl_done(&gsp->internal.device.subdevice, info);
+
+	gr->base.has_zcull_info = false;
+
 	return 0;
 }
 
@@ -312,7 +315,7 @@ r535_gr_oneinit(struct nvkm_gr *base)
 	 *
 	 * Also build the information that'll be used to create channel contexts.
 	 */
-	ret = rm->api->gr->get_ctxbufs_info(gr);
+	ret = rm->api->gr->get_ctxbufs_and_zcull_info(gr);
 	if (ret)
 		goto done;
 
@@ -352,5 +355,5 @@ r535_gr_dtor(struct nvkm_gr *base)
 
 const struct nvkm_rm_api_gr
 r535_gr = {
-	.get_ctxbufs_info = r535_gr_get_ctxbufs_info,
+	.get_ctxbufs_and_zcull_info = r535_gr_get_ctxbufs_and_zcull_info,
 };

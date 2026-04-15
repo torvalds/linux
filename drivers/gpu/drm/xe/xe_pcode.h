@@ -34,12 +34,4 @@ int xe_pcode_request(struct xe_tile *tile, u32 mbox, u32 request,
 	| FIELD_PREP(PCODE_MB_PARAM1, param1)\
 	| FIELD_PREP(PCODE_MB_PARAM2, param2))
 
-/* Helpers with drm device */
-int intel_pcode_read(struct drm_device *drm, u32 mbox, u32 *val, u32 *val1);
-int intel_pcode_write_timeout(struct drm_device *drm, u32 mbox, u32 val, int timeout_ms);
-#define intel_pcode_write(drm, mbox, val) \
-	intel_pcode_write_timeout((drm), (mbox), (val), 1)
-int intel_pcode_request(struct drm_device *drm, u32 mbox, u32 request,
-			u32 reply_mask, u32 reply, int timeout_base_ms);
-
 #endif

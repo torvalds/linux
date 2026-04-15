@@ -54,6 +54,8 @@ struct xe_gt_sriov_vf_migration {
 	wait_queue_head_t wq;
 	/** @scratch: Scratch memory for VF recovery */
 	void *scratch;
+	/** @fixups_complete_count: Counts completed fixups stages */
+	atomic_t fixups_complete_count;
 	/** @debug: Debug hooks for delaying migration */
 	struct {
 		/**
@@ -73,7 +75,7 @@ struct xe_gt_sriov_vf_migration {
 	bool recovery_queued;
 	/** @recovery_inprogress: VF post migration recovery in progress */
 	bool recovery_inprogress;
-	/** @ggtt_need_fixes: VF GGTT needs fixes */
+	/** @ggtt_need_fixes: VF GGTT and references to it need fixes */
 	bool ggtt_need_fixes;
 };
 

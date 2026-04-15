@@ -117,6 +117,9 @@ void mpc3_set_out_rate_control(
 	bool rate_2x_mode,
 	struct mpc_dwb_flow_control *flow_control)
 {
+	(void)enable;
+	(void)rate_2x_mode;
+	(void)flow_control;
 	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
 
 	/* Always disable mpc out rate and flow control.
@@ -908,6 +911,7 @@ static void mpc3_set_3dlut_mode(
 		bool is_lut_size17x17x17,
 		uint32_t rmu_idx)
 {
+	(void)is_color_channel_12bits;
 	uint32_t lut_mode;
 	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
 
@@ -1428,7 +1432,7 @@ uint32_t mpcc3_acquire_rmu(struct mpc *mpc, int mpcc_id, int rmu_idx)
 	}
 
 	//no vacant RMU units or invalid parameters acquire_post_bldn_3dlut
-	return -1;
+	return (uint32_t)-1;
 }
 
 static int mpcc3_release_rmu(struct mpc *mpc, int mpcc_id)

@@ -484,52 +484,6 @@ int phm_get_sclk_for_voltage_evv(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-/**
- * phm_initializa_dynamic_state_adjustment_rule_settings - Initialize Dynamic State Adjustment Rule Settings
- *
- * @hwmgr:  the address of the powerplay hardware manager.
- */
-int phm_initializa_dynamic_state_adjustment_rule_settings(struct pp_hwmgr *hwmgr)
-{
-	struct phm_clock_voltage_dependency_table *table_clk_vlt;
-	struct phm_ppt_v1_information *pptable_info = (struct phm_ppt_v1_information *)(hwmgr->pptable);
-
-	/* initialize vddc_dep_on_dal_pwrl table */
-	table_clk_vlt = kzalloc_flex(*table_clk_vlt, entries, 4);
-
-	if (NULL == table_clk_vlt) {
-		pr_err("Can not allocate space for vddc_dep_on_dal_pwrl! \n");
-		return -ENOMEM;
-	} else {
-		table_clk_vlt->count = 4;
-		table_clk_vlt->entries[0].clk = PP_DAL_POWERLEVEL_ULTRALOW;
-		if (hwmgr->chip_id >= CHIP_POLARIS10 &&
-		    hwmgr->chip_id <= CHIP_VEGAM)
-			table_clk_vlt->entries[0].v = 700;
-		else
-			table_clk_vlt->entries[0].v = 0;
-		table_clk_vlt->entries[1].clk = PP_DAL_POWERLEVEL_LOW;
-		if (hwmgr->chip_id >= CHIP_POLARIS10 &&
-		    hwmgr->chip_id <= CHIP_VEGAM)
-			table_clk_vlt->entries[1].v = 740;
-		else
-			table_clk_vlt->entries[1].v = 720;
-		table_clk_vlt->entries[2].clk = PP_DAL_POWERLEVEL_NOMINAL;
-		if (hwmgr->chip_id >= CHIP_POLARIS10 &&
-		    hwmgr->chip_id <= CHIP_VEGAM)
-			table_clk_vlt->entries[2].v = 800;
-		else
-			table_clk_vlt->entries[2].v = 810;
-		table_clk_vlt->entries[3].clk = PP_DAL_POWERLEVEL_PERFORMANCE;
-		table_clk_vlt->entries[3].v = 900;
-		if (pptable_info != NULL)
-			pptable_info->vddc_dep_on_dal_pwrl = table_clk_vlt;
-		hwmgr->dyn_state.vddc_dep_on_dal_pwrl = table_clk_vlt;
-	}
-
-	return 0;
-}
-
 uint32_t phm_get_lowest_enabled_level(struct pp_hwmgr *hwmgr, uint32_t mask)
 {
 	uint32_t level = 0;
@@ -538,43 +492,6 @@ uint32_t phm_get_lowest_enabled_level(struct pp_hwmgr *hwmgr, uint32_t mask)
 		level++;
 
 	return level;
-}
-
-void phm_apply_dal_min_voltage_request(struct pp_hwmgr *hwmgr)
-{
-	struct phm_ppt_v1_information *table_info =
-			(struct phm_ppt_v1_information *)hwmgr->pptable;
-	struct phm_clock_voltage_dependency_table *table =
-				table_info->vddc_dep_on_dal_pwrl;
-	struct phm_ppt_v1_clock_voltage_dependency_table *vddc_table;
-	enum PP_DAL_POWERLEVEL dal_power_level = hwmgr->dal_power_level;
-	uint32_t req_vddc = 0, req_volt, i;
-
-	if (!table || table->count <= 0
-		|| dal_power_level < PP_DAL_POWERLEVEL_ULTRALOW
-		|| dal_power_level > PP_DAL_POWERLEVEL_PERFORMANCE)
-		return;
-
-	for (i = 0; i < table->count; i++) {
-		if (dal_power_level == table->entries[i].clk) {
-			req_vddc = table->entries[i].v;
-			break;
-		}
-	}
-
-	vddc_table = table_info->vdd_dep_on_sclk;
-	for (i = 0; i < vddc_table->count; i++) {
-		if (req_vddc <= vddc_table->entries[i].vddc) {
-			req_volt = (((uint32_t)vddc_table->entries[i].vddc) * VOLTAGE_SCALE);
-			smum_send_msg_to_smc_with_parameter(hwmgr,
-					PPSMC_MSG_VddC_Request,
-					req_volt,
-					NULL);
-			return;
-		}
-	}
-	pr_err("DAL requested level can not"
-			" found a available voltage in VDDC DPM Table \n");
 }
 
 int phm_get_voltage_evv_on_sclk(struct pp_hwmgr *hwmgr, uint8_t voltage_type,

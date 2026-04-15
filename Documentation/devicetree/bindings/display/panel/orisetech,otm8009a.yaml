@@ -31,11 +31,11 @@ properties:
   reset-gpios:
     maxItems: 1
 
-additionalProperties: false
-
 required:
   - compatible
   - reg
+
+additionalProperties: false
 
 examples:
   - |

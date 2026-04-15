@@ -164,9 +164,10 @@ done:
 }
 
 static int
-r570_gr_get_ctxbufs_info(struct r535_gr *gr)
+r570_gr_get_ctxbufs_and_zcull_info(struct r535_gr *gr)
 {
 	NV2080_CTRL_INTERNAL_STATIC_GR_GET_CONTEXT_BUFFERS_INFO_PARAMS *info;
+	NV2080_CTRL_GR_GET_ZCULL_INFO_PARAMS *zcull_info;
 	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
 	struct nvkm_gsp *gsp = subdev->device->gsp;
 
@@ -179,13 +180,42 @@ r570_gr_get_ctxbufs_info(struct r535_gr *gr)
 	for (int i = 0; i < ARRAY_SIZE(info->engineContextBuffersInfo[0].engine); i++)
 		r535_gr_get_ctxbuf_info(gr, i, &info->engineContextBuffersInfo[0].engine[i]);
 
+	NV2080_CTRL_INTERNAL_ENGINE_CONTEXT_BUFFER_INFO zcull = info->engineContextBuffersInfo[0]
+		.engine[NV0080_CTRL_FIFO_GET_ENGINE_CONTEXT_PROPERTIES_ENGINE_ID_GRAPHICS_ZCULL];
+	gr->base.zcull_info.ctxsw_size = zcull.size;
+	gr->base.zcull_info.ctxsw_align = zcull.alignment;
+
 	nvkm_gsp_rm_ctrl_done(&gsp->internal.device.subdevice, info);
+
+	zcull_info = nvkm_gsp_rm_ctrl_rd(&gsp->internal.device.subdevice,
+					 NV2080_CTRL_CMD_GR_GET_ZCULL_INFO,
+					 sizeof(*zcull_info));
+	if (IS_ERR(zcull_info)) {
+		nvdev_error(gr->base.engine.subdev.device, "could not fetch zcull info\n");
+		return PTR_ERR(zcull_info);
+	}
+
+	gr->base.zcull_info.width_align_pixels = zcull_info->widthAlignPixels;
+	gr->base.zcull_info.height_align_pixels = zcull_info->heightAlignPixels;
+	gr->base.zcull_info.pixel_squares_by_aliquots = zcull_info->pixelSquaresByAliquots;
+	gr->base.zcull_info.aliquot_total = zcull_info->aliquotTotal;
+	gr->base.zcull_info.zcull_region_byte_multiplier = zcull_info->zcullRegionByteMultiplier;
+	gr->base.zcull_info.zcull_region_header_size = zcull_info->zcullRegionHeaderSize;
+	gr->base.zcull_info.zcull_subregion_header_size = zcull_info->zcullSubregionHeaderSize;
+	gr->base.zcull_info.subregion_count = zcull_info->subregionCount;
+	gr->base.zcull_info.subregion_width_align_pixels = zcull_info->subregionWidthAlignPixels;
+	gr->base.zcull_info.subregion_height_align_pixels = zcull_info->subregionHeightAlignPixels;
+
+	nvkm_gsp_rm_ctrl_done(&gsp->internal.device.subdevice, zcull_info);
+
+	gr->base.has_zcull_info = true;
+
 	return 0;
 }
 
 const struct nvkm_rm_api_gr
 r570_gr = {
-	.get_ctxbufs_info = r570_gr_get_ctxbufs_info,
+	.get_ctxbufs_and_zcull_info = r570_gr_get_ctxbufs_and_zcull_info,
 	.scrubber.init = r570_gr_scrubber_init,
 	.scrubber.fini = r570_gr_scrubber_fini,
 };

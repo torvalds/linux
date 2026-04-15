@@ -173,13 +173,29 @@ static void dpu_hw_intf_setup_timing_engine(struct dpu_hw_intf *intf,
 	data_width = p->width;
 
 	/*
-	 * If widebus is enabled, data is valid for only half the active window
-	 * since the data rate is doubled in this mode. But for the compression
-	 * mode in DP case, the p->width is already adjusted in
-	 * drm_mode_to_intf_timing_params()
+	 * If widebus is disabled:
+	 * For uncompressed stream, the data is valid for the entire active
+	 * window period.
+	 * For compressed stream, data is valid for a shorter time period
+	 * inside the active window depending on the compression ratio.
+	 *
+	 * If widebus is enabled:
+	 * For uncompressed stream, data is valid for only half the active
+	 * window, since the data rate is doubled in this mode.
+	 * For compressed stream, data validity window needs to be adjusted for
+	 * compression ratio and then further halved.
+	 *
+	 * For the compression mode in DP case, the p->width is already
+	 * adjusted in drm_mode_to_intf_timing_params().
 	 */
-	if (p->wide_bus_en && !dp_intf)
+	if (p->compression_en && !dp_intf) {
+		if (p->wide_bus_en)
+			data_width = DIV_ROUND_UP(p->dce_bytes_per_line, 6);
+		else
+			data_width = DIV_ROUND_UP(p->dce_bytes_per_line, 3);
+	} else if (p->wide_bus_en && !dp_intf) {
 		data_width = p->width >> 1;
+	}
 
 	/* TODO: handle DSC+DP case, we only handle DSC+DSI case so far */
 	if (p->compression_en && !dp_intf &&

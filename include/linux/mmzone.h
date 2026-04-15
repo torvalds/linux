@@ -260,6 +260,8 @@ enum node_stat_item {
 #endif
 	NR_BALLOON_PAGES,
 	NR_KERNEL_FILE_PAGES,
+	NR_GPU_ACTIVE,	/* Pages assigned to GPU objects */
+	NR_GPU_RECLAIM,	/* Pages in shrinkable GPU pools */
 	NR_VM_NODE_STAT_ITEMS
 };
 

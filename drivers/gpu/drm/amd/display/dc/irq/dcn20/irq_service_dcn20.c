@@ -43,6 +43,9 @@ static enum dc_irq_source to_dal_irq_source_dcn20(
 		uint32_t src_id,
 		uint32_t ext_id)
 {
+	(void)irq_service;
+	(void)src_id;
+	(void)ext_id;
 	switch (src_id) {
 	case DCN_1_0__SRCID__DC_D1_OTG_VSTARTUP:
 		return DC_IRQ_SOURCE_VBLANK1;
@@ -179,7 +182,7 @@ static struct irq_source_info_funcs vline0_irq_info_funcs = {
 		block ## reg_num ## _ ## reg1 ## __ ## mask1 ## _MASK,\
 	.enable_value = {\
 		block ## reg_num ## _ ## reg1 ## __ ## mask1 ## _MASK,\
-		~block ## reg_num ## _ ## reg1 ## __ ## mask1 ## _MASK \
+		(uint32_t)~block ## reg_num ## _ ## reg1 ## __ ## mask1 ## _MASK \
 	},\
 	.ack_reg = SRI(reg2, block, reg_num),\
 	.ack_mask = \

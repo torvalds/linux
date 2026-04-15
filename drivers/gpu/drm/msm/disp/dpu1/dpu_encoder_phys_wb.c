@@ -70,7 +70,7 @@ static void dpu_encoder_phys_wb_set_ot_limit(
 	ot_params.height = phys_enc->cached_mode.vdisplay;
 	ot_params.is_wfd = !dpu_encoder_helper_get_cwb_mask(phys_enc);
 	ot_params.frame_rate = drm_mode_vrefresh(&phys_enc->cached_mode);
-	ot_params.vbif_idx = hw_wb->caps->vbif_idx;
+	/* XXX: WB on MSM8996 should use VBIF_NRT */
 	ot_params.rd = false;
 
 	if (!_dpu_encoder_phys_wb_clk_force_ctrl(hw_wb, phys_enc->dpu_kms->hw_mdp,
@@ -108,14 +108,13 @@ static void dpu_encoder_phys_wb_set_qos_remap(
 	hw_wb = phys_enc->hw_wb;
 
 	memset(&qos_params, 0, sizeof(qos_params));
-	qos_params.vbif_idx = hw_wb->caps->vbif_idx;
+	/* XXX: WB on MSM8996 should use VBIF_NRT */
 	qos_params.xin_id = hw_wb->caps->xin_id;
 	qos_params.num = hw_wb->idx - WB_0;
 	qos_params.is_rt = dpu_encoder_helper_get_cwb_mask(phys_enc);
 
-	DPU_DEBUG("[qos_remap] wb:%d vbif:%d xin:%d is_rt:%d\n",
+	DPU_DEBUG("[qos_remap] wb:%d xin:%d is_rt:%d\n",
 			qos_params.num,
-			qos_params.vbif_idx,
 			qos_params.xin_id, qos_params.is_rt);
 
 	if (!_dpu_encoder_phys_wb_clk_force_ctrl(hw_wb, phys_enc->dpu_kms->hw_mdp,

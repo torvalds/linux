@@ -896,6 +896,7 @@ static void build_de_pq(struct pwl_float_data_ex *de_pq,
 		uint32_t hw_points_num,
 		const struct hw_x_point *coordinate_x)
 {
+	(void)coordinate_x;
 	uint32_t i;
 	struct fixed31_32 output;
 	struct fixed31_32 *de_pq_table = mod_color_get_table(type_de_pq_table);
@@ -1339,6 +1340,7 @@ static void scale_gamma_dx(struct pwl_float_data *pwl_rgb,
 		const struct dc_gamma *ramp,
 		struct dividers dividers)
 {
+	(void)dividers;
 	uint32_t i;
 	struct fixed31_32 min = dc_fixpt_zero;
 	struct fixed31_32 max = dc_fixpt_one;

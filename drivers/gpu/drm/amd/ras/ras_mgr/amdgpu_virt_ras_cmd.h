@@ -30,11 +30,14 @@ struct remote_batch_trace_mgr {
 	struct ras_cmd_batch_trace_record_rsp  batch_trace;
 };
 
-struct vram_blocks_ecc {
-	struct amdgpu_bo *bo;
-	uint64_t mc_addr;
+struct amdgpu_virt_shared_mem {
+	uint64_t gpa;
 	void *cpu_addr;
 	uint32_t size;
+};
+
+struct vram_blocks_ecc {
+	struct amdgpu_virt_shared_mem shared_mem;
 	bool auto_update_actived;
 };
 
@@ -42,6 +45,7 @@ struct amdgpu_virt_ras_cmd {
 	bool remote_uniras_supported;
 	struct remote_batch_trace_mgr batch_mgr;
 	struct vram_blocks_ecc blocks_ecc;
+	struct mutex remote_access_lock;
 };
 
 int amdgpu_virt_ras_sw_init(struct amdgpu_device *adev);
@@ -54,4 +58,8 @@ int amdgpu_virt_ras_pre_reset(struct amdgpu_device *adev);
 int amdgpu_virt_ras_post_reset(struct amdgpu_device *adev);
 void amdgpu_virt_ras_set_remote_uniras(struct amdgpu_device *adev, bool en);
 bool amdgpu_virt_ras_remote_uniras_enabled(struct amdgpu_device *adev);
+int amdgpu_virt_ras_check_address_validity(struct amdgpu_device *adev,
+			uint64_t address, bool *hit);
+int amdgpu_virt_ras_convert_retired_address(struct amdgpu_device *adev,
+			uint64_t address, uint64_t *pfn, uint32_t max_pfn_sz);
 #endif

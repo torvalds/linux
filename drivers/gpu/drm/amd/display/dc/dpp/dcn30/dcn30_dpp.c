@@ -524,10 +524,14 @@ bool dpp3_get_optimal_number_of_taps(
 		scl_data->taps.v_taps_c = max_taps_c;
 
 	if (!dpp->ctx->dc->debug.always_scale) {
-		if (IDENTITY_RATIO(scl_data->ratios.horz))
+		if (IDENTITY_RATIO(scl_data->ratios.horz)) {
 			scl_data->taps.h_taps = 1;
-		if (IDENTITY_RATIO(scl_data->ratios.vert))
+			scl_data->taps.h_taps_c = 1;
+		}
+		if (IDENTITY_RATIO(scl_data->ratios.vert)) {
 			scl_data->taps.v_taps = 1;
+			scl_data->taps.v_taps_c = 1;
+		}
 		if (IDENTITY_RATIO(scl_data->ratios.horz_c))
 			scl_data->taps.h_taps_c = 1;
 		if (IDENTITY_RATIO(scl_data->ratios.vert_c))
@@ -1303,6 +1307,7 @@ static void dpp3_set_3dlut_mode(
 		bool is_color_channel_12bits,
 		bool is_lut_size17x17x17)
 {
+	(void)is_color_channel_12bits;
 	uint32_t lut_mode;
 	struct dcn3_dpp *dpp = TO_DCN30_DPP(dpp_base);
 

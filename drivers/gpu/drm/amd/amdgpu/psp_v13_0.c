@@ -166,7 +166,7 @@ static void psp_v13_0_bootloader_print_status(struct psp_context *psp,
 			bl_status_reg =
 				(SOC15_REG_OFFSET(MP0, 0, regMP0_SMN_C2PMSG_92)
 				 << 2) +
-				adev->asic_funcs->encode_ext_smn_addressing(i);
+				amdgpu_reg_get_smn_base64(adev, MP0_HWIP, i);
 			at += snprintf(bl_status_msg + at,
 				       PSP13_BL_STATUS_SIZE - at,
 				       " status(%02i): 0x%08x", i,

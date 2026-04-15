@@ -171,6 +171,7 @@ static const char *control_bit_to_string(enum xe_gt_sriov_control_bits bit)
 	case XE_GT_SRIOV_STATE_##_X: return #_X
 	CASE2STR(WIP);
 	CASE2STR(FLR_WIP);
+	CASE2STR(FLR_PREPARE);
 	CASE2STR(FLR_SEND_START);
 	CASE2STR(FLR_WAIT_GUC);
 	CASE2STR(FLR_GUC_DONE);
@@ -1259,7 +1260,7 @@ int xe_gt_sriov_pf_control_process_restore_data(struct xe_gt *gt, unsigned int v
 }
 
 /**
- * xe_gt_sriov_pf_control_trigger restore_vf() - Start an SR-IOV VF migration data restore sequence.
+ * xe_gt_sriov_pf_control_trigger_restore_vf() - Start an SR-IOV VF migration data restore sequence.
  * @gt: the &xe_gt
  * @vfid: the VF identifier
  *
@@ -1486,11 +1487,15 @@ int xe_gt_sriov_pf_control_stop_vf(struct xe_gt *gt, unsigned int vfid)
  * The VF FLR state machine looks like::
  *
  *	 (READY,PAUSED,STOPPED)<------------<--------------o
- *	    |                                               \
- *	   flr                                               \
- *	    |                                                 \
- *	....V..........................FLR_WIP...........      \
- *	:    \                                          :       \
+ *	    |             |                                 \
+ *	   flr           prepare                             \
+ *	    |             |                                   \
+ *	....V.............V............FLR_WIP...........      \
+ *	:   |             |                             :       \
+ *	:   |    FLR_PREPARE                            :        |
+ *	:   |    /                                      :        |
+ *	:   \   flr                                     :        |
+ *	:    \ /                                        :        |
  *	:     \   o----<----busy                        :        |
  *	:      \ /            /                         :        |
  *	:       FLR_SEND_START---failed----->-----------o--->(FLR_FAILED)<---o
@@ -1539,20 +1544,28 @@ static void pf_enter_vf_flr_send_start(struct xe_gt *gt, unsigned int vfid)
 	pf_queue_vf(gt, vfid);
 }
 
-static void pf_enter_vf_flr_wip(struct xe_gt *gt, unsigned int vfid)
+static bool pf_exit_vf_flr_prepare(struct xe_gt *gt, unsigned int vfid)
 {
-	if (!pf_enter_vf_state(gt, vfid, XE_GT_SRIOV_STATE_FLR_WIP)) {
-		xe_gt_sriov_dbg(gt, "VF%u FLR is already in progress\n", vfid);
-		return;
-	}
+	if (!pf_exit_vf_state(gt, vfid, XE_GT_SRIOV_STATE_FLR_PREPARE))
+		return false;
+
+	pf_enter_vf_flr_send_start(gt, vfid);
+	return true;
+}
+
+static bool pf_enter_vf_flr_wip(struct xe_gt *gt, unsigned int vfid)
+{
+	if (!pf_enter_vf_state(gt, vfid, XE_GT_SRIOV_STATE_FLR_WIP))
+		return false;
 
 	pf_enter_vf_wip(gt, vfid);
-	pf_enter_vf_flr_send_start(gt, vfid);
+	return true;
 }
 
 static void pf_exit_vf_flr_wip(struct xe_gt *gt, unsigned int vfid)
 {
 	if (pf_exit_vf_state(gt, vfid, XE_GT_SRIOV_STATE_FLR_WIP)) {
+		pf_escape_vf_state(gt, vfid, XE_GT_SRIOV_STATE_FLR_PREPARE);
 		pf_escape_vf_state(gt, vfid, XE_GT_SRIOV_STATE_FLR_SEND_FINISH);
 		pf_escape_vf_state(gt, vfid, XE_GT_SRIOV_STATE_FLR_RESET_MMIO);
 		pf_escape_vf_state(gt, vfid, XE_GT_SRIOV_STATE_FLR_RESET_DATA);
@@ -1760,6 +1773,41 @@ static void pf_enter_vf_flr_guc_done(struct xe_gt *gt, unsigned int vfid)
 }
 
 /**
+ * xe_gt_sriov_pf_control_prepare_flr() - Notify PF that VF FLR request was issued.
+ * @gt: the &xe_gt
+ * @vfid: the VF identifier
+ *
+ * This is an optional early notification path used to mark pending FLR before
+ * the GuC notifies the PF with a FLR event.
+ *
+ * This function is for PF only.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_gt_sriov_pf_control_prepare_flr(struct xe_gt *gt, unsigned int vfid)
+{
+	if (!pf_enter_vf_flr_wip(gt, vfid))
+		return -EALREADY;
+
+	pf_enter_vf_state(gt, vfid, XE_GT_SRIOV_STATE_FLR_PREPARE);
+	return 0;
+}
+
+static int pf_begin_vf_flr(struct xe_gt *gt, unsigned int vfid)
+{
+	if (pf_enter_vf_flr_wip(gt, vfid)) {
+		pf_enter_vf_flr_send_start(gt, vfid);
+		return 0;
+	}
+
+	if (pf_exit_vf_flr_prepare(gt, vfid))
+		return 0;
+
+	xe_gt_sriov_dbg(gt, "VF%u FLR is already in progress\n", vfid);
+	return -EALREADY;
+}
+
+/**
  * xe_gt_sriov_pf_control_trigger_flr - Start a VF FLR sequence.
  * @gt: the &xe_gt
  * @vfid: the VF identifier
@@ -1770,9 +1818,7 @@ static void pf_enter_vf_flr_guc_done(struct xe_gt *gt, unsigned int vfid)
  */
 int xe_gt_sriov_pf_control_trigger_flr(struct xe_gt *gt, unsigned int vfid)
 {
-	pf_enter_vf_flr_wip(gt, vfid);
-
-	return 0;
+	return pf_begin_vf_flr(gt, vfid);
 }
 
 /**
@@ -1879,9 +1925,9 @@ static void pf_handle_vf_flr(struct xe_gt *gt, u32 vfid)
 
 	if (needs_dispatch_flr(xe)) {
 		for_each_gt(gtit, xe, gtid)
-			pf_enter_vf_flr_wip(gtit, vfid);
+			pf_begin_vf_flr(gtit, vfid);
 	} else {
-		pf_enter_vf_flr_wip(gt, vfid);
+		pf_begin_vf_flr(gt, vfid);
 	}
 }
 

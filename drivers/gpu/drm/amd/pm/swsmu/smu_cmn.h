@@ -204,9 +204,11 @@ int smu_cmn_print_pcie_levels(struct smu_context *smu,
 			       struct smu_pcie_table *pcie_table,
 			       uint32_t cur_gen, uint32_t cur_lane,
 			       char *buf, int *offset);
+void smu_cmn_reset_custom_level(struct smu_context *smu);
 
 int smu_cmn_dpm_pcie_gen_idx(int gen);
 int smu_cmn_dpm_pcie_width_idx(int width);
+int smu_cmn_check_fw_version(struct smu_context *smu);
 
 /*SMU gpu metrics */
 

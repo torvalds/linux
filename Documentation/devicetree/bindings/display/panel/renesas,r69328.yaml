@@ -33,7 +33,6 @@ properties:
     description: Regulator for 1.8V IO power supply.
 
   backlight: true
-
   reset-gpios: true
   port: true
 

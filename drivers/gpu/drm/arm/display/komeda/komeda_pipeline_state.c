@@ -799,7 +799,7 @@ komeda_improc_validate(struct komeda_improc *improc,
 		}
 
 		st->color_depth = __fls(avail_depths);
-		st->color_format = BIT(__ffs(avail_formats));
+		st->color_format = __ffs(avail_formats);
 	}
 
 	if (kcrtc_st->base.color_mgmt_changed) {

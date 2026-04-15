@@ -5,6 +5,9 @@
 
 #include <drm/drm_print.h>
 
+#include "intel_de.h"
+#include "intel_display.h"
+#include "intel_display_regs.h"
 #include "intel_display_core.h"
 #include "intel_display_utils.h"
 #include "intel_pch.h"
@@ -211,6 +214,96 @@ intel_pch_type(const struct intel_display *display, unsigned short id)
 		return PCH_ADP;
 	default:
 		return PCH_NONE;
+	}
+}
+
+static void intel_pch_ibx_init_clock_gating(struct intel_display *display)
+{
+	/*
+	 * On Ibex Peak and Cougar Point, we need to disable clock
+	 * gating for the panel power sequencer or it will fail to
+	 * start up when no ports are active.
+	 */
+	intel_de_write(display, SOUTH_DSPCLK_GATE_D,
+		       PCH_DPLSUNIT_CLOCK_GATE_DISABLE);
+}
+
+static void intel_pch_cpt_init_clock_gating(struct intel_display *display)
+{
+	enum pipe pipe;
+	u32 val;
+
+	/*
+	 * On Ibex Peak and Cougar Point, we need to disable clock
+	 * gating for the panel power sequencer or it will fail to
+	 * start up when no ports are active.
+	 */
+	intel_de_write(display, SOUTH_DSPCLK_GATE_D,
+		       PCH_DPLSUNIT_CLOCK_GATE_DISABLE |
+		       PCH_DPLUNIT_CLOCK_GATE_DISABLE |
+		       PCH_CPUNIT_CLOCK_GATE_DISABLE);
+	intel_de_rmw(display, SOUTH_CHICKEN2, 0, DPLS_EDP_PPS_FIX_DIS);
+
+	/* The below fixes the weird display corruption, a few pixels shifted
+	 * downward, on (only) LVDS of some HP laptops with IVY.
+	 */
+	for_each_pipe(display, pipe) {
+		val = intel_de_read(display, TRANS_CHICKEN2(pipe));
+		val |= TRANS_CHICKEN2_TIMING_OVERRIDE;
+		val &= ~TRANS_CHICKEN2_FDI_POLARITY_REVERSED;
+		if (display->vbt.fdi_rx_polarity_inverted)
+			val |= TRANS_CHICKEN2_FDI_POLARITY_REVERSED;
+		val &= ~TRANS_CHICKEN2_DISABLE_DEEP_COLOR_COUNTER;
+		val &= ~TRANS_CHICKEN2_DISABLE_DEEP_COLOR_MODESWITCH;
+		intel_de_write(display, TRANS_CHICKEN2(pipe), val);
+	}
+
+	/* WADP0ClockGatingDisable */
+	for_each_pipe(display, pipe)
+		intel_de_write(display, TRANS_CHICKEN1(pipe),
+			       TRANS_CHICKEN1_DP0UNIT_GC_DISABLE);
+}
+
+static void intel_pch_lpt_init_clock_gating(struct intel_display *display)
+{
+	/*
+	 * TODO: this bit should only be enabled when really needed, then
+	 * disabled when not needed anymore in order to save power.
+	 */
+	if (HAS_PCH_LPT_LP(display))
+		intel_de_rmw(display, SOUTH_DSPCLK_GATE_D, 0,
+			     PCH_LP_PARTITION_LEVEL_DISABLE);
+
+	/* WADPOClockGatingDisable:hsw */
+	intel_de_rmw(display, TRANS_CHICKEN1(PIPE_A), 0,
+		     TRANS_CHICKEN1_DP0UNIT_GC_DISABLE);
+}
+
+static void intel_pch_cnp_init_clock_gating(struct intel_display *display)
+{
+	/* Display WA #1181 WaSouthDisplayDisablePWMCGEGating: cnp */
+	intel_de_rmw(display, SOUTH_DSPCLK_GATE_D, 0,
+		     CNP_PWM_CGE_GATING_DISABLE);
+}
+
+void intel_pch_init_clock_gating(struct intel_display *display)
+{
+	switch (INTEL_PCH_TYPE(display)) {
+	case PCH_IBX:
+		intel_pch_ibx_init_clock_gating(display);
+		break;
+	case PCH_CPT:
+		intel_pch_cpt_init_clock_gating(display);
+		break;
+	case PCH_LPT_H:
+	case PCH_LPT_LP:
+		intel_pch_lpt_init_clock_gating(display);
+		break;
+	case PCH_CNP:
+		intel_pch_cnp_init_clock_gating(display);
+		break;
+	default:
+		break;
 	}
 }
 

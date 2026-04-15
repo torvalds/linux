@@ -362,6 +362,15 @@ void dc_dmub_srv_program_cursor_now(struct dc *dc, const struct pipe_ctx *pipe);
 bool dc_dmub_srv_is_cursor_offload_enabled(const struct dc *dc);
 
 /**
+ * dc_dmub_srv_boot_time_crc_init() - Initializes DMUB boot time CRC.
+ *
+ * @dc - pointer to DC object
+ * @gpu_addr - address for the boot time CRC buffer
+ * @size - size of the boot time CRC buffer
+ */
+void dc_dmub_srv_boot_time_crc_init(const struct dc *dc, uint64_t gpu_addr, uint32_t size);
+
+/**
  * dc_dmub_srv_release_hw() - Notifies DMUB service that HW access is no longer required.
  *
  * @dc - pointer to DC object

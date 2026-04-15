@@ -1,0 +1,115 @@
+# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+---
+name: drm-ras
+protocol: genetlink
+uapi-header: drm/drm_ras.h
+
+doc: >-
+  DRM RAS (Reliability, Availability, Serviceability) over Generic Netlink.
+  Provides a standardized mechanism for DRM drivers to register "nodes"
+  representing hardware/software components capable of reporting error counters.
+  Userspace tools can query the list of nodes or individual error counters
+  via the Generic Netlink interface.
+
+definitions:
+  -
+    type: enum
+    name: node-type
+    value-start: 1
+    entries: [error-counter]
+    doc: >-
+         Type of the node. Currently, only error-counter nodes are
+         supported, which expose reliability counters for a hardware/software
+         component.
+
+attribute-sets:
+  -
+    name: node-attrs
+    attributes:
+      -
+        name: node-id
+        type: u32
+        doc: >-
+             Unique identifier for the node.
+             Assigned dynamically by the DRM RAS core upon registration.
+      -
+        name: device-name
+        type: string
+        doc: >-
+             Device name chosen by the driver at registration.
+             Can be a PCI BDF, UUID, or module name if unique.
+      -
+        name: node-name
+        type: string
+        doc: >-
+             Node name chosen by the driver at registration.
+             Can be an IP block name, or any name that identifies the
+             RAS node inside the device.
+      -
+        name: node-type
+        type: u32
+        doc: Type of this node, identifying its function.
+        enum: node-type
+  -
+    name: error-counter-attrs
+    attributes:
+      -
+        name: node-id
+        type: u32
+        doc: Node ID targeted by this error counter operation.
+      -
+        name: error-id
+        type: u32
+        doc: Unique identifier for a specific error counter within an node.
+      -
+        name: error-name
+        type: string
+        doc: Name of the error.
+      -
+        name: error-value
+        type: u32
+        doc: Current value of the requested error counter.
+
+operations:
+  list:
+    -
+      name: list-nodes
+      doc: >-
+           Retrieve the full list of currently registered DRM RAS nodes.
+           Each node includes its dynamically assigned ID, name, and type.
+           **Important:** User space must call this operation first to obtain
+           the node IDs. These IDs are required for all subsequent
+           operations on nodes, such as querying error counters.
+      attribute-set: node-attrs
+      flags: [admin-perm]
+      dump:
+        reply:
+          attributes:
+            - node-id
+            - device-name
+            - node-name
+            - node-type
+    -
+      name: get-error-counter
+      doc: >-
+           Retrieve error counter for a given node.
+           The response includes the id, the name, and even the current
+           value of each counter.
+      attribute-set: error-counter-attrs
+      flags: [admin-perm]
+      do:
+        request:
+          attributes:
+            - node-id
+            - error-id
+        reply:
+          attributes: &errorinfo
+            - error-id
+            - error-name
+            - error-value
+      dump:
+        request:
+          attributes:
+            - node-id
+        reply:
+          attributes: *errorinfo

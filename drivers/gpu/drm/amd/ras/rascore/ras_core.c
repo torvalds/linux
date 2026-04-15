@@ -62,14 +62,19 @@ int ras_core_convert_timestamp_to_time(struct ras_core_context *ras_core,
 			uint64_t timestamp, struct ras_time *tm)
 {
 	int days_in_month[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-	uint64_t month = 0, day = 0, hour = 0, minute = 0, second = 0;
+	uint64_t month = 0, day = 0, hour = 0, minute = 0, second = 0, remainder;
 	uint32_t year = 0;
 	int seconds_per_day = 24 * 60 * 60;
 	int seconds_per_hour = 60 * 60;
 	int seconds_per_minute = 60;
 	int days, remaining_seconds;
 
-	days = div64_u64_rem(timestamp, seconds_per_day, (uint64_t *)&remaining_seconds);
+	if (!tm)
+		return -EINVAL;
+
+	days = div64_u64_rem(timestamp, seconds_per_day, &remainder);
+	/* remainder will always be less than seconds_per_day. */
+	remaining_seconds = remainder;
 
 	/* utc_timestamp follows the Unix epoch */
 	year = 1970;
@@ -114,6 +119,9 @@ bool ras_core_gpu_in_reset(struct ras_core_context *ras_core)
 {
 	uint32_t status = 0;
 
+	if (!ras_core)
+		return false;
+
 	if (ras_core->sys_fn &&
 		ras_core->sys_fn->check_gpu_status)
 		ras_core->sys_fn->check_gpu_status(ras_core, &status);
@@ -124,6 +132,9 @@ bool ras_core_gpu_in_reset(struct ras_core_context *ras_core)
 bool ras_core_gpu_is_vf(struct ras_core_context *ras_core)
 {
 	uint32_t status = 0;
+
+	if (!ras_core)
+		return false;
 
 	if (ras_core->sys_fn &&
 		ras_core->sys_fn->check_gpu_status)
@@ -239,7 +250,10 @@ static int ras_core_eeprom_recovery(struct ras_core_context *ras_core)
 	int count;
 	int ret;
 
-	count = ras_eeprom_get_record_count(ras_core);
+	if (ras_fw_eeprom_supported(ras_core))
+		count = ras_fw_eeprom_get_record_count(ras_core);
+	else
+		count = ras_eeprom_get_record_count(ras_core);
 	if (!count)
 		return 0;
 
@@ -253,7 +267,10 @@ static int ras_core_eeprom_recovery(struct ras_core_context *ras_core)
 		return ret;
 	}
 
-	ras_eeprom_sync_info(ras_core);
+	if (ras_fw_eeprom_supported(ras_core))
+		ras_fw_eeprom_sync_info(ras_core);
+	else
+		ras_eeprom_sync_info(ras_core);
 
 	return ret;
 }
@@ -262,6 +279,9 @@ struct ras_core_context *ras_core_create(struct ras_core_config *init_config)
 {
 	struct ras_core_context *ras_core;
 	struct ras_core_config *config;
+
+	if (!init_config)
+		return NULL;
 
 	ras_core = kzalloc_obj(*ras_core);
 	if (!ras_core)
@@ -382,7 +402,12 @@ int ras_core_hw_init(struct ras_core_context *ras_core)
 	if (ret)
 		goto init_err5;
 
-	ret = ras_eeprom_hw_init(ras_core);
+	ras_fw_init_feature_flags(ras_core);
+
+	if (ras_fw_eeprom_supported(ras_core))
+		ret = ras_fw_eeprom_hw_init(ras_core);
+	else
+		ret = ras_eeprom_hw_init(ras_core);
 	if (ret)
 		goto init_err6;
 
@@ -393,7 +418,10 @@ int ras_core_hw_init(struct ras_core_context *ras_core)
 		goto init_err6;
 	}
 
-	ret = ras_eeprom_check_storage_status(ras_core);
+	if (ras_fw_eeprom_supported(ras_core))
+		ret = ras_fw_eeprom_check_storage_status(ras_core);
+	else
+		ret = ras_eeprom_check_storage_status(ras_core);
 	if (ret)
 		goto init_err6;
 
@@ -406,7 +434,10 @@ int ras_core_hw_init(struct ras_core_context *ras_core)
 	return 0;
 
 init_err7:
-	ras_eeprom_hw_fini(ras_core);
+	if (ras_fw_eeprom_supported(ras_core))
+		ras_fw_eeprom_hw_fini(ras_core);
+	else
+		ras_eeprom_hw_fini(ras_core);
 init_err6:
 	ras_gfx_hw_fini(ras_core);
 init_err5:
@@ -427,7 +458,10 @@ int ras_core_hw_fini(struct ras_core_context *ras_core)
 	ras_core->is_initialized = false;
 
 	ras_process_fini(ras_core);
-	ras_eeprom_hw_fini(ras_core);
+	if (ras_fw_eeprom_supported(ras_core))
+		ras_fw_eeprom_hw_fini(ras_core);
+	else
+		ras_eeprom_hw_fini(ras_core);
 	ras_gfx_hw_fini(ras_core);
 	ras_nbio_hw_fini(ras_core);
 	ras_umc_hw_fini(ras_core);
@@ -457,6 +491,9 @@ int ras_core_handle_fatal_error(struct ras_core_context *ras_core)
 
 uint32_t ras_core_get_curr_nps_mode(struct ras_core_context *ras_core)
 {
+	if (!ras_core)
+		return 0;
+
 	if (ras_core->ras_nbio.ip_func &&
 	    ras_core->ras_nbio.ip_func->get_memory_partition_mode)
 		return ras_core->ras_nbio.ip_func->get_memory_partition_mode(ras_core);
@@ -505,8 +542,11 @@ bool ras_core_is_enabled(struct ras_core_context *ras_core)
 
 uint64_t ras_core_get_utc_second_timestamp(struct ras_core_context *ras_core)
 {
-	if (ras_core && ras_core->sys_fn &&
-		ras_core->sys_fn->get_utc_second_timestamp)
+	if (!ras_core)
+		return 0;
+
+	if (ras_core->sys_fn &&
+	    ras_core->sys_fn->get_utc_second_timestamp)
 		return ras_core->sys_fn->get_utc_second_timestamp(ras_core);
 
 	RAS_DEV_ERR(ras_core->dev, "Failed to get system timestamp!\n");
@@ -528,13 +568,17 @@ bool ras_core_ras_interrupt_detected(struct ras_core_context *ras_core)
 		ras_core->sys_fn->detect_ras_interrupt)
 		return ras_core->sys_fn->detect_ras_interrupt(ras_core);
 
-	RAS_DEV_ERR(ras_core->dev, "Failed to detect ras interrupt!\n");
+	if (ras_core && ras_core->dev)
+		RAS_DEV_ERR(ras_core->dev, "Failed to detect ras interrupt!\n");
+
 	return false;
 }
 
 int ras_core_get_gpu_mem(struct ras_core_context *ras_core,
 	enum gpu_mem_type mem_type, struct gpu_mem_block *gpu_mem)
 {
+	if (!ras_core || !gpu_mem)
+		return -EINVAL;
 	if (ras_core->sys_fn && ras_core->sys_fn->get_gpu_mem)
 		return ras_core->sys_fn->get_gpu_mem(ras_core, mem_type, gpu_mem);
 
@@ -545,6 +589,8 @@ int ras_core_get_gpu_mem(struct ras_core_context *ras_core,
 int ras_core_put_gpu_mem(struct ras_core_context *ras_core,
 	enum gpu_mem_type mem_type, struct gpu_mem_block *gpu_mem)
 {
+	if (!ras_core || !gpu_mem)
+		return -EINVAL;
 	if (ras_core->sys_fn && ras_core->sys_fn->put_gpu_mem)
 		return ras_core->sys_fn->put_gpu_mem(ras_core, mem_type, gpu_mem);
 
@@ -559,6 +605,9 @@ bool ras_core_is_ready(struct ras_core_context *ras_core)
 
 bool ras_core_check_safety_watermark(struct ras_core_context *ras_core)
 {
+	if (ras_fw_eeprom_supported(ras_core))
+		return ras_fw_eeprom_check_safety_watermark(ras_core);
+
 	return ras_eeprom_check_safety_watermark(ras_core);
 }
 
@@ -595,6 +644,9 @@ int ras_core_event_notify(struct ras_core_context *ras_core,
 int ras_core_get_device_system_info(struct ras_core_context *ras_core,
 		struct device_system_info *dev_info)
 {
+	if (!dev_info)
+		return -EINVAL;
+
 	if (ras_core && ras_core->sys_fn &&
 		ras_core->sys_fn->get_device_system_info)
 		return ras_core->sys_fn->get_device_system_info(ras_core, dev_info);

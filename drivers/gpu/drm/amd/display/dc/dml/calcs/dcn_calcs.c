@@ -525,6 +525,7 @@ static void split_stream_across_pipes(
 		struct pipe_ctx *primary_pipe,
 		struct pipe_ctx *secondary_pipe)
 {
+	(void)res_ctx;
 	int pipe_idx = secondary_pipe->pipe_idx;
 
 	if (!primary_pipe->plane_state)

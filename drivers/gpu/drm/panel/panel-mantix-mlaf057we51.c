@@ -168,7 +168,7 @@ static const struct drm_display_mode default_mode_mantix = {
 	.vsync_start = 1440 + 130,
 	.vsync_end   = 1440 + 130 + 8,
 	.vtotal	     = 1440 + 130 + 8 + 106,
-	.clock	     = 85298,
+	.clock	     = 81237,
 	.flags	     = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 	.width_mm    = 65,
 	.height_mm   = 130,
@@ -183,7 +183,7 @@ static const struct drm_display_mode default_mode_ys = {
 	.vsync_start = 1440 + 175,
 	.vsync_end   = 1440 + 175 + 8,
 	.vtotal	     = 1440 + 175 + 8 + 50,
-	.clock	     = 85298,
+	.clock	     = 80706,
 	.flags	     = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 	.width_mm    = 65,
 	.height_mm   = 130,
@@ -295,19 +295,9 @@ static int mantix_probe(struct mipi_dsi_device *dsi)
 	return 0;
 }
 
-static void mantix_shutdown(struct mipi_dsi_device *dsi)
-{
-	struct mantix *ctx = mipi_dsi_get_drvdata(dsi);
-
-	drm_panel_unprepare(&ctx->panel);
-	drm_panel_disable(&ctx->panel);
-}
-
 static void mantix_remove(struct mipi_dsi_device *dsi)
 {
 	struct mantix *ctx = mipi_dsi_get_drvdata(dsi);
-
-	mantix_shutdown(dsi);
 
 	mipi_dsi_detach(dsi);
 	drm_panel_remove(&ctx->panel);
@@ -323,7 +313,6 @@ MODULE_DEVICE_TABLE(of, mantix_of_match);
 static struct mipi_dsi_driver mantix_driver = {
 	.probe	= mantix_probe,
 	.remove = mantix_remove,
-	.shutdown = mantix_shutdown,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = mantix_of_match,

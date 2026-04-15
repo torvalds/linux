@@ -947,8 +947,8 @@ union dp_tun_cap_support {
 /* DPCD[0xE000E] DP_IN_ADAPTER_INFO register. */
 union dpia_info {
 	struct {
-		uint8_t dpia_num :5;
-		uint8_t rsvd :3;
+		uint8_t dpia_num :6;
+		uint8_t rsvd :2;
 	} bits;
 	uint8_t raw;
 };
@@ -1374,7 +1374,7 @@ union dpcd_replay_configuration {
 		unsigned char DESYNC_ERROR_STATUS              : 1;
 		unsigned char SINK_DEVICE_REPLAY_STATUS        : 3;
 		unsigned char SINK_FRAME_LOCKED                : 2;
-		unsigned char RESERVED                         : 1;
+		unsigned char FRAME_SKIPPING_ERROR_STATUS      : 1;
 	} bits;
 	unsigned char raw;
 };

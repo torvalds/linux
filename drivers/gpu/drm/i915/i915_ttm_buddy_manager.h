@@ -13,7 +13,7 @@
 
 struct ttm_device;
 struct ttm_resource_manager;
-struct drm_buddy;
+struct gpu_buddy;
 
 /**
  * struct i915_ttm_buddy_resource
@@ -33,7 +33,7 @@ struct i915_ttm_buddy_resource {
 	struct list_head blocks;
 	unsigned long flags;
 	unsigned long used_visible_size;
-	struct drm_buddy *mm;
+	struct gpu_buddy *mm;
 };
 
 /**

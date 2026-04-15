@@ -67,6 +67,7 @@ static void release_engine_dce_sw(
 	struct resource_pool *pool,
 	struct dce_i2c_sw *dce_i2c_sw)
 {
+	(void)pool;
 	dal_ddc_close(dce_i2c_sw->ddc);
 	dce_i2c_sw->ddc = NULL;
 }
@@ -76,6 +77,7 @@ static bool wait_for_scl_high_sw(
 	struct ddc *ddc,
 	uint16_t clock_delay_div_4)
 {
+	(void)ctx;
 	uint32_t scl_retry = 0;
 	uint32_t scl_retry_max = I2C_SW_TIMEOUT_DELAY / clock_delay_div_4;
 
@@ -469,6 +471,7 @@ bool dce_i2c_submit_command_sw(
 	struct i2c_command *cmd,
 	struct dce_i2c_sw *dce_i2c_sw)
 {
+	(void)ddc;
 	uint8_t index_of_payload = 0;
 	bool result;
 

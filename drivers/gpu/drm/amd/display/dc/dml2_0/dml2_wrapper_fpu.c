@@ -31,8 +31,10 @@
 #include "dml2_translation_helper.h"
 #include "dml2_mall_phantom.h"
 #include "dml2_dc_resource_mgmt.h"
-#include "dml21_wrapper.h"
+#include "dml2_wrapper.h"
 #include "dml2_wrapper_fpu.h"
+#include "dml21_wrapper.h"
+#include "dml21_wrapper_fpu.h"
 
 void initialize_dml2_ip_params(struct dml2_context *dml2, const struct dc *in_dc, struct ip_params_st *out)
 {
@@ -544,11 +546,6 @@ void dml2_apply_debug_options(const struct dc *dc, struct dml2_context *dml2)
 	if (dc->debug.override_odm_optimization) {
 		dml2->config.minimize_dispclk_using_odm = dc->debug.minimize_dispclk_using_odm;
 	}
-}
-
-inline struct dml2_context *dml2_allocate_memory(void)
-{
-	return (struct dml2_context *) vzalloc(sizeof(struct dml2_context));
 }
 
 void dml2_destroy(struct dml2_context *dml2)

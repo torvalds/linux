@@ -41,11 +41,14 @@ static void xe_tlb_inval_fence_fini(struct xe_tlb_inval_fence *fence)
 static void
 xe_tlb_inval_fence_signal(struct xe_tlb_inval_fence *fence)
 {
+	struct xe_tlb_inval *tlb_inval = fence->tlb_inval;
 	bool stack = test_bit(FENCE_STACK_BIT, &fence->base.flags);
 
 	lockdep_assert_held(&fence->tlb_inval->pending_lock);
 
 	list_del(&fence->link);
+	if (list_empty(&tlb_inval->pending_fences))
+		cancel_delayed_work(&tlb_inval->fence_tdr);
 	trace_xe_tlb_inval_fence_signal(fence->tlb_inval->xe, fence);
 	xe_tlb_inval_fence_fini(fence);
 	dma_fence_signal(&fence->base);
@@ -111,6 +114,16 @@ static void tlb_inval_fini(struct drm_device *drm, void *arg)
 	xe_tlb_inval_reset(tlb_inval);
 }
 
+static void primelockdep(struct xe_tlb_inval *tlb_inval)
+{
+	if (!IS_ENABLED(CONFIG_LOCKDEP))
+		return;
+
+	fs_reclaim_acquire(GFP_KERNEL);
+	might_lock(&tlb_inval->seqno_lock);
+	fs_reclaim_release(GFP_KERNEL);
+}
+
 /**
  * xe_gt_tlb_inval_init_early() - Initialize TLB invalidation state
  * @gt: GT structure
@@ -136,6 +149,8 @@ int xe_gt_tlb_inval_init_early(struct xe_gt *gt)
 	err = drmm_mutex_init(&xe->drm, &tlb_inval->seqno_lock);
 	if (err)
 		return err;
+
+	primelockdep(tlb_inval);
 
 	tlb_inval->job_wq = drmm_alloc_ordered_workqueue(&xe->drm,
 							 "gt-tbl-inval-job-wq",
@@ -452,4 +467,106 @@ void xe_tlb_inval_fence_init(struct xe_tlb_inval *tlb_inval,
 	else
 		dma_fence_get(&fence->base);
 	fence->tlb_inval = tlb_inval;
+}
+
+/**
+ * xe_tlb_inval_idle() - Initialize TLB invalidation is idle
+ * @tlb_inval: TLB invalidation client
+ *
+ * Check the TLB invalidation seqno to determine if it is idle (i.e., no TLB
+ * invalidations are in flight). Expected to be called in the backend after the
+ * fence has been added to the pending list, and takes this into account.
+ *
+ * Return: True if TLB invalidation client is idle, False otherwise
+ */
+bool xe_tlb_inval_idle(struct xe_tlb_inval *tlb_inval)
+{
+	lockdep_assert_held(&tlb_inval->seqno_lock);
+
+	guard(spinlock_irq)(&tlb_inval->pending_lock);
+	return list_is_singular(&tlb_inval->pending_fences);
+}
+
+/**
+ * xe_tlb_inval_batch_wait() - Wait for all fences in a TLB invalidation batch
+ * @batch: Batch of TLB invalidation fences to wait on
+ *
+ * Waits for every fence in @batch to signal, then resets @batch so it can be
+ * reused for a subsequent invalidation.
+ */
+void xe_tlb_inval_batch_wait(struct xe_tlb_inval_batch *batch)
+{
+	struct xe_tlb_inval_fence *fence = &batch->fence[0];
+	unsigned int i;
+
+	for (i = 0; i < batch->num_fences; ++i)
+		xe_tlb_inval_fence_wait(fence++);
+
+	batch->num_fences = 0;
+}
+
+/**
+ * xe_tlb_inval_range_tilemask_submit() - Submit TLB invalidations for an
+ * address range on a tile mask
+ * @xe: The xe device
+ * @asid: Address space ID
+ * @start: start address
+ * @end: end address
+ * @tile_mask: mask for which gt's issue tlb invalidation
+ * @batch: Batch of tlb invalidate fences
+ *
+ * Issue a range based TLB invalidation for gt's in tilemask
+ * If the function returns an error, there is no need to call
+ * xe_tlb_inval_batch_wait() on @batch.
+ *
+ * Returns 0 for success, negative error code otherwise.
+ */
+int xe_tlb_inval_range_tilemask_submit(struct xe_device *xe, u32 asid,
+				       u64 start, u64 end, u8 tile_mask,
+				       struct xe_tlb_inval_batch *batch)
+{
+	struct xe_tlb_inval_fence *fence = &batch->fence[0];
+	struct xe_tile *tile;
+	u32 fence_id = 0;
+	u8 id;
+	int err;
+
+	batch->num_fences = 0;
+	if (!tile_mask)
+		return 0;
+
+	for_each_tile(tile, xe, id) {
+		if (!(tile_mask & BIT(id)))
+			continue;
+
+		xe_tlb_inval_fence_init(&tile->primary_gt->tlb_inval,
+					&fence[fence_id], true);
+
+		err = xe_tlb_inval_range(&tile->primary_gt->tlb_inval,
+					 &fence[fence_id], start, end,
+					 asid, NULL);
+		if (err)
+			goto wait;
+		++fence_id;
+
+		if (!tile->media_gt)
+			continue;
+
+		xe_tlb_inval_fence_init(&tile->media_gt->tlb_inval,
+					&fence[fence_id], true);
+
+		err = xe_tlb_inval_range(&tile->media_gt->tlb_inval,
+					 &fence[fence_id], start, end,
+					 asid, NULL);
+		if (err)
+			goto wait;
+		++fence_id;
+	}
+
+wait:
+	batch->num_fences = fence_id;
+	if (err)
+		xe_tlb_inval_batch_wait(batch);
+
+	return err;
 }

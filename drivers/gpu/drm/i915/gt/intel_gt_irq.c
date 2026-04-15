@@ -5,6 +5,8 @@
 
 #include <linux/sched/clock.h>
 
+#include <drm/intel/intel_gmd_interrupt_regs.h>
+
 #include "i915_drv.h"
 #include "i915_irq.h"
 #include "i915_reg.h"

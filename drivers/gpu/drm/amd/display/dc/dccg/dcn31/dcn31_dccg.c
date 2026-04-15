@@ -165,6 +165,7 @@ void dccg31_set_dpstreamclk(
 		int otg_inst,
 		int dp_hpo_inst)
 {
+	(void)dp_hpo_inst;
 	if (src == REFCLK)
 		dccg31_disable_dpstreamclk(dccg, otg_inst);
 	else
@@ -644,6 +645,7 @@ void dccg31_get_dccg_ref_freq(struct dccg *dccg,
 		unsigned int xtalin_freq_inKhz,
 		unsigned int *dccg_ref_freq_inKhz)
 {
+	(void)dccg;
 	/*
 	 * Assume refclk is sourced from xtalin
 	 * expect 24MHz

@@ -29,6 +29,7 @@
 #include <linux/mmzone.h>
 #include <linux/llist.h>
 #include <linux/spinlock.h>
+#include <linux/list_lru.h>
 #include <drm/ttm/ttm_caching.h>
 
 struct device;
@@ -45,8 +46,7 @@ struct ttm_tt;
  * @order: the allocation order our pages have
  * @caching: the caching type our pages have
  * @shrinker_list: our place on the global shrinker list
- * @lock: protection of the page list
- * @pages: the list of pages in the pool
+ * @pages: the lru_list of pages in the pool
  */
 struct ttm_pool_type {
 	struct ttm_pool *pool;
@@ -55,8 +55,7 @@ struct ttm_pool_type {
 
 	struct list_head shrinker_list;
 
-	spinlock_t lock;
-	struct list_head pages;
+	struct list_lru pages;
 };
 
 /**

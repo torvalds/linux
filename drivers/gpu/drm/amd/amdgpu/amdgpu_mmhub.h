@@ -63,13 +63,39 @@ struct amdgpu_mmhub_funcs {
 				uint64_t page_table_base);
 	void (*update_power_gating)(struct amdgpu_device *adev,
                                 bool enable);
+	int (*get_xgmi_info)(struct amdgpu_device *adev);
+};
+
+struct amdgpu_mmhub_client_ids {
+	const char * const (*names)[2];
+	unsigned int size;
 };
 
 struct amdgpu_mmhub {
 	struct ras_common_if *ras_if;
 	const struct amdgpu_mmhub_funcs *funcs;
 	struct amdgpu_mmhub_ras  *ras;
+	struct amdgpu_mmhub_client_ids client_ids;
 };
+
+static inline void
+amdgpu_mmhub_init_client_info(struct amdgpu_mmhub *mmhub,
+			      const char * const (*names)[2],
+			      unsigned int size)
+{
+	mmhub->client_ids.names = names;
+	mmhub->client_ids.size = size;
+}
+
+static inline const char *
+amdgpu_mmhub_client_name(struct amdgpu_mmhub *mmhub,
+			  u32 cid, bool is_write)
+{
+	if (cid < mmhub->client_ids.size)
+		return mmhub->client_ids.names[cid][is_write];
+
+	return NULL;
+}
 
 int amdgpu_mmhub_ras_sw_init(struct amdgpu_device *adev);
 

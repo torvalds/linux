@@ -39,6 +39,8 @@ struct guc_ctb_info {
  * struct guc_ctb - GuC command transport buffer (CTB)
  */
 struct guc_ctb {
+	/** @bo: Xe BO for CTB */
+	struct xe_bo *bo;
 	/** @desc: dma buffer map for CTB descriptor */
 	struct iosys_map desc;
 	/** @cmds: dma buffer map for CTB commands */
@@ -72,7 +74,7 @@ struct xe_guc_ct_snapshot {
 	/** @ctb_size: size of the snapshot of the CTB */
 	size_t ctb_size;
 	/** @ctb: snapshot of the entire CTB */
-	u32 *ctb;
+	void *ctb;
 };
 
 /**
@@ -126,8 +128,6 @@ struct xe_fast_req_fence {
  * for the H2G and G2H requests sent and received through the buffers.
  */
 struct xe_guc_ct {
-	/** @bo: Xe BO for CT */
-	struct xe_bo *bo;
 	/** @lock: protects everything in CT layer */
 	struct mutex lock;
 	/** @fast_lock: protects G2H channel and credits */

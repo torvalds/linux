@@ -48,6 +48,38 @@ struct g2g_test_payload  {
 	u32 seqno;
 };
 
+static int slot_index_from_gts(struct xe_gt *tx_gt, struct xe_gt *rx_gt)
+{
+	struct xe_device *xe = gt_to_xe(tx_gt);
+	int idx = 0, found = 0, id, tx_idx, rx_idx;
+	struct xe_gt *gt;
+	struct kunit *test = kunit_get_current_test();
+
+	for (id = 0; id < xe->info.tile_count * xe->info.max_gt_per_tile; id++) {
+		gt = xe_device_get_gt(xe, id);
+		if (!gt)
+			continue;
+		if (gt == tx_gt) {
+			tx_idx = idx;
+			found++;
+		}
+		if (gt == rx_gt) {
+			rx_idx = idx;
+			found++;
+		}
+
+		if (found == 2)
+			break;
+
+		idx++;
+	}
+
+	if (found != 2)
+		KUNIT_FAIL(test, "GT index not found");
+
+	return (tx_idx * xe->info.gt_count) + rx_idx;
+}
+
 static void g2g_test_send(struct kunit *test, struct xe_guc *guc,
 			  u32 far_tile, u32 far_dev,
 			  struct g2g_test_payload *payload)
@@ -163,7 +195,7 @@ int xe_guc_g2g_test_notification(struct xe_guc *guc, u32 *msg, u32 len)
 		goto done;
 	}
 
-	idx = (tx_gt->info.id * xe->info.gt_count) + rx_gt->info.id;
+	idx = slot_index_from_gts(tx_gt, rx_gt);
 
 	if (xe->g2g_test_array[idx] != payload->seqno - 1) {
 		xe_gt_err(rx_gt, "G2G: Seqno mismatch %d vs %d for %d:%d -> %d:%d!\n",
@@ -180,13 +212,17 @@ done:
 	return ret;
 }
 
+#define G2G_WAIT_TIMEOUT_MS 100
+#define G2G_WAIT_POLL_MS 1
+
 /*
  * Send the given seqno from all GuCs to all other GuCs in tile/GT order
  */
 static void g2g_test_in_order(struct kunit *test, struct xe_device *xe, u32 seqno)
 {
 	struct xe_gt *near_gt, *far_gt;
-	int i, j;
+	int i, j, waited;
+	u32 idx;
 
 	for_each_gt(near_gt, xe, i) {
 		u32 near_tile = gt_to_tile(near_gt)->id;
@@ -205,6 +241,27 @@ static void g2g_test_in_order(struct kunit *test, struct xe_device *xe, u32 seqn
 			payload.rx_dev = far_dev;
 			payload.rx_tile = far_tile;
 			payload.seqno = seqno;
+
+			/* Calculate idx for event-based wait */
+			idx = slot_index_from_gts(near_gt, far_gt);
+			waited = 0;
+
+			/*
+			 * Wait for previous seqno to be acknowledged before sending,
+			 * to avoid queuing too many back-to-back messages and
+			 * causing a test timeout. Actual correctness of message
+			 * will be checked later in xe_guc_g2g_test_notification()
+			 */
+			while (xe->g2g_test_array[idx] != (seqno - 1)) {
+				msleep(G2G_WAIT_POLL_MS);
+				waited += G2G_WAIT_POLL_MS;
+				if (waited >= G2G_WAIT_TIMEOUT_MS) {
+					kunit_info(test, "Timeout waiting! tx gt: %d, rx gt: %d\n",
+						   near_gt->info.id, far_gt->info.id);
+					break;
+				}
+			}
+
 			g2g_test_send(test, &near_gt->uc.guc, far_tile, far_dev, &payload);
 		}
 	}

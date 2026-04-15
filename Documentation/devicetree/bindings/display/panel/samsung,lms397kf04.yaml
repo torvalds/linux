@@ -23,8 +23,6 @@ properties:
   reg:
     maxItems: 1
 
-  reset-gpios: true
-
   vci-supply:
     description: regulator that supplies the VCI analog voltage
       usually around 3.0 V
@@ -32,8 +30,6 @@ properties:
   vccio-supply:
     description: regulator that supplies the VCCIO voltage usually
       around 1.8 V
-
-  backlight: true
 
   spi-cpha: true
 
@@ -43,8 +39,6 @@ properties:
     description: inherited as a SPI client node, the datasheet specifies
       maximum 300 ns minimum cycle which gives around 3 MHz max frequency
     maximum: 3000000
-
-  port: true
 
 required:
   - compatible

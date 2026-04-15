@@ -394,6 +394,8 @@ void enc314_dp_set_dsc_config(struct stream_encoder *enc,
 					uint32_t dsc_bytes_per_pixel,
 					uint32_t dsc_slice_width)
 {
+	(void)dsc_bytes_per_pixel;
+	(void)dsc_slice_width;
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 
 	REG_UPDATE(DP_DSC_CNTL,	DP_DSC_MODE, dsc_mode == OPTC_DSC_DISABLED ? 0 : 1);

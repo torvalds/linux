@@ -194,6 +194,7 @@ void dmub_dcn20_setup_windows(struct dmub_srv *dmub,
 			      const struct dmub_window *cw6,
 			      const struct dmub_window *region6)
 {
+	(void)region6;
 	union dmub_addr offset;
 	uint64_t fb_base, fb_offset;
 
@@ -396,6 +397,7 @@ union dmub_fw_boot_status dmub_dcn20_get_fw_boot_status(struct dmub_srv *dmub)
 
 void dmub_dcn20_enable_dmub_boot_options(struct dmub_srv *dmub, const struct dmub_srv_hw_params *params)
 {
+	(void)params;
 	union dmub_fw_boot_options boot_options = {0};
 
 	REG_WRITE(DMCUB_SCRATCH14, boot_options.all);
@@ -460,20 +462,26 @@ void dmub_dcn20_get_diagnostic_data(struct dmub_srv *dmub)
 	dmub->debug.inbox0_size = REG_READ(DMCUB_INBOX0_SIZE);
 
 	REG_GET(DMCUB_CNTL, DMCUB_ENABLE, &is_dmub_enabled);
-	dmub->debug.is_dmcub_enabled = is_dmub_enabled;
+	ASSERT(is_dmub_enabled <= 0xFF);
+	dmub->debug.is_dmcub_enabled = (uint8_t)is_dmub_enabled;
 
 	REG_GET(DMCUB_CNTL, DMCUB_SOFT_RESET, &is_soft_reset);
-	dmub->debug.is_dmcub_soft_reset = is_soft_reset;
+	ASSERT(is_soft_reset <= 0xFF);
+	dmub->debug.is_dmcub_soft_reset = (uint8_t)is_soft_reset;
 
 	REG_GET(DMCUB_SEC_CNTL, DMCUB_SEC_RESET_STATUS, &is_sec_reset);
-	dmub->debug.is_dmcub_secure_reset = is_sec_reset;
+	ASSERT(is_sec_reset <= 0xFF);
+	dmub->debug.is_dmcub_secure_reset = (uint8_t)is_sec_reset;
 
 	REG_GET(DMCUB_CNTL, DMCUB_TRACEPORT_EN, &is_traceport_enabled);
-	dmub->debug.is_traceport_en  = is_traceport_enabled;
+	ASSERT(is_traceport_enabled <= 0xFF);
+	dmub->debug.is_traceport_en  = (uint8_t)is_traceport_enabled;
 
 	REG_GET(DMCUB_REGION3_CW0_TOP_ADDRESS, DMCUB_REGION3_CW0_ENABLE, &is_cw0_enabled);
-	dmub->debug.is_cw0_enabled = is_cw0_enabled;
+	ASSERT(is_cw0_enabled <= 0xFF);
+	dmub->debug.is_cw0_enabled = (uint8_t)is_cw0_enabled;
 
 	REG_GET(DMCUB_REGION3_CW6_TOP_ADDRESS, DMCUB_REGION3_CW6_ENABLE, &is_cw6_enabled);
-	dmub->debug.is_cw6_enabled = is_cw6_enabled;
+	ASSERT(is_cw6_enabled <= 0xFF);
+	dmub->debug.is_cw6_enabled = (uint8_t)is_cw6_enabled;
 }

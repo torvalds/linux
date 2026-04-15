@@ -873,6 +873,11 @@ static bool CalculatePrefetchSchedule(
 		double *VUpdateWidthPix,
 		double *VReadyOffsetPix)
 {
+	(void)mode_lib;
+	(void)HostVMMinPageSize;
+	(void)SwathWidthY;
+	(void)SwathWidthC;
+
 	bool MyError = false;
 	unsigned int DPPCycles, DISPCLKCycles;
 	double DSTTotalPixelsAfterScaler;
@@ -1491,6 +1496,10 @@ static void CalculateDCCConfiguration(
 		unsigned int *IndependentBlockLuma,
 		unsigned int *IndependentBlockChroma)
 {
+	(void)SurfaceWidthChroma;
+	(void)SurfaceHeightChroma;
+	(void)BytePerPixelDETY;
+	(void)BytePerPixelDETC;
 	int yuv420;
 	int horz_div_l;
 	int horz_div_c;
@@ -1823,6 +1832,7 @@ static unsigned int CalculateVMAndRowBytes(
 		int *DPDE0BytesFrame,
 		int *MetaPTEBytesFrame)
 {
+	(void)SourcePixelFormat;
 	struct vba_vars_st *v = &mode_lib->vba;
 	unsigned int MPDEBytesFrame;
 	unsigned int DCCMetaSurfaceBytes;
@@ -3365,6 +3375,8 @@ double dml31_CalculateWriteBackDISPCLK(
 		unsigned int HTotal,
 		unsigned int WritebackLineBufferSize)
 {
+	(void)WritebackPixelFormat;
+	(void)WritebackVRatio;
 	double DISPCLK_H, DISPCLK_V, DISPCLK_HB;
 
 	DISPCLK_H = PixelClock * dml_ceil(WritebackHTaps / 8.0, 1) / WritebackHRatio;
@@ -3383,6 +3395,8 @@ static double CalculateWriteBackDelay(
 		int WritebackSourceHeight,
 		unsigned int HTotal)
 {
+	(void)WritebackPixelFormat;
+	(void)WritebackHRatio;
 	double CalculateWriteBackDelay;
 	double Line_length;
 	double Output_lines_last_notclamped;
@@ -5566,6 +5580,9 @@ static void CalculateWatermarksAndDRAMSpeedChangeSupport(
 		double *Z8StutterExitWatermark,
 		double *Z8StutterEnterPlusExitWatermark)
 {
+	(void)DCFCLK;
+	(void)ReturnBW;
+	(void)DETBufferSizeC;
 	struct vba_vars_st *v = &mode_lib->vba;
 	double EffectiveLBLatencyHidingY;
 	double EffectiveLBLatencyHidingC;
@@ -5831,6 +5848,7 @@ static void CalculateUrgentBurstFactor(
 		double *UrgentBurstFactorChroma,
 		bool *NotEnoughUrgentLatencyHiding)
 {
+	(void)VRatioC;
 	double LinesInDETLuma;
 	double LinesInDETChroma;
 	unsigned int LinesInCursorBuffer;
@@ -6213,6 +6231,8 @@ static void CalculateVMGroupAndRequestTimes(
 		double TimePerVMRequestVBlank[],
 		double TimePerVMRequestFlip[])
 {
+	(void)dpte_row_width_luma_ub;
+	(void)dpte_row_width_chroma_ub;
 	int num_group_per_lower_vm_stage;
 	int num_req_per_lower_vm_stage;
 	int k;
@@ -6350,6 +6370,8 @@ static void CalculateStutterEfficiency(
 		int *Z8NumberOfStutterBurstsPerFrame,
 		double *StutterPeriod)
 {
+	(void)ConfigReturnBufferSizeInKByte;
+
 	struct vba_vars_st *v = &mode_lib->vba;
 
 	double DETBufferingTimeY;
@@ -6649,6 +6671,7 @@ static void CalculateSwathAndDETConfiguration(
 		bool ViewportSizeSupportPerPlane[],
 		bool *ViewportSizeSupport)
 {
+	(void)HRatioChroma;
 	int MaximumSwathHeightY[DC__NUM_DPP__MAX];
 	int MaximumSwathHeightC[DC__NUM_DPP__MAX];
 	int MinimumSwathHeightY;
@@ -6823,6 +6846,7 @@ static void CalculateSwathWidth(
 		int swath_width_luma_ub[],
 		int swath_width_chroma_ub[])
 {
+	(void)BytePerPixY;
 	enum odm_combine_mode MainPlaneODMCombine;
 	int j, k;
 

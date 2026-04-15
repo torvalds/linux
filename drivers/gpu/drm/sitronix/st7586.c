@@ -13,6 +13,7 @@
 #include <video/mipi_display.h>
 
 #include <drm/clients/drm_client_setup.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_drv.h>
@@ -47,6 +48,20 @@
 
 #define ST7586_DISP_CTRL_MX	BIT(6)
 #define ST7586_DISP_CTRL_MY	BIT(7)
+
+struct st7586_device {
+	struct mipi_dbi_dev dbidev;
+
+	struct drm_plane plane;
+	struct drm_crtc crtc;
+	struct drm_encoder encoder;
+	struct drm_connector connector;
+};
+
+static struct st7586_device *to_st7586_device(struct drm_device *dev)
+{
+	return container_of(drm_to_mipi_dbi_dev(dev), struct st7586_device, dbidev);
+}
 
 /*
  * The ST7586 controller has an unusual pixel format where 2bpp grayscale is
@@ -147,46 +162,59 @@ err_msg:
 		dev_err_once(fb->dev->dev, "Failed to update display %d\n", ret);
 }
 
-static void st7586_pipe_update(struct drm_simple_display_pipe *pipe,
-			       struct drm_plane_state *old_state)
+static const u32 st7586_plane_formats[] = {
+	DRM_FORMAT_XRGB8888,
+};
+
+static const u64 st7586_plane_format_modifiers[] = {
+	DRM_MIPI_DBI_PLANE_FORMAT_MODIFIERS,
+};
+
+static void st7586_plane_helper_atomic_update(struct drm_plane *plane,
+					      struct drm_atomic_state *state)
 {
-	struct drm_plane_state *state = pipe->plane.state;
-	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(state);
-	struct drm_framebuffer *fb = state->fb;
+	struct drm_plane_state *plane_state = plane->state;
+	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
+	struct drm_framebuffer *fb = plane_state->fb;
+	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
 	struct drm_rect rect;
 	int idx;
 
-	if (!pipe->crtc.state->active)
+	if (!fb)
 		return;
 
-	if (!drm_dev_enter(fb->dev, &idx))
+	if (!drm_dev_enter(plane->dev, &idx))
 		return;
 
-	if (drm_atomic_helper_damage_merged(old_state, state, &rect))
+	if (drm_atomic_helper_damage_merged(old_plane_state, plane_state, &rect))
 		st7586_fb_dirty(&shadow_plane_state->data[0], fb, &rect,
 				&shadow_plane_state->fmtcnv_state);
 
 	drm_dev_exit(idx);
 }
 
-static void st7586_pipe_enable(struct drm_simple_display_pipe *pipe,
-			       struct drm_crtc_state *crtc_state,
-			       struct drm_plane_state *plane_state)
+static const struct drm_plane_helper_funcs st7586_plane_helper_funcs = {
+	DRM_GEM_SHADOW_PLANE_HELPER_FUNCS,
+	.atomic_check = drm_mipi_dbi_plane_helper_atomic_check,
+	.atomic_update = st7586_plane_helper_atomic_update
+};
+
+static const struct drm_plane_funcs st7586_plane_funcs = {
+	DRM_MIPI_DBI_PLANE_FUNCS,
+	.destroy = drm_plane_cleanup,
+};
+
+static void st7586_crtc_helper_atomic_enable(struct drm_crtc *crtc,
+					     struct drm_atomic_state *state)
 {
-	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(pipe->crtc.dev);
-	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
-	struct drm_framebuffer *fb = plane_state->fb;
+	struct drm_device *drm = crtc->dev;
+	struct st7586_device *st7586 = to_st7586_device(drm);
+	struct mipi_dbi_dev *dbidev = &st7586->dbidev;
 	struct mipi_dbi *dbi = &dbidev->dbi;
-	struct drm_rect rect = {
-		.x1 = 0,
-		.x2 = fb->width,
-		.y1 = 0,
-		.y2 = fb->height,
-	};
 	int idx, ret;
 	u8 addr_mode;
 
-	if (!drm_dev_enter(pipe->crtc.dev, &idx))
+	if (!drm_dev_enter(drm, &idx))
 		return;
 
 	DRM_DEBUG_KMS("\n");
@@ -242,17 +270,17 @@ static void st7586_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	msleep(100);
 
-	st7586_fb_dirty(&shadow_plane_state->data[0], fb, &rect,
-			&shadow_plane_state->fmtcnv_state);
-
 	mipi_dbi_command(dbi, MIPI_DCS_SET_DISPLAY_ON);
 out_exit:
 	drm_dev_exit(idx);
 }
 
-static void st7586_pipe_disable(struct drm_simple_display_pipe *pipe)
+static void st7586_crtc_helper_atomic_disable(struct drm_crtc *crtc,
+					      struct drm_atomic_state *state)
 {
-	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(pipe->crtc.dev);
+	struct drm_device *drm = crtc->dev;
+	struct st7586_device *st7586 = to_st7586_device(drm);
+	struct mipi_dbi_dev *dbidev = &st7586->dbidev;
 
 	/*
 	 * This callback is not protected by drm_dev_enter/exit since we want to
@@ -266,20 +294,37 @@ static void st7586_pipe_disable(struct drm_simple_display_pipe *pipe)
 	mipi_dbi_command(&dbidev->dbi, MIPI_DCS_SET_DISPLAY_OFF);
 }
 
-static const u32 st7586_formats[] = {
-	DRM_FORMAT_XRGB8888,
+static const struct drm_crtc_helper_funcs st7586_crtc_helper_funcs = {
+	.mode_valid = drm_mipi_dbi_crtc_helper_mode_valid,
+	.atomic_check = drm_mipi_dbi_crtc_helper_atomic_check,
+	.atomic_enable = st7586_crtc_helper_atomic_enable,
+	.atomic_disable = st7586_crtc_helper_atomic_disable,
 };
 
-static const struct drm_simple_display_pipe_funcs st7586_pipe_funcs = {
-	.mode_valid	= mipi_dbi_pipe_mode_valid,
-	.enable		= st7586_pipe_enable,
-	.disable	= st7586_pipe_disable,
-	.update		= st7586_pipe_update,
-	.begin_fb_access = mipi_dbi_pipe_begin_fb_access,
-	.end_fb_access	= mipi_dbi_pipe_end_fb_access,
-	.reset_plane	= mipi_dbi_pipe_reset_plane,
-	.duplicate_plane_state = mipi_dbi_pipe_duplicate_plane_state,
-	.destroy_plane_state = mipi_dbi_pipe_destroy_plane_state,
+static const struct drm_crtc_funcs st7586_crtc_funcs = {
+	DRM_MIPI_DBI_CRTC_FUNCS,
+	.destroy = drm_crtc_cleanup,
+};
+
+static const struct drm_encoder_funcs st7586_encoder_funcs = {
+	.destroy = drm_encoder_cleanup,
+};
+
+static const struct drm_connector_helper_funcs st7586_connector_helper_funcs = {
+	DRM_MIPI_DBI_CONNECTOR_HELPER_FUNCS,
+};
+
+static const struct drm_connector_funcs st7586_connector_funcs = {
+	DRM_MIPI_DBI_CONNECTOR_FUNCS,
+	.destroy = drm_connector_cleanup,
+};
+
+static const struct drm_mode_config_helper_funcs st7586_mode_config_helper_funcs = {
+	DRM_MIPI_DBI_MODE_CONFIG_HELPER_FUNCS,
+};
+
+static const struct drm_mode_config_funcs st7586_mode_config_funcs = {
+	DRM_MIPI_DBI_MODE_CONFIG_FUNCS,
 };
 
 static const struct drm_display_mode st7586_mode = {
@@ -315,19 +360,23 @@ MODULE_DEVICE_TABLE(spi, st7586_id);
 static int st7586_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
+	struct st7586_device *st7586;
 	struct mipi_dbi_dev *dbidev;
 	struct drm_device *drm;
 	struct mipi_dbi *dbi;
 	struct gpio_desc *a0;
+	struct drm_plane *plane;
+	struct drm_crtc *crtc;
+	struct drm_encoder *encoder;
+	struct drm_connector *connector;
 	u32 rotation = 0;
 	size_t bufsize;
 	int ret;
 
-	dbidev = devm_drm_dev_alloc(dev, &st7586_driver,
-				    struct mipi_dbi_dev, drm);
-	if (IS_ERR(dbidev))
-		return PTR_ERR(dbidev);
-
+	st7586 = devm_drm_dev_alloc(dev, &st7586_driver, struct st7586_device, dbidev.drm);
+	if (IS_ERR(st7586))
+		return PTR_ERR(st7586);
+	dbidev = &st7586->dbidev;
 	dbi = &dbidev->dbi;
 	drm = &dbidev->drm;
 
@@ -356,9 +405,53 @@ static int st7586_probe(struct spi_device *spi)
 	/* Cannot read from this controller via SPI */
 	dbi->read_commands = NULL;
 
-	ret = mipi_dbi_dev_init_with_formats(dbidev, &st7586_pipe_funcs,
-					     st7586_formats, ARRAY_SIZE(st7586_formats),
-					     &st7586_mode, rotation, bufsize);
+	ret = drm_mipi_dbi_dev_init(dbidev, &st7586_mode, st7586_plane_formats[0],
+				    rotation, bufsize);
+	if (ret)
+		return ret;
+
+	ret = drmm_mode_config_init(drm);
+	if (ret)
+		return ret;
+
+	drm->mode_config.min_width = dbidev->mode.hdisplay;
+	drm->mode_config.max_width = dbidev->mode.hdisplay;
+	drm->mode_config.min_height = dbidev->mode.vdisplay;
+	drm->mode_config.max_height = dbidev->mode.vdisplay;
+	drm->mode_config.funcs = &st7586_mode_config_funcs;
+	drm->mode_config.preferred_depth = 24;
+	drm->mode_config.helper_private = &st7586_mode_config_helper_funcs;
+
+	plane = &st7586->plane;
+	ret = drm_universal_plane_init(drm, plane, 0, &st7586_plane_funcs,
+				       st7586_plane_formats, ARRAY_SIZE(st7586_plane_formats),
+				       st7586_plane_format_modifiers,
+				       DRM_PLANE_TYPE_PRIMARY, NULL);
+	if (ret)
+		return ret;
+	drm_plane_helper_add(plane, &st7586_plane_helper_funcs);
+	drm_plane_enable_fb_damage_clips(plane);
+
+	crtc = &st7586->crtc;
+	ret = drm_crtc_init_with_planes(drm, crtc, plane, NULL, &st7586_crtc_funcs, NULL);
+	if (ret)
+		return ret;
+	drm_crtc_helper_add(crtc, &st7586_crtc_helper_funcs);
+
+	encoder = &st7586->encoder;
+	ret = drm_encoder_init(drm, encoder, &st7586_encoder_funcs, DRM_MODE_ENCODER_NONE, NULL);
+	if (ret)
+		return ret;
+	encoder->possible_crtcs = drm_crtc_mask(crtc);
+
+	connector = &st7586->connector;
+	ret = drm_connector_init(drm, connector, &st7586_connector_funcs,
+				 DRM_MODE_CONNECTOR_SPI);
+	if (ret)
+		return ret;
+	drm_connector_helper_add(connector, &st7586_connector_helper_funcs);
+
+	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret)
 		return ret;
 
