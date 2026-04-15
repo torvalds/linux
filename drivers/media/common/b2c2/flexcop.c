@@ -291,20 +291,6 @@ void flexcop_device_exit(struct flexcop_device *fc)
 }
 EXPORT_SYMBOL(flexcop_device_exit);
 
-static int flexcop_module_init(void)
-{
-	info(DRIVER_NAME " loaded successfully");
-	return 0;
-}
-
-static void flexcop_module_cleanup(void)
-{
-	info(DRIVER_NAME " unloaded successfully");
-}
-
-module_init(flexcop_module_init);
-module_exit(flexcop_module_cleanup);
-
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_NAME);
 MODULE_LICENSE("GPL");

@@ -347,10 +347,12 @@ int dvb_usb_remote_exit(struct dvb_usb_device *d)
 {
 	if (d->state & DVB_USB_STATE_REMOTE) {
 		cancel_delayed_work_sync(&d->rc_query_work);
-		if (d->props.rc.mode == DVB_RC_LEGACY)
+		if (d->props.rc.mode == DVB_RC_LEGACY) {
 			input_unregister_device(d->input_dev);
-		else
+		} else {
 			rc_unregister_device(d->rc_dev);
+			rc_free_device(d->rc_dev);
+		}
 	}
 	d->state &= ~DVB_USB_STATE_REMOTE;
 	return 0;

@@ -219,9 +219,8 @@ static void streamzap_callback(struct urb *urb)
 	case -ESHUTDOWN:
 		/*
 		 * this urb is terminated, clean up.
-		 * sz might already be invalid at this point
 		 */
-		dev_err(sz->dev, "urb terminated, status: %d\n", urb->status);
+		dev_dbg(sz->dev, "urb terminated, status: %d\n", urb->status);
 		return;
 	default:
 		break;
@@ -358,11 +357,16 @@ static int streamzap_probe(struct usb_interface *intf,
 
 	usb_set_intfdata(intf, sz);
 
-	if (usb_submit_urb(sz->urb_in, GFP_ATOMIC))
+	retval = usb_submit_urb(sz->urb_in, GFP_ATOMIC);
+	if (retval < 0) {
 		dev_err(sz->dev, "urb submit failed\n");
+		goto rc_submit_fail;
+	}
 
 	return 0;
-
+rc_submit_fail:
+	rc_free_device(sz->rdev);
+	usb_set_intfdata(intf, NULL);
 rc_dev_fail:
 	usb_free_urb(sz->urb_in);
 free_buf_in:
@@ -388,15 +392,16 @@ static void streamzap_disconnect(struct usb_interface *interface)
 	struct streamzap_ir *sz = usb_get_intfdata(interface);
 	struct usb_device *usbdev = interface_to_usbdev(interface);
 
-	usb_set_intfdata(interface, NULL);
-
 	if (!sz)
 		return;
 
-	usb_kill_urb(sz->urb_in);
 	rc_unregister_device(sz->rdev);
+	usb_set_intfdata(interface, NULL);
+
+	usb_kill_urb(sz->urb_in);
 	usb_free_urb(sz->urb_in);
 	usb_free_coherent(usbdev, sz->buf_in_len, sz->buf_in, sz->dma_in);
+	rc_free_device(sz->rdev);
 
 	kfree(sz);
 }

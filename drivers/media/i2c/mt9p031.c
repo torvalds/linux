@@ -1183,6 +1183,10 @@ static int mt9p031_probe(struct i2c_client *client)
 
 	mt9p031->reset = devm_gpiod_get_optional(&client->dev, "reset",
 						 GPIOD_OUT_HIGH);
+	if (IS_ERR(mt9p031->reset)) {
+		ret = PTR_ERR(mt9p031->reset);
+		goto done;
+	}
 
 	ret = mt9p031_clk_setup(mt9p031);
 	if (ret)

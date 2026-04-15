@@ -1380,6 +1380,9 @@ static int rkisp1_enum_framesizes(struct file *file, void *fh,
 	};
 	struct rkisp1_capture *cap = video_drvdata(file);
 
+	if (!rkisp1_find_fmt_cfg(cap, fsize->pixel_format))
+		return -EINVAL;
+
 	if (fsize->index != 0)
 		return -EINVAL;
 

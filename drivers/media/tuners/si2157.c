@@ -638,20 +638,27 @@ static int si2157_set_analog_params(struct dvb_frontend *fe,
 				color = 0x10;
 			}
 		}
-	} else if (params->std & V4L2_STD_MN) {
+	} else if (params->std & (V4L2_STD_MN | V4L2_STD_NTSC_443)) {
 		std = "MN";
 		bandwidth = 6000000;
 		if_frequency = 5400000;
 		system = 2;
+		if (params->std & V4L2_STD_PAL_N) {
+			std = "palN";
+			color = 0x10;
+		} else if (params->std & V4L2_STD_PAL_Nc) {
+			std = "palNc";
+			color = 0x10;
+		}
 	} else if (params->std & V4L2_STD_PAL_I) {
 		std = "palI";
 		bandwidth = 8000000;
-		if_frequency = 7250000; /* TODO: does not work yet */
+		if_frequency = 7250000;
 		system = 4;
 	} else if (params->std & V4L2_STD_DK) {
 		std = "palDK";
 		bandwidth = 8000000;
-		if_frequency = 6900000; /* TODO: does not work yet */
+		if_frequency = 6900000;
 		system = 5;
 		if (params->std & V4L2_STD_SECAM_DK) {
 			std = "secamDK";
@@ -660,7 +667,7 @@ static int si2157_set_analog_params(struct dvb_frontend *fe,
 	} else if (params->std & V4L2_STD_SECAM_L) {
 		std = "secamL";
 		bandwidth = 8000000;
-		if_frequency = 6750000; /* TODO: untested */
+		if_frequency = 6900000;
 		system = 6;
 		color = 0x10;
 	} else if (params->std & V4L2_STD_SECAM_LC) {
@@ -680,60 +687,103 @@ static int si2157_set_analog_params(struct dvb_frontend *fe,
 		params->mode, system, std, params->frequency,
 		freq, if_frequency, bandwidth);
 
-	/* set analog IF port */
-	memcpy(cmd.args, "\x14\x00\x03\x06\x08\x02", 6);
-	/* in using dev->if_port, we assume analog and digital IF's */
-	/*   are always on different ports */
-	/* assumes if_port definition is 0 or 1 for digital out */
-	cmd.args[4] = (dev->if_port == 1) ? 8 : 10;
-	/* Analog AGC assumed external */
-	cmd.args[5] = (dev->if_port == 1) ? 2 : 1;
+	if (dev->part_id != SI2177) {
+		/* AGC speed */
+		memcpy(cmd.args, "\x14\x00\x11\x06\x00\x00", 6);
+		cmd.wlen = 6;
+		cmd.rlen = 4;
+		ret = si2157_cmd_execute(client, &cmd);
+		if (ret)
+			goto err;
+
+		/* set analog IF port */
+		memcpy(cmd.args, "\x14\x00\x03\x06\x08\x02", 6);
+		/* in using dev->if_port, we assume analog and digital IF's */
+		/*   are always on different ports */
+		/* assumes if_port definition is 0 or 1 for digital out */
+		cmd.args[4] = (dev->if_port == 1) ? 8 : 10;
+		/* Analog AGC assumed external */
+		cmd.args[5] = (dev->if_port == 1) ? 2 : 1;
+		cmd.wlen = 6;
+		cmd.rlen = 4;
+		ret = si2157_cmd_execute(client, &cmd);
+		if (ret)
+			goto err;
+
+		/* set analog IF output config */
+		memcpy(cmd.args, "\x14\x00\x0d\x06\x94\x64", 6);
+		cmd.wlen = 6;
+		cmd.rlen = 4;
+		ret = si2157_cmd_execute(client, &cmd);
+		if (ret)
+			goto err;
+
+		/* make this distinct from a digital IF */
+		dev->if_frequency = if_frequency | 1;
+
+		/* calc and set tuner analog if center frequency */
+		if_frequency = if_frequency + 1250000 - (bandwidth / 2);
+		dev_dbg(&client->dev, "IF Ctr freq=%d\n", if_frequency);
+
+		memcpy(cmd.args, "\x14\x00\x0C\x06", 4);
+		cmd.args[4] = (if_frequency / 1000) & 0xff;
+		cmd.args[5] = ((if_frequency / 1000) >> 8) & 0xff;
+		cmd.wlen = 6;
+		cmd.rlen = 4;
+		ret = si2157_cmd_execute(client, &cmd);
+		if (ret)
+			goto err;
+
+		/* set analog AGC config */
+		memcpy(cmd.args, "\x14\x00\x07\x06\x32\xc8", 6);
+		cmd.wlen = 6;
+		cmd.rlen = 4;
+		ret = si2157_cmd_execute(client, &cmd);
+		if (ret)
+			goto err;
+
+		/* set analog video mode */
+		memcpy(cmd.args, "\x14\x00\x04\x06\x00\x00", 6);
+		cmd.args[4] = system | color;
+		/* can use dev->inversion if assumed applies to both digital/analog */
+		if (invert_analog)
+			cmd.args[5] |= 0x02;
+		cmd.wlen = 6;
+		cmd.rlen = 1;
+		ret = si2157_cmd_execute(client, &cmd);
+		if (ret)
+			goto err;
+	} else {
+		/* analog video equalizer - Si2177_ATV_VIDEO_EQUALIZER_PROP */
+		memcpy(cmd.args, "\x14\x00\x08\x06\xf8\x00", 6);
+		cmd.wlen = 6;
+		cmd.rlen = 4;
+		ret = si2157_cmd_execute(client, &cmd);
+		if (ret)
+			goto err;
+
+		/* analog CVBS output properties - Si2177_ATV_CVBS_OUT_FINE_PROP */
+		memcpy(cmd.args, "\x14\x00\x14\x06\x00\x64", 6);
+		cmd.wlen = 6;
+		cmd.rlen = 4;
+		ret = si2157_cmd_execute(client, &cmd);
+		if (ret)
+			goto err;
+
+		dev_err(&client->dev, "%s() Settings HSYNC\n", __func__);
+		/* HSYNC output - Si2177_ATV_HSYNC_OUT_PROP */
+		memcpy(cmd.args, "\x14\x00\x27\x06\xa8\x00", 6);
+		cmd.wlen = 6;
+		cmd.rlen = 4;
+		ret = si2157_cmd_execute(client, &cmd);
+		if (ret)
+			goto err;
+	}
+
+	/* AFC qcuisition range 1.5MHz */
+	memcpy(cmd.args, "\x14\x00\x10\x06\xdc\x05", 6);
 	cmd.wlen = 6;
 	cmd.rlen = 4;
-	ret = si2157_cmd_execute(client, &cmd);
-	if (ret)
-		goto err;
-
-	/* set analog IF output config */
-	memcpy(cmd.args, "\x14\x00\x0d\x06\x94\x64", 6);
-	cmd.wlen = 6;
-	cmd.rlen = 4;
-	ret = si2157_cmd_execute(client, &cmd);
-	if (ret)
-		goto err;
-
-	/* make this distinct from a digital IF */
-	dev->if_frequency = if_frequency | 1;
-
-	/* calc and set tuner analog if center frequency */
-	if_frequency = if_frequency + 1250000 - (bandwidth / 2);
-	dev_dbg(&client->dev, "IF Ctr freq=%d\n", if_frequency);
-
-	memcpy(cmd.args, "\x14\x00\x0C\x06", 4);
-	cmd.args[4] = (if_frequency / 1000) & 0xff;
-	cmd.args[5] = ((if_frequency / 1000) >> 8) & 0xff;
-	cmd.wlen = 6;
-	cmd.rlen = 4;
-	ret = si2157_cmd_execute(client, &cmd);
-	if (ret)
-		goto err;
-
-	/* set analog AGC config */
-	memcpy(cmd.args, "\x14\x00\x07\x06\x32\xc8", 6);
-	cmd.wlen = 6;
-	cmd.rlen = 4;
-	ret = si2157_cmd_execute(client, &cmd);
-	if (ret)
-		goto err;
-
-	/* set analog video mode */
-	memcpy(cmd.args, "\x14\x00\x04\x06\x00\x00", 6);
-	cmd.args[4] = system | color;
-	/* can use dev->inversion if assumed applies to both digital/analog */
-	if (invert_analog)
-		cmd.args[5] |= 0x02;
-	cmd.wlen = 6;
-	cmd.rlen = 1;
 	ret = si2157_cmd_execute(client, &cmd);
 	if (ret)
 		goto err;
@@ -749,6 +799,76 @@ static int si2157_set_analog_params(struct dvb_frontend *fe,
 	ret = si2157_cmd_execute(client, &cmd);
 	if (ret)
 		goto err;
+
+	if (dev->part_id == SI2177) {
+		/* Ref driver tunes, resets registers, then retunes, leaving steps as is */
+		/* set analog video mode - Si2158_ATV_VIDEO_MODE_PROP */
+		memcpy(cmd.args, "\x14\x00\x04\x06\x00\x00", 6);
+		cmd.args[4] = system | color;
+		/* can use dev->inversion if assumed applies to both digital/analog */
+		if (invert_analog)
+			cmd.args[5] |= 0x02;
+
+		cmd.wlen = 6;
+		cmd.rlen = 1;
+		ret = si2157_cmd_execute(client, &cmd);
+		if (ret)
+			goto err;
+
+		/* Si2177_ATV_AUDIO_MODE_PROP */
+		memcpy(cmd.args, "\x14\x00\x02\x06\x20\x0f", 6);
+		cmd.wlen = 6;
+		cmd.rlen = 4;
+		ret = si2157_cmd_execute(client, &cmd);
+		if (ret)
+			goto err;
+
+		/* af out - Si2177_ATV_AF_OUT_PROP */			/* BRL */
+		memcpy(cmd.args, "\x14\x00\x0b\x06\x30\x00", 6);
+		cmd.wlen = 6;
+		cmd.rlen = 4;
+		ret = si2157_cmd_execute(client, &cmd);
+		if (ret)
+			goto err;
+
+		/* analog CVBS output enable - Si2177_ATV_CVBS_OUT_PROP */
+		memcpy(cmd.args, "\x14\x00\x09\x06\x19\x99", 6);
+		cmd.wlen = 6;
+		cmd.rlen = 4;
+		ret = si2157_cmd_execute(client, &cmd);
+		if (ret)
+			goto err;
+
+		/* analog video equalizer - Si2177_ATV_VIDEO_EQUALIZER_PROP */
+		memcpy(cmd.args, "\x14\x00\x08\x06\xf8\x00", 6);
+		cmd.wlen = 6;
+		cmd.rlen = 4;
+		ret = si2157_cmd_execute(client, &cmd);
+		if (ret)
+			goto err;
+
+		/* ATV restart */
+		memcpy(cmd.args, "\x51\x00", 2);
+		cmd.wlen = 2;
+		cmd.rlen = 1;
+		ret = si2157_cmd_execute(client, &cmd);
+		if (ret)
+			goto err;
+
+		usleep_range(10000, 11000);
+
+		/* set analog frequency */
+		memcpy(cmd.args, "\x41\x01\x00\x00\x00\x00\x00\x00", 8);
+		cmd.args[4] = (freq >>  0) & 0xff;
+		cmd.args[5] = (freq >>  8) & 0xff;
+		cmd.args[6] = (freq >> 16) & 0xff;
+		cmd.args[7] = (freq >> 24) & 0xff;
+		cmd.wlen = 8;
+		cmd.rlen = 1;
+		ret = si2157_cmd_execute(client, &cmd);
+		if (ret)
+			goto err;
+	}
 
 	dev->bandwidth = bandwidth;
 

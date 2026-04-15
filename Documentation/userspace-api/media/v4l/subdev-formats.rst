@@ -159,14 +159,18 @@ formats in memory (a raw Bayer image won't be magically converted to
 JPEG just by storing it to memory), there is no one-to-one
 correspondence between them.
 
-The media bus pixel codes document parallel formats. Should the pixel data be
-transported over a serial bus, the media bus pixel code that describes a
-parallel format that transfers a sample on a single clock cycle is used. For
-instance, both MEDIA_BUS_FMT_BGR888_1X24 and MEDIA_BUS_FMT_BGR888_3X8 are used
-on parallel busses for transferring an 8 bits per sample BGR data, whereas on
-serial busses the data in this format is only referred to using
-MEDIA_BUS_FMT_BGR888_1X24. This is because there is effectively only a single
-way to transport that format on the serial busses.
+While the media bus pixel codes are named based on how pixels are
+transmitted on parallel buses, serial buses do not define separate
+codes. By convention, they use the codes that transfer a sample on a
+single clock cycle, and whose bit orders from LSB to MSB correspond to
+the order in which colour components are transmitted on the serial bus.
+For instance, the MIPI CSI-2 24-bit RGB (RGB888) format uses the
+MEDIA_BUS_FMT_RGB888_1X24 media bus code because CSI-2 transmits the
+blue colour component first, followed by green and red, and
+MEDIA_BUS_FMT_RGB888_1X24 defines the first bit of blue at bit 0.
+While used for 24-bit RGB data on parallel buses, the
+MEDIA_BUS_FMT_RGB888_3X8 or MEDIA_BUS_FMT_BGR888_1X24 codes must not be
+used for CSI-2.
 
 Packed RGB Formats
 ^^^^^^^^^^^^^^^^^^

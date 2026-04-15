@@ -967,21 +967,21 @@ static int ov5647_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_AUTOGAIN:
 		/* Non-zero turns on AGC by clearing bit 1.*/
-		return cci_update_bits(sensor->regmap, OV5647_REG_AEC_AGC, BIT(1),
-				       ctrl->val ? 0 : BIT(1), NULL);
+		ret = cci_update_bits(sensor->regmap, OV5647_REG_AEC_AGC, BIT(1),
+				      ctrl->val ? 0 : BIT(1), NULL);
 		break;
 	case V4L2_CID_EXPOSURE_AUTO:
 		/*
 		 * Everything except V4L2_EXPOSURE_MANUAL turns on AEC by
 		 * clearing bit 0.
 		 */
-		return cci_update_bits(sensor->regmap, OV5647_REG_AEC_AGC, BIT(0),
-				       ctrl->val == V4L2_EXPOSURE_MANUAL ? BIT(0) : 0, NULL);
+		ret = cci_update_bits(sensor->regmap, OV5647_REG_AEC_AGC, BIT(0),
+				      ctrl->val == V4L2_EXPOSURE_MANUAL ? BIT(0) : 0, NULL);
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
 		/* 10 bits of gain, 2 in the high register. */
-		return cci_write(sensor->regmap, OV5647_REG_GAIN,
-				 ctrl->val & 0x3ff, NULL);
+		ret = cci_write(sensor->regmap, OV5647_REG_GAIN,
+				ctrl->val & 0x3ff, NULL);
 		break;
 	case V4L2_CID_EXPOSURE:
 		/*

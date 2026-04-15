@@ -12,6 +12,8 @@
 #include <linux/slab.h>
 #include <media/media-device.h>
 #include <media/v4l2-device.h>
+#include <media/tpg/v4l2-tpg.h>
+#include <media/v4l2-ctrls.h>
 
 #define VIMC_PDEV_NAME "vimc"
 
@@ -26,6 +28,15 @@
 #define VIMC_FRAME_MAX_HEIGHT 2160
 #define VIMC_FRAME_MIN_WIDTH 16
 #define VIMC_FRAME_MIN_HEIGHT 16
+
+#define VIMC_PIXEL_RATE_FIXED		160000000	/* 160 MHz */
+#define VIMC_HBLANK_FIXED		800
+/* VBLANK - vertical blanking (primary FPS control) */
+#define VIMC_VBLANK_MIN			4
+#define VIMC_VBLANK_MAX			65535
+#define VIMC_VBLANK_STEP		1
+#define VIMC_VBLANK_DEFAULT	        3223           /* 30fps vga */
+#define VIMC_PIXELS_THRESHOLD_30FPS	(1920 * 1080) /* 2073600 pixels */
 
 #define VIMC_FRAME_INDEX(lin, col, width, bpp) ((lin * width + col) * bpp)
 
@@ -157,6 +168,36 @@ struct vimc_ent_type {
 struct vimc_ent_config {
 	const char *name;
 	const struct vimc_ent_type *type;
+};
+
+enum vimc_sensor_osd_mode {
+	VIMC_SENSOR_OSD_SHOW_ALL = 0,
+	VIMC_SENSOR_OSD_SHOW_COUNTERS = 1,
+	VIMC_SENSOR_OSD_SHOW_NONE = 2
+};
+
+struct vimc_sensor_device {
+	struct vimc_ent_device ved;
+	struct v4l2_subdev sd;
+	struct tpg_data tpg;
+	struct v4l2_ctrl_handler hdl;
+	struct media_pad pad;
+	struct v4l2_ctrl *pixel_rate;
+	struct v4l2_ctrl *hblank;
+	struct v4l2_ctrl *vblank;
+
+	u8 *frame;
+
+	/*
+	 * Virtual "hardware" configuration, filled when the stream starts or
+	 * when controls are set.
+	 */
+	struct {
+		struct v4l2_area size;
+		enum vimc_sensor_osd_mode osd_value;
+		u64 start_stream_ts;
+		unsigned long fps_jiffies;
+	} hw;
 };
 
 /**

@@ -74,6 +74,7 @@ Common FPDL3/GMSL input parameters
 
     | 0 - OLDI/JEIDA
     | 1 - SPWG/VESA (default)
+    | 2 - ZDML
 
 **link_status** (R):
     Video link status. If the link is locked, chips are properly connected and
@@ -239,6 +240,13 @@ Common FPDL3/GMSL output parameters
 
     *Note: This parameter can not be changed while the output v4l2 device is
     open.*
+
+**color_mapping** (RW):
+    Mapping of the outgoing bits in the signal to the colour bits of the pixels.
+
+    | 0 - OLDI/JEIDA
+    | 1 - SPWG/VESA (default)
+    | 2 - ZDML
 
 **frame_rate** (RW):
     Output video signal frame rate limit in frames per second. Due to

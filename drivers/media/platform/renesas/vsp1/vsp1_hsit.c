@@ -9,6 +9,7 @@
 
 #include <linux/device.h>
 #include <linux/gfp.h>
+#include <linux/mutex.h>
 
 #include <media/v4l2-subdev.h>
 
@@ -34,6 +35,11 @@ static inline void vsp1_hsit_write(struct vsp1_hsit *hsit,
  * V4L2 Subdevice Operations
  */
 
+static const unsigned int hsit_codes[] = {
+	MEDIA_BUS_FMT_ARGB8888_1X32,
+	MEDIA_BUS_FMT_AHSV8888_1X32,
+};
+
 static int hsit_enum_mbus_code(struct v4l2_subdev *subdev,
 			       struct v4l2_subdev_state *sd_state,
 			       struct v4l2_subdev_mbus_code_enum *code)
@@ -56,10 +62,50 @@ static int hsit_enum_frame_size(struct v4l2_subdev *subdev,
 				struct v4l2_subdev_state *sd_state,
 				struct v4l2_subdev_frame_size_enum *fse)
 {
-	return vsp1_subdev_enum_frame_size(subdev, sd_state, fse,
-					   HSIT_MIN_SIZE,
-					   HSIT_MIN_SIZE, HSIT_MAX_SIZE,
-					   HSIT_MAX_SIZE);
+	struct vsp1_entity *entity = to_vsp1_entity(subdev);
+	struct vsp1_hsit *hsit = to_hsit(subdev);
+	u32 code;
+
+	if (fse->index)
+		return -EINVAL;
+
+	if ((fse->pad == HSIT_PAD_SINK && !hsit->inverse) |
+	    (fse->pad == HSIT_PAD_SOURCE && hsit->inverse))
+		code = MEDIA_BUS_FMT_ARGB8888_1X32;
+	else
+		code = MEDIA_BUS_FMT_AHSV8888_1X32;
+
+	if (fse->code != code)
+		return -EINVAL;
+
+	if (fse->pad == 0) {
+		fse->min_width = entity->min_width;
+		fse->max_width = entity->max_width;
+		fse->min_height = entity->min_height;
+		fse->max_height = entity->max_height;
+	} else {
+		struct v4l2_subdev_state *state;
+		struct v4l2_mbus_framefmt *format;
+
+		state = vsp1_entity_get_state(entity, sd_state, fse->which);
+		if (!state)
+			return -EINVAL;
+
+		/*
+		 * The size on the source pad is fixed and always identical to
+		 * the sink pad.
+		 */
+		format = v4l2_subdev_state_get_format(state, HSIT_PAD_SINK);
+
+		guard(mutex)(&entity->lock);
+
+		fse->min_width = format->width;
+		fse->max_width = format->width;
+		fse->min_height = format->height;
+		fse->max_height = format->height;
+	}
+
+	return 0;
 }
 
 static int hsit_set_format(struct v4l2_subdev *subdev,
@@ -174,6 +220,13 @@ struct vsp1_hsit *vsp1_hsit_create(struct vsp1_device *vsp1, bool inverse)
 		hsit->entity.type = VSP1_ENTITY_HSI;
 	else
 		hsit->entity.type = VSP1_ENTITY_HST;
+
+	hsit->entity.codes = hsit_codes;
+	hsit->entity.num_codes = ARRAY_SIZE(hsit_codes);
+	hsit->entity.min_width = HSIT_MIN_SIZE;
+	hsit->entity.min_height = HSIT_MIN_SIZE;
+	hsit->entity.max_width = HSIT_MAX_SIZE;
+	hsit->entity.max_height = HSIT_MAX_SIZE;
 
 	ret = vsp1_entity_init(vsp1, &hsit->entity, inverse ? "hsi" : "hst",
 			       2, &hsit_ops,

@@ -1373,7 +1373,7 @@ static int zoran_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
 		if (zr->codec->type != zr->card.video_codec) {
 			pci_err(pdev, "%s - wrong codec\n", __func__);
-			goto zr_unreg_videocodec;
+			goto zr_detach_codec;
 		}
 	}
 	if (zr->card.video_vfe != 0) {

@@ -162,6 +162,7 @@ enum model {
 	MXC_ISI_IMX8ULP,
 	MXC_ISI_IMX91,
 	MXC_ISI_IMX93,
+	MXC_ISI_IMX95,
 };
 
 struct mxc_isi_plat_data {

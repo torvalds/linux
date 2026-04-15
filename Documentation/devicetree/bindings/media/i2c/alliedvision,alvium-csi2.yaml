@@ -8,7 +8,7 @@ title: Allied Vision Alvium Camera
 
 maintainers:
   - Tommaso Merciai <tomm.merciai@gmail.com>
-  - Martin Hecht <martin.hecht@avnet.eu>
+  - Martin Hecht <mhecht73@gmail.com>
 
 allOf:
   - $ref: /schemas/media/video-interface-devices.yaml#

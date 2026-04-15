@@ -306,5 +306,7 @@ bool mali_c55_pipeline_ready(struct mali_c55 *mali_c55);
 void mali_c55_stats_fill_buffer(struct mali_c55 *mali_c55,
 				enum mali_c55_config_spaces cfg_space);
 void mali_c55_params_write_config(struct mali_c55 *mali_c55);
+void mali_c55_params_init_isp_config(struct mali_c55 *mali_c55,
+				     const struct v4l2_subdev_state *state);
 
 #endif /* _MALI_C55_COMMON_H */

@@ -53,34 +53,6 @@ static const unsigned int uif_codes[] = {
 	MEDIA_BUS_FMT_AYUV8_1X32,
 };
 
-static int uif_enum_mbus_code(struct v4l2_subdev *subdev,
-			      struct v4l2_subdev_state *sd_state,
-			      struct v4l2_subdev_mbus_code_enum *code)
-{
-	return vsp1_subdev_enum_mbus_code(subdev, sd_state, code, uif_codes,
-					  ARRAY_SIZE(uif_codes));
-}
-
-static int uif_enum_frame_size(struct v4l2_subdev *subdev,
-			       struct v4l2_subdev_state *sd_state,
-			       struct v4l2_subdev_frame_size_enum *fse)
-{
-	return vsp1_subdev_enum_frame_size(subdev, sd_state, fse,
-					   UIF_MIN_SIZE,
-					   UIF_MIN_SIZE, UIF_MAX_SIZE,
-					   UIF_MAX_SIZE);
-}
-
-static int uif_set_format(struct v4l2_subdev *subdev,
-			    struct v4l2_subdev_state *sd_state,
-			    struct v4l2_subdev_format *fmt)
-{
-	return vsp1_subdev_set_pad_format(subdev, sd_state, fmt, uif_codes,
-					  ARRAY_SIZE(uif_codes),
-					  UIF_MIN_SIZE, UIF_MIN_SIZE,
-					  UIF_MAX_SIZE, UIF_MAX_SIZE);
-}
-
 static int uif_get_selection(struct v4l2_subdev *subdev,
 			     struct v4l2_subdev_state *sd_state,
 			     struct v4l2_subdev_selection *sel)
@@ -171,10 +143,10 @@ done:
  */
 
 static const struct v4l2_subdev_pad_ops uif_pad_ops = {
-	.enum_mbus_code = uif_enum_mbus_code,
-	.enum_frame_size = uif_enum_frame_size,
+	.enum_mbus_code = vsp1_subdev_enum_mbus_code,
+	.enum_frame_size = vsp1_subdev_enum_frame_size,
 	.get_fmt = vsp1_subdev_get_pad_format,
-	.set_fmt = uif_set_format,
+	.set_fmt = vsp1_subdev_set_pad_format,
 	.get_selection = uif_get_selection,
 	.set_selection = uif_set_selection,
 };
@@ -250,6 +222,12 @@ struct vsp1_uif *vsp1_uif_create(struct vsp1_device *vsp1, unsigned int index)
 	uif->entity.ops = &uif_entity_ops;
 	uif->entity.type = VSP1_ENTITY_UIF;
 	uif->entity.index = index;
+	uif->entity.codes = uif_codes;
+	uif->entity.num_codes = ARRAY_SIZE(uif_codes);
+	uif->entity.min_width = UIF_MIN_SIZE;
+	uif->entity.min_height = UIF_MIN_SIZE;
+	uif->entity.max_width = UIF_MAX_SIZE;
+	uif->entity.max_height = UIF_MAX_SIZE;
 
 	/* The datasheet names the two UIF instances UIF4 and UIF5. */
 	sprintf(name, "uif.%u", index + 4);

@@ -925,7 +925,7 @@ static int imx412_parse_hw_config(struct imx412 *imx412)
 
 	/* Request optional reset pin */
 	imx412->reset_gpio = devm_gpiod_get_optional(imx412->dev, "reset",
-						     GPIOD_OUT_LOW);
+						     GPIOD_OUT_HIGH);
 	if (IS_ERR(imx412->reset_gpio)) {
 		dev_err(imx412->dev, "failed to get reset gpio %pe\n",
 			imx412->reset_gpio);
@@ -1037,7 +1037,11 @@ static int imx412_power_on(struct device *dev)
 		goto error_reset;
 	}
 
-	usleep_range(1000, 1200);
+	/*
+	 * Certain Arducam IMX577 module variants require a longer reset settle
+	 * time. Increasing the delay from 1ms to 10ms ensures reliable startup.
+	 */
+	usleep_range(10000, 12000);
 
 	return 0;
 

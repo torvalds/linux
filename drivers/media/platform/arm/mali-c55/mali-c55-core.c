@@ -663,41 +663,6 @@ static int mali_c55_init_context(struct mali_c55 *mali_c55,
 		      mali_c55->base + config_space_addrs[MALI_C55_CONFIG_PING],
 		      MALI_C55_CONFIG_SPACE_SIZE);
 
-	/*
-	 * Some features of the ISP need to be disabled by default and only
-	 * enabled at the same time as they're configured by a parameters buffer
-	 */
-
-	/* Bypass the sqrt and square compression and expansion modules */
-	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_BYPASS_1,
-				 MALI_C55_REG_BYPASS_1_FE_SQRT,
-				 MALI_C55_REG_BYPASS_1_FE_SQRT);
-	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_BYPASS_3,
-				 MALI_C55_REG_BYPASS_3_SQUARE_BE,
-				 MALI_C55_REG_BYPASS_3_SQUARE_BE);
-
-	/* Bypass the temper module */
-	mali_c55_ctx_write(mali_c55, MALI_C55_REG_BYPASS_2,
-			   MALI_C55_REG_BYPASS_2_TEMPER);
-
-	/* Disable the temper module's DMA read/write */
-	mali_c55_ctx_write(mali_c55, MALI_C55_REG_TEMPER_DMA_IO, 0x0);
-
-	/* Bypass the colour noise reduction  */
-	mali_c55_ctx_write(mali_c55, MALI_C55_REG_BYPASS_4,
-			   MALI_C55_REG_BYPASS_4_CNR);
-
-	/* Disable the sinter module */
-	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_SINTER_CONFIG,
-				 MALI_C55_SINTER_ENABLE_MASK, 0);
-
-	/* Disable the RGB Gamma module for each output */
-	mali_c55_ctx_write(mali_c55, MALI_C55_REG_FR_GAMMA_RGB_ENABLE, 0);
-	mali_c55_ctx_write(mali_c55, MALI_C55_REG_DS_GAMMA_RGB_ENABLE, 0);
-
-	/* Disable the colour correction matrix */
-	mali_c55_ctx_write(mali_c55, MALI_C55_REG_CCM_ENABLE, 0);
-
 	return 0;
 }
 

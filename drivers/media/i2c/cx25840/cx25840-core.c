@@ -1652,10 +1652,14 @@ static int set_v4lstd(struct i2c_client *client)
 	struct cx25840_state *state = to_state(i2c_get_clientdata(client));
 	u8 fmt = 0;	/* zero is autodetect */
 	u8 pal_m = 0;
+	u8 pal_n = 0;
+	u8 ntsc_j = 0;
+	u8 tmp_reg = 0;
 
 	/* First tests should be against specific std */
 	if (state->std == V4L2_STD_NTSC_M_JP) {
 		fmt = 0x2;
+		ntsc_j = 0x80;
 	} else if (state->std == V4L2_STD_NTSC_443) {
 		fmt = 0x3;
 	} else if (state->std == V4L2_STD_PAL_M) {
@@ -1663,6 +1667,7 @@ static int set_v4lstd(struct i2c_client *client)
 		fmt = 0x5;
 	} else if (state->std == V4L2_STD_PAL_N) {
 		fmt = 0x6;
+		pal_n = 0x40;
 	} else if (state->std == V4L2_STD_PAL_Nc) {
 		fmt = 0x7;
 	} else if (state->std == V4L2_STD_PAL_60) {
@@ -1689,10 +1694,30 @@ static int set_v4lstd(struct i2c_client *client)
 		/* Set format to NTSC-M */
 		cx25840_and_or(client, 0x400, ~0xf, 1);
 		/* Turn off LCOMB */
-		cx25840_and_or(client, 0x47b, ~6, 0);
+		cx25840_and_or(client, 0x47b, ~0x6, 0);
+	} else if (fmt == 0xc) { /* SECAM - Step 9c - toggle CKILLEN */
+		tmp_reg = cx25840_read(client, 0x401);
+		cx25840_and_or(client, 0x401, ~0x20, tmp_reg & 0x20 ? 0x00 : 0x20);
+		cx25840_and_or(client, 0x401, ~0x20, tmp_reg & 0x20 ? 0x20 : 0x00);
 	}
+
 	cx25840_and_or(client, 0x400, ~0xf, fmt);
-	cx25840_and_or(client, 0x403, ~0x3, pal_m);
+
+	if (fmt >= 4 && fmt < 8) {
+		tmp_reg = cx25840_read(client, 0x401);
+		cx25840_and_or(client, 0x401, ~0x40, tmp_reg & 0x40 ? 0x00 : 0x40); /* CAGCEN */
+		cx25840_and_or(client, 0x401, ~0x40, tmp_reg & 0x40 ? 0x40 : 0x00);
+		cx25840_and_or(client, 0x401, ~0x20, tmp_reg & 0x20 ? 0x00 : 0x20); /* CKILLEN */
+		cx25840_and_or(client, 0x401, ~0x20, tmp_reg & 0x20 ? 0x20 : 0x00);
+	}
+
+	if (pal_m)
+		cx25840_and_or(client, 0x403, ~0x3, pal_m);
+	else if (pal_n)         /* cx25840 datasheet table 3-19 */
+		cx25840_and_or(client, 0x403, ~0x40, pal_n);
+	else if (ntsc_j)        /* cx25840 datasheet table 3-19 */
+		cx25840_and_or(client, 0x403, ~0x80, ntsc_j);
+
 	if (is_cx23888(state))
 		cx23888_std_setup(client);
 	else

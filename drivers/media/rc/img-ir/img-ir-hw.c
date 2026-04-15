@@ -1118,9 +1118,10 @@ void img_ir_remove_hw(struct img_ir_priv *priv)
 	struct rc_dev *rdev = hw->rdev;
 	if (!rdev)
 		return;
+	rc_unregister_device(rdev);
 	img_ir_set_decoder(priv, NULL, 0);
 	hw->rdev = NULL;
-	rc_unregister_device(rdev);
+	rc_free_device(rdev);
 #ifdef CONFIG_COMMON_CLK
 	if (!IS_ERR(priv->clk))
 		clk_notifier_unregister(priv->clk, &hw->clk_nb);

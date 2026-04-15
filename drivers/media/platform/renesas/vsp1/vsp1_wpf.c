@@ -531,7 +531,7 @@ static unsigned int wpf_max_width(struct vsp1_entity *entity,
 {
 	struct vsp1_rwpf *wpf = to_rwpf(&entity->subdev);
 
-	return wpf->flip.rotate ? 256 : wpf->max_width;
+	return wpf->flip.rotate ? 256 : wpf->entity.max_width;
 }
 
 static void wpf_partition(struct vsp1_entity *entity,
@@ -567,12 +567,15 @@ struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index)
 	if (wpf == NULL)
 		return ERR_PTR(-ENOMEM);
 
+	wpf->entity.min_width = RWPF_MIN_WIDTH;
+	wpf->entity.min_height = RWPF_MIN_HEIGHT;
+
 	if (vsp1->info->gen == 2) {
-		wpf->max_width = WPF_GEN2_MAX_WIDTH;
-		wpf->max_height = WPF_GEN2_MAX_HEIGHT;
+		wpf->entity.max_width = WPF_GEN2_MAX_WIDTH;
+		wpf->entity.max_height = WPF_GEN2_MAX_HEIGHT;
 	} else {
-		wpf->max_width = WPF_GEN3_MAX_WIDTH;
-		wpf->max_height = WPF_GEN3_MAX_HEIGHT;
+		wpf->entity.max_width = WPF_GEN3_MAX_WIDTH;
+		wpf->entity.max_height = WPF_GEN3_MAX_HEIGHT;
 	}
 
 	wpf->entity.ops = &wpf_entity_ops;

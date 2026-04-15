@@ -1090,7 +1090,6 @@ exit_release_hw_io:
 	release_region(dev->hw_io, ENE_IO_SIZE);
 exit_unregister_device:
 	rc_unregister_device(rdev);
-	rdev = NULL;
 exit_free_dev_rdev:
 	rc_free_device(rdev);
 	kfree(dev);
@@ -1110,6 +1109,7 @@ static void ene_remove(struct pnp_dev *pnp_dev)
 	ene_rx_restore_hw_buffer(dev);
 	spin_unlock_irqrestore(&dev->hw_lock, flags);
 
+	rc_free_device(dev->rdev);
 	free_irq(dev->irq, dev);
 	release_region(dev->hw_io, ENE_IO_SIZE);
 	kfree(dev);

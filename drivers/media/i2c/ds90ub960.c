@@ -396,6 +396,13 @@
 #define UB960_IR_RX_ANA_STROBE_SET_DATA_NO_EXTRA_DELAY	BIT(3)
 #define UB960_IR_RX_ANA_STROBE_SET_DATA_DELAY_MASK	GENMASK(2, 0)
 
+#define UB954_IR_RX_ANA_STROBE_SET_CLK_DATA		0x08
+#define UB954_IR_RX_ANA_STROBE_SET_CLK_NO_EXTRA_DELAY	BIT(3)
+#define UB954_IR_RX_ANA_STROBE_SET_DATA_NO_EXTRA_DELAY	BIT(7)
+#define UB954_IR_RX_ANA_STROBE_SET_CLK_DELAY_MASK	GENMASK(2, 0)
+#define UB954_IR_RX_ANA_STROBE_SET_DATA_DELAY_MASK	GENMASK(4, 6)
+#define UB954_IR_RX_ANA_STROBE_SET_DATA_DELAY_SHIFT	4
+
 /* UB9702 Registers */
 
 #define UB9702_SR_CSI_EXCLUSIVE_FWD2		0x3c
@@ -454,12 +461,23 @@
 #define UB960_MAX_EQ_LEVEL  14
 #define UB960_NUM_EQ_LEVELS (UB960_MAX_EQ_LEVEL - UB960_MIN_EQ_LEVEL + 1)
 
+enum chip_type {
+	UB954,
+	UB960,
+	UB9702,
+};
+
+enum chip_family {
+	FAMILY_FPD3,
+	FAMILY_FPD4,
+};
+
 struct ub960_hw_data {
 	const char *model;
+	enum chip_type chip_type;
+	enum chip_family chip_family;
 	u8 num_rxports;
 	u8 num_txports;
-	bool is_ub9702;
-	bool is_fpdlink4;
 };
 
 enum ub960_rxport_mode {
@@ -982,6 +1000,10 @@ static int ub960_txport_select(struct ub960_data *priv, u8 nport)
 
 	lockdep_assert_held(&priv->reg_lock);
 
+	/* UB954 has only 1 CSI TX. Hence, no need to select */
+	if (priv->hw_data->chip_type == UB954)
+		return 0;
+
 	if (priv->reg_current.txport == nport)
 		return 0;
 
@@ -1406,10 +1428,11 @@ static int ub960_parse_dt_txport(struct ub960_data *priv,
 	priv->tx_link_freq[0] = vep.link_frequencies[0];
 	priv->tx_data_rate = priv->tx_link_freq[0] * 2;
 
-	if (priv->tx_data_rate != MHZ(1600) &&
-	    priv->tx_data_rate != MHZ(1200) &&
-	    priv->tx_data_rate != MHZ(800) &&
-	    priv->tx_data_rate != MHZ(400)) {
+	if ((priv->tx_data_rate != MHZ(1600) &&
+	     priv->tx_data_rate != MHZ(1200) &&
+	     priv->tx_data_rate != MHZ(800) &&
+	     priv->tx_data_rate != MHZ(400)) ||
+	     (priv->hw_data->chip_type == UB954 && priv->tx_data_rate == MHZ(1200))) {
 		dev_err(dev, "tx%u: invalid 'link-frequencies' value\n", nport);
 		ret = -EINVAL;
 		goto err_free_vep;
@@ -1533,21 +1556,34 @@ static int ub960_rxport_get_strobe_pos(struct ub960_data *priv,
 	u8 clk_delay, data_delay;
 	int ret;
 
-	ret = ub960_read_ind(priv, UB960_IND_TARGET_RX_ANA(nport),
-			     UB960_IR_RX_ANA_STROBE_SET_CLK, &v, NULL);
-	if (ret)
-		return ret;
+	if (priv->hw_data->chip_type == UB954) {
+		ret = ub960_read_ind(priv, UB960_IND_TARGET_RX_ANA(nport),
+				     UB954_IR_RX_ANA_STROBE_SET_CLK_DATA, &v, NULL);
+		if (ret)
+			return ret;
 
-	clk_delay = (v & UB960_IR_RX_ANA_STROBE_SET_CLK_NO_EXTRA_DELAY) ?
-			    0 : UB960_MANUAL_STROBE_EXTRA_DELAY;
-
-	ret = ub960_read_ind(priv, UB960_IND_TARGET_RX_ANA(nport),
-			     UB960_IR_RX_ANA_STROBE_SET_DATA, &v, NULL);
-	if (ret)
-		return ret;
-
-	data_delay = (v & UB960_IR_RX_ANA_STROBE_SET_DATA_NO_EXTRA_DELAY) ?
+		clk_delay = (v & UB954_IR_RX_ANA_STROBE_SET_CLK_NO_EXTRA_DELAY) ?
 			     0 : UB960_MANUAL_STROBE_EXTRA_DELAY;
+
+		data_delay = (v & UB954_IR_RX_ANA_STROBE_SET_DATA_NO_EXTRA_DELAY) ?
+			      0 : UB960_MANUAL_STROBE_EXTRA_DELAY;
+	} else {
+		ret = ub960_read_ind(priv, UB960_IND_TARGET_RX_ANA(nport),
+				     UB960_IR_RX_ANA_STROBE_SET_CLK, &v, NULL);
+		if (ret)
+			return ret;
+
+		clk_delay = (v & UB960_IR_RX_ANA_STROBE_SET_CLK_NO_EXTRA_DELAY) ?
+			     0 : UB960_MANUAL_STROBE_EXTRA_DELAY;
+
+		ret = ub960_read_ind(priv, UB960_IND_TARGET_RX_ANA(nport),
+				     UB960_IR_RX_ANA_STROBE_SET_DATA, &v, NULL);
+		if (ret)
+			return ret;
+
+		data_delay = (v & UB960_IR_RX_ANA_STROBE_SET_DATA_NO_EXTRA_DELAY) ?
+			      0 : UB960_MANUAL_STROBE_EXTRA_DELAY;
+	}
 
 	ret = ub960_rxport_read(priv, nport, UB960_RR_SFILTER_STS_0, &v, NULL);
 	if (ret)
@@ -1569,26 +1605,49 @@ static int ub960_rxport_get_strobe_pos(struct ub960_data *priv,
 static int ub960_rxport_set_strobe_pos(struct ub960_data *priv,
 				       unsigned int nport, s8 strobe_pos)
 {
-	u8 clk_delay, data_delay;
 	int ret = 0;
 
-	clk_delay = UB960_IR_RX_ANA_STROBE_SET_CLK_NO_EXTRA_DELAY;
-	data_delay = UB960_IR_RX_ANA_STROBE_SET_DATA_NO_EXTRA_DELAY;
+	if (priv->hw_data->chip_type == UB954) {
+		u8 clk_data_delay;
 
-	if (strobe_pos < UB960_MIN_AEQ_STROBE_POS)
-		clk_delay = abs(strobe_pos) - UB960_MANUAL_STROBE_EXTRA_DELAY;
-	else if (strobe_pos > UB960_MAX_AEQ_STROBE_POS)
-		data_delay = strobe_pos - UB960_MANUAL_STROBE_EXTRA_DELAY;
-	else if (strobe_pos < 0)
-		clk_delay = abs(strobe_pos) | UB960_IR_RX_ANA_STROBE_SET_CLK_NO_EXTRA_DELAY;
-	else if (strobe_pos > 0)
-		data_delay = strobe_pos | UB960_IR_RX_ANA_STROBE_SET_DATA_NO_EXTRA_DELAY;
+		clk_data_delay = UB954_IR_RX_ANA_STROBE_SET_CLK_NO_EXTRA_DELAY |
+				 UB954_IR_RX_ANA_STROBE_SET_DATA_NO_EXTRA_DELAY;
 
-	ub960_write_ind(priv, UB960_IND_TARGET_RX_ANA(nport),
-			UB960_IR_RX_ANA_STROBE_SET_CLK, clk_delay, &ret);
+		if (strobe_pos < UB960_MIN_AEQ_STROBE_POS)
+			clk_data_delay = abs(strobe_pos) - UB960_MANUAL_STROBE_EXTRA_DELAY;
+		else if (strobe_pos > UB960_MAX_AEQ_STROBE_POS)
+			clk_data_delay = (strobe_pos - UB960_MANUAL_STROBE_EXTRA_DELAY) <<
+					  UB954_IR_RX_ANA_STROBE_SET_DATA_DELAY_SHIFT;
+		else if (strobe_pos < 0)
+			clk_data_delay = abs(strobe_pos) |
+					 UB954_IR_RX_ANA_STROBE_SET_CLK_NO_EXTRA_DELAY;
+		else if (strobe_pos > 0)
+			clk_data_delay = (strobe_pos |
+					  UB954_IR_RX_ANA_STROBE_SET_DATA_NO_EXTRA_DELAY) <<
+					  UB954_IR_RX_ANA_STROBE_SET_DATA_DELAY_SHIFT;
 
-	ub960_write_ind(priv, UB960_IND_TARGET_RX_ANA(nport),
-			UB960_IR_RX_ANA_STROBE_SET_DATA, data_delay, &ret);
+		ub960_write_ind(priv, UB960_IND_TARGET_RX_ANA(nport),
+				UB954_IR_RX_ANA_STROBE_SET_CLK_DATA, clk_data_delay, &ret);
+	} else {
+		u8 clk_delay, data_delay;
+
+		clk_delay = UB960_IR_RX_ANA_STROBE_SET_CLK_NO_EXTRA_DELAY;
+		data_delay = UB960_IR_RX_ANA_STROBE_SET_DATA_NO_EXTRA_DELAY;
+
+		if (strobe_pos < UB960_MIN_AEQ_STROBE_POS)
+			clk_delay = abs(strobe_pos) - UB960_MANUAL_STROBE_EXTRA_DELAY;
+		else if (strobe_pos > UB960_MAX_AEQ_STROBE_POS)
+			data_delay = strobe_pos - UB960_MANUAL_STROBE_EXTRA_DELAY;
+		else if (strobe_pos < 0)
+			clk_delay = abs(strobe_pos) | UB960_IR_RX_ANA_STROBE_SET_CLK_NO_EXTRA_DELAY;
+		else if (strobe_pos > 0)
+			data_delay = strobe_pos | UB960_IR_RX_ANA_STROBE_SET_DATA_NO_EXTRA_DELAY;
+
+		ub960_write_ind(priv, UB960_IND_TARGET_RX_ANA(nport),
+				UB960_IR_RX_ANA_STROBE_SET_CLK, clk_delay, &ret);
+		ub960_write_ind(priv, UB960_IND_TARGET_RX_ANA(nport),
+				UB960_IR_RX_ANA_STROBE_SET_DATA, data_delay, &ret);
+	}
 
 	return ret;
 }
@@ -1924,7 +1983,7 @@ static int ub960_rxport_wait_locks(struct ub960_data *priv,
 		if (ret)
 			return ret;
 
-		if (priv->hw_data->is_ub9702) {
+		if (priv->hw_data->chip_type == UB9702) {
 			dev_dbg(dev, "\trx%u: locked, freq %llu Hz\n",
 				nport, ((u64)v * HZ_PER_MHZ) >> 8);
 		} else {
@@ -2186,7 +2245,7 @@ static int ub960_rxport_add_serializer(struct ub960_data *priv, u8 nport)
 
 	ser_pdata->port = nport;
 	ser_pdata->atr = priv->atr;
-	if (priv->hw_data->is_ub9702)
+	if (priv->hw_data->chip_type == UB9702)
 		ser_pdata->bc_rate = ub960_calc_bc_clk_rate_ub9702(priv, rxport);
 	else
 		ser_pdata->bc_rate = ub960_calc_bc_clk_rate_ub960(priv, rxport);
@@ -2352,7 +2411,7 @@ static int ub960_init_tx_ports(struct ub960_data *priv)
 {
 	int ret;
 
-	if (priv->hw_data->is_ub9702)
+	if (priv->hw_data->chip_type == UB9702)
 		ret = ub960_init_tx_ports_ub9702(priv);
 	else
 		ret = ub960_init_tx_ports_ub960(priv);
@@ -3624,7 +3683,8 @@ static int ub960_configure_ports_for_streaming(struct ub960_data *priv,
 
 		case RXPORT_MODE_CSI2_SYNC:
 		case RXPORT_MODE_CSI2_NONSYNC:
-			if (!priv->hw_data->is_ub9702) {
+			if (priv->hw_data->chip_type == UB960 ||
+			    priv->hw_data->chip_type == UB954) {
 				/* Map all VCs from this port to the same VC */
 				ub960_rxport_write(priv, nport, UB960_RR_CSI_VC_MAP,
 						   (vc << UB960_RR_CSI_VC_MAP_SHIFT(3)) |
@@ -4158,33 +4218,40 @@ static int ub960_log_status(struct v4l2_subdev *sd)
 		dev_info(dev, "\tsync %u, pass %u\n", v & (u8)BIT(1),
 			 v & (u8)BIT(0));
 
-		ret = ub960_read16(priv, UB960_SR_CSI_FRAME_COUNT_HI(nport),
-				   &v16, NULL);
-		if (ret)
-			return ret;
+		/*
+		 * Frame counter, frame error counter, line counter and line error counter
+		 * registers are marked as reserved in the UB954 datasheet. Hence restrict
+		 * the following register reads only for UB960 and UB9702.
+		 */
+		if (priv->hw_data->chip_type == UB960 || priv->hw_data->chip_type == UB9702) {
+			ret = ub960_read16(priv, UB960_SR_CSI_FRAME_COUNT_HI(nport),
+					   &v16, NULL);
+			if (ret)
+				return ret;
 
-		dev_info(dev, "\tframe counter %u\n", v16);
+			dev_info(dev, "\tframe counter %u\n", v16);
 
-		ret = ub960_read16(priv, UB960_SR_CSI_FRAME_ERR_COUNT_HI(nport),
-				   &v16, NULL);
-		if (ret)
-			return ret;
+			ret = ub960_read16(priv, UB960_SR_CSI_FRAME_ERR_COUNT_HI(nport),
+					   &v16, NULL);
+			if (ret)
+				return ret;
 
-		dev_info(dev, "\tframe error counter %u\n", v16);
+			dev_info(dev, "\tframe error counter %u\n", v16);
 
-		ret = ub960_read16(priv, UB960_SR_CSI_LINE_COUNT_HI(nport),
-				   &v16, NULL);
-		if (ret)
-			return ret;
+			ret = ub960_read16(priv, UB960_SR_CSI_LINE_COUNT_HI(nport),
+					   &v16, NULL);
+			if (ret)
+				return ret;
 
-		dev_info(dev, "\tline counter %u\n", v16);
+			dev_info(dev, "\tline counter %u\n", v16);
 
-		ret = ub960_read16(priv, UB960_SR_CSI_LINE_ERR_COUNT_HI(nport),
-				   &v16, NULL);
-		if (ret)
-			return ret;
+			ret = ub960_read16(priv, UB960_SR_CSI_LINE_ERR_COUNT_HI(nport),
+					   &v16, NULL);
+			if (ret)
+				return ret;
 
-		dev_info(dev, "\tline error counter %u\n", v16);
+			dev_info(dev, "\tline error counter %u\n", v16);
+		}
 	}
 
 	for_each_rxport(priv, it) {
@@ -4250,7 +4317,7 @@ static int ub960_log_status(struct v4l2_subdev *sd)
 
 		dev_info(dev, "\tcsi_err_counter %u\n", v);
 
-		if (!priv->hw_data->is_ub9702) {
+		if (priv->hw_data->chip_type == UB960 || priv->hw_data->chip_type == UB954) {
 			ret = ub960_log_status_ub960_sp_eq(priv, nport);
 			if (ret)
 				return ret;
@@ -4408,7 +4475,7 @@ ub960_parse_dt_rxport_link_properties(struct ub960_data *priv,
 		return -EINVAL;
 	}
 
-	if (!priv->hw_data->is_fpdlink4 && cdr_mode == RXPORT_CDR_FPD4) {
+	if (priv->hw_data->chip_family != FAMILY_FPD4 && cdr_mode == RXPORT_CDR_FPD4) {
 		dev_err(dev, "rx%u: FPD-Link 4 CDR not supported\n", nport);
 		return -EINVAL;
 	}
@@ -5010,7 +5077,12 @@ static int ub960_enable_core_hw(struct ub960_data *priv)
 	if (ret)
 		goto err_pd_gpio;
 
-	if (priv->hw_data->is_ub9702)
+	/*
+	 * UB954 REFCLK_FREQ is not synchronized, so multiple reads are recommended
+	 * by the datasheet. However, a single read is practically seen to be
+	 * sufficient and moreover it is only used for a debug print.
+	 */
+	if (priv->hw_data->chip_type == UB9702)
 		ret = ub960_read(priv, UB9702_SR_REFCLK_FREQ, &refclk_freq,
 				 NULL);
 	else
@@ -5029,7 +5101,7 @@ static int ub960_enable_core_hw(struct ub960_data *priv)
 		goto err_pd_gpio;
 
 	/* release GPIO lock */
-	if (priv->hw_data->is_ub9702) {
+	if (priv->hw_data->chip_type == UB9702) {
 		ret = ub960_update_bits(priv, UB960_SR_RESET,
 					UB960_SR_RESET_GPIO_LOCK_RELEASE,
 					UB960_SR_RESET_GPIO_LOCK_RELEASE,
@@ -5102,7 +5174,7 @@ static int ub960_probe(struct i2c_client *client)
 	if (ret)
 		goto err_free_ports;
 
-	if (priv->hw_data->is_ub9702)
+	if (priv->hw_data->chip_type == UB9702)
 		ret = ub960_init_rx_ports_ub9702(priv);
 	else
 		ret = ub960_init_rx_ports_ub960(priv);
@@ -5169,21 +5241,32 @@ static void ub960_remove(struct i2c_client *client)
 	mutex_destroy(&priv->reg_lock);
 }
 
+static const struct ub960_hw_data ds90ub954_hw = {
+	.model = "ub954",
+	.chip_type = UB954,
+	.chip_family = FAMILY_FPD3,
+	.num_rxports = 2,
+	.num_txports = 1,
+};
+
 static const struct ub960_hw_data ds90ub960_hw = {
 	.model = "ub960",
+	.chip_type = UB960,
+	.chip_family = FAMILY_FPD3,
 	.num_rxports = 4,
 	.num_txports = 2,
 };
 
 static const struct ub960_hw_data ds90ub9702_hw = {
 	.model = "ub9702",
+	.chip_type = UB9702,
+	.chip_family = FAMILY_FPD4,
 	.num_rxports = 4,
 	.num_txports = 2,
-	.is_ub9702 = true,
-	.is_fpdlink4 = true,
 };
 
 static const struct i2c_device_id ub960_id[] = {
+	{ "ds90ub954-q1", (kernel_ulong_t)&ds90ub954_hw },
 	{ "ds90ub960-q1", (kernel_ulong_t)&ds90ub960_hw },
 	{ "ds90ub9702-q1", (kernel_ulong_t)&ds90ub9702_hw },
 	{}
@@ -5191,6 +5274,7 @@ static const struct i2c_device_id ub960_id[] = {
 MODULE_DEVICE_TABLE(i2c, ub960_id);
 
 static const struct of_device_id ub960_dt_ids[] = {
+	{ .compatible = "ti,ds90ub954-q1", .data = &ds90ub954_hw },
 	{ .compatible = "ti,ds90ub960-q1", .data = &ds90ub960_hw },
 	{ .compatible = "ti,ds90ub9702-q1", .data = &ds90ub9702_hw },
 	{}

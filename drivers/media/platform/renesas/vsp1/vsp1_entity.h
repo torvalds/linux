@@ -113,6 +113,13 @@ struct vsp1_entity {
 	unsigned int index;
 	const struct vsp1_route *route;
 
+	const u32 *codes;
+	unsigned int num_codes;
+	unsigned int min_width;
+	unsigned int min_height;
+	unsigned int max_width;
+	unsigned int max_height;
+
 	struct vsp1_pipeline *pipe;
 
 	struct list_head list_dev;
@@ -135,6 +142,8 @@ static inline struct vsp1_entity *to_vsp1_entity(struct v4l2_subdev *subdev)
 {
 	return container_of(subdev, struct vsp1_entity, subdev);
 }
+
+extern const struct v4l2_subdev_core_ops vsp1_entity_core_ops;
 
 int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 		     const char *name, unsigned int num_pads,
@@ -180,18 +189,12 @@ int vsp1_subdev_get_pad_format(struct v4l2_subdev *subdev,
 			       struct v4l2_subdev_format *fmt);
 int vsp1_subdev_set_pad_format(struct v4l2_subdev *subdev,
 			       struct v4l2_subdev_state *sd_state,
-			       struct v4l2_subdev_format *fmt,
-			       const unsigned int *codes, unsigned int ncodes,
-			       unsigned int min_width, unsigned int min_height,
-			       unsigned int max_width, unsigned int max_height);
+			       struct v4l2_subdev_format *fmt);
 int vsp1_subdev_enum_mbus_code(struct v4l2_subdev *subdev,
 			       struct v4l2_subdev_state *sd_state,
-			       struct v4l2_subdev_mbus_code_enum *code,
-			       const unsigned int *codes, unsigned int ncodes);
+			       struct v4l2_subdev_mbus_code_enum *code);
 int vsp1_subdev_enum_frame_size(struct v4l2_subdev *subdev,
 				struct v4l2_subdev_state *sd_state,
-				struct v4l2_subdev_frame_size_enum *fse,
-				unsigned int min_w, unsigned int min_h,
-				unsigned int max_w, unsigned int max_h);
+				struct v4l2_subdev_frame_size_enum *fse);
 
 #endif /* __VSP1_ENTITY_H__ */

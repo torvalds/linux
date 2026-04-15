@@ -187,6 +187,7 @@ static int dvb_usbv2_remote_exit(struct dvb_usb_device *d)
 	if (d->rc_dev) {
 		cancel_delayed_work_sync(&d->rc_query_work);
 		rc_unregister_device(d->rc_dev);
+		rc_free_device(d->rc_dev);
 		d->rc_dev = NULL;
 	}
 

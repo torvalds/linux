@@ -14,10 +14,5 @@ config VIDEO_BCM2835_UNICAM
 	  This is a V4L2 driver that controls the CSI-2 receiver directly,
 	  independently from the VC4 firmware.
 
-	  This driver is mutually exclusive with the use of bcm2835-camera. The
-	  firmware will disable all access to the peripheral from within the
-	  firmware if it finds a DT node using it, and bcm2835-camera will
-	  therefore fail to probe.
-
 	  To compile this driver as a module, choose M here. The module will be
 	  called bcm2835-unicam.

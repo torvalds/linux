@@ -43,9 +43,9 @@
  * @digital_gain:	For header->type == MALI_C55_PARAM_BLOCK_DIGITAL_GAIN
  * @awb_gains:		For header->type == MALI_C55_PARAM_BLOCK_AWB_GAINS and
  *			header->type = MALI_C55_PARAM_BLOCK_AWB_GAINS_AEXP
- * @awb_config:		For header->type == MALI_C55_PARAM_MESH_SHADING_CONFIG
- * @shading_config:	For header->type == MALI_C55_PARAM_MESH_SHADING_SELECTION
- * @shading_selection:	For header->type == MALI_C55_PARAM_BLOCK_SENSOR_OFFS
+ * @awb_config:		For header->type == MALI_C55_PARAM_BLOCK_AWB_CONFIG
+ * @shading_config:	For header->type == MALI_C55_PARAM_MESH_SHADING_CONFIG
+ * @shading_selection:	For header->type == MALI_C55_PARAM_MESH_SHADING_SELECTION
  * @data:		Allows easy initialisation of a union variable with a
  *			pointer into a __u8 array.
  */
@@ -730,6 +730,134 @@ void mali_c55_params_write_config(struct mali_c55 *mali_c55)
 	}
 
 	vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
+}
+
+void mali_c55_params_init_isp_config(struct mali_c55 *mali_c55,
+				     const struct v4l2_subdev_state *state)
+{
+	const struct mali_c55_isp_format_info *cfg;
+	const struct v4l2_mbus_framefmt *format;
+	const struct v4l2_rect *crop;
+
+	/* Apply input windowing */
+	crop = v4l2_subdev_state_get_crop(state, MALI_C55_ISP_PAD_SINK_VIDEO);
+	format = v4l2_subdev_state_get_format(state,
+					      MALI_C55_ISP_PAD_SINK_VIDEO);
+	cfg = mali_c55_isp_get_mbus_config_by_code(format->code);
+
+	mali_c55_write(mali_c55, MALI_C55_REG_HC_START,
+		       MALI_C55_HC_START(crop->left));
+	mali_c55_write(mali_c55, MALI_C55_REG_HC_SIZE,
+		       MALI_C55_HC_SIZE(crop->width));
+	mali_c55_write(mali_c55, MALI_C55_REG_VC_START_SIZE,
+		       MALI_C55_VC_START(crop->top) |
+		       MALI_C55_VC_SIZE(crop->height));
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_BASE_ADDR,
+				 MALI_C55_REG_ACTIVE_WIDTH_MASK, format->width);
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_BASE_ADDR,
+				 MALI_C55_REG_ACTIVE_HEIGHT_MASK,
+				 format->height << 16);
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_BAYER_ORDER,
+				 MALI_C55_BAYER_ORDER_MASK, cfg->order);
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_INPUT_WIDTH,
+				 MALI_C55_INPUT_WIDTH_MASK,
+				 MALI_C55_INPUT_WIDTH_20BIT);
+
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_ISP_RAW_BYPASS,
+				 MALI_C55_ISP_RAW_BYPASS_BYPASS_MASK,
+				 cfg->bypass ? MALI_C55_ISP_RAW_BYPASS_BYPASS_MASK :
+					     0x00);
+
+	/*
+	 * Some features of the ISP need to be disabled by default and only
+	 * enabled at the same time as they're configured by a parameters buffer
+	 */
+
+	/* Bypass the sqrt and square compression and expansion modules */
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_BYPASS_1,
+				 MALI_C55_REG_BYPASS_1_FE_SQRT,
+				 MALI_C55_REG_BYPASS_1_FE_SQRT);
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_BYPASS_3,
+				 MALI_C55_REG_BYPASS_3_SQUARE_BE,
+				 MALI_C55_REG_BYPASS_3_SQUARE_BE);
+
+	/* Bypass the sensor offset correction (BLS) module */
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_BYPASS_3,
+		MALI_C55_REG_BYPASS_3_SENSOR_OFFSET_PRE_SH,
+		MALI_C55_REG_BYPASS_3_SENSOR_OFFSET_PRE_SH);
+
+	/* Configure 1x digital gain. */
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_DIGITAL_GAIN,
+				 MALI_C55_DIGITAL_GAIN_MASK, 256);
+
+	/* Set all AWB gains to 1x. at both AWB configuration points*/
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_AWB_GAINS1,
+				 MALI_C55_AWB_GAIN00_MASK, 256);
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_AWB_GAINS1,
+				 MALI_C55_AWB_GAIN01_MASK,
+				 MALI_C55_AWB_GAIN01(256));
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_AWB_GAINS2,
+				 MALI_C55_AWB_GAIN10_MASK, 256);
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_AWB_GAINS2,
+				 MALI_C55_AWB_GAIN11_MASK,
+				 MALI_C55_AWB_GAIN11(256));
+
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_AWB_GAINS1_AEXP,
+				 MALI_C55_AWB_GAIN00_MASK, 256);
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_AWB_GAINS1_AEXP,
+				 MALI_C55_AWB_GAIN01_MASK,
+				 MALI_C55_AWB_GAIN01(256));
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_AWB_GAINS2_AEXP,
+				 MALI_C55_AWB_GAIN10_MASK, 256);
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_AWB_GAINS2_AEXP,
+				 MALI_C55_AWB_GAIN11_MASK,
+				 MALI_C55_AWB_GAIN11(256));
+
+	/* Bypass mesh shading corrections (LSC). */
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_MESH_SHADING_CONFIG,
+				 MALI_C55_MESH_SHADING_ENABLE_MASK,
+				 false);
+
+	/* Bypass the temper module */
+	mali_c55_ctx_write(mali_c55, MALI_C55_REG_BYPASS_2,
+			   MALI_C55_REG_BYPASS_2_TEMPER);
+
+	/* Disable the temper module's DMA read/write */
+	mali_c55_ctx_write(mali_c55, MALI_C55_REG_TEMPER_DMA_IO, 0x0);
+
+	/* Disable IRIDIX module. */
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_BYPASS_3,
+				 MALI_C55_REG_BYPASS_3_IRIDIX,
+				 MALI_C55_REG_BYPASS_3_IRIDIX);
+
+	/* Bypass the colour noise reduction and the PF modules  */
+	mali_c55_ctx_write(mali_c55, MALI_C55_REG_BYPASS_4,
+			   MALI_C55_REG_BYPASS_4_CNR |
+			   MALI_C55_REG_BYPASS_4_PF_CORRECTION);
+
+	/* Disable the sinter module */
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_SINTER_CONFIG,
+				 MALI_C55_SINTER_ENABLE_MASK, 0);
+
+	/* Disable the RGB Gamma module for each output */
+	mali_c55_ctx_write(mali_c55, MALI_C55_REG_FR_GAMMA_RGB_ENABLE, 0);
+	mali_c55_ctx_write(mali_c55, MALI_C55_REG_DS_GAMMA_RGB_ENABLE, 0);
+
+	/* Disable the colour correction matrix */
+	mali_c55_ctx_write(mali_c55, MALI_C55_REG_CCM_ENABLE, 0);
+
+	/* Disable AWB stats. */
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_METERING_CONFIG,
+				 MALI_C55_AWB_DISABLE_MASK,
+				 MALI_C55_AWB_DISABLE_MASK);
+
+	/* Disable auto-exposure 1024-bin histograms at both tap points. */
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_METERING_CONFIG,
+				 MALI_C55_AEXP_HIST_DISABLE_MASK,
+				 MALI_C55_AEXP_HIST_DISABLE);
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_METERING_CONFIG,
+				 MALI_C55_AEXP_IHIST_DISABLE_MASK,
+				 MALI_C55_AEXP_IHIST_DISABLE);
 }
 
 void mali_c55_unregister_params(struct mali_c55 *mali_c55)

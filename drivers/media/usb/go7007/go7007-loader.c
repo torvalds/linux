@@ -41,9 +41,7 @@ static int go7007_loader_probe(struct usb_interface *interface,
 	int ret;
 	int i;
 
-	usbdev = usb_get_dev(interface_to_usbdev(interface));
-	if (!usbdev)
-		goto failed2;
+	usbdev = interface_to_usbdev(interface);
 
 	if (usbdev->descriptor.bNumConfigurations != 1) {
 		dev_err(&interface->dev, "can't handle multiple config\n");
@@ -96,7 +94,6 @@ static int go7007_loader_probe(struct usb_interface *interface,
 	return 0;
 
 failed2:
-	usb_put_dev(usbdev);
 	dev_err(&interface->dev, "probe failed\n");
 	return -ENODEV;
 }
@@ -104,7 +101,6 @@ failed2:
 static void go7007_loader_disconnect(struct usb_interface *interface)
 {
 	dev_info(&interface->dev, "disconnect\n");
-	usb_put_dev(interface_to_usbdev(interface));
 	usb_set_intfdata(interface, NULL);
 }
 

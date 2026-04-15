@@ -24,6 +24,7 @@ properties:
       - fsl,imx8ulp-isi
       - fsl,imx91-isi
       - fsl,imx93-isi
+      - fsl,imx95-isi
 
   reg:
     maxItems: 1
@@ -50,7 +51,7 @@ properties:
   interrupts:
     description: Processing pipeline interrupts, one per pipeline
     minItems: 1
-    maxItems: 2
+    maxItems: 8
 
   power-domains:
     maxItems: 1
@@ -99,6 +100,7 @@ allOf:
     then:
       properties:
         interrupts:
+          minItems: 2
           maxItems: 2
         ports:
           properties:
@@ -119,6 +121,29 @@ allOf:
     then:
       required:
         - fsl,blk-ctrl
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: fsl,imx95-isi
+    then:
+      properties:
+        interrupts:
+          minItems: 8
+        ports:
+          properties:
+            port@0:
+              description: Pixel Link Slave 0
+            port@1:
+              description: Pixel Link Slave 1
+            port@2:
+              description: MIPI CSI-2 RX 0
+            port@3:
+              description: MIPI CSI-2 RX 1
+          required:
+            - port@2
+            - port@3
 
 additionalProperties: false
 

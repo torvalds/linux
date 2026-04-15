@@ -18,6 +18,9 @@ description: |-
   through I2C and two-wire SCCB. The sensor output is available via CSI-2
   serial data output (up to 4-lane).
 
+allOf:
+  - $ref: /schemas/media/video-interface-devices.yaml#
+
 properties:
   compatible:
     const: ovti,ov8856
@@ -56,6 +59,9 @@ properties:
       The phandle and specifier for the GPIO that controls sensor reset.
       This corresponds to the hardware pin XSHUTDOWN which is physically
       active low.
+
+  orientation: true
+  rotation: true
 
   port:
     $ref: /schemas/graph.yaml#/$defs/port-base

@@ -128,7 +128,16 @@ static ssize_t color_mapping_show(struct device *dev,
 	u32 config = mgb4_read_reg(&vindev->mgbdev->video,
 	  vindev->config->regs.config);
 
-	return sprintf(buf, "%s\n", config & (1U << 8) ? "0" : "1");
+	switch ((config >> 7) & 3) {
+	case 0: /* SPWG/VESA */
+		return sprintf(buf, "1\n");
+	case 1: /* ZDML */
+		return sprintf(buf, "2\n");
+	case 2: /* OLDI/JEIDA */
+		return sprintf(buf, "0\n");
+	default:
+		return -EIO;
+	}
 }
 
 /*
@@ -151,17 +160,20 @@ static ssize_t color_mapping_store(struct device *dev,
 
 	switch (val) {
 	case 0: /* OLDI/JEIDA */
-		fpga_data = (1U << 8);
+		fpga_data = 2;
 		break;
 	case 1: /* SPWG/VESA */
 		fpga_data = 0;
+		break;
+	case 2: /* ZDML */
+		fpga_data = 1;
 		break;
 	default:
 		return -EINVAL;
 	}
 
 	mgb4_mask_reg(&vindev->mgbdev->video, vindev->config->regs.config,
-		      1U << 8, fpga_data);
+		      3U << 7, fpga_data << 7);
 
 	return count;
 }

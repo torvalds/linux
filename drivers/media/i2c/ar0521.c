@@ -1094,6 +1094,9 @@ static int ar0521_probe(struct i2c_client *client)
 	/* Request optional reset pin (usually active low) and assert it */
 	sensor->reset_gpio = devm_gpiod_get_optional(dev, "reset",
 						     GPIOD_OUT_HIGH);
+	if (IS_ERR(sensor->reset_gpio))
+		return dev_err_probe(dev, PTR_ERR(sensor->reset_gpio),
+				     "failed to get reset gpio\n");
 
 	v4l2_i2c_subdev_init(&sensor->sd, client, &ar0521_subdev_ops);
 

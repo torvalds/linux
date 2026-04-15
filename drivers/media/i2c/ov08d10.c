@@ -8,12 +8,12 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
+#include <linux/reset.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fwnode.h>
 
 #define OV08D10_SCLK			144000000ULL
-#define OV08D10_XVCLK_19_2		19200000
 #define OV08D10_ROWCLK			36000
 #define OV08D10_DATA_LANES		2
 #define OV08D10_RGB_DEPTH		10
@@ -77,8 +77,13 @@ struct ov08d10_reg_list {
 	const struct ov08d10_reg *regs;
 };
 
+static const u32 ov08d10_xvclk_freqs[] = {
+	19200000,
+	24000000
+};
+
 struct ov08d10_link_freq_config {
-	const struct ov08d10_reg_list reg_list;
+	const struct ov08d10_reg_list reg_list[ARRAY_SIZE(ov08d10_xvclk_freqs)];
 };
 
 struct ov08d10_mode {
@@ -88,13 +93,13 @@ struct ov08d10_mode {
 	/* Frame height in pixels */
 	u32 height;
 
-	/* Horizontal timining size */
+	/* Horizontal timing size */
 	u32 hts;
 
-	/* Default vertical timining size */
+	/* Default vertical timing size */
 	u32 vts_def;
 
-	/* Min vertical timining size */
+	/* Min vertical timing size */
 	u32 vts_min;
 
 	/* Link frequency needed for this resolution */
@@ -107,8 +112,8 @@ struct ov08d10_mode {
 	u8 data_lanes;
 };
 
-/* 3280x2460, 3264x2448 need 720Mbps/lane, 2 lanes */
-static const struct ov08d10_reg mipi_data_rate_720mbps[] = {
+/* 3280x2460, 3264x2448 need 720Mbps/lane, 2 lanes - 19.2 MHz */
+static const struct ov08d10_reg mipi_data_rate_720mbps_19_2[] = {
 	{0xfd, 0x00},
 	{0x11, 0x2a},
 	{0x14, 0x43},
@@ -118,11 +123,35 @@ static const struct ov08d10_reg mipi_data_rate_720mbps[] = {
 	{0xb7, 0x02}
 };
 
-/* 1632x1224 needs 360Mbps/lane, 2 lanes */
-static const struct ov08d10_reg mipi_data_rate_360mbps[] = {
+/* 1632x1224 needs 360Mbps/lane, 2 lanes - 19.2 MHz */
+static const struct ov08d10_reg mipi_data_rate_360mbps_19_2[] = {
 	{0xfd, 0x00},
 	{0x1a, 0x04},
 	{0x1b, 0xe1},
+	{0x1d, 0x00},
+	{0x1c, 0x19},
+	{0x11, 0x2a},
+	{0x14, 0x54},
+	{0x1e, 0x13},
+	{0xb7, 0x02}
+};
+
+/* 3280x2460, 3264x2448 need 720Mbps/lane, 2 lanes - 24 MHz */
+static const struct ov08d10_reg mipi_data_rate_720mbps_24_0[] = {
+	{0xfd, 0x00},
+	{0x11, 0x2a},
+	{0x14, 0x43},
+	{0x1a, 0x04},
+	{0x1b, 0xb4},
+	{0x1e, 0x13},
+	{0xb7, 0x02}
+};
+
+/* 1632x1224 needs 360Mbps/lane, 2 lanes - 24 MHz */
+static const struct ov08d10_reg mipi_data_rate_360mbps_24_0[] = {
+	{0xfd, 0x00},
+	{0x1a, 0x04},
+	{0x1b, 0xb4},
 	{0x1d, 0x00},
 	{0x1c, 0x19},
 	{0x11, 0x2a},
@@ -217,7 +246,7 @@ static const struct ov08d10_reg lane_2_mode_3280x2460[] = {
 	{0x9a, 0x30},
 	{0xa8, 0x02},
 	{0xfd, 0x02},
-	{0xa1, 0x01},
+	{0xa1, 0x00},
 	{0xa2, 0x09},
 	{0xa3, 0x9c},
 	{0xa5, 0x00},
@@ -335,7 +364,7 @@ static const struct ov08d10_reg lane_2_mode_3264x2448[] = {
 	{0x9a, 0x30},
 	{0xa8, 0x02},
 	{0xfd, 0x02},
-	{0xa1, 0x09},
+	{0xa1, 0x08},
 	{0xa2, 0x09},
 	{0xa3, 0x90},
 	{0xa5, 0x08},
@@ -381,7 +410,6 @@ static const struct ov08d10_reg lane_2_mode_1632x1224[] = {
 	{0x07, 0x05},
 	{0x21, 0x02},
 	{0x24, 0x30},
-	{0x33, 0x03},
 	{0x31, 0x06},
 	{0x33, 0x03},
 	{0x01, 0x03},
@@ -467,7 +495,7 @@ static const struct ov08d10_reg lane_2_mode_1632x1224[] = {
 	{0xaa, 0xd0},
 	{0xab, 0x06},
 	{0xac, 0x68},
-	{0xa1, 0x09},
+	{0xa1, 0x04},
 	{0xa2, 0x04},
 	{0xa3, 0xc8},
 	{0xa5, 0x04},
@@ -514,9 +542,18 @@ static const char * const ov08d10_test_pattern_menu[] = {
 	"Standard Color Bar",
 };
 
+static const char *const ov08d10_supply_names[] = {
+	"dovdd",	/* Digital I/O power */
+	"avdd",		/* Analog power */
+	"dvdd",		/* Digital core power */
+};
+
 struct ov08d10 {
 	struct device *dev;
 	struct clk *clk;
+	struct reset_control *reset;
+	struct regulator_bulk_data supplies[ARRAY_SIZE(ov08d10_supply_names)];
+	u8 xvclk_index;
 
 	struct v4l2_subdev sd;
 	struct media_pad pad;
@@ -534,7 +571,7 @@ struct ov08d10 {
 	/* Current mode */
 	const struct ov08d10_mode *cur_mode;
 
-	/* To serialize asynchronus callbacks */
+	/* To serialize asynchronous callbacks */
 	struct mutex mutex;
 
 	/* lanes index */
@@ -557,17 +594,29 @@ static const struct ov08d10_lane_cfg lane_cfg_2 = {
 	},
 	{{
 		.reg_list = {
+		{
 			.num_of_regs =
-				ARRAY_SIZE(mipi_data_rate_720mbps),
-			.regs = mipi_data_rate_720mbps,
-		}
+				ARRAY_SIZE(mipi_data_rate_720mbps_19_2),
+			.regs = mipi_data_rate_720mbps_19_2,
+		},
+		{
+			.num_of_regs =
+				ARRAY_SIZE(mipi_data_rate_720mbps_24_0),
+			.regs = mipi_data_rate_720mbps_24_0,
+		}}
 	},
 	{
 		.reg_list = {
+		{
 			.num_of_regs =
-				ARRAY_SIZE(mipi_data_rate_360mbps),
-			.regs = mipi_data_rate_360mbps,
-		}
+				ARRAY_SIZE(mipi_data_rate_360mbps_19_2),
+			.regs = mipi_data_rate_360mbps_19_2,
+		},
+		{
+			.num_of_regs =
+				ARRAY_SIZE(mipi_data_rate_360mbps_24_0),
+			.regs = mipi_data_rate_360mbps_24_0,
+		}}
 	}},
 	{{
 		.width = 3280,
@@ -613,8 +662,8 @@ static const struct ov08d10_lane_cfg lane_cfg_2 = {
 static u32 ov08d10_get_format_code(struct ov08d10 *ov08d10)
 {
 	static const u32 codes[2][2] = {
-		{ MEDIA_BUS_FMT_SGRBG10_1X10, MEDIA_BUS_FMT_SRGGB10_1X10},
-		{ MEDIA_BUS_FMT_SBGGR10_1X10, MEDIA_BUS_FMT_SGBRG10_1X10},
+		{ MEDIA_BUS_FMT_SBGGR10_1X10, MEDIA_BUS_FMT_SGBRG10_1X10 },
+		{ MEDIA_BUS_FMT_SGRBG10_1X10, MEDIA_BUS_FMT_SRGGB10_1X10 },
 	};
 
 	return codes[ov08d10->vflip->val][ov08d10->hflip->val];
@@ -665,7 +714,7 @@ static int ov08d10_write_reg_list(struct ov08d10 *ov08d10,
 						r_list->regs[i].val);
 		if (ret) {
 			dev_err_ratelimited(ov08d10->dev,
-					    "failed to write reg 0x%2.2x. error = %d",
+					    "failed to write reg 0x%2.2x. error = %d\n",
 					    r_list->regs[i].address, ret);
 			return ret;
 		}
@@ -864,7 +913,7 @@ static int ov08d10_set_ctrl(struct v4l2_ctrl *ctrl)
 					 exposure_max);
 	}
 
-	/* V4L2 controls values will be applied only when power is already up */
+	/* V4L2 control values will be applied only when power is already up */
 	if (!pm_runtime_get_if_in_use(ov08d10->dev))
 		return 0;
 
@@ -1020,37 +1069,38 @@ static int ov08d10_start_streaming(struct ov08d10 *ov08d10)
 
 	link_freq_index = ov08d10->cur_mode->link_freq_index;
 	reg_list =
-	    &ov08d10->priv_lane->link_freq_configs[link_freq_index].reg_list;
+		&ov08d10->priv_lane->link_freq_configs[link_freq_index]
+			 .reg_list[ov08d10->xvclk_index];
 
 	/* soft reset */
 	ret = i2c_smbus_write_byte_data(client, OV08D10_REG_PAGE, 0x00);
 	if (ret < 0) {
-		dev_err(ov08d10->dev, "failed to reset sensor");
+		dev_err(ov08d10->dev, "failed to reset sensor\n");
 		return ret;
 	}
 	ret = i2c_smbus_write_byte_data(client, 0x20, 0x0e);
 	if (ret < 0) {
-		dev_err(ov08d10->dev, "failed to reset sensor");
+		dev_err(ov08d10->dev, "failed to reset sensor\n");
 		return ret;
 	}
 	usleep_range(3000, 4000);
 	ret = i2c_smbus_write_byte_data(client, 0x20, 0x0b);
 	if (ret < 0) {
-		dev_err(ov08d10->dev, "failed to reset sensor");
+		dev_err(ov08d10->dev, "failed to reset sensor\n");
 		return ret;
 	}
 
 	/* update sensor setting */
 	ret = ov08d10_write_reg_list(ov08d10, reg_list);
 	if (ret) {
-		dev_err(ov08d10->dev, "failed to set plls");
+		dev_err(ov08d10->dev, "failed to set plls\n");
 		return ret;
 	}
 
 	reg_list = &ov08d10->cur_mode->reg_list;
 	ret = ov08d10_write_reg_list(ov08d10, reg_list);
 	if (ret) {
-		dev_err(ov08d10->dev, "failed to set mode");
+		dev_err(ov08d10->dev, "failed to set mode\n");
 		return ret;
 	}
 
@@ -1077,19 +1127,19 @@ static void ov08d10_stop_streaming(struct ov08d10 *ov08d10)
 
 	ret = i2c_smbus_write_byte_data(client, OV08D10_REG_PAGE, 0x00);
 	if (ret < 0) {
-		dev_err(ov08d10->dev, "failed to stop streaming");
+		dev_err(ov08d10->dev, "failed to stop streaming\n");
 		return;
 	}
 	ret = i2c_smbus_write_byte_data(client, OV08D10_REG_MODE_SELECT,
 					OV08D10_MODE_STANDBY);
 	if (ret < 0) {
-		dev_err(ov08d10->dev, "failed to stop streaming");
+		dev_err(ov08d10->dev, "failed to stop streaming\n");
 		return;
 	}
 
 	ret = i2c_smbus_write_byte_data(client, OV08D10_REG_PAGE, 0x01);
 	if (ret < 0) {
-		dev_err(ov08d10->dev, "failed to stop streaming");
+		dev_err(ov08d10->dev, "failed to stop streaming\n");
 		return;
 	}
 }
@@ -1266,6 +1316,56 @@ static const struct v4l2_subdev_internal_ops ov08d10_internal_ops = {
 	.open = ov08d10_open,
 };
 
+static int ov08d10_power_off(struct device *dev)
+{
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct ov08d10 *ov08d10 = to_ov08d10(sd);
+
+	reset_control_assert(ov08d10->reset);
+
+	regulator_bulk_disable(ARRAY_SIZE(ov08d10->supplies),
+			       ov08d10->supplies);
+
+	clk_disable_unprepare(ov08d10->clk);
+
+	return 0;
+}
+
+static int ov08d10_power_on(struct device *dev)
+{
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct ov08d10 *ov08d10 = to_ov08d10(sd);
+	int ret;
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(ov08d10->supplies),
+				    ov08d10->supplies);
+	if (ret < 0) {
+		dev_err(dev, "failed to enable regulators: %d\n", ret);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(ov08d10->clk);
+	if (ret < 0) {
+		regulator_bulk_disable(ARRAY_SIZE(ov08d10->supplies),
+				       ov08d10->supplies);
+
+		dev_err(dev, "failed to enable imaging clock: %d\n", ret);
+		return ret;
+	}
+
+	if (ov08d10->reset) {
+		/* Delay from DVDD stable to sensor XSHUTDN pull up: 5ms */
+		fsleep(5 * USEC_PER_MSEC);
+
+		reset_control_deassert(ov08d10->reset);
+
+		/* Delay from XSHUTDN pull up to SCCB start: 8ms */
+		fsleep(8 * USEC_PER_MSEC);
+	}
+
+	return 0;
+}
+
 static int ov08d10_identify_module(struct ov08d10 *ov08d10)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&ov08d10->sd);
@@ -1325,7 +1425,7 @@ static int ov08d10_get_hwcfg(struct ov08d10 *ov08d10)
 
 	/* Get number of data lanes */
 	if (bus_cfg.bus.mipi_csi2.num_data_lanes != 2) {
-		dev_err(dev, "number of CSI2 data lanes %d is not supported",
+		dev_err(dev, "number of CSI2 data lanes %d is not supported\n",
 			bus_cfg.bus.mipi_csi2.num_data_lanes);
 		ret = -EINVAL;
 		goto check_hwcfg_error;
@@ -1337,7 +1437,7 @@ static int ov08d10_get_hwcfg(struct ov08d10 *ov08d10)
 	ov08d10->modes_size = ov08d10_modes_num(ov08d10);
 
 	if (!bus_cfg.nr_of_link_frequencies) {
-		dev_err(dev, "no link frequencies defined");
+		dev_err(dev, "no link frequencies defined\n");
 		ret = -EINVAL;
 		goto check_hwcfg_error;
 	}
@@ -1350,7 +1450,7 @@ static int ov08d10_get_hwcfg(struct ov08d10 *ov08d10)
 		}
 
 		if (j == bus_cfg.nr_of_link_frequencies) {
-			dev_err(dev, "no link frequency %lld supported",
+			dev_err(dev, "no link frequency %lld supported\n",
 				ov08d10->priv_lane->link_freq_menu[i]);
 			ret = -EINVAL;
 			goto check_hwcfg_error;
@@ -1372,6 +1472,10 @@ static void ov08d10_remove(struct i2c_client *client)
 	media_entity_cleanup(&sd->entity);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
 	pm_runtime_disable(ov08d10->dev);
+	if (!pm_runtime_status_suspended(ov08d10->dev)) {
+		ov08d10_power_off(ov08d10->dev);
+		pm_runtime_set_suspended(ov08d10->dev);
+	}
 	mutex_destroy(&ov08d10->mutex);
 }
 
@@ -1379,6 +1483,7 @@ static int ov08d10_probe(struct i2c_client *client)
 {
 	struct ov08d10 *ov08d10;
 	unsigned long freq;
+	unsigned int i;
 	int ret;
 
 	ov08d10 = devm_kzalloc(&client->dev, sizeof(*ov08d10), GFP_KERNEL);
@@ -1393,30 +1498,56 @@ static int ov08d10_probe(struct i2c_client *client)
 				     "failed to get clock\n");
 
 	freq = clk_get_rate(ov08d10->clk);
-	if (freq != OV08D10_XVCLK_19_2)
-		dev_warn(ov08d10->dev,
-			 "external clock rate %lu is not supported\n", freq);
+	for (i = 0; i < ARRAY_SIZE(ov08d10_xvclk_freqs); i++) {
+		if (freq == ov08d10_xvclk_freqs[i])
+			break;
+	}
+	if (i >= ARRAY_SIZE(ov08d10_xvclk_freqs))
+		return dev_err_probe(ov08d10->dev, -EINVAL,
+				     "external clock rate %lu is not supported\n",
+				     freq);
+	ov08d10->xvclk_index = i;
 
 	ret = ov08d10_get_hwcfg(ov08d10);
 	if (ret) {
-		dev_err(ov08d10->dev, "failed to get HW configuration: %d",
+		dev_err(ov08d10->dev, "failed to get HW configuration: %d\n",
 			ret);
 		return ret;
 	}
 
+	ov08d10->reset = devm_reset_control_get_optional_exclusive(ov08d10->dev, NULL);
+	if (IS_ERR(ov08d10->reset))
+		return dev_err_probe(ov08d10->dev, PTR_ERR(ov08d10->reset),
+				     "failed to get reset\n");
+	reset_control_assert(ov08d10->reset);
+
+	for (i = 0; i < ARRAY_SIZE(ov08d10_supply_names); i++)
+		ov08d10->supplies[i].supply = ov08d10_supply_names[i];
+
+	ret = devm_regulator_bulk_get(ov08d10->dev,
+				      ARRAY_SIZE(ov08d10->supplies),
+				      ov08d10->supplies);
+	if (ret)
+		return dev_err_probe(ov08d10->dev, ret,
+				     "failed to get regulators\n");
+
 	v4l2_i2c_subdev_init(&ov08d10->sd, client, &ov08d10_subdev_ops);
+
+	ret = ov08d10_power_on(ov08d10->dev);
+	if (ret)
+		return dev_err_probe(ov08d10->dev, ret, "failed to power on\n");
 
 	ret = ov08d10_identify_module(ov08d10);
 	if (ret) {
-		dev_err(ov08d10->dev, "failed to find sensor: %d", ret);
-		return ret;
+		dev_err(ov08d10->dev, "failed to find sensor: %d\n", ret);
+		goto probe_error_power_off;
 	}
 
 	mutex_init(&ov08d10->mutex);
 	ov08d10->cur_mode = &ov08d10->priv_lane->sp_modes[0];
 	ret = ov08d10_init_controls(ov08d10);
 	if (ret) {
-		dev_err(ov08d10->dev, "failed to init controls: %d", ret);
+		dev_err(ov08d10->dev, "failed to init controls: %d\n", ret);
 		goto probe_error_v4l2_ctrl_handler_free;
 	}
 
@@ -1426,36 +1557,41 @@ static int ov08d10_probe(struct i2c_client *client)
 	ov08d10->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_pads_init(&ov08d10->sd.entity, 1, &ov08d10->pad);
 	if (ret) {
-		dev_err(ov08d10->dev, "failed to init entity pads: %d", ret);
+		dev_err(ov08d10->dev, "failed to init entity pads: %d\n", ret);
 		goto probe_error_v4l2_ctrl_handler_free;
 	}
 
+	pm_runtime_set_active(ov08d10->dev);
+	pm_runtime_enable(ov08d10->dev);
+
 	ret = v4l2_async_register_subdev_sensor(&ov08d10->sd);
 	if (ret < 0) {
-		dev_err(ov08d10->dev, "failed to register V4L2 subdev: %d",
+		dev_err(ov08d10->dev, "failed to register V4L2 subdev: %d\n",
 			ret);
 		goto probe_error_media_entity_cleanup;
 	}
 
-	/*
-	 * Device is already turned on by i2c-core with ACPI domain PM.
-	 * Enable runtime PM and turn off the device.
-	 */
-	pm_runtime_set_active(ov08d10->dev);
-	pm_runtime_enable(ov08d10->dev);
 	pm_runtime_idle(ov08d10->dev);
 
 	return 0;
 
 probe_error_media_entity_cleanup:
+	pm_runtime_disable(ov08d10->dev);
+	pm_runtime_set_suspended(ov08d10->dev);
 	media_entity_cleanup(&ov08d10->sd.entity);
 
 probe_error_v4l2_ctrl_handler_free:
 	v4l2_ctrl_handler_free(ov08d10->sd.ctrl_handler);
 	mutex_destroy(&ov08d10->mutex);
 
+probe_error_power_off:
+	ov08d10_power_off(ov08d10->dev);
+
 	return ret;
 }
+
+static DEFINE_RUNTIME_DEV_PM_OPS(ov08d10_pm_ops,
+				 ov08d10_power_off, ov08d10_power_on, NULL);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id ov08d10_acpi_ids[] = {
@@ -1466,10 +1602,18 @@ static const struct acpi_device_id ov08d10_acpi_ids[] = {
 MODULE_DEVICE_TABLE(acpi, ov08d10_acpi_ids);
 #endif
 
+static const struct of_device_id ov08d10_of_match[] = {
+	{ .compatible = "ovti,ov08d10" },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, ov08d10_of_match);
+
 static struct i2c_driver ov08d10_i2c_driver = {
 	.driver = {
 		.name = "ov08d10",
+		.pm = pm_ptr(&ov08d10_pm_ops),
 		.acpi_match_table = ACPI_PTR(ov08d10_acpi_ids),
+		.of_match_table = ov08d10_of_match,
 	},
 	.probe = ov08d10_probe,
 	.remove = ov08d10_remove,

@@ -2250,7 +2250,7 @@ static struct imon_context *imon_init_intf0(struct usb_interface *intf,
 	mutex_lock(&ictx->lock);
 
 	ictx->dev = dev;
-	ictx->usbdev_intf0 = usb_get_dev(interface_to_usbdev(intf));
+	ictx->usbdev_intf0 = interface_to_usbdev(intf);
 	ictx->rx_urb_intf0 = rx_urb;
 	ictx->tx_urb = tx_urb;
 	ictx->rf_device = false;
@@ -2308,7 +2308,6 @@ idev_setup_failed:
 	usb_kill_urb(ictx->rx_urb_intf0);
 urb_submit_failed:
 find_endpoint_failed:
-	usb_put_dev(ictx->usbdev_intf0);
 	mutex_unlock(&ictx->lock);
 	usb_free_urb(tx_urb);
 tx_urb_alloc_failed:
@@ -2338,7 +2337,7 @@ static struct imon_context *imon_init_intf1(struct usb_interface *intf,
 		timer_setup(&ictx->ttimer, imon_touch_display_timeout, 0);
 	}
 
-	ictx->usbdev_intf1 = usb_get_dev(interface_to_usbdev(intf));
+	ictx->usbdev_intf1 = interface_to_usbdev(intf);
 	ictx->rx_urb_intf1 = rx_urb;
 
 	ret = -ENODEV;
@@ -2377,7 +2376,6 @@ urb_submit_failed:
 		input_unregister_device(ictx->touch);
 touch_setup_failed:
 find_endpoint_failed:
-	usb_put_dev(ictx->usbdev_intf1);
 	ictx->usbdev_intf1 = NULL;
 	mutex_unlock(&ictx->lock);
 	usb_free_urb(rx_urb);
@@ -2426,7 +2424,7 @@ static int imon_probe(struct usb_interface *interface,
 	struct imon_context *ictx = NULL;
 	u16 vendor, product;
 
-	usbdev     = usb_get_dev(interface_to_usbdev(interface));
+	usbdev     = interface_to_usbdev(interface);
 	iface_desc = interface->cur_altsetting;
 	ifnum      = iface_desc->desc.bInterfaceNumber;
 	vendor     = le16_to_cpu(usbdev->descriptor.idVendor);
@@ -2495,12 +2493,9 @@ static int imon_probe(struct usb_interface *interface,
 		 vendor, product, ifnum,
 		 usbdev->bus->busnum, usbdev->devnum);
 
-	usb_put_dev(usbdev);
-
 	return 0;
 
 fail:
-	usb_put_dev(usbdev);
 	dev_err(dev, "unable to register, err %d\n", ret);
 
 	return ret;
@@ -2541,16 +2536,16 @@ static void imon_disconnect(struct usb_interface *interface)
 
 	if (ifnum == 0) {
 		ictx->dev_present_intf0 = false;
+		rc_unregister_device(ictx->rdev);
 		usb_kill_urb(ictx->rx_urb_intf0);
 		input_unregister_device(ictx->idev);
-		rc_unregister_device(ictx->rdev);
+		rc_free_device(ictx->rdev);
 		if (ictx->display_supported) {
 			if (ictx->display_type == IMON_DISPLAY_TYPE_LCD)
 				usb_deregister_dev(interface, &imon_lcd_class);
 			else if (ictx->display_type == IMON_DISPLAY_TYPE_VFD)
 				usb_deregister_dev(interface, &imon_vfd_class);
 		}
-		usb_put_dev(ictx->usbdev_intf0);
 	} else {
 		ictx->dev_present_intf1 = false;
 		usb_kill_urb(ictx->rx_urb_intf1);
@@ -2558,7 +2553,6 @@ static void imon_disconnect(struct usb_interface *interface)
 			timer_delete_sync(&ictx->ttimer);
 			input_unregister_device(ictx->touch);
 		}
-		usb_put_dev(ictx->usbdev_intf1);
 	}
 
 	if (refcount_dec_and_test(&ictx->users))

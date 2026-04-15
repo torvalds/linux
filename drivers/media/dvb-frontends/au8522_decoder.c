@@ -567,6 +567,7 @@ static int au8522_s_video_routing(struct v4l2_subdev *sd,
 	case AU8522_COMPOSITE_CH1:
 	case AU8522_SVIDEO_CH13:
 	case AU8522_COMPOSITE_CH4_SIF:
+	case AU8522_COMPOSITE_CH4:
 		state->vid_input = input;
 		break;
 	default:

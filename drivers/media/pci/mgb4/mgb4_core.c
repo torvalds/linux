@@ -84,7 +84,8 @@ static int temp_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 		     int channel, long *val)
 {
 	struct mgb4_dev *mgbdev = dev_get_drvdata(dev);
-	u32 val10, raw;
+	u32 raw;
+	int val10;
 
 	if (type != hwmon_temp || attr != hwmon_temp_input)
 		return -EOPNOTSUPP;

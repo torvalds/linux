@@ -7,6 +7,7 @@
 
 #include "rzv2h-ivc.h"
 
+#include <linux/bitfield.h>
 #include <linux/cleanup.h>
 #include <linux/iopoll.h>
 #include <linux/lockdep.h>
@@ -24,7 +25,7 @@
 #include <media/videobuf2-dma-contig.h>
 
 #define RZV2H_IVC_FIXED_HBLANK			0x20
-#define RZV2H_IVC_MIN_VBLANK(hts)		max(0x1b, 15 + (120501 / (hts)))
+#define RZV2H_IVC_MIN_VBLANK(hts)		max(0x1b, 70100 / (hts))
 
 struct rzv2h_ivc_buf {
 	struct vb2_v4l2_buffer vb;
@@ -142,30 +143,30 @@ void rzv2h_ivc_buffer_done(struct rzv2h_ivc *ivc)
 	vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 }
 
-static void rzv2h_ivc_transfer_buffer(struct work_struct *work)
+void rzv2h_ivc_transfer_buffer(struct rzv2h_ivc *ivc)
 {
-	struct rzv2h_ivc *ivc = container_of(work, struct rzv2h_ivc,
-					     buffers.work);
 	struct rzv2h_ivc_buf *buf;
+
+	lockdep_assert_held(&ivc->spinlock);
+
+	if (ivc->vvalid_ifp)
+		return;
 
 	/* Setup buffers */
 	scoped_guard(spinlock_irqsave, &ivc->buffers.lock) {
 		buf = list_first_entry_or_null(&ivc->buffers.queue,
 					       struct rzv2h_ivc_buf, queue);
+		if (!buf)
+			return;
+
+		list_del(&buf->queue);
+		ivc->buffers.curr = buf;
 	}
 
-	if (!buf)
-		return;
-
-	list_del(&buf->queue);
-
-	ivc->buffers.curr = buf;
 	buf->addr = vb2_dma_contig_plane_dma_addr(&buf->vb.vb2_buf, 0);
 	rzv2h_ivc_write(ivc, RZV2H_IVC_REG_AXIRX_SADDL_P0, buf->addr);
 
-	scoped_guard(spinlock_irqsave, &ivc->spinlock) {
-		ivc->vvalid_ifp = 2;
-	}
+	ivc->vvalid_ifp = 2;
 	rzv2h_ivc_write(ivc, RZV2H_IVC_REG_FM_FRCON, 0x1);
 }
 
@@ -200,8 +201,8 @@ static void rzv2h_ivc_buf_queue(struct vb2_buffer *vb)
 	}
 
 	scoped_guard(spinlock_irq, &ivc->spinlock) {
-		if (vb2_is_streaming(vb->vb2_queue) && !ivc->vvalid_ifp)
-			queue_work(ivc->buffers.async_wq, &ivc->buffers.work);
+		if (vb2_is_streaming(vb->vb2_queue))
+			rzv2h_ivc_transfer_buffer(ivc);
 	}
 }
 
@@ -214,10 +215,10 @@ static void rzv2h_ivc_format_configure(struct rzv2h_ivc *ivc)
 
 	/* Currently only CRU packed pixel formats are supported */
 	rzv2h_ivc_write(ivc, RZV2H_IVC_REG_AXIRX_PXFMT,
-			RZV2H_IVC_INPUT_FMT_CRU_PACKED);
-
-	rzv2h_ivc_update_bits(ivc, RZV2H_IVC_REG_AXIRX_PXFMT,
-			      RZV2H_IVC_PXFMT_DTYPE, fmt->dtype);
+			FIELD_PREP(RZV2H_IVC_AXIRX_PXFMT_FIELD_DTYPE,
+				   fmt->dtype) |
+			FIELD_PREP(RZV2H_IVC_AXIRX_PXFMT_FIELD_CLFMT,
+				   RZV2H_IVC_CLFMT_CRU_PACKED));
 
 	rzv2h_ivc_write(ivc, RZV2H_IVC_REG_AXIRX_HSIZE, pix->width);
 	rzv2h_ivc_write(ivc, RZV2H_IVC_REG_AXIRX_VSIZE, pix->height);
@@ -235,8 +236,10 @@ static void rzv2h_ivc_format_configure(struct rzv2h_ivc *ivc)
 	hts = pix->width + RZV2H_IVC_FIXED_HBLANK;
 	vblank = RZV2H_IVC_MIN_VBLANK(hts);
 
-	rzv2h_ivc_write(ivc, RZV2H_IVC_REG_AXIRX_BLANK,
-			RZV2H_IVC_VBLANK(vblank));
+	rzv2h_ivc_update_bits(ivc, RZV2H_IVC_REG_AXIRX_BLANK,
+			      RZV2H_IVC_AXIRX_BLANK_FIELD_VBLANK,
+			      FIELD_PREP(RZV2H_IVC_AXIRX_BLANK_FIELD_VBLANK,
+					 vblank));
 }
 
 static void rzv2h_ivc_return_buffers(struct rzv2h_ivc *ivc,
@@ -277,7 +280,9 @@ static int rzv2h_ivc_start_streaming(struct vb2_queue *q, unsigned int count)
 
 	rzv2h_ivc_format_configure(ivc);
 
-	queue_work(ivc->buffers.async_wq, &ivc->buffers.work);
+	scoped_guard(spinlock_irq, &ivc->spinlock) {
+		rzv2h_ivc_transfer_buffer(ivc);
+	}
 
 	return 0;
 
@@ -294,9 +299,10 @@ static void rzv2h_ivc_stop_streaming(struct vb2_queue *q)
 	struct rzv2h_ivc *ivc = vb2_get_drv_priv(q);
 	u32 val = 0;
 
-	rzv2h_ivc_write(ivc, RZV2H_IVC_REG_FM_STOP, 0x1);
+	rzv2h_ivc_write(ivc, RZV2H_IVC_REG_FM_STOP, RZV2H_IVC_REG_FM_STOP_FSTOP);
 	readl_poll_timeout(ivc->base + RZV2H_IVC_REG_FM_STOP,
-			   val, !val, 10 * USEC_PER_MSEC, 250 * USEC_PER_MSEC);
+			   val, !(val & RZV2H_IVC_REG_FM_STOP_FSTOP),
+			   10 * USEC_PER_MSEC, 250 * USEC_PER_MSEC);
 
 	rzv2h_ivc_return_buffers(ivc, VB2_BUF_STATE_ERROR);
 	video_device_pipeline_stop(&ivc->vdev.dev);
@@ -443,11 +449,6 @@ int rzv2h_ivc_init_vdev(struct rzv2h_ivc *ivc, struct v4l2_device *v4l2_dev)
 
 	spin_lock_init(&ivc->buffers.lock);
 	INIT_LIST_HEAD(&ivc->buffers.queue);
-	INIT_WORK(&ivc->buffers.work, rzv2h_ivc_transfer_buffer);
-
-	ivc->buffers.async_wq = alloc_workqueue("rzv2h-ivc", 0, 0);
-	if (!ivc->buffers.async_wq)
-		return -EINVAL;
 
 	/* Initialise vb2 queue */
 	vb2q = &ivc->vdev.vb2q;
@@ -465,7 +466,7 @@ int rzv2h_ivc_init_vdev(struct rzv2h_ivc *ivc, struct v4l2_device *v4l2_dev)
 	ret = vb2_queue_init(vb2q);
 	if (ret) {
 		dev_err(ivc->dev, "vb2 queue init failed\n");
-		goto err_destroy_workqueue;
+		return ret;
 	}
 
 	/* Initialise Video Device */
@@ -514,8 +515,6 @@ err_cleanup_vdev_entity:
 	media_entity_cleanup(&vdev->entity);
 err_release_vb2q:
 	vb2_queue_release(vb2q);
-err_destroy_workqueue:
-	destroy_workqueue(ivc->buffers.async_wq);
 
 	return ret;
 }

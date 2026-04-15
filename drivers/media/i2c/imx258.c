@@ -709,11 +709,15 @@ static int imx258_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 		v4l2_subdev_state_get_format(fh->state, 0);
 	struct v4l2_rect *try_crop;
 
+	mutex_lock(&imx258->mutex);
+
 	/* Initialize try_fmt */
 	try_fmt->width = supported_modes[0].width;
 	try_fmt->height = supported_modes[0].height;
 	try_fmt->code = imx258_get_format_code(imx258);
 	try_fmt->field = V4L2_FIELD_NONE;
+
+	mutex_unlock(&imx258->mutex);
 
 	/* Initialize try_crop */
 	try_crop = v4l2_subdev_state_get_crop(fh->state, 0);
@@ -839,7 +843,9 @@ static int imx258_enum_mbus_code(struct v4l2_subdev *sd,
 	if (code->index > 0)
 		return -EINVAL;
 
+	mutex_lock(&imx258->mutex);
 	code->code = imx258_get_format_code(imx258);
+	mutex_unlock(&imx258->mutex);
 
 	return 0;
 }
@@ -849,10 +855,16 @@ static int imx258_enum_frame_size(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct imx258 *imx258 = to_imx258(sd);
+	u32 code;
+
 	if (fse->index >= ARRAY_SIZE(supported_modes))
 		return -EINVAL;
 
-	if (fse->code != imx258_get_format_code(imx258))
+	mutex_lock(&imx258->mutex);
+	code = imx258_get_format_code(imx258);
+	mutex_unlock(&imx258->mutex);
+
+	if (fse->code != code)
 		return -EINVAL;
 
 	fse->min_width = supported_modes[fse->index].width;

@@ -536,6 +536,7 @@ static void irtoy_disconnect(struct usb_interface *intf)
 	usb_free_urb(ir->urb_out);
 	usb_kill_urb(ir->urb_in);
 	usb_free_urb(ir->urb_in);
+	rc_free_device(ir->rc);
 	kfree(ir->in);
 	kfree(ir->out);
 	kfree(ir);

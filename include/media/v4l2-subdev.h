@@ -1722,6 +1722,62 @@ int v4l2_subdev_disable_streams(struct v4l2_subdev *sd, u32 pad,
  */
 int v4l2_subdev_s_stream_helper(struct v4l2_subdev *sd, int enable);
 
+/**
+ * __v4l2_subdev_get_frame_desc_passthrough - Helper to implement the
+ *	subdev get_frame_desc operation in simple passthrough cases
+ * @sd: The subdevice
+ * @state: The locked subdevice active state
+ * @pad: The source pad index
+ * @fd: The mbus frame desc
+ *
+ * This helper implements the get_frame_desc operation for subdevices that pass
+ * streams through without modification.
+ *
+ * The helper iterates over the subdevice's sink pads, calls get_frame_desc on
+ * the remote subdevice connected to each sink pad, and collects the frame desc
+ * entries for streams that are routed to the given source pad according to the
+ * subdevice's routing table. Each entry is copied as-is from the upstream
+ * source, with the exception of the 'stream' field which is remapped to the
+ * source stream ID from the routing table.
+ *
+ * The frame desc type is taken from the first upstream source. If multiple
+ * sink pads are involved and the upstream sources report different frame desc
+ * types, -EPIPE is returned.
+ *
+ * The caller must hold the subdevice's active state lock. This variant is
+ * intended for drivers that need to perform additional work around the
+ * passthrough frame descriptor collection. Drivers that do not need any
+ * customization should use v4l2_subdev_get_frame_desc_passthrough() instead.
+ *
+ * Return: 0 on success, or a negative error code otherwise.
+ */
+int __v4l2_subdev_get_frame_desc_passthrough(struct v4l2_subdev *sd,
+					     struct v4l2_subdev_state *state,
+					     unsigned int pad,
+					     struct v4l2_mbus_frame_desc *fd);
+
+/**
+ * v4l2_subdev_get_frame_desc_passthrough() - Helper to implement the subdev
+ *	get_frame_desc operation in simple passthrough cases
+ * @sd: The subdevice
+ * @pad: The source pad index
+ * @fd: The mbus frame desc
+ *
+ * This function locks the subdevice's active state, calls
+ * __v4l2_subdev_get_frame_desc_passthrough(), and unlocks the state.
+ *
+ * This function can be assigned directly as the .get_frame_desc callback in
+ * &v4l2_subdev_pad_ops for subdevices that pass streams through without
+ * modification. Drivers that need to perform additional work should use
+ * __v4l2_subdev_get_frame_desc_passthrough() in their custom
+ * .get_frame_desc implementation instead.
+ *
+ * Return: 0 on success, or a negative error code otherwise.
+ */
+int v4l2_subdev_get_frame_desc_passthrough(struct v4l2_subdev *sd,
+					   unsigned int pad,
+					   struct v4l2_mbus_frame_desc *fd);
+
 #endif /* CONFIG_VIDEO_V4L2_SUBDEV_API */
 
 #endif /* CONFIG_MEDIA_CONTROLLER */

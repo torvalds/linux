@@ -2221,6 +2221,7 @@ static void sii8620_detach(struct drm_bridge *bridge)
 		return;
 
 	rc_unregister_device(ctx->rc_dev);
+	rc_free_device(ctx->rc_dev);
 }
 
 static int sii8620_is_packing_required(struct sii8620 *ctx,

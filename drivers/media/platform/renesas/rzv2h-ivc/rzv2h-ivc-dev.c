@@ -119,7 +119,7 @@ static irqreturn_t rzv2h_ivc_isr(int irq, void *context)
 	 * The second interrupt indicates that the post-frame transfer VBLANK
 	 * has completed, we can now schedule a new frame transfer, if any.
 	 */
-	queue_work(ivc->buffers.async_wq, &ivc->buffers.work);
+	rzv2h_ivc_transfer_buffer(ivc);
 
 	return IRQ_HANDLED;
 }

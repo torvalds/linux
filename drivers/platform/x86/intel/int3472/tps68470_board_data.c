@@ -12,6 +12,7 @@
 #include <linux/dmi.h>
 #include <linux/gpio/machine.h>
 #include <linux/platform_data/tps68470.h>
+#include <linux/property.h>
 #include <linux/regulator/machine.h>
 #include "tps68470.h"
 
@@ -150,8 +151,6 @@ static const struct regulator_init_data dell_7212_tps68470_core_reg_init_data = 
 		.apply_uV = 1,
 		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies = 0,
-	.consumer_supplies = NULL,
 };
 
 static const struct regulator_init_data dell_7212_tps68470_ana_reg_init_data = {
@@ -161,8 +160,6 @@ static const struct regulator_init_data dell_7212_tps68470_ana_reg_init_data = {
 		.apply_uV = 1,
 		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies = 0,
-	.consumer_supplies = NULL,
 };
 
 static const struct regulator_init_data dell_7212_tps68470_vcm_reg_init_data = {
@@ -172,8 +169,6 @@ static const struct regulator_init_data dell_7212_tps68470_vcm_reg_init_data = {
 		.apply_uV = 1,
 		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies = 0,
-	.consumer_supplies = NULL,
 };
 
 static const struct regulator_init_data dell_7212_tps68470_vio_reg_init_data = {
@@ -183,8 +178,6 @@ static const struct regulator_init_data dell_7212_tps68470_vio_reg_init_data = {
 		.apply_uV = 1,
 		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies = 0,
-	.consumer_supplies = NULL,
 };
 
 static const struct regulator_init_data dell_7212_tps68470_vsio_reg_init_data = {
@@ -232,6 +225,70 @@ static const struct tps68470_regulator_platform_data dell_7212_tps68470_pdata = 
 	},
 };
 
+/* Settings for MSI Prestige 14 AI+ Evo C2VMG laptop. */
+static struct regulator_consumer_supply ovti5675_avdd_consumer_supplies[] = {
+	REGULATOR_SUPPLY("avdd", "i2c-OVTI5675:00"),
+};
+
+static struct regulator_consumer_supply ovti5675_dovdd_consumer_supplies[] = {
+	REGULATOR_SUPPLY("dovdd", "i2c-OVTI5675:00"),
+};
+
+static struct regulator_consumer_supply ovti5675_dvdd_consumer_supplies[] = {
+	REGULATOR_SUPPLY("dvdd", "i2c-OVTI5675:00"),
+};
+
+static const struct regulator_init_data msi_p14_ai_evo_tps68470_core_reg_init_data = {
+	.constraints = {
+		.min_uV = 1200000,
+		.max_uV = 1200000,
+		.apply_uV = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(ovti5675_dvdd_consumer_supplies),
+	.consumer_supplies = ovti5675_dvdd_consumer_supplies,
+};
+
+static const struct regulator_init_data msi_p14_ai_evo_tps68470_ana_reg_init_data = {
+	.constraints = {
+		.min_uV = 2815200,
+		.max_uV = 2815200,
+		.apply_uV = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(ovti5675_avdd_consumer_supplies),
+	.consumer_supplies = ovti5675_avdd_consumer_supplies,
+};
+
+static const struct regulator_init_data msi_p14_ai_evo_tps68470_vio_reg_init_data = {
+	.constraints = {
+		.min_uV = 1800600,
+		.max_uV = 1800600,
+		.apply_uV = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+	},
+};
+
+static const struct regulator_init_data msi_p14_ai_evo_tps68470_vsio_reg_init_data = {
+	.constraints = {
+		.min_uV = 1800600,
+		.max_uV = 1800600,
+		.apply_uV = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(ovti5675_dovdd_consumer_supplies),
+	.consumer_supplies = ovti5675_dovdd_consumer_supplies,
+};
+
+static const struct tps68470_regulator_platform_data msi_p14_ai_evo_tps68470_pdata = {
+	.reg_init_data = {
+		[TPS68470_CORE] = &msi_p14_ai_evo_tps68470_core_reg_init_data,
+		[TPS68470_ANA]  = &msi_p14_ai_evo_tps68470_ana_reg_init_data,
+		[TPS68470_VIO]  = &msi_p14_ai_evo_tps68470_vio_reg_init_data,
+		[TPS68470_VSIO] = &msi_p14_ai_evo_tps68470_vsio_reg_init_data,
+	},
+};
+
 static struct gpiod_lookup_table surface_go_int347a_gpios = {
 	.dev_id = "i2c-INT347A:00",
 	.table = {
@@ -256,6 +313,23 @@ static struct gpiod_lookup_table dell_7212_int3479_gpios = {
 		GPIO_LOOKUP("tps68470-gpio", 4, "powerdown", GPIO_ACTIVE_LOW),
 		{ }
 	}
+};
+
+static struct gpiod_lookup_table msi_p14_ai_evo_ovti5675_gpios = {
+	.dev_id = "i2c-OVTI5675:00",
+	.table = {
+		GPIO_LOOKUP("tps68470-gpio", 9, "reset", GPIO_ACTIVE_LOW),
+		{ }
+	}
+};
+
+static const struct property_entry msi_p14_ai_evo_gpio_props[] = {
+	PROPERTY_ENTRY_BOOL("daisy-chain-enable"),
+	{ }
+};
+
+static const struct software_node msi_p14_ai_evo_tps68470_gpio_swnode = {
+	.properties = msi_p14_ai_evo_gpio_props,
 };
 
 static const struct int3472_tps68470_board_data surface_go_tps68470_board_data = {
@@ -287,6 +361,16 @@ static const struct int3472_tps68470_board_data dell_7212_tps68470_board_data = 
 	},
 };
 
+static const struct int3472_tps68470_board_data msi_p14_ai_evo_tps68470_board_data = {
+	.dev_name = "i2c-INT3472:06",
+	.tps68470_regulator_pdata = &msi_p14_ai_evo_tps68470_pdata,
+	.tps68470_gpio_swnode = &msi_p14_ai_evo_tps68470_gpio_swnode,
+	.n_gpiod_lookups = 1,
+	.tps68470_gpio_lookup_tables = {
+		&msi_p14_ai_evo_ovti5675_gpios,
+	},
+};
+
 static const struct dmi_system_id int3472_tps68470_board_data_table[] = {
 	{
 		.matches = {
@@ -315,6 +399,13 @@ static const struct dmi_system_id int3472_tps68470_board_data_table[] = {
 			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "Latitude 7212 Rugged Extreme Tablet"),
 		},
 		.driver_data = (void *)&dell_7212_tps68470_board_data,
+	},
+	{
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Micro-Star International Co., Ltd."),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "Prestige 14 AI+ Evo C2VMG"),
+		},
+		.driver_data = (void *)&msi_p14_ai_evo_tps68470_board_data,
 	},
 	{ }
 };

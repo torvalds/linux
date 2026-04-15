@@ -81,7 +81,6 @@ struct lirc_fh {
 /**
  * struct rc_dev - represents a remote control device
  * @dev: driver model's view of this device
- * @managed_alloc: devm_rc_allocate_device was used to create rc_dev
  * @registered: set to true by rc_register_device(), false by
  *	rc_unregister_device
  * @idle: used to keep track of RX state
@@ -156,7 +155,6 @@ struct lirc_fh {
  */
 struct rc_dev {
 	struct device			dev;
-	bool				managed_alloc;
 	bool				registered;
 	bool				idle;
 	bool				encode_wakeup;
@@ -303,7 +301,7 @@ struct ir_raw_event {
 
 #define US_TO_NS(usec)		((usec) * 1000)
 #define MS_TO_US(msec)		((msec) * 1000)
-#define IR_MAX_DURATION		MS_TO_US(500)
+#define IR_MAX_DURATION		MS_TO_US(1000)
 #define IR_DEFAULT_TIMEOUT	MS_TO_US(125)
 #define IR_MAX_TIMEOUT		LIRC_VALUE_MASK
 

@@ -41,7 +41,7 @@ static int isight_decode(struct uvc_video_queue *queue, struct uvc_buffer *buf,
 		0xde, 0xad, 0xfa, 0xce
 	};
 
-	struct uvc_streaming *stream = uvc_queue_to_stream(queue);
+	struct uvc_streaming *stream = queue->stream;
 	unsigned int maxlen, nbytes;
 	u8 *mem;
 	int is_header = 0;
