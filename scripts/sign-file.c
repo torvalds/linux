@@ -40,19 +40,7 @@
 #endif
 #include "ssl-common.h"
 
-struct module_signature {
-	uint8_t		algo;		/* Public-key crypto algorithm [0] */
-	uint8_t		hash;		/* Digest algorithm [0] */
-	uint8_t		id_type;	/* Key identifier type [PKEY_ID_PKCS7] */
-	uint8_t		signer_len;	/* Length of signer's name [0] */
-	uint8_t		key_id_len;	/* Length of key identifier [0] */
-	uint8_t		__pad[3];
-	uint32_t	sig_len;	/* Length of signature data */
-};
-
-#define PKEY_ID_PKCS7 2
-
-static char magic_number[] = "~Module signature appended~\n";
+#include <linux/module_signature.h>
 
 static __attribute__((noreturn))
 void format(void)
@@ -197,7 +185,7 @@ static X509 *read_x509(const char *x509_name)
 
 int main(int argc, char **argv)
 {
-	struct module_signature sig_info = { .id_type = PKEY_ID_PKCS7 };
+	struct module_signature sig_info = { .id_type = MODULE_SIGNATURE_TYPE_PKCS7 };
 	char *hash_algo = NULL;
 	char *private_key_name = NULL, *raw_sig_name = NULL;
 	char *x509_name, *module_name, *dest_name;
@@ -357,7 +345,8 @@ int main(int argc, char **argv)
 	sig_size = BIO_number_written(bd) - module_size;
 	sig_info.sig_len = htonl(sig_size);
 	ERR(BIO_write(bd, &sig_info, sizeof(sig_info)) < 0, "%s", dest_name);
-	ERR(BIO_write(bd, magic_number, sizeof(magic_number) - 1) < 0, "%s", dest_name);
+	ERR(BIO_write(bd, MODULE_SIGNATURE_MARKER, sizeof(MODULE_SIGNATURE_MARKER) - 1) < 0,
+	    "%s", dest_name);
 
 	ERR(BIO_free(bd) != 1, "%s", dest_name);
 

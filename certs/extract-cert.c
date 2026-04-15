@@ -33,8 +33,6 @@
 #endif
 #include "ssl-common.h"
 
-#define PKEY_ID_PKCS7 2
-
 static __attribute__((noreturn))
 void format(void)
 {

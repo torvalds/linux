@@ -48,6 +48,15 @@ Contact:	Kay Sievers <kay.sievers@vrfy.org>
 Description:	Show the initialization state(live, coming, going) of
 		the module.
 
+What:		/sys/module/*/import_ns
+Date:		January 2026
+KernelVersion:	7.1
+Contact:	linux-modules@vger.kernel.org
+Description:	List of symbol namespaces imported by this module via
+		MODULE_IMPORT_NS(). Each namespace appears on a separate line.
+		This file only exists for modules that import at least one
+		namespace.
+
 What:		/sys/module/*/taint
 Date:		Jan 2012
 KernelVersion:	3.3

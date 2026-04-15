@@ -24,7 +24,7 @@ int mod_check_sig(const struct module_signature *ms, size_t file_len,
 	if (be32_to_cpu(ms->sig_len) >= file_len - sizeof(*ms))
 		return -EBADMSG;
 
-	if (ms->id_type != PKEY_ID_PKCS7) {
+	if (ms->id_type != MODULE_SIGNATURE_TYPE_PKCS7) {
 		pr_err("%s: not signed with expected PKCS#7 message\n",
 		       name);
 		return -ENOPKG;

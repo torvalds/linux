@@ -114,6 +114,11 @@ inspected with modinfo::
 	import_ns:      USB_STORAGE
 	[...]
 
+For modules that are currently loaded, imported namespaces are also available
+via sysfs::
+
+	$ cat /sys/module/ums_karma/import_ns
+	USB_STORAGE
 
 It is advisable to add the MODULE_IMPORT_NS() statement close to other module
 metadata definitions like MODULE_AUTHOR() or MODULE_LICENSE().
