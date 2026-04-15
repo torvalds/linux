@@ -149,9 +149,6 @@ static int tls_enc_records(struct aead_request *aead_req,
 	return rc;
 }
 
-/* Can't use icsk->icsk_af_ops->send_check here because the ip addresses
- * might have been changed by NAT.
- */
 static void update_chksum(struct sk_buff *skb, int headln)
 {
 	struct tcphdr *th = tcp_hdr(skb);

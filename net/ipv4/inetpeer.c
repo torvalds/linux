@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *		INETPEER - A storage for permanent information about peers
- *
- *  This source is covered by the GNU GPL, the same as all kernel sources.
  *
  *  Authors:	Andrey V. Savochkin <saw@msu.ru>
  */
@@ -60,7 +59,6 @@ void inet_peer_base_init(struct inet_peer_base *bp)
 	seqlock_init(&bp->lock);
 	bp->total = 0;
 }
-EXPORT_IPV6_MOD_GPL(inet_peer_base_init);
 
 #define PEER_MAX_GC 32
 
@@ -218,7 +216,6 @@ struct inet_peer *inet_getpeer(struct inet_peer_base *base,
 
 	return p;
 }
-EXPORT_IPV6_MOD_GPL(inet_getpeer);
 
 void inet_putpeer(struct inet_peer *p)
 {
@@ -269,7 +266,6 @@ bool inet_peer_xrlim_allow(struct inet_peer *peer, int timeout)
 		WRITE_ONCE(peer->rate_tokens, token);
 	return rc;
 }
-EXPORT_IPV6_MOD(inet_peer_xrlim_allow);
 
 void inetpeer_invalidate_tree(struct inet_peer_base *base)
 {
@@ -286,4 +282,3 @@ void inetpeer_invalidate_tree(struct inet_peer_base *base)
 
 	base->total = 0;
 }
-EXPORT_IPV6_MOD(inetpeer_invalidate_tree);

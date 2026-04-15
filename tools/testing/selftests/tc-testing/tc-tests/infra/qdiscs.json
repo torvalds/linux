@@ -570,7 +570,7 @@
         "cmdUnderTest": "$TC class change dev $DUMMY parent 3:0 classid 3:1 hfsc sc m1 5Mbit d 10ms m2 10Mbit",
         "expExitCode": "0",
         "verifyCmd": "$TC -s qdisc show dev $DUMMY",
-        "matchPattern": "qdisc hfsc 3:.*parent 1:2.*default 1",
+        "matchPattern": "qdisc hfsc 3:.*parent 1:2.*default 0x1",
         "matchCount": "1",
         "teardown": [
             "$TC qdisc del dev $DUMMY handle 1:0 root",

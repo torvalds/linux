@@ -4,6 +4,7 @@
 #include <linux/debugfs.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/sizes.h>
 #include <linux/utsname.h>
 #include <linux/version.h>
 #include <linux/msi.h>
@@ -39,49 +40,90 @@ static u64 mana_gd_r64(struct gdma_context *g, u64 offset)
 	return readq(g->bar0_va + offset);
 }
 
-static void mana_gd_init_pf_regs(struct pci_dev *pdev)
+static int mana_gd_init_pf_regs(struct pci_dev *pdev)
 {
 	struct gdma_context *gc = pci_get_drvdata(pdev);
 	void __iomem *sriov_base_va;
 	u64 sriov_base_off;
 
 	gc->db_page_size = mana_gd_r32(gc, GDMA_PF_REG_DB_PAGE_SIZE) & 0xFFFF;
-	gc->db_page_base = gc->bar0_va +
-				mana_gd_r64(gc, GDMA_PF_REG_DB_PAGE_OFF);
 
-	gc->phys_db_page_base = gc->bar0_pa +
-				mana_gd_r64(gc, GDMA_PF_REG_DB_PAGE_OFF);
+	/* mana_gd_ring_doorbell() accesses offsets up to DOORBELL_OFFSET_EQ
+	 * (0xFF8) + 8 bytes = 4KB within each doorbell page, so the page
+	 * size must be at least SZ_4K.
+	 */
+	if (gc->db_page_size < SZ_4K) {
+		dev_err(gc->dev,
+			"Doorbell page size %llu too small (min %u)\n",
+			gc->db_page_size, SZ_4K);
+		return -EPROTO;
+	}
+
+	gc->db_page_off = mana_gd_r64(gc, GDMA_PF_REG_DB_PAGE_OFF);
+
+	/* Validate doorbell offset is within BAR0 */
+	if (gc->db_page_off >= gc->bar0_size) {
+		dev_err(gc->dev,
+			"Doorbell offset 0x%llx exceeds BAR0 size 0x%llx\n",
+			gc->db_page_off, (u64)gc->bar0_size);
+		return -EPROTO;
+	}
+
+	gc->db_page_base = gc->bar0_va + gc->db_page_off;
+	gc->phys_db_page_base = gc->bar0_pa + gc->db_page_off;
 
 	sriov_base_off = mana_gd_r64(gc, GDMA_SRIOV_REG_CFG_BASE_OFF);
 
 	sriov_base_va = gc->bar0_va + sriov_base_off;
 	gc->shm_base = sriov_base_va +
 			mana_gd_r64(gc, sriov_base_off + GDMA_PF_REG_SHM_OFF);
+
+	return 0;
 }
 
-static void mana_gd_init_vf_regs(struct pci_dev *pdev)
+static int mana_gd_init_vf_regs(struct pci_dev *pdev)
 {
 	struct gdma_context *gc = pci_get_drvdata(pdev);
 
 	gc->db_page_size = mana_gd_r32(gc, GDMA_REG_DB_PAGE_SIZE) & 0xFFFF;
 
-	gc->db_page_base = gc->bar0_va +
-				mana_gd_r64(gc, GDMA_REG_DB_PAGE_OFFSET);
+	/* mana_gd_ring_doorbell() accesses offsets up to DOORBELL_OFFSET_EQ
+	 * (0xFF8) + 8 bytes = 4KB within each doorbell page, so the page
+	 * size must be at least SZ_4K.
+	 */
+	if (gc->db_page_size < SZ_4K) {
+		dev_err(gc->dev,
+			"Doorbell page size %llu too small (min %u)\n",
+			gc->db_page_size, SZ_4K);
+		return -EPROTO;
+	}
 
-	gc->phys_db_page_base = gc->bar0_pa +
-				mana_gd_r64(gc, GDMA_REG_DB_PAGE_OFFSET);
+	gc->db_page_off = mana_gd_r64(gc, GDMA_REG_DB_PAGE_OFFSET);
+
+	/* Validate doorbell offset is within BAR0 */
+	if (gc->db_page_off >= gc->bar0_size) {
+		dev_err(gc->dev,
+			"Doorbell offset 0x%llx exceeds BAR0 size 0x%llx\n",
+			gc->db_page_off, (u64)gc->bar0_size);
+		return -EPROTO;
+	}
+
+	gc->db_page_base = gc->bar0_va + gc->db_page_off;
+	gc->phys_db_page_base = gc->bar0_pa + gc->db_page_off;
 
 	gc->shm_base = gc->bar0_va + mana_gd_r64(gc, GDMA_REG_SHM_OFFSET);
+
+	return 0;
 }
 
-static void mana_gd_init_registers(struct pci_dev *pdev)
+static int mana_gd_init_registers(struct pci_dev *pdev)
 {
 	struct gdma_context *gc = pci_get_drvdata(pdev);
 
 	if (gc->is_pf)
-		mana_gd_init_pf_regs(pdev);
+		return mana_gd_init_pf_regs(pdev);
 	else
-		mana_gd_init_vf_regs(pdev);
+		return mana_gd_init_vf_regs(pdev);
 }
 
 /* Suppress logging when we set timeout to zero */
@@ -490,14 +532,8 @@ static void mana_serv_reset(struct pci_dev *pdev)
 		dev_info(&pdev->dev, "MANA reset cycle completed\n");
 
 out:
-	gc->in_service = false;
+	clear_bit(GC_IN_SERVICE, &gc->flags);
 }
-
-struct mana_serv_work {
-	struct work_struct serv_work;
-	struct pci_dev *pdev;
-	enum gdma_eqe_type type;
-};
 
 static void mana_do_service(enum gdma_eqe_type type, struct pci_dev *pdev)
 {
@@ -558,12 +594,42 @@ static void mana_serv_func(struct work_struct *w)
 	module_put(THIS_MODULE);
 }
 
+int mana_schedule_serv_work(struct gdma_context *gc, enum gdma_eqe_type type)
+{
+	struct mana_serv_work *mns_wk;
+
+	if (test_and_set_bit(GC_IN_SERVICE, &gc->flags)) {
+		dev_info(gc->dev, "Already in service\n");
+		return -EBUSY;
+	}
+
+	if (!try_module_get(THIS_MODULE)) {
+		dev_info(gc->dev, "Module is unloading\n");
+		clear_bit(GC_IN_SERVICE, &gc->flags);
+		return -ENODEV;
+	}
+
+	mns_wk = kzalloc(sizeof(*mns_wk), GFP_ATOMIC);
+	if (!mns_wk) {
+		module_put(THIS_MODULE);
+		clear_bit(GC_IN_SERVICE, &gc->flags);
+		return -ENOMEM;
+	}
+
+	dev_info(gc->dev, "Start MANA service type:%d\n", type);
+	mns_wk->pdev = to_pci_dev(gc->dev);
+	mns_wk->type = type;
+	pci_dev_get(mns_wk->pdev);
+	INIT_WORK(&mns_wk->serv_work, mana_serv_func);
+	schedule_work(&mns_wk->serv_work);
+	return 0;
+}
+
 static void mana_gd_process_eqe(struct gdma_queue *eq)
 {
 	u32 head = eq->head % (eq->queue_size / GDMA_EQE_SIZE);
 	struct gdma_context *gc = eq->gdma_dev->gdma_context;
 	struct gdma_eqe *eq_eqe_ptr = eq->queue_mem_ptr;
-	struct mana_serv_work *mns_wk;
 	union gdma_eqe_info eqe_info;
 	enum gdma_eqe_type type;
 	struct gdma_event event;
@@ -623,30 +689,7 @@ static void mana_gd_process_eqe(struct gdma_queue *eq)
 				 "Service is to be processed in probe\n");
 			break;
 		}
-
-		if (gc->in_service) {
-			dev_info(gc->dev, "Already in service\n");
-			break;
-		}
-
-		if (!try_module_get(THIS_MODULE)) {
-			dev_info(gc->dev, "Module is unloading\n");
-			break;
-		}
-
-		mns_wk = kzalloc_obj(*mns_wk, GFP_ATOMIC);
-		if (!mns_wk) {
-			module_put(THIS_MODULE);
-			break;
-		}
-
-		dev_info(gc->dev, "Start MANA service type:%d\n", type);
-		gc->in_service = true;
-		mns_wk->pdev = to_pci_dev(gc->dev);
-		mns_wk->type = type;
-		pci_dev_get(mns_wk->pdev);
-		INIT_WORK(&mns_wk->serv_work, mana_serv_func);
-		schedule_work(&mns_wk->serv_work);
+		mana_schedule_serv_work(gc, type);
 		break;
 
 	default:
@@ -1253,6 +1296,17 @@ int mana_gd_register_device(struct gdma_dev *gd)
 		dev_err(gc->dev, "gdma_register_device_resp failed: %d, 0x%x\n",
 			err, resp.hdr.status);
 		return err ? err : -EPROTO;
+	}
+
+	/* Validate that doorbell page for db_id is within the BAR0 region.
+	 * In mana_gd_ring_doorbell(), the address is calculated as:
+	 *   addr = db_page_base + db_page_size * db_id
+	 *        = (bar0_va + db_page_off) + (db_page_size * db_id)
+	 * So we need: db_page_off + db_page_size * (db_id + 1) <= bar0_size
+	 */
+	if (gc->db_page_off + gc->db_page_size * ((u64)resp.db_id + 1) > gc->bar0_size) {
+		dev_err(gc->dev, "Doorbell ID %u out of range\n", resp.db_id);
+		return -EPROTO;
 	}
 
 	gd->pdid = resp.pdid;
@@ -1889,7 +1943,10 @@ static int mana_gd_setup(struct pci_dev *pdev)
 	struct gdma_context *gc = pci_get_drvdata(pdev);
 	int err;
 
-	mana_gd_init_registers(pdev);
+	err = mana_gd_init_registers(pdev);
+	if (err)
+		return err;
+
 	mana_smc_init(&gc->shm_channel, gc->dev, gc->shm_base);
 
 	gc->service_wq = alloc_ordered_workqueue("gdma_service_wq", 0);
@@ -1996,6 +2053,7 @@ static int mana_gd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	mutex_init(&gc->eq_test_event_mutex);
 	pci_set_drvdata(pdev, gc);
 	gc->bar0_pa = pci_resource_start(pdev, 0);
+	gc->bar0_size = pci_resource_len(pdev, 0);
 
 	bar0_va = pci_iomap(pdev, bar, 0);
 	if (!bar0_va)
@@ -2007,11 +2065,8 @@ static int mana_gd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	gc->dev = &pdev->dev;
 	xa_init(&gc->irq_contexts);
 
-	if (gc->is_pf)
-		gc->mana_pci_debugfs = debugfs_create_dir("0", mana_debugfs_root);
-	else
-		gc->mana_pci_debugfs = debugfs_create_dir(pci_slot_name(pdev->slot),
-							  mana_debugfs_root);
+	gc->mana_pci_debugfs = debugfs_create_dir(pci_name(pdev),
+						  mana_debugfs_root);
 
 	err = mana_gd_setup(pdev);
 	if (err)

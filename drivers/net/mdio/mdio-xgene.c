@@ -250,7 +250,7 @@ static int xgene_xfi_mdio_read(struct mii_bus *bus, int phy_id, int reg)
 	} while ((status & BUSY_MASK) && timeout--);
 
 	if (status & BUSY_MASK) {
-		pr_err("XGENET_MII_MGMT write failed\n");
+		pr_err("XGENET_MII_MGMT read failed\n");
 		return -EBUSY;
 	}
 

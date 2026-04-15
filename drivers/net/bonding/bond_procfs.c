@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <generated/utsrelease.h>
 #include <linux/proc_fs.h>
 #include <linux/ethtool.h>
 #include <linux/export.h>
@@ -6,7 +7,7 @@
 #include <net/netns/generic.h>
 #include <net/bonding.h>
 
-#include "bonding_priv.h"
+#define bond_version "Ethernet Channel Bonding Driver: v" UTS_RELEASE "\n"
 
 static void *bond_info_seq_start(struct seq_file *seq, loff_t *pos)
 	__acquires(RCU)
@@ -290,7 +291,7 @@ void bond_create_proc_entry(struct bonding *bond)
 				bn->proc_dir, &bond_info_seq_ops, bond);
 		if (bond->proc_entry == NULL)
 			netdev_warn(bond_dev, "Cannot create /proc/net/%s/%s\n",
-				    DRV_NAME, bond_dev->name);
+				    KBUILD_MODNAME, bond_dev->name);
 		else
 			memcpy(bond->proc_file_name, bond_dev->name, IFNAMSIZ);
 	}
@@ -314,10 +315,10 @@ void bond_remove_proc_entry(struct bonding *bond)
 void __net_init bond_create_proc_dir(struct bond_net *bn)
 {
 	if (!bn->proc_dir) {
-		bn->proc_dir = proc_mkdir(DRV_NAME, bn->net->proc_net);
+		bn->proc_dir = proc_mkdir(KBUILD_MODNAME, bn->net->proc_net);
 		if (!bn->proc_dir)
 			pr_warn("Warning: Cannot create /proc/net/%s\n",
-				DRV_NAME);
+				KBUILD_MODNAME);
 	}
 }
 
@@ -326,7 +327,7 @@ void __net_init bond_create_proc_dir(struct bond_net *bn)
 void __net_exit bond_destroy_proc_dir(struct bond_net *bn)
 {
 	if (bn->proc_dir) {
-		remove_proc_entry(DRV_NAME, bn->net->proc_net);
+		remove_proc_entry(KBUILD_MODNAME, bn->net->proc_net);
 		bn->proc_dir = NULL;
 	}
 }

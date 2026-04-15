@@ -1409,7 +1409,7 @@ bool rtl_action_proc(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 				sta_entry =
 					(struct rtl_sta_info *)sta->drv_priv;
 				capab =
-				  le16_to_cpu(mgmt->u.action.u.addba_req.capab);
+				  le16_to_cpu(mgmt->u.action.addba_req.capab);
 				tid = (capab &
 				       IEEE80211_ADDBA_PARAM_TID_MASK) >> 2;
 				if (tid >= MAX_TID_COUNT) {
@@ -2392,35 +2392,35 @@ static struct sk_buff *rtl_make_smps_action(struct ieee80211_hw *hw,
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *action_frame;
 
-	/* 27 = header + category + action + smps mode */
-	skb = dev_alloc_skb(27 + hw->extra_tx_headroom);
+	skb = dev_alloc_skb(IEEE80211_MIN_ACTION_SIZE(ht_smps) +
+			    hw->extra_tx_headroom);
 	if (!skb)
 		return NULL;
 
 	skb_reserve(skb, hw->extra_tx_headroom);
-	action_frame = skb_put_zero(skb, 27);
+	action_frame = skb_put_zero(skb, IEEE80211_MIN_ACTION_SIZE(ht_smps));
 	memcpy(action_frame->da, da, ETH_ALEN);
 	memcpy(action_frame->sa, rtlefuse->dev_addr, ETH_ALEN);
 	memcpy(action_frame->bssid, bssid, ETH_ALEN);
 	action_frame->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 						  IEEE80211_STYPE_ACTION);
 	action_frame->u.action.category = WLAN_CATEGORY_HT;
-	action_frame->u.action.u.ht_smps.action = WLAN_HT_ACTION_SMPS;
+	action_frame->u.action.action_code = WLAN_HT_ACTION_SMPS;
 	switch (smps) {
 	case IEEE80211_SMPS_AUTOMATIC:/* 0 */
 	case IEEE80211_SMPS_NUM_MODES:/* 4 */
 		WARN_ON(1);
 		fallthrough;
 	case IEEE80211_SMPS_OFF:/* 1 */ /*MIMO_PS_NOLIMIT*/
-		action_frame->u.action.u.ht_smps.smps_control =
+		action_frame->u.action.ht_smps.smps_control =
 				WLAN_HT_SMPS_CONTROL_DISABLED;/* 0 */
 		break;
 	case IEEE80211_SMPS_STATIC:/* 2 */ /*MIMO_PS_STATIC*/
-		action_frame->u.action.u.ht_smps.smps_control =
+		action_frame->u.action.ht_smps.smps_control =
 				WLAN_HT_SMPS_CONTROL_STATIC;/* 1 */
 		break;
 	case IEEE80211_SMPS_DYNAMIC:/* 3 */ /*MIMO_PS_DYNAMIC*/
-		action_frame->u.action.u.ht_smps.smps_control =
+		action_frame->u.action.ht_smps.smps_control =
 				WLAN_HT_SMPS_CONTROL_DYNAMIC;/* 3 */
 		break;
 	}
@@ -2519,25 +2519,25 @@ struct sk_buff *rtl_make_del_ba(struct ieee80211_hw *hw,
 	struct ieee80211_mgmt *action_frame;
 	u16 params;
 
-	/* 27 = header + category + action + smps mode */
-	skb = dev_alloc_skb(34 + hw->extra_tx_headroom);
+	skb = dev_alloc_skb(IEEE80211_MIN_ACTION_SIZE(delba) +
+			    hw->extra_tx_headroom);
 	if (!skb)
 		return NULL;
 
 	skb_reserve(skb, hw->extra_tx_headroom);
-	action_frame = skb_put_zero(skb, 34);
+	action_frame = skb_put_zero(skb, IEEE80211_MIN_ACTION_SIZE(delba));
 	memcpy(action_frame->sa, sa, ETH_ALEN);
 	memcpy(action_frame->da, rtlefuse->dev_addr, ETH_ALEN);
 	memcpy(action_frame->bssid, bssid, ETH_ALEN);
 	action_frame->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 						  IEEE80211_STYPE_ACTION);
 	action_frame->u.action.category = WLAN_CATEGORY_BACK;
-	action_frame->u.action.u.delba.action_code = WLAN_ACTION_DELBA;
+	action_frame->u.action.action_code = WLAN_ACTION_DELBA;
 	params = (u16)(1 << 11);	/* bit 11 initiator */
 	params |= (u16)(tid << 12);	/* bit 15:12 TID number */
 
-	action_frame->u.action.u.delba.params = cpu_to_le16(params);
-	action_frame->u.action.u.delba.reason_code =
+	action_frame->u.action.delba.params = cpu_to_le16(params);
+	action_frame->u.action.delba.reason_code =
 		cpu_to_le16(WLAN_REASON_QSTA_TIMEOUT);
 
 	return skb;

@@ -60,12 +60,12 @@ void iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
 
 	if (unlikely(dev_recursion_level() > IP_TUNNEL_RECURSION_LIMIT)) {
 		if (dev) {
-			net_crit_ratelimited("Dead loop on virtual device %s, fix it urgently!\n",
-					     dev->name);
+			net_crit_ratelimited("Dead loop on virtual device %s (net %llu), fix it urgently!\n",
+					     dev->name, dev_net(dev)->net_cookie);
 			DEV_STATS_INC(dev, tx_errors);
 		}
 		ip_rt_put(rt);
-		kfree_skb(skb);
+		kfree_skb_reason(skb, SKB_DROP_REASON_RECURSION_LIMIT);
 		return;
 	}
 

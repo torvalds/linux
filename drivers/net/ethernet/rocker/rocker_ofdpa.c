@@ -104,7 +104,6 @@ struct ofdpa_group_tbl_entry {
 	u32 cmd;
 	u32 group_id; /* key */
 	u16 group_count;
-	u32 *group_ids;
 	union {
 		struct {
 			u8 pop_vlan;
@@ -123,6 +122,8 @@ struct ofdpa_group_tbl_entry {
 			u32 group_id;
 		} l3_unicast;
 	};
+
+	u32 group_ids[] __counted_by(group_count);
 };
 
 struct ofdpa_fdb_tbl_entry {
@@ -1059,19 +1060,6 @@ ofdpa_group_tbl_find(const struct ofdpa *ofdpa,
 	return NULL;
 }
 
-static void ofdpa_group_tbl_entry_free(struct ofdpa_group_tbl_entry *entry)
-{
-	switch (ROCKER_GROUP_TYPE_GET(entry->group_id)) {
-	case ROCKER_OF_DPA_GROUP_TYPE_L2_FLOOD:
-	case ROCKER_OF_DPA_GROUP_TYPE_L2_MCAST:
-		kfree(entry->group_ids);
-		break;
-	default:
-		break;
-	}
-	kfree(entry);
-}
-
 static int ofdpa_group_tbl_add(struct ofdpa_port *ofdpa_port, int flags,
 			       struct ofdpa_group_tbl_entry *match)
 {
@@ -1085,7 +1073,7 @@ static int ofdpa_group_tbl_add(struct ofdpa_port *ofdpa_port, int flags,
 
 	if (found) {
 		hash_del(&found->entry);
-		ofdpa_group_tbl_entry_free(found);
+		kfree(found);
 		found = match;
 		found->cmd = ROCKER_TLV_CMD_TYPE_OF_DPA_GROUP_MOD;
 	} else {
@@ -1122,14 +1110,14 @@ static int ofdpa_group_tbl_del(struct ofdpa_port *ofdpa_port, int flags,
 
 	spin_unlock_irqrestore(&ofdpa->group_tbl_lock, lock_flags);
 
-	ofdpa_group_tbl_entry_free(match);
+	kfree(match);
 
 	if (found) {
 		err = rocker_cmd_exec(ofdpa_port->rocker_port,
 				      ofdpa_flags_nowait(flags),
 				      ofdpa_cmd_group_tbl_del,
 				      found, NULL, NULL);
-		ofdpa_group_tbl_entry_free(found);
+		kfree(found);
 	}
 
 	return err;
@@ -1166,18 +1154,13 @@ static int ofdpa_group_l2_fan_out(struct ofdpa_port *ofdpa_port,
 {
 	struct ofdpa_group_tbl_entry *entry;
 
-	entry = kzalloc_obj(*entry);
+	entry = kzalloc_flex(*entry, group_ids, group_count);
 	if (!entry)
 		return -ENOMEM;
 
-	entry->group_id = group_id;
 	entry->group_count = group_count;
+	entry->group_id = group_id;
 
-	entry->group_ids = kcalloc(group_count, sizeof(u32), GFP_KERNEL);
-	if (!entry->group_ids) {
-		kfree(entry);
-		return -ENOMEM;
-	}
 	memcpy(entry->group_ids, group_ids, group_count * sizeof(u32));
 
 	return ofdpa_group_tbl_do(ofdpa_port, flags, entry);

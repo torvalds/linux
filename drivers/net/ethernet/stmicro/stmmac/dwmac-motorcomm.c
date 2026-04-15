@@ -219,10 +219,6 @@ motorcomm_default_plat_data(struct pci_dev *pdev)
 	if (!plat->mdio_bus_data)
 		return NULL;
 
-	plat->dma_cfg = devm_kzalloc(dev, sizeof(*plat->dma_cfg), GFP_KERNEL);
-	if (!plat->dma_cfg)
-		return NULL;
-
 	plat->axi = devm_kzalloc(dev, sizeof(*plat->axi), GFP_KERNEL);
 	if (!plat->axi)
 		return NULL;
@@ -236,7 +232,6 @@ motorcomm_default_plat_data(struct pci_dev *pdev)
 
 	plat->axi->axi_wr_osr_lmt	= 1;
 	plat->axi->axi_rd_osr_lmt	= 1;
-	plat->axi->axi_mb		= true;
 	plat->axi->axi_blen_regval	= DMA_AXI_BLEN4 | DMA_AXI_BLEN8 |
 					  DMA_AXI_BLEN16 | DMA_AXI_BLEN32;
 

@@ -292,6 +292,32 @@ int hinic3_set_cmdq_depth(struct hinic3_hwdev *hwdev, u16 cmdq_depth)
 	return 0;
 }
 
+#define HINIC3_FLR_TIMEOUT    1000
+
+static enum hinic3_wait_return hinic3_check_flr_finish_handler(void *priv_data)
+{
+	struct hinic3_hwdev *hwdev = priv_data;
+	struct hinic3_hwif *hwif = hwdev->hwif;
+	enum hinic3_pf_status status;
+
+	if (!hwdev->chip_present_flag)
+		return HINIC3_WAIT_PROCESS_ERR;
+
+	status = hinic3_get_pf_status(hwif);
+	if (status == HINIC3_PF_STATUS_FLR_FINISH_FLAG) {
+		hinic3_set_pf_status(hwif, HINIC3_PF_STATUS_ACTIVE_FLAG);
+		return HINIC3_WAIT_PROCESS_CPL;
+	}
+
+	return HINIC3_WAIT_PROCESS_WAITING;
+}
+
+static int hinic3_wait_for_flr_finish(struct hinic3_hwdev *hwdev)
+{
+	return hinic3_wait_for_timeout(hwdev, hinic3_check_flr_finish_handler,
+				       HINIC3_FLR_TIMEOUT, 0xa * USEC_PER_MSEC);
+}
+
 #define HINIC3_WAIT_CMDQ_IDLE_TIMEOUT    5000
 
 static enum hinic3_wait_return check_cmdq_stop_handler(void *priv_data)
@@ -299,6 +325,10 @@ static enum hinic3_wait_return check_cmdq_stop_handler(void *priv_data)
 	struct hinic3_hwdev *hwdev = priv_data;
 	enum hinic3_cmdq_type cmdq_type;
 	struct hinic3_cmdqs *cmdqs;
+
+	/* Stop waiting when card unpresent */
+	if (!hwdev->chip_present_flag)
+		return HINIC3_WAIT_PROCESS_ERR;
 
 	cmdqs = hwdev->cmdqs;
 	for (cmdq_type = 0; cmdq_type < cmdqs->cmdq_num; cmdq_type++) {
@@ -347,6 +377,9 @@ int hinic3_func_rx_tx_flush(struct hinic3_hwdev *hwdev)
 	int ret = 0;
 	int err;
 
+	if (!hwdev->chip_present_flag)
+		return 0;
+
 	err = wait_cmdq_stop(hwdev);
 	if (err) {
 		dev_warn(hwdev->dev, "CMDQ is still working, CMDQ timeout value is unreasonable\n");
@@ -380,6 +413,14 @@ int hinic3_func_rx_tx_flush(struct hinic3_hwdev *hwdev)
 		dev_warn(hwdev->dev, "Failed to notice flush message, err: %d\n",
 			 err);
 		ret = err;
+	}
+
+	if (HINIC3_FUNC_TYPE(hwdev) != HINIC3_FUNC_TYPE_VF) {
+		err = hinic3_wait_for_flr_finish(hwdev);
+		if (err) {
+			dev_warn(hwdev->dev, "Wait firmware FLR timeout\n");
+			ret = err;
+		}
 	}
 
 	hinic3_toggle_doorbell(hwif, ENABLE_DOORBELL);
@@ -536,6 +577,34 @@ int hinic3_clean_root_ctxt(struct hinic3_hwdev *hwdev)
 			err, root_ctxt.head.status);
 		return -EFAULT;
 	}
+
+	return 0;
+}
+
+#define HINIC3_FW_VER_TYPE_MPU  1
+
+int hinic3_get_mgmt_version(struct hinic3_hwdev *hwdev, u8 *mgmt_ver,
+			    u8 version_size)
+{
+	struct comm_cmd_get_fw_version fw_ver = {};
+	struct mgmt_msg_params msg_params = {};
+	int err;
+
+	fw_ver.fw_type = HINIC3_FW_VER_TYPE_MPU;
+
+	mgmt_msg_params_init_default(&msg_params, &fw_ver, sizeof(fw_ver));
+
+	err = hinic3_send_mbox_to_mgmt(hwdev, MGMT_MOD_COMM,
+				       COMM_CMD_GET_FW_VERSION, &msg_params);
+
+	if (err || fw_ver.head.status) {
+		dev_err(hwdev->dev,
+			"Failed to get fw version, err: %d, status: 0x%x\n",
+			err, fw_ver.head.status);
+		return -EFAULT;
+	}
+
+	snprintf(mgmt_ver, version_size, "%s", fw_ver.ver);
 
 	return 0;
 }

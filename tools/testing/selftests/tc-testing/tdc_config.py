@@ -17,6 +17,7 @@ NAMES = {
           'DEV1': 'v0p1',
           'DEV2': '',
           'DUMMY': 'dummy1',
+          'ETHTOOL': '/usr/sbin/ethtool',
 	  'ETH': 'eth0',
           'BATCH_FILE': './batch.txt',
           'BATCH_DIR': 'tmp',

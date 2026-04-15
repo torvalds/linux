@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2019, 2021-2025 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2019, 2021-2026 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -26,7 +26,7 @@ enum iwl_mac_conf_subcmd_ids {
 	 */
 	MISSED_VAP_NOTIF = 0xFA,
 	/**
-	 * @SESSION_PROTECTION_CMD: &struct iwl_mvm_session_prot_cmd
+	 * @SESSION_PROTECTION_CMD: &struct iwl_session_prot_cmd
 	 */
 	SESSION_PROTECTION_CMD = 0x5,
 	/**
@@ -34,7 +34,8 @@ enum iwl_mac_conf_subcmd_ids {
 	 */
 	CANCEL_CHANNEL_SWITCH_CMD = 0x6,
 	/**
-	 * @MAC_CONFIG_CMD: &struct iwl_mac_config_cmd
+	 * @MAC_CONFIG_CMD: &struct iwl_mac_config_cmd_v3 or
+	 *	&struct iwl_mac_config_cmd
 	 */
 	MAC_CONFIG_CMD = 0x8,
 	/**
@@ -42,7 +43,8 @@ enum iwl_mac_conf_subcmd_ids {
 	 */
 	LINK_CONFIG_CMD = 0x9,
 	/**
-	 * @STA_CONFIG_CMD: &struct iwl_sta_cfg_cmd
+	 * @STA_CONFIG_CMD: &struct iwl_sta_cfg_cmd_v1,
+	 *	&struct iwl_sta_cfg_cmd_v2, or &struct iwl_sta_cfg_cmd
 	 */
 	STA_CONFIG_CMD = 0xA,
 	/**
@@ -356,7 +358,7 @@ struct iwl_mac_wifi_gen_support {
 } __packed;
 
 /**
- * struct iwl_mac_config_cmd - command structure to configure MAC contexts in
+ * struct iwl_mac_config_cmd_v3 - command structure to configure MAC contexts in
  *	MLD API for versions 2 and 3
  * ( MAC_CONTEXT_CONFIG_CMD = 0x8 )
  *
@@ -375,7 +377,7 @@ struct iwl_mac_wifi_gen_support {
  * @client: client mac data
  * @p2p_dev: mac data for p2p device
  */
-struct iwl_mac_config_cmd {
+struct iwl_mac_config_cmd_v3 {
 	__le32 id_and_color;
 	__le32 action;
 	/* MAC_CONTEXT_TYPE_API_E */
@@ -393,7 +395,62 @@ struct iwl_mac_config_cmd {
 		struct iwl_mac_client_data client;
 		struct iwl_mac_p2p_dev_data p2p_dev;
 	};
-} __packed; /* MAC_CONTEXT_CONFIG_CMD_API_S_VER_2_VER_3 */
+} __packed; /* MAC_CONTEXT_CONFIG_CMD_API_S_VER_2, _VER_3 */
+
+/**
+ * struct iwl_mac_nan_data - NAN specific MAC data
+ * @ndi_addrs: extra NDI addresses being used
+ * @ndi_addrs_count: number of extra NDI addresses
+ */
+struct iwl_mac_nan_data {
+	struct {
+		u8 addr[ETH_ALEN];
+		__le16 reserved;
+	} __packed ndi_addrs[2];
+	__le32 ndi_addrs_count;
+} __packed; /* MAC_CONTEXT_CONFIG_NAN_DATA_API_S_VER_1 */
+
+/**
+ * struct iwl_mac_config_cmd - command structure to configure MAC contexts in
+ *	MLD API for versions 4
+ * ( MAC_CONTEXT_CONFIG_CMD = 0x8 )
+ *
+ * @id_and_color: ID and color of the MAC
+ * @action: action to perform, see &enum iwl_ctxt_action
+ * @mac_type: one of &enum iwl_mac_types
+ * @local_mld_addr: mld address
+ * @reserved_for_local_mld_addr: reserved
+ * @filter_flags: combination of &enum iwl_mac_config_filter_flags
+ * @wifi_gen_v2: he/eht parameters as in cmd version 2
+ * @wifi_gen: he/eht/uhr parameters as in cmd version 3
+ * @nic_not_ack_enabled: mark that the NIC doesn't support receiving
+ *	ACK-enabled AGG, (i.e. both BACK and non-BACK frames in single AGG).
+ *	If the NIC is not ACK_ENABLED it may use the EOF-bit in first non-0
+ *	len delim to determine if AGG or single.
+ * @client: client mac data
+ * @p2p_dev: mac data for p2p device
+ * @nan: NAN specific data (NAN data interface addresses)
+ */
+struct iwl_mac_config_cmd {
+	__le32 id_and_color;
+	__le32 action;
+	/* MAC_CONTEXT_TYPE_API_E */
+	__le32 mac_type;
+	u8 local_mld_addr[6];
+	__le16 reserved_for_local_mld_addr;
+	__le32 filter_flags;
+	union {
+		struct iwl_mac_wifi_gen_support_v2 wifi_gen_v2;
+		struct iwl_mac_wifi_gen_support wifi_gen;
+	};
+	__le32 nic_not_ack_enabled;
+	/* MAC_CONTEXT_CONFIG_SPECIFIC_DATA_API_U_VER_3 */
+	union {
+		struct iwl_mac_client_data client;
+		struct iwl_mac_p2p_dev_data p2p_dev;
+		struct iwl_mac_nan_data nan;
+	};
+} __packed; /* MAC_CONTEXT_CONFIG_CMD_API_S_VER_4 */
 
 /**
  * enum iwl_link_ctx_modify_flags - indicate to the fw what fields are being
@@ -652,6 +709,7 @@ struct iwl_link_config_cmd {
  */
 #define IWL_FW_MAX_ACTIVE_LINKS_NUM 2
 #define IWL_FW_MAX_LINK_ID 3
+#define IWL_FW_MAX_LINKS IWL_FW_MAX_LINK_ID + 1
 
 /**
  * enum iwl_fw_sta_type - FW station types
@@ -662,6 +720,13 @@ struct iwl_link_config_cmd {
  * @STATION_TYPE_MCAST: the station used for BCAST / MCAST in GO. Will be
  *	suspended / resumed at the right timing depending on the clients'
  *	power save state and the DTIM timing
+ * @STATION_TYPE_NAN_PEER_NMI: NAN management peer station type. A station
+ *	of this type can have any number of links (even none) set in the
+ *	link_mask. (Supported since version 3.)
+ * @STATION_TYPE_NAN_PEER_NDI: NAN data peer station type. A station
+ *	of this type can have any number of links (even none) set in the
+ *	link_mask. (Supported since version 3.)
+ * @STATION_TYPE_MAX: maximum number of FW station types
  * @STATION_TYPE_AUX: aux sta. In the FW there is no need for a special type
  *	for the aux sta, so this type is only for driver - internal use.
  */
@@ -669,8 +734,11 @@ enum iwl_fw_sta_type {
 	STATION_TYPE_PEER,
 	STATION_TYPE_BCAST_MGMT,
 	STATION_TYPE_MCAST,
-	STATION_TYPE_AUX,
-}; /* STATION_TYPE_E_VER_1 */
+	STATION_TYPE_NAN_PEER_NMI,
+	STATION_TYPE_NAN_PEER_NDI,
+	STATION_TYPE_MAX,
+	STATION_TYPE_AUX = STATION_TYPE_MAX /* this doesn't exist in FW */
+}; /* STATION_TYPE_E_VER_1, _VER_2 */
 
 /**
  * struct iwl_sta_cfg_cmd_v1 - cmd structure to add a peer sta to the uCode's
@@ -729,7 +797,7 @@ struct iwl_sta_cfg_cmd_v1 {
 } __packed; /* STA_CMD_API_S_VER_1 */
 
 /**
- * struct iwl_sta_cfg_cmd - cmd structure to add a peer sta to the uCode's
+ * struct iwl_sta_cfg_cmd_v2 - cmd structure to add a peer sta to the uCode's
  *	station table
  * ( STA_CONFIG_CMD = 0xA )
  *
@@ -769,7 +837,7 @@ struct iwl_sta_cfg_cmd_v1 {
  * @mic_compute_pad_delay: MIC compute time padding
  * @reserved: Reserved for alignment
  */
-struct iwl_sta_cfg_cmd {
+struct iwl_sta_cfg_cmd_v2 {
 	__le32 sta_id;
 	__le32 link_id;
 	u8 peer_mld_address[ETH_ALEN];
@@ -798,6 +866,83 @@ struct iwl_sta_cfg_cmd {
 	u8 mic_compute_pad_delay;
 	u8 reserved[2];
 } __packed; /* STA_CMD_API_S_VER_2 */
+
+/**
+ * struct iwl_sta_cfg_cmd - cmd structure to add a peer sta to the uCode's
+ *	station table
+ * ( STA_CONFIG_CMD = 0xA )
+ *
+ * @sta_id: index of station in uCode's station table
+ * @link_mask: bitmap of link FW IDs used with this STA
+ * @peer_mld_address: the peers mld address
+ * @reserved_for_peer_mld_address: reserved
+ * @peer_link_address: the address of the link that is used to communicate
+ *	with this sta
+ * @reserved_for_peer_link_address: reserved
+ * @station_type: type of this station. See &enum iwl_fw_sta_type
+ * @assoc_id: for GO only
+ * @beamform_flags: beam forming controls
+ * @mfp: indicates whether the STA uses management frame protection or not.
+ * @mimo: indicates whether the sta uses mimo or not
+ * @mimo_protection: indicates whether the sta uses mimo protection or not
+ * @ack_enabled: indicates that the AP supports receiving ACK-
+ *	enabled AGG, i.e. both BACK and non-BACK frames in a single AGG
+ * @trig_rnd_alloc: indicates that trigger based random allocation
+ *	is enabled according to UORA element existence
+ * @tx_ampdu_spacing: minimum A-MPDU spacing:
+ *	4 - 2us density, 5 - 4us density, 6 - 8us density, 7 - 16us density
+ * @tx_ampdu_max_size: maximum A-MPDU length: 0 - 8K, 1 - 16K, 2 - 32K,
+ *	3 - 64K, 4 - 128K, 5 - 256K, 6 - 512K, 7 - 1024K.
+ * @sp_length: the size of the SP in actual number of frames
+ * @uapsd_acs:  4 LS bits are trigger enabled ACs, 4 MS bits are the deliver
+ *	enabled ACs.
+ * @pkt_ext: optional, exists according to PPE-present bit in the HE/EHT-PHY
+ *	capa
+ * @htc_flags: which features are supported in HTC
+ * @use_ldpc_x2_cw: Indicates whether to use LDPC with double CW
+ * @use_icf: Indicates whether to use ICF instead of RTS
+ * @dps_pad_time: DPS (Dynamic Power Save) padding delay resolution to ensure
+ *	proper timing alignment
+ * @dps_trans_delay: DPS minimal time that takes the peer to return to low power
+ * @dps_enabled: flag indicating whether or not DPS is enabled
+ * @mic_prep_pad_delay: MIC prep time padding
+ * @mic_compute_pad_delay: MIC compute time padding
+ * @nmi_sta_id: for an NDI peer STA, the NMI peer STA ID it relates to
+ * @ndi_local_addr: for an NDI peer STA, the local NDI interface MAC address
+ * @reserved: Reserved for alignment
+ */
+struct iwl_sta_cfg_cmd {
+	__le32 sta_id;
+	__le32 link_mask;
+	u8 peer_mld_address[ETH_ALEN];
+	__le16 reserved_for_peer_mld_address;
+	u8 peer_link_address[ETH_ALEN];
+	__le16 reserved_for_peer_link_address;
+	__le32 station_type;
+	__le32 assoc_id;
+	__le32 beamform_flags;
+	__le32 mfp;
+	__le32 mimo;
+	__le32 mimo_protection;
+	__le32 ack_enabled;
+	__le32 trig_rnd_alloc;
+	__le32 tx_ampdu_spacing;
+	__le32 tx_ampdu_max_size;
+	__le32 sp_length;
+	__le32 uapsd_acs;
+	struct iwl_he_pkt_ext_v2 pkt_ext;
+	__le32 htc_flags;
+	u8 use_ldpc_x2_cw;
+	u8 use_icf;
+	u8 dps_pad_time;
+	u8 dps_trans_delay;
+	u8 dps_enabled;
+	u8 mic_prep_pad_delay;
+	u8 mic_compute_pad_delay;
+	u8 nmi_sta_id;
+	u8 ndi_local_addr[ETH_ALEN];
+	u8 reserved[2];
+} __packed; /* STA_CMD_API_S_VER_3 */
 
 /**
  * struct iwl_aux_sta_cmd - command for AUX STA configuration

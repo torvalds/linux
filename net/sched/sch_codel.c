@@ -52,7 +52,7 @@ static void drop_func(struct sk_buff *skb, void *ctx)
 {
 	struct Qdisc *sch = ctx;
 
-	qdisc_dequeue_drop(sch, skb, SKB_DROP_REASON_QDISC_CONGESTED);
+	qdisc_dequeue_drop(sch, skb, QDISC_DROP_CONGESTED);
 	qdisc_qstats_drop(sch);
 }
 
@@ -85,9 +85,8 @@ static int codel_qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		return qdisc_enqueue_tail(skb, sch);
 	}
 	q = qdisc_priv(sch);
-	q->drop_overlimit++;
-	return qdisc_drop_reason(skb, sch, to_free,
-				 SKB_DROP_REASON_QDISC_OVERLIMIT);
+	WRITE_ONCE(q->drop_overlimit, q->drop_overlimit + 1);
+	return qdisc_drop_reason(skb, sch, to_free, QDISC_DROP_OVERLIMIT);
 }
 
 static const struct nla_policy codel_policy[TCA_CODEL_MAX + 1] = {
@@ -222,18 +221,18 @@ static int codel_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
 {
 	const struct codel_sched_data *q = qdisc_priv(sch);
 	struct tc_codel_xstats st = {
-		.maxpacket	= q->stats.maxpacket,
-		.count		= q->vars.count,
-		.lastcount	= q->vars.lastcount,
-		.drop_overlimit = q->drop_overlimit,
-		.ldelay		= codel_time_to_us(q->vars.ldelay),
-		.dropping	= q->vars.dropping,
-		.ecn_mark	= q->stats.ecn_mark,
-		.ce_mark	= q->stats.ce_mark,
+		.maxpacket	= READ_ONCE(q->stats.maxpacket),
+		.count		= READ_ONCE(q->vars.count),
+		.lastcount	= READ_ONCE(q->vars.lastcount),
+		.drop_overlimit = READ_ONCE(q->drop_overlimit),
+		.ldelay		= codel_time_to_us(READ_ONCE(q->vars.ldelay)),
+		.dropping	= READ_ONCE(q->vars.dropping),
+		.ecn_mark	= READ_ONCE(q->stats.ecn_mark),
+		.ce_mark	= READ_ONCE(q->stats.ce_mark),
 	};
 
-	if (q->vars.dropping) {
-		codel_tdiff_t delta = q->vars.drop_next - codel_get_time();
+	if (st.dropping) {
+		codel_tdiff_t delta = READ_ONCE(q->vars.drop_next) - codel_get_time();
 
 		if (delta >= 0)
 			st.drop_next = codel_time_to_us(delta);

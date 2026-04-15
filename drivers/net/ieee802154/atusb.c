@@ -961,7 +961,7 @@ static int atusb_probe(struct usb_interface *interface,
 
 	atusb = hw->priv;
 	atusb->hw = hw;
-	atusb->usb_dev = usb_get_dev(usb_dev);
+	atusb->usb_dev = usb_dev;
 	usb_set_intfdata(interface, atusb);
 
 	atusb->shutdown = 0;
@@ -1055,7 +1055,6 @@ fail:
 	atusb_free_urbs(atusb);
 	usb_kill_urb(atusb->tx_urb);
 	usb_free_urb(atusb->tx_urb);
-	usb_put_dev(usb_dev);
 	ieee802154_free_hw(hw);
 	return ret;
 }
@@ -1075,8 +1074,6 @@ static void atusb_disconnect(struct usb_interface *interface)
 	usb_free_urb(atusb->tx_urb);
 
 	ieee802154_unregister_hw(atusb->hw);
-
-	usb_put_dev(atusb->usb_dev);
 
 	ieee802154_free_hw(atusb->hw);
 

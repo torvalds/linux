@@ -4,6 +4,7 @@
 #ifndef _HINIC3_PCI_ID_TBL_H_
 #define _HINIC3_PCI_ID_TBL_H_
 
+#define PCI_DEV_ID_HINIC3_PF    0x0222
 #define PCI_DEV_ID_HINIC3_VF    0x375F
 
 #endif

@@ -13,10 +13,9 @@ config PPP
 	  otherwise you can't use it; most Internet access providers these
 	  days support PPP rather than SLIP.
 
-	  To use PPP, you need an additional program called pppd as described
-	  in the PPP-HOWTO, available at
-	  <http://www.tldp.org/docs.html#howto>.  Make sure that you have
-	  the version of pppd recommended in <file:Documentation/Changes>.
+	  To use PPP, you need an additional program called pppd, available at
+	  <https://ppp.samba.org>.  Make sure that you have the version of pppd
+	  recommended in <file:Documentation/Changes>.
 	  The PPP option enlarges your kernel by about 16 KB.
 
 	  There are actually two versions of PPP: the traditional PPP for
@@ -37,7 +36,6 @@ if PPP
 
 config PPP_BSDCOMP
 	tristate "PPP BSD-Compress compression"
-	depends on PPP
 	help
 	  Support for the BSD-Compress compression method for PPP, which uses
 	  the LZW compression method to compress each PPP packet before it is
@@ -56,7 +54,6 @@ config PPP_BSDCOMP
 
 config PPP_DEFLATE
 	tristate "PPP Deflate compression"
-	depends on PPP
 	select ZLIB_INFLATE
 	select ZLIB_DEFLATE
 	help
@@ -71,7 +68,6 @@ config PPP_DEFLATE
 
 config PPP_FILTER
 	bool "PPP filtering"
-	depends on PPP
 	help
 	  Say Y here if you want to be able to filter the packets passing over
 	  PPP interfaces.  This allows you to control which packets count as
@@ -84,7 +80,6 @@ config PPP_FILTER
 
 config PPP_MPPE
 	tristate "PPP MPPE compression (encryption)"
-	depends on PPP
 	select CRYPTO_LIB_ARC4
 	select CRYPTO_LIB_SHA1
 	help
@@ -96,7 +91,6 @@ config PPP_MPPE
 
 config PPP_MULTILINK
 	bool "PPP multilink support"
-	depends on PPP
 	help
 	  PPP multilink is a protocol (defined in RFC 1990) which allows you
 	  to combine several (logical or physical) lines into one logical PPP
@@ -109,7 +103,7 @@ config PPP_MULTILINK
 
 config PPPOATM
 	tristate "PPP over ATM"
-	depends on ATM && PPP
+	depends on ATM
 	help
 	  Support PPP (Point to Point Protocol) encapsulated in ATM frames.
 	  This implementation does not yet comply with section 8 of RFC2364,
@@ -118,15 +112,13 @@ config PPPOATM
 
 config PPPOE
 	tristate "PPP over Ethernet"
-	depends on PPP
 	help
 	  Support for PPP over Ethernet.
 
-	  This driver requires the latest version of pppd from the CVS
-	  repository at cvs.samba.org.  Alternatively, see the
-	  RoaringPenguin package (<http://www.roaringpenguin.com/pppoe>)
-	  which contains instruction on how to use this driver (under
-	  the heading "Kernel mode PPPoE").
+	  To work in client mode, pppd version 2.4.2 or later is required.
+	  To work in server mode, the pppoe-server command from the RP-PPPoE
+	  package is also required, available at
+	  <https://dianne.skoll.ca/projects/rp-pppoe/>.
 
 choice
 	prompt "Number of PPPoE hash bits"
@@ -164,7 +156,7 @@ config PPPOE_HASH_BITS
 
 config PPTP
 	tristate "PPP over IPv4 (PPTP)"
-	depends on PPP && NET_IPGRE_DEMUX
+	depends on NET_IPGRE_DEMUX
 	help
 	  Support for PPP over IPv4.(Point-to-Point Tunneling Protocol)
 
@@ -175,7 +167,7 @@ config PPTP
 
 config PPPOL2TP
 	tristate "PPP over L2TP"
-	depends on L2TP && PPP
+	depends on L2TP
 	help
 	  Support for PPP-over-L2TP socket family. L2TP is a protocol
 	  used by ISPs and enterprises to tunnel PPP traffic over UDP
@@ -184,7 +176,6 @@ if TTY
 
 config PPP_ASYNC
 	tristate "PPP support for async serial ports"
-	depends on PPP
 	select CRC_CCITT
 	help
 	  Say Y (or M) here if you want to be able to use PPP over standard
@@ -198,7 +189,6 @@ config PPP_ASYNC
 
 config PPP_SYNC_TTY
 	tristate "PPP support for sync tty ports"
-	depends on PPP
 	help
 	  Say Y (or M) here if you want to be able to use PPP over synchronous
 	  (HDLC) tty devices, such as the SyncLink adapter. These devices

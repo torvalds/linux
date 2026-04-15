@@ -1046,31 +1046,28 @@ struct ieee80211_mgmt {
 		} __packed probe_resp;
 		struct {
 			u8 category;
+			u8 action_code;
 			union {
 				struct {
-					u8 action_code;
 					u8 dialog_token;
 					u8 status_code;
 					u8 variable[];
 				} __packed wme_action;
 				struct{
-					u8 action_code;
+					u8 no_fixed_fields[0];
 					u8 variable[];
 				} __packed chan_switch;
 				struct{
-					u8 action_code;
 					struct ieee80211_ext_chansw_ie data;
 					u8 variable[];
 				} __packed ext_chan_switch;
 				struct{
-					u8 action_code;
 					u8 dialog_token;
 					u8 element_id;
 					u8 length;
 					struct ieee80211_msrment_ie msr_elem;
 				} __packed measurement;
 				struct{
-					u8 action_code;
 					u8 dialog_token;
 					__le16 capab;
 					__le16 timeout;
@@ -1079,7 +1076,6 @@ struct ieee80211_mgmt {
 					u8 variable[];
 				} __packed addba_req;
 				struct{
-					u8 action_code;
 					u8 dialog_token;
 					__le16 status;
 					__le16 capab;
@@ -1088,54 +1084,45 @@ struct ieee80211_mgmt {
 					u8 variable[];
 				} __packed addba_resp;
 				struct{
-					u8 action_code;
 					__le16 params;
 					__le16 reason_code;
 				} __packed delba;
 				struct {
-					u8 action_code;
+					u8 no_fixed_fields[0];
 					u8 variable[];
 				} __packed self_prot;
 				struct{
-					u8 action_code;
+					u8 no_fixed_fields[0];
 					u8 variable[];
 				} __packed mesh_action;
 				struct {
-					u8 action;
 					u8 trans_id[WLAN_SA_QUERY_TR_ID_LEN];
 				} __packed sa_query;
 				struct {
-					u8 action;
 					u8 smps_control;
 				} __packed ht_smps;
 				struct {
-					u8 action_code;
 					u8 chanwidth;
 				} __packed ht_notify_cw;
 				struct {
-					u8 action_code;
 					u8 dialog_token;
 					__le16 capability;
 					u8 variable[];
 				} __packed tdls_discover_resp;
 				struct {
-					u8 action_code;
 					u8 operating_mode;
 				} __packed vht_opmode_notif;
 				struct {
-					u8 action_code;
 					u8 membership[WLAN_MEMBERSHIP_LEN];
 					u8 position[WLAN_USER_POSITION_LEN];
 				} __packed vht_group_notif;
 				struct {
-					u8 action_code;
 					u8 dialog_token;
 					u8 tpc_elem_id;
 					u8 tpc_elem_length;
 					struct ieee80211_tpc_report_ie tpc;
 				} __packed tpc_report;
 				struct {
-					u8 action_code;
 					u8 dialog_token;
 					u8 follow_up;
 					u8 tod[6];
@@ -1145,11 +1132,10 @@ struct ieee80211_mgmt {
 					u8 variable[];
 				} __packed ftm;
 				struct {
-					u8 action_code;
+					u8 no_fixed_fields[0];
 					u8 variable[];
 				} __packed s1g;
 				struct {
-					u8 action_code;
 					u8 dialog_token;
 					u8 follow_up;
 					u32 tod;
@@ -1158,41 +1144,37 @@ struct ieee80211_mgmt {
 					u8 max_toa_error;
 				} __packed wnm_timing_msr;
 				struct {
-					u8 action_code;
 					u8 dialog_token;
 					u8 variable[];
 				} __packed ttlm_req;
 				struct {
-					u8 action_code;
 					u8 dialog_token;
 					__le16 status_code;
 					u8 variable[];
 				} __packed ttlm_res;
 				struct {
-					u8 action_code;
+					u8 no_fixed_fields[0];
+					/* no variable fields either */
 				} __packed ttlm_tear_down;
 				struct {
-					u8 action_code;
 					u8 dialog_token;
 					u8 variable[];
 				} __packed ml_reconf_req;
 				struct {
-					u8 action_code;
 					u8 dialog_token;
 					u8 count;
 					u8 variable[];
 				} __packed ml_reconf_resp;
 				struct {
-					u8 action_code;
+					u8 no_fixed_fields[0];
 					u8 variable[];
 				} __packed epcs;
 				struct {
-					u8 action_code;
 					u8 dialog_token;
 					u8 control;
 					u8 variable[];
 				} __packed eml_omn;
-			} u;
+			};
 		} __packed action;
 		DECLARE_FLEX_ARRAY(u8, body); /* Generic frame body */
 	} u;
@@ -1210,9 +1192,15 @@ struct ieee80211_mgmt {
 
 #define BSS_MEMBERSHIP_SELECTOR_MIN	BSS_MEMBERSHIP_SELECTOR_UHR_PHY
 
-/* mgmt header + 1 byte category code */
-#define IEEE80211_MIN_ACTION_SIZE offsetof(struct ieee80211_mgmt, u.action.u)
+#define IEEE80211_MIN_ACTION_SIZE(type)	offsetofend(struct ieee80211_mgmt, u.action.type)
 
+/* Link Reconfiguration Status Duple field */
+struct ieee80211_ml_reconf_status {
+	u8 info;
+	__le16 status;
+} __packed;
+
+#define IEEE80211_ML_RECONF_LINK_ID_MASK	0xf
 
 /* Management MIC information element (IEEE 802.11w) for CMAC */
 struct ieee80211_mmie {
@@ -1358,6 +1346,7 @@ struct ieee80211_tdls_data {
 #define WLAN_AUTH_FILS_SK 4
 #define WLAN_AUTH_FILS_SK_PFS 5
 #define WLAN_AUTH_FILS_PK 6
+#define WLAN_AUTH_IEEE8021X 8
 #define WLAN_AUTH_EPPKE 9
 #define WLAN_AUTH_LEAP 128
 
@@ -1500,6 +1489,8 @@ enum ieee80211_statuscode {
 	WLAN_STATUS_REJECT_DSE_BAND = 96,
 	WLAN_STATUS_DENIED_WITH_SUGGESTED_BAND_AND_CHANNEL = 99,
 	WLAN_STATUS_DENIED_DUE_TO_SPECTRUM_MANAGEMENT = 103,
+	/* 802.11ah */
+	WLAN_STATUS_REJECTED_NDP_BLOCK_ACK_SUGGESTED = 109,
 	/* 802.11ai */
 	WLAN_STATUS_FILS_AUTHENTICATION_FAILURE = 112,
 	WLAN_STATUS_UNKNOWN_AUTHENTICATION_SERVER = 113,
@@ -1507,6 +1498,7 @@ enum ieee80211_statuscode {
 	WLAN_STATUS_SAE_PK = 127,
 	WLAN_STATUS_DENIED_TID_TO_LINK_MAPPING = 133,
 	WLAN_STATUS_PREF_TID_TO_LINK_MAPPING_SUGGESTED = 134,
+	WLAN_STATUS_8021X_AUTH_SUCCESS = 153,
 };
 
 
@@ -1929,6 +1921,11 @@ enum ieee80211_radio_measurement_actioncode {
 #define PMK_MAX_LEN			64
 #define SAE_PASSWORD_MAX_LEN		128
 
+#define MICHAEL_MIC_LEN			8
+
+void michael_mic(const u8 *key, struct ieee80211_hdr *hdr,
+		 const u8 *data, size_t data_len, u8 *mic);
+
 /* Public action codes (IEEE Std 802.11-2016, 9.6.8.1, Table 9-307) */
 enum ieee80211_pub_actioncode {
 	WLAN_PUB_ACTION_20_40_BSS_COEX = 0,
@@ -2248,6 +2245,7 @@ struct ieee80211_multiple_bssid_configuration {
 
 #define WLAN_OUI_WFA			0x506f9a
 #define WLAN_OUI_TYPE_WFA_P2P		9
+#define WLAN_OUI_TYPE_WFA_NAN		0x13
 #define WLAN_OUI_TYPE_WFA_DPP		0x1A
 #define WLAN_OUI_MICROSOFT		0x0050f2
 #define WLAN_OUI_TYPE_MICROSOFT_WPA	1
@@ -2389,7 +2387,7 @@ static inline bool ieee80211_is_bufferable_mmpdu(struct sk_buff *skb)
 	if (!ieee80211_is_action(fc))
 		return false;
 
-	if (skb->len < offsetofend(typeof(*mgmt), u.action.u.ftm.action_code))
+	if (skb->len < IEEE80211_MIN_ACTION_SIZE(action_code))
 		return true;
 
 	/* action frame - additionally check for non-bufferable FTM */
@@ -2398,8 +2396,8 @@ static inline bool ieee80211_is_bufferable_mmpdu(struct sk_buff *skb)
 	    mgmt->u.action.category != WLAN_CATEGORY_PROTECTED_DUAL_OF_ACTION)
 		return true;
 
-	if (mgmt->u.action.u.ftm.action_code == WLAN_PUB_ACTION_FTM_REQUEST ||
-	    mgmt->u.action.u.ftm.action_code == WLAN_PUB_ACTION_FTM_RESPONSE)
+	if (mgmt->u.action.action_code == WLAN_PUB_ACTION_FTM_REQUEST ||
+	    mgmt->u.action.action_code == WLAN_PUB_ACTION_FTM_RESPONSE)
 		return false;
 
 	return true;
@@ -2449,7 +2447,7 @@ static inline bool _ieee80211_is_robust_mgmt_frame(struct ieee80211_hdr *hdr)
  */
 static inline bool ieee80211_is_robust_mgmt_frame(struct sk_buff *skb)
 {
-	if (skb->len < IEEE80211_MIN_ACTION_SIZE)
+	if (skb->len < IEEE80211_MIN_ACTION_SIZE(category))
 		return false;
 	return _ieee80211_is_robust_mgmt_frame((void *)skb->data);
 }
@@ -2465,7 +2463,7 @@ static inline bool ieee80211_is_public_action(struct ieee80211_hdr *hdr,
 {
 	struct ieee80211_mgmt *mgmt = (void *)hdr;
 
-	if (len < IEEE80211_MIN_ACTION_SIZE)
+	if (len < IEEE80211_MIN_ACTION_SIZE(category))
 		return false;
 	if (!ieee80211_is_action(hdr->frame_control))
 		return false;
@@ -2483,13 +2481,14 @@ static inline bool ieee80211_is_public_action(struct ieee80211_hdr *hdr,
 static inline bool
 ieee80211_is_protected_dual_of_public_action(struct sk_buff *skb)
 {
+	struct ieee80211_mgmt *mgmt = (void *)skb->data;
 	u8 action;
 
 	if (!ieee80211_is_public_action((void *)skb->data, skb->len) ||
-	    skb->len < IEEE80211_MIN_ACTION_SIZE + 1)
+	    skb->len < IEEE80211_MIN_ACTION_SIZE(action_code))
 		return false;
 
-	action = *(u8 *)(skb->data + IEEE80211_MIN_ACTION_SIZE);
+	action = mgmt->u.action.action_code;
 
 	return action != WLAN_PUB_ACTION_20_40_BSS_COEX &&
 		action != WLAN_PUB_ACTION_DSE_REG_LOC_ANN &&
@@ -2528,7 +2527,7 @@ static inline bool _ieee80211_is_group_privacy_action(struct ieee80211_hdr *hdr)
  */
 static inline bool ieee80211_is_group_privacy_action(struct sk_buff *skb)
 {
-	if (skb->len < IEEE80211_MIN_ACTION_SIZE)
+	if (skb->len < IEEE80211_MIN_ACTION_SIZE(category))
 		return false;
 	return _ieee80211_is_group_privacy_action((void *)skb->data);
 }
@@ -2624,8 +2623,7 @@ static inline bool ieee80211_action_contains_tpc(struct sk_buff *skb)
 	if (!ieee80211_is_action(mgmt->frame_control))
 		return false;
 
-	if (skb->len < IEEE80211_MIN_ACTION_SIZE +
-		       sizeof(mgmt->u.action.u.tpc_report))
+	if (skb->len < IEEE80211_MIN_ACTION_SIZE(tpc_report))
 		return false;
 
 	/*
@@ -2644,12 +2642,11 @@ static inline bool ieee80211_action_contains_tpc(struct sk_buff *skb)
 		return false;
 
 	/* both spectrum mgmt and link measurement have same action code */
-	if (mgmt->u.action.u.tpc_report.action_code !=
-	    WLAN_ACTION_SPCT_TPC_RPRT)
+	if (mgmt->u.action.action_code != WLAN_ACTION_SPCT_TPC_RPRT)
 		return false;
 
-	if (mgmt->u.action.u.tpc_report.tpc_elem_id != WLAN_EID_TPC_REPORT ||
-	    mgmt->u.action.u.tpc_report.tpc_elem_length !=
+	if (mgmt->u.action.tpc_report.tpc_elem_id != WLAN_EID_TPC_REPORT ||
+	    mgmt->u.action.tpc_report.tpc_elem_length !=
 	    sizeof(struct ieee80211_tpc_report_ie))
 		return false;
 
@@ -2665,16 +2662,15 @@ static inline bool ieee80211_is_timing_measurement(struct sk_buff *skb)
 {
 	struct ieee80211_mgmt *mgmt = (void *)skb->data;
 
-	if (skb->len < IEEE80211_MIN_ACTION_SIZE)
+	if (skb->len < IEEE80211_MIN_ACTION_SIZE(wnm_timing_msr))
 		return false;
 
 	if (!ieee80211_is_action(mgmt->frame_control))
 		return false;
 
 	if (mgmt->u.action.category == WLAN_CATEGORY_WNM_UNPROTECTED &&
-	    mgmt->u.action.u.wnm_timing_msr.action_code ==
-		WLAN_UNPROTECTED_WNM_ACTION_TIMING_MEASUREMENT_RESPONSE &&
-	    skb->len >= offsetofend(typeof(*mgmt), u.action.u.wnm_timing_msr))
+	    mgmt->u.action.action_code ==
+			WLAN_UNPROTECTED_WNM_ACTION_TIMING_MEASUREMENT_RESPONSE)
 		return true;
 
 	return false;
@@ -2689,15 +2685,13 @@ static inline bool ieee80211_is_ftm(struct sk_buff *skb)
 {
 	struct ieee80211_mgmt *mgmt = (void *)skb->data;
 
+	if (skb->len < IEEE80211_MIN_ACTION_SIZE(ftm))
+		return false;
+
 	if (!ieee80211_is_public_action((void *)mgmt, skb->len))
 		return false;
 
-	if (mgmt->u.action.u.ftm.action_code ==
-		WLAN_PUB_ACTION_FTM_RESPONSE &&
-	    skb->len >= offsetofend(typeof(*mgmt), u.action.u.ftm))
-		return true;
-
-	return false;
+	return mgmt->u.action.action_code == WLAN_PUB_ACTION_FTM_RESPONSE;
 }
 
 struct element {

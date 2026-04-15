@@ -25,7 +25,7 @@ static void common_default_data(struct plat_stmmacenet_data *plat)
 	/* clk_csr_i = 20-35MHz & MDC = clk_csr_i/16 */
 	plat->clk_csr = STMMAC_CSR_20_35M;
 	plat->core_type = DWMAC_CORE_GMAC;
-	plat->force_sf_dma_mode = 1;
+	plat->force_sf_dma_mode = true;
 
 	plat->mdio_bus_data->needs_reset = true;
 }
@@ -58,9 +58,9 @@ static int snps_gmac5_default_data(struct pci_dev *pdev,
 
 	plat->clk_csr = STMMAC_CSR_250_300M;
 	plat->core_type = DWMAC_CORE_GMAC4;
-	plat->force_sf_dma_mode = 1;
+	plat->force_sf_dma_mode = true;
 	plat->flags |= STMMAC_FLAG_TSO_EN;
-	plat->pmt = 1;
+	plat->pmt = true;
 
 	/* Set default number of RX and TX queues to use */
 	plat->tx_queues_to_use = 4;
@@ -132,11 +132,6 @@ static int stmmac_pci_probe(struct pci_dev *pdev,
 					   sizeof(*plat->mdio_bus_data),
 					   GFP_KERNEL);
 	if (!plat->mdio_bus_data)
-		return -ENOMEM;
-
-	plat->dma_cfg = devm_kzalloc(&pdev->dev, sizeof(*plat->dma_cfg),
-				     GFP_KERNEL);
-	if (!plat->dma_cfg)
 		return -ENOMEM;
 
 	plat->safety_feat_cfg = devm_kzalloc(&pdev->dev,

@@ -3339,7 +3339,7 @@ static int ath12k_qmi_aux_uc_load(struct ath12k_base *ab)
 		goto out;
 	}
 
-	 aux_uc_mem->total_size = aux_uc_len;
+	aux_uc_mem->total_size = aux_uc_len;
 
 copy:
 	memcpy(aux_uc_mem->vaddr, aux_uc_data, aux_uc_len);

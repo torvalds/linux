@@ -6,9 +6,9 @@
 #include <linux/ptp_clock_kernel.h>
 #include <net/netdev_lock.h>
 
-#include "netlink.h"
-#include "common.h"
 #include "bitset.h"
+#include "common.h"
+#include "netlink.h"
 #include "ts.h"
 
 struct tsinfo_req_info {
@@ -70,7 +70,9 @@ int ts_parse_hwtst_provider(const struct nlattr *nest,
 }
 
 static int
-tsinfo_parse_request(struct ethnl_req_info *req_base, struct nlattr **tb,
+tsinfo_parse_request(struct ethnl_req_info *req_base,
+		     const struct genl_info *info,
+		     struct nlattr **tb,
 		     struct netlink_ext_ack *extack)
 {
 	struct tsinfo_req_info *req = TSINFO_REQINFO(req_base);

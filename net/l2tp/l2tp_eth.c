@@ -14,6 +14,7 @@
 #include <linux/in.h>
 #include <linux/etherdevice.h>
 #include <linux/spinlock.h>
+#include <linux/string.h>
 #include <net/sock.h>
 #include <net/ip.h>
 #include <net/icmp.h>
@@ -235,10 +236,10 @@ static int l2tp_eth_create(struct net *net, struct l2tp_tunnel *tunnel,
 	int rc;
 
 	if (cfg->ifname) {
-		strscpy(name, cfg->ifname, IFNAMSIZ);
+		strscpy(name, cfg->ifname);
 		name_assign_type = NET_NAME_USER;
 	} else {
-		strcpy(name, L2TP_ETH_DEV_NAME);
+		strscpy(name, L2TP_ETH_DEV_NAME);
 		name_assign_type = NET_NAME_ENUM;
 	}
 

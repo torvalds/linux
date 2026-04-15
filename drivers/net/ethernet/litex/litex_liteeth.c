@@ -232,12 +232,13 @@ static void liteeth_setup_slots(struct liteeth *priv)
 
 static int liteeth_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct net_device *netdev;
 	void __iomem *buf_base;
 	struct liteeth *priv;
 	int irq, err;
 
-	netdev = devm_alloc_etherdev(&pdev->dev, sizeof(*priv));
+	netdev = devm_alloc_etherdev(dev, sizeof(*priv));
 	if (!netdev)
 		return -ENOMEM;
 
@@ -246,9 +247,9 @@ static int liteeth_probe(struct platform_device *pdev)
 
 	priv = netdev_priv(netdev);
 	priv->netdev = netdev;
-	priv->dev = &pdev->dev;
+	priv->dev = dev;
 
-	netdev->tstats = devm_netdev_alloc_pcpu_stats(&pdev->dev,
+	netdev->tstats = devm_netdev_alloc_pcpu_stats(dev,
 						      struct pcpu_sw_netstats);
 	if (!netdev->tstats)
 		return -ENOMEM;
@@ -276,15 +277,15 @@ static int liteeth_probe(struct platform_device *pdev)
 	priv->tx_base = buf_base + priv->num_rx_slots * priv->slot_size;
 	priv->tx_slot = 0;
 
-	err = of_get_ethdev_address(pdev->dev.of_node, netdev);
+	err = of_get_ethdev_address(dev->of_node, netdev);
 	if (err)
 		eth_hw_addr_random(netdev);
 
 	netdev->netdev_ops = &liteeth_netdev_ops;
 
-	err = register_netdev(netdev);
+	err = devm_register_netdev(dev, netdev);
 	if (err) {
-		dev_err(&pdev->dev, "Failed to register netdev %d\n", err);
+		dev_err(dev, "Failed to register netdev %d\n", err);
 		return err;
 	}
 
@@ -292,13 +293,6 @@ static int liteeth_probe(struct platform_device *pdev)
 		    netdev->irq, priv->num_tx_slots, priv->num_rx_slots, priv->slot_size);
 
 	return 0;
-}
-
-static void liteeth_remove(struct platform_device *pdev)
-{
-	struct net_device *netdev = platform_get_drvdata(pdev);
-
-	unregister_netdev(netdev);
 }
 
 static const struct of_device_id liteeth_of_match[] = {
@@ -309,7 +303,6 @@ MODULE_DEVICE_TABLE(of, liteeth_of_match);
 
 static struct platform_driver liteeth_driver = {
 	.probe = liteeth_probe,
-	.remove = liteeth_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = liteeth_of_match,

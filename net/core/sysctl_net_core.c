@@ -138,68 +138,76 @@ done:
 static int rps_sock_flow_sysctl(const struct ctl_table *table, int write,
 				void *buffer, size_t *lenp, loff_t *ppos)
 {
+	struct rps_sock_flow_table *o_sock_table, *sock_table;
+	static DEFINE_MUTEX(sock_flow_mutex);
+	rps_tag_ptr o_tag_ptr, tag_ptr;
 	unsigned int orig_size, size;
-	int ret, i;
 	struct ctl_table tmp = {
 		.data = &size,
 		.maxlen = sizeof(size),
 		.mode = table->mode
 	};
-	struct rps_sock_flow_table *orig_sock_table, *sock_table;
-	static DEFINE_MUTEX(sock_flow_mutex);
+	void *tofree = NULL;
+	int ret, i;
+	u8 log;
 
 	mutex_lock(&sock_flow_mutex);
 
-	orig_sock_table = rcu_dereference_protected(
-					net_hotdata.rps_sock_flow_table,
-					lockdep_is_held(&sock_flow_mutex));
-	size = orig_size = orig_sock_table ? orig_sock_table->mask + 1 : 0;
+	o_tag_ptr = tag_ptr = net_hotdata.rps_sock_flow_table;
+
+	size = o_tag_ptr ? rps_tag_to_mask(o_tag_ptr) + 1 : 0;
+	o_sock_table = rps_tag_to_table(o_tag_ptr);
+	orig_size = size;
 
 	ret = proc_dointvec(&tmp, write, buffer, lenp, ppos);
 
-	if (write) {
-		if (size) {
-			if (size > 1<<29) {
-				/* Enforce limit to prevent overflow */
+	if (!write)
+		goto unlock;
+
+	if (size) {
+		if (size > 1<<29) {
+			/* Enforce limit to prevent overflow */
+			mutex_unlock(&sock_flow_mutex);
+			return -EINVAL;
+		}
+		sock_table = o_sock_table;
+		size = roundup_pow_of_two(size);
+		if (size != orig_size) {
+			sock_table = vmalloc_huge(size * sizeof(*sock_table),
+						  GFP_KERNEL);
+			if (!sock_table) {
 				mutex_unlock(&sock_flow_mutex);
-				return -EINVAL;
+				return -ENOMEM;
 			}
-			size = roundup_pow_of_two(size);
-			if (size != orig_size) {
-				sock_table =
-				    vmalloc(RPS_SOCK_FLOW_TABLE_SIZE(size));
-				if (!sock_table) {
-					mutex_unlock(&sock_flow_mutex);
-					return -ENOMEM;
-				}
-				net_hotdata.rps_cpu_mask =
-					roundup_pow_of_two(nr_cpu_ids) - 1;
-				sock_table->mask = size - 1;
-			} else
-				sock_table = orig_sock_table;
+			net_hotdata.rps_cpu_mask =
+				roundup_pow_of_two(nr_cpu_ids) - 1;
+			log = ilog2(size);
+			tag_ptr = (rps_tag_ptr)sock_table | log;
+		}
 
-			for (i = 0; i < size; i++)
-				sock_table->ents[i] = RPS_NO_CPU;
-		} else
-			sock_table = NULL;
-
-		if (sock_table != orig_sock_table) {
-			rcu_assign_pointer(net_hotdata.rps_sock_flow_table,
-					   sock_table);
-			if (sock_table) {
-				static_branch_inc(&rps_needed);
-				static_branch_inc(&rfs_needed);
-			}
-			if (orig_sock_table) {
-				static_branch_dec(&rps_needed);
-				static_branch_dec(&rfs_needed);
-				kvfree_rcu(orig_sock_table, rcu);
-			}
+		for (i = 0; i < size; i++)
+			sock_table[i].ent = RPS_NO_CPU;
+	} else {
+		sock_table = NULL;
+		tag_ptr = 0UL;
+	}
+	if (tag_ptr != o_tag_ptr) {
+		smp_store_release(&net_hotdata.rps_sock_flow_table, tag_ptr);
+		if (sock_table) {
+			static_branch_inc(&rps_needed);
+			static_branch_inc(&rfs_needed);
+		}
+		if (o_sock_table) {
+			static_branch_dec(&rps_needed);
+			static_branch_dec(&rfs_needed);
+			tofree = o_sock_table;
 		}
 	}
 
+unlock:
 	mutex_unlock(&sock_flow_mutex);
 
+	kvfree_rcu_mightsleep(tofree);
 	return ret;
 }
 #endif /* CONFIG_RPS */
@@ -339,6 +347,29 @@ static int proc_do_rss_key(const struct ctl_table *table, int write,
 	fake_table.data = buf;
 	fake_table.maxlen = sizeof(buf);
 	return proc_dostring(&fake_table, write, buffer, lenp, ppos);
+}
+
+static int proc_do_skb_defer_max(const struct ctl_table *table, int write,
+		 void *buffer, size_t *lenp, loff_t *ppos)
+{
+	static DEFINE_MUTEX(skb_defer_max_mutex);
+	int ret, oval, nval;
+
+	mutex_lock(&skb_defer_max_mutex);
+
+	oval = !net_hotdata.sysctl_skb_defer_max;
+	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	nval = !net_hotdata.sysctl_skb_defer_max;
+
+	if (nval != oval) {
+		if (nval)
+			static_branch_enable(&skb_defer_disable_key);
+		else
+			static_branch_disable(&skb_defer_disable_key);
+	}
+
+	mutex_unlock(&skb_defer_max_mutex);
+	return ret;
 }
 
 #ifdef CONFIG_BPF_JIT
@@ -642,7 +673,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &net_hotdata.sysctl_skb_defer_max,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.proc_handler	= proc_do_skb_defer_max,
 		.extra1		= SYSCTL_ZERO,
 	},
 };

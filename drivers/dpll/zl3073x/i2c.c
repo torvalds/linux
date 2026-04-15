@@ -22,40 +22,25 @@ static int zl3073x_i2c_probe(struct i2c_client *client)
 		return dev_err_probe(dev, PTR_ERR(zldev->regmap),
 				     "Failed to initialize regmap\n");
 
-	return zl3073x_dev_probe(zldev, i2c_get_match_data(client));
+	return zl3073x_dev_probe(zldev);
 }
 
 static const struct i2c_device_id zl3073x_i2c_id[] = {
-	{
-		.name = "zl30731",
-		.driver_data = (kernel_ulong_t)&zl30731_chip_info,
-	},
-	{
-		.name = "zl30732",
-		.driver_data = (kernel_ulong_t)&zl30732_chip_info,
-	},
-	{
-		.name = "zl30733",
-		.driver_data = (kernel_ulong_t)&zl30733_chip_info,
-	},
-	{
-		.name = "zl30734",
-		.driver_data = (kernel_ulong_t)&zl30734_chip_info,
-	},
-	{
-		.name = "zl30735",
-		.driver_data = (kernel_ulong_t)&zl30735_chip_info,
-	},
+	{ "zl30731" },
+	{ "zl30732" },
+	{ "zl30733" },
+	{ "zl30734" },
+	{ "zl30735" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, zl3073x_i2c_id);
 
 static const struct of_device_id zl3073x_i2c_of_match[] = {
-	{ .compatible = "microchip,zl30731", .data = &zl30731_chip_info },
-	{ .compatible = "microchip,zl30732", .data = &zl30732_chip_info },
-	{ .compatible = "microchip,zl30733", .data = &zl30733_chip_info },
-	{ .compatible = "microchip,zl30734", .data = &zl30734_chip_info },
-	{ .compatible = "microchip,zl30735", .data = &zl30735_chip_info },
+	{ .compatible = "microchip,zl30731" },
+	{ .compatible = "microchip,zl30732" },
+	{ .compatible = "microchip,zl30733" },
+	{ .compatible = "microchip,zl30734" },
+	{ .compatible = "microchip,zl30735" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, zl3073x_i2c_of_match);

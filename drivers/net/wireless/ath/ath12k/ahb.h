@@ -21,8 +21,8 @@
 #define ATH12K_ROOTPD_READY_TIMEOUT		(5 * HZ)
 #define ATH12K_RPROC_AFTER_POWERUP		QCOM_SSR_AFTER_POWERUP
 #define ATH12K_AHB_FW_PREFIX			"q6_fw"
-#define ATH12K_AHB_FW_SUFFIX			".mdt"
-#define ATH12K_AHB_FW2				"iu_fw.mdt"
+#define ATH12K_AHB_FW_SUFFIX			".mbn"
+#define ATH12K_AHB_FW2				"iu_fw.mbn"
 #define ATH12K_AHB_UPD_SWID			0x12
 #define ATH12K_USERPD_SPAWN_TIMEOUT		(5 * HZ)
 #define ATH12K_USERPD_READY_TIMEOUT		(10 * HZ)
@@ -68,6 +68,7 @@ struct ath12k_ahb {
 	int userpd_irq_num[ATH12K_USERPD_MAX_IRQ];
 	const struct ath12k_ahb_ops *ahb_ops;
 	const struct ath12k_ahb_device_family_ops *device_family_ops;
+	bool scm_auth_enabled;
 };
 
 struct ath12k_ahb_driver {

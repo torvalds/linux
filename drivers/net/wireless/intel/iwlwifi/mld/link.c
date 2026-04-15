@@ -437,7 +437,7 @@ iwl_mld_rm_link_from_fw(struct iwl_mld *mld, struct ieee80211_bss_conf *link)
 	iwl_mld_send_link_cmd(mld, &cmd, FW_CTXT_ACTION_REMOVE);
 }
 
-IWL_MLD_ALLOC_FN(link, bss_conf)
+static IWL_MLD_ALLOC_FN(link, bss_conf)
 
 /* Constructor function for struct iwl_mld_link */
 static int

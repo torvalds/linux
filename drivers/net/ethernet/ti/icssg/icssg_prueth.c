@@ -260,6 +260,12 @@ static int prueth_emac_common_start(struct prueth *prueth)
 	icssg_class_default(prueth->miig_rt, ICSS_SLICE0, 0, false);
 	icssg_class_default(prueth->miig_rt, ICSS_SLICE1, 0, false);
 
+	/* Configure HSR/PRP protocol filtering if in HSR offload mode */
+	if (prueth->is_hsr_offload_mode) {
+		icssg_ft3_hsr_configurations(prueth->miig_rt, ICSS_SLICE0, prueth);
+		icssg_ft3_hsr_configurations(prueth->miig_rt, ICSS_SLICE1, prueth);
+	}
+
 	if (prueth->is_switch_mode || prueth->is_hsr_offload_mode)
 		icssg_init_fw_offload_mode(prueth);
 	else
@@ -663,28 +669,133 @@ static int icssg_prueth_del_mcast(struct net_device *ndev, const u8 *addr)
 	return 0;
 }
 
-static void icssg_prueth_hsr_fdb_add_del(struct prueth_emac *emac,
-					 const u8 *addr, u8 vid, bool add)
+/**
+ * icssg_is_addr_synced - Check if address is synced from HSR master
+ * @ndev: network device
+ * @addr: multicast MAC address
+ *
+ * Checks if the address is synced from HSR master (hsr0) via
+ * dev_mc_sync_multiple() or added directly to the slave port.
+ *
+ * Return: true if synced from HSR master, false if added directly
+ */
+static bool icssg_is_addr_synced(struct net_device *ndev, const u8 *addr)
 {
-	icssg_fdb_add_del(emac, addr, vid,
-			  ICSSG_FDB_ENTRY_P0_MEMBERSHIP |
-			  ICSSG_FDB_ENTRY_P1_MEMBERSHIP |
-			  ICSSG_FDB_ENTRY_P2_MEMBERSHIP |
-			  ICSSG_FDB_ENTRY_BLOCK, add);
+	struct netdev_hw_addr *ha;
+	bool is_synced = false;
 
-	if (add)
-		icssg_vtbl_modify(emac, vid, BIT(emac->port_id),
-				  BIT(emac->port_id), add);
+	netif_addr_lock_bh(ndev);
+	netdev_for_each_mc_addr(ha, ndev) {
+		if (ether_addr_equal(ha->addr, addr)) {
+			is_synced = ha->synced;
+			break;
+		}
+	}
+	netif_addr_unlock_bh(ndev);
+
+	return is_synced;
+}
+
+/**
+ * icssg_hsr_fdb_update - Update FDB and VLAN table for HSR multicast
+ * @emac: PRUETH EMAC private data
+ * @addr: multicast MAC address
+ * @vid: VLAN ID
+ * @port_membership: port membership bitmap (P0=0x1, P1=0x2, P2=0x4)
+ * @add: true to add entry, false to delete
+ *
+ * Updates both FDB and VLAN table entries for the given address.
+ */
+static void icssg_hsr_fdb_update(struct prueth_emac *emac, const u8 *addr,
+				 u8 vid, u8 port_membership, bool add)
+{
+	icssg_fdb_add_del(emac, addr, vid, port_membership, add);
+	icssg_vtbl_modify(emac, vid, BIT(emac->port_id),
+			  BIT(emac->port_id), add);
+}
+
+/**
+ * icssg_prueth_hsr_fdb_add_del - Manage FDB port membership for HSR multicast
+ * @emac: PRUETH EMAC private data
+ * @addr: multicast MAC address
+ * @vid: VLAN ID
+ * @is_synced: true if synced from HSR master, false if added directly
+ * @is_vlan_path: true if called from VLAN interface path, false for direct path
+ * @add: true to add/update, false to remove
+ *
+ * Manages FDB port membership bits (P0/P1/P2) for multicast addresses.
+ * On add: accumulates membership with existing ports.
+ * On delete: removes only the specific port, cleans up orphaned P0 if needed.
+ */
+static void icssg_prueth_hsr_fdb_add_del(struct prueth_emac *emac,
+					 const u8 *addr, u8 vid,
+					 bool is_synced, bool is_vlan_path,
+					 bool add)
+{
+	int existing_membership, other_port_membership;
+	u8 port_membership;
+
+	/* Set P0 (HSR master) bit when:
+	 * - Address is synced from HSR master (is_synced=true), OR
+	 * - In HSR offload mode AND it's a VLAN interface (is_vlan_path=true)
+	 * This ensures VLAN interfaces on HSR master (hsr0.X) also get P0 set.
+	 */
+	if (is_synced || (emac->prueth->is_hsr_offload_mode && is_vlan_path))
+		port_membership = ICSSG_FDB_ENTRY_P0_MEMBERSHIP | BIT(emac->port_id);
+	else
+		port_membership = BIT(emac->port_id);
+	existing_membership = icssg_fdb_lookup(emac, addr, vid);
+	if (existing_membership < 0) {
+		netdev_dbg(emac->ndev,
+			   "FDB lookup failed for %pM: %d, assuming no existing entry\n",
+			   addr, existing_membership);
+		existing_membership = 0;
+	}
+
+	if (add) {
+		/* Accumulate with existing membership */
+		port_membership |= existing_membership;
+
+		netdev_dbg(emac->ndev,
+			   "FDB add %pM: P%d%s -> membership 0x%x\n",
+			   addr, emac->port_id, is_synced ? "+P0" : "",
+			   port_membership);
+
+		icssg_hsr_fdb_update(emac, addr, vid, port_membership, true);
+	} else {
+		other_port_membership = existing_membership & ~port_membership;
+
+		/* Clean up orphaned P0 if neither HSR synced nor VLAN path */
+		if (!is_synced && !is_vlan_path &&
+		    (existing_membership & ICSSG_FDB_ENTRY_P0_MEMBERSHIP))
+			other_port_membership &=
+				~ICSSG_FDB_ENTRY_P0_MEMBERSHIP;
+
+		netdev_dbg(emac->ndev,
+			   "FDB del %pM: 0x%x -> 0x%x\n",
+			   addr, existing_membership, other_port_membership);
+
+		icssg_hsr_fdb_update(emac, addr, vid, port_membership, false);
+
+		if (other_port_membership)
+			icssg_hsr_fdb_update(emac, addr, vid,
+					     other_port_membership, true);
+	}
 }
 
 static int icssg_prueth_hsr_add_mcast(struct net_device *ndev, const u8 *addr)
 {
 	struct net_device *real_dev, *port_dev;
+	bool is_synced, is_vlan_path;
 	struct prueth_emac *emac;
 	u8 vlan_id, i;
 
-	vlan_id = is_vlan_dev(ndev) ? vlan_dev_vlan_id(ndev) : PRUETH_DFLT_VLAN_HSR;
-	real_dev = is_vlan_dev(ndev) ? vlan_dev_real_dev(ndev) : ndev;
+	is_vlan_path = is_vlan_dev(ndev);
+	vlan_id = is_vlan_path ? vlan_dev_vlan_id(ndev) : PRUETH_DFLT_VLAN_HSR;
+	real_dev = is_vlan_path ? vlan_dev_real_dev(ndev) : ndev;
+
+	/* Check if this address is synced from HSR master */
+	is_synced = icssg_is_addr_synced(ndev, addr);
 
 	if (is_hsr_master(real_dev)) {
 		for (i = HSR_PT_SLAVE_A; i < HSR_PT_INTERLINK; i++) {
@@ -695,12 +806,14 @@ static int icssg_prueth_hsr_add_mcast(struct net_device *ndev, const u8 *addr)
 				return -EINVAL;
 			}
 			icssg_prueth_hsr_fdb_add_del(emac, addr, vlan_id,
+						     is_synced, is_vlan_path,
 						     true);
 			dev_put(port_dev);
 		}
 	} else {
 		emac = netdev_priv(real_dev);
-		icssg_prueth_hsr_fdb_add_del(emac, addr, vlan_id, true);
+		icssg_prueth_hsr_fdb_add_del(emac, addr, vlan_id,
+					     is_synced, is_vlan_path, true);
 	}
 
 	return 0;
@@ -709,11 +822,16 @@ static int icssg_prueth_hsr_add_mcast(struct net_device *ndev, const u8 *addr)
 static int icssg_prueth_hsr_del_mcast(struct net_device *ndev, const u8 *addr)
 {
 	struct net_device *real_dev, *port_dev;
+	bool is_synced, is_vlan_path;
 	struct prueth_emac *emac;
 	u8 vlan_id, i;
 
-	vlan_id = is_vlan_dev(ndev) ? vlan_dev_vlan_id(ndev) : PRUETH_DFLT_VLAN_HSR;
-	real_dev = is_vlan_dev(ndev) ? vlan_dev_real_dev(ndev) : ndev;
+	is_vlan_path = is_vlan_dev(ndev);
+	vlan_id = is_vlan_path ? vlan_dev_vlan_id(ndev) : PRUETH_DFLT_VLAN_HSR;
+	real_dev = is_vlan_path ? vlan_dev_real_dev(ndev) : ndev;
+
+	/* Check if this address was synced from HSR master */
+	is_synced = icssg_is_addr_synced(ndev, addr);
 
 	if (is_hsr_master(real_dev)) {
 		for (i = HSR_PT_SLAVE_A; i < HSR_PT_INTERLINK; i++) {
@@ -724,12 +842,14 @@ static int icssg_prueth_hsr_del_mcast(struct net_device *ndev, const u8 *addr)
 				return -EINVAL;
 			}
 			icssg_prueth_hsr_fdb_add_del(emac, addr, vlan_id,
+						     is_synced, is_vlan_path,
 						     false);
 			dev_put(port_dev);
 		}
 	} else {
 		emac = netdev_priv(real_dev);
-		icssg_prueth_hsr_fdb_add_del(emac, addr, vlan_id, false);
+		icssg_prueth_hsr_fdb_add_del(emac, addr, vlan_id,
+					     is_synced, is_vlan_path, false);
 	}
 
 	return 0;
@@ -1053,6 +1173,104 @@ static int emac_ndo_stop(struct net_device *ndev)
 	return 0;
 }
 
+/**
+ * icssg_hsr_handle_multicast_sync() - Handle HSR multicast overlapping memberships
+ * @emac: PRUETH EMAC private structure
+ *
+ * Post-process multicast addresses to handle overlapping memberships where
+ * the same address is added from multiple paths (hsr0 + eth1). The kernel
+ * increments refcount without triggering callbacks, so manually check refcount
+ * to detect and update FDB port membership accordingly.
+ */
+static void icssg_hsr_handle_multicast_sync(struct prueth_emac *emac)
+{
+	struct hsr_mcast_update {
+		struct list_head list;
+		u8 addr[ETH_ALEN];
+		int refcount;
+		bool synced;
+	};
+	struct hsr_mcast_update *update, *tmp;
+	struct net_device *ndev = emac->ndev;
+	u8 vlan_id = PRUETH_DFLT_VLAN_HSR;
+	struct netdev_hw_addr *ha;
+	int existing_membership;
+	LIST_HEAD(update_list);
+	u8 port_membership;
+
+	/* Handle overlapping memberships: When the same address
+	 * is added from multiple paths (hsr0 + eth1), kernel
+	 * increments refcount without triggering callbacks.
+	 * Manually check refcount to detect:
+	 * - refcount=2 + synced: HSR only, membership = P0
+	 * - refcount>=3 + synced: HSR + direct, membership = P0|Px
+	 * - !synced but P0 set: HSR removed, clean up orphaned P0
+	 *
+	 * Collect addresses to update while holding the lock, then
+	 * process them after releasing the lock to avoid sleeping
+	 * while atomic (icssg_fdb_lookup/update can sleep).
+	 */
+	netif_addr_lock_bh(ndev);
+	netdev_for_each_mc_addr(ha, ndev) {
+		/* Queue this address for processing.
+		 * We need to check existing_membership via FDB lookup
+		 * (which can sleep), so defer that until after unlock.
+		 * Save synced/refcount to reproduce original logic.
+		 */
+		update = kmalloc_obj(*update, GFP_ATOMIC);
+		if (!update)
+			continue;
+
+		ether_addr_copy(update->addr, ha->addr);
+		update->synced = ha->synced;
+		update->refcount = ha->refcount;
+		list_add_tail(&update->list, &update_list);
+	}
+	netif_addr_unlock_bh(ndev);
+
+	/* Process collected addresses outside spinlock */
+	list_for_each_entry_safe(update, tmp, &update_list, list) {
+		existing_membership = icssg_fdb_lookup(emac,
+						       update->addr,
+						       vlan_id);
+		if (existing_membership < 0) {
+			netdev_dbg(ndev,
+				   "FDB lookup failed for %pM: %d, skipping\n",
+				   update->addr, existing_membership);
+			list_del(&update->list);
+			kfree(update);
+			continue;
+		}
+
+		port_membership = existing_membership;
+		if (update->synced) {
+			port_membership |=
+				ICSSG_FDB_ENTRY_P0_MEMBERSHIP;
+			if (update->refcount >= 3)
+				port_membership |= BIT(emac->port_id);
+			else
+				port_membership &= ~BIT(emac->port_id);
+		} else if (existing_membership &
+			   ICSSG_FDB_ENTRY_P0_MEMBERSHIP) {
+			port_membership &=
+				~ICSSG_FDB_ENTRY_P0_MEMBERSHIP;
+		}
+
+		if (existing_membership != port_membership) {
+			netdev_dbg(ndev, "Update %pM: 0x%x -> 0x%x\n",
+				   update->addr, existing_membership,
+				   port_membership);
+
+			icssg_hsr_fdb_update(emac, update->addr,
+					     vlan_id, port_membership,
+					     true);
+		}
+
+		list_del(&update->list);
+		kfree(update);
+	}
+}
+
 static void emac_ndo_set_rx_mode_work(struct work_struct *work)
 {
 	struct prueth_emac *emac = container_of(work, struct prueth_emac, rx_mode_work);
@@ -1079,8 +1297,13 @@ static void emac_ndo_set_rx_mode_work(struct work_struct *work)
 	}
 
 	if (emac->prueth->is_hsr_offload_mode) {
+		/* Track basic add/delete via callbacks */
 		__dev_mc_sync(ndev, icssg_prueth_hsr_add_mcast,
 			      icssg_prueth_hsr_del_mcast);
+
+		/* Handle overlapping memberships */
+		icssg_hsr_handle_multicast_sync(emac);
+
 		if (rtnl_trylock()) {
 			vlan_for_each(emac->prueth->hsr_dev,
 				      icssg_update_vlan_mcast, emac);

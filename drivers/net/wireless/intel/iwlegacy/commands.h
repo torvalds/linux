@@ -1690,7 +1690,7 @@ struct agg_tx_status {
 	__le16 sequence;
 } __packed;
 
-struct il4965_tx_resp {
+struct il4965_tx_resp_hdr {
 	u8 frame_count;		/* 1 no aggregation, >1 aggregation */
 	u8 bt_kill_count;	/* # blocked by bluetooth (unused for agg) */
 	u8 failure_rts;		/* # failures due to unsuccessful RTS */
@@ -1707,6 +1707,10 @@ struct il4965_tx_resp {
 	__le16 reserved;
 	__le32 pa_power1;	/* RF power amplifier measurement (not used) */
 	__le32 pa_power2;
+} __packed;
+
+struct il4965_tx_resp {
+	struct il4965_tx_resp_hdr;
 
 	/*
 	 * For non-agg:  frame status TX_STATUS_*
@@ -2664,7 +2668,8 @@ struct il3945_beacon_notif {
 } __packed;
 
 struct il4965_beacon_notif {
-	struct il4965_tx_resp beacon_notify_hdr;
+	struct il4965_tx_resp_hdr beacon_notify_hdr;
+	__le32 beacon_tx_status;
 	__le32 low_tsf;
 	__le32 high_tsf;
 	__le32 ibss_mgr_status;

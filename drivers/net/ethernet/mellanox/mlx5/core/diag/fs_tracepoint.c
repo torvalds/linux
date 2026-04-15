@@ -282,6 +282,9 @@ const char *parse_fs_dst(struct trace_seq *p,
 	case MLX5_FLOW_DESTINATION_TYPE_NONE:
 		trace_seq_printf(p, "none\n");
 		break;
+	case MLX5_FLOW_DESTINATION_TYPE_VHCA_RX:
+		trace_seq_printf(p, "rx_vhca_id=%u\n", dst->vhca.id);
+		break;
 	}
 
 	trace_seq_putc(p, 0);

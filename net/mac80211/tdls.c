@@ -6,7 +6,7 @@
  * Copyright 2014, Intel Corporation
  * Copyright 2014  Intel Mobile Communications GmbH
  * Copyright 2015 - 2016 Intel Deutschland GmbH
- * Copyright (C) 2019, 2021-2025 Intel Corporation
+ * Copyright (C) 2019, 2021-2026 Intel Corporation
  */
 
 #include <linux/ieee80211.h>
@@ -879,28 +879,23 @@ ieee80211_prep_tdls_direct(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_mgmt *mgmt;
 
-	mgmt = skb_put_zero(skb, 24);
+	if (action_code != WLAN_PUB_ACTION_TDLS_DISCOVER_RES)
+		return -EINVAL;
+
+	mgmt = skb_put_zero(skb, IEEE80211_MIN_ACTION_SIZE(tdls_discover_resp));
 	memcpy(mgmt->da, peer, ETH_ALEN);
 	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
 	memcpy(mgmt->bssid, link->u.mgd.bssid, ETH_ALEN);
 	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					  IEEE80211_STYPE_ACTION);
 
-	switch (action_code) {
-	case WLAN_PUB_ACTION_TDLS_DISCOVER_RES:
-		skb_put(skb, 1 + sizeof(mgmt->u.action.u.tdls_discover_resp));
-		mgmt->u.action.category = WLAN_CATEGORY_PUBLIC;
-		mgmt->u.action.u.tdls_discover_resp.action_code =
-			WLAN_PUB_ACTION_TDLS_DISCOVER_RES;
-		mgmt->u.action.u.tdls_discover_resp.dialog_token =
-			dialog_token;
-		mgmt->u.action.u.tdls_discover_resp.capability =
-			cpu_to_le16(ieee80211_get_tdls_sta_capab(link,
-								 status_code));
-		break;
-	default:
-		return -EINVAL;
-	}
+	mgmt->u.action.category = WLAN_CATEGORY_PUBLIC;
+	mgmt->u.action.action_code = WLAN_PUB_ACTION_TDLS_DISCOVER_RES;
+
+	mgmt->u.action.tdls_discover_resp.dialog_token = dialog_token;
+	mgmt->u.action.tdls_discover_resp.capability =
+		cpu_to_le16(ieee80211_get_tdls_sta_capab(link,
+							 status_code));
 
 	return 0;
 }

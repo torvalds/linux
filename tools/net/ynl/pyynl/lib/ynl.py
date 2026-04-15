@@ -77,14 +77,21 @@ class Netlink:
 
     # nlctrl
     CTRL_CMD_GETFAMILY = 3
+    CTRL_CMD_GETPOLICY = 10
 
     CTRL_ATTR_FAMILY_ID = 1
     CTRL_ATTR_FAMILY_NAME = 2
     CTRL_ATTR_MAXATTR = 5
     CTRL_ATTR_MCAST_GROUPS = 7
+    CTRL_ATTR_POLICY = 8
+    CTRL_ATTR_OP_POLICY = 9
+    CTRL_ATTR_OP = 10
 
     CTRL_ATTR_MCAST_GRP_NAME = 1
     CTRL_ATTR_MCAST_GRP_ID = 2
+
+    CTRL_ATTR_POLICY_DO = 1
+    CTRL_ATTR_POLICY_DUMP = 2
 
     # Extack types
     NLMSGERR_ATTR_MSG = 1
@@ -134,6 +141,119 @@ class NlError(Exception):
 
 class ConfigError(Exception):
     pass
+
+
+class NlPolicy:
+    """Kernel policy for one mode (do or dump) of one operation.
+
+    Returned by YnlFamily.get_policy(). Attributes of the policy
+    are accessible as attributes of the object. Nested policies
+    can be accessed indexing the object like a dictionary::
+
+        pol = ynl.get_policy('page-pool-stats-get', 'do')
+        pol['info'].type            # 'nested'
+        pol['info']['id'].type      # 'uint'
+        pol['info']['id'].min_value # 1
+
+    Each policy entry always has a 'type' attribute (e.g. u32, string,
+    nested). Optional attributes depending on the 'type': min-value,
+    max-value, min-length, max-length, mask.
+
+    Policies can form infinite nesting loops. These loops are trimmed
+    when policy is converted to a dict with pol.to_dict().
+    """
+    def __init__(self, ynl, policy_idx, policy_table, attr_set, props=None):
+        self._policy_idx = policy_idx
+        self._policy_table = policy_table
+        self._ynl = ynl
+        self._props = props or {}
+        self._entries = {}
+        self._cache = {}
+        if policy_idx is not None and policy_idx in policy_table:
+            for attr_id, decoded in policy_table[policy_idx].items():
+                if attr_set and attr_id in attr_set.attrs_by_val:
+                    spec = attr_set.attrs_by_val[attr_id]
+                    name = spec['name']
+                else:
+                    spec = None
+                    name = f'attr-{attr_id}'
+                self._entries[name] = (spec, decoded)
+
+    def __getitem__(self, name):
+        """Descend into a nested policy by attribute name."""
+        if name not in self._cache:
+            spec, decoded = self._entries[name]
+            props = dict(decoded)
+            child_idx = None
+            child_set = None
+            if 'policy-idx' in props:
+                child_idx = props.pop('policy-idx')
+                if spec and 'nested-attributes' in spec.yaml:
+                    child_set = self._ynl.attr_sets[spec.yaml['nested-attributes']]
+            self._cache[name] = NlPolicy(self._ynl, child_idx,
+                                         self._policy_table,
+                                         child_set, props)
+        return self._cache[name]
+
+    def __getattr__(self, name):
+        """Access this policy entry's own properties (type, min-value, etc.).
+
+        Underscores in the name are converted to dashes, so that
+        pol.min_value looks up "min-value".
+        """
+        key = name.replace('_', '-')
+        try:
+            # Hack for level-0 which we still want to have .type but we don't
+            # want type to pointlessly show up in the dict / JSON form.
+            if not self._props and name == "type":
+                return "nested"
+            return self._props[key]
+        except KeyError:
+            raise AttributeError(name)
+
+    def get(self, name, default=None):
+        """Look up a child policy entry by attribute name, with a default."""
+        try:
+            return self[name]
+        except KeyError:
+            return default
+
+    def __contains__(self, name):
+        return name in self._entries
+
+    def __len__(self):
+        return len(self._entries)
+
+    def __iter__(self):
+        return iter(self._entries)
+
+    def keys(self):
+        """Return attribute names accepted by this policy."""
+        return self._entries.keys()
+
+    def to_dict(self, seen=None):
+        """Convert to a plain dict, suitable for JSON serialization.
+
+        Nested NlPolicy objects are expanded recursively. Cyclic
+        references are trimmed (resolved to just {"type": "nested"}).
+        """
+        if seen is None:
+            seen = set()
+        result = dict(self._props)
+        if self._policy_idx is not None:
+            if self._policy_idx not in seen:
+                seen = seen | {self._policy_idx}
+                children = {}
+                for name in self:
+                    children[name] = self[name].to_dict(seen)
+                if self._props:
+                    result['policy'] = children
+                else:
+                    result = children
+        return result
+
+    def __repr__(self):
+        return repr(self.to_dict())
 
 
 class NlAttr:
@@ -247,7 +367,7 @@ class NlMsg:
                 elif extack.type == Netlink.NLMSGERR_ATTR_OFFS:
                     self.extack['bad-attr-offs'] = extack.as_scalar('u32')
                 elif extack.type == Netlink.NLMSGERR_ATTR_POLICY:
-                    self.extack['policy'] = self._decode_policy(extack.raw)
+                    self.extack['policy'] = _genl_decode_policy(extack.raw)
                 else:
                     if 'unknown' not in self.extack:
                         self.extack['unknown'] = []
@@ -255,30 +375,6 @@ class NlMsg:
 
             if attr_space:
                 self.annotate_extack(attr_space)
-
-    def _decode_policy(self, raw):
-        policy = {}
-        for attr in NlAttrs(raw):
-            if attr.type == Netlink.NL_POLICY_TYPE_ATTR_TYPE:
-                type_ = attr.as_scalar('u32')
-                policy['type'] = Netlink.AttrType(type_).name
-            elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MIN_VALUE_S:
-                policy['min-value'] = attr.as_scalar('s64')
-            elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MAX_VALUE_S:
-                policy['max-value'] = attr.as_scalar('s64')
-            elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MIN_VALUE_U:
-                policy['min-value'] = attr.as_scalar('u64')
-            elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MAX_VALUE_U:
-                policy['max-value'] = attr.as_scalar('u64')
-            elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MIN_LENGTH:
-                policy['min-length'] = attr.as_scalar('u32')
-            elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MAX_LENGTH:
-                policy['max-length'] = attr.as_scalar('u32')
-            elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_BITFIELD32_MASK:
-                policy['bitfield32-mask'] = attr.as_scalar('u32')
-            elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MASK:
-                policy['mask'] = attr.as_scalar('u64')
-        return policy
 
     def annotate_extack(self, attr_space):
         """ Make extack more human friendly with attribute information """
@@ -333,6 +429,33 @@ def _genl_msg_finalize(msg):
     return struct.pack("I", len(msg) + 4) + msg
 
 
+def _genl_decode_policy(raw):
+    policy = {}
+    for attr in NlAttrs(raw):
+        if attr.type == Netlink.NL_POLICY_TYPE_ATTR_TYPE:
+            type_ = attr.as_scalar('u32')
+            policy['type'] = Netlink.AttrType(type_).name
+        elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MIN_VALUE_S:
+            policy['min-value'] = attr.as_scalar('s64')
+        elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MAX_VALUE_S:
+            policy['max-value'] = attr.as_scalar('s64')
+        elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MIN_VALUE_U:
+            policy['min-value'] = attr.as_scalar('u64')
+        elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MAX_VALUE_U:
+            policy['max-value'] = attr.as_scalar('u64')
+        elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MIN_LENGTH:
+            policy['min-length'] = attr.as_scalar('u32')
+        elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MAX_LENGTH:
+            policy['max-length'] = attr.as_scalar('u32')
+        elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_POLICY_IDX:
+            policy['policy-idx'] = attr.as_scalar('u32')
+        elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_BITFIELD32_MASK:
+            policy['bitfield32-mask'] = attr.as_scalar('u32')
+        elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MASK:
+            policy['mask'] = attr.as_scalar('u64')
+    return policy
+
+
 # pylint: disable=too-many-nested-blocks
 def _genl_load_families():
     genl_family_name_to_id = {}
@@ -379,6 +502,52 @@ def _genl_load_families():
                                 fam['mcast'][mcast_name] = mcast_id
                 if 'name' in fam and 'id' in fam:
                     genl_family_name_to_id[fam['name']] = fam
+
+
+# pylint: disable=too-many-nested-blocks
+def _genl_policy_dump(family_id, op):
+    op_policy = {}
+    policy_table = {}
+
+    with socket.socket(socket.AF_NETLINK, socket.SOCK_RAW, Netlink.NETLINK_GENERIC) as sock:
+        sock.setsockopt(Netlink.SOL_NETLINK, Netlink.NETLINK_CAP_ACK, 1)
+
+        msg = _genl_msg(Netlink.GENL_ID_CTRL,
+                        Netlink.NLM_F_REQUEST | Netlink.NLM_F_ACK | Netlink.NLM_F_DUMP,
+                        Netlink.CTRL_CMD_GETPOLICY, 1)
+        msg += struct.pack('HHHxx', 6, Netlink.CTRL_ATTR_FAMILY_ID, family_id)
+        msg += struct.pack('HHI', 8, Netlink.CTRL_ATTR_OP, op)
+        msg = _genl_msg_finalize(msg)
+
+        sock.send(msg, 0)
+
+        while True:
+            reply = sock.recv(128 * 1024)
+            nms = NlMsgs(reply)
+            for nl_msg in nms:
+                if nl_msg.error:
+                    raise YnlException(f"Netlink error: {nl_msg.error}")
+                if nl_msg.done:
+                    return op_policy, policy_table
+
+                gm = GenlMsg(nl_msg)
+                for attr in NlAttrs(gm.raw):
+                    if attr.type == Netlink.CTRL_ATTR_OP_POLICY:
+                        for op_attr in NlAttrs(attr.raw):
+                            for method_attr in NlAttrs(op_attr.raw):
+                                if method_attr.type == Netlink.CTRL_ATTR_POLICY_DO:
+                                    op_policy['do'] = method_attr.as_scalar('u32')
+                                elif method_attr.type == Netlink.CTRL_ATTR_POLICY_DUMP:
+                                    op_policy['dump'] = method_attr.as_scalar('u32')
+                    elif attr.type == Netlink.CTRL_ATTR_POLICY:
+                        for pidx_attr in NlAttrs(attr.raw):
+                            policy_idx = pidx_attr.type
+                            for aid_attr in NlAttrs(pidx_attr.raw):
+                                attr_id = aid_attr.type
+                                decoded = _genl_decode_policy(aid_attr.raw)
+                                if policy_idx not in policy_table:
+                                    policy_table[policy_idx] = {}
+                                policy_table[policy_idx][attr_id] = decoded
 
 
 class GenlMsg:
@@ -488,6 +657,37 @@ class SpaceAttrs:
 
 
 class YnlFamily(SpecFamily):
+    """
+    YNL family -- a Netlink interface built from a YAML spec.
+
+    Primary use of the class is to execute Netlink commands:
+
+      ynl.<op_name>(attrs, ...)
+
+    By default this will execute the <op_name> as "do", pass dump=True
+    to perform a dump operation.
+
+    ynl.<op_name> is a shorthand / convenience wrapper for the following
+    methods which take the op_name as a string:
+
+      ynl.do(op_name, attrs, flags=None) -- execute a do operation
+      ynl.dump(op_name, attrs)           -- execute a dump operation
+      ynl.do_multi(ops)                  -- batch multiple do operations
+
+    The flags argument in ynl.do() allows passing in extra NLM_F_* flags
+    which may be necessary for old families.
+
+    Notification API:
+
+      ynl.ntf_subscribe(mcast_name)      -- join a multicast group
+      ynl.check_ntf()                    -- drain pending notifications
+      ynl.poll_ntf(duration=None)        -- yield notifications
+
+    Policy introspection allows querying validation criteria from the running
+    kernel. Allows checking whether kernel supports a given attribute or value.
+
+      ynl.get_policy(op_name, mode)      -- query kernel policy for an op
+    """
     def __init__(self, def_path, schema=None, process_unknown=False,
                  recv_size=0):
         super().__init__(def_path, schema)
@@ -531,6 +731,16 @@ class YnlFamily(SpecFamily):
             bound_f = functools.partial(self._op, op_name)
             setattr(self, op.ident_name, bound_f)
 
+    def close(self):
+        if self.sock is not None:
+            self.sock.close()
+            self.sock = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        self.close()
 
     def ntf_subscribe(self, mcast_name):
         mcast_id = self.nlproto.get_mcast_id(mcast_name, self.mcast_groups)
@@ -814,7 +1024,9 @@ class YnlFamily(SpecFamily):
                 continue
 
             try:
-                if attr_spec["type"] == 'nest':
+                if attr_spec["type"] == 'pad':
+                    continue
+                elif attr_spec["type"] == 'nest':
                     subdict = self._decode(NlAttrs(attr.raw),
                                            attr_spec['nested-attributes'],
                                            search_attrs)
@@ -1190,3 +1402,28 @@ class YnlFamily(SpecFamily):
 
     def do_multi(self, ops):
         return self._ops(ops)
+
+    def get_policy(self, op_name, mode):
+        """Query running kernel for the Netlink policy of an operation.
+
+        Allows checking whether kernel supports a given attribute or value.
+        This method consults the running kernel, not the YAML spec.
+
+        Args:
+            op_name: operation name as it appears in the YAML spec
+            mode: 'do' or 'dump'
+
+        Returns:
+            NlPolicy acting as a read-only dict mapping attribute names
+            to their policy properties (type, min/max, nested, etc.),
+            or None if the operation has no policy for the given mode.
+            Empty policy usually implies that the operation rejects
+            all attributes.
+        """
+        op = self.ops[op_name]
+        op_policy, policy_table = _genl_policy_dump(self.nlproto.family_id,
+                                                    op.req_value)
+        if mode not in op_policy:
+            return None
+        policy_idx = op_policy[mode]
+        return NlPolicy(self, policy_idx, policy_table, op.attr_set)

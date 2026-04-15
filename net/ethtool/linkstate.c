@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
-#include "netlink.h"
-#include "common.h"
 #include <linux/phy.h>
 #include <linux/phylib_stubs.h>
+
+#include "common.h"
+#include "netlink.h"
 
 struct linkstate_req_info {
 	struct ethnl_req_info		base;

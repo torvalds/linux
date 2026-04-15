@@ -694,6 +694,9 @@ static int ravb_dmac_init(struct net_device *ndev)
 	const struct ravb_hw_info *info = priv->info;
 	int error;
 
+	/* Clear transmission suspension */
+	ravb_modify(ndev, CCC, CCC_DTSR, 0);
+
 	/* Set CONFIG mode */
 	error = ravb_set_opmode(ndev, CCC_OPC_CONFIG);
 	if (error)
@@ -1102,6 +1105,12 @@ static int ravb_stop_dma(struct net_device *ndev)
 	error = ravb_wait(ndev, CSR, CSR_RPO, 0);
 	if (error)
 		return error;
+
+	/* Request for transmission suspension */
+	ravb_modify(ndev, CCC, CCC_DTSR, CCC_DTSR);
+	error = ravb_wait(ndev, CSR, CSR_DTS, CSR_DTS);
+	if (error)
+		netdev_err(ndev, "failed to stop AXI BUS\n");
 
 	/* Stop AVB-DMAC process */
 	return ravb_set_opmode(ndev, CCC_OPC_CONFIG);
@@ -2367,6 +2376,7 @@ static int ravb_close(struct net_device *ndev)
 	ravb_write(ndev, 0, RIC0);
 	ravb_write(ndev, 0, RIC2);
 	ravb_write(ndev, 0, TIC);
+	ravb_write(ndev, 0, ECSIPR);
 
 	/* PHY disconnect */
 	if (ndev->phydev) {

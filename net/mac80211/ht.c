@@ -9,7 +9,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2007-2010, Intel Corporation
  * Copyright 2017	Intel Deutschland GmbH
- * Copyright(c) 2020-2025 Intel Corporation
+ * Copyright(c) 2020-2026 Intel Corporation
  */
 
 #include <linux/ieee80211.h>
@@ -136,7 +136,7 @@ void ieee80211_apply_htcap_overrides(struct ieee80211_sub_if_data *sdata,
 
 
 bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
-				       struct ieee80211_supported_band *sband,
+				       const struct ieee80211_sta_ht_cap *own_cap_ptr,
 				       const struct ieee80211_ht_cap *ht_cap_ie,
 				       struct link_sta_info *link_sta)
 {
@@ -151,12 +151,16 @@ bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 
 	memset(&ht_cap, 0, sizeof(ht_cap));
 
-	if (!ht_cap_ie || !sband->ht_cap.ht_supported)
+	if (!ht_cap_ie || !own_cap_ptr->ht_supported)
 		goto apply;
+
+	/* NDI station are using the capabilities from the NMI station */
+	if (WARN_ON_ONCE(sdata->vif.type == NL80211_IFTYPE_NAN_DATA))
+		return 0;
 
 	ht_cap.ht_supported = true;
 
-	own_cap = sband->ht_cap;
+	own_cap = *own_cap_ptr;
 
 	/*
 	 * If user has specified capability over-rides, take care
@@ -254,10 +258,17 @@ bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 
 	rcu_read_lock();
 	link_conf = rcu_dereference(sdata->vif.link_conf[link_sta->link_id]);
-	if (WARN_ON(!link_conf))
+	if (WARN_ON(!link_conf)) {
 		width = NL80211_CHAN_WIDTH_20_NOHT;
-	else
+	} else if (sdata->vif.type == NL80211_IFTYPE_NAN ||
+		   sdata->vif.type == NL80211_IFTYPE_NAN_DATA) {
+		/* In NAN, link_sta->bandwidth is invalid since NAN operates on
+		 * multiple channels. Just take the maximum.
+		 */
+		width = NL80211_CHAN_WIDTH_320;
+	} else {
 		width = link_conf->chanreq.oper.width;
+	}
 
 	switch (width) {
 	default:
@@ -285,7 +296,9 @@ bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 				IEEE80211_STA_RX_BW_40 : IEEE80211_STA_RX_BW_20;
 
 	if (sta->sdata->vif.type == NL80211_IFTYPE_AP ||
-	    sta->sdata->vif.type == NL80211_IFTYPE_AP_VLAN) {
+	    sta->sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
+	    sta->sdata->vif.type == NL80211_IFTYPE_NAN ||
+	    sta->sdata->vif.type == NL80211_IFTYPE_NAN_DATA) {
 		enum ieee80211_smps_mode smps_mode;
 
 		switch ((ht_cap.cap & IEEE80211_HT_CAP_SM_PS)
@@ -379,7 +392,7 @@ void ieee80211_ba_session_work(struct wiphy *wiphy, struct wiphy_work *work)
 				       sta->ampdu_mlme.tid_rx_manage_offl))
 			__ieee80211_start_rx_ba_session(sta, 0, 0, 0, 1, tid,
 							IEEE80211_MAX_AMPDU_BUF_HT,
-							false, true, 0);
+							false, true, false, 0);
 
 		if (test_and_clear_bit(tid + IEEE80211_NUM_TIDS,
 				       sta->ampdu_mlme.tid_rx_manage_offl))
@@ -455,29 +468,32 @@ void ieee80211_ba_session_work(struct wiphy *wiphy, struct wiphy_work *work)
 
 void ieee80211_send_delba(struct ieee80211_sub_if_data *sdata,
 			  const u8 *da, u16 tid,
-			  u16 initiator, u16 reason_code)
+			  u16 initiator, u16 reason_code,
+			  bool use_ndp)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
 	u16 params;
 
-	skb = dev_alloc_skb(sizeof(*mgmt) + local->hw.extra_tx_headroom);
+	skb = dev_alloc_skb(IEEE80211_MIN_ACTION_SIZE(delba) +
+			    local->hw.extra_tx_headroom);
 	if (!skb)
 		return;
 
 	skb_reserve(skb, local->hw.extra_tx_headroom);
 	mgmt = ieee80211_mgmt_ba(skb, da, sdata);
 
-	skb_put(skb, 1 + sizeof(mgmt->u.action.u.delba));
+	skb_put(skb, 2 + sizeof(mgmt->u.action.delba));
 
 	mgmt->u.action.category = WLAN_CATEGORY_BACK;
-	mgmt->u.action.u.delba.action_code = WLAN_ACTION_DELBA;
+	mgmt->u.action.action_code = use_ndp ?
+		WLAN_ACTION_NDP_DELBA : WLAN_ACTION_DELBA;
 	params = (u16)(initiator << 11); 	/* bit 11 initiator */
 	params |= (u16)(tid << 12); 		/* bit 15:12 TID number */
 
-	mgmt->u.action.u.delba.params = cpu_to_le16(params);
-	mgmt->u.action.u.delba.reason_code = cpu_to_le16(reason_code);
+	mgmt->u.action.delba.params = cpu_to_le16(params);
+	mgmt->u.action.delba.reason_code = cpu_to_le16(reason_code);
 
 	ieee80211_tx_skb(sdata, skb);
 }
@@ -489,14 +505,14 @@ void ieee80211_process_delba(struct ieee80211_sub_if_data *sdata,
 	u16 tid, params;
 	u16 initiator;
 
-	params = le16_to_cpu(mgmt->u.action.u.delba.params);
+	params = le16_to_cpu(mgmt->u.action.delba.params);
 	tid = (params & IEEE80211_DELBA_PARAM_TID_MASK) >> 12;
 	initiator = (params & IEEE80211_DELBA_PARAM_INITIATOR_MASK) >> 11;
 
 	ht_dbg_ratelimited(sdata, "delba from %pM (%s) tid %d reason code %d\n",
 			   mgmt->sa, initiator ? "initiator" : "recipient",
 			   tid,
-			   le16_to_cpu(mgmt->u.action.u.delba.reason_code));
+			   le16_to_cpu(mgmt->u.action.delba.reason_code));
 
 	if (initiator == WLAN_BACK_INITIATOR)
 		__ieee80211_stop_rx_ba_session(sta, tid, WLAN_BACK_INITIATOR, 0,
@@ -530,20 +546,20 @@ int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_tx_info *info;
 	u8 status_link_id = link_id < 0 ? 0 : link_id;
 
-	/* 27 = header + category + action + smps mode */
-	skb = dev_alloc_skb(27 + local->hw.extra_tx_headroom);
+	skb = dev_alloc_skb(IEEE80211_MIN_ACTION_SIZE(ht_smps) +
+			    local->hw.extra_tx_headroom);
 	if (!skb)
 		return -ENOMEM;
 
 	skb_reserve(skb, local->hw.extra_tx_headroom);
-	action_frame = skb_put(skb, 27);
+	action_frame = skb_put_zero(skb, IEEE80211_MIN_ACTION_SIZE(ht_smps));
 	memcpy(action_frame->da, da, ETH_ALEN);
 	memcpy(action_frame->sa, sdata->dev->dev_addr, ETH_ALEN);
 	memcpy(action_frame->bssid, bssid, ETH_ALEN);
 	action_frame->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 						  IEEE80211_STYPE_ACTION);
 	action_frame->u.action.category = WLAN_CATEGORY_HT;
-	action_frame->u.action.u.ht_smps.action = WLAN_HT_ACTION_SMPS;
+	action_frame->u.action.action_code = WLAN_HT_ACTION_SMPS;
 	switch (smps) {
 	case IEEE80211_SMPS_AUTOMATIC:
 	case IEEE80211_SMPS_NUM_MODES:
@@ -551,15 +567,15 @@ int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
 		smps = IEEE80211_SMPS_OFF;
 		fallthrough;
 	case IEEE80211_SMPS_OFF:
-		action_frame->u.action.u.ht_smps.smps_control =
+		action_frame->u.action.ht_smps.smps_control =
 				WLAN_HT_SMPS_CONTROL_DISABLED;
 		break;
 	case IEEE80211_SMPS_STATIC:
-		action_frame->u.action.u.ht_smps.smps_control =
+		action_frame->u.action.ht_smps.smps_control =
 				WLAN_HT_SMPS_CONTROL_STATIC;
 		break;
 	case IEEE80211_SMPS_DYNAMIC:
-		action_frame->u.action.u.ht_smps.smps_control =
+		action_frame->u.action.ht_smps.smps_control =
 				WLAN_HT_SMPS_CONTROL_DYNAMIC;
 		break;
 	}

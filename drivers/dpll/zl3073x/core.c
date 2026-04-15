@@ -20,78 +20,29 @@
 #include "dpll.h"
 #include "regs.h"
 
-/* Chip IDs for zl30731 */
-static const u16 zl30731_ids[] = {
-	0x0E93,
-	0x1E93,
-	0x2E93,
-};
+#define ZL_CHIP_INFO(_id, _nchannels, _flags)				\
+	{ .id = (_id), .num_channels = (_nchannels), .flags = (_flags) }
 
-const struct zl3073x_chip_info zl30731_chip_info = {
-	.ids = zl30731_ids,
-	.num_ids = ARRAY_SIZE(zl30731_ids),
-	.num_channels = 1,
+static const struct zl3073x_chip_info zl3073x_chip_ids[] = {
+	ZL_CHIP_INFO(0x0E30, 2, ZL3073X_FLAG_REF_PHASE_COMP_32),
+	ZL_CHIP_INFO(0x0E93, 1, ZL3073X_FLAG_REF_PHASE_COMP_32),
+	ZL_CHIP_INFO(0x0E94, 2, ZL3073X_FLAG_REF_PHASE_COMP_32),
+	ZL_CHIP_INFO(0x0E95, 3, ZL3073X_FLAG_REF_PHASE_COMP_32),
+	ZL_CHIP_INFO(0x0E96, 4, ZL3073X_FLAG_REF_PHASE_COMP_32),
+	ZL_CHIP_INFO(0x0E97, 5, ZL3073X_FLAG_REF_PHASE_COMP_32),
+	ZL_CHIP_INFO(0x1E93, 1, ZL3073X_FLAG_DIE_TEMP),
+	ZL_CHIP_INFO(0x1E94, 2, ZL3073X_FLAG_DIE_TEMP),
+	ZL_CHIP_INFO(0x1E95, 3, ZL3073X_FLAG_DIE_TEMP),
+	ZL_CHIP_INFO(0x1E96, 4, ZL3073X_FLAG_DIE_TEMP),
+	ZL_CHIP_INFO(0x1E97, 5, ZL3073X_FLAG_DIE_TEMP),
+	ZL_CHIP_INFO(0x1F60, 2, ZL3073X_FLAG_REF_PHASE_COMP_32),
+	ZL_CHIP_INFO(0x2E93, 1, ZL3073X_FLAG_DIE_TEMP),
+	ZL_CHIP_INFO(0x2E94, 2, ZL3073X_FLAG_DIE_TEMP),
+	ZL_CHIP_INFO(0x2E95, 3, ZL3073X_FLAG_DIE_TEMP),
+	ZL_CHIP_INFO(0x2E96, 4, ZL3073X_FLAG_DIE_TEMP),
+	ZL_CHIP_INFO(0x2E97, 5, ZL3073X_FLAG_DIE_TEMP),
+	ZL_CHIP_INFO(0x3FC4, 2, ZL3073X_FLAG_DIE_TEMP),
 };
-EXPORT_SYMBOL_NS_GPL(zl30731_chip_info, "ZL3073X");
-
-/* Chip IDs for zl30732 */
-static const u16 zl30732_ids[] = {
-	0x0E30,
-	0x0E94,
-	0x1E94,
-	0x1F60,
-	0x2E94,
-	0x3FC4,
-};
-
-const struct zl3073x_chip_info zl30732_chip_info = {
-	.ids = zl30732_ids,
-	.num_ids = ARRAY_SIZE(zl30732_ids),
-	.num_channels = 2,
-};
-EXPORT_SYMBOL_NS_GPL(zl30732_chip_info, "ZL3073X");
-
-/* Chip IDs for zl30733 */
-static const u16 zl30733_ids[] = {
-	0x0E95,
-	0x1E95,
-	0x2E95,
-};
-
-const struct zl3073x_chip_info zl30733_chip_info = {
-	.ids = zl30733_ids,
-	.num_ids = ARRAY_SIZE(zl30733_ids),
-	.num_channels = 3,
-};
-EXPORT_SYMBOL_NS_GPL(zl30733_chip_info, "ZL3073X");
-
-/* Chip IDs for zl30734 */
-static const u16 zl30734_ids[] = {
-	0x0E96,
-	0x1E96,
-	0x2E96,
-};
-
-const struct zl3073x_chip_info zl30734_chip_info = {
-	.ids = zl30734_ids,
-	.num_ids = ARRAY_SIZE(zl30734_ids),
-	.num_channels = 4,
-};
-EXPORT_SYMBOL_NS_GPL(zl30734_chip_info, "ZL3073X");
-
-/* Chip IDs for zl30735 */
-static const u16 zl30735_ids[] = {
-	0x0E97,
-	0x1E97,
-	0x2E97,
-};
-
-const struct zl3073x_chip_info zl30735_chip_info = {
-	.ids = zl30735_ids,
-	.num_ids = ARRAY_SIZE(zl30735_ids),
-	.num_channels = 5,
-};
-EXPORT_SYMBOL_NS_GPL(zl30735_chip_info, "ZL3073X");
 
 #define ZL_RANGE_OFFSET		0x80
 #define ZL_PAGE_SIZE		0x80
@@ -588,20 +539,43 @@ zl3073x_dev_state_fetch(struct zl3073x_dev *zldev)
 		}
 	}
 
+	for (i = 0; i < zldev->info->num_channels; i++) {
+		rc = zl3073x_chan_state_fetch(zldev, i);
+		if (rc) {
+			dev_err(zldev->dev,
+				"Failed to fetch channel state: %pe\n",
+				ERR_PTR(rc));
+			return rc;
+		}
+	}
+
 	return rc;
 }
 
 static void
-zl3073x_dev_ref_status_update(struct zl3073x_dev *zldev)
+zl3073x_dev_ref_states_update(struct zl3073x_dev *zldev)
 {
 	int i, rc;
 
 	for (i = 0; i < ZL3073X_NUM_REFS; i++) {
-		rc = zl3073x_read_u8(zldev, ZL_REG_REF_MON_STATUS(i),
-				     &zldev->ref[i].mon_status);
+		rc = zl3073x_ref_state_update(zldev, i);
 		if (rc)
 			dev_warn(zldev->dev,
 				 "Failed to get REF%u status: %pe\n", i,
+				 ERR_PTR(rc));
+	}
+}
+
+static void
+zl3073x_dev_chan_states_update(struct zl3073x_dev *zldev)
+{
+	int i, rc;
+
+	for (i = 0; i < zldev->info->num_channels; i++) {
+		rc = zl3073x_chan_state_update(zldev, i);
+		if (rc)
+			dev_warn(zldev->dev,
+				 "Failed to get DPLL%u state: %pe\n", i,
 				 ERR_PTR(rc));
 	}
 }
@@ -658,22 +632,21 @@ int zl3073x_ref_phase_offsets_update(struct zl3073x_dev *zldev, int channel)
 }
 
 /**
- * zl3073x_ref_ffo_update - update reference fractional frequency offsets
+ * zl3073x_ref_freq_meas_latch - latch reference frequency measurements
  * @zldev: pointer to zl3073x_dev structure
+ * @type: measurement type (ZL_REF_FREQ_MEAS_CTRL_*)
  *
- * The function asks device to update fractional frequency offsets latch
- * registers the latest measured values, reads and stores them into
+ * The function waits for the previous measurement to finish, selects all
+ * references and requests a new measurement of the given type.
  *
  * Return: 0 on success, <0 on error
  */
 static int
-zl3073x_ref_ffo_update(struct zl3073x_dev *zldev)
+zl3073x_ref_freq_meas_latch(struct zl3073x_dev *zldev, u8 type)
 {
-	int i, rc;
+	int rc;
 
-	/* Per datasheet we have to wait for 'ref_freq_meas_ctrl' to be zero
-	 * to ensure that the measured data are coherent.
-	 */
+	/* Wait for previous measurement to finish */
 	rc = zl3073x_poll_zero_u8(zldev, ZL_REG_REF_FREQ_MEAS_CTRL,
 				  ZL_REF_FREQ_MEAS_CTRL);
 	if (rc)
@@ -689,15 +662,64 @@ zl3073x_ref_ffo_update(struct zl3073x_dev *zldev)
 	if (rc)
 		return rc;
 
-	/* Request frequency offset measurement */
-	rc = zl3073x_write_u8(zldev, ZL_REG_REF_FREQ_MEAS_CTRL,
-			      ZL_REF_FREQ_MEAS_CTRL_REF_FREQ_OFF);
+	/* Request measurement */
+	rc = zl3073x_write_u8(zldev, ZL_REG_REF_FREQ_MEAS_CTRL, type);
 	if (rc)
 		return rc;
 
 	/* Wait for finish */
-	rc = zl3073x_poll_zero_u8(zldev, ZL_REG_REF_FREQ_MEAS_CTRL,
-				  ZL_REF_FREQ_MEAS_CTRL);
+	return zl3073x_poll_zero_u8(zldev, ZL_REG_REF_FREQ_MEAS_CTRL,
+				    ZL_REF_FREQ_MEAS_CTRL);
+}
+
+/**
+ * zl3073x_ref_freq_meas_update - update measured input reference frequencies
+ * @zldev: pointer to zl3073x_dev structure
+ *
+ * The function asks device to latch measured input reference frequencies
+ * and stores the results in the ref state.
+ *
+ * Return: 0 on success, <0 on error
+ */
+static int
+zl3073x_ref_freq_meas_update(struct zl3073x_dev *zldev)
+{
+	int i, rc;
+
+	rc = zl3073x_ref_freq_meas_latch(zldev, ZL_REF_FREQ_MEAS_CTRL_REF_FREQ);
+	if (rc)
+		return rc;
+
+	/* Read measured frequencies in Hz (unsigned 32-bit, LSB = 1 Hz) */
+	for (i = 0; i < ZL3073X_NUM_REFS; i++) {
+		u32 value;
+
+		rc = zl3073x_read_u32(zldev, ZL_REG_REF_FREQ(i), &value);
+		if (rc)
+			return rc;
+
+		zldev->ref[i].meas_freq = value;
+	}
+
+	return 0;
+}
+
+/**
+ * zl3073x_ref_ffo_update - update reference fractional frequency offsets
+ * @zldev: pointer to zl3073x_dev structure
+ *
+ * The function asks device to latch the latest measured fractional
+ * frequency offset values, reads and stores them into the ref state.
+ *
+ * Return: 0 on success, <0 on error
+ */
+static int
+zl3073x_ref_ffo_update(struct zl3073x_dev *zldev)
+{
+	int i, rc;
+
+	rc = zl3073x_ref_freq_meas_latch(zldev,
+					 ZL_REF_FREQ_MEAS_CTRL_REF_FREQ_OFF);
 	if (rc)
 		return rc;
 
@@ -728,14 +750,31 @@ zl3073x_dev_periodic_work(struct kthread_work *work)
 	struct zl3073x_dpll *zldpll;
 	int rc;
 
-	/* Update input references status */
-	zl3073x_dev_ref_status_update(zldev);
+	/* Update input references' states */
+	zl3073x_dev_ref_states_update(zldev);
+
+	/* Update DPLL channels' states */
+	zl3073x_dev_chan_states_update(zldev);
 
 	/* Update DPLL-to-connected-ref phase offsets registers */
 	rc = zl3073x_ref_phase_offsets_update(zldev, -1);
 	if (rc)
 		dev_warn(zldev->dev, "Failed to update phase offsets: %pe\n",
 			 ERR_PTR(rc));
+
+	/* Update measured input reference frequencies if any DPLL has
+	 * frequency monitoring enabled.
+	 */
+	list_for_each_entry(zldpll, &zldev->dplls, list) {
+		if (zldpll->freq_monitor) {
+			rc = zl3073x_ref_freq_meas_update(zldev);
+			if (rc)
+				dev_warn(zldev->dev,
+					 "Failed to update measured frequencies: %pe\n",
+					 ERR_PTR(rc));
+			break;
+		}
+	}
 
 	/* Update references' fractional frequency offsets */
 	rc = zl3073x_ref_ffo_update(zldev);
@@ -766,8 +805,7 @@ int zl3073x_dev_phase_avg_factor_set(struct zl3073x_dev *zldev, u8 factor)
 	value = (factor + 1) & 0x0f;
 
 	/* Update phase measurement control register */
-	dpll_meas_ctrl &= ~ZL_DPLL_MEAS_CTRL_AVG_FACTOR;
-	dpll_meas_ctrl |= FIELD_PREP(ZL_DPLL_MEAS_CTRL_AVG_FACTOR, value);
+	FIELD_MODIFY(ZL_DPLL_MEAS_CTRL_AVG_FACTOR, &dpll_meas_ctrl, value);
 	rc = zl3073x_write_u8(zldev, ZL_REG_DPLL_MEAS_CTRL, dpll_meas_ctrl);
 	if (rc)
 		return rc;
@@ -942,7 +980,7 @@ static void zl3073x_dev_dpll_fini(void *ptr)
 }
 
 static int
-zl3073x_devm_dpll_init(struct zl3073x_dev *zldev, u8 num_dplls)
+zl3073x_devm_dpll_init(struct zl3073x_dev *zldev)
 {
 	struct kthread_worker *kworker;
 	struct zl3073x_dpll *zldpll;
@@ -952,7 +990,7 @@ zl3073x_devm_dpll_init(struct zl3073x_dev *zldev, u8 num_dplls)
 	INIT_LIST_HEAD(&zldev->dplls);
 
 	/* Allocate all DPLLs */
-	for (i = 0; i < num_dplls; i++) {
+	for (i = 0; i < zldev->info->num_channels; i++) {
 		zldpll = zl3073x_dpll_alloc(zldev, i);
 		if (IS_ERR(zldpll)) {
 			dev_err_probe(zldev->dev, PTR_ERR(zldpll),
@@ -992,14 +1030,12 @@ error:
 /**
  * zl3073x_dev_probe - initialize zl3073x device
  * @zldev: pointer to zl3073x device
- * @chip_info: chip info based on compatible
  *
  * Common initialization of zl3073x device structure.
  *
  * Returns: 0 on success, <0 on error
  */
-int zl3073x_dev_probe(struct zl3073x_dev *zldev,
-		      const struct zl3073x_chip_info *chip_info)
+int zl3073x_dev_probe(struct zl3073x_dev *zldev)
 {
 	u16 id, revision, fw_ver;
 	unsigned int i;
@@ -1011,18 +1047,17 @@ int zl3073x_dev_probe(struct zl3073x_dev *zldev,
 	if (rc)
 		return rc;
 
-	/* Check it matches */
-	for (i = 0; i < chip_info->num_ids; i++) {
-		if (id == chip_info->ids[i])
+	/* Detect chip variant */
+	for (i = 0; i < ARRAY_SIZE(zl3073x_chip_ids); i++) {
+		if (zl3073x_chip_ids[i].id == id)
 			break;
 	}
 
-	if (i == chip_info->num_ids) {
+	if (i == ARRAY_SIZE(zl3073x_chip_ids))
 		return dev_err_probe(zldev->dev, -ENODEV,
-				     "Unknown or non-match chip ID: 0x%0x\n",
-				     id);
-	}
-	zldev->chip_id = id;
+				     "Unknown chip ID: 0x%04x\n", id);
+
+	zldev->info = &zl3073x_chip_ids[i];
 
 	/* Read revision, firmware version and custom config version */
 	rc = zl3073x_read_u16(zldev, ZL_REG_REVISION, &revision);
@@ -1061,7 +1096,7 @@ int zl3073x_dev_probe(struct zl3073x_dev *zldev,
 				     "Failed to initialize mutex\n");
 
 	/* Register DPLL channels */
-	rc = zl3073x_devm_dpll_init(zldev, chip_info->num_channels);
+	rc = zl3073x_devm_dpll_init(zldev);
 	if (rc)
 		return rc;
 

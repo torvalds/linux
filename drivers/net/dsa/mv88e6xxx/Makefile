@@ -21,6 +21,8 @@ mv88e6xxx-objs += serdes.o
 mv88e6xxx-objs += smi.o
 mv88e6xxx-objs += switchdev.o
 mv88e6xxx-objs += trace.o
+mv88e6xxx-objs += tcflower.o
+mv88e6xxx-objs += tcam.o
 
 # for tracing framework to find trace.h
 CFLAGS_trace.o := -I$(src)

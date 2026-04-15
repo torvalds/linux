@@ -319,6 +319,13 @@ struct __packed hw_atl_utils_settings {
 	u32 media_detect;
 };
 
+struct __packed smbus_request {
+	u32 msg_id;
+	u32 device_id;
+	u32 address;
+	u32 length;
+};
+
 enum macsec_msg_type {
 	macsec_cfg_msg = 0,
 	macsec_add_rx_sc_msg,

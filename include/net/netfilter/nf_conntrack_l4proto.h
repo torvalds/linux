@@ -107,11 +107,6 @@ int nf_conntrack_udp_packet(struct nf_conn *ct,
 			    unsigned int dataoff,
 			    enum ip_conntrack_info ctinfo,
 			    const struct nf_hook_state *state);
-int nf_conntrack_udplite_packet(struct nf_conn *ct,
-				struct sk_buff *skb,
-				unsigned int dataoff,
-				enum ip_conntrack_info ctinfo,
-				const struct nf_hook_state *state);
 int nf_conntrack_tcp_packet(struct nf_conn *ct,
 			    struct sk_buff *skb,
 			    unsigned int dataoff,
@@ -138,8 +133,6 @@ void nf_conntrack_icmpv6_init_net(struct net *net);
 
 /* Existing built-in generic protocol */
 extern const struct nf_conntrack_l4proto nf_conntrack_l4proto_generic;
-
-#define MAX_NF_CT_PROTO IPPROTO_UDPLITE
 
 const struct nf_conntrack_l4proto *nf_ct_l4proto_find(u8 l4proto);
 

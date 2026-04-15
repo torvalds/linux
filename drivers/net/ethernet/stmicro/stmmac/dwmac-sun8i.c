@@ -718,7 +718,7 @@ static void sun8i_dwmac_set_filter(struct mac_device_info *hw,
 
 static void sun8i_dwmac_flow_ctrl(struct mac_device_info *hw,
 				  unsigned int duplex, unsigned int fc,
-				  unsigned int pause_time, u32 tx_cnt)
+				  unsigned int pause_time, u8 tx_cnt)
 {
 	void __iomem *ioaddr = hw->pcsr;
 	u32 v;
@@ -1063,12 +1063,9 @@ static int sun8i_dwmac_setup(void *ppriv, struct mac_device_info *mac)
 	mac->link.duplex = EMAC_DUPLEX_FULL;
 	mac->mii.addr = EMAC_MDIO_CMD;
 	mac->mii.data = EMAC_MDIO_DATA;
-	mac->mii.reg_shift = 4;
-	mac->mii.reg_mask = GENMASK(8, 4);
-	mac->mii.addr_shift = 12;
-	mac->mii.addr_mask = GENMASK(16, 12);
-	mac->mii.clk_csr_shift = 20;
-	mac->mii.clk_csr_mask = GENMASK(22, 20);
+	mac->mii.reg_mask = GENMASK_U32(8, 4);
+	mac->mii.addr_mask = GENMASK_U32(16, 12);
+	mac->mii.clk_csr_mask = GENMASK_U32(22, 20);
 	mac->unicast_filter_entries = 8;
 
 	/* Synopsys Id is not available */
@@ -1182,7 +1179,7 @@ static int sun8i_dwmac_probe(struct platform_device *pdev)
 	 * hardware features were copied from Allwinner drivers.
 	 */
 	plat_dat->rx_coe = STMMAC_RX_COE_TYPE2;
-	plat_dat->tx_coe = 1;
+	plat_dat->tx_coe = true;
 	plat_dat->flags |= STMMAC_FLAG_HAS_SUN8I;
 	plat_dat->bsp_priv = gmac;
 	plat_dat->init = sun8i_dwmac_init;

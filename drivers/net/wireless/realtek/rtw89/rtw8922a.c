@@ -18,7 +18,7 @@
 #define RTW8922A_FW_FORMAT_MAX 4
 #define RTW8922A_FW_BASENAME "rtw89/rtw8922a_fw"
 #define RTW8922A_MODULE_FIRMWARE \
-	RTW8922A_FW_BASENAME "-" __stringify(RTW8922A_FW_FORMAT_MAX) ".bin"
+	RTW89_GEN_MODULE_FWNAME(RTW8922A_FW_BASENAME, RTW8922A_FW_FORMAT_MAX)
 
 #define HE_N_USER_MAX_8922A 4
 
@@ -492,7 +492,7 @@ static int rtw8922a_pwr_off_func(struct rtw89_dev *rtwdev)
 		return ret;
 
 	rtw89_write32(rtwdev, R_BE_WLLPS_CTRL, 0x0000A1B2);
-	rtw89_write32_set(rtwdev, R_BE_SYS_PW_CTRL, B_BE_XTAL_OFF_A_DIE);
+	rtw89_write32_clr(rtwdev, R_BE_SYS_PW_CTRL, B_BE_XTAL_OFF_A_DIE);
 	rtw89_write32_set(rtwdev, R_BE_SYS_PW_CTRL, B_BE_APFM_SWLPS);
 	rtw89_write32(rtwdev, R_BE_UDM1, 0);
 
@@ -2916,8 +2916,11 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 	.ops			= &rtw8922a_chip_ops,
 	.mac_def		= &rtw89_mac_gen_be,
 	.phy_def		= &rtw89_phy_gen_be,
-	.fw_basename		= RTW8922A_FW_BASENAME,
-	.fw_format_max		= RTW8922A_FW_FORMAT_MAX,
+	.fw_def			= {
+		.fw_basename	= RTW8922A_FW_BASENAME,
+		.fw_format_max	= RTW8922A_FW_FORMAT_MAX,
+		.fw_b_aid	= 0,
+	},
 	.try_ce_fw		= false,
 	.bbmcu_nr		= 1,
 	.needed_fw_elms		= RTW89_BE_GEN_DEF_NEEDED_FW_ELEMENTS,
@@ -2972,7 +2975,7 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 	.support_noise		= false,
 	.ul_tb_waveform_ctrl	= false,
 	.ul_tb_pwr_diff		= false,
-	.rx_freq_frome_ie	= false,
+	.rx_freq_from_ie	= false,
 	.hw_sec_hdr		= true,
 	.hw_mgmt_tx_encrypt	= true,
 	.hw_tkip_crypto		= true,
@@ -3012,6 +3015,10 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 	.rf_para_ulink		= rtw89_btc_8922a_rf_ul,
 	.rf_para_dlink_num	= ARRAY_SIZE(rtw89_btc_8922a_rf_dl),
 	.rf_para_dlink		= rtw89_btc_8922a_rf_dl,
+	.rf_para_ulink_v9	= NULL,
+	.rf_para_dlink_v9	= NULL,
+	.rf_para_ulink_num_v9	= 0,
+	.rf_para_dlink_num_v9	= 0,
 	.ps_mode_supported	= BIT(RTW89_PS_MODE_RFOFF) |
 				  BIT(RTW89_PS_MODE_CLK_GATED) |
 				  BIT(RTW89_PS_MODE_PWR_GATED),
@@ -3057,6 +3064,7 @@ EXPORT_SYMBOL(rtw8922a_chip_info);
 const struct rtw89_chip_variant rtw8922ae_vs_variant = {
 	.no_mcs_12_13 = true,
 	.fw_min_ver_code = RTW89_FW_VER_CODE(0, 35, 54, 0),
+	.fw_def_override = NULL,
 };
 EXPORT_SYMBOL(rtw8922ae_vs_variant);
 

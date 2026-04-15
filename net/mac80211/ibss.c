@@ -9,7 +9,7 @@
  * Copyright 2009, Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright(c) 2016 Intel Deutschland GmbH
- * Copyright(c) 2018-2025 Intel Corporation
+ * Copyright(c) 2018-2026 Intel Corporation
  */
 
 #include <linux/delay.h>
@@ -888,19 +888,11 @@ ieee80211_rx_mgmt_spectrum_mgmt(struct ieee80211_sub_if_data *sdata,
 				struct ieee80211_rx_status *rx_status,
 				struct ieee802_11_elems *elems)
 {
-	int required_len;
-
-	if (len < IEEE80211_MIN_ACTION_SIZE + 1)
+	if (len < IEEE80211_MIN_ACTION_SIZE(chan_switch))
 		return;
 
 	/* CSA is the only action we handle for now */
-	if (mgmt->u.action.u.measurement.action_code !=
-	    WLAN_ACTION_SPCT_CHL_SWITCH)
-		return;
-
-	required_len = IEEE80211_MIN_ACTION_SIZE +
-		       sizeof(mgmt->u.action.u.chan_switch);
-	if (len < required_len)
+	if (mgmt->u.action.action_code != WLAN_ACTION_SPCT_CHL_SWITCH)
 		return;
 
 	if (!sdata->vif.bss_conf.csa_active)
@@ -1022,7 +1014,8 @@ static void ieee80211_update_sta_info(struct ieee80211_sub_if_data *sdata,
 		ieee80211_chandef_ht_oper(elems->ht_operation, &chandef);
 
 		memcpy(&htcap_ie, elems->ht_cap_elem, sizeof(htcap_ie));
-		rates_updated |= ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
+		rates_updated |= ieee80211_ht_cap_ie_to_sta_ht_cap(sdata,
+								   &sband->ht_cap,
 								   &htcap_ie,
 								   &sta->deflink);
 
@@ -1041,6 +1034,7 @@ static void ieee80211_update_sta_info(struct ieee80211_sub_if_data *sdata,
 						   &chandef);
 			memcpy(&cap_ie, elems->vht_cap_elem, sizeof(cap_ie));
 			ieee80211_vht_cap_ie_to_sta_vht_cap(sdata, sband,
+							    &sband->vht_cap,
 							    &cap_ie, NULL,
 							    &sta->deflink);
 			if (memcmp(&cap, &sta->sta.deflink.vht_cap, sizeof(cap)))
@@ -1133,7 +1127,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 	if (ieee80211_have_rx_timestamp(rx_status)) {
 		/* time when timestamp field was received */
 		rx_timestamp =
-			ieee80211_calculate_rx_timestamp(local, rx_status,
+			ieee80211_calculate_rx_timestamp(&local->hw, rx_status,
 							 len + FCS_LEN, 24);
 	} else {
 		/*
@@ -1613,12 +1607,12 @@ void ieee80211_ibss_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 		case WLAN_CATEGORY_SPECTRUM_MGMT:
 			ies_len = skb->len -
 				  offsetof(struct ieee80211_mgmt,
-					   u.action.u.chan_switch.variable);
+					   u.action.chan_switch.variable);
 
 			if (ies_len < 0)
 				break;
 
-			elems = ieee802_11_parse_elems(mgmt->u.action.u.chan_switch.variable,
+			elems = ieee802_11_parse_elems(mgmt->u.action.chan_switch.variable,
 						       ies_len,
 						       IEEE80211_FTYPE_MGMT |
 						       IEEE80211_STYPE_ACTION,

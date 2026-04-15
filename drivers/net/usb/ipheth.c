@@ -573,11 +573,10 @@ static int ipheth_probe(struct usb_interface *intf,
 			const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
+	struct usb_endpoint_descriptor *ep_in, *ep_out;
 	struct usb_host_interface *hintf;
-	struct usb_endpoint_descriptor *endp;
 	struct ipheth_device *dev;
 	struct net_device *netdev;
-	int i;
 	int retval;
 
 	netdev = alloc_etherdev(sizeof(struct ipheth_device));
@@ -603,18 +602,15 @@ static int ipheth_probe(struct usb_interface *intf,
 		goto err_endpoints;
 	}
 
-	for (i = 0; i < hintf->desc.bNumEndpoints; i++) {
-		endp = &hintf->endpoint[i].desc;
-		if (usb_endpoint_is_bulk_in(endp))
-			dev->bulk_in = endp->bEndpointAddress;
-		else if (usb_endpoint_is_bulk_out(endp))
-			dev->bulk_out = endp->bEndpointAddress;
-	}
-	if (!(dev->bulk_in && dev->bulk_out)) {
-		retval = -ENODEV;
+	retval = usb_find_common_endpoints_reverse(hintf, &ep_in, &ep_out,
+						   NULL, NULL);
+	if (retval) {
 		dev_err(&intf->dev, "Unable to find endpoints\n");
 		goto err_endpoints;
 	}
+
+	dev->bulk_in = ep_in->bEndpointAddress;
+	dev->bulk_out = ep_out->bEndpointAddress;
 
 	dev->ctrl_buf = kmalloc(IPHETH_CTRL_BUF_SIZE, GFP_KERNEL);
 	if (dev->ctrl_buf == NULL) {

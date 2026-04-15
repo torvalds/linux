@@ -110,7 +110,6 @@ examples:
 
                 port@9 {
                     reg = <9>;
-                    label = "cpu";
                     ethernet = <&gmac0>;
                     phy-mode = "usxgmii";
 

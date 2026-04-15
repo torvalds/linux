@@ -660,13 +660,13 @@ static void mlx5e_ptp_build_rq_param(struct mlx5_core_dev *mdev,
 				     struct net_device *netdev,
 				     struct mlx5e_ptp_params *ptp_params)
 {
-	struct mlx5e_rq_param *rq_params = &ptp_params->rq_param;
+	struct mlx5e_rq_param *rq_param = &ptp_params->rq_param;
 	struct mlx5e_params *params = &ptp_params->params;
 
 	params->rq_wq_type = MLX5_WQ_TYPE_CYCLIC;
 	mlx5e_init_rq_type_params(mdev, params);
 	params->sw_mtu = netdev->max_mtu;
-	mlx5e_build_rq_param(mdev, params, NULL, rq_params);
+	mlx5e_build_rq_param(mdev, params, NULL, rq_param);
 }
 
 static void mlx5e_ptp_build_params(struct mlx5e_ptp *c,

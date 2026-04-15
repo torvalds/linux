@@ -3,8 +3,8 @@
 #include <linux/phy.h>
 #include <linux/ethtool_netlink.h>
 
-#include "netlink.h"
 #include "common.h"
+#include "netlink.h"
 
 struct plca_req_info {
 	struct ethnl_req_info		base;

@@ -32,9 +32,9 @@ struct iwl_mld_phy {
 };
 
 static inline struct iwl_mld_phy *
-iwl_mld_phy_from_mac80211(struct ieee80211_chanctx_conf *channel)
+iwl_mld_phy_from_mac80211(struct ieee80211_chanctx_conf *chanctx)
 {
-	return (void *)channel->drv_priv;
+	return (void *)chanctx->drv_priv;
 }
 
 /* Cleanup function for struct iwl_mld_phy, will be called in restart */

@@ -114,8 +114,8 @@ static void if_usb_write_bulk_callback(struct urb *urb)
 static void if_usb_free(struct if_usb_card *cardp)
 {
 	/* Unlink tx & rx urb */
-	usb_kill_urb(cardp->tx_urb);
-	usb_kill_urb(cardp->rx_urb);
+	usb_kill_anchored_urbs(&cardp->tx_submitted);
+	usb_kill_anchored_urbs(&cardp->rx_submitted);
 
 	usb_free_urb(cardp->tx_urb);
 	cardp->tx_urb = NULL;
@@ -193,13 +193,12 @@ static void if_usb_reset_olpc_card(struct lbs_private *priv)
 static int if_usb_probe(struct usb_interface *intf,
 			const struct usb_device_id *id)
 {
+	struct usb_endpoint_descriptor *ep_in, *ep_out;
 	struct usb_device *udev;
 	struct usb_host_interface *iface_desc;
-	struct usb_endpoint_descriptor *endpoint;
 	struct lbs_private *priv;
 	struct if_usb_card *cardp;
 	int r = -ENOMEM;
-	int i;
 
 	udev = interface_to_usbdev(intf);
 
@@ -221,25 +220,28 @@ static int if_usb_probe(struct usb_interface *intf,
 		     udev->descriptor.bDeviceSubClass,
 		     udev->descriptor.bDeviceProtocol);
 
-	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
-		endpoint = &iface_desc->endpoint[i].desc;
-		if (usb_endpoint_is_bulk_in(endpoint)) {
-			cardp->ep_in_size = le16_to_cpu(endpoint->wMaxPacketSize);
-			cardp->ep_in = usb_endpoint_num(endpoint);
+	init_usb_anchor(&cardp->rx_submitted);
+	init_usb_anchor(&cardp->tx_submitted);
 
-			lbs_deb_usbd(&udev->dev, "in_endpoint = %d\n", cardp->ep_in);
-			lbs_deb_usbd(&udev->dev, "Bulk in size is %d\n", cardp->ep_in_size);
-
-		} else if (usb_endpoint_is_bulk_out(endpoint)) {
-			cardp->ep_out_size = le16_to_cpu(endpoint->wMaxPacketSize);
-			cardp->ep_out = usb_endpoint_num(endpoint);
-
-			lbs_deb_usbd(&udev->dev, "out_endpoint = %d\n", cardp->ep_out);
-			lbs_deb_usbd(&udev->dev, "Bulk out size is %d\n", cardp->ep_out_size);
-		}
-	}
-	if (!cardp->ep_out_size || !cardp->ep_in_size) {
+	if (usb_find_common_endpoints_reverse(iface_desc, &ep_in, &ep_out, NULL, NULL)) {
 		lbs_deb_usbd(&udev->dev, "Endpoints not found\n");
+		goto dealloc;
+	}
+
+	cardp->ep_in_size = usb_endpoint_maxp(ep_in);
+	cardp->ep_in = usb_endpoint_num(ep_in);
+
+	lbs_deb_usbd(&udev->dev, "in_endpoint = %d\n", cardp->ep_in);
+	lbs_deb_usbd(&udev->dev, "Bulk in size is %d\n", cardp->ep_in_size);
+
+	cardp->ep_out_size = usb_endpoint_maxp(ep_out);
+	cardp->ep_out = usb_endpoint_num(ep_out);
+
+	lbs_deb_usbd(&udev->dev, "out_endpoint = %d\n", cardp->ep_out);
+	lbs_deb_usbd(&udev->dev, "Bulk out size is %d\n", cardp->ep_out_size);
+
+	if (!cardp->ep_out_size || !cardp->ep_in_size) {
+		lbs_deb_usbd(&udev->dev, "Endpoints not valid\n");
 		goto dealloc;
 	}
 	if (!(cardp->rx_urb = usb_alloc_urb(0, GFP_KERNEL))) {
@@ -276,7 +278,6 @@ static int if_usb_probe(struct usb_interface *intf,
 
 	cardp->boot2_version = udev->descriptor.bcdDevice;
 
-	usb_get_dev(udev);
 	usb_set_intfdata(intf, cardp);
 
 	r = lbs_get_firmware_async(priv, &udev->dev, cardp->model,
@@ -287,7 +288,6 @@ static int if_usb_probe(struct usb_interface *intf,
 	return 0;
 
 err_get_fw:
-	usb_put_dev(udev);
 	lbs_remove_card(priv);
 err_add_card:
 	if_usb_reset_device(cardp);
@@ -321,7 +321,6 @@ static void if_usb_disconnect(struct usb_interface *intf)
 	kfree(cardp);
 
 	usb_set_intfdata(intf, NULL);
-	usb_put_dev(interface_to_usbdev(intf));
 }
 
 /**
@@ -426,7 +425,12 @@ static int usb_tx_block(struct if_usb_card *cardp, uint8_t *payload, uint16_t nb
 		goto tx_ret;
 	}
 
-	usb_kill_urb(cardp->tx_urb);
+	/* check if there are pending URBs */
+	if (!usb_anchor_empty(&cardp->tx_submitted)) {
+		lbs_deb_usbd(&cardp->udev->dev, "%s failed: pending URB\n", __func__);
+		ret = -EBUSY;
+		goto tx_ret;
+	}
 
 	usb_fill_bulk_urb(cardp->tx_urb, cardp->udev,
 			  usb_sndbulkpipe(cardp->udev,
@@ -435,8 +439,10 @@ static int usb_tx_block(struct if_usb_card *cardp, uint8_t *payload, uint16_t nb
 
 	cardp->tx_urb->transfer_flags |= URB_ZERO_PACKET;
 
+	usb_anchor_urb(cardp->tx_urb, &cardp->tx_submitted);
 	if ((ret = usb_submit_urb(cardp->tx_urb, GFP_ATOMIC))) {
 		lbs_deb_usbd(&cardp->udev->dev, "usb_submit_urb failed: %d\n", ret);
+		usb_unanchor_urb(cardp->tx_urb);
 	} else {
 		lbs_deb_usb2(&cardp->udev->dev, "usb_submit_urb success\n");
 		ret = 0;
@@ -467,8 +473,10 @@ static int __if_usb_submit_rx_urb(struct if_usb_card *cardp,
 			  cardp);
 
 	lbs_deb_usb2(&cardp->udev->dev, "Pointer for rx_urb %p\n", cardp->rx_urb);
+	usb_anchor_urb(cardp->rx_urb, &cardp->rx_submitted);
 	if ((ret = usb_submit_urb(cardp->rx_urb, GFP_ATOMIC))) {
 		lbs_deb_usbd(&cardp->udev->dev, "Submit Rx URB failed: %d\n", ret);
+		usb_unanchor_urb(cardp->rx_urb);
 		kfree_skb(skb);
 		cardp->rx_skb = NULL;
 		ret = -1;
@@ -838,8 +846,8 @@ static void if_usb_prog_firmware(struct lbs_private *priv, int ret,
 	}
 
 	/* Cancel any pending usb business */
-	usb_kill_urb(cardp->rx_urb);
-	usb_kill_urb(cardp->tx_urb);
+	usb_kill_anchored_urbs(&cardp->rx_submitted);
+	usb_kill_anchored_urbs(&cardp->tx_submitted);
 
 	cardp->fwlastblksent = 0;
 	cardp->fwdnldover = 0;
@@ -869,8 +877,8 @@ restart:
 	if (cardp->bootcmdresp == BOOT_CMD_RESP_NOT_SUPPORTED) {
 		/* Return to normal operation */
 		ret = -EOPNOTSUPP;
-		usb_kill_urb(cardp->rx_urb);
-		usb_kill_urb(cardp->tx_urb);
+		usb_kill_anchored_urbs(&cardp->rx_submitted);
+		usb_kill_anchored_urbs(&cardp->tx_submitted);
 		if (if_usb_submit_rx_urb(cardp) < 0)
 			ret = -EIO;
 		goto done;
@@ -900,7 +908,7 @@ restart:
 	wait_event_interruptible(cardp->fw_wq, cardp->surprise_removed || cardp->fwdnldover);
 
 	timer_delete_sync(&cardp->fw_timeout);
-	usb_kill_urb(cardp->rx_urb);
+	usb_kill_anchored_urbs(&cardp->rx_submitted);
 
 	if (!cardp->fwdnldover) {
 		pr_info("failed to load fw, resetting device!\n");
@@ -960,8 +968,8 @@ static int if_usb_suspend(struct usb_interface *intf, pm_message_t message)
 		goto out;
 
 	/* Unlink tx & rx urb */
-	usb_kill_urb(cardp->tx_urb);
-	usb_kill_urb(cardp->rx_urb);
+	usb_kill_anchored_urbs(&cardp->tx_submitted);
+	usb_kill_anchored_urbs(&cardp->rx_submitted);
 
  out:
 	return ret;

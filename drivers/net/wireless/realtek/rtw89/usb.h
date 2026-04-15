@@ -20,6 +20,19 @@
 #define RTW89_MAX_ENDPOINT_NUM		9
 #define RTW89_MAX_BULKOUT_NUM		7
 
+#define R_AX_RXAGG_0_V1			0x6000
+#define B_AX_RXAGG_0_EN			BIT(31)
+#define B_AX_RXAGG_0_NUM_TH		GENMASK(23, 16)
+#define B_AX_RXAGG_0_TIME_32US_TH	GENMASK(15, 8)
+#define B_AX_RXAGG_0_BUF_SZ_1K		GENMASK(7, 0)
+
+#define R_AX_RXAGG_1_V1			0x6004
+
+#define R_AX_RXAGG_0			0x8900
+#define B_AX_RXAGG_0_BUF_SZ_4K		GENMASK(7, 0)
+
+#define RTW89_USB_MAX_TX_URBS_PER_CH	128
+
 struct rtw89_usb_info {
 	u32 usb_host_request_2;
 	u32 usb_wlan0_1;
@@ -27,6 +40,7 @@ struct rtw89_usb_info {
 	u32 usb3_mac_npi_config_intf_0;
 	u32 usb_endpoint_0;
 	u32 usb_endpoint_2;
+	u8 rx_agg_alignment;
 	u8 bulkout_id[RTW89_DMA_CH_NUM];
 };
 
@@ -63,6 +77,7 @@ struct rtw89_usb {
 	struct usb_anchor tx_submitted;
 
 	struct sk_buff_head tx_queue[RTW89_TXCH_NUM];
+	atomic_t tx_inflight[RTW89_TXCH_NUM];
 };
 
 static inline struct rtw89_usb *rtw89_usb_priv(struct rtw89_dev *rtwdev)

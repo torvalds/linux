@@ -795,6 +795,7 @@ struct sta_info *sta_info_alloc_with_link(struct ieee80211_sub_if_data *sdata,
 static int sta_info_insert_check(struct sta_info *sta)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	struct ieee80211_sta *same_addr_sta;
 
 	lockdep_assert_wiphy(sdata->local->hw.wiphy);
 
@@ -810,13 +811,18 @@ static int sta_info_insert_check(struct sta_info *sta)
 		    !is_valid_ether_addr(sta->sta.addr)))
 		return -EINVAL;
 
+	if (!ieee80211_hw_check(&sdata->local->hw, NEEDS_UNIQUE_STA_ADDR))
+		return 0;
+
 	/* The RCU read lock is required by rhashtable due to
 	 * asynchronous resize/rehash.  We also require the mutex
 	 * for correctness.
 	 */
 	rcu_read_lock();
-	if (ieee80211_hw_check(&sdata->local->hw, NEEDS_UNIQUE_STA_ADDR) &&
-	    ieee80211_find_sta_by_ifaddr(&sdata->local->hw, sta->addr, NULL)) {
+	same_addr_sta = ieee80211_find_sta_by_ifaddr(&sdata->local->hw,
+						     sta->addr, NULL);
+	/* For NAN, a peer can re-use */
+	if (same_addr_sta && same_addr_sta != rcu_access_pointer(sta->sta.nmi)) {
 		rcu_read_unlock();
 		return -ENOTUNIQ;
 	}
@@ -974,7 +980,7 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
 	}
 
 	sinfo->generation = local->sta_generation;
-	cfg80211_new_sta(sdata->dev, sta->sta.addr, sinfo, GFP_KERNEL);
+	cfg80211_new_sta(&sdata->wdev, sta->sta.addr, sinfo, GFP_KERNEL);
 	kfree(sinfo);
 
 	sta_dbg(sdata, "Inserted STA %pM\n", sta->sta.addr);
@@ -1294,6 +1300,21 @@ static int __must_check __sta_info_destroy_part1(struct sta_info *sta)
 
 	lockdep_assert_wiphy(local->hw.wiphy);
 
+	if (sdata->vif.type == NL80211_IFTYPE_NAN) {
+		struct sta_info *sta_iter, *tmp;
+
+		/* Remove all NDI stations associated with this NMI STA */
+		list_for_each_entry_safe(sta_iter, tmp, &local->sta_list, list) {
+			if (rcu_access_pointer(sta_iter->sta.nmi) != &sta->sta)
+				continue;
+			sta_info_destroy_addr(sta_iter->sdata, sta_iter->addr);
+		}
+
+		/* Free and clear the local peer schedule */
+		ieee80211_nan_free_peer_sched(sta->sta.nan_sched);
+		sta->sta.nan_sched = NULL;
+	}
+
 	/*
 	 * Before removing the station from the driver and
 	 * rate control, it might still start new aggregation
@@ -1433,6 +1454,8 @@ static int _sta_info_move_state(struct sta_info *sta,
 		} else if (sta->sta_state == IEEE80211_STA_AUTHORIZED) {
 			ieee80211_vif_dec_num_mcast(sta->sdata);
 			clear_bit(WLAN_STA_AUTHORIZED, &sta->_flags);
+			if (sta->sdata->vif.type == NL80211_IFTYPE_NAN_DATA)
+				ieee80211_nan_update_ndi_carrier(sta->sdata);
 
 			/*
 			 * If we have encryption offload, flush (station) queues
@@ -1461,6 +1484,8 @@ static int _sta_info_move_state(struct sta_info *sta,
 			set_bit(WLAN_STA_AUTHORIZED, &sta->_flags);
 			ieee80211_check_fast_xmit(sta);
 			ieee80211_check_fast_rx(sta);
+			if (sta->sdata->vif.type == NL80211_IFTYPE_NAN_DATA)
+				ieee80211_nan_update_ndi_carrier(sta->sdata);
 		}
 		if (sta->sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
 		    sta->sdata->vif.type == NL80211_IFTYPE_AP)
@@ -1557,7 +1582,7 @@ static void __sta_info_destroy_part2(struct sta_info *sta, bool recalc)
 
 	sta_dbg(sdata, "Removed STA %pM\n", sta->sta.addr);
 
-	cfg80211_del_sta_sinfo(sdata->dev, sta->sta.addr, sinfo, GFP_KERNEL);
+	cfg80211_del_sta_sinfo(&sdata->wdev, sta->sta.addr, sinfo, GFP_KERNEL);
 	kfree(sinfo);
 
 	ieee80211_sta_debugfs_remove(sta);

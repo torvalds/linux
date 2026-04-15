@@ -504,7 +504,8 @@ iwl_acpi_parse_chains_table(union acpi_object *table,
 			    u8 num_chains, u8 num_sub_bands)
 {
 	for (u8 chain = 0; chain < num_chains; chain++) {
-		for (u8 subband = 0; subband < BIOS_SAR_MAX_SUB_BANDS_NUM;
+		for (u8 subband = 0;
+		     subband < ARRAY_SIZE(chains[chain].subbands);
 		     subband++) {
 			/* if we don't have the values, use the default */
 			if (subband >= num_sub_bands) {
@@ -534,7 +535,23 @@ int iwl_acpi_get_wrds_table(struct iwl_fw_runtime *fwrt)
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	/* start by trying to read revision 2 */
+	/* start by trying to read revision 3 */
+	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
+					 ACPI_WRDS_WIFI_DATA_SIZE_REV3,
+					 &tbl_rev);
+	if (!IS_ERR(wifi_pkg)) {
+		if (tbl_rev != 3) {
+			ret = -EINVAL;
+			goto out_free;
+		}
+
+		num_chains = ACPI_SAR_NUM_CHAINS_REV2;
+		num_sub_bands = ACPI_SAR_NUM_SUB_BANDS_REV3;
+
+		goto read_table;
+	}
+
+	/* then try revision 2 */
 	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
 					 ACPI_WRDS_WIFI_DATA_SIZE_REV2,
 					 &tbl_rev);
@@ -591,6 +608,13 @@ read_table:
 		goto out_free;
 	}
 
+	if (WARN_ON(num_chains * num_sub_bands >
+		    ARRAY_SIZE(fwrt->sar_profiles[0].chains) *
+		    ARRAY_SIZE(fwrt->sar_profiles[0].chains[0].subbands))) {
+		ret = -EINVAL;
+		goto out_free;
+	}
+
 	IWL_DEBUG_RADIO(fwrt, "Reading WRDS tbl_rev=%d\n", tbl_rev);
 
 	flags = wifi_pkg->package.elements[1].integer.value;
@@ -624,7 +648,22 @@ int iwl_acpi_get_ewrd_table(struct iwl_fw_runtime *fwrt)
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	/* start by trying to read revision 2 */
+	/* start by trying to read revision 3 */
+	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
+					 ACPI_EWRD_WIFI_DATA_SIZE_REV3,
+					 &tbl_rev);
+	if (!IS_ERR(wifi_pkg)) {
+		if (tbl_rev != 3) {
+			ret = -EINVAL;
+			goto out_free;
+		}
+
+		num_sub_bands = ACPI_SAR_NUM_SUB_BANDS_REV3;
+
+		goto read_table;
+	}
+
+	/* then try revision 2 */
 	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
 					 ACPI_EWRD_WIFI_DATA_SIZE_REV2,
 					 &tbl_rev);
@@ -679,6 +718,13 @@ read_table:
 		goto out_free;
 	}
 
+	if (WARN_ON(ACPI_SAR_NUM_CHAINS_REV0 * num_sub_bands >
+		    ARRAY_SIZE(fwrt->sar_profiles[0].chains) *
+		    ARRAY_SIZE(fwrt->sar_profiles[0].chains[0].subbands))) {
+		ret = -EINVAL;
+		goto out_free;
+	}
+
 	enabled = !!(wifi_pkg->package.elements[1].integer.value);
 	n_profiles = wifi_pkg->package.elements[2].integer.value;
 
@@ -721,6 +767,13 @@ read_table:
 	if (tbl_rev < 2)
 		goto set_enabled;
 
+	if (WARN_ON(ACPI_SAR_NUM_CHAINS_REV0 * 2 * num_sub_bands >
+		    ARRAY_SIZE(fwrt->sar_profiles[0].chains) *
+		    ARRAY_SIZE(fwrt->sar_profiles[0].chains[0].subbands))) {
+		ret = -EINVAL;
+		goto out_free;
+	}
+
 	/* parse cdb chains for all profiles */
 	for (i = 0; i < n_profiles; i++) {
 		struct iwl_sar_profile_chain *chains;
@@ -759,6 +812,12 @@ int iwl_acpi_get_wgds_table(struct iwl_fw_runtime *fwrt)
 		u8 profiles;
 		u8 min_profiles;
 	} rev_data[] = {
+		{
+			.revisions = BIT(4),
+			.bands = ACPI_GEO_NUM_BANDS_REV4,
+			.profiles = ACPI_NUM_GEO_PROFILES_REV3,
+			.min_profiles = BIOS_GEO_MIN_PROFILE_NUM,
+		},
 		{
 			.revisions = BIT(3),
 			.bands = ACPI_GEO_NUM_BANDS_REV2,
@@ -812,6 +871,18 @@ int iwl_acpi_get_wgds_table(struct iwl_fw_runtime *fwrt)
 			num_bands = rev_data[idx].bands;
 			num_profiles = rev_data[idx].profiles;
 
+			if (WARN_ON(num_profiles >
+				    ARRAY_SIZE(fwrt->geo_profiles))) {
+				ret = -EINVAL;
+				goto out_free;
+			}
+
+			if (WARN_ON(num_bands >
+				    ARRAY_SIZE(fwrt->geo_profiles[0].bands))) {
+				ret = -EINVAL;
+				goto out_free;
+			}
+
 			if (rev_data[idx].min_profiles) {
 				/* read header that says # of profiles */
 				union acpi_object *entry;
@@ -851,18 +922,20 @@ int iwl_acpi_get_wgds_table(struct iwl_fw_runtime *fwrt)
 
 read_table:
 	fwrt->geo_rev = tbl_rev;
+
 	for (i = 0; i < num_profiles; i++) {
-		for (j = 0; j < BIOS_GEO_MAX_NUM_BANDS; j++) {
+		struct iwl_geo_profile *prof = &fwrt->geo_profiles[i];
+
+		for (j = 0; j < ARRAY_SIZE(prof->bands); j++) {
 			union acpi_object *entry;
 
 			/*
-			 * num_bands is either 2 or 3, if it's only 2 then
-			 * fill the third band (6 GHz) with the values from
-			 * 5 GHz (second band)
+			 * num_bands is either 2 or 3 or 4, if it's lower
+			 * than 4, fill the third band (6 GHz) with the values
+			 * from 5 GHz (second band)
 			 */
 			if (j >= num_bands) {
-				fwrt->geo_profiles[i].bands[j].max =
-					fwrt->geo_profiles[i].bands[1].max;
+				prof->bands[j].max = prof->bands[1].max;
 			} else {
 				entry = &wifi_pkg->package.elements[entry_idx];
 				entry_idx++;
@@ -872,15 +945,17 @@ read_table:
 					goto out_free;
 				}
 
-				fwrt->geo_profiles[i].bands[j].max =
+				prof->bands[j].max =
 					entry->integer.value;
 			}
 
-			for (k = 0; k < BIOS_GEO_NUM_CHAINS; k++) {
+			for (k = 0;
+			     k < ARRAY_SIZE(prof->bands[0].chains);
+			     k++) {
 				/* same here as above */
 				if (j >= num_bands) {
-					fwrt->geo_profiles[i].bands[j].chains[k] =
-						fwrt->geo_profiles[i].bands[1].chains[k];
+					prof->bands[j].chains[k] =
+						prof->bands[1].chains[k];
 				} else {
 					entry = &wifi_pkg->package.elements[entry_idx];
 					entry_idx++;
@@ -890,7 +965,7 @@ read_table:
 						goto out_free;
 					}
 
-					fwrt->geo_profiles[i].bands[j].chains[k] =
+					prof->bands[j].chains[k] =
 						entry->integer.value;
 				}
 			}
@@ -898,6 +973,7 @@ read_table:
 	}
 
 	fwrt->geo_num_profiles = num_profiles;
+	fwrt->geo_bios_source = BIOS_SOURCE_ACPI;
 	fwrt->geo_enabled = true;
 	ret = 0;
 out_free:
@@ -914,6 +990,22 @@ int iwl_acpi_get_ppag_table(struct iwl_fw_runtime *fwrt)
 	data = iwl_acpi_get_object(fwrt->dev, ACPI_PPAG_METHOD);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
+
+	/* try to read ppag table rev 5 */
+	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
+					 ACPI_PPAG_WIFI_DATA_SIZE_V3, &tbl_rev);
+	if (!IS_ERR(wifi_pkg)) {
+		if (tbl_rev == 5) {
+			num_sub_bands = IWL_NUM_SUB_BANDS_V3;
+			IWL_DEBUG_RADIO(fwrt,
+					"Reading PPAG table (tbl_rev=%d)\n",
+					tbl_rev);
+			goto read_table;
+		} else {
+			ret = -EINVAL;
+			goto out_free;
+		}
+	}
 
 	/* try to read ppag table rev 1 to 4 (all have the same data size) */
 	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
@@ -950,6 +1042,15 @@ int iwl_acpi_get_ppag_table(struct iwl_fw_runtime *fwrt)
 	goto out_free;
 
 read_table:
+	if (WARN_ON_ONCE(num_sub_bands >
+			 ARRAY_SIZE(fwrt->ppag_chains[0].subbands))) {
+		ret = -EINVAL;
+		goto out_free;
+	}
+
+	BUILD_BUG_ON(ACPI_PPAG_NUM_CHAINS >
+		     ARRAY_SIZE(fwrt->ppag_chains));
+
 	fwrt->ppag_bios_rev = tbl_rev;
 	flags = &wifi_pkg->package.elements[1];
 
@@ -966,7 +1067,7 @@ read_table:
 	 * first sub-band (j=0) corresponds to Low-Band (2.4GHz), and the
 	 * following sub-bands to High-Band (5GHz).
 	 */
-	for (i = 0; i < IWL_NUM_CHAIN_LIMITS; i++) {
+	for (i = 0; i < ACPI_PPAG_NUM_CHAINS; i++) {
 		for (j = 0; j < num_sub_bands; j++) {
 			union acpi_object *ent;
 
@@ -980,6 +1081,7 @@ read_table:
 		}
 	}
 
+	iwl_bios_print_ppag(fwrt, num_sub_bands);
 	fwrt->ppag_bios_source = BIOS_SOURCE_ACPI;
 	ret = 0;
 

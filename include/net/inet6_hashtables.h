@@ -24,6 +24,8 @@
 
 struct inet_hashinfo;
 
+void inet6_init_ehash_secret(void);
+
 static inline unsigned int __inet6_ehashfn(const u32 lhash,
 				    const u16 lport,
 				    const u32 fhash,

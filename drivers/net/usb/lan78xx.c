@@ -4536,7 +4536,6 @@ static void intr_complete(struct urb *urb)
 static void lan78xx_disconnect(struct usb_interface *intf)
 {
 	struct lan78xx_net *dev;
-	struct usb_device *udev;
 	struct net_device *net;
 
 	dev = usb_get_intfdata(intf);
@@ -4544,7 +4543,6 @@ static void lan78xx_disconnect(struct usb_interface *intf)
 	if (!dev)
 		return;
 
-	udev = interface_to_usbdev(intf);
 	net = dev->net;
 
 	rtnl_lock();
@@ -4571,7 +4569,6 @@ static void lan78xx_disconnect(struct usb_interface *intf)
 	usb_free_urb(dev->urb_intr);
 
 	free_netdev(net);
-	usb_put_dev(udev);
 }
 
 static void lan78xx_tx_timeout(struct net_device *net, unsigned int txqueue)
@@ -4633,13 +4630,11 @@ static int lan78xx_probe(struct usb_interface *intf,
 	u8 *buf = NULL;
 
 	udev = interface_to_usbdev(intf);
-	udev = usb_get_dev(udev);
 
 	netdev = alloc_etherdev(sizeof(struct lan78xx_net));
 	if (!netdev) {
 		dev_err(&intf->dev, "Error: OOM\n");
-		ret = -ENOMEM;
-		goto out1;
+		return -ENOMEM;
 	}
 
 	SET_NETDEV_DEV(netdev, &intf->dev);
@@ -4788,8 +4783,6 @@ out3:
 	lan78xx_free_tx_resources(dev);
 out2:
 	free_netdev(netdev);
-out1:
-	usb_put_dev(udev);
 
 	return ret;
 }

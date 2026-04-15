@@ -6229,9 +6229,10 @@ void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 		ret = wait_event_timeout(mvm->rx_sync_waitq,
 					 READ_ONCE(mvm->queue_sync_state) == 0,
 					 SYNC_RX_QUEUE_TIMEOUT);
-		WARN_ONCE(!ret, "queue sync: failed to sync, state is 0x%lx, cookie %d\n",
-			  mvm->queue_sync_state,
-			  mvm->queue_sync_cookie);
+		IWL_FW_CHECK(mvm, !ret,
+			     "queue sync: failed to sync, state is 0x%lx, cookie %d\n",
+			     mvm->queue_sync_state,
+			     mvm->queue_sync_cookie);
 	}
 
 out:

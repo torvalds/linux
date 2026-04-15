@@ -16,6 +16,9 @@
 #include "struct.h"
 #include "../mbox.h"
 
+int npc_cn20k_debugfs_init(struct rvu *rvu);
+void npc_cn20k_debugfs_deinit(struct rvu *rvu);
+
 void print_nix_cn20k_sq_ctx(struct seq_file *m,
 			    struct nix_cn20k_sq_ctx_s *sq_ctx);
 void print_nix_cn20k_cq_ctx(struct seq_file *m,

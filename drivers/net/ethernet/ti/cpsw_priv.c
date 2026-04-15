@@ -32,6 +32,7 @@
 #define CPTS_N_ETX_TS 4
 
 int (*cpsw_slave_index)(struct cpsw_common *cpsw, struct cpsw_priv *priv);
+EXPORT_SYMBOL_GPL(cpsw_slave_index);
 
 void cpsw_intr_enable(struct cpsw_common *cpsw)
 {
@@ -40,6 +41,7 @@ void cpsw_intr_enable(struct cpsw_common *cpsw)
 
 	cpdma_ctlr_int_ctrl(cpsw->dma, true);
 }
+EXPORT_SYMBOL_GPL(cpsw_intr_enable);
 
 void cpsw_intr_disable(struct cpsw_common *cpsw)
 {
@@ -48,6 +50,7 @@ void cpsw_intr_disable(struct cpsw_common *cpsw)
 
 	cpdma_ctlr_int_ctrl(cpsw->dma, false);
 }
+EXPORT_SYMBOL_GPL(cpsw_intr_disable);
 
 void cpsw_tx_handler(void *token, int len, int status)
 {
@@ -82,6 +85,7 @@ void cpsw_tx_handler(void *token, int len, int status)
 	ndev->stats.tx_packets++;
 	ndev->stats.tx_bytes += len;
 }
+EXPORT_SYMBOL_GPL(cpsw_tx_handler);
 
 irqreturn_t cpsw_tx_interrupt(int irq, void *dev_id)
 {
@@ -98,6 +102,7 @@ irqreturn_t cpsw_tx_interrupt(int irq, void *dev_id)
 	napi_schedule(&cpsw->napi_tx);
 	return IRQ_HANDLED;
 }
+EXPORT_SYMBOL_GPL(cpsw_tx_interrupt);
 
 irqreturn_t cpsw_rx_interrupt(int irq, void *dev_id)
 {
@@ -114,6 +119,7 @@ irqreturn_t cpsw_rx_interrupt(int irq, void *dev_id)
 	napi_schedule(&cpsw->napi_rx);
 	return IRQ_HANDLED;
 }
+EXPORT_SYMBOL_GPL(cpsw_rx_interrupt);
 
 irqreturn_t cpsw_misc_interrupt(int irq, void *dev_id)
 {
@@ -126,6 +132,7 @@ irqreturn_t cpsw_misc_interrupt(int irq, void *dev_id)
 
 	return IRQ_HANDLED;
 }
+EXPORT_SYMBOL_GPL(cpsw_misc_interrupt);
 
 int cpsw_tx_mq_poll(struct napi_struct *napi_tx, int budget)
 {
@@ -158,6 +165,7 @@ int cpsw_tx_mq_poll(struct napi_struct *napi_tx, int budget)
 
 	return num_tx;
 }
+EXPORT_SYMBOL_GPL(cpsw_tx_mq_poll);
 
 int cpsw_tx_poll(struct napi_struct *napi_tx, int budget)
 {
@@ -176,6 +184,7 @@ int cpsw_tx_poll(struct napi_struct *napi_tx, int budget)
 
 	return num_tx;
 }
+EXPORT_SYMBOL_GPL(cpsw_tx_poll);
 
 int cpsw_rx_mq_poll(struct napi_struct *napi_rx, int budget)
 {
@@ -208,6 +217,7 @@ int cpsw_rx_mq_poll(struct napi_struct *napi_rx, int budget)
 
 	return num_rx;
 }
+EXPORT_SYMBOL_GPL(cpsw_rx_mq_poll);
 
 int cpsw_rx_poll(struct napi_struct *napi_rx, int budget)
 {
@@ -226,6 +236,7 @@ int cpsw_rx_poll(struct napi_struct *napi_rx, int budget)
 
 	return num_rx;
 }
+EXPORT_SYMBOL_GPL(cpsw_rx_poll);
 
 void cpsw_rx_vlan_encap(struct sk_buff *skb)
 {
@@ -268,14 +279,16 @@ void cpsw_rx_vlan_encap(struct sk_buff *skb)
 		skb_pull(skb, VLAN_HLEN);
 	}
 }
+EXPORT_SYMBOL_GPL(cpsw_rx_vlan_encap);
 
 void cpsw_set_slave_mac(struct cpsw_slave *slave, struct cpsw_priv *priv)
 {
 	slave_write(slave, mac_hi(priv->mac_addr), SA_HI);
 	slave_write(slave, mac_lo(priv->mac_addr), SA_LO);
 }
+EXPORT_SYMBOL_GPL(cpsw_set_slave_mac);
 
-void soft_reset(const char *module, void __iomem *reg)
+void cpsw_soft_reset(const char *module, void __iomem *reg)
 {
 	unsigned long timeout = jiffies + HZ;
 
@@ -286,6 +299,7 @@ void soft_reset(const char *module, void __iomem *reg)
 
 	WARN(readl_relaxed(reg) & 1, "failed to soft-reset %s\n", module);
 }
+EXPORT_SYMBOL_GPL(cpsw_soft_reset);
 
 void cpsw_ndo_tx_timeout(struct net_device *ndev, unsigned int txqueue)
 {
@@ -305,6 +319,7 @@ void cpsw_ndo_tx_timeout(struct net_device *ndev, unsigned int txqueue)
 	netif_trans_update(ndev);
 	netif_tx_wake_all_queues(ndev);
 }
+EXPORT_SYMBOL_GPL(cpsw_ndo_tx_timeout);
 
 static int cpsw_get_common_speed(struct cpsw_common *cpsw)
 {
@@ -343,6 +358,7 @@ int cpsw_need_resplit(struct cpsw_common *cpsw)
 
 	return 1;
 }
+EXPORT_SYMBOL_GPL(cpsw_need_resplit);
 
 void cpsw_split_res(struct cpsw_common *cpsw)
 {
@@ -428,6 +444,7 @@ void cpsw_split_res(struct cpsw_common *cpsw)
 	if (budget)
 		cpsw->rxv[0].budget += budget;
 }
+EXPORT_SYMBOL_GPL(cpsw_split_res);
 
 int cpsw_init_common(struct cpsw_common *cpsw, void __iomem *ss_regs,
 		     int ale_ageout, phys_addr_t desc_mem_phys,
@@ -548,6 +565,7 @@ int cpsw_init_common(struct cpsw_common *cpsw, void __iomem *ss_regs,
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(cpsw_init_common);
 
 #if IS_ENABLED(CONFIG_TI_CPTS)
 
@@ -678,6 +696,7 @@ int cpsw_hwtstamp_set(struct net_device *dev,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cpsw_hwtstamp_set);
 
 int cpsw_hwtstamp_get(struct net_device *dev,
 		      struct kernel_hwtstamp_config *cfg)
@@ -695,12 +714,14 @@ int cpsw_hwtstamp_get(struct net_device *dev,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cpsw_hwtstamp_get);
 #else
 int cpsw_hwtstamp_get(struct net_device *dev,
 		      struct kernel_hwtstamp_config *cfg)
 {
 	return -EOPNOTSUPP;
 }
+EXPORT_SYMBOL_GPL(cpsw_hwtstamp_set);
 
 int cpsw_hwtstamp_set(struct net_device *dev,
 		      struct kernel_hwtstamp_config *cfg,
@@ -708,6 +729,7 @@ int cpsw_hwtstamp_set(struct net_device *dev,
 {
 	return -EOPNOTSUPP;
 }
+EXPORT_SYMBOL_GPL(cpsw_hwtstamp_get);
 #endif /*CONFIG_TI_CPTS*/
 
 int cpsw_ndo_set_tx_maxrate(struct net_device *ndev, int queue, u32 rate)
@@ -758,6 +780,7 @@ int cpsw_ndo_set_tx_maxrate(struct net_device *ndev, int queue, u32 rate)
 	cpsw_split_res(cpsw);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(cpsw_ndo_set_tx_maxrate);
 
 static int cpsw_tc_to_fifo(int tc, int num_tc)
 {
@@ -782,6 +805,7 @@ bool cpsw_shp_is_off(struct cpsw_priv *priv)
 
 	return !val;
 }
+EXPORT_SYMBOL_GPL(cpsw_shp_is_off);
 
 static void cpsw_fifo_shp_on(struct cpsw_priv *priv, int fifo, int on)
 {
@@ -1043,6 +1067,7 @@ int cpsw_ndo_setup_tc(struct net_device *ndev, enum tc_setup_type type,
 		return -EOPNOTSUPP;
 	}
 }
+EXPORT_SYMBOL_GPL(cpsw_ndo_setup_tc);
 
 void cpsw_cbs_resume(struct cpsw_slave *slave, struct cpsw_priv *priv)
 {
@@ -1056,6 +1081,7 @@ void cpsw_cbs_resume(struct cpsw_slave *slave, struct cpsw_priv *priv)
 		cpsw_set_fifo_rlimit(priv, fifo, bw);
 	}
 }
+EXPORT_SYMBOL_GPL(cpsw_cbs_resume);
 
 void cpsw_mqprio_resume(struct cpsw_slave *slave, struct cpsw_priv *priv)
 {
@@ -1078,6 +1104,7 @@ void cpsw_mqprio_resume(struct cpsw_slave *slave, struct cpsw_priv *priv)
 
 	slave_write(slave, tx_prio_map, tx_prio_rg);
 }
+EXPORT_SYMBOL_GPL(cpsw_mqprio_resume);
 
 int cpsw_fill_rx_channels(struct cpsw_priv *priv)
 {
@@ -1123,6 +1150,7 @@ int cpsw_fill_rx_channels(struct cpsw_priv *priv)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cpsw_fill_rx_channels);
 
 static struct page_pool *cpsw_create_page_pool(struct cpsw_common *cpsw,
 					       int size)
@@ -1208,6 +1236,7 @@ void cpsw_destroy_xdp_rxqs(struct cpsw_common *cpsw)
 		cpsw->page_pool[ch] = NULL;
 	}
 }
+EXPORT_SYMBOL_GPL(cpsw_destroy_xdp_rxqs);
 
 int cpsw_create_xdp_rxqs(struct cpsw_common *cpsw)
 {
@@ -1240,6 +1269,7 @@ err_cleanup:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(cpsw_create_xdp_rxqs);
 
 static int cpsw_xdp_prog_setup(struct cpsw_priv *priv, struct netdev_bpf *bpf)
 {
@@ -1267,6 +1297,7 @@ int cpsw_ndo_bpf(struct net_device *ndev, struct netdev_bpf *bpf)
 		return -EINVAL;
 	}
 }
+EXPORT_SYMBOL_GPL(cpsw_ndo_bpf);
 
 int cpsw_xdp_tx_frame(struct cpsw_priv *priv, struct xdp_frame *xdpf,
 		      struct page *page, int port)
@@ -1300,6 +1331,7 @@ int cpsw_xdp_tx_frame(struct cpsw_priv *priv, struct xdp_frame *xdpf,
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(cpsw_xdp_tx_frame);
 
 int cpsw_run_xdp(struct cpsw_priv *priv, int ch, struct xdp_buff *xdp,
 		 struct page *page, int port, int *len)
@@ -1362,6 +1394,7 @@ drop:
 	page_pool_recycle_direct(cpsw->page_pool[ch], page);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(cpsw_run_xdp);
 
 static int cpsw_qos_clsflower_add_policer(struct cpsw_priv *priv,
 					  struct netlink_ext_ack *extack,
@@ -1564,3 +1597,7 @@ void cpsw_qos_clsflower_resume(struct cpsw_priv *priv)
 		cpsw_ale_rx_ratelimit_mc(priv->cpsw->ale, port_id,
 					 priv->ale_mc_ratelimit.rate_packet_ps);
 }
+EXPORT_SYMBOL_GPL(cpsw_qos_clsflower_resume);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("TI CPSW Ethernet Switch Driver");

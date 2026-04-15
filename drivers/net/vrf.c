@@ -112,8 +112,8 @@ struct netns_vrf {
 };
 
 struct net_vrf {
-	struct rtable __rcu	*rth;
-	struct rt6_info	__rcu	*rt6;
+	struct rtable		*rth;
+	struct rt6_info		*rt6;
 #if IS_ENABLED(CONFIG_IPV6)
 	struct fib6_table	*fib6_table;
 #endif
@@ -648,26 +648,13 @@ static struct sk_buff *vrf_ip6_out_redirect(struct net_device *vrf_dev,
 					    struct sk_buff *skb)
 {
 	struct net_vrf *vrf = netdev_priv(vrf_dev);
-	struct dst_entry *dst = NULL;
 	struct rt6_info *rt6;
 
-	rcu_read_lock();
-
-	rt6 = rcu_dereference(vrf->rt6);
-	if (likely(rt6)) {
-		dst = &rt6->dst;
-		dst_hold(dst);
-	}
-
-	rcu_read_unlock();
-
-	if (unlikely(!dst)) {
-		vrf_tx_error(vrf_dev, skb);
-		return NULL;
-	}
+	rt6 = vrf->rt6;
+	dst_hold(&rt6->dst);
 
 	skb_dst_drop(skb);
-	skb_dst_set(skb, dst);
+	skb_dst_set(skb, &rt6->dst);
 
 	return skb;
 }
@@ -750,22 +737,11 @@ static struct sk_buff *vrf_ip6_out(struct net_device *vrf_dev,
 /* holding rtnl */
 static void vrf_rt6_release(struct net_device *dev, struct net_vrf *vrf)
 {
-	struct rt6_info *rt6 = rtnl_dereference(vrf->rt6);
-	struct net *net = dev_net(dev);
-	struct dst_entry *dst;
+	struct rt6_info *rt6 = vrf->rt6;
 
-	RCU_INIT_POINTER(vrf->rt6, NULL);
-	synchronize_rcu();
-
-	/* move dev in dst's to loopback so this VRF device can be deleted
-	 * - based on dst_ifdown
-	 */
 	if (rt6) {
-		dst = &rt6->dst;
-		netdev_ref_replace(dst->dev, net->loopback_dev,
-				   &dst->dev_tracker, GFP_KERNEL);
-		dst->dev = net->loopback_dev;
-		dst_release(dst);
+		dst_dev_put(&rt6->dst);
+		dst_release(&rt6->dst);
 	}
 }
 
@@ -792,7 +768,7 @@ static int vrf_rt6_create(struct net_device *dev)
 
 	rt6->dst.output	= vrf_output6;
 
-	rcu_assign_pointer(vrf->rt6, rt6);
+	vrf->rt6 = rt6;
 
 	rc = 0;
 out:
@@ -878,26 +854,13 @@ static struct sk_buff *vrf_ip_out_redirect(struct net_device *vrf_dev,
 					   struct sk_buff *skb)
 {
 	struct net_vrf *vrf = netdev_priv(vrf_dev);
-	struct dst_entry *dst = NULL;
 	struct rtable *rth;
 
-	rcu_read_lock();
-
-	rth = rcu_dereference(vrf->rth);
-	if (likely(rth)) {
-		dst = &rth->dst;
-		dst_hold(dst);
-	}
-
-	rcu_read_unlock();
-
-	if (unlikely(!dst)) {
-		vrf_tx_error(vrf_dev, skb);
-		return NULL;
-	}
+	rth = vrf->rth;
+	dst_hold(&rth->dst);
 
 	skb_dst_drop(skb);
-	skb_dst_set(skb, dst);
+	skb_dst_set(skb, &rth->dst);
 
 	return skb;
 }
@@ -997,23 +960,10 @@ static struct sk_buff *vrf_l3_out(struct net_device *vrf_dev,
 /* holding rtnl */
 static void vrf_rtable_release(struct net_device *dev, struct net_vrf *vrf)
 {
-	struct rtable *rth = rtnl_dereference(vrf->rth);
-	struct net *net = dev_net(dev);
-	struct dst_entry *dst;
+	struct rtable *rth = vrf->rth;
 
-	RCU_INIT_POINTER(vrf->rth, NULL);
-	synchronize_rcu();
-
-	/* move dev in dst's to loopback so this VRF device can be deleted
-	 * - based on dst_ifdown
-	 */
-	if (rth) {
-		dst = &rth->dst;
-		netdev_ref_replace(dst->dev, net->loopback_dev,
-				   &dst->dev_tracker, GFP_KERNEL);
-		dst->dev = net->loopback_dev;
-		dst_release(dst);
-	}
+	dst_dev_put(&rth->dst);
+	dst_release(&rth->dst);
 }
 
 static int vrf_rtable_create(struct net_device *dev)
@@ -1031,7 +981,7 @@ static int vrf_rtable_create(struct net_device *dev)
 
 	rth->dst.output	= vrf_output;
 
-	rcu_assign_pointer(vrf->rth, rth);
+	vrf->rth = rth;
 
 	return 0;
 }

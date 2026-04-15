@@ -343,7 +343,6 @@ out_unlock:
 
 	return segs;
 }
-EXPORT_SYMBOL(skb_udp_tunnel_segment);
 
 static void __udpv4_gso_segment_csum(struct sk_buff *seg,
 				     __be32 *oldip, __be32 *newip,
@@ -635,7 +634,6 @@ struct sk_buff *__udp_gso_segment(struct sk_buff *gso_skb,
 	}
 	return segs;
 }
-EXPORT_SYMBOL_GPL(__udp_gso_segment);
 
 static struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
 					 netdev_features_t features)
@@ -852,7 +850,6 @@ out:
 	skb_gro_flush_final(skb, pp, flush);
 	return pp;
 }
-EXPORT_SYMBOL(udp_gro_receive);
 
 static struct sock *udp4_gro_lookup_skb(struct sk_buff *skb, __be16 sport,
 					__be16 dport)
@@ -869,8 +866,7 @@ static struct sock *udp4_gro_lookup_skb(struct sk_buff *skb, __be16 sport,
 	inet_get_iif_sdif(skb, &iif, &sdif);
 
 	return __udp4_lib_lookup(net, iph->saddr, sport,
-				 iph->daddr, dport, iif,
-				 sdif, net->ipv4.udp_table, NULL);
+				 iph->daddr, dport, iif, sdif, NULL);
 }
 
 INDIRECT_CALLABLE_SCOPE
@@ -958,7 +954,6 @@ int udp_gro_complete(struct sk_buff *skb, int nhoff,
 
 	return err;
 }
-EXPORT_SYMBOL(udp_gro_complete);
 
 INDIRECT_CALLABLE_SCOPE int udp4_gro_complete(struct sk_buff *skb, int nhoff)
 {

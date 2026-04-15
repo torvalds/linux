@@ -551,10 +551,286 @@ int fbnic_tlv_parser_error(void *opaque, struct fbnic_tlv_msg **results)
 	return -EBADMSG;
 }
 
+#define FBNIC_TLV_TEST_STRING_LEN	32
+
+struct fbnic_tlv_test {
+	u64	test_u64;
+	s64	test_s64;
+	u32	test_u32;
+	s32	test_s32;
+	u16	test_u16;
+	s16	test_s16;
+	u8	test_mac[ETH_ALEN];
+	u8	test_mac_array[4][ETH_ALEN];
+	u8	test_true;
+	u8	test_false;
+	char	test_string[FBNIC_TLV_TEST_STRING_LEN];
+};
+
+static struct fbnic_tlv_test test_struct;
+
+const struct fbnic_tlv_index fbnic_tlv_test_index[] = {
+	FBNIC_TLV_ATTR_U64(FBNIC_TLV_TEST_MSG_U64),
+	FBNIC_TLV_ATTR_S64(FBNIC_TLV_TEST_MSG_S64),
+	FBNIC_TLV_ATTR_U32(FBNIC_TLV_TEST_MSG_U32),
+	FBNIC_TLV_ATTR_S32(FBNIC_TLV_TEST_MSG_S32),
+	FBNIC_TLV_ATTR_U32(FBNIC_TLV_TEST_MSG_U16),
+	FBNIC_TLV_ATTR_S32(FBNIC_TLV_TEST_MSG_S16),
+	FBNIC_TLV_ATTR_MAC_ADDR(FBNIC_TLV_TEST_MSG_MAC_ADDR),
+	FBNIC_TLV_ATTR_FLAG(FBNIC_TLV_TEST_MSG_FLAG_TRUE),
+	FBNIC_TLV_ATTR_FLAG(FBNIC_TLV_TEST_MSG_FLAG_FALSE),
+	FBNIC_TLV_ATTR_STRING(FBNIC_TLV_TEST_MSG_STRING,
+			      FBNIC_TLV_TEST_STRING_LEN),
+	FBNIC_TLV_ATTR_ARRAY(FBNIC_TLV_TEST_MSG_ARRAY),
+	FBNIC_TLV_ATTR_NESTED(FBNIC_TLV_TEST_MSG_NESTED),
+	FBNIC_TLV_ATTR_LAST
+};
+
+static void fbnic_tlv_test_struct_init(void)
+{
+	int i = FBNIC_TLV_TEST_STRING_LEN - 1;
+
+	/* Populate the struct with random data */
+	get_random_once(&test_struct,
+			offsetof(struct fbnic_tlv_test, test_string) + i);
+
+	/* Force true/false to their expected values */
+	test_struct.test_false = false;
+	test_struct.test_true = true;
+
+	/* Convert test_string to a true ASCII string */
+	test_struct.test_string[i] = '\0';
+	while (i--) {
+		/* Force characters into displayable range */
+		if (test_struct.test_string[i] < 64 ||
+		    test_struct.test_string[i] >= 96) {
+			test_struct.test_string[i] %= 32;
+			test_struct.test_string[i] += 64;
+		}
+	}
+}
+
+static int fbnic_tlv_test_attr_data(struct fbnic_tlv_msg *msg)
+{
+	struct fbnic_tlv_msg *array;
+	int err, i;
+
+	err = fbnic_tlv_attr_put_int(msg, FBNIC_TLV_TEST_MSG_U64,
+				     test_struct.test_u64);
+	if (err)
+		return err;
+
+	err = fbnic_tlv_attr_put_int(msg, FBNIC_TLV_TEST_MSG_S64,
+				     test_struct.test_s64);
+	if (err)
+		return err;
+
+	err = fbnic_tlv_attr_put_int(msg, FBNIC_TLV_TEST_MSG_U32,
+				     test_struct.test_u32);
+	if (err)
+		return err;
+
+	err = fbnic_tlv_attr_put_int(msg, FBNIC_TLV_TEST_MSG_S32,
+				     test_struct.test_s32);
+	if (err)
+		return err;
+
+	err = fbnic_tlv_attr_put_int(msg, FBNIC_TLV_TEST_MSG_U16,
+				     test_struct.test_u16);
+	if (err)
+		return err;
+
+	err = fbnic_tlv_attr_put_int(msg, FBNIC_TLV_TEST_MSG_S16,
+				     test_struct.test_s16);
+	if (err)
+		return err;
+
+	err = fbnic_tlv_attr_put_value(msg, FBNIC_TLV_TEST_MSG_MAC_ADDR,
+				       test_struct.test_mac, ETH_ALEN);
+	if (err)
+		return err;
+
+	/* Start MAC address array */
+	array = fbnic_tlv_attr_nest_start(msg, FBNIC_TLV_TEST_MSG_ARRAY);
+	if (!array)
+		return -ENOSPC;
+
+	for (i = 0; i < 4; i++) {
+		err = fbnic_tlv_attr_put_value(array,
+					       FBNIC_TLV_TEST_MSG_MAC_ADDR,
+					       test_struct.test_mac_array[i],
+					       ETH_ALEN);
+		if (err)
+			return err;
+	}
+
+	/* Close array */
+	fbnic_tlv_attr_nest_stop(msg);
+
+	err = fbnic_tlv_attr_put_flag(msg, FBNIC_TLV_TEST_MSG_FLAG_TRUE);
+	if (err)
+		return err;
+
+	return fbnic_tlv_attr_put_string(msg, FBNIC_TLV_TEST_MSG_STRING,
+					 test_struct.test_string);
+}
+
+/**
+ * fbnic_tlv_test_create - Allocate a test message and fill it w/ data
+ * @fbd: FBNIC device structure
+ *
+ * Return: NULL on failure to allocate or pointer to new TLV test message.
+ **/
+struct fbnic_tlv_msg *fbnic_tlv_test_create(struct fbnic_dev *fbd)
+{
+	struct fbnic_tlv_msg *msg, *nest;
+	int err;
+
+	msg = fbnic_tlv_msg_alloc(FBNIC_TLV_MSG_ID_TEST);
+	if (!msg)
+		return NULL;
+
+	/* Randomize struct data */
+	fbnic_tlv_test_struct_init();
+
+	/* Add first level of data to message */
+	err = fbnic_tlv_test_attr_data(msg);
+	if (err)
+		goto free_message;
+
+	/* Start second level nested */
+	nest = fbnic_tlv_attr_nest_start(msg, FBNIC_TLV_TEST_MSG_NESTED);
+	if (!nest)
+		goto free_message;
+
+	/* Add nested data */
+	err = fbnic_tlv_test_attr_data(nest);
+	if (err)
+		goto free_message;
+
+	/* Close nest and report full message */
+	fbnic_tlv_attr_nest_stop(msg);
+
+	return msg;
+free_message:
+	free_page((unsigned long)msg);
+	return NULL;
+}
+
 void fbnic_tlv_attr_addr_copy(u8 *dest, struct fbnic_tlv_msg *src)
 {
 	u8 *mac_addr;
 
 	mac_addr = fbnic_tlv_attr_get_value_ptr(src);
 	memcpy(dest, mac_addr, ETH_ALEN);
+}
+
+/**
+ * fbnic_tlv_parser_test_attr - Function loading test attributes into structure
+ * @str: Test structure to load
+ * @results: Pointer to results array
+ *
+ * Copies attributes into structure. Any attribute that doesn't exist in the
+ * results array is not populated.
+ **/
+static void fbnic_tlv_parser_test_attr(struct fbnic_tlv_test *str,
+				       struct fbnic_tlv_msg **results)
+{
+	struct fbnic_tlv_msg *array_results[4];
+	struct fbnic_tlv_msg *attr;
+	char *string = NULL;
+	int i, err;
+
+	str->test_u64 = fta_get_uint(results, FBNIC_TLV_TEST_MSG_U64);
+	str->test_u32 = fta_get_uint(results, FBNIC_TLV_TEST_MSG_U32);
+	str->test_u16 = fta_get_uint(results, FBNIC_TLV_TEST_MSG_U16);
+
+	str->test_s64 = fta_get_sint(results, FBNIC_TLV_TEST_MSG_S64);
+	str->test_s32 = fta_get_sint(results, FBNIC_TLV_TEST_MSG_S32);
+	str->test_s16 = fta_get_sint(results, FBNIC_TLV_TEST_MSG_S16);
+
+	attr = results[FBNIC_TLV_TEST_MSG_MAC_ADDR];
+	if (attr)
+		fbnic_tlv_attr_addr_copy(str->test_mac, attr);
+
+	attr = results[FBNIC_TLV_TEST_MSG_ARRAY];
+	if (attr) {
+		int len = le16_to_cpu(attr->hdr.len) / sizeof(u32) - 1;
+
+		err = fbnic_tlv_attr_parse_array(&attr[1], len,
+						 array_results,
+						 fbnic_tlv_test_index,
+						 FBNIC_TLV_TEST_MSG_MAC_ADDR,
+						 4);
+		if (!err) {
+			for (i = 0; i < 4 && array_results[i]; i++)
+				fbnic_tlv_attr_addr_copy(str->test_mac_array[i],
+							 array_results[i]);
+		}
+	}
+
+	str->test_true = !!results[FBNIC_TLV_TEST_MSG_FLAG_TRUE];
+	str->test_false = !!results[FBNIC_TLV_TEST_MSG_FLAG_FALSE];
+
+	attr = results[FBNIC_TLV_TEST_MSG_STRING];
+	if (attr) {
+		string = fbnic_tlv_attr_get_value_ptr(attr);
+		strscpy(str->test_string, string, FBNIC_TLV_TEST_STRING_LEN);
+	}
+}
+
+static void fbnic_tlv_test_dump(struct fbnic_tlv_test *value, char *prefix)
+{
+	print_hex_dump(KERN_INFO, prefix, DUMP_PREFIX_OFFSET, 16, 1,
+		       value, sizeof(*value), true);
+}
+
+/**
+ * fbnic_tlv_parser_test - Function for parsing and testing test message
+ * @opaque: Unused value
+ * @results: Results of parser output
+ *
+ * Return: negative value on error, or 0 on success.
+ *
+ * Parses attributes to structures and compares the structure to the
+ * expected test value that should have been used to populate the message.
+ *
+ * Used to verify message generation and parser are working correctly.
+ **/
+int fbnic_tlv_parser_test(void *opaque, struct fbnic_tlv_msg **results)
+{
+	struct fbnic_tlv_msg *nest_results[FBNIC_TLV_RESULTS_MAX] = { 0 };
+	struct fbnic_tlv_test result_struct;
+	struct fbnic_tlv_msg *attr;
+	int err;
+
+	memset(&result_struct, 0, sizeof(result_struct));
+	fbnic_tlv_parser_test_attr(&result_struct, results);
+
+	if (memcmp(&test_struct, &result_struct, sizeof(test_struct))) {
+		fbnic_tlv_test_dump(&result_struct, "fbnic: found - ");
+		fbnic_tlv_test_dump(&test_struct, "fbnic: expected - ");
+		return -EINVAL;
+	}
+
+	attr = results[FBNIC_TLV_TEST_MSG_NESTED];
+	if (!attr)
+		return -EINVAL;
+
+	err = fbnic_tlv_attr_parse(&attr[1],
+				   le16_to_cpu(attr->hdr.len) / sizeof(u32) - 1,
+				   nest_results, fbnic_tlv_test_index);
+	if (err)
+		return err;
+
+	memset(&result_struct, 0, sizeof(result_struct));
+	fbnic_tlv_parser_test_attr(&result_struct, nest_results);
+
+	if (memcmp(&test_struct, &result_struct, sizeof(test_struct))) {
+		fbnic_tlv_test_dump(&result_struct, "fbnic: found - ");
+		fbnic_tlv_test_dump(&test_struct, "fbnic: expected - ");
+		return -EINVAL;
+	}
+
+	return 0;
 }

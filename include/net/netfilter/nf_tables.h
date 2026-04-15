@@ -31,7 +31,9 @@ struct nft_pktinfo {
 	const struct nf_hook_state	*state;
 	u8				flags;
 	u8				tprot;
+	__be16				ethertype;
 	u16				fragoff;
+	u16				nhoff;
 	u16				thoff;
 	u16				inneroff;
 };
@@ -83,6 +85,8 @@ static inline void nft_set_pktinfo_unspec(struct nft_pktinfo *pkt)
 {
 	pkt->flags = 0;
 	pkt->tprot = 0;
+	pkt->ethertype = pkt->skb->protocol;
+	pkt->nhoff = 0;
 	pkt->thoff = 0;
 	pkt->fragoff = 0;
 }
@@ -120,17 +124,6 @@ struct nft_regs {
 		u32			data[NFT_REG32_NUM];
 		struct nft_verdict	verdict;
 	};
-};
-
-struct nft_regs_track {
-	struct {
-		const struct nft_expr		*selector;
-		const struct nft_expr		*bitwise;
-		u8				num_reg;
-	} regs[NFT_REG32_NUM];
-
-	const struct nft_expr			*cur;
-	const struct nft_expr			*last;
 };
 
 /* Store/load an u8, u16 or u64 integer to/from the u32 data register.
@@ -425,8 +418,6 @@ int nft_expr_clone(struct nft_expr *dst, struct nft_expr *src, gfp_t gfp);
 void nft_expr_destroy(const struct nft_ctx *ctx, struct nft_expr *expr);
 int nft_expr_dump(struct sk_buff *skb, unsigned int attr,
 		  const struct nft_expr *expr, bool reset);
-bool nft_expr_reduce_bitwise(struct nft_regs_track *track,
-			     const struct nft_expr *expr);
 
 struct nft_set_ext;
 
@@ -941,7 +932,6 @@ struct nft_offload_ctx;
  *	@destroy_clone: destruction clone function
  *	@dump: function to dump parameters
  *	@validate: validate expression, called during loop detection
- *	@reduce: reduce expression
  *	@gc: garbage collection expression
  *	@offload: hardware offload expression
  *	@offload_action: function to report true/false to allocate one slot or not in the flow
@@ -975,8 +965,6 @@ struct nft_expr_ops {
 						bool reset);
 	int				(*validate)(const struct nft_ctx *ctx,
 						    const struct nft_expr *expr);
-	bool				(*reduce)(struct nft_regs_track *track,
-						  const struct nft_expr *expr);
 	bool				(*gc)(struct net *net,
 					      const struct nft_expr *expr);
 	int				(*offload)(struct nft_offload_ctx *ctx,
@@ -1957,22 +1945,6 @@ static inline struct nftables_pernet *nft_pernet(const struct net *net)
 static inline u64 nft_net_tstamp(const struct net *net)
 {
 	return nft_pernet(net)->tstamp;
-}
-
-#define __NFT_REDUCE_READONLY	1UL
-#define NFT_REDUCE_READONLY	(void *)__NFT_REDUCE_READONLY
-
-void nft_reg_track_update(struct nft_regs_track *track,
-			  const struct nft_expr *expr, u8 dreg, u8 len);
-void nft_reg_track_cancel(struct nft_regs_track *track, u8 dreg, u8 len);
-void __nft_reg_track_cancel(struct nft_regs_track *track, u8 dreg);
-
-static inline bool nft_reg_track_cmp(struct nft_regs_track *track,
-				     const struct nft_expr *expr, u8 dreg)
-{
-	return track->regs[dreg].selector &&
-	       track->regs[dreg].selector->ops == expr->ops &&
-	       track->regs[dreg].num_reg == 0;
 }
 
 #endif /* _NET_NF_TABLES_H */

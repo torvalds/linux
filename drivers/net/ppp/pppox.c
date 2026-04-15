@@ -102,9 +102,6 @@ EXPORT_SYMBOL(pppox_ioctl);
 #ifdef CONFIG_COMPAT
 int pppox_compat_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
-	if (cmd == PPPOEIOCSFWD32)
-		cmd = PPPOEIOCSFWD;
-
 	return pppox_ioctl(sock, cmd, (unsigned long)compat_ptr(arg));
 }
 

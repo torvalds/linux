@@ -241,6 +241,10 @@ static int iwl_sar_fill_table(struct iwl_fw_runtime *fwrt,
 	int profs[BIOS_SAR_NUM_CHAINS] = { prof_a, prof_b };
 	int i, j;
 
+	if (WARN_ON_ONCE(n_subbands >
+			 ARRAY_SIZE(fwrt->sar_profiles[0].chains[0].subbands)))
+		return -EINVAL;
+
 	for (i = 0; i < BIOS_SAR_NUM_CHAINS; i++) {
 		struct iwl_sar_profile *prof;
 
@@ -300,132 +304,6 @@ int iwl_sar_fill_profile(struct iwl_fw_runtime *fwrt,
 }
 IWL_EXPORT_SYMBOL(iwl_sar_fill_profile);
 
-static bool iwl_ppag_value_valid(struct iwl_fw_runtime *fwrt, int chain,
-				 int subband)
-{
-	s8 ppag_val = fwrt->ppag_chains[chain].subbands[subband];
-
-	if ((subband == 0 &&
-	     (ppag_val > IWL_PPAG_MAX_LB || ppag_val < IWL_PPAG_MIN_LB)) ||
-	    (subband != 0 &&
-	     (ppag_val > IWL_PPAG_MAX_HB || ppag_val < IWL_PPAG_MIN_HB))) {
-		IWL_DEBUG_RADIO(fwrt, "Invalid PPAG value: %d\n", ppag_val);
-		return false;
-	}
-	return true;
-}
-
-/* Utility function for iwlmvm and iwlxvt */
-int iwl_fill_ppag_table(struct iwl_fw_runtime *fwrt,
-			union iwl_ppag_table_cmd *cmd, int *cmd_size)
-{
-	u8 cmd_ver;
-	int i, j, num_sub_bands;
-	s8 *gain;
-	bool send_ppag_always;
-
-	/* many firmware images for JF lie about this */
-	if (CSR_HW_RFID_TYPE(fwrt->trans->info.hw_rf_id) ==
-	    CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_JF))
-		return -EOPNOTSUPP;
-
-	if (!fw_has_capa(&fwrt->fw->ucode_capa, IWL_UCODE_TLV_CAPA_SET_PPAG)) {
-		IWL_DEBUG_RADIO(fwrt,
-				"PPAG capability not supported by FW, command not sent.\n");
-		return -EINVAL;
-	}
-
-	cmd_ver = iwl_fw_lookup_cmd_ver(fwrt->fw,
-					WIDE_ID(PHY_OPS_GROUP,
-						PER_PLATFORM_ANT_GAIN_CMD), 1);
-	/*
-	 * Starting from ver 4, driver needs to send the PPAG CMD regardless
-	 * if PPAG is enabled/disabled or valid/invalid.
-	 */
-	send_ppag_always = cmd_ver > 3;
-
-	/* Don't send PPAG if it is disabled */
-	if (!send_ppag_always && !fwrt->ppag_flags) {
-		IWL_DEBUG_RADIO(fwrt, "PPAG not enabled, command not sent.\n");
-		return -EINVAL;
-	}
-
-	IWL_DEBUG_RADIO(fwrt, "PPAG cmd ver is %d\n", cmd_ver);
-	if (cmd_ver == 1) {
-		num_sub_bands = IWL_NUM_SUB_BANDS_V1;
-		gain = cmd->v1.gain[0];
-		*cmd_size = sizeof(cmd->v1);
-		cmd->v1.flags = cpu_to_le32(fwrt->ppag_flags & IWL_PPAG_CMD_V1_MASK);
-		if (fwrt->ppag_bios_rev >= 1) {
-			/* in this case FW supports revision 0 */
-			IWL_DEBUG_RADIO(fwrt,
-					"PPAG table rev is %d, send truncated table\n",
-					fwrt->ppag_bios_rev);
-		}
-	} else if (cmd_ver == 5) {
-		num_sub_bands = IWL_NUM_SUB_BANDS_V2;
-		gain = cmd->v5.gain[0];
-		*cmd_size = sizeof(cmd->v5);
-		cmd->v5.flags = cpu_to_le32(fwrt->ppag_flags & IWL_PPAG_CMD_V5_MASK);
-		if (fwrt->ppag_bios_rev == 0) {
-			/* in this case FW supports revisions 1,2 or 3 */
-			IWL_DEBUG_RADIO(fwrt,
-					"PPAG table rev is 0, send padded table\n");
-		}
-	} else if (cmd_ver == 7) {
-		num_sub_bands = IWL_NUM_SUB_BANDS_V2;
-		gain = cmd->v7.gain[0];
-		*cmd_size = sizeof(cmd->v7);
-		cmd->v7.ppag_config_info.hdr.table_source =
-			fwrt->ppag_bios_source;
-		cmd->v7.ppag_config_info.hdr.table_revision =
-			fwrt->ppag_bios_rev;
-		cmd->v7.ppag_config_info.value = cpu_to_le32(fwrt->ppag_flags);
-	} else {
-		IWL_DEBUG_RADIO(fwrt, "Unsupported PPAG command version\n");
-		return -EINVAL;
-	}
-
-	/* ppag mode */
-	IWL_DEBUG_RADIO(fwrt,
-			"PPAG MODE bits were read from bios: %d\n",
-			fwrt->ppag_flags);
-
-	if (cmd_ver == 1 &&
-	    !fw_has_capa(&fwrt->fw->ucode_capa,
-			 IWL_UCODE_TLV_CAPA_PPAG_CHINA_BIOS_SUPPORT)) {
-		cmd->v1.flags &= cpu_to_le32(IWL_PPAG_ETSI_MASK);
-		IWL_DEBUG_RADIO(fwrt, "masking ppag China bit\n");
-	} else {
-		IWL_DEBUG_RADIO(fwrt, "isn't masking ppag China bit\n");
-	}
-
-	/* The 'flags' field is the same in v1 and v5 so we can just
-	 * use v1 to access it.
-	 */
-	IWL_DEBUG_RADIO(fwrt,
-			"PPAG MODE bits going to be sent: %d\n",
-			(cmd_ver < 7) ? le32_to_cpu(cmd->v1.flags) :
-					le32_to_cpu(cmd->v7.ppag_config_info.value));
-
-	for (i = 0; i < IWL_NUM_CHAIN_LIMITS; i++) {
-		for (j = 0; j < num_sub_bands; j++) {
-			if (!send_ppag_always &&
-			    !iwl_ppag_value_valid(fwrt, i, j))
-				return -EINVAL;
-
-			gain[i * num_sub_bands + j] =
-				fwrt->ppag_chains[i].subbands[j];
-			IWL_DEBUG_RADIO(fwrt,
-					"PPAG table: chain[%d] band[%d]: gain = %d\n",
-					i, j, gain[i * num_sub_bands + j]);
-		}
-	}
-
-	return 0;
-}
-IWL_EXPORT_SYMBOL(iwl_fill_ppag_table);
-
 bool iwl_is_ppag_approved(struct iwl_fw_runtime *fwrt)
 {
 	if (!dmi_check_system(dmi_ppag_approved_list)) {
@@ -439,6 +317,27 @@ bool iwl_is_ppag_approved(struct iwl_fw_runtime *fwrt)
 	return true;
 }
 IWL_EXPORT_SYMBOL(iwl_is_ppag_approved);
+
+/* Print the PPAG table as read from BIOS */
+void iwl_bios_print_ppag(struct iwl_fw_runtime *fwrt, int n_subbands)
+{
+	int i, j;
+
+	IWL_DEBUG_RADIO(fwrt, "PPAG table as read from BIOS:\n");
+	IWL_DEBUG_RADIO(fwrt, "PPAG revision = %d\n", fwrt->ppag_bios_rev);
+	IWL_DEBUG_RADIO(fwrt, "PPAG flags = 0x%x\n", fwrt->ppag_flags);
+
+	if (WARN_ON_ONCE(n_subbands >
+			 ARRAY_SIZE(fwrt->ppag_chains[0].subbands)))
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(fwrt->ppag_chains); i++)
+		for (j = 0; j < n_subbands; j++)
+			IWL_DEBUG_RADIO(fwrt,
+					"ppag_chains[%d].subbands[%d] = %d\n",
+					i, j,
+					fwrt->ppag_chains[i].subbands[j]);
+}
 
 bool iwl_is_tas_approved(void)
 {

@@ -687,6 +687,8 @@ __free_cpumask:
  *
  * @pathid: path identification number.
  * @userdata: 16-bytes of user data.
+ *
+ * Returns: 0 on success, the result of the CP b2f0 IUCV call.
  */
 static int iucv_sever_pathid(u16 pathid, u8 *userdata)
 {
@@ -1092,6 +1094,8 @@ EXPORT_SYMBOL(iucv_message_purge);
  *
  * Internal function used by iucv_message_receive and __iucv_message_receive
  * to receive RMDATA data stored in struct iucv_message.
+ *
+ * Returns: 0
  */
 static int iucv_message_receive_iprmdata(struct iucv_path *path,
 					 struct iucv_message *msg,
@@ -1852,6 +1856,8 @@ static enum cpuhp_state iucv_online;
 
 /**
  * iucv_init - Allocates and initializes various data structures.
+ *
+ * Returns: 0 on success, return code on failure.
  */
 static int __init iucv_init(void)
 {

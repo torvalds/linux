@@ -16,6 +16,7 @@
 #include <linux/wait.h>
 #include <linux/vmalloc.h>
 #include <linux/memblock.h>
+#include <linux/gcd.h>
 
 #include <net/addrconf.h>
 #include <net/inet_connection_sock.h>
@@ -30,12 +31,16 @@
 #include <net/sock_reuseport.h>
 #include <net/tcp.h>
 
+static void inet_init_ehash_secret(void)
+{
+	net_get_random_sleepable_once(&inet_ehash_secret,
+				      sizeof(inet_ehash_secret));
+}
+
 u32 inet_ehashfn(const struct net *net, const __be32 laddr,
 		 const __u16 lport, const __be32 faddr,
 		 const __be16 fport)
 {
-	net_get_random_once(&inet_ehash_secret, sizeof(inet_ehash_secret));
-
 	return lport + __inet_ehashfn(laddr, 0, faddr, fport,
 				      inet_ehash_secret + net_hash_mix(net));
 }
@@ -753,7 +758,6 @@ bool inet_ehash_nolisten(struct sock *sk, struct sock *osk, bool *found_dup_sk)
 	}
 	return ok;
 }
-EXPORT_IPV6_MOD(inet_ehash_nolisten);
 
 static int inet_reuseport_add_sock(struct sock *sk,
 				   struct inet_listen_hashbucket *ilb)
@@ -793,6 +797,13 @@ int inet_hash(struct sock *sk)
 		local_bh_enable();
 		return 0;
 	}
+
+#if IS_ENABLED(CONFIG_IPV6)
+	if (sk->sk_family == AF_INET6)
+		inet6_init_ehash_secret();
+#endif
+	inet_init_ehash_secret();
+
 	WARN_ON(!sk_unhashed(sk));
 	ilb2 = inet_lhash2_bucket_sk(hashinfo, sk);
 
@@ -814,7 +825,6 @@ unlock:
 
 	return err;
 }
-EXPORT_IPV6_MOD(inet_hash);
 
 void inet_unhash(struct sock *sk)
 {
@@ -847,7 +857,6 @@ void inet_unhash(struct sock *sk)
 		spin_unlock_bh(lock);
 	}
 }
-EXPORT_IPV6_MOD(inet_unhash);
 
 static bool inet_bind2_bucket_match(const struct inet_bind2_bucket *tb,
 				    const struct net *net, unsigned short port,
@@ -1010,14 +1019,12 @@ int inet_bhash2_update_saddr(struct sock *sk, void *saddr, int family)
 {
 	return __inet_bhash2_update_saddr(sk, saddr, family, false);
 }
-EXPORT_IPV6_MOD(inet_bhash2_update_saddr);
 
 void inet_bhash2_reset_saddr(struct sock *sk)
 {
 	if (!(sk->sk_userlocks & SOCK_BINDADDR_LOCK))
 		__inet_bhash2_update_saddr(sk, NULL, 0, true);
 }
-EXPORT_IPV6_MOD(inet_bhash2_reset_saddr);
 
 /* RFC 6056 3.3.4.  Algorithm 4: Double-Hash Port Selection Algorithm
  * Note that we use 32bit integers (vs RFC 'short integers')
@@ -1046,12 +1053,12 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 	struct net *net = sock_net(sk);
 	struct inet_bind2_bucket *tb2;
 	struct inet_bind_bucket *tb;
+	int step, scan_step, l3mdev;
+	u32 index, max_rand_step;
 	bool tb_created = false;
 	u32 remaining, offset;
 	int ret, i, low, high;
 	bool local_ports;
-	int step, l3mdev;
-	u32 index;
 
 	if (port) {
 		local_bh_disable();
@@ -1065,6 +1072,8 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 
 	local_ports = inet_sk_get_local_port_range(sk, &low, &high);
 	step = local_ports ? 1 : 2;
+	scan_step = step;
+	max_rand_step = READ_ONCE(net->ipv4.sysctl_ip_local_port_step_width);
 
 	high++; /* [32768, 60999] -> [32768, 61000[ */
 	remaining = high - low;
@@ -1083,9 +1092,28 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 	 */
 	if (!local_ports)
 		offset &= ~1U;
+
+	if (max_rand_step && remaining > 1) {
+		u32 range = remaining / step;
+		u32 upper_bound;
+
+		upper_bound = min(range, max_rand_step);
+		scan_step = get_random_u32_inclusive(1, upper_bound);
+		while (gcd(scan_step, range) != 1) {
+			scan_step++;
+			/* if both scan_step and range are even gcd won't be 1 */
+			if (!(scan_step & 1) && !(range & 1))
+				scan_step++;
+			if (unlikely(scan_step > upper_bound)) {
+				scan_step = 1;
+				break;
+			}
+		}
+		scan_step *= step;
+	}
 other_parity_scan:
 	port = low + offset;
-	for (i = 0; i < remaining; i += step, port += step) {
+	for (i = 0; i < remaining; i += step, port += scan_step) {
 		if (unlikely(port >= high))
 			port -= remaining;
 		if (inet_is_local_reserved_port(net, port))
@@ -1239,6 +1267,8 @@ int inet_hash_connect(struct inet_timewait_death_row *death_row,
 	if (!inet_sk(sk)->inet_num)
 		port_offset = inet_sk_port_offset(sk);
 
+	inet_init_ehash_secret();
+
 	hash_port0 = inet_ehashfn(net, inet->inet_rcv_saddr, 0,
 				  inet->inet_daddr, inet->inet_dport);
 
@@ -1246,22 +1276,13 @@ int inet_hash_connect(struct inet_timewait_death_row *death_row,
 				   __inet_check_established);
 }
 
-static void init_hashinfo_lhash2(struct inet_hashinfo *h)
-{
-	int i;
-
-	for (i = 0; i <= h->lhash2_mask; i++) {
-		spin_lock_init(&h->lhash2[i].lock);
-		INIT_HLIST_NULLS_HEAD(&h->lhash2[i].nulls_head,
-				      i + LISTENING_NULLS_BASE);
-	}
-}
-
 void __init inet_hashinfo2_init(struct inet_hashinfo *h, const char *name,
 				unsigned long numentries, int scale,
 				unsigned long low_limit,
 				unsigned long high_limit)
 {
+	unsigned int i;
+
 	h->lhash2 = alloc_large_system_hash(name,
 					    sizeof(*h->lhash2),
 					    numentries,
@@ -1271,7 +1292,12 @@ void __init inet_hashinfo2_init(struct inet_hashinfo *h, const char *name,
 					    &h->lhash2_mask,
 					    low_limit,
 					    high_limit);
-	init_hashinfo_lhash2(h);
+
+	for (i = 0; i <= h->lhash2_mask; i++) {
+		spin_lock_init(&h->lhash2[i].lock);
+		INIT_HLIST_NULLS_HEAD(&h->lhash2[i].nulls_head,
+				      i + LISTENING_NULLS_BASE);
+	}
 
 	/* this one is used for source ports of outgoing connections */
 	table_perturb = alloc_large_system_hash("Table-perturb",
@@ -1280,20 +1306,6 @@ void __init inet_hashinfo2_init(struct inet_hashinfo *h, const char *name,
 						0, 0, NULL, NULL,
 						INET_TABLE_PERTURB_SIZE,
 						INET_TABLE_PERTURB_SIZE);
-}
-
-int inet_hashinfo2_init_mod(struct inet_hashinfo *h)
-{
-	h->lhash2 = kmalloc_objs(*h->lhash2, INET_LHTABLE_SIZE);
-	if (!h->lhash2)
-		return -ENOMEM;
-
-	h->lhash2_mask = INET_LHTABLE_SIZE - 1;
-	/* INET_LHTABLE_SIZE must be a power of 2 */
-	BUG_ON(INET_LHTABLE_SIZE & h->lhash2_mask);
-
-	init_hashinfo_lhash2(h);
-	return 0;
 }
 
 int inet_ehash_locks_alloc(struct inet_hashinfo *hashinfo)

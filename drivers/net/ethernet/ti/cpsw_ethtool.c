@@ -144,6 +144,7 @@ u32 cpsw_get_msglevel(struct net_device *ndev)
 
 	return priv->msg_enable;
 }
+EXPORT_SYMBOL_GPL(cpsw_get_msglevel);
 
 void cpsw_set_msglevel(struct net_device *ndev, u32 value)
 {
@@ -151,6 +152,7 @@ void cpsw_set_msglevel(struct net_device *ndev, u32 value)
 
 	priv->msg_enable = value;
 }
+EXPORT_SYMBOL_GPL(cpsw_set_msglevel);
 
 int cpsw_get_coalesce(struct net_device *ndev, struct ethtool_coalesce *coal,
 		      struct kernel_ethtool_coalesce *kernel_coal,
@@ -161,6 +163,7 @@ int cpsw_get_coalesce(struct net_device *ndev, struct ethtool_coalesce *coal,
 	coal->rx_coalesce_usecs = cpsw->coal_intvl;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cpsw_get_coalesce);
 
 int cpsw_set_coalesce(struct net_device *ndev, struct ethtool_coalesce *coal,
 		      struct kernel_ethtool_coalesce *kernel_coal,
@@ -220,6 +223,7 @@ update_return:
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cpsw_set_coalesce);
 
 int cpsw_get_sset_count(struct net_device *ndev, int sset)
 {
@@ -234,6 +238,7 @@ int cpsw_get_sset_count(struct net_device *ndev, int sset)
 		return -EOPNOTSUPP;
 	}
 }
+EXPORT_SYMBOL_GPL(cpsw_get_sset_count);
 
 static void cpsw_add_ch_strings(u8 **p, int ch_num, int rx_dir)
 {
@@ -271,6 +276,7 @@ void cpsw_get_strings(struct net_device *ndev, u32 stringset, u8 *data)
 		break;
 	}
 }
+EXPORT_SYMBOL_GPL(cpsw_get_strings);
 
 void cpsw_get_ethtool_stats(struct net_device *ndev,
 			    struct ethtool_stats *stats, u64 *data)
@@ -303,6 +309,7 @@ void cpsw_get_ethtool_stats(struct net_device *ndev,
 		}
 	}
 }
+EXPORT_SYMBOL_GPL(cpsw_get_ethtool_stats);
 
 void cpsw_get_pauseparam(struct net_device *ndev,
 			 struct ethtool_pauseparam *pause)
@@ -313,6 +320,7 @@ void cpsw_get_pauseparam(struct net_device *ndev,
 	pause->rx_pause = priv->rx_pause ? true : false;
 	pause->tx_pause = priv->tx_pause ? true : false;
 }
+EXPORT_SYMBOL_GPL(cpsw_get_pauseparam);
 
 void cpsw_get_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 {
@@ -326,6 +334,7 @@ void cpsw_get_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 	if (cpsw->slaves[slave_no].phy)
 		phy_ethtool_get_wol(cpsw->slaves[slave_no].phy, wol);
 }
+EXPORT_SYMBOL_GPL(cpsw_get_wol);
 
 int cpsw_set_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 {
@@ -338,6 +347,7 @@ int cpsw_set_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 	else
 		return -EOPNOTSUPP;
 }
+EXPORT_SYMBOL_GPL(cpsw_set_wol);
 
 int cpsw_get_regs_len(struct net_device *ndev)
 {
@@ -346,6 +356,7 @@ int cpsw_get_regs_len(struct net_device *ndev)
 	return cpsw_ale_get_num_entries(cpsw->ale) *
 	       ALE_ENTRY_WORDS * sizeof(u32);
 }
+EXPORT_SYMBOL_GPL(cpsw_get_regs_len);
 
 void cpsw_get_regs(struct net_device *ndev, struct ethtool_regs *regs, void *p)
 {
@@ -357,6 +368,7 @@ void cpsw_get_regs(struct net_device *ndev, struct ethtool_regs *regs, void *p)
 
 	cpsw_ale_dump(cpsw->ale, reg);
 }
+EXPORT_SYMBOL_GPL(cpsw_get_regs);
 
 int cpsw_ethtool_op_begin(struct net_device *ndev)
 {
@@ -370,6 +382,7 @@ int cpsw_ethtool_op_begin(struct net_device *ndev)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(cpsw_ethtool_op_begin);
 
 void cpsw_ethtool_op_complete(struct net_device *ndev)
 {
@@ -377,6 +390,7 @@ void cpsw_ethtool_op_complete(struct net_device *ndev)
 
 	pm_runtime_put(priv->cpsw->dev);
 }
+EXPORT_SYMBOL_GPL(cpsw_ethtool_op_complete);
 
 void cpsw_get_channels(struct net_device *ndev, struct ethtool_channels *ch)
 {
@@ -391,6 +405,7 @@ void cpsw_get_channels(struct net_device *ndev, struct ethtool_channels *ch)
 	ch->tx_count = cpsw->tx_ch_num;
 	ch->combined_count = 0;
 }
+EXPORT_SYMBOL_GPL(cpsw_get_channels);
 
 int cpsw_get_link_ksettings(struct net_device *ndev,
 			    struct ethtool_link_ksettings *ecmd)
@@ -405,6 +420,7 @@ int cpsw_get_link_ksettings(struct net_device *ndev,
 	phy_ethtool_ksettings_get(cpsw->slaves[slave_no].phy, ecmd);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cpsw_get_link_ksettings);
 
 int cpsw_set_link_ksettings(struct net_device *ndev,
 			    const struct ethtool_link_ksettings *ecmd)
@@ -418,6 +434,7 @@ int cpsw_set_link_ksettings(struct net_device *ndev,
 
 	return phy_ethtool_ksettings_set(cpsw->slaves[slave_no].phy, ecmd);
 }
+EXPORT_SYMBOL_GPL(cpsw_set_link_ksettings);
 
 int cpsw_get_eee(struct net_device *ndev, struct ethtool_keee *edata)
 {
@@ -430,6 +447,7 @@ int cpsw_get_eee(struct net_device *ndev, struct ethtool_keee *edata)
 	else
 		return -EOPNOTSUPP;
 }
+EXPORT_SYMBOL_GPL(cpsw_get_eee);
 
 int cpsw_nway_reset(struct net_device *ndev)
 {
@@ -442,6 +460,7 @@ int cpsw_nway_reset(struct net_device *ndev)
 	else
 		return -EOPNOTSUPP;
 }
+EXPORT_SYMBOL_GPL(cpsw_nway_reset);
 
 static void cpsw_suspend_data_pass(struct net_device *ndev)
 {
@@ -639,6 +658,7 @@ err:
 	cpsw_fail(cpsw);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(cpsw_set_channels_common);
 
 void cpsw_get_ringparam(struct net_device *ndev,
 			struct ethtool_ringparam *ering,
@@ -654,6 +674,7 @@ void cpsw_get_ringparam(struct net_device *ndev,
 	ering->rx_max_pending = cpsw->descs_pool_size - CPSW_MAX_QUEUES;
 	ering->rx_pending = cpdma_get_num_rx_descs(cpsw->dma);
 }
+EXPORT_SYMBOL_GPL(cpsw_get_ringparam);
 
 int cpsw_set_ringparam(struct net_device *ndev,
 		       struct ethtool_ringparam *ering,
@@ -700,6 +721,7 @@ err:
 	cpsw_fail(cpsw);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(cpsw_set_ringparam);
 
 #if IS_ENABLED(CONFIG_TI_CPTS)
 int cpsw_get_ts_info(struct net_device *ndev, struct kernel_ethtool_ts_info *info)
@@ -720,6 +742,7 @@ int cpsw_get_ts_info(struct net_device *ndev, struct kernel_ethtool_ts_info *inf
 		(1 << HWTSTAMP_FILTER_PTP_V2_EVENT);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cpsw_get_ts_info);
 #else
 int cpsw_get_ts_info(struct net_device *ndev, struct kernel_ethtool_ts_info *info)
 {
@@ -729,4 +752,5 @@ int cpsw_get_ts_info(struct net_device *ndev, struct kernel_ethtool_ts_info *inf
 	info->rx_filters = 0;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cpsw_get_ts_info);
 #endif

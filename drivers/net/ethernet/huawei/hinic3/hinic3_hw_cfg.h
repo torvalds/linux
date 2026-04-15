@@ -26,6 +26,8 @@ struct hinic3_irq_info {
 
 struct hinic3_nic_service_cap {
 	u16 max_sqs;
+	u16 max_rqs;
+	u16 default_num_queues;
 };
 
 /* Device capabilities */
@@ -34,6 +36,12 @@ struct hinic3_dev_cap {
 	u16                           supp_svcs_bitmap;
 	/* Physical port */
 	u8                            port_id;
+
+	u8                            cos_valid_bitmap;
+	u8                            port_cos_valid_bitmap;
+	/* max number of VFs that PF supports */
+	u16                           max_vf;
+
 	struct hinic3_nic_service_cap nic_svc_cap;
 };
 

@@ -263,7 +263,6 @@ bool icmp_global_allow(struct net *net)
 	}
 	return true;
 }
-EXPORT_SYMBOL(icmp_global_allow);
 
 void icmp_global_consume(struct net *net)
 {
@@ -273,7 +272,6 @@ void icmp_global_consume(struct net *net)
 	if (credits)
 		atomic_sub(credits, &net->ipv4.icmp_global_credit);
 }
-EXPORT_SYMBOL(icmp_global_consume);
 
 static bool icmpv4_mask_allow(struct net *net, int type, int code)
 {
@@ -591,7 +589,6 @@ static struct rtable *icmp_route_lookup(struct net *net, struct flowi4 *fl4,
 	rt2 = dst_rtable(dst2);
 	if (!IS_ERR(dst2)) {
 		dst_release(&rt->dst);
-		memcpy(fl4, &fl4_dec, sizeof(*fl4));
 		rt = rt2;
 	} else if (PTR_ERR(dst2) == -EPERM) {
 		if (rt)
@@ -1345,14 +1342,7 @@ bool icmp_build_probe(struct sk_buff *skb, struct icmphdr *icmphdr)
 		case ICMP_AFI_IP6:
 			if (iio->ident.addr.ctype3_hdr.addrlen != sizeof(struct in6_addr))
 				goto send_mal_query;
-			dev = ipv6_stub->ipv6_dev_find(net, &iio->ident.addr.ip_addr.ipv6_addr, dev);
-			/*
-			 * If IPv6 identifier lookup is unavailable, silently
-			 * discard the request instead of misreporting NO_IF.
-			 */
-			if (IS_ERR(dev))
-				return false;
-
+			dev = ipv6_dev_find(net, &iio->ident.addr.ip_addr.ipv6_addr, dev);
 			dev_hold(dev);
 			break;
 #endif
@@ -1386,7 +1376,6 @@ send_mal_query:
 	icmphdr->code = ICMP_EXT_CODE_MAL_QUERY;
 	return true;
 }
-EXPORT_SYMBOL_GPL(icmp_build_probe);
 
 /*
  *	Handle ICMP Timestamp requests.
@@ -1608,7 +1597,6 @@ void ip_icmp_error_rfc4884(const struct sk_buff *skb,
 	if (!ip_icmp_error_rfc4884_validate(skb, off))
 		out->flags |= SO_EE_RFC4884_FLAG_INVALID;
 }
-EXPORT_SYMBOL_GPL(ip_icmp_error_rfc4884);
 
 int icmp_err(struct sk_buff *skb, u32 info)
 {
@@ -1736,8 +1724,8 @@ static int __net_init icmp_sk_init(struct net *net)
 	net->ipv4.sysctl_icmp_ratemask = 0x1818;
 	net->ipv4.sysctl_icmp_errors_use_inbound_ifaddr = 0;
 	net->ipv4.sysctl_icmp_errors_extension_mask = 0;
-	net->ipv4.sysctl_icmp_msgs_per_sec = 1000;
-	net->ipv4.sysctl_icmp_msgs_burst = 50;
+	net->ipv4.sysctl_icmp_msgs_per_sec = 10000;
+	net->ipv4.sysctl_icmp_msgs_burst = 10000;
 
 	return 0;
 }

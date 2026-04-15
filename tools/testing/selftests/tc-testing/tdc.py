@@ -755,6 +755,9 @@ def check_default_settings(args, remaining, pm):
         NAMES['DEV2'] = args.device
     if 'TIMEOUT' not in NAMES:
         NAMES['TIMEOUT'] = None
+    if 'ETHTOOL' in NAMES and not os.path.isfile(NAMES['ETHTOOL']):
+        print(f"The specified ethtool path {NAMES['ETHTOOL']} does not exist.")
+        exit(1)
     if not os.path.isfile(NAMES['TC']):
         print("The specified tc path " + NAMES['TC'] + " does not exist.")
         exit(1)

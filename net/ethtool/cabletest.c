@@ -3,8 +3,9 @@
 #include <linux/phy.h>
 #include <linux/ethtool_netlink.h>
 #include <net/netdev_lock.h>
-#include "netlink.h"
+
 #include "common.h"
+#include "netlink.h"
 
 /* 802.3 standard allows 100 meters for BaseT cables. However longer
  * cables might work, depending on the quality of the cables and the

@@ -79,7 +79,10 @@
 #define WX_RX_LEN_ERROR_FRAMES_L     0x11978
 #define WX_RX_UNDERSIZE_FRAMES_GOOD  0x11938
 #define WX_RX_OVERSIZE_FRAMES_GOOD   0x1193C
-#define WX_MAC_LXONOFFRXC            0x11E0C
+#define WX_MAC_LXOFFRXC              0x11988
+#define WX_MAC_LXONRXC               0x11E0C
+#define WX_MAC_LXOFFRXC_AML          0x11F80
+#define WX_MAC_LXONRXC_AML           0x11F84
 
 /*********************** Receive DMA registers **************************/
 #define WX_RDM_VF_RE(_i)             (0x12004 + ((_i) * 4))
@@ -1148,9 +1151,18 @@ enum wx_isb_idx {
 	WX_ISB_MAX
 };
 
+/* Flow Control Settings */
+enum wx_fc_mode {
+	wx_fc_none = 0,
+	wx_fc_rx_pause,
+	wx_fc_tx_pause,
+	wx_fc_full
+};
+
 struct wx_fc_info {
 	u32 high_water; /* Flow Ctrl High-water */
 	u32 low_water; /* Flow Ctrl Low-water */
+	enum wx_fc_mode mode; /* Flow Control Mode */
 };
 
 /* Statistics counters collected by the MAC */
@@ -1167,7 +1179,8 @@ struct wx_hw_stats {
 	u64 mptc;
 	u64 roc;
 	u64 ruc;
-	u64 lxonoffrxc;
+	u64 lxonrxc;
+	u64 lxoffrxc;
 	u64 lxontxc;
 	u64 lxofftxc;
 	u64 o2bgptc;
@@ -1180,6 +1193,12 @@ struct wx_hw_stats {
 	u64 qmprc;
 	u64 fdirmatch;
 	u64 fdirmiss;
+};
+
+struct wx_last_stats {
+	u32 qmprc[128];
+	u32 lxoffrxc;
+	u32 lxonrxc;
 };
 
 enum wx_state {
@@ -1354,6 +1373,8 @@ struct wx {
 	bool default_up;
 
 	struct wx_hw_stats stats;
+	struct wx_last_stats last_stats;
+	spinlock_t hw_stats_lock; /* spinlock for accessing to hw stats */
 	u64 tx_busy;
 	u64 non_eop_descs;
 	u64 restart_queue;
@@ -1400,6 +1421,7 @@ struct wx {
 
 	struct timer_list service_timer;
 	struct work_struct service_task;
+	struct mutex reset_lock; /* mutex for reset */
 };
 
 #define WX_INTR_ALL (~0ULL)
@@ -1462,6 +1484,18 @@ wr32ptp(struct wx *wx, u32 reg, u32 value)
 	return wr32(wx, reg + 0xB500, value);
 }
 
+static inline u32
+rd32_wrap(struct wx *wx, u32 reg, u32 *last)
+{
+	u32 val, delta;
+
+	val = rd32(wx, reg);
+	delta = val - *last;
+	*last = val;
+
+	return delta;
+}
+
 /* On some domestic CPU platforms, sometimes IO is not synchronized with
  * flushing memory, here use readl() to flush PCI read and write.
  */
@@ -1476,21 +1510,6 @@ wr32ptp(struct wx *wx, u32 reg, u32 value)
 static inline struct wx *phylink_to_wx(struct phylink_config *config)
 {
 	return container_of(config, struct wx, phylink_config);
-}
-
-static inline int wx_set_state_reset(struct wx *wx)
-{
-	u8 timeout = 50;
-
-	while (test_and_set_bit(WX_STATE_RESETTING, wx->state)) {
-		timeout--;
-		if (!timeout)
-			return -EBUSY;
-
-		usleep_range(1000, 2000);
-	}
-
-	return 0;
 }
 
 static inline unsigned int wx_rx_pg_order(struct wx_ring *ring)

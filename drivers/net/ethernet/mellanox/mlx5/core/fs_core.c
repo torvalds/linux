@@ -503,7 +503,8 @@ static bool is_fwd_dest_type(enum mlx5_flow_destination_type type)
 		type == MLX5_FLOW_DESTINATION_TYPE_FLOW_SAMPLER ||
 		type == MLX5_FLOW_DESTINATION_TYPE_TIR ||
 		type == MLX5_FLOW_DESTINATION_TYPE_RANGE ||
-		type == MLX5_FLOW_DESTINATION_TYPE_TABLE_TYPE;
+		type == MLX5_FLOW_DESTINATION_TYPE_TABLE_TYPE ||
+		type == MLX5_FLOW_DESTINATION_TYPE_VHCA_RX;
 }
 
 static bool check_valid_spec(const struct mlx5_flow_spec *spec)
@@ -1437,15 +1438,9 @@ mlx5_create_vport_flow_table(struct mlx5_flow_namespace *ns,
 
 struct mlx5_flow_table*
 mlx5_create_lag_demux_flow_table(struct mlx5_flow_namespace *ns,
-				 int prio, u32 level)
+				 struct mlx5_flow_table_attr *ft_attr)
 {
-	struct mlx5_flow_table_attr ft_attr = {};
-
-	ft_attr.level = level;
-	ft_attr.prio  = prio;
-	ft_attr.max_fte = 1;
-
-	return __mlx5_create_flow_table(ns, &ft_attr, FS_FT_OP_MOD_LAG_DEMUX, 0);
+	return __mlx5_create_flow_table(ns, ft_attr, FS_FT_OP_MOD_LAG_DEMUX, 0);
 }
 EXPORT_SYMBOL(mlx5_create_lag_demux_flow_table);
 
@@ -1890,7 +1885,9 @@ static bool mlx5_flow_dests_cmp(struct mlx5_flow_destination *d1,
 		     d1->range.hit_ft == d2->range.hit_ft &&
 		     d1->range.miss_ft == d2->range.miss_ft &&
 		     d1->range.min == d2->range.min &&
-		     d1->range.max == d2->range.max))
+		     d1->range.max == d2->range.max) ||
+		    (d1->type == MLX5_FLOW_DESTINATION_TYPE_VHCA_RX &&
+		     d1->vhca.id == d2->vhca.id))
 			return true;
 	}
 

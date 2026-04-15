@@ -2,6 +2,7 @@
 config NET_DSA_MXL862
 	tristate "MaxLinear MxL862xx"
 	depends on NET_DSA
+	select CRC16
 	select NET_DSA_TAG_MXL_862XX
 	help
 	  This enables support for the MaxLinear MxL862xx switch family.

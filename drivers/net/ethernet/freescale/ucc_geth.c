@@ -3470,14 +3470,13 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 	phy_node = of_parse_phandle(np, "phy-handle", 0);
 	if (phy_node) {
 		prop = of_get_property(phy_node, "interface", NULL);
+		of_node_put(phy_node);
 		if (prop) {
 			dev_err(&ofdev->dev,
 				"Device-tree property 'interface' is no longer supported. Please use 'phy-connection-type' instead.");
-			of_node_put(phy_node);
 			err = -EINVAL;
 			goto err_put_tbi;
 		}
-		of_node_put(phy_node);
 	}
 
 	err = of_get_phy_mode(np, &phy_interface);

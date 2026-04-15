@@ -114,6 +114,10 @@ struct hinic3_mbox {
 	struct hinic3_hwdev       *hwdev;
 	/* lock for send mbox message and ack message */
 	struct mutex              mbox_send_lock;
+	/* lock for send message transmission.
+	 * The lock hierarchy is mbox_send_lock -> mbox_seg_send_lock.
+	 */
+	struct mutex              mbox_seg_send_lock;
 	struct hinic3_send_mbox   send_mbox;
 	struct mbox_dma_queue     sync_msg_queue;
 	struct mbox_dma_queue     async_msg_queue;

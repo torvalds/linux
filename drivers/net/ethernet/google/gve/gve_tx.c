@@ -264,7 +264,6 @@ static int gve_tx_alloc_ring_gqi(struct gve_priv *priv,
 				 int idx)
 {
 	struct device *hdev = &priv->pdev->dev;
-	int qpl_page_cnt;
 	u32 qpl_id = 0;
 	size_t bytes;
 
@@ -291,10 +290,8 @@ static int gve_tx_alloc_ring_gqi(struct gve_priv *priv,
 	tx->dev = hdev;
 	if (!tx->raw_addressing) {
 		qpl_id = gve_tx_qpl_id(priv, tx->q_num);
-		qpl_page_cnt = priv->tx_pages_per_qpl;
-
 		tx->tx_fifo.qpl = gve_alloc_queue_page_list(priv, qpl_id,
-							    qpl_page_cnt);
+							    cfg->pages_per_qpl);
 		if (!tx->tx_fifo.qpl)
 			goto abort_with_desc;
 

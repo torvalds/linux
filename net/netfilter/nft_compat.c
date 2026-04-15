@@ -195,7 +195,7 @@ static void target_compat_from_user(struct xt_target *t, void *in, void *out)
 
 static const struct nla_policy nft_rule_compat_policy[NFTA_RULE_COMPAT_MAX + 1] = {
 	[NFTA_RULE_COMPAT_PROTO]	= { .type = NLA_U32 },
-	[NFTA_RULE_COMPAT_FLAGS]	= { .type = NLA_U32 },
+	[NFTA_RULE_COMPAT_FLAGS]	= NLA_POLICY_MASK(NLA_BE32, NFT_RULE_COMPAT_F_MASK),
 };
 
 static int nft_parse_compat(const struct nlattr *attr, u16 *proto, bool *inv)
@@ -778,14 +778,6 @@ static const struct nfnetlink_subsystem nfnl_compat_subsys = {
 
 static struct nft_expr_type nft_match_type;
 
-static bool nft_match_reduce(struct nft_regs_track *track,
-			     const struct nft_expr *expr)
-{
-	const struct xt_match *match = expr->ops->data;
-
-	return strcmp(match->name, "comment") == 0;
-}
-
 static const struct nft_expr_ops *
 nft_match_select_ops(const struct nft_ctx *ctx,
 		     const struct nlattr * const tb[])
@@ -828,7 +820,6 @@ nft_match_select_ops(const struct nft_ctx *ctx,
 	ops->dump = nft_match_dump;
 	ops->validate = nft_match_validate;
 	ops->data = match;
-	ops->reduce = nft_match_reduce;
 
 	matchsize = NFT_EXPR_SIZE(XT_ALIGN(match->matchsize));
 	if (matchsize > NFT_MATCH_LARGE_THRESH) {
@@ -918,7 +909,6 @@ nft_target_select_ops(const struct nft_ctx *ctx,
 	ops->dump = nft_target_dump;
 	ops->validate = nft_target_validate;
 	ops->data = target;
-	ops->reduce = NFT_REDUCE_READONLY;
 
 	if (family == NFPROTO_BRIDGE)
 		ops->eval = nft_target_eval_bridge;

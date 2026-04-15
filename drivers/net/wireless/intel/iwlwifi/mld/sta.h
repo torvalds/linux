@@ -89,7 +89,7 @@ struct iwl_mld_per_link_mpdu_counter {
  */
 struct iwl_mld_per_q_mpdu_counter {
 	spinlock_t lock;
-	struct iwl_mld_per_link_mpdu_counter per_link[IWL_FW_MAX_LINK_ID + 1];
+	struct iwl_mld_per_link_mpdu_counter per_link[IWL_FW_MAX_LINKS];
 	unsigned long window_start_time;
 } ____cacheline_aligned_in_smp;
 
@@ -190,7 +190,7 @@ iwl_mld_link_sta_from_mac80211(struct ieee80211_link_sta *link_sta)
 }
 
 int iwl_mld_add_sta(struct iwl_mld *mld, struct ieee80211_sta *sta,
-		    struct ieee80211_vif *vif, enum iwl_fw_sta_type type);
+		    struct ieee80211_vif *vif);
 void iwl_mld_remove_sta(struct iwl_mld *mld, struct ieee80211_sta *sta);
 int iwl_mld_fw_sta_id_from_link_sta(struct iwl_mld *mld,
 				    struct ieee80211_link_sta *link_sta);

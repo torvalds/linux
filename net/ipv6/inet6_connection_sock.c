@@ -56,8 +56,8 @@ struct dst_entry *inet6_csk_route_req(const struct sock *sk,
 	return dst;
 }
 
-static struct dst_entry *inet6_csk_route_socket(struct sock *sk,
-						struct flowi6 *fl6)
+struct dst_entry *inet6_csk_route_socket(struct sock *sk,
+					 struct flowi6 *fl6)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct ipv6_pinfo *np = inet6_sk(sk);
@@ -118,18 +118,3 @@ int inet6_csk_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl_unused
 	return res;
 }
 EXPORT_SYMBOL_GPL(inet6_csk_xmit);
-
-struct dst_entry *inet6_csk_update_pmtu(struct sock *sk, u32 mtu)
-{
-	struct flowi6 *fl6 = &inet_sk(sk)->cork.fl.u.ip6;
-	struct dst_entry *dst;
-
-	dst = inet6_csk_route_socket(sk, fl6);
-
-	if (IS_ERR(dst))
-		return NULL;
-	dst->ops->update_pmtu(dst, sk, NULL, mtu, true);
-
-	dst = inet6_csk_route_socket(sk, fl6);
-	return IS_ERR(dst) ? NULL : dst;
-}

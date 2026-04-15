@@ -365,6 +365,7 @@ struct ieee80211_vif_chanctx_switch {
  * @BSS_CHANGED_MLD_VALID_LINKS: MLD valid links status changed.
  * @BSS_CHANGED_MLD_TTLM: negotiated TID to link mapping was changed
  * @BSS_CHANGED_TPE: transmit power envelope changed
+ * @BSS_CHANGED_NAN_LOCAL_SCHED: NAN local schedule changed (NAN mode only)
  */
 enum ieee80211_bss_change {
 	BSS_CHANGED_ASSOC		= 1<<0,
@@ -402,6 +403,7 @@ enum ieee80211_bss_change {
 	BSS_CHANGED_MLD_VALID_LINKS	= BIT_ULL(33),
 	BSS_CHANGED_MLD_TTLM		= BIT_ULL(34),
 	BSS_CHANGED_TPE			= BIT_ULL(35),
+	BSS_CHANGED_NAN_LOCAL_SCHED	= BIT_ULL(36),
 
 	/* when adding here, make sure to change ieee80211_reconfig */
 };
@@ -864,6 +866,74 @@ struct ieee80211_bss_conf {
 	u8 bss_param_ch_cnt_link_id;
 
 	u8 s1g_long_beacon_period;
+};
+
+#define IEEE80211_NAN_MAX_CHANNELS 3
+
+/**
+ * struct ieee80211_nan_channel - NAN channel information
+ *
+ * @chanreq: channel request for this NAN channel. Even though this chanreq::ap
+ *	is irrelevant for NAN, still store it for convenience - some functions
+ *	require it as an argument.
+ * @needed_rx_chains: number of RX chains needed for this NAN channel
+ * @chanctx_conf: chanctx_conf assigned to this NAN channel.
+ *	If a local channel is being ULWed (because we needed this chanctx for
+ *	something else), the local NAN channel that used this chanctx,
+ *	will have this pointer set to %NULL.
+ *	A peer NAN channel should never have this pointer set to %NULL.
+ * @channel_entry: the Channel Entry blob as defined in Wi-Fi Aware
+ *	(TM) 4.0 specification Table 100 (Channel Entry format for the NAN
+ *	Availability attribute).
+ */
+struct ieee80211_nan_channel {
+	struct ieee80211_chan_req chanreq;
+	u8 needed_rx_chains;
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	u8 channel_entry[6];
+};
+
+/**
+ * struct ieee80211_nan_peer_map - NAN peer schedule map
+ *
+ * This stores a single map from a peer's schedule. Each peer can have
+ * multiple maps.
+ *
+ * @map_id: the map ID from the peer schedule, %CFG80211_NAN_INVALID_MAP_ID
+ *	if unused
+ * @slots: mapping of time slots to channel configurations in the schedule's
+ *	channels array
+ */
+struct ieee80211_nan_peer_map {
+	u8 map_id;
+	struct ieee80211_nan_channel *slots[CFG80211_NAN_SCHED_NUM_TIME_SLOTS];
+};
+
+/**
+ * struct ieee80211_nan_peer_sched - NAN peer schedule
+ *
+ * This stores the complete schedule from a peer. Contains peer-level
+ * parameters and an array of schedule maps.
+ *
+ * @seq_id: the sequence ID from the peer schedule
+ * @committed_dw: committed DW as published by the peer
+ * @max_chan_switch: maximum channel switch time in microseconds
+ * @init_ulw: initial ULWs as published by the peer (copied)
+ * @ulw_size: number of bytes in @init_ulw
+ * @maps: array of peer schedule maps. Invalid slots have map_id set to
+ *	%CFG80211_NAN_INVALID_MAP_ID.
+ * @n_channels: number of valid channel entries in @channels
+ * @channels: flexible array of negotiated peer channels for this schedule
+ */
+struct ieee80211_nan_peer_sched {
+	u8 seq_id;
+	u16 committed_dw;
+	u16 max_chan_switch;
+	const u8 *init_ulw;
+	u16 ulw_size;
+	struct ieee80211_nan_peer_map maps[CFG80211_NAN_MAX_PEER_MAPS];
+	u8 n_channels;
+	struct ieee80211_nan_channel channels[] __counted_by(n_channels);
 };
 
 /**
@@ -1917,6 +1987,8 @@ enum ieee80211_offload_flags {
 	IEEE80211_OFFLOAD_DECAP_ENABLED		= BIT(2),
 };
 
+#define IEEE80211_NAN_AVAIL_BLOB_MAX_LEN	54
+
 /**
  * struct ieee80211_eml_params - EHT Operating mode notification parameters
  *
@@ -1940,6 +2012,32 @@ struct ieee80211_eml_params {
 	u16 link_bitmap;
 	u8 emlmr_mcs_map_count;
 	u8 emlmr_mcs_map_bw[9];
+};
+
+/**
+ * struct ieee80211_nan_sched_cfg - NAN schedule configuration
+ * @channels: array of NAN channels. A channel entry is in use if
+ *	channels[i].chanreq.oper.chan is not NULL.
+ * @schedule: NAN local schedule - mapping of each 16TU time slot to
+ *	the NAN channel on which the radio will operate. NULL if unscheduled.
+ * @avail_blob: NAN Availability attribute blob.
+ * @avail_blob_len: length of the @avail_blob in bytes.
+ * @deferred: indicates that the driver should notify peers before applying the
+ *	new NAN schedule, and apply the new schedule the second NAN Slot
+ *	boundary after it notified the peers, as defined in Wi-Fi Aware (TM) 4.0
+ *	specification, section 5.2.2.
+ *	The driver must call ieee80211_nan_sched_update_done() after the
+ *	schedule has been applied.
+ *	If a HW restart happened while a deferred schedule update was pending,
+ *	mac80211 will reconfigure the deferred schedule (and wait for the driver
+ *	to notify that the schedule has been applied).
+ */
+struct ieee80211_nan_sched_cfg {
+	struct ieee80211_nan_channel channels[IEEE80211_NAN_MAX_CHANNELS];
+	struct ieee80211_nan_channel *schedule[CFG80211_NAN_SCHED_NUM_TIME_SLOTS];
+	u8 avail_blob[IEEE80211_NAN_AVAIL_BLOB_MAX_LEN];
+	u16 avail_blob_len;
+	bool deferred;
 };
 
 /**
@@ -1970,6 +2068,7 @@ struct ieee80211_eml_params {
  *	your driver/device needs to do.
  * @ap_addr: AP MLD address, or BSSID for non-MLO connections
  *	(station mode only)
+ * @nan_sched: NAN schedule parameters. &struct ieee80211_nan_sched_cfg
  */
 struct ieee80211_vif_cfg {
 	/* association related data */
@@ -1988,6 +2087,8 @@ struct ieee80211_vif_cfg {
 	bool s1g;
 	bool idle;
 	u8 ap_addr[ETH_ALEN] __aligned(2);
+	/* Protected by the wiphy mutex */
+	struct ieee80211_nan_sched_cfg nan_sched;
 };
 
 #define IEEE80211_TTLM_NUM_TIDS 8
@@ -2074,6 +2175,7 @@ enum ieee80211_neg_ttlm_res {
  * @drv_priv: data area for driver use, will always be aligned to
  *	sizeof(void \*).
  * @txq: the multicast data TX queue
+ * @txq_mgmt: the mgmt frame TX queue, currently only exists for NAN devices
  * @offload_flags: 802.3 -> 802.11 enapsulation offload flags, see
  *	&enum ieee80211_offload_flags.
  */
@@ -2092,6 +2194,7 @@ struct ieee80211_vif {
 	u8 hw_queue[IEEE80211_NUM_ACS];
 
 	struct ieee80211_txq *txq;
+	struct ieee80211_txq *txq_mgmt;
 
 	netdev_features_t netdev_features;
 	u32 driver_flags;
@@ -2477,11 +2580,15 @@ struct ieee80211_sta_aggregates {
  * @uhr_cap: UHR capabilities of this STA
  * @s1g_cap: S1G capabilities of this STA
  * @agg: per-link data for multi-link aggregation
- * @bandwidth: current bandwidth the station can receive with
+ * @bandwidth: current bandwidth the station can receive with.
+ *	This is the minimum between the peer's capabilities and our own
+ *	operating channel width; Invalid for NAN since that is operating on
+ *	multiple channels.
  * @rx_nss: in HT/VHT, the maximum number of spatial streams the
  *	station can receive at the moment, changed by operating mode
  *	notifications and capabilities. The value is only valid after
- *	the station moves to associated state.
+ *	the station moves to associated state. Invalid for NAN since it
+ *	operates on multiple configurations of rx_nss.
  * @txpwr: the station tx power configuration
  *
  */
@@ -2563,6 +2670,8 @@ struct ieee80211_link_sta {
  * @valid_links: bitmap of valid links, or 0 for non-MLO
  * @spp_amsdu: indicates whether the STA uses SPP A-MSDU or not.
  * @epp_peer: indicates that the peer is an EPP peer.
+ * @nmi: For NDI stations, pointer to the NMI station of the peer.
+ * @nan_sched: NAN peer schedule for this station. Valid only for NMI stations.
  */
 struct ieee80211_sta {
 	u8 addr[ETH_ALEN] __aligned(2);
@@ -2590,6 +2699,11 @@ struct ieee80211_sta {
 	bool epp_peer;
 	struct ieee80211_link_sta deflink;
 	struct ieee80211_link_sta __rcu *link[IEEE80211_MLD_MAX_NUM_LINKS];
+
+	struct ieee80211_sta __rcu *nmi;
+
+	/* should only be accessed with the wiphy mutex held */
+	struct ieee80211_nan_peer_sched *nan_sched;
 
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));
@@ -2824,6 +2938,8 @@ struct ieee80211_txq {
  *	station has a unique address, i.e. each station entry can be identified
  *	by just its MAC address; this prevents, for example, the same station
  *	from connecting to two virtual AP interfaces at the same time.
+ *	Note that this doesn't apply for NAN, in which the peer's NMI address
+ *	can be equal to its NDI address.
  *
  * @IEEE80211_HW_SUPPORTS_REORDERING_BUFFER: Hardware (or driver) manages the
  *	reordering buffer internally, guaranteeing mac80211 receives frames in
@@ -2913,6 +3029,9 @@ struct ieee80211_txq {
  *	HW flag so drivers can opt in according to their own control, e.g. in
  *	testing.
  *
+ * @IEEE80211_HW_SUPPORTS_NDP_BLOCKACK: HW can transmit/receive S1G NDP
+ *	BlockAck frames.
+ *
  * @NUM_IEEE80211_HW_FLAGS: number of hardware flags, used for sizing arrays
  */
 enum ieee80211_hw_flags {
@@ -2973,6 +3092,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_DISALLOW_PUNCTURING,
 	IEEE80211_HW_HANDLES_QUIET_CSA,
 	IEEE80211_HW_STRICT,
+	IEEE80211_HW_SUPPORTS_NDP_BLOCKACK,
 
 	/* keep last, obviously */
 	NUM_IEEE80211_HW_FLAGS
@@ -4486,6 +4606,12 @@ struct ieee80211_prep_tx_info {
  * @del_nan_func: Remove a NAN function. The driver must call
  *	ieee80211_nan_func_terminated() with
  *	NL80211_NAN_FUNC_TERM_REASON_USER_REQUEST reason code upon removal.
+ * @nan_peer_sched_changed: Notifies the driver that the peer NAN schedule
+ *	has changed. The new schedule is available via sta->nan_sched.
+ *	Note that the channel_entry blob might not match the actual chandef
+ *	since the bandwidth of the chandef is the minimum of the local and peer
+ *	bandwidth. It is the driver responsibility to remove the peer schedule
+ *	when the NMI station is removed.
  * @can_aggregate_in_amsdu: Called in order to determine if HW supports
  *	aggregating two specific frames in the same A-MSDU. The relation
  *	between the skbs should be symmetric and transitive. Note that while
@@ -4891,6 +5017,8 @@ struct ieee80211_ops {
 	void (*del_nan_func)(struct ieee80211_hw *hw,
 			    struct ieee80211_vif *vif,
 			    u8 instance_id);
+	int (*nan_peer_sched_changed)(struct ieee80211_hw *hw,
+				      struct ieee80211_sta *sta);
 	bool (*can_aggregate_in_amsdu)(struct ieee80211_hw *hw,
 				       struct sk_buff *head,
 				       struct sk_buff *skb);
@@ -7388,6 +7516,24 @@ void ieee80211_disable_rssi_reports(struct ieee80211_vif *vif);
 int ieee80211_ave_rssi(struct ieee80211_vif *vif, int link_id);
 
 /**
+ * ieee80211_calculate_rx_timestamp - calculate timestamp in frame
+ * @hw: pointer as obtained from ieee80211_alloc_hw()
+ * @status: RX status
+ * @mpdu_len: total MPDU length (including FCS)
+ * @mpdu_offset: offset into MPDU to calculate timestamp at
+ *
+ * This function calculates the RX timestamp at the given MPDU offset, taking
+ * into account what the RX timestamp was. An offset of 0 will just normalize
+ * the timestamp to TSF at beginning of MPDU reception.
+ *
+ * Returns: the calculated timestamp
+ */
+u64 ieee80211_calculate_rx_timestamp(struct ieee80211_hw *hw,
+				     struct ieee80211_rx_status *status,
+				     unsigned int mpdu_len,
+				     unsigned int mpdu_offset);
+
+/**
  * ieee80211_report_wowlan_wakeup - report WoWLAN wakeup
  * @vif: virtual interface
  * @wakeup: wakeup reason(s)
@@ -7733,6 +7879,17 @@ void ieee80211_nan_func_match(struct ieee80211_vif *vif,
 			      gfp_t gfp);
 
 /**
+ * ieee80211_nan_sched_update_done - notify that NAN schedule update is done
+ *
+ * This function is called by the driver to notify mac80211 that the NAN
+ * schedule update has been applied.
+ * Must be called with wiphy mutex held. May sleep.
+ *
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ */
+void ieee80211_nan_sched_update_done(struct ieee80211_vif *vif);
+
+/**
  * ieee80211_calc_rx_airtime - calculate estimated transmission airtime for RX.
  *
  * This function calculates the estimated airtime usage of a frame based on the
@@ -7768,19 +7925,22 @@ u32 ieee80211_calc_tx_airtime(struct ieee80211_hw *hw,
  * ieee80211_get_fils_discovery_tmpl - Get FILS discovery template.
  * @hw: pointer obtained from ieee80211_alloc_hw().
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ * @link_id: valid link_id during MLO or 0 for non-MLO.
  *
  * The driver is responsible for freeing the returned skb.
  *
  * Return: FILS discovery template. %NULL on error.
  */
 struct sk_buff *ieee80211_get_fils_discovery_tmpl(struct ieee80211_hw *hw,
-						  struct ieee80211_vif *vif);
+						  struct ieee80211_vif *vif,
+						  unsigned int link_id);
 
 /**
  * ieee80211_get_unsol_bcast_probe_resp_tmpl - Get unsolicited broadcast
  *	probe response template.
  * @hw: pointer obtained from ieee80211_alloc_hw().
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ * @link_id: valid link_id during MLO or 0 for non-MLO.
  *
  * The driver is responsible for freeing the returned skb.
  *
@@ -7788,7 +7948,8 @@ struct sk_buff *ieee80211_get_fils_discovery_tmpl(struct ieee80211_hw *hw,
  */
 struct sk_buff *
 ieee80211_get_unsol_bcast_probe_resp_tmpl(struct ieee80211_hw *hw,
-					  struct ieee80211_vif *vif);
+					  struct ieee80211_vif *vif,
+					  unsigned int link_id);
 
 /**
  * ieee80211_obss_color_collision_notify - notify userland about a BSS color
@@ -7964,4 +8125,11 @@ int ieee80211_emulate_switch_vif_chanctx(struct ieee80211_hw *hw,
  * Return: %true iff the vif is a NAN interface and NAN is started
  */
 bool ieee80211_vif_nan_started(struct ieee80211_vif *vif);
+
+/**
+ * ieee80211_encrypt_tx_skb - Encrypt the transmit skb
+ * @skb: the skb
+ * Return: 0 if success and non-zero on error
+ */
+int ieee80211_encrypt_tx_skb(struct sk_buff *skb);
 #endif /* MAC80211_H */

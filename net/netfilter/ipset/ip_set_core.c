@@ -985,7 +985,7 @@ static const struct nla_policy ip_set_create_policy[IPSET_ATTR_CMD_MAX + 1] = {
 				    .len = IPSET_MAXNAMELEN - 1 },
 	[IPSET_ATTR_TYPENAME]	= { .type = NLA_NUL_STRING,
 				    .len = IPSET_MAXNAMELEN - 1},
-	[IPSET_ATTR_REVISION]	= { .type = NLA_U8 },
+	[IPSET_ATTR_REVISION]	= NLA_POLICY_MAX(NLA_U8, IPSET_REVISION_MAX),
 	[IPSET_ATTR_FAMILY]	= { .type = NLA_U8 },
 	[IPSET_ATTR_DATA]	= { .type = NLA_NESTED },
 };

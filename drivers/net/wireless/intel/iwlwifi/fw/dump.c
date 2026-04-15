@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2026 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -128,19 +128,11 @@ static void iwl_fwrt_dump_umac_error_log(struct iwl_fw_runtime *fwrt)
 
 	IWL_ERR(fwrt, "0x%08X | %s\n", table.error_id,
 		iwl_fw_lookup_assert_desc(table.error_id));
-	IWL_ERR(fwrt, "0x%08X | umac branchlink1\n", table.blink1);
-	IWL_ERR(fwrt, "0x%08X | umac branchlink2\n", table.blink2);
-	IWL_ERR(fwrt, "0x%08X | umac interruptlink1\n", table.ilink1);
 	IWL_ERR(fwrt, "0x%08X | umac interruptlink2\n", table.ilink2);
 	IWL_ERR(fwrt, "0x%08X | umac data1\n", table.data1);
 	IWL_ERR(fwrt, "0x%08X | umac data2\n", table.data2);
 	IWL_ERR(fwrt, "0x%08X | umac data3\n", table.data3);
-	IWL_ERR(fwrt, "0x%08X | umac major\n", table.umac_major);
-	IWL_ERR(fwrt, "0x%08X | umac minor\n", table.umac_minor);
-	IWL_ERR(fwrt, "0x%08X | frame pointer\n", table.frame_pointer);
-	IWL_ERR(fwrt, "0x%08X | stack pointer\n", table.stack_pointer);
 	IWL_ERR(fwrt, "0x%08X | last host cmd\n", table.cmd_header);
-	IWL_ERR(fwrt, "0x%08X | isr status reg\n", table.nic_isr_pref);
 }
 
 static void iwl_fwrt_dump_lmac_error_log(struct iwl_fw_runtime *fwrt, u8 lmac_num)
@@ -200,39 +192,10 @@ static void iwl_fwrt_dump_lmac_error_log(struct iwl_fw_runtime *fwrt, u8 lmac_nu
 
 	IWL_ERR(fwrt, "0x%08X | %-28s\n", table.error_id,
 		iwl_fw_lookup_assert_desc(table.error_id));
-	IWL_ERR(fwrt, "0x%08X | trm_hw_status0\n", table.trm_hw_status0);
-	IWL_ERR(fwrt, "0x%08X | trm_hw_status1\n", table.trm_hw_status1);
-	IWL_ERR(fwrt, "0x%08X | branchlink2\n", table.blink2);
-	IWL_ERR(fwrt, "0x%08X | interruptlink1\n", table.ilink1);
 	IWL_ERR(fwrt, "0x%08X | interruptlink2\n", table.ilink2);
 	IWL_ERR(fwrt, "0x%08X | data1\n", table.data1);
 	IWL_ERR(fwrt, "0x%08X | data2\n", table.data2);
 	IWL_ERR(fwrt, "0x%08X | data3\n", table.data3);
-	IWL_ERR(fwrt, "0x%08X | beacon time\n", table.bcon_time);
-	IWL_ERR(fwrt, "0x%08X | tsf low\n", table.tsf_low);
-	IWL_ERR(fwrt, "0x%08X | tsf hi\n", table.tsf_hi);
-	IWL_ERR(fwrt, "0x%08X | time gp1\n", table.gp1);
-	IWL_ERR(fwrt, "0x%08X | time gp2\n", table.gp2);
-	IWL_ERR(fwrt, "0x%08X | uCode revision type\n", table.fw_rev_type);
-	IWL_ERR(fwrt, "0x%08X | uCode version major\n", table.major);
-	IWL_ERR(fwrt, "0x%08X | uCode version minor\n", table.minor);
-	IWL_ERR(fwrt, "0x%08X | hw version\n", table.hw_ver);
-	IWL_ERR(fwrt, "0x%08X | board version\n", table.brd_ver);
-	IWL_ERR(fwrt, "0x%08X | hcmd\n", table.hcmd);
-	IWL_ERR(fwrt, "0x%08X | isr0\n", table.isr0);
-	IWL_ERR(fwrt, "0x%08X | isr1\n", table.isr1);
-	IWL_ERR(fwrt, "0x%08X | isr2\n", table.isr2);
-	IWL_ERR(fwrt, "0x%08X | isr3\n", table.isr3);
-	IWL_ERR(fwrt, "0x%08X | isr4\n", table.isr4);
-	IWL_ERR(fwrt, "0x%08X | last cmd Id\n", table.last_cmd_id);
-	IWL_ERR(fwrt, "0x%08X | wait_event\n", table.wait_event);
-	IWL_ERR(fwrt, "0x%08X | l2p_control\n", table.l2p_control);
-	IWL_ERR(fwrt, "0x%08X | l2p_duration\n", table.l2p_duration);
-	IWL_ERR(fwrt, "0x%08X | l2p_mhvalid\n", table.l2p_mhvalid);
-	IWL_ERR(fwrt, "0x%08X | l2p_addr_match\n", table.l2p_addr_match);
-	IWL_ERR(fwrt, "0x%08X | lmpm_pmg_sel\n", table.lmpm_pmg_sel);
-	IWL_ERR(fwrt, "0x%08X | timestamp\n", table.u_timestamp);
-	IWL_ERR(fwrt, "0x%08X | flow_handler\n", table.flow_handler);
 }
 
 /*
@@ -264,7 +227,6 @@ static void iwl_fwrt_dump_tcm_error_log(struct iwl_fw_runtime *fwrt, int idx)
 	struct iwl_trans *trans = fwrt->trans;
 	struct iwl_tcm_error_event_table table = {};
 	u32 base = fwrt->trans->dbg.tcm_error_event_table[idx];
-	int i;
 	u32 flag = idx ? IWL_ERROR_EVENT_TABLE_TCM2 :
 			 IWL_ERROR_EVENT_TABLE_TCM1;
 
@@ -275,23 +237,10 @@ static void iwl_fwrt_dump_tcm_error_log(struct iwl_fw_runtime *fwrt, int idx)
 
 	IWL_ERR(fwrt, "TCM%d status:\n", idx + 1);
 	IWL_ERR(fwrt, "0x%08X | error ID\n", table.error_id);
-	IWL_ERR(fwrt, "0x%08X | tcm branchlink2\n", table.blink2);
-	IWL_ERR(fwrt, "0x%08X | tcm interruptlink1\n", table.ilink1);
 	IWL_ERR(fwrt, "0x%08X | tcm interruptlink2\n", table.ilink2);
 	IWL_ERR(fwrt, "0x%08X | tcm data1\n", table.data1);
 	IWL_ERR(fwrt, "0x%08X | tcm data2\n", table.data2);
 	IWL_ERR(fwrt, "0x%08X | tcm data3\n", table.data3);
-	IWL_ERR(fwrt, "0x%08X | tcm log PC\n", table.logpc);
-	IWL_ERR(fwrt, "0x%08X | tcm frame pointer\n", table.frame_pointer);
-	IWL_ERR(fwrt, "0x%08X | tcm stack pointer\n", table.stack_pointer);
-	IWL_ERR(fwrt, "0x%08X | tcm msg ID\n", table.msgid);
-	IWL_ERR(fwrt, "0x%08X | tcm ISR status\n", table.isr);
-	for (i = 0; i < ARRAY_SIZE(table.hw_status); i++)
-		IWL_ERR(fwrt, "0x%08X | tcm HW status[%d]\n",
-			table.hw_status[i], i);
-	for (i = 0; i < ARRAY_SIZE(table.sw_status); i++)
-		IWL_ERR(fwrt, "0x%08X | tcm SW status[%d]\n",
-			table.sw_status[i], i);
 }
 
 /*
@@ -338,26 +287,10 @@ static void iwl_fwrt_dump_rcm_error_log(struct iwl_fw_runtime *fwrt, int idx)
 
 	IWL_ERR(fwrt, "RCM%d status:\n", idx + 1);
 	IWL_ERR(fwrt, "0x%08X | error ID\n", table.error_id);
-	IWL_ERR(fwrt, "0x%08X | rcm branchlink2\n", table.blink2);
-	IWL_ERR(fwrt, "0x%08X | rcm interruptlink1\n", table.ilink1);
 	IWL_ERR(fwrt, "0x%08X | rcm interruptlink2\n", table.ilink2);
 	IWL_ERR(fwrt, "0x%08X | rcm data1\n", table.data1);
 	IWL_ERR(fwrt, "0x%08X | rcm data2\n", table.data2);
 	IWL_ERR(fwrt, "0x%08X | rcm data3\n", table.data3);
-	IWL_ERR(fwrt, "0x%08X | rcm log PC\n", table.logpc);
-	IWL_ERR(fwrt, "0x%08X | rcm frame pointer\n", table.frame_pointer);
-	IWL_ERR(fwrt, "0x%08X | rcm stack pointer\n", table.stack_pointer);
-	IWL_ERR(fwrt, "0x%08X | rcm msg ID\n", table.msgid);
-	IWL_ERR(fwrt, "0x%08X | rcm ISR status\n", table.isr);
-	IWL_ERR(fwrt, "0x%08X | frame HW status\n", table.frame_hw_status);
-	IWL_ERR(fwrt, "0x%08X | LMAC-to-RCM request mbox\n",
-		table.mbx_lmac_to_rcm_req);
-	IWL_ERR(fwrt, "0x%08X | RCM-to-LMAC request mbox\n",
-		table.mbx_rcm_to_lmac_req);
-	IWL_ERR(fwrt, "0x%08X | MAC header control\n", table.mh_ctl);
-	IWL_ERR(fwrt, "0x%08X | MAC header addr1 low\n", table.mh_addr1_lo);
-	IWL_ERR(fwrt, "0x%08X | MAC header info\n", table.mh_info);
-	IWL_ERR(fwrt, "0x%08X | MAC header error\n", table.mh_err);
 }
 
 static void iwl_fwrt_dump_iml_error_log(struct iwl_fw_runtime *fwrt)

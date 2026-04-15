@@ -189,7 +189,7 @@ static const struct nla_policy nft_limit_policy[NFTA_LIMIT_MAX + 1] = {
 	[NFTA_LIMIT_UNIT]	= { .type = NLA_U64 },
 	[NFTA_LIMIT_BURST]	= { .type = NLA_U32 },
 	[NFTA_LIMIT_TYPE]	= { .type = NLA_U32 },
-	[NFTA_LIMIT_FLAGS]	= { .type = NLA_U32 },
+	[NFTA_LIMIT_FLAGS]	= NLA_POLICY_MASK(NLA_BE32, NFT_LIMIT_F_INV),
 };
 
 static int nft_limit_pkts_init(const struct nft_ctx *ctx,
@@ -243,7 +243,6 @@ static const struct nft_expr_ops nft_limit_pkts_ops = {
 	.destroy	= nft_limit_pkts_destroy,
 	.clone		= nft_limit_pkts_clone,
 	.dump		= nft_limit_pkts_dump,
-	.reduce		= NFT_REDUCE_READONLY,
 };
 
 static void nft_limit_bytes_eval(const struct nft_expr *expr,
@@ -299,7 +298,6 @@ static const struct nft_expr_ops nft_limit_bytes_ops = {
 	.dump		= nft_limit_bytes_dump,
 	.clone		= nft_limit_bytes_clone,
 	.destroy	= nft_limit_bytes_destroy,
-	.reduce		= NFT_REDUCE_READONLY,
 };
 
 static const struct nft_expr_ops *

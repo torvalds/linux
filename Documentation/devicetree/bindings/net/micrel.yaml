@@ -51,9 +51,10 @@ properties:
       bits that are currently supported:
 
       KSZ8001: register 0x1e, bits 15..14
-      KSZ8041: register 0x1e, bits 15..14
       KSZ8021: register 0x1f, bits 5..4
       KSZ8031: register 0x1f, bits 5..4
+      KSZ8041: register 0x1e, bits 15..14
+      KSZ8041RNLI: register 0x1e, bits 15..14
       KSZ8051: register 0x1f, bits 5..4
       KSZ8081: register 0x1f, bits 5..4
       KSZ8091: register 0x1f, bits 5..4
@@ -80,9 +81,10 @@ allOf:
             contains:
               enum:
                 - ethernet-phy-id0022.1510
+                - ethernet-phy-id0022.1537
+                - ethernet-phy-id0022.1550
                 - ethernet-phy-id0022.1555
                 - ethernet-phy-id0022.1556
-                - ethernet-phy-id0022.1550
                 - ethernet-phy-id0022.1560
                 - ethernet-phy-id0022.161a
     then:

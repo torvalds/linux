@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Connection tracking via netlink socket. Allows for user space
  * protocol helpers and general trouble making from userspace.
  *
@@ -10,9 +11,6 @@
  * generally made possible by Network Robots, Inc. (www.networkrobots.com)
  *
  * Further development of this code funded by Astaro AG (http://www.astaro.com)
- *
- * This software may be used and distributed according to the terms
- * of the GNU General Public License, incorporated herein by reference.
  */
 
 #include <linux/init.h>

@@ -18,6 +18,7 @@ properties:
               - nxp,nq310
               - nxp,pn547
               - nxp,pn553
+              - nxp,pn557
           - const: nxp,nxp-nci-i2c
 
   enable-gpios:

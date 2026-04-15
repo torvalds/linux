@@ -2,8 +2,8 @@
 
 #include <net/netdev_queues.h>
 
-#include "netlink.h"
 #include "common.h"
+#include "netlink.h"
 
 struct rings_req_info {
 	struct ethnl_req_info		base;

@@ -52,11 +52,19 @@ examples:
           #address-cells = <1>;
           #size-cells = <0>;
 
-          pin@0 { /* REF0P */
+          sync0: pin@0 { /* REF0P - 1 PPS sync source */
             reg = <0>;
             connection-type = "ext";
-            label = "Input 0";
-            supported-frequencies-hz = /bits/ 64 <1 1000>;
+            label = "SMA1";
+            supported-frequencies-hz = /bits/ 64 <1>;
+          };
+
+          pin@1 { /* REF0N - clock source, can pair with sync0 */
+            reg = <1>;
+            connection-type = "ext";
+            label = "SMA2";
+            supported-frequencies-hz = /bits/ 64 <10000 10000000>;
+            ref-sync-sources = <&sync0>;
           };
         };
 
@@ -90,11 +98,19 @@ examples:
           #address-cells = <1>;
           #size-cells = <0>;
 
-          pin@0 { /* REF0P */
+          sync1: pin@0 { /* REF0P - 1 PPS sync source */
             reg = <0>;
-            connection-type = "ext";
-            label = "Input 0";
-            supported-frequencies-hz = /bits/ 64 <1 1000>;
+            connection-type = "gnss";
+            label = "GNSS_1PPS_IN";
+            supported-frequencies-hz = /bits/ 64 <1>;
+          };
+
+          pin@1 { /* REF0N - clock source */
+            reg = <1>;
+            connection-type = "gnss";
+            label = "GNSS_10M_IN";
+            supported-frequencies-hz = /bits/ 64 <10000000>;
+            ref-sync-sources = <&sync1>;
           };
         };
 

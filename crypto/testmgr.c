@@ -5193,12 +5193,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.hash = __VECS(md5_tv_template)
 		}
 	}, {
-		.alg = "michael_mic",
-		.test = alg_test_hash,
-		.suite = {
-			.hash = __VECS(michael_mic_tv_template)
-		}
-	}, {
 		.alg = "p1363(ecdsa-nist-p192)",
 		.test = alg_test_null,
 	}, {

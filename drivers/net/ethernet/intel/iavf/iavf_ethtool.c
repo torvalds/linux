@@ -32,7 +32,7 @@
  * statistics array. Thus, every statistic string in an array should have the
  * same type and number of format specifiers, to be formatted by variadic
  * arguments to the iavf_add_stat_string() helper function.
- **/
+ */
 struct iavf_stats {
 	char stat_string[ETH_GSTRING_LEN];
 	int sizeof_stat;
@@ -116,7 +116,7 @@ iavf_add_one_ethtool_stat(u64 *data, void *pointer,
  * the next empty location for successive calls to __iavf_add_ethtool_stats.
  * If pointer is null, set the data values to zero and update the pointer to
  * skip these stats.
- **/
+ */
 static void
 __iavf_add_ethtool_stats(u64 **data, void *pointer,
 			 const struct iavf_stats stats[],
@@ -140,7 +140,7 @@ __iavf_add_ethtool_stats(u64 **data, void *pointer,
  *
  * The parameter @stats is evaluated twice, so parameters with side effects
  * should be avoided.
- **/
+ */
 #define iavf_add_ethtool_stats(data, pointer, stats) \
 	__iavf_add_ethtool_stats(data, pointer, stats, ARRAY_SIZE(stats))
 
@@ -157,7 +157,7 @@ __iavf_add_ethtool_stats(u64 **data, void *pointer,
  * buffer and update the data pointer when finished.
  *
  * This function expects to be called while under rcu_read_lock().
- **/
+ */
 static void
 iavf_add_queue_stats(u64 **data, struct iavf_ring *ring)
 {
@@ -189,7 +189,7 @@ iavf_add_queue_stats(u64 **data, struct iavf_ring *ring)
  *
  * Format and copy the strings described by stats into the buffer pointed at
  * by p.
- **/
+ */
 static void __iavf_add_stat_strings(u8 **p, const struct iavf_stats stats[],
 				    const unsigned int size, ...)
 {
@@ -216,7 +216,7 @@ static void __iavf_add_stat_strings(u8 **p, const struct iavf_stats stats[],
  * The parameter @stats is evaluated twice, so parameters with side effects
  * should be avoided. Additionally, stats must be an array such that
  * ARRAY_SIZE can be called on it.
- **/
+ */
 #define iavf_add_stat_strings(p, stats, ...) \
 	__iavf_add_stat_strings(p, stats, ARRAY_SIZE(stats), ## __VA_ARGS__)
 
@@ -249,7 +249,7 @@ static const struct iavf_stats iavf_gstrings_stats[] = {
  *
  * Reports speed/duplex settings. Because this is a VF, we don't know what
  * kind of link we really have, so we fake it.
- **/
+ */
 static int iavf_get_link_ksettings(struct net_device *netdev,
 				   struct ethtool_link_ksettings *cmd)
 {
@@ -308,7 +308,7 @@ static int iavf_get_link_ksettings(struct net_device *netdev,
  * @sset: id of string set
  *
  * Reports size of various string tables.
- **/
+ */
 static int iavf_get_sset_count(struct net_device *netdev, int sset)
 {
 	/* Report the maximum number queues, even if not every queue is
@@ -331,7 +331,7 @@ static int iavf_get_sset_count(struct net_device *netdev, int sset)
  * @data: pointer to data buffer
  *
  * All statistics are added to the data buffer as an array of u64.
- **/
+ */
 static void iavf_get_ethtool_stats(struct net_device *netdev,
 				   struct ethtool_stats *stats, u64 *data)
 {
@@ -367,7 +367,7 @@ static void iavf_get_ethtool_stats(struct net_device *netdev,
  * @data: buffer for string data
  *
  * Builds the statistics string table
- **/
+ */
 static void iavf_get_stat_strings(struct net_device *netdev, u8 *data)
 {
 	unsigned int i;
@@ -392,7 +392,7 @@ static void iavf_get_stat_strings(struct net_device *netdev, u8 *data)
  * @data: buffer for string data
  *
  * Builds string tables for various string sets
- **/
+ */
 static void iavf_get_strings(struct net_device *netdev, u32 sset, u8 *data)
 {
 	switch (sset) {
@@ -408,8 +408,8 @@ static void iavf_get_strings(struct net_device *netdev, u32 sset, u8 *data)
  * iavf_get_msglevel - Get debug message level
  * @netdev: network interface device structure
  *
- * Returns current debug message level.
- **/
+ * Return: current debug message level.
+ */
 static u32 iavf_get_msglevel(struct net_device *netdev)
 {
 	struct iavf_adapter *adapter = netdev_priv(netdev);
@@ -424,7 +424,7 @@ static u32 iavf_get_msglevel(struct net_device *netdev)
  *
  * Set current debug message level. Higher values cause the driver to
  * be noisier.
- **/
+ */
 static void iavf_set_msglevel(struct net_device *netdev, u32 data)
 {
 	struct iavf_adapter *adapter = netdev_priv(netdev);
@@ -439,8 +439,8 @@ static void iavf_set_msglevel(struct net_device *netdev, u32 data)
  * @netdev: network interface device structure
  * @drvinfo: ethool driver info structure
  *
- * Returns information about the driver and device for display to the user.
- **/
+ * Fills @drvinfo with information about the driver and device.
+ */
 static void iavf_get_drvinfo(struct net_device *netdev,
 			     struct ethtool_drvinfo *drvinfo)
 {
@@ -458,9 +458,9 @@ static void iavf_get_drvinfo(struct net_device *netdev,
  * @kernel_ring: ethtool extenal ringparam structure
  * @extack: netlink extended ACK report struct
  *
- * Returns current ring parameters. TX and RX rings are reported separately,
- * but the number of rings is not reported.
- **/
+ * Fills @ring with current ring parameters. TX and RX rings are reported
+ * separately, but the number of rings is not reported.
+ */
 static void iavf_get_ringparam(struct net_device *netdev,
 			       struct ethtool_ringparam *ring,
 			       struct kernel_ethtool_ringparam *kernel_ring,
@@ -483,7 +483,7 @@ static void iavf_get_ringparam(struct net_device *netdev,
  *
  * Sets ring parameters. TX and RX rings are controlled separately, but the
  * number of rings is not specified, so all rings get the same settings.
- **/
+ */
 static int iavf_set_ringparam(struct net_device *netdev,
 			      struct ethtool_ringparam *ring,
 			      struct kernel_ethtool_ringparam *kernel_ring,
@@ -551,7 +551,7 @@ static int iavf_set_ringparam(struct net_device *netdev,
  * Gets the per-queue settings for coalescence. Specifically Rx and Tx usecs
  * are per queue. If queue is <0 then we default to queue 0 as the
  * representative value.
- **/
+ */
 static int __iavf_get_coalesce(struct net_device *netdev,
 			       struct ethtool_coalesce *ec, int queue)
 {
@@ -588,11 +588,11 @@ static int __iavf_get_coalesce(struct net_device *netdev,
  * @kernel_coal: ethtool CQE mode setting structure
  * @extack: extack for reporting error messages
  *
- * Returns current coalescing settings. This is referred to elsewhere in the
- * driver as Interrupt Throttle Rate, as this is how the hardware describes
- * this functionality. Note that if per-queue settings have been modified this
- * only represents the settings of queue 0.
- **/
+ * Fills @ec with current coalescing settings. This is referred to elsewhere
+ * in the driver as Interrupt Throttle Rate, as this is how the hardware
+ * describes this functionality. Note that if per-queue settings have been
+ * modified this only represents the settings of queue 0.
+ */
 static int iavf_get_coalesce(struct net_device *netdev,
 			     struct ethtool_coalesce *ec,
 			     struct kernel_ethtool_coalesce *kernel_coal,
@@ -608,7 +608,7 @@ static int iavf_get_coalesce(struct net_device *netdev,
  * @queue: the queue to read
  *
  * Read specific queue's coalesce settings.
- **/
+ */
 static int iavf_get_per_queue_coalesce(struct net_device *netdev, u32 queue,
 				       struct ethtool_coalesce *ec)
 {
@@ -622,7 +622,7 @@ static int iavf_get_per_queue_coalesce(struct net_device *netdev, u32 queue,
  * @queue: the queue to modify
  *
  * Change the ITR settings for a specific queue.
- **/
+ */
 static int iavf_set_itr_per_queue(struct iavf_adapter *adapter,
 				  struct ethtool_coalesce *ec, int queue)
 {
@@ -680,7 +680,7 @@ static int iavf_set_itr_per_queue(struct iavf_adapter *adapter,
  * @queue: the queue to change
  *
  * Sets the coalesce settings for a particular queue.
- **/
+ */
 static int __iavf_set_coalesce(struct net_device *netdev,
 			       struct ethtool_coalesce *ec, int queue)
 {
@@ -722,7 +722,7 @@ static int __iavf_set_coalesce(struct net_device *netdev,
  * @extack: extack for reporting error messages
  *
  * Change current coalescing settings for every queue.
- **/
+ */
 static int iavf_set_coalesce(struct net_device *netdev,
 			     struct ethtool_coalesce *ec,
 			     struct kernel_ethtool_coalesce *kernel_coal,
@@ -1639,7 +1639,7 @@ static int iavf_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
  * @netdev: network interface device structure
  *
  * Return: number of RX rings.
- **/
+ */
 static u32 iavf_get_rx_ring_count(struct net_device *netdev)
 {
 	struct iavf_adapter *adapter = netdev_priv(netdev);
@@ -1653,8 +1653,8 @@ static u32 iavf_get_rx_ring_count(struct net_device *netdev)
  * @cmd: ethtool rxnfc command
  * @rule_locs: pointer to store rule locations
  *
- * Returns Success if the command is supported.
- **/
+ * Return: 0 on success, -EOPNOTSUPP if the command is not supported.
+ */
 static int iavf_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
 			  u32 *rule_locs)
 {
@@ -1684,13 +1684,13 @@ static int iavf_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
 	return ret;
 }
 /**
- * iavf_get_channels: get the number of channels supported by the device
+ * iavf_get_channels - get the number of channels supported by the device
  * @netdev: network interface device structure
  * @ch: channel information structure
  *
  * For the purposes of our device, we only use combined channels, i.e. a tx/rx
  * queue pair. Report one extra channel to match our "other" MSI-X vector.
- **/
+ */
 static void iavf_get_channels(struct net_device *netdev,
 			      struct ethtool_channels *ch)
 {
@@ -1706,14 +1706,15 @@ static void iavf_get_channels(struct net_device *netdev,
 }
 
 /**
- * iavf_set_channels: set the new channel count
+ * iavf_set_channels - set the new channel count
  * @netdev: network interface device structure
  * @ch: channel information structure
  *
- * Negotiate a new number of channels with the PF then do a reset.  During
- * reset we'll realloc queues and fix the RSS table.  Returns 0 on success,
- * negative on failure.
- **/
+ * Negotiate a new number of channels with the PF then do a reset. During
+ * reset we'll realloc queues and fix the RSS table.
+ *
+ * Return: 0 on success, negative on failure.
+ */
 static int iavf_set_channels(struct net_device *netdev,
 			     struct ethtool_channels *ch)
 {
@@ -1750,8 +1751,8 @@ static int iavf_set_channels(struct net_device *netdev,
  * iavf_get_rxfh_key_size - get the RSS hash key size
  * @netdev: network interface device structure
  *
- * Returns the table size.
- **/
+ * Return: the RSS hash key size.
+ */
 static u32 iavf_get_rxfh_key_size(struct net_device *netdev)
 {
 	struct iavf_adapter *adapter = netdev_priv(netdev);
@@ -1763,8 +1764,8 @@ static u32 iavf_get_rxfh_key_size(struct net_device *netdev)
  * iavf_get_rxfh_indir_size - get the rx flow hash indirection table size
  * @netdev: network interface device structure
  *
- * Returns the table size.
- **/
+ * Return: the indirection table size.
+ */
 static u32 iavf_get_rxfh_indir_size(struct net_device *netdev)
 {
 	struct iavf_adapter *adapter = netdev_priv(netdev);
@@ -1777,8 +1778,10 @@ static u32 iavf_get_rxfh_indir_size(struct net_device *netdev)
  * @netdev: network interface device structure
  * @rxfh: pointer to param struct (indir, key, hfunc)
  *
- * Reads the indirection table directly from the hardware. Always returns 0.
- **/
+ * Reads the indirection table directly from the hardware.
+ *
+ * Return: 0 always.
+ */
 static int iavf_get_rxfh(struct net_device *netdev,
 			 struct ethtool_rxfh_param *rxfh)
 {
@@ -1806,9 +1809,9 @@ static int iavf_get_rxfh(struct net_device *netdev,
  * @rxfh: pointer to param struct (indir, key, hfunc)
  * @extack: extended ACK from the Netlink message
  *
- * Returns -EINVAL if the table specifies an invalid queue id, otherwise
- * returns 0 after programming the table.
- **/
+ * Return: 0 on success, -EOPNOTSUPP if the hash function is not supported,
+ * -EINVAL if the table specifies an invalid queue id.
+ */
 static int iavf_set_rxfh(struct net_device *netdev,
 			 struct ethtool_rxfh_param *rxfh,
 			 struct netlink_ext_ack *extack)
@@ -1885,7 +1888,7 @@ static const struct ethtool_ops iavf_ethtool_ops = {
  *
  * Sets ethtool ops struct in our netdev so that ethtool can call
  * our functions.
- **/
+ */
 void iavf_set_ethtool_ops(struct net_device *netdev)
 {
 	netdev->ethtool_ops = &iavf_ethtool_ops;

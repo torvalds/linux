@@ -19,7 +19,7 @@
 			NFTA_FIB_F_PRESENT)
 
 const struct nla_policy nft_fib_policy[NFTA_FIB_MAX + 1] = {
-	[NFTA_FIB_DREG]		= { .type = NLA_U32 },
+	[NFTA_FIB_DREG]		= NLA_POLICY_MAX(NLA_BE32, NFT_REG32_MAX),
 	[NFTA_FIB_RESULT]	= { .type = NLA_U32 },
 	[NFTA_FIB_FLAGS]	=
 		NLA_POLICY_MASK(NLA_BE32, NFTA_FIB_F_ALL),
@@ -161,48 +161,6 @@ void nft_fib_store_result(void *reg, const struct nft_fib *priv,
 	}
 }
 EXPORT_SYMBOL_GPL(nft_fib_store_result);
-
-bool nft_fib_reduce(struct nft_regs_track *track,
-		    const struct nft_expr *expr)
-{
-	const struct nft_fib *priv = nft_expr_priv(expr);
-	unsigned int len = NFT_REG32_SIZE;
-	const struct nft_fib *fib;
-
-	switch (priv->result) {
-	case NFT_FIB_RESULT_OIF:
-		break;
-	case NFT_FIB_RESULT_OIFNAME:
-		if (priv->flags & NFTA_FIB_F_PRESENT)
-			len = NFT_REG32_SIZE;
-		else
-			len = IFNAMSIZ;
-		break;
-	case NFT_FIB_RESULT_ADDRTYPE:
-	     break;
-	default:
-		WARN_ON_ONCE(1);
-		break;
-	}
-
-	if (!nft_reg_track_cmp(track, expr, priv->dreg)) {
-		nft_reg_track_update(track, expr, priv->dreg, len);
-		return false;
-	}
-
-	fib = nft_expr_priv(track->regs[priv->dreg].selector);
-	if (priv->result != fib->result ||
-	    priv->flags != fib->flags) {
-		nft_reg_track_update(track, expr, priv->dreg, len);
-		return false;
-	}
-
-	if (!track->regs[priv->dreg].bitwise)
-		return true;
-
-	return false;
-}
-EXPORT_SYMBOL_GPL(nft_fib_reduce);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Query routing table from nftables");

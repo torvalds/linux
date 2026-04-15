@@ -3,11 +3,11 @@
 #include <linux/net_tstamp.h>
 #include <linux/ptp_clock_kernel.h>
 
-#include "netlink.h"
-#include "common.h"
 #include "bitset.h"
-#include "../core/dev.h"
+#include "common.h"
+#include "netlink.h"
 #include "ts.h"
+#include "../core/dev.h"
 
 struct tsconfig_req_info {
 	struct ethnl_req_info base;

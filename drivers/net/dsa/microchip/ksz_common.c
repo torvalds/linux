@@ -3983,7 +3983,7 @@ static void ksz9477_phylink_mac_link_up(struct phylink_config *config,
 	if (dev->info->internal_phy[port])
 		return;
 
-	p->phydev.speed = speed;
+	p->speed = speed;
 
 	ksz_port_set_xmii_speed(dev, port, speed);
 

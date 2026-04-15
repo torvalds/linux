@@ -32700,56 +32700,6 @@ static const struct comp_testvec lzorle_decomp_tv_template[] = {
 };
 
 /*
- * Michael MIC test vectors from IEEE 802.11i
- */
-#define MICHAEL_MIC_TEST_VECTORS 6
-
-static const struct hash_testvec michael_mic_tv_template[] = {
-	{
-		.key = "\x00\x00\x00\x00\x00\x00\x00\x00",
-		.ksize = 8,
-		.plaintext = zeroed_string,
-		.psize = 0,
-		.digest = "\x82\x92\x5c\x1c\xa1\xd1\x30\xb8",
-	},
-	{
-		.key = "\x82\x92\x5c\x1c\xa1\xd1\x30\xb8",
-		.ksize = 8,
-		.plaintext = "M",
-		.psize = 1,
-		.digest = "\x43\x47\x21\xca\x40\x63\x9b\x3f",
-	},
-	{
-		.key = "\x43\x47\x21\xca\x40\x63\x9b\x3f",
-		.ksize = 8,
-		.plaintext = "Mi",
-		.psize = 2,
-		.digest = "\xe8\xf9\xbe\xca\xe9\x7e\x5d\x29",
-	},
-	{
-		.key = "\xe8\xf9\xbe\xca\xe9\x7e\x5d\x29",
-		.ksize = 8,
-		.plaintext = "Mic",
-		.psize = 3,
-		.digest = "\x90\x03\x8f\xc6\xcf\x13\xc1\xdb",
-	},
-	{
-		.key = "\x90\x03\x8f\xc6\xcf\x13\xc1\xdb",
-		.ksize = 8,
-		.plaintext = "Mich",
-		.psize = 4,
-		.digest = "\xd5\x5e\x10\x05\x10\x12\x89\x86",
-	},
-	{
-		.key = "\xd5\x5e\x10\x05\x10\x12\x89\x86",
-		.ksize = 8,
-		.plaintext = "Michael",
-		.psize = 7,
-		.digest = "\x0a\x94\x2b\x12\x4e\xca\xa5\x46",
-	}
-};
-
-/*
  * CRC32 test vectors
  */
 static const struct hash_testvec crc32_tv_template[] = {

@@ -144,7 +144,7 @@
 
 h1_create()
 {
-	simple_if_init $h1 192.0.2.1/28 2001:db8:1::1/64
+	simple_if_init $h1 192.0.2.1/28
 	ip route add vrf v$h1 192.0.2.16/28 via 192.0.2.2
 }
 

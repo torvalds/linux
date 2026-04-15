@@ -170,6 +170,8 @@ int fbnic_mac_request_irq(struct fbnic_dev *fbd)
 	fbnic_wr32(fbd, FBNIC_INTR_MSIX_CTRL(FBNIC_INTR_MSIX_CTRL_PCS_IDX),
 		   FBNIC_PCS_MSIX_ENTRY | FBNIC_INTR_MSIX_CTRL_ENABLE);
 
+	fbnic_wr32(fbd, FBNIC_INTR_MSIX_CTRL(FBNIC_INTR_MSIX_CTRL_RXB_IDX), 0);
+
 	fbd->mac_msix_vector = vector;
 
 	return 0;
@@ -236,6 +238,160 @@ void fbnic_free_irq(struct fbnic_dev *fbd, int nr, void *data)
 		return;
 
 	free_irq(irq, data);
+}
+
+struct fbnic_msix_test_data {
+	struct fbnic_dev *fbd;
+	unsigned long test_msix_status[BITS_TO_LONGS(FBNIC_MAX_MSIX_VECS)];
+	int irq_vector[FBNIC_MAX_MSIX_VECS];
+};
+
+static irqreturn_t fbnic_irq_test(int irq, void *data)
+{
+	struct fbnic_msix_test_data *test_data = data;
+	struct fbnic_dev *fbd = test_data->fbd;
+	int i;
+
+	for (i = fbd->num_irqs; i--;) {
+		if (test_data->irq_vector[i] == irq) {
+			set_bit(i, test_data->test_msix_status);
+			break;
+		}
+	}
+
+	return IRQ_HANDLED;
+}
+
+/**
+ * fbnic_msix_test - Verify behavior of NIC interrupts
+ * @fbd: device to test
+ *
+ * This function is meant to test the global interrupt registers and the
+ * PCIe IP MSI-X functionality. It essentially goes through and tests
+ * various combinations of the set, clear, and mask bits in order to
+ * verify the behavior is as we expect it to be from the driver.
+ *
+ * Return: See enum fbnic_msix_self_test_codes
+ **/
+enum fbnic_msix_self_test_codes fbnic_msix_test(struct fbnic_dev *fbd)
+{
+	enum fbnic_msix_self_test_codes result = FBNIC_TEST_MSIX_SUCCESS;
+	struct pci_dev *pdev = to_pci_dev(fbd->dev);
+	struct fbnic_msix_test_data *test_data;
+	u32 mask = 0;
+	int i;
+
+	/* Allocate bitmap and IRQ vector table */
+	test_data = kzalloc_obj(*test_data, GFP_KERNEL);
+
+	/* memory allocation failure */
+	if (!test_data)
+		return FBNIC_TEST_MSIX_NOMEM;
+
+	/* Initialize test data */
+	test_data->fbd = fbd;
+
+	for (i = FBNIC_NON_NAPI_VECTORS; i < fbd->num_irqs; i++) {
+		/* Add IRQ to vector table so it can be found */
+		test_data->irq_vector[i] = pci_irq_vector(pdev, i);
+
+		/* Enable the interrupt */
+		if (!fbnic_request_irq(fbd, i, fbnic_irq_test, 0,
+				       fbd->netdev->name, test_data))
+			continue;
+
+		while (i-- > FBNIC_NON_NAPI_VECTORS)
+			fbnic_free_irq(fbd, i, test_data);
+		kfree(test_data);
+
+		/* IRQ request failure */
+		return FBNIC_TEST_MSIX_IRQ_REQ_FAIL;
+	}
+
+	/* Test each bit individually */
+	for (i = FBNIC_NON_NAPI_VECTORS; i < fbd->num_irqs; i++) {
+		mask = 1U << (i % 32);
+
+		/* Start with mask set and interrupt cleared */
+		fbnic_wr32(fbd, FBNIC_INTR_MASK_SET(i / 32), mask);
+		fbnic_wrfl(fbd);
+		fbnic_wr32(fbd, FBNIC_INTR_CLEAR(i / 32), mask);
+		fbnic_wrfl(fbd);
+
+		/* masking failure to prevent interrupt */
+		result = FBNIC_TEST_MSIX_MASK;
+
+		fbnic_wr32(fbd, FBNIC_INTR_SET(i / 32), mask);
+		fbnic_wrfl(fbd);
+		usleep_range(10000, 11000);
+
+		if (test_bit(i, test_data->test_msix_status))
+			break;
+
+		/* unmasking failure w/ sw status set */
+		result = FBNIC_TEST_MSIX_UNMASK;
+
+		fbnic_wr32(fbd, FBNIC_INTR_MASK_CLEAR(i / 32), mask);
+		fbnic_wrfl(fbd);
+		usleep_range(10000, 11000);
+
+		if (!test_bit(i, test_data->test_msix_status))
+			break;
+
+		/* interrupt when clearing mask */
+		result = FBNIC_TEST_MSIX_IRQ_CLEAR;
+
+		clear_bit(i, test_data->test_msix_status);
+		fbnic_wr32(fbd, FBNIC_INTR_MASK_CLEAR(i / 32), mask);
+		fbnic_wrfl(fbd);
+		usleep_range(10000, 11000);
+
+		if (test_bit(i, test_data->test_msix_status))
+			break;
+
+		/* interrupt not triggering when not masked */
+		result = FBNIC_TEST_MSIX_NO_INTERRUPT;
+
+		fbnic_wr32(fbd, FBNIC_INTR_SET(i / 32), mask);
+		fbnic_wrfl(fbd);
+		usleep_range(10000, 11000);
+
+		if (!test_bit(i, test_data->test_msix_status))
+			break;
+
+		/* status not cleared, or mask not set */
+		result = FBNIC_TEST_MSIX_NO_CLEAR_OR_MASK;
+		if (mask & fbnic_rd32(fbd, FBNIC_INTR_STATUS(i / 32)))
+			break;
+		if (!(mask & fbnic_rd32(fbd, FBNIC_INTR_MASK(i / 32))))
+			break;
+
+		/* Result = 0 - Success */
+		result = FBNIC_TEST_MSIX_SUCCESS;
+
+		clear_bit(i, test_data->test_msix_status);
+	}
+
+	if (i < fbd->num_irqs) {
+		fbnic_wr32(fbd, FBNIC_INTR_MASK_SET(i / 32), mask);
+		fbnic_wrfl(fbd);
+		fbnic_wr32(fbd, FBNIC_INTR_CLEAR(i / 32), mask);
+		fbnic_wrfl(fbd);
+		clear_bit(i, test_data->test_msix_status);
+	}
+
+	for (i = FBNIC_NON_NAPI_VECTORS; i < fbd->num_irqs; i++) {
+		/* Test for bits set after testing */
+		if (test_bit(i, test_data->test_msix_status))
+			result = FBNIC_TEST_MSIX_BITS_SET_AFTER_TEST;
+
+		/* Free IRQ */
+		fbnic_free_irq(fbd, i, test_data);
+	}
+
+	kfree(test_data);
+
+	return result;
 }
 
 void fbnic_napi_name_irqs(struct fbnic_dev *fbd)

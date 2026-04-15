@@ -1985,9 +1985,9 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw,
 	 */
 	if (unlikely(ieee80211_is_action(wh->frame_control) &&
 	    mgmt->u.action.category == WLAN_CATEGORY_BACK &&
-	    mgmt->u.action.u.addba_req.action_code == WLAN_ACTION_ADDBA_REQ &&
+	    mgmt->u.action.action_code == WLAN_ACTION_ADDBA_REQ &&
 	    priv->ap_fw)) {
-		u16 capab = le16_to_cpu(mgmt->u.action.u.addba_req.capab);
+		u16 capab = le16_to_cpu(mgmt->u.action.addba_req.capab);
 		tid = (capab & IEEE80211_ADDBA_PARAM_TID_MASK) >> 2;
 		index = mwl8k_tid_queue_mapping(tid);
 	}

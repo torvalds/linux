@@ -877,6 +877,8 @@ static void rsi_disconnect(struct usb_interface *pfunction)
 	if (!adapter)
 		return;
 
+	rsi_mac80211_rfkill_exit(adapter);
+
 	rsi_mac80211_detach(adapter);
 
 	if (IS_ENABLED(CONFIG_RSI_COEX) && adapter->priv->coex_mode > 1 &&

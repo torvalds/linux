@@ -70,11 +70,19 @@
 #define HINIC3_PPF_ELECTION_GET(val, member) \
 	FIELD_GET(HINIC3_PPF_ELECTION_##member##_MASK, val)
 
+#define HINIC3_GET_REG_FLAG(reg)  ((reg) & (~(HINIC3_REGS_FLAG_MASK)))
 #define HINIC3_GET_REG_ADDR(reg)  ((reg) & (HINIC3_REGS_FLAG_MASK))
 
 static void __iomem *hinic3_reg_addr(struct hinic3_hwif *hwif, u32 reg)
 {
-	return hwif->cfg_regs_base + HINIC3_GET_REG_ADDR(reg);
+	void __iomem *addr;
+
+	if (HINIC3_GET_REG_FLAG(reg) == HINIC3_MGMT_REGS_FLAG)
+		addr = hwif->mgmt_regs_base + HINIC3_GET_REG_ADDR(reg);
+	else
+		addr = hwif->cfg_regs_base + HINIC3_GET_REG_ADDR(reg);
+
+	return addr;
 }
 
 u32 hinic3_hwif_read_reg(struct hinic3_hwif *hwif, u32 reg)
@@ -97,6 +105,8 @@ static enum hinic3_wait_return check_hwif_ready_handler(void *priv_data)
 	u32 attr1;
 
 	attr1 = hinic3_hwif_read_reg(hwdev->hwif, HINIC3_CSR_FUNC_ATTR1_ADDR);
+	if (attr1 == HINIC3_PCIE_LINK_DOWN)
+		return HINIC3_WAIT_PROCESS_ERR;
 
 	return HINIC3_AF1_GET(attr1, MGMT_INIT_STATUS) ?
 	       HINIC3_WAIT_PROCESS_CPL : HINIC3_WAIT_PROCESS_WAITING;
@@ -135,6 +145,7 @@ static void set_hwif_attr(struct hinic3_func_attr *attr, u32 attr0, u32 attr1,
 static int init_hwif_attr(struct hinic3_hwdev *hwdev)
 {
 	u32 attr0, attr1, attr2, attr3, attr6;
+	struct hinic3_func_attr *attr;
 	struct hinic3_hwif *hwif;
 
 	hwif = hwdev->hwif;
@@ -158,7 +169,15 @@ static int init_hwif_attr(struct hinic3_hwdev *hwdev)
 	if (attr6 == HINIC3_PCIE_LINK_DOWN)
 		return -EFAULT;
 
-	set_hwif_attr(&hwif->attr, attr0, attr1, attr2, attr3, attr6);
+	attr = &hwif->attr;
+	set_hwif_attr(attr, attr0, attr1, attr2, attr3, attr6);
+
+	if (attr->func_type != HINIC3_FUNC_TYPE_VF &&
+	    attr->func_type != HINIC3_FUNC_TYPE_PF) {
+		dev_err(hwdev->dev, "unexpected func_type %u\n",
+			attr->func_type);
+		return -EINVAL;
+	}
 
 	if (!hwif->attr.num_ceqs) {
 		dev_err(hwdev->dev, "Ceq num cfg in fw is zero\n");

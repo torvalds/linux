@@ -6,6 +6,7 @@
 #include <linux/phy.h>
 #include <linux/io-64-nonatomic-hi-lo.h>
 #include <uapi/linux/ethtool.h>
+#include <net/page_pool/helpers.h>
 
 #define ASP_INTR2_OFFSET			0x1000
 #define  ASP_INTR2_STATUS			0x0
@@ -298,16 +299,19 @@ struct bcmasp_intf {
 	void __iomem			*rx_edpkt_cfg;
 	void __iomem			*rx_edpkt_dma;
 	int				rx_edpkt_index;
-	int				rx_buf_order;
 	struct bcmasp_desc		*rx_edpkt_cpu;
 	dma_addr_t			rx_edpkt_dma_addr;
 	dma_addr_t			rx_edpkt_dma_read;
 	dma_addr_t			rx_edpkt_dma_valid;
 
-	/* RX buffer prefetcher ring*/
+	/* Streaming RX data ring (RBUF_4K mode) */
 	void				*rx_ring_cpu;
 	dma_addr_t			rx_ring_dma;
 	dma_addr_t			rx_ring_dma_valid;
+	int				rx_buf_order;
+
+	/* Page pool for recycling RX SKB data pages */
+	struct page_pool		*rx_page_pool;
 	struct napi_struct		rx_napi;
 
 	struct bcmasp_res		res;

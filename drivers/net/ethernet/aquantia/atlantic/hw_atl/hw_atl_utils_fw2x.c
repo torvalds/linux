@@ -703,6 +703,85 @@ static int aq_fw2x_send_macsec_req(struct aq_hw_s *hw,
 	return err;
 }
 
+static int aq_fw2x_read_module_eeprom(struct aq_hw_s *self, u8 dev_addr,
+				      u8 reg_start_addr, int len, u8 *data)
+{
+	u32 low_status, orig_low_status, low_req = 0;
+	u32 res_bytes_remain_cnt = len % sizeof(u32);
+	u32 res_dword_cnt = len / sizeof(u32);
+	struct smbus_request request = { 0 };
+	u32 req_dword_cnt;
+	u32 result = 0;
+	u32 caps_lo;
+	u32 offset;
+	int err;
+
+	caps_lo = aq_fw2x_get_link_capabilities(self);
+	if (!(caps_lo & BIT(CAPS_LO_SMBUS_READ)))
+		return -EOPNOTSUPP;
+
+	request.msg_id = 0;
+	request.device_id = dev_addr;
+	request.address = reg_start_addr;
+	request.length = len;
+
+	/* Write SMBUS request to cfg memory */
+	req_dword_cnt = DIV_ROUND_UP(sizeof(request), sizeof(u32));
+	err = hw_atl_write_fwcfg_dwords(self, (void *)&request, req_dword_cnt);
+	if (err < 0)
+		return err;
+
+	/* Toggle 0x368.CAPS_LO_SMBUS_READ bit */
+	low_req = aq_hw_read_reg(self, HW_ATL_FW2X_MPI_CONTROL_ADDR);
+	orig_low_status = low_req & BIT(CAPS_LO_SMBUS_READ);
+	low_req ^= BIT(CAPS_LO_SMBUS_READ);
+	aq_hw_write_reg(self, HW_ATL_FW2X_MPI_CONTROL_ADDR, low_req);
+
+	/* Wait FW to report back */
+	err = readx_poll_timeout_atomic(aq_fw2x_state_get, self, low_status,
+					orig_low_status != (low_status &
+					BIT(CAPS_LO_SMBUS_READ)),
+					10U, 100000U);
+	if (err)
+		return err;
+
+	/* Read status of read operation */
+	offset = self->rpc_addr + sizeof(u32);
+	err = hw_atl_utils_fw_downld_dwords(self, offset, &result,
+					    sizeof(result) / sizeof(u32));
+	if (err < 0)
+		return err;
+	if (result)
+		return -EIO;
+
+	/* Read response full DWORD data */
+	if (res_dword_cnt) {
+		offset = self->rpc_addr + sizeof(u32) * 2;
+		err = hw_atl_utils_fw_downld_dwords(self, offset, (u32 *)data,
+						    res_dword_cnt);
+		if (err < 0)
+			return err;
+	}
+
+	/* Read response trailing bytes data */
+	if (res_bytes_remain_cnt) {
+		u32 bytes_remain_val = 0;
+
+		offset = self->rpc_addr +
+			 (sizeof(u32) * 2) +
+			 (res_dword_cnt * sizeof(u32));
+		err = hw_atl_utils_fw_downld_dwords(self, offset,
+						    &bytes_remain_val, 1);
+		if (err < 0)
+			return err;
+
+		memcpy(data + len - res_bytes_remain_cnt,
+		       &bytes_remain_val, res_bytes_remain_cnt);
+	}
+
+	return 0;
+}
+
 const struct aq_fw_ops aq_fw_2x_ops = {
 	.init               = aq_fw2x_init,
 	.deinit             = aq_fw2x_deinit,
@@ -729,4 +808,5 @@ const struct aq_fw_ops aq_fw_2x_ops = {
 	.adjust_ptp         = aq_fw3x_adjust_ptp,
 	.get_link_capabilities = aq_fw2x_get_link_capabilities,
 	.send_macsec_req    = aq_fw2x_send_macsec_req,
+	.read_module_eeprom = aq_fw2x_read_module_eeprom,
 };

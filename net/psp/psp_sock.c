@@ -291,4 +291,3 @@ void psp_reply_set_decrypted(const struct sock *sk, struct sk_buff *skb)
 		skb->decrypted = 1;
 	rcu_read_unlock();
 }
-EXPORT_IPV6_MOD_GPL(psp_reply_set_decrypted);

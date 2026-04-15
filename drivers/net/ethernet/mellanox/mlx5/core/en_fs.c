@@ -47,7 +47,6 @@ struct mlx5e_flow_steering {
 	bool				state_destroy;
 	bool				vlan_strip_disable;
 	struct mlx5_core_dev		*mdev;
-	struct net_device		*netdev;
 	struct mlx5_flow_namespace      *ns;
 	struct mlx5_flow_namespace      *egress_ns;
 #ifdef CONFIG_MLX5_EN_RXNFC
@@ -823,7 +822,13 @@ static void mlx5e_destroy_promisc_table(struct mlx5e_flow_steering *fs)
 void mlx5e_fs_set_rx_mode_work(struct mlx5e_flow_steering *fs,
 			       struct net_device *netdev)
 {
+	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5e_l2_table *ea = &fs->l2;
+
+	if (mlx5e_is_uplink_rep(priv)) {
+		mlx5e_handle_netdev_addr(fs, netdev);
+		goto update_vport_context;
+	}
 
 	bool rx_mode_enable  = fs->state_destroy;
 	bool promisc_enabled   = rx_mode_enable && (netdev->flags & IFF_PROMISC);
@@ -864,6 +869,7 @@ void mlx5e_fs_set_rx_mode_work(struct mlx5e_flow_steering *fs,
 	ea->allmulti_enabled  = allmulti_enabled;
 	ea->broadcast_enabled = broadcast_enabled;
 
+update_vport_context:
 	mlx5e_vport_context_update(fs, netdev);
 }
 
@@ -983,6 +989,9 @@ static int mlx5e_add_l2_flow_rule(struct mlx5e_flow_steering *fs,
 	int err = 0;
 	u8 *mc_dmac;
 	u8 *mv_dmac;
+
+	if (!ft)
+		return -EINVAL;
 
 	spec = kvzalloc_obj(*spec);
 	if (!spec)

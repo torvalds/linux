@@ -224,6 +224,19 @@ setup_ns()
 	NS_LIST+=("${ns_list[@]}")
 }
 
+in_all_ns()
+{
+	local ret=0
+	local ns_list=("${NS_LIST[@]}")
+
+	for ns in "${ns_list[@]}"; do
+		ip netns exec "${ns}" "$@"
+		(( ret = ret || $? ))
+	done
+
+	return "${ret}"
+}
+
 # Create netdevsim with given id and net namespace.
 create_netdevsim() {
     local id="$1"
@@ -514,7 +527,8 @@ mac_get()
 {
 	local if_name=$1
 
-	ip -j link show dev $if_name | jq -r '.[]["address"]'
+	run_on "$if_name" \
+		ip -j link show dev "$if_name" | jq -r '.[]["address"]'
 }
 
 kill_process()
@@ -669,4 +683,9 @@ cmd_jq()
 	echo $output
 	# return success only in case of non-empty output
 	[ ! -z "$output" ]
+}
+
+run_on()
+{
+	shift; "$@"
 }

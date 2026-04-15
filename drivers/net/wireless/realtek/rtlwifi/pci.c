@@ -507,7 +507,7 @@ static void _rtl_pci_tx_isr(struct ieee80211_hw *hw, int prio)
 		if (ieee80211_is_action(fc)) {
 			struct ieee80211_mgmt *action_frame =
 				(struct ieee80211_mgmt *)skb->data;
-			if (action_frame->u.action.u.ht_smps.action ==
+			if (action_frame->u.action.action_code ==
 			    WLAN_HT_ACTION_SMPS) {
 				dev_kfree_skb(skb);
 				goto tx_status_ok;
@@ -1674,6 +1674,7 @@ static void rtl_pci_deinit(struct ieee80211_hw *hw)
 
 	synchronize_irq(rtlpci->pdev->irq);
 	tasklet_kill(&rtlpriv->works.irq_tasklet);
+	tasklet_kill(&rtlpriv->works.irq_prepare_bcn_tasklet);
 	cancel_work_sync(&rtlpriv->works.lps_change_work);
 }
 

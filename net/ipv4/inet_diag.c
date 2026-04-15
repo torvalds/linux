@@ -241,7 +241,7 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 
 	inet_diag_msg_common_fill(r, sk);
 	r->idiag_state = sk->sk_state;
-	r->idiag_timer = 0;
+	r->idiag_timer = IDIAG_TIMER_OFF;
 	r->idiag_retrans = 0;
 	r->idiag_expires = 0;
 
@@ -284,20 +284,25 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 	if (icsk_pending == ICSK_TIME_RETRANS ||
 	    icsk_pending == ICSK_TIME_REO_TIMEOUT ||
 	    icsk_pending == ICSK_TIME_LOSS_PROBE) {
-		r->idiag_timer = 1;
+		r->idiag_timer = IDIAG_TIMER_ON;
 		r->idiag_retrans = READ_ONCE(icsk->icsk_retransmits);
 		r->idiag_expires =
 			jiffies_delta_to_msecs(tcp_timeout_expires(sk) - jiffies);
 	} else if (icsk_pending == ICSK_TIME_PROBE0) {
-		r->idiag_timer = 4;
+		r->idiag_timer = IDIAG_TIMER_PROBE0;
 		r->idiag_retrans = READ_ONCE(icsk->icsk_probes_out);
 		r->idiag_expires =
 			jiffies_delta_to_msecs(tcp_timeout_expires(sk) - jiffies);
 	} else if (timer_pending(&icsk->icsk_keepalive_timer)) {
-		r->idiag_timer = 2;
+		r->idiag_timer = IDIAG_TIMER_KEEPALIVE;
 		r->idiag_retrans = READ_ONCE(icsk->icsk_probes_out);
 		r->idiag_expires =
 			jiffies_delta_to_msecs(icsk->icsk_keepalive_timer.expires - jiffies);
+	} else if ((READ_ONCE(icsk->icsk_ack.pending) & ICSK_ACK_TIMER) &&
+		   timer_pending(&icsk->icsk_delack_timer)) {
+		r->idiag_timer = IDIAG_TIMER_DELACK;
+		r->idiag_expires =
+			jiffies_delta_to_msecs(icsk_delack_timeout(icsk) - jiffies);
 	}
 
 	if ((ext & (1 << (INET_DIAG_INFO - 1))) && handler->idiag_info_size) {

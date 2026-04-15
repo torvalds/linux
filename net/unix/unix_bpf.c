@@ -49,7 +49,7 @@ static int __unix_recvmsg(struct sock *sk, struct msghdr *msg,
 }
 
 static int unix_bpf_recvmsg(struct sock *sk, struct msghdr *msg,
-			    size_t len, int flags, int *addr_len)
+			    size_t len, int flags)
 {
 	struct unix_sock *u = unix_sk(sk);
 	struct sk_psock *psock;

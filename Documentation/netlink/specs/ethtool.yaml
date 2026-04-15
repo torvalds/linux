@@ -311,10 +311,6 @@ attribute-sets:
         type: unused
         value: 0
       -
-        name: unspec
-        type: unused
-        value: 0
-      -
         name: string
         type: nest
         multi-attr: true
@@ -861,6 +857,12 @@ attribute-sets:
         name: tx-profile
         type: nest
         nested-attributes: profile
+      -
+        name: rx-cqe-frames
+        type: u32
+      -
+        name: rx-cqe-nsecs
+        type: u32
 
   -
     name: pause-stat
@@ -879,6 +881,19 @@ attribute-sets:
       -
         name: rx-frames
         type: u64
+      -
+        name: tx-pause-storm-events
+        type: u64
+        doc: >-
+            TX pause storm event count. Increments each time device
+            detects that its pause assertion condition has been true
+            for too long for normal operation. As a result, the device
+            has temporarily disabled its own Pause TX function to
+            protect the network from itself.
+            This counter should never increment under normal overload
+            conditions; it indicates catastrophic failure like an OS
+            crash. The rate of incrementing is implementation specific.
+
   -
     name: pause
     attr-cnt-name: __ethtool-a-pause-cnt
@@ -2244,6 +2259,8 @@ operations:
             - tx-aggr-time-usecs
             - rx-profile
             - tx-profile
+            - rx-cqe-frames
+            - rx-cqe-nsecs
       dump: *coalesce-get-op
     -
       name: coalesce-set

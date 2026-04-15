@@ -826,6 +826,13 @@ definitions:
       - name: none
       - name: default
   -
+    name: netkit-pairing
+    type: enum
+    enum-name: netkit-pairing
+    entries:
+      - name: pair
+      - name: single
+  -
     name: ovpn-mode
     enum-name: ovpn-mode
     name-prefix: ovpn-mode
@@ -833,6 +840,14 @@ definitions:
     entries:
       - p2p
       - mp
+  -
+    name: br-stp-mode
+    type: enum
+    enum-name: br-stp-mode
+    entries:
+      - auto
+      - user
+      - kernel
 
 attribute-sets:
   -
@@ -1543,6 +1558,10 @@ attribute-sets:
       -
         name: fdb-max-learned
         type: u32
+      -
+        name: stp-mode
+        type: u32
+        enum: br-stp-mode
   -
     name: linkinfo-brport-attrs
     name-prefix: ifla-brport-
@@ -2299,6 +2318,10 @@ attribute-sets:
       -
         name: tailroom
         type: u16
+      -
+        name: pairing
+        type: u32
+        enum: netkit-pairing
   -
     name: linkinfo-ovpn-attrs
     name-prefix: ifla-ovpn-

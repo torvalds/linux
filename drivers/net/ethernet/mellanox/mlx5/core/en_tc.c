@@ -35,12 +35,12 @@
 #include <net/sch_generic.h>
 #include <net/pkt_cls.h>
 #include <linux/mlx5/fs.h>
+#include <linux/mlx5/lag.h>
 #include <linux/mlx5/device.h>
 #include <linux/rhashtable.h>
 #include <linux/refcount.h>
 #include <linux/completion.h>
 #include <net/arp.h>
-#include <net/ipv6_stubs.h>
 #include <net/bareudp.h>
 #include <net/bonding.h>
 #include <net/dst_metadata.h>
@@ -2131,7 +2131,7 @@ static void mlx5e_tc_del_fdb_peer_flow(struct mlx5e_tc_flow *flow,
 	mutex_unlock(&esw->offloads.peer_mutex);
 
 	list_for_each_entry_safe(peer_flow, tmp, &flow->peer_flows, peer_flows) {
-		if (peer_index != mlx5_get_dev_index(peer_flow->priv->mdev))
+		if (peer_index != mlx5_lag_get_dev_seq(peer_flow->priv->mdev))
 			continue;
 
 		list_del(&peer_flow->peer_flows);
@@ -2154,7 +2154,7 @@ static void mlx5e_tc_del_fdb_peers_flow(struct mlx5e_tc_flow *flow)
 
 	devcom = flow->priv->mdev->priv.eswitch->devcom;
 	mlx5_devcom_for_each_peer_entry(devcom, peer_esw, pos) {
-		i = mlx5_get_dev_index(peer_esw->dev);
+		i = mlx5_lag_get_dev_seq(peer_esw->dev);
 		mlx5e_tc_del_fdb_peer_flow(flow, i);
 	}
 }
@@ -4584,7 +4584,7 @@ static int mlx5e_tc_add_fdb_peer_flow(struct flow_cls_offload *f,
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5_esw_flow_attr *attr = flow->attr->esw_attr;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
-	int i = mlx5_get_dev_index(peer_esw->dev);
+	int i = mlx5_lag_get_dev_seq(peer_esw->dev);
 	struct mlx5e_rep_priv *peer_urpriv;
 	struct mlx5e_tc_flow *peer_flow;
 	struct mlx5_core_dev *in_mdev;
@@ -5525,7 +5525,7 @@ void mlx5e_tc_clean_fdb_peer_flows(struct mlx5_eswitch *esw)
 	devcom = esw->devcom;
 
 	mlx5_devcom_for_each_peer_entry(devcom, peer_esw, pos) {
-		i = mlx5_get_dev_index(peer_esw->dev);
+		i = mlx5_lag_get_dev_seq(peer_esw->dev);
 		list_for_each_entry_safe(flow, tmp, &esw->offloads.peer_flows[i], peer[i])
 			mlx5e_tc_del_fdb_peers_flow(flow);
 	}

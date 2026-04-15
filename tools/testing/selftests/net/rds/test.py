@@ -11,9 +11,8 @@ import signal
 import socket
 import subprocess
 import sys
-import atexit
-from pwd import getpwuid
-from os import stat
+import tempfile
+import shutil
 
 # Allow utils module to be imported from different directory
 this_dir = os.path.dirname(os.path.realpath(__file__))
@@ -23,45 +22,54 @@ from lib.py.utils import ip
 libc = ctypes.cdll.LoadLibrary('libc.so.6')
 setns = libc.setns
 
-net0 = 'net0'
-net1 = 'net1'
+NET0 = 'net0'
+NET1 = 'net1'
 
-veth0 = 'veth0'
-veth1 = 'veth1'
+VETH0 = 'veth0'
+VETH1 = 'veth1'
 
 # Helper function for creating a socket inside a network namespace.
 # We need this because otherwise RDS will detect that the two TCP
 # sockets are on the same interface and use the loop transport instead
 # of the TCP transport.
-def netns_socket(netns, *args):
+def netns_socket(netns, *sock_args):
+    """
+    Creates sockets inside of network namespace
+
+    :param netns: the name of the network namespace
+    :param sock_args: socket family and type
+    """
     u0, u1 = socket.socketpair(socket.AF_UNIX, socket.SOCK_SEQPACKET)
 
     child = os.fork()
     if child == 0:
         # change network namespace
-        with open(f'/var/run/netns/{netns}') as f:
+        with open(f'/var/run/netns/{netns}', encoding='utf-8') as f:
             try:
-                ret = setns(f.fileno(), 0)
+                setns(f.fileno(), 0)
             except IOError as e:
                 print(e.errno)
                 print(e)
 
         # create socket in target namespace
-        s = socket.socket(*args)
+        sock = socket.socket(*sock_args)
 
         # send resulting socket to parent
-        socket.send_fds(u0, [], [s.fileno()])
+        socket.send_fds(u0, [], [sock.fileno()])
 
         sys.exit(0)
 
     # receive socket from child
-    _, s, _, _ = socket.recv_fds(u1, 0, 1)
+    _, fds, _, _ = socket.recv_fds(u1, 0, 1)
     os.waitpid(child, 0)
     u0.close()
     u1.close()
-    return socket.fromfd(s[0], *args)
+    return socket.fromfd(fds[0], *sock_args)
 
-def signal_handler(sig, frame):
+def signal_handler(_sig, _frame):
+    """
+    Test timed out signal handler
+    """
     print('Test timed out')
     sys.exit(1)
 
@@ -81,13 +89,13 @@ parser.add_argument('-u', '--duplicate', help="Simulate tcp packet duplication",
                     type=int, default=0)
 args = parser.parse_args()
 logdir=args.logdir
-packet_loss=str(args.loss)+'%'
-packet_corruption=str(args.corruption)+'%'
-packet_duplicate=str(args.duplicate)+'%'
+PACKET_LOSS=str(args.loss)+'%'
+PACKET_CORRUPTION=str(args.corruption)+'%'
+PACKET_DUPLICATE=str(args.duplicate)+'%'
 
-ip(f"netns add {net0}")
-ip(f"netns add {net1}")
-ip(f"link add type veth")
+ip(f"netns add {NET0}")
+ip(f"netns add {NET1}")
+ip("link add type veth")
 
 addrs = [
     # we technically don't need different port numbers, but this will
@@ -99,38 +107,38 @@ addrs = [
 # move interfaces to separate namespaces so they can no longer be
 # bound directly; this prevents rds from switching over from the tcp
 # transport to the loop transport.
-ip(f"link set {veth0} netns {net0} up")
-ip(f"link set {veth1} netns {net1} up")
+ip(f"link set {VETH0} netns {NET0} up")
+ip(f"link set {VETH1} netns {NET1} up")
 
 
 
 # add addresses
-ip(f"-n {net0} addr add {addrs[0][0]}/32 dev {veth0}")
-ip(f"-n {net1} addr add {addrs[1][0]}/32 dev {veth1}")
+ip(f"-n {NET0} addr add {addrs[0][0]}/32 dev {VETH0}")
+ip(f"-n {NET1} addr add {addrs[1][0]}/32 dev {VETH1}")
 
 # add routes
-ip(f"-n {net0} route add {addrs[1][0]}/32 dev {veth0}")
-ip(f"-n {net1} route add {addrs[0][0]}/32 dev {veth1}")
+ip(f"-n {NET0} route add {addrs[1][0]}/32 dev {VETH0}")
+ip(f"-n {NET1} route add {addrs[0][0]}/32 dev {VETH1}")
 
 # sanity check that our two interfaces/addresses are correctly set up
 # and communicating by doing a single ping
-ip(f"netns exec {net0} ping -c 1 {addrs[1][0]}")
+ip(f"netns exec {NET0} ping -c 1 {addrs[1][0]}")
 
 # Start a packet capture on each network
-for net in [net0, net1]:
-    tcpdump_pid = os.fork()
-    if tcpdump_pid == 0:
-        pcap = logdir+'/'+net+'.pcap'
-        subprocess.check_call(['touch', pcap])
-        user = getpwuid(stat(pcap).st_uid).pw_name
-        ip(f"netns exec {net} /usr/sbin/tcpdump -Z {user} -i any -w {pcap}")
-        sys.exit(0)
+tcpdump_procs = []
+for net in [NET0, NET1]:
+    pcap = logdir+'/'+net+'.pcap'
+    fd, pcap_tmp = tempfile.mkstemp(suffix=".pcap", prefix=f"{net}-", dir="/tmp")
+    p = subprocess.Popen(
+        ['ip', 'netns', 'exec', net,
+         '/usr/sbin/tcpdump', '-i', 'any', '-w', pcap_tmp])
+    tcpdump_procs.append((p, pcap_tmp, pcap, fd))
 
 # simulate packet loss, duplication and corruption
-for net, iface in [(net0, veth0), (net1, veth1)]:
+for net, iface in [(NET0, VETH0), (NET1, VETH1)]:
     ip(f"netns exec {net} /usr/sbin/tc qdisc add dev {iface} root netem  \
-         corrupt {packet_corruption} loss {packet_loss} duplicate  \
-         {packet_duplicate}")
+         corrupt {PACKET_CORRUPTION} loss {PACKET_LOSS} duplicate  \
+         {PACKET_DUPLICATE}")
 
 # add a timeout
 if args.timeout > 0:
@@ -138,8 +146,8 @@ if args.timeout > 0:
     signal.signal(signal.SIGALRM, signal_handler)
 
 sockets = [
-    netns_socket(net0, socket.AF_RDS, socket.SOCK_SEQPACKET),
-    netns_socket(net1, socket.AF_RDS, socket.SOCK_SEQPACKET),
+    netns_socket(NET0, socket.AF_RDS, socket.SOCK_SEQPACKET),
+    netns_socket(NET1, socket.AF_RDS, socket.SOCK_SEQPACKET),
 ]
 
 for s, addr in zip(sockets, addrs):
@@ -150,9 +158,7 @@ fileno_to_socket = {
     s.fileno(): s for s in sockets
 }
 
-addr_to_socket = {
-    addr: s for addr, s in zip(addrs, sockets)
-}
+addr_to_socket = dict(zip(addrs, sockets))
 
 socket_to_addr = {
     s: addr for addr, s in zip(addrs, sockets)
@@ -166,14 +172,14 @@ ep = select.epoll()
 for s in sockets:
     ep.register(s, select.EPOLLRDNORM)
 
-n = 50000
+NUM_PACKETS = 50000
 nr_send = 0
 nr_recv = 0
 
-while nr_send < n:
+while nr_send < NUM_PACKETS:
     # Send as much as we can without blocking
     print("sending...", nr_send, nr_recv)
-    while nr_send < n:
+    while nr_send < NUM_PACKETS:
         send_data = hashlib.sha256(
             f'packet {nr_send}'.encode('utf-8')).hexdigest().encode('utf-8')
 
@@ -212,7 +218,7 @@ while nr_send < n:
                         break
 
     # exercise net/rds/tcp.c:rds_tcp_sysctl_reset()
-    for net in [net0, net1]:
+    for net in [NET0, NET1]:
         ip(f"netns exec {net} /usr/sbin/sysctl net.rds.tcp.rds_tcp_rcvbuf=10000")
         ip(f"netns exec {net} /usr/sbin/sysctl net.rds.tcp.rds_tcp_sndbuf=10000")
 
@@ -242,7 +248,11 @@ for s in sockets:
 print(f"getsockopt(): {nr_success}/{nr_error}")
 
 print("Stopping network packet captures")
-subprocess.check_call(['killall', '-q', 'tcpdump'])
+for p, pcap_tmp, pcap, fd in tcpdump_procs:
+    p.terminate()
+    p.wait()
+    os.close(fd)
+    shutil.move(pcap_tmp, pcap)
 
 # We're done sending and receiving stuff, now let's check if what
 # we received is what we sent.

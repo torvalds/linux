@@ -82,6 +82,4 @@ static inline __sum16 udp_v6_check(int len,
 void udp6_set_csum(bool nocheck, struct sk_buff *skb,
 		   const struct in6_addr *saddr,
 		   const struct in6_addr *daddr, int len);
-
-int udp6_csum_init(struct sk_buff *skb, struct udphdr *uh, int proto);
 #endif

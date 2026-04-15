@@ -1,10 +1,40 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright(c) 2019 - 2021 Intel Corporation
- * Copyright(c) 2024 Intel Corporation
+ * Copyright(c) 2024 - 2025 Intel Corporation
  */
 #include <fw/api/commands.h>
 #include "img.h"
+
+u8 iwl_fw_lookup_cmd_bios_supported_revision(const struct iwl_fw *fw,
+					     enum bios_source table_source,
+					     u32 cmd_id, u8 def)
+{
+	const struct iwl_fw_cmd_bios_table *entry;
+	/* prior to LONG_GROUP, we never used this CMD version API */
+	u8 grp = iwl_cmd_groupid(cmd_id) ?: LONG_GROUP;
+	u8 cmd = iwl_cmd_opcode(cmd_id);
+
+	if (table_source != BIOS_SOURCE_ACPI &&
+	    table_source != BIOS_SOURCE_UEFI)
+		return def;
+
+	if (!fw->ucode_capa.cmd_bios_tables ||
+	    !fw->ucode_capa.n_cmd_bios_tables)
+		return def;
+
+	entry = fw->ucode_capa.cmd_bios_tables;
+	for (int i = 0; i < fw->ucode_capa.n_cmd_bios_tables; i++, entry++) {
+		if (entry->group == grp && entry->cmd == cmd) {
+			if (table_source == BIOS_SOURCE_ACPI)
+				return entry->max_acpi_revision;
+			return entry->max_uefi_revision;
+		}
+	}
+
+	return def;
+}
+EXPORT_SYMBOL_GPL(iwl_fw_lookup_cmd_bios_supported_revision);
 
 u8 iwl_fw_lookup_cmd_ver(const struct iwl_fw *fw, u32 cmd_id, u8 def)
 {

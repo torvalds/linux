@@ -123,7 +123,6 @@ static const struct nft_expr_ops nft_objref_ops = {
 	.deactivate	= nft_objref_deactivate,
 	.dump		= nft_objref_dump,
 	.validate	= nft_objref_validate,
-	.reduce		= NFT_REDUCE_READONLY,
 };
 
 struct nft_objref_map {
@@ -245,7 +244,6 @@ static const struct nft_expr_ops nft_objref_map_ops = {
 	.destroy	= nft_objref_map_destroy,
 	.dump		= nft_objref_map_dump,
 	.validate	= nft_objref_map_validate,
-	.reduce		= NFT_REDUCE_READONLY,
 };
 
 static const struct nft_expr_ops *
@@ -267,7 +265,7 @@ static const struct nla_policy nft_objref_policy[NFTA_OBJREF_MAX + 1] = {
 	[NFTA_OBJREF_IMM_NAME]	= { .type = NLA_STRING,
 				    .len = NFT_OBJ_MAXNAMELEN - 1 },
 	[NFTA_OBJREF_IMM_TYPE]	= { .type = NLA_U32 },
-	[NFTA_OBJREF_SET_SREG]	= { .type = NLA_U32 },
+	[NFTA_OBJREF_SET_SREG]	= NLA_POLICY_MAX(NLA_BE32, NFT_REG32_MAX),
 	[NFTA_OBJREF_SET_NAME]	= { .type = NLA_STRING,
 				    .len = NFT_SET_MAXNAMELEN - 1 },
 	[NFTA_OBJREF_SET_ID]	= { .type = NLA_U32 },

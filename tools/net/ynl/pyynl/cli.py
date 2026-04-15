@@ -78,7 +78,7 @@ class YnlEncoder(json.JSONEncoder):
         if isinstance(o, bytes):
             return bytes.hex(o)
         if isinstance(o, set):
-            return list(o)
+            return sorted(o)
         return json.JSONEncoder.default(self, o)
 
 
@@ -256,6 +256,8 @@ def main():
     schema_group.add_argument('--no-schema', action='store_true')
 
     dbg_group = parser.add_argument_group('Debug options')
+    io_group.add_argument('--policy', action='store_true',
+                          help='Query kernel policy for the operation instead of executing it')
     dbg_group.add_argument('--dbg-small-recv', default=0, const=4000,
                            action='store', nargs='?', type=int, metavar='INT',
                            help="Length of buffers used for recv()")
@@ -307,6 +309,16 @@ def main():
                     recv_size=args.dbg_small_recv)
     if args.dbg_small_recv:
         ynl.set_recv_dbg(True)
+
+    if args.policy:
+        if args.do:
+            pol = ynl.get_policy(args.do, 'do')
+            output(pol.to_dict() if pol else None)
+            args.do = None
+        if args.dump:
+            pol = ynl.get_policy(args.dump, 'dump')
+            output(pol.to_dict() if pol else None)
+            args.dump = None
 
     if args.ntf:
         ynl.ntf_subscribe(args.ntf)

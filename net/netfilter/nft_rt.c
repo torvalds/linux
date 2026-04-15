@@ -103,7 +103,7 @@ err:
 }
 
 static const struct nla_policy nft_rt_policy[NFTA_RT_MAX + 1] = {
-	[NFTA_RT_DREG]		= { .type = NLA_U32 },
+	[NFTA_RT_DREG]		= NLA_POLICY_MAX(NLA_BE32, NFT_REG32_MAX),
 	[NFTA_RT_KEY]		= NLA_POLICY_MAX(NLA_BE32, 255),
 };
 
@@ -195,7 +195,6 @@ static const struct nft_expr_ops nft_rt_get_ops = {
 	.init		= nft_rt_get_init,
 	.dump		= nft_rt_get_dump,
 	.validate	= nft_rt_validate,
-	.reduce		= NFT_REDUCE_READONLY,
 };
 
 struct nft_expr_type nft_rt_type __read_mostly = {

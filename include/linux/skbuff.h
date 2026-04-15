@@ -2605,8 +2605,9 @@ static inline void skb_len_add(struct sk_buff *skb, int delta)
  *
  * Does not take any additional reference on the fragment.
  */
-static inline void __skb_fill_netmem_desc(struct sk_buff *skb, int i,
-					  netmem_ref netmem, int off, int size)
+static __always_inline void
+__skb_fill_netmem_desc(struct sk_buff *skb, int i, netmem_ref netmem,
+		       int off, int size)
 {
 	struct page *page;
 
@@ -2628,14 +2629,16 @@ static inline void __skb_fill_netmem_desc(struct sk_buff *skb, int i,
 		skb->pfmemalloc = true;
 }
 
-static inline void __skb_fill_page_desc(struct sk_buff *skb, int i,
-					struct page *page, int off, int size)
+static __always_inline void
+__skb_fill_page_desc(struct sk_buff *skb, int i, struct page *page,
+		     int off, int size)
 {
 	__skb_fill_netmem_desc(skb, i, page_to_netmem(page), off, size);
 }
 
-static inline void skb_fill_netmem_desc(struct sk_buff *skb, int i,
-					netmem_ref netmem, int off, int size)
+static __always_inline void
+skb_fill_netmem_desc(struct sk_buff *skb, int i, netmem_ref netmem,
+		     int off, int size)
 {
 	__skb_fill_netmem_desc(skb, i, netmem, off, size);
 	skb_shinfo(skb)->nr_frags = i + 1;
@@ -2655,8 +2658,9 @@ static inline void skb_fill_netmem_desc(struct sk_buff *skb, int i,
  *
  * Does not take any additional reference on the fragment.
  */
-static inline void skb_fill_page_desc(struct sk_buff *skb, int i,
-				      struct page *page, int off, int size)
+static __always_inline void
+skb_fill_page_desc(struct sk_buff *skb, int i, struct page *page,
+		   int off, int size)
 {
 	skb_fill_netmem_desc(skb, i, page_to_netmem(page), off, size);
 }
@@ -2682,8 +2686,17 @@ static inline void skb_fill_page_desc_noacc(struct sk_buff *skb, int i,
 	shinfo->nr_frags = i + 1;
 }
 
-void skb_add_rx_frag_netmem(struct sk_buff *skb, int i, netmem_ref netmem,
-			    int off, int size, unsigned int truesize);
+static inline void skb_add_rx_frag_netmem(struct sk_buff *skb, int i,
+					  netmem_ref netmem, int off,
+					  int size, unsigned int truesize)
+{
+	DEBUG_NET_WARN_ON_ONCE(size > truesize);
+
+	skb_fill_netmem_desc(skb, i, netmem, off, size);
+	skb->len += size;
+	skb->data_len += size;
+	skb->truesize += truesize;
+}
 
 static inline void skb_add_rx_frag(struct sk_buff *skb, int i,
 				   struct page *page, int off, int size,
@@ -2819,7 +2832,7 @@ static inline void *__skb_push(struct sk_buff *skb, unsigned int len)
 }
 
 void *skb_pull(struct sk_buff *skb, unsigned int len);
-static inline void *__skb_pull(struct sk_buff *skb, unsigned int len)
+static __always_inline void *__skb_pull(struct sk_buff *skb, unsigned int len)
 {
 	DEBUG_NET_WARN_ON_ONCE(len > INT_MAX);
 
@@ -2844,7 +2857,7 @@ void *skb_pull_data(struct sk_buff *skb, size_t len);
 
 void *__pskb_pull_tail(struct sk_buff *skb, int delta);
 
-static inline enum skb_drop_reason
+static __always_inline enum skb_drop_reason
 pskb_may_pull_reason(struct sk_buff *skb, unsigned int len)
 {
 	DEBUG_NET_WARN_ON_ONCE(len > INT_MAX);
@@ -2862,12 +2875,13 @@ pskb_may_pull_reason(struct sk_buff *skb, unsigned int len)
 	return SKB_NOT_DROPPED_YET;
 }
 
-static inline bool pskb_may_pull(struct sk_buff *skb, unsigned int len)
+static __always_inline bool
+pskb_may_pull(struct sk_buff *skb, unsigned int len)
 {
 	return pskb_may_pull_reason(skb, len) == SKB_NOT_DROPPED_YET;
 }
 
-static inline void *pskb_pull(struct sk_buff *skb, unsigned int len)
+static __always_inline void *pskb_pull(struct sk_buff *skb, unsigned int len)
 {
 	if (!pskb_may_pull(skb, len))
 		return NULL;
@@ -3328,7 +3342,7 @@ static inline int __pskb_trim(struct sk_buff *skb, unsigned int len)
 	return 0;
 }
 
-static inline int pskb_trim(struct sk_buff *skb, unsigned int len)
+static __always_inline int pskb_trim(struct sk_buff *skb, unsigned int len)
 {
 	skb_might_realloc(skb);
 	return (len < skb->len) ? __pskb_trim(skb, len) : 0;
@@ -3371,7 +3385,7 @@ static inline int __skb_grow(struct sk_buff *skb, unsigned int len)
  *	destructor function and make the @skb unowned. The buffer continues
  *	to exist but is no longer charged to its former owner.
  */
-static inline void skb_orphan(struct sk_buff *skb)
+static __always_inline void skb_orphan(struct sk_buff *skb)
 {
 	if (skb->destructor) {
 		skb->destructor(skb);
@@ -3750,6 +3764,17 @@ static inline void *skb_frag_address_safe(const skb_frag_t *frag)
 }
 
 /**
+ * skb_frag_phys - gets the physical address of the data in a paged fragment
+ * @frag: the paged fragment buffer
+ *
+ * Returns: the physical address of the data within @frag.
+ */
+static inline phys_addr_t skb_frag_phys(const skb_frag_t *frag)
+{
+	return page_to_phys(skb_frag_page(frag)) + skb_frag_off(frag);
+}
+
+/**
  * skb_frag_page_copy() - sets the page in a fragment from another fragment
  * @fragto: skb fragment where page is set
  * @fragfrom: skb fragment page is copied from
@@ -4035,8 +4060,8 @@ __skb_postpull_rcsum(struct sk_buff *skb, const void *start, unsigned int len,
  *	update the CHECKSUM_COMPLETE checksum, or set ip_summed to
  *	CHECKSUM_NONE so that it can be recomputed from scratch.
  */
-static inline void skb_postpull_rcsum(struct sk_buff *skb,
-				      const void *start, unsigned int len)
+static __always_inline void
+skb_postpull_rcsum(struct sk_buff *skb, const void *start, unsigned int len)
 {
 	if (skb->ip_summed == CHECKSUM_COMPLETE)
 		skb->csum = wsum_negate(csum_partial(start, len,
@@ -4295,7 +4320,7 @@ __skb_header_pointer(const struct sk_buff *skb, int offset, int len,
 	return buffer;
 }
 
-static inline void * __must_check
+static __always_inline void * __must_check
 skb_header_pointer(const struct sk_buff *skb, int offset, int len, void *buffer)
 {
 	return __skb_header_pointer(skb, offset, len, skb->data,
@@ -4467,7 +4492,7 @@ DECLARE_STATIC_KEY_FALSE(netstamp_needed_key);
 /* It is used in the ingress path to clear the delivery_time.
  * If needed, set the skb->tstamp to the (rcv) timestamp.
  */
-static inline void skb_clear_delivery_time(struct sk_buff *skb)
+static __always_inline void skb_clear_delivery_time(struct sk_buff *skb)
 {
 	if (skb->tstamp_type) {
 		skb->tstamp_type = SKB_CLOCK_REALTIME;
@@ -4494,7 +4519,8 @@ static inline ktime_t skb_tstamp(const struct sk_buff *skb)
 	return skb->tstamp;
 }
 
-static inline ktime_t skb_tstamp_cond(const struct sk_buff *skb, bool cond)
+static __always_inline ktime_t
+skb_tstamp_cond(const struct sk_buff *skb, bool cond)
 {
 	if (skb->tstamp_type != SKB_CLOCK_MONOTONIC && skb->tstamp)
 		return skb->tstamp;
@@ -5284,7 +5310,7 @@ static inline void skb_decrease_gso_size(struct skb_shared_info *shinfo,
 
 void __skb_warn_lro_forwarding(const struct sk_buff *skb);
 
-static inline bool skb_warn_if_lro(const struct sk_buff *skb)
+static __always_inline bool skb_warn_if_lro(const struct sk_buff *skb)
 {
 	/* LRO sets gso_size but not gso_type, whereas if GSO is really
 	 * wanted then gso_type will be set. */

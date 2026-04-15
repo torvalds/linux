@@ -171,6 +171,7 @@ struct sta_info;
  * @bar_pending: BAR needs to be re-sent
  * @amsdu: support A-MSDU within A-MDPU
  * @ssn: starting sequence number of the session
+ * @ndp: this session is using NDP Block ACKs
  *
  * This structure's lifetime is managed by RCU, assignments to
  * the array holding it must hold the aggregation mutex.
@@ -199,6 +200,7 @@ struct tid_ampdu_tx {
 	u16 failed_bar_ssn;
 	bool bar_pending;
 	bool amsdu;
+	bool ndp;
 	u8 tid;
 };
 
@@ -503,14 +505,14 @@ struct ieee80211_fragment_cache {
  * @status_stats.ack_signal_filled: last ACK signal validity
  * @status_stats.avg_ack_signal: average ACK signal
  * @cur_max_bandwidth: maximum bandwidth to use for TX to the station,
- *	taken from HT/VHT capabilities or VHT operating mode notification
+ *	taken from HT/VHT capabilities or VHT operating mode notification.
+ *	Invalid for NAN since that is operating on multiple bands.
  * @rx_omi_bw_rx: RX OMI bandwidth restriction to apply for RX
  * @rx_omi_bw_tx: RX OMI bandwidth restriction to apply for TX
  * @rx_omi_bw_staging: RX OMI bandwidth restriction to apply later
  *	during finalize
  * @debugfs_dir: debug filesystem directory dentry
  * @pub: public (driver visible) link STA data
- * TODO Move other link params from sta_info as required for MLD operation
  */
 struct link_sta_info {
 	u8 addr[ETH_ALEN];

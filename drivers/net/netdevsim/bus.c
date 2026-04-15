@@ -177,7 +177,7 @@ new_device_store(const struct bus_type *bus, const char *buf, size_t count)
 		}
 		break;
 	default:
-		pr_err("Format for adding new device is \"id port_count num_queues\" (uint uint unit).\n");
+		pr_err("Format for adding new device is \"id port_count num_queues\" (uint uint uint).\n");
 		return -EINVAL;
 	}
 

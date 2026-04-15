@@ -78,4 +78,69 @@
 #define RVU_MBOX_VF_INT_ENA_W1C			(0x38)
 
 #define RVU_MBOX_VF_VFAF_TRIGX(a)		(0x2000 | (a) << 3)
+
+#define NIX_GINT_INT                           (0x200)
+#define NIX_GINT_INT_W1S                       (0x208)
+
+#define ALTAF_FLR                              BIT_ULL(0)
+#define ALTAF_RDY                              BIT_ULL(1)
+
+/* NPC registers */
+#define NPC_AF_INTFX_EXTRACTORX_CFG(a, b) \
+	(0x20c000ull | (a) << 16 | (b) << 8)
+#define NPC_AF_INTFX_EXTRACTORX_LTX_CFG(a, b, c) \
+	(0x204000ull | (a) << 16 | (b) << 8  | (c) << 3)
+#define NPC_AF_KPMX_ENTRYX_CAMX(a, b, c) \
+	(0x20000ull | (a) << 12 | (b) << 3 | (c) << 16)
+#define NPC_AF_KPMX_ENTRYX_ACTION0(a, b) \
+	(0x40000ull | (a) << 12 | (b) << 3)
+#define NPC_AF_KPMX_ENTRYX_ACTION1(a, b) \
+	(0x50000ull | (a) << 12 | (b) << 3)
+#define NPC_AF_KPMX_ENTRY_DISX(a, b)	(0x60000ull | (a) << 12 | (b) << 3)
+#define NPC_AF_KPM_PASS2_CFG	0x10210
+#define NPC_AF_KPMX_PASS2_OFFSET(a)	(0x60040ull | (a) << 12)
+#define NPC_AF_MCAM_SECTIONX_CFG_EXT(a)	(0xf000000ull | (a) << 3)
+
+#define NPC_AF_CN20K_MCAMEX_BANKX_CAMX_INTF_EXT(a, b, c) ({		\
+	u64 offset;							\
+	offset = (0x8000000ull | (a) << 4 | (b) << 20 | (c) << 3);	\
+	offset; })
+
+#define NPC_AF_CN20K_MCAMEX_BANKX_CAMX_W0_EXT(a, b, c) ({		\
+	u64 offset;							\
+	offset = (0x9000000ull | (a) << 4 | (b) << 20 | (c) << 3);	\
+	offset; })
+
+#define NPC_AF_CN20K_MCAMEX_BANKX_CAMX_W1_EXT(a, b, c) ({		\
+	u64 offset;							\
+	offset = (0x9400000ull | (a) << 4 | (b) << 20 | (c) << 3);	\
+	offset; })
+
+#define NPC_AF_CN20K_MCAMEX_BANKX_CAMX_W2_EXT(a, b, c) ({		\
+	u64 offset;							\
+	offset = (0x9800000ull | (a) << 4 | (b) << 20 | (c) << 3);	\
+	offset; })
+
+#define NPC_AF_CN20K_MCAMEX_BANKX_CAMX_W3_EXT(a, b, c) ({		\
+	u64 offset;							\
+	offset = (0x9c00000ull | (a) << 4 | (b) << 20 | (c) << 3);	\
+	offset; })
+
+#define NPC_AF_CN20K_MCAMEX_BANKX_CFG_EXT(a, b) ({		\
+	u64 offset;						\
+	offset = (0xa000000ull | (a) << 4 | (b) << 20);		\
+	offset; })
+
+#define NPC_AF_CN20K_MCAMEX_BANKX_ACTIONX_EXT(a, b, c) ({		\
+	u64 offset;							\
+	offset = (0xc000000ull | (a) << 4 | (b) << 20 | (c) << 22);	\
+	offset; })
+
+#define NPC_AF_INTFX_MISS_ACTX(a, b)	(0xf003000 | (a) << 6 | (b) << 4)
+
+#define NPC_AF_CN20K_MCAMEX_BANKX_STAT_EXT(a, b) ({		\
+	u64 offset;						\
+	offset = (0xb000000ull | (a) << 4 | (b) << 20);		\
+	offset; })
+
 #endif /* RVU_MBOX_REG_H */

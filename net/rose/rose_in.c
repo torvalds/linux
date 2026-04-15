@@ -101,7 +101,6 @@ static int rose_state2_machine(struct sock *sk, struct sk_buff *skb, int framety
  */
 static int rose_state3_machine(struct sock *sk, struct sk_buff *skb, int frametype, int ns, int nr, int q, int d, int m)
 {
-	enum skb_drop_reason dr; /* ignored */
 	struct rose_sock *rose = rose_sk(sk);
 	int queued = 0;
 
@@ -163,7 +162,7 @@ static int rose_state3_machine(struct sock *sk, struct sk_buff *skb, int framety
 		rose_frames_acked(sk, nr);
 		if (ns == rose->vr) {
 			rose_start_idletimer(sk);
-			if (!sk_filter_trim_cap(sk, skb, ROSE_MIN_LEN, &dr) &&
+			if (!sk_filter_trim_cap(sk, skb, ROSE_MIN_LEN) &&
 			    __sock_queue_rcv_skb(sk, skb) == 0) {
 				rose->vr = (rose->vr + 1) % ROSE_MODULUS;
 				queued = 1;
@@ -270,6 +269,13 @@ int rose_process_rx_frame(struct sock *sk, struct sk_buff *skb)
 		return 0;
 
 	frametype = rose_decode(skb, &ns, &nr, &q, &d, &m);
+
+	/*
+	 * ROSE_CLEAR_REQUEST carries cause and diagnostic in bytes 3..4.
+	 * Reject a malformed frame that is too short to contain them.
+	 */
+	if (frametype == ROSE_CLEAR_REQUEST && skb->len < 5)
+		return 0;
 
 	switch (rose->state) {
 	case ROSE_STATE_1:

@@ -56,7 +56,6 @@ struct ping_table {
 
 static struct ping_table ping_table;
 struct pingv6_ops pingv6_ops;
-EXPORT_IPV6_MOD_GPL(pingv6_ops);
 
 static inline u32 ping_hashfn(const struct net *net, u32 num, u32 mask)
 {
@@ -139,7 +138,6 @@ fail:
 	spin_unlock(&ping_table.lock);
 	return -EADDRINUSE;
 }
-EXPORT_IPV6_MOD_GPL(ping_get_port);
 
 void ping_unhash(struct sock *sk)
 {
@@ -154,7 +152,6 @@ void ping_unhash(struct sock *sk)
 	}
 	spin_unlock(&ping_table.lock);
 }
-EXPORT_IPV6_MOD_GPL(ping_unhash);
 
 /* Called under rcu_read_lock() */
 static struct sock *ping_lookup(struct net *net, struct sk_buff *skb, u16 ident)
@@ -278,7 +275,6 @@ out_release_group:
 	put_group_info(group_info);
 	return ret;
 }
-EXPORT_IPV6_MOD_GPL(ping_init_sock);
 
 void ping_close(struct sock *sk, long timeout)
 {
@@ -288,7 +284,6 @@ void ping_close(struct sock *sk, long timeout)
 
 	sk_common_release(sk);
 }
-EXPORT_IPV6_MOD_GPL(ping_close);
 
 static int ping_pre_connect(struct sock *sk, struct sockaddr_unsized *uaddr,
 			    int addr_len)
@@ -468,7 +463,6 @@ out:
 	pr_debug("ping_v4_bind -> %d\n", err);
 	return err;
 }
-EXPORT_IPV6_MOD_GPL(ping_bind);
 
 /*
  * Is this a supported type of ICMP message?
@@ -601,7 +595,6 @@ void ping_err(struct sk_buff *skb, int offset, u32 info)
 out:
 	return;
 }
-EXPORT_IPV6_MOD_GPL(ping_err);
 
 /*
  *	Copy and checksum an ICMP Echo packet from user space into a buffer
@@ -631,7 +624,6 @@ int ping_getfrag(void *from, char *to,
 
 	return 0;
 }
-EXPORT_IPV6_MOD_GPL(ping_getfrag);
 
 static int ping_v4_push_pending_frames(struct sock *sk, struct pingfakehdr *pfh,
 				       struct flowi4 *fl4)
@@ -692,7 +684,6 @@ int ping_common_sendmsg(int family, struct msghdr *msg, size_t len,
 
 	return 0;
 }
-EXPORT_IPV6_MOD_GPL(ping_common_sendmsg);
 
 static int ping_v4_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 {
@@ -848,8 +839,7 @@ do_confirm:
 	goto out;
 }
 
-int ping_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int flags,
-		 int *addr_len)
+int ping_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int flags)
 {
 	struct inet_sock *isk = inet_sk(sk);
 	int family = sk->sk_family;
@@ -864,7 +854,7 @@ int ping_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int flags,
 		goto out;
 
 	if (flags & MSG_ERRQUEUE)
-		return inet_recv_error(sk, msg, len, addr_len);
+		return inet_recv_error(sk, msg, len);
 
 	skb = skb_recv_datagram(sk, flags, &err);
 	if (!skb)
@@ -892,7 +882,7 @@ int ping_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int flags,
 			sin->sin_port = 0 /* skb->h.uh->source */;
 			sin->sin_addr.s_addr = ip_hdr(skb)->saddr;
 			memset(sin->sin_zero, 0, sizeof(sin->sin_zero));
-			*addr_len = sizeof(*sin);
+			msg->msg_namelen = sizeof(*sin);
 		}
 
 		if (inet_cmsg_flags(isk))
@@ -913,7 +903,7 @@ int ping_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int flags,
 			sin6->sin6_scope_id =
 				ipv6_iface_scope_id(&sin6->sin6_addr,
 						    inet6_iif(skb));
-			*addr_len = sizeof(*sin6);
+			msg->msg_namelen = sizeof(*sin6);
 		}
 
 		if (inet6_sk(sk)->rxopt.all)
@@ -937,7 +927,6 @@ out:
 	pr_debug("ping_recvmsg -> %d\n", err);
 	return err;
 }
-EXPORT_IPV6_MOD_GPL(ping_recvmsg);
 
 static enum skb_drop_reason __ping_queue_rcv_skb(struct sock *sk,
 						 struct sk_buff *skb)
@@ -946,7 +935,8 @@ static enum skb_drop_reason __ping_queue_rcv_skb(struct sock *sk,
 
 	pr_debug("ping_queue_rcv_skb(sk=%p,sk->num=%d,skb=%p)\n",
 		 inet_sk(sk), inet_sk(sk)->inet_num, skb);
-	if (sock_queue_rcv_skb_reason(sk, skb, &reason) < 0) {
+	reason = sock_queue_rcv_skb_reason(sk, skb);
+	if (reason) {
 		sk_skb_reason_drop(sk, skb, reason);
 		pr_debug("ping_queue_rcv_skb -> failed\n");
 		return reason;
@@ -958,7 +948,6 @@ int ping_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 {
 	return __ping_queue_rcv_skb(sk, skb) ? -1 : 0;
 }
-EXPORT_IPV6_MOD_GPL(ping_queue_rcv_skb);
 
 
 /*
@@ -986,7 +975,6 @@ enum skb_drop_reason ping_rcv(struct sk_buff *skb)
 	kfree_skb_reason(skb, SKB_DROP_REASON_NO_SOCKET);
 	return SKB_DROP_REASON_NO_SOCKET;
 }
-EXPORT_IPV6_MOD_GPL(ping_rcv);
 
 struct proto ping_prot = {
 	.name =		"PING",
@@ -1008,7 +996,6 @@ struct proto ping_prot = {
 	.put_port =	ping_unhash,
 	.obj_size =	sizeof(struct inet_sock),
 };
-EXPORT_IPV6_MOD(ping_prot);
 
 #ifdef CONFIG_PROC_FS
 
@@ -1073,7 +1060,6 @@ void *ping_seq_start(struct seq_file *seq, loff_t *pos, sa_family_t family)
 
 	return *pos ? ping_get_idx(seq, *pos-1) : SEQ_START_TOKEN;
 }
-EXPORT_IPV6_MOD_GPL(ping_seq_start);
 
 static void *ping_v4_seq_start(struct seq_file *seq, loff_t *pos)
 {
@@ -1092,14 +1078,12 @@ void *ping_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	++*pos;
 	return sk;
 }
-EXPORT_IPV6_MOD_GPL(ping_seq_next);
 
 void ping_seq_stop(struct seq_file *seq, void *v)
 	__releases(ping_table.lock)
 {
 	spin_unlock(&ping_table.lock);
 }
-EXPORT_IPV6_MOD_GPL(ping_seq_stop);
 
 static void ping_v4_format_sock(struct sock *sp, struct seq_file *f,
 		int bucket)

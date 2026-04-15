@@ -403,16 +403,21 @@ Both of these need to be set before RFS is enabled for a receive queue.
 Values for both are rounded up to the nearest power of two. The
 suggested flow count depends on the expected number of active connections
 at any given time, which may be significantly less than the number of open
-connections. We have found that a value of 32768 for rps_sock_flow_entries
-works fairly well on a moderately loaded server.
+connections. We have found that a value of 65536 for rps_sock_flow_entries
+works fairly well on a moderately loaded server. Big servers might
+need 1048576 or even higher values.
+
+On a NUMA host it is advisable to spread rps_sock_flow_entries on all nodes.
+
+numactl --interleave=all bash -c "echo 1048576 >/proc/sys/net/core/rps_sock_flow_entries"
 
 For a single queue device, the rps_flow_cnt value for the single queue
 would normally be configured to the same value as rps_sock_flow_entries.
 For a multi-queue device, the rps_flow_cnt for each queue might be
 configured as rps_sock_flow_entries / N, where N is the number of
-queues. So for instance, if rps_sock_flow_entries is set to 32768 and there
+queues. So for instance, if rps_sock_flow_entries is set to 131072 and there
 are 16 configured receive queues, rps_flow_cnt for each queue might be
-configured as 2048.
+configured as 8192.
 
 
 Accelerated RFS

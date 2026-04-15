@@ -17,8 +17,8 @@
  *  |              (8-bit)              |              (8-bit)              |
  *  |          Protocol [0x04]          |              REASON               | b
  *  |-----------------------------------+-----------------------------------| y
- *  |   (1)  | (1) | (2) |   (1)  | (3) | (1)  | (1) |    (1)    |   (5)    | t
- *  | FID_EN |  X  | FID | PRI_EN | PRI | KEEP |  X  | LEARN_DIS |    X     | e
+ *  |   (1)   |   (3)  |   (1)  |  (3)  | (1)  | (1)  |    (1)     |  (5)   | t
+ *  | EFID_EN |  EFID  | PRI_EN |  PRI  | KEEP | VSEL | LEARN_DIS  |  VIDX  | e
  *  |-----------------------------------+-----------------------------------| s
  *  |   (1)  |                       (15-bit)                               | |
  *  |  ALLOW |                        TX/RX                                 | v
@@ -32,19 +32,22 @@
  *     EtherType |         note that Realtek uses the same EtherType for
  *               |         other incompatible tag formats (e.g. tag_rtl4_a.c)
  *    Protocol   | 0x04: indicates that this tag conforms to this format
- *    X          | reserved
  *   ------------+-------------
  *    REASON     | reason for forwarding packet to CPU
  *               | 0: packet was forwarded or flooded to CPU
  *               | 80: packet was trapped to CPU
- *    FID_EN     | 1: packet has an FID
- *               | 0: no FID
- *    FID        | FID of packet (if FID_EN=1)
+ *    EFID_EN    | 1: packet has an EFID
+ *               | 0: no EFID
+ *    EFID       | Extended filter ID (EFID) of packet (if EFID_EN=1)
  *    PRI_EN     | 1: force priority of packet
  *               | 0: don't force priority
  *    PRI        | priority of packet (if PRI_EN=1)
  *    KEEP       | preserve packet VLAN tag format
+ *    VSEL       | 0: switch should classify packet according to VLAN tag
+ *               | 1: switch should classify packet according to VLAN membership
+ *               |    configuration with index VIDX
  *    LEARN_DIS  | don't learn the source MAC address of the packet
+ *    VIDX       | index of a VLAN membership configuration to use with VSEL
  *    ALLOW      | 1: treat TX/RX field as an allowance port mask, meaning the
  *               |    packet may only be forwarded to ports specified in the
  *               |    mask
@@ -96,6 +99,7 @@
 #define   RTL8_4_REASON_TRAP		80
 
 #define RTL8_4_LEARN_DIS		BIT(5)
+#define RTL8_4_KEEP			BIT(7)
 
 #define RTL8_4_TX			GENMASK(3, 0)
 #define RTL8_4_RX			GENMASK(10, 0)
@@ -111,8 +115,9 @@ static void rtl8_4_write_tag(struct sk_buff *skb, struct net_device *dev,
 	/* Set Protocol; zero REASON */
 	tag16[1] = htons(FIELD_PREP(RTL8_4_PROTOCOL, RTL8_4_PROTOCOL_RTL8365MB));
 
-	/* Zero FID_EN, FID, PRI_EN, PRI, KEEP; set LEARN_DIS */
-	tag16[2] = htons(FIELD_PREP(RTL8_4_LEARN_DIS, 1));
+	/* Zero EFID_EN, EFID, PRI_EN, PRI, VSEL, VIDX; set KEEP, LEARN_DIS */
+	tag16[2] = htons(FIELD_PREP(RTL8_4_LEARN_DIS, 1) |
+			 FIELD_PREP(RTL8_4_KEEP, 1));
 
 	/* Zero ALLOW; set RX (CPU->switch) forwarding port mask */
 	tag16[3] = htons(FIELD_PREP(RTL8_4_RX, dsa_xmit_port_mask(skb, dev)));

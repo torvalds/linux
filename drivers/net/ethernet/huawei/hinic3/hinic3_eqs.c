@@ -56,6 +56,10 @@
 #define EQ_CI_SIMPLE_INDIR_SET(val, member)  \
 	FIELD_PREP(EQ_CI_SIMPLE_INDIR_##member##_MASK, val)
 
+#define EQ_CONS_IDX_REG_ADDR(eq)  \
+	(((eq)->type == HINIC3_AEQ) ?  \
+	 HINIC3_CSR_AEQ_CONS_IDX_ADDR : HINIC3_CSR_CEQ_CONS_IDX_ADDR)
+
 #define EQ_CI_SIMPLE_INDIR_REG_ADDR(eq)  \
 	(((eq)->type == HINIC3_AEQ) ?  \
 	 HINIC3_CSR_AEQ_CI_SIMPLE_INDIR_ADDR :  \
@@ -353,6 +357,7 @@ static irqreturn_t ceq_interrupt(int irq, void *data)
 	struct hinic3_eq *ceq = data;
 	int err;
 
+	ceq->soft_intr_jif = jiffies;
 	/* clear resend timer counters */
 	hinic3_msix_intr_clear_resend_bit(ceq->hwdev, ceq->msix_entry_idx,
 					  EQ_MSIX_RESEND_TIMER_CLEAR);
@@ -713,6 +718,39 @@ void hinic3_aeqs_free(struct hinic3_hwdev *hwdev)
 	kfree(aeqs);
 }
 
+void hinic3_dump_aeq_info(struct hinic3_hwdev *hwdev)
+{
+	const struct hinic3_aeq_elem *aeqe_pos;
+	u32 addr, ci, pi, ctrl0, idx;
+	struct hinic3_eq *eq;
+	int q_id;
+
+	for (q_id = 0; q_id < hwdev->aeqs->num_aeqs; q_id++) {
+		eq = &hwdev->aeqs->aeq[q_id];
+		/* Indirect access should set q_id first */
+		hinic3_hwif_write_reg(eq->hwdev->hwif,
+				      HINIC3_EQ_INDIR_IDX_ADDR(eq->type),
+				      eq->q_id);
+
+		addr = HINIC3_CSR_AEQ_CTRL_0_ADDR;
+
+		ctrl0 = hinic3_hwif_read_reg(hwdev->hwif, addr);
+
+		idx = hinic3_hwif_read_reg(hwdev->hwif,
+					   HINIC3_EQ_INDIR_IDX_ADDR(eq->type));
+
+		addr = EQ_CONS_IDX_REG_ADDR(eq);
+		ci = hinic3_hwif_read_reg(hwdev->hwif, addr);
+		addr = EQ_PROD_IDX_REG_ADDR(eq);
+		pi = hinic3_hwif_read_reg(hwdev->hwif, addr);
+		aeqe_pos = get_curr_aeq_elem(eq);
+		dev_err(hwdev->dev,
+			"Aeq id: %d, idx: %u, ctrl0: 0x%08x, ci: 0x%08x, pi: 0x%x, work_state: 0x%x, wrap: %u, desc: 0x%x swci:0x%x\n",
+			q_id, idx, ctrl0, ci, pi, work_busy(&eq->aeq_work),
+			eq->wrapped, be32_to_cpu(aeqe_pos->desc), eq->cons_idx);
+	}
+}
+
 int hinic3_ceqs_init(struct hinic3_hwdev *hwdev, u16 num_ceqs,
 		     struct msix_entry *msix_entries)
 {
@@ -772,4 +810,31 @@ void hinic3_ceqs_free(struct hinic3_hwdev *hwdev)
 		hinic3_ceq_unregister_cb(hwdev, ceq_event);
 
 	kfree(ceqs);
+}
+
+void hinic3_dump_ceq_info(struct hinic3_hwdev *hwdev)
+{
+	struct hinic3_eq *eq;
+	u32 addr, ci, pi;
+	int q_id;
+
+	for (q_id = 0; q_id < hwdev->ceqs->num_ceqs; q_id++) {
+		eq = &hwdev->ceqs->ceq[q_id];
+		/* Indirect access should set q_id first */
+		hinic3_hwif_write_reg(eq->hwdev->hwif,
+				      HINIC3_EQ_INDIR_IDX_ADDR(eq->type),
+				      eq->q_id);
+
+		addr = EQ_CONS_IDX_REG_ADDR(eq);
+		ci = hinic3_hwif_read_reg(hwdev->hwif, addr);
+		addr = EQ_PROD_IDX_REG_ADDR(eq);
+		pi = hinic3_hwif_read_reg(hwdev->hwif, addr);
+		dev_err(hwdev->dev,
+			"Ceq id: %d, ci: 0x%08x, sw_ci: 0x%08x, pi: 0x%x, wrap: %u, ceqe: 0x%x\n",
+			q_id, ci, eq->cons_idx, pi,
+			eq->wrapped, be32_to_cpu(*get_curr_ceq_elem(eq)));
+
+		dev_err(hwdev->dev, "Ceq last response soft interrupt time: %u\n",
+			jiffies_to_msecs(jiffies - eq->soft_intr_jif));
+	}
 }

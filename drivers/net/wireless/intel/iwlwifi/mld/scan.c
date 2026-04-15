@@ -47,8 +47,6 @@
 /* adaptive dwell number of APs override mask for social channels */
 #define IWL_SCAN_ADWELL_N_APS_SOCIAL_CHS_BIT BIT(21)
 
-#define SCAN_TIMEOUT_MSEC (30000 * HZ)
-
 /* minimal number of 2GHz and 5GHz channels in the regular scan request */
 #define IWL_MLD_6GHZ_PASSIVE_SCAN_MIN_CHANS 4
 
@@ -114,6 +112,13 @@ struct iwl_mld_scan_params {
 	bool scan_6ghz;
 	bool enable_6ghz_passive;
 	u8 bssid[ETH_ALEN] __aligned(2);
+};
+
+struct iwl_scan_req_params_ptrs {
+	struct iwl_scan_general_params_v11 *general_params;
+	struct iwl_scan_channel_params_v8 *channel_params;
+	struct iwl_scan_periodic_parms_v1 *periodic_params;
+	struct iwl_scan_probe_params_v4 *probe_params;
 };
 
 struct iwl_mld_scan_respect_p2p_go_iter_data {
@@ -515,9 +520,10 @@ iwl_mld_scan_get_cmd_gen_flags2(struct iwl_mld *mld,
 
 static void
 iwl_mld_scan_cmd_set_dwell(struct iwl_mld *mld,
-			   struct iwl_scan_general_params_v11 *gp,
-			   struct iwl_mld_scan_params *params)
+			   struct iwl_mld_scan_params *params,
+			   struct iwl_scan_req_params_ptrs *scan_ptrs)
 {
+	struct iwl_scan_general_params_v11 *gp = scan_ptrs->general_params;
 	const struct iwl_mld_scan_timing_params *timing =
 		&scan_timing[params->type];
 
@@ -554,9 +560,10 @@ static void
 iwl_mld_scan_cmd_set_gen_params(struct iwl_mld *mld,
 				struct iwl_mld_scan_params *params,
 				struct ieee80211_vif *vif,
-				struct iwl_scan_general_params_v11 *gp,
+				struct iwl_scan_req_params_ptrs *scan_ptrs,
 				enum iwl_mld_scan_status scan_status)
 {
+	struct iwl_scan_general_params_v11 *gp = scan_ptrs->general_params;
 	u16 gen_flags = iwl_mld_scan_get_cmd_gen_flags(mld, params, vif,
 						       scan_status);
 	u8 gen_flags2 = iwl_mld_scan_get_cmd_gen_flags2(mld, params, vif,
@@ -569,7 +576,7 @@ iwl_mld_scan_cmd_set_gen_params(struct iwl_mld *mld,
 	gp->flags = cpu_to_le16(gen_flags);
 	gp->flags2 = gen_flags2;
 
-	iwl_mld_scan_cmd_set_dwell(mld, gp, params);
+	iwl_mld_scan_cmd_set_dwell(mld, params, scan_ptrs);
 
 	if (gen_flags & IWL_UMAC_SCAN_GEN_FLAGS_V2_FRAGMENTED_LMAC1)
 		gp->num_of_fragments[SCAN_LB_LMAC_IDX] = IWL_SCAN_NUM_OF_FRAGS;
@@ -580,9 +587,12 @@ iwl_mld_scan_cmd_set_gen_params(struct iwl_mld *mld,
 
 static int
 iwl_mld_scan_cmd_set_sched_params(struct iwl_mld_scan_params *params,
-				  struct iwl_scan_umac_schedule *schedule,
-				  __le16 *delay)
+				  struct iwl_scan_req_params_ptrs *scan_ptrs)
 {
+	struct iwl_scan_umac_schedule *schedule =
+		scan_ptrs->periodic_params->schedule;
+	__le16 *delay = &scan_ptrs->periodic_params->delay;
+
 	if (WARN_ON(!params->n_scan_plans ||
 		    params->n_scan_plans > IWL_MAX_SCHED_SCAN_PLANS))
 		return -EINVAL;
@@ -660,11 +670,12 @@ iwl_mld_scan_cmd_build_ssids(struct iwl_mld_scan_params *params,
 
 static void
 iwl_mld_scan_fill_6g_chan_list(struct iwl_mld_scan_params *params,
-			       struct iwl_scan_probe_params_v4 *pp)
+			       struct iwl_scan_req_params_ptrs *scan_ptrs)
 {
 	int j, idex_s = 0, idex_b = 0;
 	struct cfg80211_scan_6ghz_params *scan_6ghz_params =
 		params->scan_6ghz_params;
+	struct iwl_scan_probe_params_v4 *pp = scan_ptrs->probe_params;
 
 	for (j = 0;
 	     j < params->n_ssids && idex_s < SCAN_SHORT_SSID_MAX_SIZE;
@@ -728,13 +739,15 @@ iwl_mld_scan_fill_6g_chan_list(struct iwl_mld_scan_params *params,
 
 static void
 iwl_mld_scan_cmd_set_probe_params(struct iwl_mld_scan_params *params,
-				  struct iwl_scan_probe_params_v4 *pp,
+				  struct iwl_scan_req_params_ptrs *scan_ptrs,
 				  u32 *bitmap_ssid)
 {
+	struct iwl_scan_probe_params_v4 *pp = scan_ptrs->probe_params;
+
 	pp->preq = params->preq;
 
 	if (params->scan_6ghz) {
-		iwl_mld_scan_fill_6g_chan_list(params, pp);
+		iwl_mld_scan_fill_6g_chan_list(params, scan_ptrs);
 		return;
 	}
 
@@ -824,10 +837,12 @@ static u32 iwl_mld_scan_ch_n_aps_flag(enum nl80211_iftype vif_type, u8 ch_id)
 static void
 iwl_mld_scan_cmd_set_channels(struct iwl_mld *mld,
 			      struct ieee80211_channel **channels,
-			      struct iwl_scan_channel_params_v7 *cp,
+			      struct iwl_scan_req_params_ptrs *scan_ptrs,
 			      int n_channels, u32 flags,
 			      enum nl80211_iftype vif_type)
 {
+	struct iwl_scan_channel_params_v8 *cp = scan_ptrs->channel_params;
+
 	for (int i = 0; i < n_channels; i++) {
 		enum nl80211_band band = channels[i]->band;
 		struct iwl_scan_channel_cfg_umac *cfg = &cp->channel_config[i];
@@ -865,10 +880,11 @@ static u8
 iwl_mld_scan_cfg_channels_6g(struct iwl_mld *mld,
 			     struct iwl_mld_scan_params *params,
 			     u32 n_channels,
-			     struct iwl_scan_probe_params_v4 *pp,
-			     struct iwl_scan_channel_params_v7 *cp,
+			     struct iwl_scan_req_params_ptrs *scan_ptrs,
 			     enum nl80211_iftype vif_type)
 {
+	struct iwl_scan_probe_params_v4 *pp = scan_ptrs->probe_params;
+	struct iwl_scan_channel_params_v8 *cp = scan_ptrs->channel_params;
 	struct cfg80211_scan_6ghz_params *scan_6ghz_params =
 		params->scan_6ghz_params;
 	u32 i;
@@ -1066,25 +1082,23 @@ static int
 iwl_mld_scan_cmd_set_6ghz_chan_params(struct iwl_mld *mld,
 				      struct iwl_mld_scan_params *params,
 				      struct ieee80211_vif *vif,
-				      struct iwl_scan_req_params_v17 *scan_p)
+				      struct iwl_scan_req_params_ptrs *scan_ptrs)
 {
-	struct iwl_scan_channel_params_v7 *chan_p = &scan_p->channel_params;
-	struct iwl_scan_probe_params_v4 *probe_p = &scan_p->probe_params;
+	struct iwl_scan_channel_params_v8 *cp = scan_ptrs->channel_params;
 
 	/* Explicitly clear the flags since most of them are not
 	 * relevant for 6 GHz scan.
 	 */
-	chan_p->flags = 0;
-	chan_p->count = iwl_mld_scan_cfg_channels_6g(mld, params,
-						     params->n_channels,
-						     probe_p, chan_p,
-						     vif->type);
-	if (!chan_p->count)
+	cp->flags = 0;
+	cp->count = iwl_mld_scan_cfg_channels_6g(mld, params,
+						 params->n_channels,
+						 scan_ptrs, vif->type);
+	if (!cp->count)
 		return -EINVAL;
 
 	if (!params->n_ssids ||
 	    (params->n_ssids == 1 && !params->ssids[0].ssid_len))
-		chan_p->flags |= IWL_SCAN_CHANNEL_FLAG_6G_PSC_NO_FILTER;
+		cp->flags |= IWL_SCAN_CHANNEL_FLAG_6G_PSC_NO_FILTER;
 
 	return 0;
 }
@@ -1093,12 +1107,12 @@ static int
 iwl_mld_scan_cmd_set_chan_params(struct iwl_mld *mld,
 				 struct iwl_mld_scan_params *params,
 				 struct ieee80211_vif *vif,
-				 struct iwl_scan_req_params_v17 *scan_p,
+				 struct iwl_scan_req_params_ptrs *scan_ptrs,
 				 bool low_latency,
 				 enum iwl_mld_scan_status scan_status,
 				 u32 channel_cfg_flags)
 {
-	struct iwl_scan_channel_params_v7 *cp = &scan_p->channel_params;
+	struct iwl_scan_channel_params_v8 *cp = scan_ptrs->channel_params;
 	struct ieee80211_supported_band *sband =
 		&mld->nvm_data->bands[NL80211_BAND_6GHZ];
 
@@ -1110,14 +1124,14 @@ iwl_mld_scan_cmd_set_chan_params(struct iwl_mld *mld,
 
 	if (params->scan_6ghz)
 		return iwl_mld_scan_cmd_set_6ghz_chan_params(mld, params,
-							     vif, scan_p);
+							     vif, scan_ptrs);
 
 	/* relevant only for 2.4 GHz/5 GHz scan */
 	cp->flags = iwl_mld_scan_cmd_set_chan_flags(mld, params, vif,
 						    low_latency);
 	cp->count = params->n_channels;
 
-	iwl_mld_scan_cmd_set_channels(mld, params->channels, cp,
+	iwl_mld_scan_cmd_set_channels(mld, params->channels, scan_ptrs,
 				      params->n_channels, channel_cfg_flags,
 				      vif->type);
 
@@ -1147,47 +1161,146 @@ iwl_mld_scan_cmd_set_chan_params(struct iwl_mld *mld,
 	return 0;
 }
 
+struct iwl_scan_umac_handler {
+	u8 version;
+	int (*handler)(struct iwl_mld *mld, struct ieee80211_vif *vif,
+		       struct iwl_mld_scan_params *params,
+		       enum iwl_mld_scan_status scan_status,
+		       int uid, u32 ooc_priority, bool low_latency);
+};
+
+#define IWL_SCAN_UMAC_HANDLER(_ver) {		\
+	.version = _ver,			\
+	.handler = iwl_mld_scan_umac_v##_ver,	\
+}
+
+static int iwl_mld_scan_umac_common(struct iwl_mld *mld,
+				    struct ieee80211_vif *vif,
+				    struct iwl_mld_scan_params *params,
+				    struct iwl_scan_req_params_ptrs *scan_ptrs,
+				    enum iwl_mld_scan_status scan_status,
+				    bool low_latency)
+{
+	u32 bitmap_ssid = 0;
+	int ret;
+
+	iwl_mld_scan_cmd_set_gen_params(mld, params, vif, scan_ptrs,
+					scan_status);
+
+	ret = iwl_mld_scan_cmd_set_sched_params(params, scan_ptrs);
+	if (ret)
+		return ret;
+
+	iwl_mld_scan_cmd_set_probe_params(params, scan_ptrs, &bitmap_ssid);
+
+	return iwl_mld_scan_cmd_set_chan_params(mld, params, vif, scan_ptrs,
+						low_latency, scan_status,
+						bitmap_ssid);
+}
+
+static int iwl_mld_scan_umac_v18(struct iwl_mld *mld, struct ieee80211_vif *vif,
+				 struct iwl_mld_scan_params *params,
+				 enum iwl_mld_scan_status scan_status,
+				 int uid, u32 ooc_priority, bool low_latency)
+{
+	struct iwl_scan_req_umac_v18 *cmd = mld->scan.cmd;
+	struct iwl_scan_req_params_ptrs scan_ptrs = {
+		.general_params = &cmd->scan_params.general_params,
+		.probe_params = &cmd->scan_params.probe_params,
+		.channel_params = &cmd->scan_params.channel_params,
+		.periodic_params = &cmd->scan_params.periodic_params
+	};
+	int ret;
+
+	if (WARN_ON(params->n_channels > SCAN_MAX_NUM_CHANS_V4))
+		return -EINVAL;
+
+	cmd->uid = cpu_to_le32(uid);
+	cmd->ooc_priority = cpu_to_le32(ooc_priority);
+
+	ret = iwl_mld_scan_umac_common(mld, vif, params, &scan_ptrs,
+				       scan_status, low_latency);
+	if (ret)
+		return ret;
+
+	return uid;
+}
+
+static int iwl_mld_scan_umac_v17(struct iwl_mld *mld, struct ieee80211_vif *vif,
+				 struct iwl_mld_scan_params *params,
+				 enum iwl_mld_scan_status scan_status,
+				 int uid, u32 ooc_priority, bool low_latency)
+{
+	struct iwl_scan_req_umac_v17 *cmd = mld->scan.cmd;
+	struct iwl_scan_req_params_ptrs scan_ptrs = {
+		.general_params = &cmd->scan_params.general_params,
+		.probe_params = &cmd->scan_params.probe_params,
+
+		/* struct iwl_scan_channel_params_v8 and struct
+		 * iwl_scan_channel_params_v7 are almost identical. The only
+		 * difference is that the newer version allows configuration of
+		 * more channels. So casting here is ok as long as we ensure
+		 * that we don't exceed the max number of channels supported by
+		 * the older version (see the WARN_ON below).
+		 */
+		.channel_params = (struct iwl_scan_channel_params_v8 *)
+			&cmd->scan_params.channel_params,
+		.periodic_params = &cmd->scan_params.periodic_params
+	};
+	int ret;
+
+	if (WARN_ON(params->n_channels > SCAN_MAX_NUM_CHANS_V3))
+		return -EINVAL;
+
+	cmd->uid = cpu_to_le32(uid);
+	cmd->ooc_priority = cpu_to_le32(ooc_priority);
+
+	ret = iwl_mld_scan_umac_common(mld, vif, params, &scan_ptrs,
+				       scan_status, low_latency);
+	if (ret)
+		return ret;
+
+	return uid;
+}
+
+static const struct iwl_scan_umac_handler iwl_scan_umac_handlers[] = {
+	/* set the newest version first to shorten the list traverse time */
+	IWL_SCAN_UMAC_HANDLER(18),
+	IWL_SCAN_UMAC_HANDLER(17),
+};
+
 static int
 iwl_mld_scan_build_cmd(struct iwl_mld *mld, struct ieee80211_vif *vif,
 		       struct iwl_mld_scan_params *params,
 		       enum iwl_mld_scan_status scan_status,
 		       bool low_latency)
 {
-	struct iwl_scan_req_umac_v17 *cmd = mld->scan.cmd;
-	struct iwl_scan_req_params_v17 *scan_p = &cmd->scan_params;
-	u32 bitmap_ssid = 0;
-	int uid, ret;
+	int uid, err;
+	u32 ooc_priority;
 
 	memset(mld->scan.cmd, 0, mld->scan.cmd_size);
-
-	/* find a free UID entry */
 	uid = iwl_mld_scan_uid_by_status(mld, IWL_MLD_SCAN_NONE);
 	if (uid < 0)
 		return uid;
 
-	cmd->uid = cpu_to_le32(uid);
-	cmd->ooc_priority =
-		cpu_to_le32(iwl_mld_scan_ooc_priority(scan_status));
+	ooc_priority = iwl_mld_scan_ooc_priority(scan_status);
 
-	iwl_mld_scan_cmd_set_gen_params(mld, params, vif,
-					&scan_p->general_params, scan_status);
+	for (size_t i = 0; i < ARRAY_SIZE(iwl_scan_umac_handlers); i++) {
+		const struct iwl_scan_umac_handler *ver_handler =
+			&iwl_scan_umac_handlers[i];
 
-	ret = iwl_mld_scan_cmd_set_sched_params(params,
-						scan_p->periodic_params.schedule,
-						&scan_p->periodic_params.delay);
-	if (ret)
-		return ret;
+		if (ver_handler->version != mld->scan.cmd_ver)
+			continue;
 
-	iwl_mld_scan_cmd_set_probe_params(params, &scan_p->probe_params,
-					  &bitmap_ssid);
+		err = ver_handler->handler(mld, vif, params, scan_status,
+					   uid, ooc_priority, low_latency);
+		return err ? : uid;
+	}
 
-	ret = iwl_mld_scan_cmd_set_chan_params(mld, params, vif, scan_p,
-					       low_latency, scan_status,
-					       bitmap_ssid);
-	if (ret)
-		return ret;
+	IWL_ERR(mld, "No handler for UMAC scan cmd version %d\n",
+		mld->scan.cmd_ver);
 
-	return uid;
+	return -EINVAL;
 }
 
 static bool
@@ -1966,9 +2079,7 @@ void iwl_mld_handle_scan_complete_notif(struct iwl_mld *mld,
 		struct ieee80211_bss_conf *link_conf = NULL;
 
 		if (fw_link_id != IWL_MLD_INVALID_FW_ID)
-			link_conf =
-				wiphy_dereference(mld->wiphy,
-						  mld->fw_id_to_bss_conf[fw_link_id]);
+			link_conf = iwl_mld_fw_id_to_link_conf(mld, fw_link_id);
 
 		/* It is possible that by the time the scan is complete the
 		 * link was already removed and is not valid.
@@ -2055,6 +2166,8 @@ int iwl_mld_alloc_scan_cmd(struct iwl_mld *mld)
 
 	if (scan_cmd_ver == 17) {
 		scan_cmd_size = sizeof(struct iwl_scan_req_umac_v17);
+	} else if (scan_cmd_ver == 18) {
+		scan_cmd_size = sizeof(struct iwl_scan_req_umac_v18);
 	} else {
 		IWL_ERR(mld, "Unexpected scan cmd version %d\n", scan_cmd_ver);
 		return -EINVAL;
@@ -2065,6 +2178,7 @@ int iwl_mld_alloc_scan_cmd(struct iwl_mld *mld)
 		return -ENOMEM;
 
 	mld->scan.cmd_size = scan_cmd_size;
+	mld->scan.cmd_ver = scan_cmd_ver;
 
 	return 0;
 }

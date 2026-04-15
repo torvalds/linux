@@ -55,6 +55,7 @@ enum mlx5_flow_destination_type {
 	MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE_NUM,
 	MLX5_FLOW_DESTINATION_TYPE_RANGE,
 	MLX5_FLOW_DESTINATION_TYPE_TABLE_TYPE,
+	MLX5_FLOW_DESTINATION_TYPE_VHCA_RX,
 };
 
 enum {
@@ -190,6 +191,9 @@ struct mlx5_flow_destination {
 		struct mlx5_flow_table	*ft;
 		struct mlx5_fc          *counter;
 		struct {
+			u16		id;
+		} vhca;
+		struct {
 			u16		num;
 			u16		vhca_id;
 			struct mlx5_pkt_reformat *pkt_reformat;
@@ -248,9 +252,9 @@ mlx5_create_auto_grouped_flow_table(struct mlx5_flow_namespace *ns,
 struct mlx5_flow_table *
 mlx5_create_vport_flow_table(struct mlx5_flow_namespace *ns,
 			     struct mlx5_flow_table_attr *ft_attr, u16 vport);
-struct mlx5_flow_table *mlx5_create_lag_demux_flow_table(
-					       struct mlx5_flow_namespace *ns,
-					       int prio, u32 level);
+struct mlx5_flow_table *
+mlx5_create_lag_demux_flow_table(struct mlx5_flow_namespace *ns,
+				 struct mlx5_flow_table_attr *ft_attr);
 int mlx5_destroy_flow_table(struct mlx5_flow_table *ft);
 
 /* inbox should be set with the following values:

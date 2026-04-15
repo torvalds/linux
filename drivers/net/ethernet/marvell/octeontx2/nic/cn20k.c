@@ -251,6 +251,272 @@ static u8 cn20k_aura_bpid_idx(struct otx2_nic *pfvf, int aura_id)
 #endif
 }
 
+static int cn20k_tc_get_entry_index(struct otx2_flow_config *flow_cfg,
+				    struct otx2_tc_flow *node)
+{
+	struct otx2_tc_flow *tmp;
+	int index = 0;
+
+	list_for_each_entry(tmp, &flow_cfg->flow_list_tc, list) {
+		if (tmp == node)
+			return index;
+
+		index++;
+	}
+
+	return -1;
+}
+
+int cn20k_tc_free_mcam_entry(struct otx2_nic *nic, u16 entry)
+{
+	struct npc_mcam_free_entry_req *req;
+	int err;
+
+	mutex_lock(&nic->mbox.lock);
+	req = otx2_mbox_alloc_msg_npc_mcam_free_entry(&nic->mbox);
+	if (!req) {
+		mutex_unlock(&nic->mbox.lock);
+		return -ENOMEM;
+	}
+
+	req->entry = entry;
+	/* Send message to AF to free MCAM entries */
+	err = otx2_sync_mbox_msg(&nic->mbox);
+	if (err) {
+		mutex_unlock(&nic->mbox.lock);
+		return err;
+	}
+
+	mutex_unlock(&nic->mbox.lock);
+
+	return 0;
+}
+
+static bool cn20k_tc_check_entry_shiftable(struct otx2_nic *nic,
+					   struct otx2_flow_config *flow_cfg,
+					   struct otx2_tc_flow *node, int index,
+					   bool error)
+{
+	struct otx2_tc_flow *first, *tmp, *n;
+	u32 prio = 0;
+	int i = 0;
+	u8 type;
+
+	first = list_first_entry(&flow_cfg->flow_list_tc, struct otx2_tc_flow,
+				 list);
+	type = first->kw_type;
+
+	/* Check all the nodes from start to given index (including index) has
+	 * same type i.e, either X2 or X4
+	 */
+	list_for_each_entry_safe(tmp, n, &flow_cfg->flow_list_tc, list) {
+		if (i > index)
+			break;
+
+		if (type != tmp->kw_type) {
+			/* List has both X2 and X4 entries so entries cannot be
+			 * shifted to save MCAM space.
+			 */
+			if (error)
+				dev_err(nic->dev, "Rule %d cannot be shifted to %d\n",
+					tmp->prio, prio);
+			return false;
+		}
+
+		type = tmp->kw_type;
+		prio = tmp->prio;
+		i++;
+	}
+
+	return true;
+}
+
+void cn20k_tc_update_mcam_table_del_req(struct otx2_nic *nic,
+					struct otx2_flow_config *flow_cfg,
+					struct otx2_tc_flow *node)
+{
+	struct otx2_tc_flow *first, *tmp, *n;
+	int i = 0, index;
+	u16 cntr_val = 0;
+	u16 entry;
+
+	index = cn20k_tc_get_entry_index(flow_cfg, node);
+	if (index < 0) {
+		netdev_dbg(nic->netdev, "Could not find node\n");
+		return;
+	}
+
+	first = list_first_entry(&flow_cfg->flow_list_tc, struct otx2_tc_flow,
+				 list);
+	entry = first->entry;
+
+	/* If entries cannot be shifted then delete given entry
+	 * and free it to AF too.
+	 */
+	if (!cn20k_tc_check_entry_shiftable(nic, flow_cfg, node,
+					    index, false)) {
+		list_del(&node->list);
+		entry = node->entry;
+		goto free_mcam_entry;
+	}
+
+	/* Find and delete the entry from the list and re-install
+	 * all the entries from beginning to the index of the
+	 * deleted entry to higher mcam indexes.
+	 */
+	list_for_each_entry_safe(tmp, n, &flow_cfg->flow_list_tc, list) {
+		if (node == tmp) {
+			list_del(&tmp->list);
+			break;
+		}
+
+		otx2_del_mcam_flow_entry(nic, tmp->entry, &cntr_val);
+		tmp->entry = (list_next_entry(tmp, list))->entry;
+		tmp->req.entry = tmp->entry;
+		tmp->req.cntr_val = cntr_val;
+	}
+
+	list_for_each_entry_safe(tmp, n, &flow_cfg->flow_list_tc, list) {
+		if (i == index)
+			break;
+
+		otx2_add_mcam_flow_entry(nic, &tmp->req);
+		i++;
+	}
+
+free_mcam_entry:
+	if (cn20k_tc_free_mcam_entry(nic, entry))
+		netdev_err(nic->netdev, "Freeing entry %d to AF failed\n",
+			   entry);
+}
+
+int cn20k_tc_update_mcam_table_add_req(struct otx2_nic *nic,
+				       struct otx2_flow_config *flow_cfg,
+				       struct otx2_tc_flow *node)
+{
+	struct otx2_tc_flow *tmp;
+	u16 cntr_val = 0;
+	int list_idx, i;
+	int entry, prev;
+
+	/* Find the index of the entry(list_idx) whose priority
+	 * is greater than the new entry and re-install all
+	 * the entries from beginning to list_idx to higher
+	 * mcam indexes.
+	 */
+	list_idx = otx2_tc_add_to_flow_list(flow_cfg, node);
+	entry = node->entry;
+	if (!cn20k_tc_check_entry_shiftable(nic, flow_cfg, node,
+					    list_idx, true))
+		/* Due to mix of X2 and X4, entries cannot be shifted.
+		 * In this case free the entry allocated for this rule.
+		 */
+		return -EINVAL;
+
+	for (i = 0; i < list_idx; i++) {
+		tmp = otx2_tc_get_entry_by_index(flow_cfg, i);
+		if (!tmp)
+			return -ENOMEM;
+
+		otx2_del_mcam_flow_entry(nic, tmp->entry, &cntr_val);
+		prev = tmp->entry;
+		tmp->entry = entry;
+		tmp->req.entry = tmp->entry;
+		tmp->req.cntr_val = cntr_val;
+		otx2_add_mcam_flow_entry(nic, &tmp->req);
+		entry = prev;
+	}
+
+	return entry;
+}
+
+#define MAX_TC_HW_PRIORITY		125
+#define MAX_TC_VF_PRIORITY		126
+#define MAX_TC_PF_PRIORITY		127
+
+static int __cn20k_tc_alloc_entry(struct otx2_nic *nic,
+				  struct npc_install_flow_req *flow_req,
+				  u16 *entry, u8 *type,
+				  u32 tc_priority, bool hw_priority)
+{
+	struct otx2_flow_config *flow_cfg = nic->flow_cfg;
+	struct npc_install_flow_req *req;
+	struct npc_install_flow_rsp *rsp;
+	struct otx2_tc_flow *tmp;
+	int ret = 0;
+
+	req = otx2_mbox_alloc_msg_npc_install_flow(&nic->mbox);
+	if (!req)
+		return -ENOMEM;
+
+	memcpy(&flow_req->hdr, &req->hdr, sizeof(struct mbox_msghdr));
+	memcpy(req, flow_req, sizeof(struct npc_install_flow_req));
+	req->alloc_entry = 1;
+
+	/* Allocate very least priority for first rule */
+	if (hw_priority || list_empty(&flow_cfg->flow_list_tc)) {
+		req->ref_prio = NPC_MCAM_LEAST_PRIO;
+	} else {
+		req->ref_prio = NPC_MCAM_HIGHER_PRIO;
+		tmp = list_first_entry(&flow_cfg->flow_list_tc,
+				       struct otx2_tc_flow, list);
+		req->ref_entry = tmp->entry;
+	}
+
+	ret = otx2_sync_mbox_msg(&nic->mbox);
+	if (ret)
+		return ret;
+
+	rsp = (struct npc_install_flow_rsp *)otx2_mbox_get_rsp(&nic->mbox.mbox,
+							       0, &req->hdr);
+	if (IS_ERR(rsp))
+		return -EFAULT;
+
+	if (entry)
+		*entry = rsp->entry;
+	if (type)
+		*type = rsp->kw_type;
+
+	return ret;
+}
+
+int cn20k_tc_alloc_entry(struct otx2_nic *nic,
+			 struct flow_cls_offload *tc_flow_cmd,
+			 struct otx2_tc_flow *new_node,
+			 struct npc_install_flow_req *flow_req)
+{
+	bool hw_priority = false;
+	u16 entry_from_af;
+	u8 entry_type;
+	int ret;
+
+	if (is_otx2_vf(nic->pcifunc))
+		flow_req->hw_prio = MAX_TC_VF_PRIORITY;
+	else
+		flow_req->hw_prio = MAX_TC_PF_PRIORITY;
+
+	if (new_node->prio <= MAX_TC_HW_PRIORITY) {
+		flow_req->hw_prio = new_node->prio;
+		hw_priority = true;
+	}
+
+	mutex_lock(&nic->mbox.lock);
+
+	ret = __cn20k_tc_alloc_entry(nic, flow_req, &entry_from_af, &entry_type,
+				     new_node->prio, hw_priority);
+	if (ret) {
+		mutex_unlock(&nic->mbox.lock);
+		return ret;
+	}
+
+	new_node->kw_type = entry_type;
+	new_node->entry = entry_from_af;
+
+	mutex_unlock(&nic->mbox.lock);
+
+	return 0;
+}
+
 static int cn20k_aura_aq_init(struct otx2_nic *pfvf, int aura_id,
 			      int pool_id, int numptrs)
 {

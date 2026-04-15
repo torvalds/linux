@@ -57,21 +57,21 @@ PTP_1588_L2_PDELAY_REQ=" \
 PTP_1588_IPV4_SYNC=" \
 01:00:5e:00:01:81 00:00:de:ad:be:ef 08:00 45 00 \
 00 48 0a 9a 40 00 01 11 cb 88 c0 00 02 01 e0 00 \
-01 81 01 3f 01 3f 00 34 a3 c8 00 02 00 2c 00 00 \
+01 81 01 3f 01 3f 00 34 9f 41 00 02 00 2c 00 00 \
 02 00 00 00 00 00 00 00 00 00 00 00 00 00 3e 37 \
 63 ff fe cf 17 0e 00 01 00 00 00 00 00 00 00 00 \
 00 00 00 00 00 00"
 PTP_1588_IPV4_FOLLOW_UP="
 01:00:5e:00:01:81 00:00:de:ad:be:ef 08:00 45 00 \
 00 48 0a 9b 40 00 01 11 cb 87 c0 00 02 01 e0 00 \
-01 81 01 40 01 40 00 34 a3 c8 08 02 00 2c 00 00 \
+01 81 01 40 01 40 00 34 eb 8a 08 02 00 2c 00 00 \
 00 00 00 00 00 00 00 00 00 00 00 00 00 00 3e 37 \
 63 ff fe cf 17 0e 00 01 00 00 02 00 00 00 66 83 \
 c6 0f 1d 9a 61 87"
 PTP_1588_IPV4_PDELAY_REQ=" \
 01:00:5e:00:00:6b 00:00:de:ad:be:ef 08:00 45 00 \
 00 52 35 a9 40 00 01 11 a1 85 c0 00 02 01 e0 00 \
-00 6b 01 3f 01 3f 00 3e a2 bc 02 02 00 36 00 00 \
+00 6b 01 3f 01 3f 00 3e 9a b9 02 02 00 36 00 00 \
 00 00 00 00 00 00 00 00 00 00 00 00 00 00 3e 37 \
 63 ff fe cf 17 0e 00 01 00 01 05 7f 00 00 00 00 \
 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00"
@@ -79,7 +79,7 @@ PTP_1588_IPV6_SYNC=" \
 33:33:00:00:01:81 00:00:de:ad:be:ef 86:dd 60 06 \
 7c 2f 00 36 11 01 20 01 0d b8 00 01 00 00 00 00 \
 00 00 00 00 00 01 ff 0e 00 00 00 00 00 00 00 00 \
-00 00 00 00 01 81 01 3f 01 3f 00 36 2e 92 00 02 \
+00 00 00 00 01 81 01 3f 01 3f 00 36 14 76 00 02 \
 00 2c 00 00 02 00 00 00 00 00 00 00 00 00 00 00 \
 00 00 3e 37 63 ff fe cf 17 0e 00 01 00 00 00 00 \
 00 00 00 00 00 00 00 00 00 00 00 00"
@@ -87,7 +87,7 @@ PTP_1588_IPV6_FOLLOW_UP=" \
 33:33:00:00:01:81 00:00:de:ad:be:ef 86:dd 60 0a \
 00 bc 00 36 11 01 20 01 0d b8 00 01 00 00 00 00 \
 00 00 00 00 00 01 ff 0e 00 00 00 00 00 00 00 00 \
-00 00 00 00 01 81 01 40 01 40 00 36 2e 92 08 02 \
+00 00 00 00 01 81 01 40 01 40 00 36 f0 47 08 02 \
 00 2c 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
 00 00 3e 37 63 ff fe cf 17 0e 00 01 00 00 02 00 \
 00 00 66 83 c6 2a 32 09 bd 74 00 00"
@@ -95,11 +95,20 @@ PTP_1588_IPV6_PDELAY_REQ=" \
 33:33:00:00:00:6b 00:00:de:ad:be:ef 86:dd 60 0c \
 5c fd 00 40 11 01 fe 80 00 00 00 00 00 00 3c 37 \
 63 ff fe cf 17 0e ff 02 00 00 00 00 00 00 00 00 \
-00 00 00 00 00 6b 01 3f 01 3f 00 40 b4 54 02 02 \
+00 00 00 00 00 6b 01 3f 01 3f 00 40 89 1f 02 02 \
 00 36 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
 00 00 3e 37 63 ff fe cf 17 0e 00 01 00 01 05 7f \
 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
 00 00 00 00 00 00"
+LINK_LOCAL_STP_BPDU=" \
+01:80:c2:00:00:00 00:00:de:ad:be:ef 00 26 42 42 03 \
+00 00 00 00 00 80 00 aa bb cc dd ee ff 00 00 00 00 \
+80 00 aa bb cc dd ee ff 80 01 00 00 14 00 02 00 \
+0f 00"
+LINK_LOCAL_LLDP=" \
+01:80:c2:00:00:0e 00:00:de:ad:be:ef 88:cc 02 07 04 \
+00 11 22 33 44 55 04 05 05 65 74 68 30 06 02 00 \
+78 00 00"
 
 # Disable promisc to ensure we don't receive unknown MAC DA packets
 export TCPDUMP_EXTRA_FLAGS="-pl"
@@ -213,7 +222,15 @@ run_test()
 	mc_route_destroy $rcv_if_name
 	mc_route_destroy $send_if_name
 
+	ip maddress add 01:80:c2:00:00:00 dev $rcv_if_name
+	send_raw $send_if_name "$LINK_LOCAL_STP_BPDU"
+	ip maddress del 01:80:c2:00:00:00 dev $rcv_if_name
+
 	if [ $skip_ptp = false ]; then
+		ip maddress add 01:80:c2:00:00:0e dev $rcv_if_name
+		send_raw $send_if_name "$LINK_LOCAL_LLDP"
+		ip maddress del 01:80:c2:00:00:0e dev $rcv_if_name
+
 		ip maddress add 01:1b:19:00:00:00 dev $rcv_if_name
 		send_raw $send_if_name "$PTP_1588_L2_SYNC"
 		send_raw $send_if_name "$PTP_1588_L2_FOLLOW_UP"
@@ -304,7 +321,15 @@ run_test()
 		"$smac > $UNKNOWN_MACV6_MC_ADDR3, ethertype IPv6 (0x86dd)" \
 		true "$test_name"
 
+	check_rcv $rcv_if_name "Link-local STP BPDU" \
+		"> 01:80:c2:00:00:00" \
+		true "$test_name"
+
 	if [ $skip_ptp = false ]; then
+		check_rcv $rcv_if_name "Link-local LLDP" \
+			"> 01:80:c2:00:00:0e" \
+			true "$test_name"
+
 		check_rcv $rcv_if_name "1588v2 over L2 transport, Sync" \
 			"ethertype PTP (0x88f7).* PTPv2.* msg type *: sync msg" \
 			true "$test_name"

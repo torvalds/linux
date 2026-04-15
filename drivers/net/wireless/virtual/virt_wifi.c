@@ -320,9 +320,11 @@ static int virt_wifi_disconnect(struct wiphy *wiphy, struct net_device *netdev,
 }
 
 /* Called with the rtnl lock held. */
-static int virt_wifi_get_station(struct wiphy *wiphy, struct net_device *dev,
-				 const u8 *mac, struct station_info *sinfo)
+static int virt_wifi_get_station(struct wiphy *wiphy,
+				 struct wireless_dev *wdev, const u8 *mac,
+				 struct station_info *sinfo)
 {
+	struct net_device *dev = wdev->netdev;
 	struct virt_wifi_netdev_priv *priv = netdev_priv(dev);
 
 	wiphy_debug(wiphy, "get_station\n");
@@ -345,10 +347,10 @@ static int virt_wifi_get_station(struct wiphy *wiphy, struct net_device *dev,
 }
 
 /* Called with the rtnl lock held. */
-static int virt_wifi_dump_station(struct wiphy *wiphy, struct net_device *dev,
+static int virt_wifi_dump_station(struct wiphy *wiphy, struct wireless_dev *wdev,
 				  int idx, u8 *mac, struct station_info *sinfo)
 {
-	struct virt_wifi_netdev_priv *priv = netdev_priv(dev);
+	struct virt_wifi_netdev_priv *priv = netdev_priv(wdev->netdev);
 
 	wiphy_debug(wiphy, "dump_station\n");
 
@@ -356,7 +358,7 @@ static int virt_wifi_dump_station(struct wiphy *wiphy, struct net_device *dev,
 		return -ENOENT;
 
 	ether_addr_copy(mac, fake_router_bssid);
-	return virt_wifi_get_station(wiphy, dev, fake_router_bssid, sinfo);
+	return virt_wifi_get_station(wiphy, wdev, fake_router_bssid, sinfo);
 }
 
 static const struct cfg80211_ops virt_wifi_cfg80211_ops = {

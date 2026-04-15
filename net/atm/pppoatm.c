@@ -228,7 +228,7 @@ static void pppoatm_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 
 error:
 	kfree_skb(skb);
-	ppp_input_error(&pvcc->chan, 0);
+	ppp_input_error(&pvcc->chan);
 }
 
 static int pppoatm_may_send(struct pppoatm_vcc *pvcc, int size)

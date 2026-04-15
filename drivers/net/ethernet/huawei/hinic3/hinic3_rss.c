@@ -132,7 +132,7 @@ static int hinic3_rss_set_indir_tbl(struct hinic3_hwdev *hwdev,
 static int hinic3_set_rss_type(struct hinic3_hwdev *hwdev,
 			       struct hinic3_rss_type rss_type)
 {
-	struct l2nic_cmd_set_rss_ctx_tbl ctx_tbl = {};
+	struct l2nic_cmd_rss_ctx_tbl ctx_tbl = {};
 	struct mgmt_msg_params msg_params = {};
 	u32 ctx;
 	int err;

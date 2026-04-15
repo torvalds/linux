@@ -23,6 +23,8 @@
 #include "fw/api/commands.h"
 #include "fw/api/cmdhdr.h"
 #include "fw/img.h"
+#include "fw/dbg.h"
+
 #include "mei/iwl-mei.h"
 
 /* NVM offsets (in words) definitions */
@@ -1702,6 +1704,11 @@ iwl_parse_nvm_mcc_info(struct iwl_trans *trans,
 							     band);
 		new_rule = false;
 
+		if (IWL_FW_CHECK(trans, !center_freq,
+				 "Invalid channel %d (idx %d) in NVM\n",
+				 nvm_chan[ch_idx], ch_idx))
+			continue;
+
 		if (!(ch_flags & NVM_CHANNEL_VALID)) {
 			iwl_nvm_print_channel_flags(dev, IWL_DL_LAR,
 						    nvm_chan[ch_idx], ch_flags);
@@ -2031,7 +2038,7 @@ struct iwl_nvm_data *iwl_get_nvm(struct iwl_trans *trans,
 	if (empty_otp)
 		IWL_INFO(trans, "OTP is empty\n");
 
-	nvm = kzalloc_flex(*nvm, channels, IWL_NUM_CHANNELS);
+	nvm = kzalloc_flex(*nvm, channels, IWL_NUM_CHANNELS_V2);
 	if (!nvm) {
 		ret = -ENOMEM;
 		goto out;

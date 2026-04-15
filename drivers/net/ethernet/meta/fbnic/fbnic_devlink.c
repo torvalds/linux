@@ -647,6 +647,7 @@ struct fbnic_dev *fbnic_devlink_alloc(struct pci_dev *pdev)
 	fbd->dsn = pci_get_dsn(pdev);
 	fbd->mps = pcie_get_mps(pdev);
 	fbd->readrq = pcie_get_readrq(pdev);
+	fbd->relaxed_ord = pcie_relaxed_ordering_enabled(pdev);
 
 	fbd->mac_addr_boundary = FBNIC_RPC_TCAM_MACDA_DEFAULT_BOUNDARY;
 

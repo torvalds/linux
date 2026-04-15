@@ -114,6 +114,7 @@ enum comm_cmd {
 	COMM_CMD_SET_DMA_ATTR            = 25,
 
 	/* Commands for obtaining information */
+	COMM_CMD_GET_FW_VERSION          = 60,
 	COMM_CMD_SYNC_TIME               = 62,
 	COMM_CMD_SEND_BDF_INFO           = 64,
 };
@@ -273,6 +274,17 @@ struct comm_cmd_bdf_info {
 	u8                   device;
 	u8                   function;
 	u8                   rsvd2[5];
+};
+
+#define COMM_FW_VERSION_LEN       16
+#define COMM_FW_COMPILE_TIME_LEN  20
+struct comm_cmd_get_fw_version {
+	struct mgmt_msg_head head;
+
+	u16                  fw_type;
+	u16                  rsvd1;
+	u8                   ver[COMM_FW_VERSION_LEN];
+	u8                   time[COMM_FW_COMPILE_TIME_LEN];
 };
 
 /* Services supported by HW. HW uses these values when delivering events.

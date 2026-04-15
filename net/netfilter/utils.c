@@ -163,7 +163,6 @@ EXPORT_SYMBOL_GPL(nf_checksum_partial);
 int nf_route(struct net *net, struct dst_entry **dst, struct flowi *fl,
 	     bool strict, unsigned short family)
 {
-	const struct nf_ipv6_ops *v6ops __maybe_unused;
 	int ret = 0;
 
 	switch (family) {

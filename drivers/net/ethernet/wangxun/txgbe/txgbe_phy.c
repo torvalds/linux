@@ -657,7 +657,9 @@ void txgbe_remove_phy(struct txgbe *txgbe)
 		return;
 	case wx_mac_sp:
 		if (txgbe->wx->media_type == wx_media_copper) {
+			rtnl_lock();
 			phylink_disconnect_phy(txgbe->wx->phylink);
+			rtnl_unlock();
 			phylink_destroy(txgbe->wx->phylink);
 			return;
 		}

@@ -8,7 +8,7 @@ extern void bbr_init(struct sock *sk) __ksym;
 extern void bbr_main(struct sock *sk, u32 ack, int flag, const struct rate_sample *rs) __ksym;
 extern u32 bbr_sndbuf_expand(struct sock *sk) __ksym;
 extern u32 bbr_undo_cwnd(struct sock *sk) __ksym;
-extern void bbr_cwnd_event(struct sock *sk, enum tcp_ca_event event) __ksym;
+extern void bbr_cwnd_event_tx_start(struct sock *sk) __ksym;
 extern u32 bbr_ssthresh(struct sock *sk) __ksym;
 extern u32 bbr_min_tso_segs(struct sock *sk) __ksym;
 extern void bbr_set_state(struct sock *sk, u8 new_state) __ksym;
@@ -16,6 +16,7 @@ extern void bbr_set_state(struct sock *sk, u8 new_state) __ksym;
 extern void dctcp_init(struct sock *sk) __ksym;
 extern void dctcp_update_alpha(struct sock *sk, u32 flags) __ksym;
 extern void dctcp_cwnd_event(struct sock *sk, enum tcp_ca_event ev) __ksym;
+extern void dctcp_cwnd_event_tx_start(struct sock *sk) __ksym;
 extern u32 dctcp_ssthresh(struct sock *sk) __ksym;
 extern u32 dctcp_cwnd_undo(struct sock *sk) __ksym;
 extern void dctcp_state(struct sock *sk, u8 new_state) __ksym;
@@ -24,7 +25,7 @@ extern void cubictcp_init(struct sock *sk) __ksym;
 extern u32 cubictcp_recalc_ssthresh(struct sock *sk) __ksym;
 extern void cubictcp_cong_avoid(struct sock *sk, u32 ack, u32 acked) __ksym;
 extern void cubictcp_state(struct sock *sk, u8 new_state) __ksym;
-extern void cubictcp_cwnd_event(struct sock *sk, enum tcp_ca_event event) __ksym;
+extern void cubictcp_cwnd_event_tx_start(struct sock *sk) __ksym;
 extern void cubictcp_acked(struct sock *sk, const struct ack_sample *sample) __ksym;
 
 SEC("struct_ops")
@@ -69,9 +70,15 @@ u32 BPF_PROG(undo_cwnd, struct sock *sk)
 SEC("struct_ops")
 void BPF_PROG(cwnd_event, struct sock *sk, enum tcp_ca_event event)
 {
-	bbr_cwnd_event(sk, event);
 	dctcp_cwnd_event(sk, event);
-	cubictcp_cwnd_event(sk, event);
+}
+
+SEC("struct_ops")
+void BPF_PROG(cwnd_event_tx_start, struct sock *sk)
+{
+	bbr_cwnd_event_tx_start(sk);
+	dctcp_cwnd_event_tx_start(sk);
+	cubictcp_cwnd_event_tx_start(sk);
 }
 
 SEC("struct_ops")
@@ -111,6 +118,7 @@ struct tcp_congestion_ops tcp_ca_kfunc = {
 	.sndbuf_expand	= (void *)sndbuf_expand,
 	.undo_cwnd	= (void *)undo_cwnd,
 	.cwnd_event	= (void *)cwnd_event,
+	.cwnd_event_tx_start = (void *)cwnd_event_tx_start,
 	.ssthresh	= (void *)ssthresh,
 	.min_tso_segs	= (void *)min_tso_segs,
 	.set_state	= (void *)set_state,

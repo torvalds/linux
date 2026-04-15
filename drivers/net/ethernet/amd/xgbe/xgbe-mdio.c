@@ -1047,11 +1047,29 @@ static void xgbe_phy_adjust_link(struct xgbe_prv_data *pdata)
 		if (pdata->phy_link != pdata->phy.link) {
 			new_state = 1;
 			pdata->phy_link = pdata->phy.link;
+
+			/* Link is coming up - wake TX queues */
+			netif_tx_wake_all_queues(pdata->netdev);
 		}
 	} else if (pdata->phy_link) {
 		new_state = 1;
 		pdata->phy_link = 0;
 		pdata->phy_speed = SPEED_UNKNOWN;
+
+		/* Proactive TX queue management on link-down.
+		 *
+		 * Immediately stop TX queues to enable clean link-down
+		 * handling:
+		 * - Prevents queueing packets that can't be transmitted
+		 * - Allows orderly descriptor cleanup by NAPI poll
+		 * - Enables rapid failover in link aggregation configurations
+		 *
+		 * Note: We do NOT call netdev_tx_reset_queue() here because
+		 * NAPI poll may still be running and would trigger BQL
+		 * assertion. BQL state is cleaned up naturally during
+		 * descriptor reclamation.
+		 */
+		netif_tx_stop_all_queues(pdata->netdev);
 	}
 
 	if (new_state && netif_msg_link(pdata))

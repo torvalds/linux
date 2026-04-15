@@ -133,6 +133,10 @@ TEST_FILES := \
 	tc_common.sh \
 # end of TEST_FILES
 
+TEST_GEN_PROGS := \
+	ipmr
+# end of TEST_GEN_PROGS
+
 TEST_INCLUDES := \
 	$(wildcard ../lib/sh/*.sh) \
 	../lib.sh \

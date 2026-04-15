@@ -387,10 +387,92 @@ static int nla_put_napi_id(struct sk_buff *skb, const struct napi_struct *napi)
 }
 
 static int
+netdev_nl_queue_fill_lease(struct sk_buff *rsp, struct net_device *netdev,
+			   u32 q_idx, u32 q_type)
+{
+	struct net_device *orig_netdev = netdev;
+	struct nlattr *nest_lease, *nest_queue;
+	struct netdev_rx_queue *rxq;
+	struct net *net, *peer_net;
+
+	rxq = __netif_get_rx_queue_lease(&netdev, &q_idx, NETIF_PHYS_TO_VIRT);
+	if (!rxq || orig_netdev == netdev)
+		return 0;
+
+	nest_lease = nla_nest_start(rsp, NETDEV_A_QUEUE_LEASE);
+	if (!nest_lease)
+		goto nla_put_failure;
+
+	nest_queue = nla_nest_start(rsp, NETDEV_A_LEASE_QUEUE);
+	if (!nest_queue)
+		goto nla_put_failure;
+	if (nla_put_u32(rsp, NETDEV_A_QUEUE_ID, q_idx))
+		goto nla_put_failure;
+	if (nla_put_u32(rsp, NETDEV_A_QUEUE_TYPE, q_type))
+		goto nla_put_failure;
+	nla_nest_end(rsp, nest_queue);
+
+	if (nla_put_u32(rsp, NETDEV_A_LEASE_IFINDEX,
+			READ_ONCE(netdev->ifindex)))
+		goto nla_put_failure;
+
+	rcu_read_lock();
+	peer_net = dev_net_rcu(netdev);
+	net = dev_net_rcu(orig_netdev);
+	if (!net_eq(net, peer_net)) {
+		s32 id = peernet2id_alloc(net, peer_net, GFP_ATOMIC);
+
+		if (nla_put_s32(rsp, NETDEV_A_LEASE_NETNS_ID, id))
+			goto nla_put_failure_unlock;
+	}
+	rcu_read_unlock();
+	nla_nest_end(rsp, nest_lease);
+	return 0;
+
+nla_put_failure_unlock:
+	rcu_read_unlock();
+nla_put_failure:
+	return -ENOMEM;
+}
+
+static int
+__netdev_nl_queue_fill_mp(struct sk_buff *rsp, struct netdev_rx_queue *rxq)
+{
+	struct pp_memory_provider_params *params = &rxq->mp_params;
+
+	if (params->mp_ops &&
+	    params->mp_ops->nl_fill(params->mp_priv, rsp, rxq))
+		return -EMSGSIZE;
+
+#ifdef CONFIG_XDP_SOCKETS
+	if (rxq->pool)
+		if (nla_put_empty_nest(rsp, NETDEV_A_QUEUE_XSK))
+			return -EMSGSIZE;
+#endif
+	return 0;
+}
+
+static int
+netdev_nl_queue_fill_mp(struct sk_buff *rsp, struct net_device *netdev,
+			struct netdev_rx_queue *rxq)
+{
+	struct netdev_rx_queue *hw_rxq;
+	int ret;
+
+	hw_rxq = rxq->lease;
+	if (!hw_rxq || !netif_is_queue_leasee(netdev))
+		return __netdev_nl_queue_fill_mp(rsp, rxq);
+
+	netdev_lock(hw_rxq->dev);
+	ret = __netdev_nl_queue_fill_mp(rsp, hw_rxq);
+	netdev_unlock(hw_rxq->dev);
+	return ret;
+}
+
+static int
 netdev_nl_queue_fill_one(struct sk_buff *rsp, struct net_device *netdev,
 			 u32 q_idx, u32 q_type, const struct genl_info *info)
 {
-	struct pp_memory_provider_params *params;
 	struct netdev_rx_queue *rxq;
 	struct netdev_queue *txq;
 	void *hdr;
@@ -409,17 +491,10 @@ netdev_nl_queue_fill_one(struct sk_buff *rsp, struct net_device *netdev,
 		rxq = __netif_get_rx_queue(netdev, q_idx);
 		if (nla_put_napi_id(rsp, rxq->napi))
 			goto nla_put_failure;
-
-		params = &rxq->mp_params;
-		if (params->mp_ops &&
-		    params->mp_ops->nl_fill(params->mp_priv, rsp, rxq))
+		if (netdev_nl_queue_fill_lease(rsp, netdev, q_idx, q_type))
 			goto nla_put_failure;
-#ifdef CONFIG_XDP_SOCKETS
-		if (rxq->pool)
-			if (nla_put_empty_nest(rsp, NETDEV_A_QUEUE_XSK))
-				goto nla_put_failure;
-#endif
-
+		if (netdev_nl_queue_fill_mp(rsp, netdev, rxq))
+			goto nla_put_failure;
 		break;
 	case NETDEV_QUEUE_TYPE_TX:
 		txq = netdev_get_tx_queue(netdev, q_idx);
@@ -918,7 +993,8 @@ netdev_nl_get_dma_dev(struct net_device *netdev, unsigned long *rxq_bitmap,
 	for_each_set_bit(rxq_idx, rxq_bitmap, netdev->real_num_rx_queues) {
 		struct device *rxq_dma_dev;
 
-		rxq_dma_dev = netdev_queue_get_dma_dev(netdev, rxq_idx);
+		rxq_dma_dev = netdev_queue_get_dma_dev(netdev, rxq_idx,
+						       NETDEV_QUEUE_TYPE_RX);
 		if (dma_dev && rxq_dma_dev != dma_dev) {
 			NL_SET_ERR_MSG_FMT(extack, "DMA device mismatch between queue %u and %u (multi-PF device?)",
 					   rxq_idx, prev_rxq_idx);
@@ -1095,7 +1171,7 @@ int netdev_nl_bind_tx_doit(struct sk_buff *skb, struct genl_info *info)
 		goto err_unlock_netdev;
 	}
 
-	dma_dev = netdev_queue_get_dma_dev(netdev, 0);
+	dma_dev = netdev_queue_get_dma_dev(netdev, 0, NETDEV_QUEUE_TYPE_TX);
 	binding = net_devmem_bind_dmabuf(netdev, dma_dev, DMA_TO_DEVICE,
 					 dmabuf_fd, priv, info->extack);
 	if (IS_ERR(binding)) {
@@ -1115,6 +1191,173 @@ err_unlock_netdev:
 	netdev_unlock(netdev);
 err_unlock_sock:
 	mutex_unlock(&priv->lock);
+err_genlmsg_free:
+	nlmsg_free(rsp);
+	return err;
+}
+
+int netdev_nl_queue_create_doit(struct sk_buff *skb, struct genl_info *info)
+{
+	const int qmaxtype = ARRAY_SIZE(netdev_queue_id_nl_policy) - 1;
+	const int lmaxtype = ARRAY_SIZE(netdev_lease_nl_policy) - 1;
+	int err, ifindex, ifindex_lease, queue_id, queue_id_lease;
+	struct nlattr *qtb[ARRAY_SIZE(netdev_queue_id_nl_policy)];
+	struct nlattr *ltb[ARRAY_SIZE(netdev_lease_nl_policy)];
+	struct netdev_rx_queue *rxq, *rxq_lease;
+	struct net_device *dev, *dev_lease;
+	netdevice_tracker dev_tracker;
+	s32 netns_lease = -1;
+	struct nlattr *nest;
+	struct sk_buff *rsp;
+	struct net *net;
+	void *hdr;
+
+	if (GENL_REQ_ATTR_CHECK(info, NETDEV_A_QUEUE_IFINDEX) ||
+	    GENL_REQ_ATTR_CHECK(info, NETDEV_A_QUEUE_TYPE) ||
+	    GENL_REQ_ATTR_CHECK(info, NETDEV_A_QUEUE_LEASE))
+		return -EINVAL;
+	if (nla_get_u32(info->attrs[NETDEV_A_QUEUE_TYPE]) !=
+	    NETDEV_QUEUE_TYPE_RX) {
+		NL_SET_BAD_ATTR(info->extack, info->attrs[NETDEV_A_QUEUE_TYPE]);
+		return -EINVAL;
+	}
+
+	ifindex = nla_get_u32(info->attrs[NETDEV_A_QUEUE_IFINDEX]);
+
+	nest = info->attrs[NETDEV_A_QUEUE_LEASE];
+	err = nla_parse_nested(ltb, lmaxtype, nest,
+			       netdev_lease_nl_policy, info->extack);
+	if (err < 0)
+		return err;
+	if (NL_REQ_ATTR_CHECK(info->extack, nest, ltb, NETDEV_A_LEASE_IFINDEX) ||
+	    NL_REQ_ATTR_CHECK(info->extack, nest, ltb, NETDEV_A_LEASE_QUEUE))
+		return -EINVAL;
+	if (ltb[NETDEV_A_LEASE_NETNS_ID]) {
+		if (!capable(CAP_NET_ADMIN))
+			return -EPERM;
+		netns_lease = nla_get_s32(ltb[NETDEV_A_LEASE_NETNS_ID]);
+	}
+
+	ifindex_lease = nla_get_u32(ltb[NETDEV_A_LEASE_IFINDEX]);
+
+	nest = ltb[NETDEV_A_LEASE_QUEUE];
+	err = nla_parse_nested(qtb, qmaxtype, nest,
+			       netdev_queue_id_nl_policy, info->extack);
+	if (err < 0)
+		return err;
+	if (NL_REQ_ATTR_CHECK(info->extack, nest, qtb, NETDEV_A_QUEUE_ID) ||
+	    NL_REQ_ATTR_CHECK(info->extack, nest, qtb, NETDEV_A_QUEUE_TYPE))
+		return -EINVAL;
+	if (nla_get_u32(qtb[NETDEV_A_QUEUE_TYPE]) != NETDEV_QUEUE_TYPE_RX) {
+		NL_SET_BAD_ATTR(info->extack, qtb[NETDEV_A_QUEUE_TYPE]);
+		return -EINVAL;
+	}
+
+	queue_id_lease = nla_get_u32(qtb[NETDEV_A_QUEUE_ID]);
+
+	rsp = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!rsp)
+		return -ENOMEM;
+
+	hdr = genlmsg_iput(rsp, info);
+	if (!hdr) {
+		err = -EMSGSIZE;
+		goto err_genlmsg_free;
+	}
+
+	/* Locking order is always from the virtual to the physical device
+	 * since this is also the same order when applications open the
+	 * memory provider later on.
+	 */
+	dev = netdev_get_by_index_lock(genl_info_net(info), ifindex);
+	if (!dev) {
+		err = -ENODEV;
+		goto err_genlmsg_free;
+	}
+	if (!netdev_can_create_queue(dev, info->extack)) {
+		err = -EINVAL;
+		goto err_unlock_dev;
+	}
+
+	net = genl_info_net(info);
+	if (netns_lease >= 0) {
+		net = get_net_ns_by_id(net, netns_lease);
+		if (!net) {
+			err = -ENONET;
+			goto err_unlock_dev;
+		}
+	}
+
+	dev_lease = netdev_get_by_index(net, ifindex_lease, &dev_tracker,
+					GFP_KERNEL);
+	if (!dev_lease) {
+		err = -ENODEV;
+		goto err_put_netns;
+	}
+	if (!netdev_can_lease_queue(dev_lease, info->extack)) {
+		netdev_put(dev_lease, &dev_tracker);
+		err = -EINVAL;
+		goto err_put_netns;
+	}
+
+	dev_lease = netdev_put_lock(dev_lease, net, &dev_tracker);
+	if (!dev_lease) {
+		err = -ENODEV;
+		goto err_put_netns;
+	}
+	if (queue_id_lease >= dev_lease->real_num_rx_queues) {
+		err = -ERANGE;
+		NL_SET_BAD_ATTR(info->extack, qtb[NETDEV_A_QUEUE_ID]);
+		goto err_unlock_dev_lease;
+	}
+	if (netdev_queue_busy(dev_lease, queue_id_lease, NETDEV_QUEUE_TYPE_RX,
+			      info->extack)) {
+		err = -EBUSY;
+		goto err_unlock_dev_lease;
+	}
+
+	rxq_lease = __netif_get_rx_queue(dev_lease, queue_id_lease);
+	rxq = __netif_get_rx_queue(dev, dev->real_num_rx_queues - 1);
+
+	/* Leasing queues from different physical devices is currently
+	 * not supported. Capabilities such as XDP features and DMA
+	 * device may differ between physical devices, and computing
+	 * a correct intersection for the virtual device is not yet
+	 * implemented.
+	 */
+	if (rxq->lease && rxq->lease->dev != dev_lease) {
+		err = -EOPNOTSUPP;
+		NL_SET_ERR_MSG(info->extack,
+			       "Leasing queues from different devices not supported");
+		goto err_unlock_dev_lease;
+	}
+
+	queue_id = dev->queue_mgmt_ops->ndo_queue_create(dev, info->extack);
+	if (queue_id < 0) {
+		err = queue_id;
+		goto err_unlock_dev_lease;
+	}
+	rxq = __netif_get_rx_queue(dev, queue_id);
+
+	netdev_rx_queue_lease(rxq, rxq_lease);
+
+	nla_put_u32(rsp, NETDEV_A_QUEUE_ID, queue_id);
+	genlmsg_end(rsp, hdr);
+
+	netdev_unlock(dev_lease);
+	netdev_unlock(dev);
+	if (netns_lease >= 0)
+		put_net(net);
+
+	return genlmsg_reply(rsp, info);
+
+err_unlock_dev_lease:
+	netdev_unlock(dev_lease);
+err_put_netns:
+	if (netns_lease >= 0)
+		put_net(net);
+err_unlock_dev:
+	netdev_unlock(dev);
 err_genlmsg_free:
 	nlmsg_free(rsp);
 	return err;

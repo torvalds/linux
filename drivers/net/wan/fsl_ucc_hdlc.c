@@ -628,8 +628,7 @@ static int ucc_hdlc_poll(struct napi_struct *napi, int budget)
 	hdlc_tx_done(priv);
 	spin_unlock(&priv->lock);
 
-	howmany = 0;
-	howmany += hdlc_rx_done(priv, budget - howmany);
+	howmany = hdlc_rx_done(priv, budget);
 
 	if (howmany < budget) {
 		napi_complete_done(napi, howmany);

@@ -2,8 +2,9 @@
 
 #include <linux/ethtool.h>
 #include <linux/sfp.h>
-#include "netlink.h"
+
 #include "common.h"
+#include "netlink.h"
 
 struct eeprom_req_info {
 	struct ethnl_req_info	base;
@@ -149,15 +150,17 @@ err_free:
 	return ret;
 }
 
-static int eeprom_parse_request(struct ethnl_req_info *req_info, struct nlattr **tb,
+static int eeprom_parse_request(struct ethnl_req_info *req_info,
+				const struct genl_info *info,
+				struct nlattr **tb,
 				struct netlink_ext_ack *extack)
 {
 	struct eeprom_req_info *request = MODULE_EEPROM_REQINFO(req_info);
 
-	if (!tb[ETHTOOL_A_MODULE_EEPROM_OFFSET] ||
-	    !tb[ETHTOOL_A_MODULE_EEPROM_LENGTH] ||
-	    !tb[ETHTOOL_A_MODULE_EEPROM_PAGE] ||
-	    !tb[ETHTOOL_A_MODULE_EEPROM_I2C_ADDRESS])
+	if (GENL_REQ_ATTR_CHECK(info, ETHTOOL_A_MODULE_EEPROM_OFFSET) ||
+	    GENL_REQ_ATTR_CHECK(info, ETHTOOL_A_MODULE_EEPROM_LENGTH) ||
+	    GENL_REQ_ATTR_CHECK(info, ETHTOOL_A_MODULE_EEPROM_PAGE) ||
+	    GENL_REQ_ATTR_CHECK(info, ETHTOOL_A_MODULE_EEPROM_I2C_ADDRESS))
 		return -EINVAL;
 
 	request->i2c_address = nla_get_u8(tb[ETHTOOL_A_MODULE_EEPROM_I2C_ADDRESS]);

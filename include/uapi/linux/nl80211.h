@@ -906,8 +906,9 @@
  * @NL80211_CMD_UNEXPECTED_FRAME: Used by an application controlling an AP
  *	(or GO) interface (i.e. hostapd) to ask for unexpected frames to
  *	implement sending deauth to stations that send unexpected class 3
- *	frames. Also used as the event sent by the kernel when such a frame
- *	is received.
+ *	frames. For NAN_DATA interfaces, this is used to report frames from
+ *	unknown peers (A2 not assigned to any active NDP).
+ *	Also used as the event sent by the kernel when such a frame is received.
  *	For the event, the %NL80211_ATTR_MAC attribute carries the TA and
  *	other attributes like the interface index are present.
  *	If used as the command it must have an interface index and you can
@@ -1361,6 +1362,59 @@
  *	user space that the NAN new cluster has been joined. The cluster ID is
  *	indicated by %NL80211_ATTR_MAC.
  *
+ * @NL80211_CMD_INCUMBENT_SIGNAL_DETECT: Once any incumbent signal is detected
+ *	on the operating channel in 6 GHz band, userspace is notified with the
+ *	signal interference bitmap using
+ *	%NL80211_ATTR_INCUMBENT_SIGNAL_INTERFERENCE_BITMAP. The current channel
+ *	definition is also sent.
+ *
+ * @NL80211_CMD_NAN_SET_LOCAL_SCHED: Set the local NAN schedule. NAN must be
+ *	operational (%NL80211_CMD_START_NAN was executed). Must contain
+ *	%NL80211_ATTR_NAN_TIME_SLOTS and %NL80211_ATTR_NAN_AVAIL_BLOB, but
+ *	%NL80211_ATTR_NAN_CHANNEL is optional (for example in case of a channel
+ *	removal, that channel won't be provided).
+ *	If %NL80211_ATTR_NAN_SCHED_DEFERRED is set, the command is a request
+ *	from the device to perform an announced schedule update. See
+ *	%NL80211_ATTR_NAN_SCHED_DEFERRED for more details.
+ *	If not set, the schedule should be applied immediately.
+ * @NL80211_CMD_NAN_SCHED_UPDATE_DONE: Event sent to user space to notify that
+ *	a deferred local NAN schedule update (requested with
+ *	%NL80211_CMD_NAN_SET_LOCAL_SCHED and %NL80211_ATTR_NAN_SCHED_DEFERRED)
+ *	has been completed. The presence of %NL80211_ATTR_NAN_SCHED_UPDATE_SUCCESS
+ *	indicates that the update was successful.
+ * @NL80211_CMD_NAN_SET_PEER_SCHED: Set the peer NAN schedule. NAN
+ *	must be operational (%NL80211_CMD_START_NAN was executed).
+ *	Required attributes: %NL80211_ATTR_MAC (peer NMI address) and
+ *	%NL80211_ATTR_NAN_COMMITTED_DW.
+ *	Optionally, the full schedule can be provided by including all of:
+ *	%NL80211_ATTR_NAN_SEQ_ID, %NL80211_ATTR_NAN_CHANNEL (one or more), and
+ *	%NL80211_ATTR_NAN_PEER_MAPS (see &enum nl80211_nan_peer_map_attrs).
+ *	If any of these three optional attributes is provided, all three must
+ *	be provided.
+ *	Each peer channel must be compatible with at least one local channel
+ *	set by %NL80211_CMD_SET_LOCAL_NAN_SCHED. Different maps must not
+ *	contain compatible channels.
+ *	For single-radio devices (n_radio <= 1), different maps must not
+ *	schedule the same time slot, as the device cannot operate on multiple
+ *	channels simultaneously.
+ *	When updating an existing peer schedule, the full new schedule must be
+ *	provided - partial updates are not supported. The new schedule will
+ *	completely replace the previous one.
+ *	The peer schedule is automatically removed when the NMI station is
+ *	removed.
+ * @NL80211_CMD_NAN_ULW_UPDATE: Notification from the driver to user space
+ *	with the updated ULW blob of the device. User space can use this blob
+ *	to attach to frames sent to peers. This notification contains
+ *	%NL80211_ATTR_NAN_ULW with the ULW blob.
+ * @NL80211_CMD_NAN_CHANNEL_EVAC: Notification to indicate that a NAN
+ *	channel has been evacuated due to resource conflicts with other
+ *	interfaces. This can happen when another interface sharing the channel
+ *	resource with NAN needs to move to a different channel (e.g., channel
+ *	switch or link switch on a BSS interface).
+ *	The notification contains %NL80211_ATTR_NAN_CHANNEL attribute
+ *	identifying the evacuated channel.
+ *	User space may reconfigure the local schedule in response to this
+ *	notification.
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -1623,6 +1677,18 @@ enum nl80211_commands {
 
 	NL80211_CMD_NAN_NEXT_DW_NOTIFICATION,
 	NL80211_CMD_NAN_CLUSTER_JOINED,
+
+	NL80211_CMD_INCUMBENT_SIGNAL_DETECT,
+
+	NL80211_CMD_NAN_SET_LOCAL_SCHED,
+
+	NL80211_CMD_NAN_SCHED_UPDATE_DONE,
+
+	NL80211_CMD_NAN_SET_PEER_SCHED,
+
+	NL80211_CMD_NAN_ULW_UPDATE,
+
+	NL80211_CMD_NAN_CHANNEL_EVAC,
 
 	/* add new commands above here */
 
@@ -2651,7 +2717,8 @@ enum nl80211_commands {
  *      a flow is assigned on each round of the DRR scheduler.
  * @NL80211_ATTR_HE_CAPABILITY: HE Capability information element (from
  *	association request when used with NL80211_CMD_NEW_STATION). Can be set
- *	only if %NL80211_STA_FLAG_WME is set.
+ *	only if %NL80211_STA_FLAG_WME is set (except for NAN, which uses WME
+ *	anyway).
  *
  * @NL80211_ATTR_FTM_RESPONDER: nested attribute which user-space can include
  *	in %NL80211_CMD_START_AP or %NL80211_CMD_SET_BEACON for fine timing
@@ -2983,6 +3050,95 @@ enum nl80211_commands {
  * @NL80211_ATTR_DISABLE_UHR: Force UHR capable interfaces to disable
  *	this feature during association. This is a flag attribute.
  *	Currently only supported in mac80211 drivers.
+ * @NL80211_ATTR_NAN_CHANNEL: This is a nested attribute. There can be multiple
+ *	attributes of this type, each one represents a channel definition and
+ *	consists of top-level attributes like %NL80211_ATTR_WIPHY_FREQ.
+ *	When used with %NL80211_CMD_NAN_SET_LOCAL_SCHED, it specifies
+ *	the channel definitions on which the radio needs to operate during
+ *	specific time slots. All of the channel definitions should be mutually
+ *	incompatible. With this command, %NL80211_ATTR_NAN_CHANNEL_ENTRY and
+ *	%NL80211_ATTR_NAN_RX_NSS are mandatory.
+ *	When used with %NL80211_CMD_NAN_SET_PEER_SCHED, it configures the
+ *	peer NAN channels. In that case, the channel definitions can be
+ *	compatible to each other, or even identical just with different RX NSS.
+ *	With this command, %NL80211_ATTR_NAN_CHANNEL_ENTRY and
+ *	%NL80211_ATTR_NAN_RX_NSS are mandatory.
+ *	The number of channels should fit the current configuration of channels
+ *	and the possible interface combinations.
+ *	If an existing NAN channel is changed but the chandef isn't, the
+ *	channel entry must also remain unchanged.
+ *	When used with %NL80211_CMD_NAN_CHANNEL_EVAC, this identifies the
+ *	channels that were evacuated.
+ * @NL80211_ATTR_NAN_CHANNEL_ENTRY: a byte array of 6 bytes. contains the
+ *	Channel Entry as defined in Wi-Fi Aware (TM) 4.0 specification Table
+ *	100 (Channel Entry format for the NAN Availability attribute).
+ * @NL80211_ATTR_NAN_RX_NSS: (u8) RX NSS used for a NAN channel. This is
+ *	used with %NL80211_ATTR_NAN_CHANNEL when configuring NAN channels with
+ *	%NL80211_CMD_NAN_SET_LOCAL_SCHED or %NL80211_CMD_NAN_SET_PEER_SCHED.
+ * @NL80211_ATTR_NAN_TIME_SLOTS: an array of u8 values and 32 cells. each value
+ *	maps a time slot to the chandef on which the radio should operate on in
+ *	that time. %NL80211_NAN_SCHED_NOT_AVAIL_SLOT indicates unscheduled.
+ *	The chandef is represented using its index, where the index is the
+ *	sequential number of the %NL80211_ATTR_NAN_CHANNEL attribute within all
+ *	the attributes of this type.
+ *	Each slots spans over 16TUs, hence the entire schedule spans over
+ *	512TUs. Other slot durations and periods are currently not supported.
+ * @NL80211_ATTR_NAN_AVAIL_BLOB: (Binary) The NAN Availability attribute blob,
+ *	including the attribute header, as defined in Wi-Fi Aware (TM) 4.0
+ *	specification Table 93 (NAN Availability attribute format). Required with
+ *	%NL80211_CMD_NAN_SET_LOCAL_SCHED to provide the raw NAN Availability
+ *	attribute. Used by the device to publish Schedule Update NAFs.
+ * @NL80211_ATTR_NAN_SCHED_DEFERRED: Flag attribute used with
+ *	%NL80211_CMD_NAN_SET_LOCAL_SCHED. When present, the command is a
+ *	request from the device to perform an announced schedule update. This
+ *	means that it needs to send the updated NAN availability to the peers,
+ *	and do the actual switch on the right time (i.e. at the end of the slot
+ *	after the slot in which the updated NAN Availability was sent). Since
+ *	the slots management is done in the device, the update to the peers
+ *	needs to be sent by the device, so it knows the actual switch time.
+ *	If the flag is not set, the schedule should be applied immediately.
+ *	When this flag is set, the total number of NAN channels from both the
+ *	old and new schedules must not exceed the allowed number of local NAN
+ *	channels, because with deferred scheduling the old channels cannot be
+ *	removed before adding the new ones to free up space.
+ * @NL80211_ATTR_NAN_SCHED_UPDATE_SUCCESS: flag attribute used with
+ *	%NL80211_CMD_NAN_SCHED_UPDATE_DONE to indicate that the deferred
+ *	schedule update completed successfully. If this flag is not present,
+ *	the update failed.
+ * @NL80211_ATTR_NAN_NMI_MAC: The address of the NMI station to which this NDI
+ *	station belongs. Used with %NL80211_CMD_NEW_STATION when adding an NDI
+ *	station.
+ * @NL80211_ATTR_NAN_ULW: (Binary) The initial ULW(s) as published by the
+ *	peer, as defined in the Wi-Fi Aware (TM) 4.0 specification Table 109
+ *	(Unaligned Schedule attribute format). Used to configure the device
+ *	with the initial ULW(s) of a peer, before the device starts tracking it.
+ * @NL80211_ATTR_NAN_COMMITTED_DW: (u16) The committed DW as published by the
+ *	peer, as defined in the Wi-Fi Aware (TM) 4.0 specification Table 80
+ *	(Committed DW Information field format).
+ * @NL80211_ATTR_NAN_SEQ_ID: (u8) The sequence ID of the peer schedule that
+ *	%NL80211_CMD_NAN_SET_PEER_SCHED defines. The device follows the
+ *	sequence ID in the frames to identify newer schedules. Once a schedule
+ *	with a higher sequence ID is received, the device may stop communicating
+ *	with that peer until a new peer schedule with a matching sequence ID is
+ *	received.
+ * @NL80211_ATTR_NAN_MAX_CHAN_SWITCH_TIME: (u16) The maximum channel switch
+ *	time, in microseconds.
+ * @NL80211_ATTR_NAN_PEER_MAPS: Nested array of peer schedule maps.
+ *	Used with %NL80211_CMD_NAN_SET_PEER_SCHED. Contains up to 2 entries,
+ *	each containing nested attributes from &enum nl80211_nan_peer_map_attrs.
+ *
+ * @NL80211_ATTR_INCUMBENT_SIGNAL_INTERFERENCE_BITMAP: u32 attribute specifying
+ *	the signal interference bitmap detected on the operating bandwidth for
+ *	%NL80211_CMD_INCUMBENT_SIGNAL_DETECT. Each bit represents a 20 MHz
+ *	segment, lowest bit corresponds to the lowest 20 MHz segment, in the
+ *	operating bandwidth where the interference is detected. Punctured
+ *	sub-channels are included in the bitmap structure; however, since
+ *	interference detection is not performed on these sub-channels, their
+ *	corresponding bits are consistently set to zero.
+ *
+ * @NL80211_ATTR_UHR_OPERATION: Full UHR Operation element, as it appears in
+ *	association response etc., since it's abridged in the beacon. Used
+ *	for START_AP etc.
  *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
@@ -3557,6 +3713,26 @@ enum nl80211_attrs {
 	NL80211_ATTR_UHR_CAPABILITY,
 	NL80211_ATTR_DISABLE_UHR,
 
+	NL80211_ATTR_INCUMBENT_SIGNAL_INTERFERENCE_BITMAP,
+
+	NL80211_ATTR_UHR_OPERATION,
+
+	NL80211_ATTR_NAN_CHANNEL,
+	NL80211_ATTR_NAN_CHANNEL_ENTRY,
+	NL80211_ATTR_NAN_TIME_SLOTS,
+	NL80211_ATTR_NAN_RX_NSS,
+	NL80211_ATTR_NAN_AVAIL_BLOB,
+	NL80211_ATTR_NAN_SCHED_DEFERRED,
+	NL80211_ATTR_NAN_SCHED_UPDATE_SUCCESS,
+
+	NL80211_ATTR_NAN_NMI_MAC,
+
+	NL80211_ATTR_NAN_ULW,
+	NL80211_ATTR_NAN_COMMITTED_DW,
+	NL80211_ATTR_NAN_SEQ_ID,
+	NL80211_ATTR_NAN_MAX_CHAN_SWITCH_TIME,
+	NL80211_ATTR_NAN_PEER_MAPS,
+
 	/* add attributes here, update the policy in nl80211.c */
 
 	__NL80211_ATTR_AFTER_LAST,
@@ -3650,6 +3826,9 @@ enum nl80211_attrs {
  * @NL80211_IFTYPE_OCB: Outside Context of a BSS
  *	This mode corresponds to the MIB variable dot11OCBActivated=true
  * @NL80211_IFTYPE_NAN: NAN device interface type (not a netdev)
+ * @NL80211_IFTYPE_NAN_DATA: NAN data interface type (netdev); NAN data
+ *	interfaces can only be brought up (IFF_UP) when a NAN interface
+ *	already exists and NAN has been started (using %NL80211_CMD_START_NAN).
  * @NL80211_IFTYPE_MAX: highest interface type number currently defined
  * @NUM_NL80211_IFTYPES: number of defined interface types
  *
@@ -3671,6 +3850,7 @@ enum nl80211_iftype {
 	NL80211_IFTYPE_P2P_DEVICE,
 	NL80211_IFTYPE_OCB,
 	NL80211_IFTYPE_NAN,
+	NL80211_IFTYPE_NAN_DATA,
 
 	/* keep last */
 	NUM_NL80211_IFTYPES,
@@ -4360,6 +4540,46 @@ enum nl80211_band_attr {
 #define NL80211_BAND_ATTR_HT_CAPA NL80211_BAND_ATTR_HT_CAPA
 
 /**
+ * enum nl80211_nan_phy_cap_attr - NAN PHY capabilities attributes
+ * @__NL80211_NAN_PHY_CAP_ATTR_INVALID: attribute number 0 is reserved
+ * @NL80211_NAN_PHY_CAP_ATTR_HT_MCS_SET: 16-byte attribute containing HT MCS set
+ * @NL80211_NAN_PHY_CAP_ATTR_HT_CAPA: HT capabilities (u16)
+ * @NL80211_NAN_PHY_CAP_ATTR_HT_AMPDU_FACTOR: HT A-MPDU factor (u8)
+ * @NL80211_NAN_PHY_CAP_ATTR_HT_AMPDU_DENSITY: HT A-MPDU density (u8)
+ * @NL80211_NAN_PHY_CAP_ATTR_VHT_MCS_SET: 8-byte attribute containing VHT MCS set
+ * @NL80211_NAN_PHY_CAP_ATTR_VHT_CAPA: VHT capabilities (u32)
+ * @NL80211_NAN_PHY_CAP_ATTR_HE_MAC: HE MAC capabilities
+ * @NL80211_NAN_PHY_CAP_ATTR_HE_PHY: HE PHY capabilities
+ * @NL80211_NAN_PHY_CAP_ATTR_HE_MCS_SET: HE supported NSS/MCS combinations
+ * @NL80211_NAN_PHY_CAP_ATTR_HE_PPE: HE PPE thresholds
+ * @NL80211_NAN_PHY_CAP_ATTR_MAX: highest NAN PHY cap attribute number
+ * @__NL80211_NAN_PHY_CAP_ATTR_AFTER_LAST: internal use
+ */
+enum nl80211_nan_phy_cap_attr {
+	__NL80211_NAN_PHY_CAP_ATTR_INVALID,
+
+	/* HT capabilities */
+	NL80211_NAN_PHY_CAP_ATTR_HT_MCS_SET,
+	NL80211_NAN_PHY_CAP_ATTR_HT_CAPA,
+	NL80211_NAN_PHY_CAP_ATTR_HT_AMPDU_FACTOR,
+	NL80211_NAN_PHY_CAP_ATTR_HT_AMPDU_DENSITY,
+
+	/* VHT capabilities */
+	NL80211_NAN_PHY_CAP_ATTR_VHT_MCS_SET,
+	NL80211_NAN_PHY_CAP_ATTR_VHT_CAPA,
+
+	/* HE capabilities */
+	NL80211_NAN_PHY_CAP_ATTR_HE_MAC,
+	NL80211_NAN_PHY_CAP_ATTR_HE_PHY,
+	NL80211_NAN_PHY_CAP_ATTR_HE_MCS_SET,
+	NL80211_NAN_PHY_CAP_ATTR_HE_PPE,
+
+	/* keep last */
+	__NL80211_NAN_PHY_CAP_ATTR_AFTER_LAST,
+	NL80211_NAN_PHY_CAP_ATTR_MAX = __NL80211_NAN_PHY_CAP_ATTR_AFTER_LAST - 1
+};
+
+/**
  * enum nl80211_wmm_rule - regulatory wmm rule
  *
  * @__NL80211_WMMR_INVALID: attribute number 0 is reserved
@@ -4480,6 +4700,10 @@ enum nl80211_wmm_rule {
  *	as a non-primary subchannel. Only applicable to S1G channels.
  * @NL80211_FREQUENCY_ATTR_NO_UHR: UHR operation is not allowed on this channel
  *	in current regulatory domain.
+ * @NL80211_FREQUENCY_ATTR_CAC_START_TIME: Channel Availability Check (CAC)
+ *	start time (CLOCK_BOOTTIME, nanoseconds). Only present when CAC is
+ *	currently in progress on this channel.
+ * @NL80211_FREQUENCY_ATTR_PAD: attribute used for padding for 64-bit alignment
  * @NL80211_FREQUENCY_ATTR_MAX: highest frequency attribute number
  *	currently defined
  * @__NL80211_FREQUENCY_ATTR_AFTER_LAST: internal use
@@ -4530,6 +4754,8 @@ enum nl80211_frequency_attr {
 	NL80211_FREQUENCY_ATTR_NO_16MHZ,
 	NL80211_FREQUENCY_ATTR_S1G_NO_PRIMARY,
 	NL80211_FREQUENCY_ATTR_NO_UHR,
+	NL80211_FREQUENCY_ATTR_CAC_START_TIME,
+	NL80211_FREQUENCY_ATTR_PAD,
 
 	/* keep last */
 	__NL80211_FREQUENCY_ATTR_AFTER_LAST,
@@ -5466,6 +5692,8 @@ enum nl80211_bss_status {
  * @NL80211_AUTHTYPE_FILS_SK_PFS: Fast Initial Link Setup shared key with PFS
  * @NL80211_AUTHTYPE_FILS_PK: Fast Initial Link Setup public key
  * @NL80211_AUTHTYPE_EPPKE: Enhanced Privacy Protection Key Exchange
+ * @NL80211_AUTHTYPE_IEEE8021X: IEEE 802.1X authentication utilizing
+ *	Authentication frames
  * @__NL80211_AUTHTYPE_NUM: internal
  * @NL80211_AUTHTYPE_MAX: maximum valid auth algorithm
  * @NL80211_AUTHTYPE_AUTOMATIC: determine automatically (if necessary by
@@ -5482,6 +5710,7 @@ enum nl80211_auth_type {
 	NL80211_AUTHTYPE_FILS_SK_PFS,
 	NL80211_AUTHTYPE_FILS_PK,
 	NL80211_AUTHTYPE_EPPKE,
+	NL80211_AUTHTYPE_IEEE8021X,
 
 	/* keep last */
 	__NL80211_AUTHTYPE_NUM,
@@ -6795,6 +7024,11 @@ enum nl80211_feature_flags {
  *	frames in both non‑AP STA and AP mode as specified in
  *	"IEEE P802.11bi/D3.0, 12.16.6".
  *
+ * @NL80211_EXT_FEATURE_IEEE8021X_AUTH: Driver supports IEEE 802.1X
+ *	authentication utilizing Authentication frames with user space SME
+ *	(NL80211_CMD_AUTHENTICATE) in non-AP STA mode, as specified in
+ *	"IEEE P802.11bi/D4.0, 12.16.5".
+ *
  * @NUM_NL80211_EXT_FEATURES: number of extended features.
  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
  */
@@ -6873,6 +7107,7 @@ enum nl80211_ext_feature_index {
 	NL80211_EXT_FEATURE_BEACON_RATE_EHT,
 	NL80211_EXT_FEATURE_EPPKE,
 	NL80211_EXT_FEATURE_ASSOC_FRAME_ENCRYPTION,
+	NL80211_EXT_FEATURE_IEEE8021X_AUTH,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,
@@ -8517,6 +8752,8 @@ enum nl80211_s1g_short_beacon_attrs {
  * @NL80211_NAN_CAPA_CAPABILITIES: u8 attribute containing the
  *	capabilities of the device as defined in Wi-Fi Aware (TM)
  *	specification Table 79 (Capabilities field).
+ * @NL80211_NAN_CAPA_PHY: nested attribute containing band-agnostic
+ *	capabilities for NAN data path. See &enum nl80211_nan_phy_cap_attr.
  * @__NL80211_NAN_CAPABILITIES_LAST: Internal
  * @NL80211_NAN_CAPABILITIES_MAX: Highest NAN capability attribute.
  */
@@ -8529,9 +8766,38 @@ enum nl80211_nan_capabilities {
 	NL80211_NAN_CAPA_NUM_ANTENNAS,
 	NL80211_NAN_CAPA_MAX_CHANNEL_SWITCH_TIME,
 	NL80211_NAN_CAPA_CAPABILITIES,
+	NL80211_NAN_CAPA_PHY,
 	/* keep last */
 	__NL80211_NAN_CAPABILITIES_LAST,
 	NL80211_NAN_CAPABILITIES_MAX = __NL80211_NAN_CAPABILITIES_LAST - 1,
 };
+
+/**
+ * enum nl80211_nan_peer_map_attrs - NAN peer schedule map attributes
+ *
+ * Nested attributes used within %NL80211_ATTR_NAN_PEER_MAPS to define
+ * individual peer schedule maps.
+ *
+ * @__NL80211_NAN_PEER_MAP_ATTR_INVALID: Invalid
+ * @NL80211_NAN_PEER_MAP_ATTR_MAP_ID: (u8) The map ID for this schedule map.
+ * @NL80211_NAN_PEER_MAP_ATTR_TIME_SLOTS: An array of u8 values with 32 cells.
+ *	Each value maps a time slot to a channel index within the schedule's
+ *	channel list (%NL80211_ATTR_NAN_CHANNEL attributes).
+ *	%NL80211_NAN_SCHED_NOT_AVAIL_SLOT indicates unscheduled.
+ * @__NL80211_NAN_PEER_MAP_ATTR_LAST: Internal
+ * @NL80211_NAN_PEER_MAP_ATTR_MAX: Highest peer map attribute
+ */
+enum nl80211_nan_peer_map_attrs {
+	__NL80211_NAN_PEER_MAP_ATTR_INVALID,
+
+	NL80211_NAN_PEER_MAP_ATTR_MAP_ID,
+	NL80211_NAN_PEER_MAP_ATTR_TIME_SLOTS,
+
+	/* keep last */
+	__NL80211_NAN_PEER_MAP_ATTR_LAST,
+	NL80211_NAN_PEER_MAP_ATTR_MAX = __NL80211_NAN_PEER_MAP_ATTR_LAST - 1,
+};
+
+#define NL80211_NAN_SCHED_NOT_AVAIL_SLOT 0xff
 
 #endif /* __LINUX_NL80211_H */

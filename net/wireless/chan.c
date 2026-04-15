@@ -6,7 +6,7 @@
  *
  * Copyright 2009	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright 2018-2025	Intel Corporation
+ * Copyright 2018-2026	Intel Corporation
  */
 
 #include <linux/export.h>
@@ -29,8 +29,10 @@ void cfg80211_chandef_create(struct cfg80211_chan_def *chandef,
 
 	*chandef = (struct cfg80211_chan_def) {
 		.chan = chan,
-		.freq1_offset = chan->freq_offset,
 	};
+
+	WARN_ON(chan->band == NL80211_BAND_60GHZ ||
+		chan->band == NL80211_BAND_S1GHZ);
 
 	switch (chan_type) {
 	case NL80211_CHAN_NO_HT:
@@ -315,7 +317,7 @@ static bool cfg80211_valid_center_freq(u32 center,
 	int step;
 
 	/* We only do strict verification on 6 GHz */
-	if (center < 5955 || center > 7115)
+	if (center < 5955 || center > 7215)
 		return true;
 
 	bw = nl80211_chan_width_to_mhz(width);
@@ -323,7 +325,7 @@ static bool cfg80211_valid_center_freq(u32 center,
 		return false;
 
 	/* Validate that the channels bw is entirely within the 6 GHz band */
-	if (center - bw / 2 < 5945 || center + bw / 2 > 7125)
+	if (center - bw / 2 < 5945 || center + bw / 2 > 7225)
 		return false;
 
 	/* With 320 MHz the permitted channels overlap */
@@ -339,6 +341,58 @@ static bool cfg80211_valid_center_freq(u32 center,
 	return (center - bw / 2 - 5945) % step == 0;
 }
 
+static bool
+cfg80211_chandef_valid_control_freq(const struct cfg80211_chan_def *chandef,
+				    u32 control_freq)
+{
+	switch (chandef->width) {
+	case NL80211_CHAN_WIDTH_5:
+	case NL80211_CHAN_WIDTH_10:
+	case NL80211_CHAN_WIDTH_20:
+	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_1:
+	case NL80211_CHAN_WIDTH_2:
+	case NL80211_CHAN_WIDTH_4:
+	case NL80211_CHAN_WIDTH_8:
+	case NL80211_CHAN_WIDTH_16:
+		/* checked separately */
+		break;
+	case NL80211_CHAN_WIDTH_320:
+		if (chandef->center_freq1 == control_freq + 150 ||
+		    chandef->center_freq1 == control_freq + 130 ||
+		    chandef->center_freq1 == control_freq + 110 ||
+		    chandef->center_freq1 == control_freq + 90 ||
+		    chandef->center_freq1 == control_freq - 90 ||
+		    chandef->center_freq1 == control_freq - 110 ||
+		    chandef->center_freq1 == control_freq - 130 ||
+		    chandef->center_freq1 == control_freq - 150)
+			break;
+		fallthrough;
+	case NL80211_CHAN_WIDTH_160:
+		if (chandef->center_freq1 == control_freq + 70 ||
+		    chandef->center_freq1 == control_freq + 50 ||
+		    chandef->center_freq1 == control_freq - 50 ||
+		    chandef->center_freq1 == control_freq - 70)
+			break;
+		fallthrough;
+	case NL80211_CHAN_WIDTH_80P80:
+	case NL80211_CHAN_WIDTH_80:
+		if (chandef->center_freq1 == control_freq + 30 ||
+		    chandef->center_freq1 == control_freq - 30)
+			break;
+		fallthrough;
+	case NL80211_CHAN_WIDTH_40:
+		if (chandef->center_freq1 == control_freq + 10 ||
+		    chandef->center_freq1 == control_freq - 10)
+			break;
+		fallthrough;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
 bool cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef)
 {
 	u32 control_freq, control_freq_khz, start_khz, end_khz;
@@ -350,6 +404,14 @@ bool cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef)
 		return false;
 
 	control_freq = chandef->chan->center_freq;
+
+	if (cfg80211_chandef_is_s1g(chandef) &&
+	    chandef->width != NL80211_CHAN_WIDTH_1 &&
+	    chandef->width != NL80211_CHAN_WIDTH_2 &&
+	    chandef->width != NL80211_CHAN_WIDTH_4 &&
+	    chandef->width != NL80211_CHAN_WIDTH_8 &&
+	    chandef->width != NL80211_CHAN_WIDTH_16)
+		return false;
 
 	switch (chandef->width) {
 	case NL80211_CHAN_WIDTH_5:
@@ -393,50 +455,8 @@ bool cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef)
 		break;
 	}
 
-	switch (chandef->width) {
-	case NL80211_CHAN_WIDTH_5:
-	case NL80211_CHAN_WIDTH_10:
-	case NL80211_CHAN_WIDTH_20:
-	case NL80211_CHAN_WIDTH_20_NOHT:
-	case NL80211_CHAN_WIDTH_1:
-	case NL80211_CHAN_WIDTH_2:
-	case NL80211_CHAN_WIDTH_4:
-	case NL80211_CHAN_WIDTH_8:
-	case NL80211_CHAN_WIDTH_16:
-		/* all checked above */
-		break;
-	case NL80211_CHAN_WIDTH_320:
-		if (chandef->center_freq1 == control_freq + 150 ||
-		    chandef->center_freq1 == control_freq + 130 ||
-		    chandef->center_freq1 == control_freq + 110 ||
-		    chandef->center_freq1 == control_freq + 90 ||
-		    chandef->center_freq1 == control_freq - 90 ||
-		    chandef->center_freq1 == control_freq - 110 ||
-		    chandef->center_freq1 == control_freq - 130 ||
-		    chandef->center_freq1 == control_freq - 150)
-			break;
-		fallthrough;
-	case NL80211_CHAN_WIDTH_160:
-		if (chandef->center_freq1 == control_freq + 70 ||
-		    chandef->center_freq1 == control_freq + 50 ||
-		    chandef->center_freq1 == control_freq - 50 ||
-		    chandef->center_freq1 == control_freq - 70)
-			break;
-		fallthrough;
-	case NL80211_CHAN_WIDTH_80P80:
-	case NL80211_CHAN_WIDTH_80:
-		if (chandef->center_freq1 == control_freq + 30 ||
-		    chandef->center_freq1 == control_freq - 30)
-			break;
-		fallthrough;
-	case NL80211_CHAN_WIDTH_40:
-		if (chandef->center_freq1 == control_freq + 10 ||
-		    chandef->center_freq1 == control_freq - 10)
-			break;
-		fallthrough;
-	default:
+	if (!cfg80211_chandef_valid_control_freq(chandef, control_freq))
 		return false;
-	}
 
 	if (!cfg80211_valid_center_freq(chandef->center_freq1, chandef->width))
 		return false;
@@ -642,6 +662,33 @@ void cfg80211_set_dfs_state(struct wiphy *wiphy,
 	}
 }
 
+void cfg80211_set_cac_state(struct wiphy *wiphy,
+			    const struct cfg80211_chan_def *chandef,
+			    bool cac_ongoing)
+{
+	struct ieee80211_channel *c;
+	int width;
+	u64 cac_time;
+
+	if (WARN_ON(!cfg80211_chandef_valid(chandef)))
+		return;
+
+	width = cfg80211_chandef_get_width(chandef);
+	if (width < 0)
+		return;
+
+	/* Get the same timestamp for all subchannels */
+	cac_time = cac_ongoing ? ktime_get_boottime_ns() : 0;
+
+	for_each_subchan(chandef, freq, cf) {
+		c = ieee80211_get_channel_khz(wiphy, freq);
+		if (!c)
+			continue;
+
+		c->cac_start_time = cac_time;
+	}
+}
+
 static bool
 cfg80211_dfs_permissive_check_wdev(struct cfg80211_registered_device *rdev,
 				   enum nl80211_iftype iftype,
@@ -754,6 +801,7 @@ int cfg80211_chandef_dfs_required(struct wiphy *wiphy,
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_P2P_GO:
 	case NL80211_IFTYPE_MESH_POINT:
+	case NL80211_IFTYPE_NAN:
 		width = cfg80211_chandef_get_width(chandef);
 		if (width < 0)
 			return -EINVAL;
@@ -768,7 +816,7 @@ int cfg80211_chandef_dfs_required(struct wiphy *wiphy,
 	case NL80211_IFTYPE_MONITOR:
 	case NL80211_IFTYPE_AP_VLAN:
 	case NL80211_IFTYPE_P2P_DEVICE:
-	case NL80211_IFTYPE_NAN:
+	case NL80211_IFTYPE_NAN_DATA:
 		break;
 	case NL80211_IFTYPE_WDS:
 	case NL80211_IFTYPE_UNSPECIFIED:
@@ -892,6 +940,7 @@ bool cfg80211_beaconing_iface_active(struct wireless_dev *wdev)
 	case NL80211_IFTYPE_P2P_DEVICE:
 	/* Can NAN type be considered as beaconing interface? */
 	case NL80211_IFTYPE_NAN:
+	case NL80211_IFTYPE_NAN_DATA:
 		break;
 	case NL80211_IFTYPE_UNSPECIFIED:
 	case NL80211_IFTYPE_WDS:

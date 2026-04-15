@@ -1060,31 +1060,23 @@ out:
 static ssize_t show_rps_dev_flow_table_cnt(struct netdev_rx_queue *queue,
 					   char *buf)
 {
-	struct rps_dev_flow_table *flow_table;
 	unsigned long val = 0;
+	rps_tag_ptr tag_ptr;
 
-	rcu_read_lock();
-	flow_table = rcu_dereference(queue->rps_flow_table);
-	if (flow_table)
-		val = 1UL << flow_table->log;
-	rcu_read_unlock();
+	tag_ptr = READ_ONCE(queue->rps_flow_table);
+	if (tag_ptr)
+		val = 1UL << rps_tag_to_log(tag_ptr);
 
 	return sysfs_emit(buf, "%lu\n", val);
-}
-
-static void rps_dev_flow_table_release(struct rcu_head *rcu)
-{
-	struct rps_dev_flow_table *table = container_of(rcu,
-	    struct rps_dev_flow_table, rcu);
-	vfree(table);
 }
 
 static ssize_t store_rps_dev_flow_table_cnt(struct netdev_rx_queue *queue,
 					    const char *buf, size_t len)
 {
+	rps_tag_ptr otag, tag_ptr = 0UL;
+	struct rps_dev_flow *table;
 	unsigned long mask, count;
-	struct rps_dev_flow_table *table, *old_table;
-	static DEFINE_SPINLOCK(rps_dev_flow_lock);
+	size_t sz;
 	int rc;
 
 	if (!capable(CAP_NET_ADMIN))
@@ -1101,41 +1093,36 @@ static ssize_t store_rps_dev_flow_table_cnt(struct netdev_rx_queue *queue,
 		 */
 		while ((mask | (mask >> 1)) != mask)
 			mask |= (mask >> 1);
-		/* On 64 bit arches, must check mask fits in table->mask (u32),
-		 * and on 32bit arches, must check
-		 * RPS_DEV_FLOW_TABLE_SIZE(mask + 1) doesn't overflow.
-		 */
-#if BITS_PER_LONG > 32
-		if (mask > (unsigned long)(u32)mask)
+
+		/* Do not accept too large tables. */
+		if (mask > (INT_MAX / sizeof(*table) - 1))
 			return -EINVAL;
-#else
-		if (mask > (ULONG_MAX - RPS_DEV_FLOW_TABLE_SIZE(1))
-				/ sizeof(struct rps_dev_flow)) {
-			/* Enforce a limit to prevent overflow */
-			return -EINVAL;
-		}
-#endif
-		table = vmalloc(RPS_DEV_FLOW_TABLE_SIZE(mask + 1));
+
+		sz = max_t(size_t, sizeof(*table) * (mask + 1),
+			   PAGE_SIZE);
+		if (sz <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER) ||
+		    is_power_of_2(sizeof(*table)))
+			table = kvmalloc(sz, GFP_KERNEL);
+		else
+			table = vmalloc(sz);
 		if (!table)
 			return -ENOMEM;
-
-		table->log = ilog2(mask) + 1;
-		for (count = 0; count <= mask; count++) {
-			table->flows[count].cpu = RPS_NO_CPU;
-			table->flows[count].filter = RPS_NO_FILTER;
+		tag_ptr = (rps_tag_ptr)table;
+		if (rps_tag_to_log(tag_ptr)) {
+			pr_err_once("store_rps_dev_flow_table_cnt() got a non page aligned allocation.\n");
+			kvfree(table);
+			return -ENOMEM;
 		}
-	} else {
-		table = NULL;
+		tag_ptr |= (ilog2(mask) + 1);
+		for (count = 0; count <= mask; count++) {
+			table[count].cpu = RPS_NO_CPU;
+			table[count].filter = RPS_NO_FILTER;
+		}
 	}
 
-	spin_lock(&rps_dev_flow_lock);
-	old_table = rcu_dereference_protected(queue->rps_flow_table,
-					      lockdep_is_held(&rps_dev_flow_lock));
-	rcu_assign_pointer(queue->rps_flow_table, table);
-	spin_unlock(&rps_dev_flow_lock);
-
-	if (old_table)
-		call_rcu(&old_table->rcu, rps_dev_flow_table_release);
+	otag = xchg(&queue->rps_flow_table, tag_ptr);
+	if (otag)
+		kvfree_rcu_mightsleep(rps_tag_to_table(otag));
 
 	return len;
 }
@@ -1161,8 +1148,8 @@ static void rx_queue_release(struct kobject *kobj)
 {
 	struct netdev_rx_queue *queue = to_rx_queue(kobj);
 #ifdef CONFIG_RPS
+	rps_tag_ptr tag_ptr;
 	struct rps_map *map;
-	struct rps_dev_flow_table *flow_table;
 
 	map = rcu_dereference_protected(queue->rps_map, 1);
 	if (map) {
@@ -1170,11 +1157,9 @@ static void rx_queue_release(struct kobject *kobj)
 		kfree_rcu(map, rcu);
 	}
 
-	flow_table = rcu_dereference_protected(queue->rps_flow_table, 1);
-	if (flow_table) {
-		RCU_INIT_POINTER(queue->rps_flow_table, NULL);
-		call_rcu(&flow_table->rcu, rps_dev_flow_table_release);
-	}
+	tag_ptr = xchg(&queue->rps_flow_table, 0UL);
+	if (tag_ptr)
+		kvfree_rcu_mightsleep(rps_tag_to_table(tag_ptr));
 #endif
 
 	memset(kobj, 0, sizeof(*kobj));
@@ -1754,7 +1739,7 @@ static ssize_t xps_queue_show(struct net_device *dev, unsigned int index,
 out_no_maps:
 	rcu_read_unlock();
 
-	len = bitmap_print_to_pagebuf(false, buf, mask, nr_ids);
+	len = sysfs_emit(buf, "%*pb\n", nr_ids, mask);
 	bitmap_free(mask);
 
 	return len < PAGE_SIZE ? len : -EINVAL;

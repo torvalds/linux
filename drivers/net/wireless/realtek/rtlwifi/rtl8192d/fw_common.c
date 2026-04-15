@@ -212,9 +212,9 @@ void rtl92d_fill_h2c_cmd(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u8 boxcontent[4], boxextcontent[2];
 	u16 box_reg = 0, box_extreg = 0;
-	u8 wait_writeh2c_limmit = 100;
+	u8 wait_writeh2c_limit = 100;
 	bool bwrite_success = false;
-	u8 wait_h2c_limmit = 100;
+	u8 wait_h2c_limit = 100;
 	u32 h2c_waitcounter = 0;
 	bool isfw_read = false;
 	unsigned long flag;
@@ -261,8 +261,8 @@ void rtl92d_fill_h2c_cmd(struct ieee80211_hw *hw,
 	}
 
 	while (!bwrite_success) {
-		wait_writeh2c_limmit--;
-		if (wait_writeh2c_limmit == 0) {
+		wait_writeh2c_limit--;
+		if (wait_writeh2c_limit == 0) {
 			pr_err("Write H2C fail because no trigger for FW INT!\n");
 			break;
 		}
@@ -278,8 +278,8 @@ void rtl92d_fill_h2c_cmd(struct ieee80211_hw *hw,
 
 		isfw_read = _rtl92d_check_fw_read_last_h2c(hw, boxnum);
 		while (!isfw_read) {
-			wait_h2c_limmit--;
-			if (wait_h2c_limmit == 0) {
+			wait_h2c_limit--;
+			if (wait_h2c_limit == 0) {
 				rtl_dbg(rtlpriv, COMP_CMD, DBG_LOUD,
 					"Waiting too long for FW read clear HMEBox(%d)!\n",
 					boxnum);

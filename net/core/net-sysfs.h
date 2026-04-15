@@ -13,4 +13,5 @@ int netdev_change_owner(struct net_device *, const struct net *net_old,
 
 extern struct mutex rps_default_mask_mutex;
 
+DECLARE_STATIC_KEY_FALSE(skb_defer_disable_key);
 #endif

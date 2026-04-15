@@ -2,7 +2,8 @@
 /*
  * Copyright (C) 2025 Intel Corporation
  */
-
+#ifndef __iwl_mld_nan_h__
+#define __iwl_mld_nan_h__
 #include <net/cfg80211.h>
 #include <linux/etherdevice.h>
 
@@ -26,3 +27,5 @@ bool iwl_mld_cancel_nan_cluster_notif(struct iwl_mld *mld,
 bool iwl_mld_cancel_nan_dw_end_notif(struct iwl_mld *mld,
 				     struct iwl_rx_packet *pkt,
 				     u32 obj_id);
+
+#endif /* __iwl_mld_nan_h__ */

@@ -54,11 +54,13 @@ struct intel_tlv {
 
 #define BTINTEL_HCI_OP_RESET	0xfc01
 
-#define BTINTEL_CNVI_BLAZARI		0x900
-#define BTINTEL_CNVI_BLAZARIW		0x901
-#define BTINTEL_CNVI_GAP		0x910
-#define BTINTEL_CNVI_BLAZARU		0x930
-#define BTINTEL_CNVI_SCP		0xA00
+#define BTINTEL_CNVI_BLAZARI		0x900	/* BlazarI - Lunar Lake */
+#define BTINTEL_CNVI_BLAZARIW		0x901	/* BlazarIW - Wildcat Lake */
+#define BTINTEL_CNVI_GAP		0x910	/* Gale Peak2 - Meteor Lake */
+#define BTINTEL_CNVI_BLAZARU		0x930	/* BlazarU - Meteor Lake */
+#define BTINTEL_CNVI_SCP		0xA00	/* Scorpius Peak - Panther Lake */
+#define BTINTEL_CNVI_SCP2		0xA10	/* Scorpius Peak2 - Nova Lake */
+#define BTINTEL_CNVI_SCP2F		0xA20	/* Scorpius Peak2F - Nova Lake */
 
 /* CNVR */
 #define BTINTEL_CNVR_FMP2		0x910
@@ -68,6 +70,14 @@ struct intel_tlv {
 #define BTINTEL_IMG_OP			0x03	/* Operational image */
 
 #define BTINTEL_FWID_MAXLEN 64
+
+/* CNVi Hardware variant */
+#define BTINTEL_HWID_GAP	0x1c	/* Gale Peak2 - Meteor Lake */
+#define BTINTEL_HWID_BZRI	0x1e	/* BlazarI - Lunar Lake */
+#define BTINTEL_HWID_BZRU	0x1d	/* BlazarU - Meteor Lake */
+#define BTINTEL_HWID_SCP	0x1f	/* Scorpius Peak - Panther Lake */
+#define BTINTEL_HWID_SCP2	0x20	/* Scorpius Peak2 - Nova Lake */
+#define BTINTEL_HWID_BZRIW	0x22	/* BlazarIW - Wildcat Lake */
 
 struct intel_version_tlv {
 	u32	cnvi_top;

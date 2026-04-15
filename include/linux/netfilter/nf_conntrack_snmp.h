@@ -5,9 +5,12 @@
 #include <linux/netfilter.h>
 #include <linux/skbuff.h>
 
-extern int (__rcu *nf_nat_snmp_hook)(struct sk_buff *skb,
-				unsigned int protoff,
-				struct nf_conn *ct,
-				enum ip_conntrack_info ctinfo);
+typedef int
+nf_nat_snmp_hook_fn(struct sk_buff *skb,
+		    unsigned int protoff,
+		    struct nf_conn *ct,
+		    enum ip_conntrack_info ctinfo);
+
+extern nf_nat_snmp_hook_fn __rcu *nf_nat_snmp_hook;
 
 #endif /* _NF_CONNTRACK_SNMP_H */

@@ -25,7 +25,7 @@ if AF_RXRPC
 
 config AF_RXRPC_IPV6
 	bool "IPv6 support for RxRPC"
-	depends on (IPV6 = m && AF_RXRPC = m) || (IPV6 = y && AF_RXRPC)
+	depends on IPV6
 	help
 	  Say Y here to allow AF_RXRPC to use IPV6 UDP as well as IPV4 UDP as
 	  its network transport.

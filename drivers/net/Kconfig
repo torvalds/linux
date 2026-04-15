@@ -41,7 +41,6 @@ if NET_CORE
 config BONDING
 	tristate "Bonding driver support"
 	depends on INET
-	depends on IPV6 || IPV6=n
 	depends on TLS || TLS_DEVICE=n
 	help
 	  Say 'Y' or 'M' if you wish to be able to 'bond' multiple Ethernet
@@ -75,7 +74,6 @@ config DUMMY
 config WIREGUARD
 	tristate "WireGuard secure network tunnel"
 	depends on NET && INET
-	depends on IPV6 || !IPV6
 	select NET_UDP_TUNNEL
 	select DST_CACHE
 	select CRYPTO_LIB_CURVE25519
@@ -105,7 +103,6 @@ config WIREGUARD_DEBUG
 config OVPN
 	tristate "OpenVPN data channel offload"
 	depends on NET && INET
-	depends on IPV6 || !IPV6
 	select DST_CACHE
 	select NET_UDP_TUNNEL
 	select CRYPTO
@@ -202,7 +199,6 @@ config IPVLAN_L3S
 config IPVLAN
 	tristate "IP-VLAN support"
 	depends on INET
-	depends on IPV6 || !IPV6
 	help
 	  This allows one to create virtual devices off of a main interface
 	  and packets will be delivered based on the dest L3 (IPv6/IPv4 addr)
@@ -249,7 +245,6 @@ config VXLAN
 config GENEVE
 	tristate "Generic Network Virtualization Encapsulation"
 	depends on INET
-	depends on IPV6 || !IPV6
 	select NET_UDP_TUNNEL
 	select GRO_CELLS
 	help
@@ -265,7 +260,6 @@ config GENEVE
 config BAREUDP
 	tristate "Bare UDP Encapsulation"
 	depends on INET
-	depends on IPV6 || !IPV6
 	select NET_UDP_TUNNEL
 	select GRO_CELLS
 	help
@@ -308,7 +302,6 @@ config PFCP
 config AMT
 	tristate "Automatic Multicast Tunneling (AMT)"
 	depends on INET && IP_MULTICAST
-	depends on IPV6 || !IPV6
 	select NET_UDP_TUNNEL
 	help
 	  This allows one to create AMT(Automatic Multicast Tunneling)
@@ -452,6 +445,7 @@ config VIRTIO_NET
 	depends on VIRTIO
 	select NET_FAILOVER
 	select DIMLIB
+	select PAGE_POOL
 	help
 	  This is the virtual network driver for virtio.  It can be used with
 	  QEMU based VMMs (like KVM or Xen).  Say Y or M.
@@ -479,7 +473,6 @@ config NET_VRF
 	tristate "Virtual Routing and Forwarding (Lite)"
 	depends on IP_MULTIPLE_TABLES
 	depends on NET_L3_MASTER_DEV
-	depends on IPV6 || IPV6=n
 	depends on IPV6_MULTIPLE_TABLES || IPV6=n
 	help
 	  This option enables the support for mapping interfaces into VRF's. The
@@ -614,7 +607,6 @@ config NETDEVSIM
 	tristate "Simulated networking device"
 	depends on DEBUG_FS
 	depends on INET
-	depends on IPV6 || IPV6=n
 	depends on PSAMPLE || PSAMPLE=n
 	depends on PTP_1588_CLOCK_MOCK || PTP_1588_CLOCK_MOCK=n
 	select NET_DEVLINK

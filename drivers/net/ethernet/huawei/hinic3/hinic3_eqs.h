@@ -56,6 +56,8 @@ struct hinic3_eq {
 	u16                       msix_entry_idx;
 	char                      irq_name[HINIC3_EQ_IRQ_NAME_LEN];
 	struct work_struct        aeq_work;
+
+	u64                       soft_intr_jif;
 };
 
 struct hinic3_aeq_elem {
@@ -110,6 +112,8 @@ int hinic3_aeq_register_cb(struct hinic3_hwdev *hwdev,
 			   hinic3_aeq_event_cb hwe_cb);
 void hinic3_aeq_unregister_cb(struct hinic3_hwdev *hwdev,
 			      enum hinic3_aeq_type event);
+void hinic3_dump_aeq_info(struct hinic3_hwdev *hwdev);
+
 int hinic3_ceqs_init(struct hinic3_hwdev *hwdev, u16 num_ceqs,
 		     struct msix_entry *msix_entries);
 void hinic3_ceqs_free(struct hinic3_hwdev *hwdev);
@@ -118,5 +122,6 @@ int hinic3_ceq_register_cb(struct hinic3_hwdev *hwdev,
 			   hinic3_ceq_event_cb callback);
 void hinic3_ceq_unregister_cb(struct hinic3_hwdev *hwdev,
 			      enum hinic3_ceq_event event);
+void hinic3_dump_ceq_info(struct hinic3_hwdev *hwdev);
 
 #endif

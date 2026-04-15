@@ -309,17 +309,19 @@ struct atm_ioctl {
 
 /**
  * register_atm_ioctl - register handler for ioctl operations
+ * @ioctl: ioctl handler to register
  *
  * Special (non-device) handlers of ioctl's should
  * register here. If you're a normal device, you should
  * set .ioctl in your atmdev_ops instead.
  */
-void register_atm_ioctl(struct atm_ioctl *);
+void register_atm_ioctl(struct atm_ioctl *ioctl);
 
 /**
  * deregister_atm_ioctl - remove the ioctl handler
+ * @ioctl: ioctl handler to deregister
  */
-void deregister_atm_ioctl(struct atm_ioctl *);
+void deregister_atm_ioctl(struct atm_ioctl *ioctl);
 
 
 /* register_atmdevice_notifier - register atm_dev notify events

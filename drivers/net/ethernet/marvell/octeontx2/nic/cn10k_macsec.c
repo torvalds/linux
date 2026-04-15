@@ -4,7 +4,7 @@
  * Copyright (C) 2022 Marvell.
  */
 
-#include <crypto/skcipher.h>
+#include <crypto/aes.h>
 #include <linux/rtnetlink.h>
 #include <linux/bitfield.h>
 #include "otx2_common.h"
@@ -46,51 +46,22 @@
 #define CN10K_MAX_HASH_LEN		16
 #define CN10K_MAX_SAK_LEN		32
 
-static int cn10k_ecb_aes_encrypt(struct otx2_nic *pfvf, u8 *sak,
-				 u16 sak_len, u8 *hash)
+static int cn10k_ecb_aes_encrypt(struct otx2_nic *pfvf, const u8 *sak,
+				 u16 sak_len, u8 hash[CN10K_MAX_HASH_LEN])
 {
-	u8 data[CN10K_MAX_HASH_LEN] = { 0 };
-	struct skcipher_request *req = NULL;
-	struct scatterlist sg_src, sg_dst;
-	struct crypto_skcipher *tfm;
-	DECLARE_CRYPTO_WAIT(wait);
-	int err;
+	static const u8 zeroes[CN10K_MAX_HASH_LEN];
+	struct aes_enckey aes;
 
-	tfm = crypto_alloc_skcipher("ecb(aes)", 0, 0);
-	if (IS_ERR(tfm)) {
-		dev_err(pfvf->dev, "failed to allocate transform for ecb-aes\n");
-		return PTR_ERR(tfm);
+	if (aes_prepareenckey(&aes, sak, sak_len) != 0) {
+		dev_err(pfvf->dev, "invalid AES key length: %d\n", sak_len);
+		return -EINVAL;
 	}
 
-	req = skcipher_request_alloc(tfm, GFP_KERNEL);
-	if (!req) {
-		dev_err(pfvf->dev, "failed to allocate request for skcipher\n");
-		err = -ENOMEM;
-		goto free_tfm;
-	}
+	static_assert(CN10K_MAX_HASH_LEN == AES_BLOCK_SIZE);
+	aes_encrypt(&aes, hash, zeroes);
 
-	err = crypto_skcipher_setkey(tfm, sak, sak_len);
-	if (err) {
-		dev_err(pfvf->dev, "failed to set key for skcipher\n");
-		goto free_req;
-	}
-
-	/* build sg list */
-	sg_init_one(&sg_src, data, CN10K_MAX_HASH_LEN);
-	sg_init_one(&sg_dst, hash, CN10K_MAX_HASH_LEN);
-
-	skcipher_request_set_callback(req, 0, crypto_req_done, &wait);
-	skcipher_request_set_crypt(req, &sg_src, &sg_dst,
-				   CN10K_MAX_HASH_LEN, NULL);
-
-	err = crypto_skcipher_encrypt(req);
-	err = crypto_wait_req(err, &wait);
-
-free_req:
-	skcipher_request_free(req);
-free_tfm:
-	crypto_free_skcipher(tfm);
-	return err;
+	memzero_explicit(&aes, sizeof(aes));
+	return 0;
 }
 
 static struct cn10k_mcs_txsc *cn10k_mcs_get_txsc(struct cn10k_mcs_cfg *cfg,

@@ -1,7 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0
 
+import fnmatch
 import functools
+import getopt
 import inspect
+import os
 import signal
 import sys
 import time
@@ -29,6 +32,45 @@ class KsftXfailEx(Exception):
 
 class KsftTerminate(KeyboardInterrupt):
     pass
+
+
+class _KsftArgs:
+    def __init__(self):
+        self.list_tests = False
+        self.filters = []
+
+        try:
+            opts, _ = getopt.getopt(sys.argv[1:], 'hlt:T:')
+        except getopt.GetoptError as e:
+            print(e, file=sys.stderr)
+            sys.exit(1)
+
+        for opt, val in opts:
+            if opt == '-h':
+                print(f"Usage: {sys.argv[0]} [-h|-l] [-t|-T name]\n"
+                      f"\t-h       print help\n"
+                      f"\t-l       list tests (filtered, if filters were specified)\n"
+                      f"\t-t name  include test\n"
+                      f"\t-T name  exclude test",
+                      file=sys.stderr)
+                sys.exit(0)
+            elif opt == '-l':
+                self.list_tests = True
+            elif opt == '-t':
+                self.filters.append((True, val))
+            elif opt == '-T':
+                self.filters.append((False, val))
+
+
+@functools.lru_cache()
+def _ksft_supports_color():
+    if os.environ.get("NO_COLOR") is not None:
+        return False
+    if not hasattr(sys.stdout, "isatty") or not sys.stdout.isatty():
+        return False
+    if os.environ.get("TERM") == "dumb":
+        return False
+    return True
 
 
 def ksft_pr(*objs, **kwargs):
@@ -165,6 +207,14 @@ def ktap_result(ok, cnt=1, case_name="", comment=""):
         res += "." + case_name
     if comment:
         res += " # " + comment
+    if _ksft_supports_color():
+        if comment.startswith(("SKIP", "XFAIL")):
+            color = "\033[33m"
+        elif ok:
+            color = "\033[32m"
+        else:
+            color = "\033[31m"
+        res = color + res + "\033[0m"
     print(res, flush=True)
 
 
@@ -278,8 +328,26 @@ def _ksft_intr(signum, frame):
         ksft_pr(f"Ignoring SIGTERM (cnt: {term_cnt}), already exiting...")
 
 
-def _ksft_generate_test_cases(cases, globs, case_pfx, args):
-    """Generate a flat list of (func, args, name) tuples"""
+def _ksft_name_matches(name, pattern):
+    if '*' in pattern or '?' in pattern or '[' in pattern:
+        return fnmatch.fnmatchcase(name, pattern)
+    return name == pattern
+
+
+def _ksft_test_enabled(name, filters):
+    has_positive = False
+    for include, pattern in filters:
+        has_positive |= include
+        if _ksft_name_matches(name, pattern):
+            return include
+    return not has_positive
+
+
+def _ksft_generate_test_cases(cases, globs, case_pfx, args, cli_args):
+    """Generate a filtered list of (func, args, name) tuples.
+
+    If -l is given, prints matching test names and exits.
+    """
 
     cases = cases or []
     test_cases = []
@@ -309,11 +377,22 @@ def _ksft_generate_test_cases(cases, globs, case_pfx, args):
         else:
             test_cases.append((func, args, func.__name__))
 
+    if cli_args.filters:
+        test_cases = [tc for tc in test_cases
+                      if _ksft_test_enabled(tc[2], cli_args.filters)]
+
+    if cli_args.list_tests:
+        for _, _, name in test_cases:
+            print(name)
+        sys.exit(0)
+
     return test_cases
 
 
 def ksft_run(cases=None, globs=None, case_pfx=None, args=()):
-    test_cases = _ksft_generate_test_cases(cases, globs, case_pfx, args)
+    cli_args = _KsftArgs()
+    test_cases = _ksft_generate_test_cases(cases, globs, case_pfx, args,
+                                           cli_args)
 
     global term_cnt
     term_cnt = 0
@@ -321,10 +400,13 @@ def ksft_run(cases=None, globs=None, case_pfx=None, args=()):
 
     totals = {"pass": 0, "fail": 0, "skip": 0, "xfail": 0}
 
+    global KSFT_RESULT
+    if KSFT_RESULT is not None:
+        raise RuntimeError("ksft_run() can't be called multiple times.")
+
     print("TAP version 13", flush=True)
     print("1.." + str(len(test_cases)), flush=True)
 
-    global KSFT_RESULT
     cnt = 0
     stop = False
     for func, args, name in test_cases:

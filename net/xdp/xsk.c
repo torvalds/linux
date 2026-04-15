@@ -23,11 +23,15 @@
 #include <linux/netdevice.h>
 #include <linux/rculist.h>
 #include <linux/vmalloc.h>
+
+#include <net/netdev_queues.h>
 #include <net/xdp_sock_drv.h>
 #include <net/busy_poll.h>
 #include <net/netdev_lock.h>
 #include <net/netdev_rx_queue.h>
 #include <net/xdp.h>
+
+#include "../core/dev.h"
 
 #include "xsk_queue.h"
 #include "xdp_umem.h"
@@ -115,12 +119,42 @@ struct xsk_buff_pool *xsk_get_pool_from_qid(struct net_device *dev,
 }
 EXPORT_SYMBOL(xsk_get_pool_from_qid);
 
-void xsk_clear_pool_at_qid(struct net_device *dev, u16 queue_id)
+static void __xsk_clear_pool_at_qid(struct net_device *dev, u16 queue_id)
 {
 	if (queue_id < dev->num_rx_queues)
 		dev->_rx[queue_id].pool = NULL;
 	if (queue_id < dev->num_tx_queues)
 		dev->_tx[queue_id].pool = NULL;
+}
+
+void xsk_clear_pool_at_qid(struct net_device *dev, u16 queue_id)
+{
+	struct netdev_rx_queue *hw_rxq;
+
+	if (!netif_rxq_is_leased(dev, queue_id))
+		return __xsk_clear_pool_at_qid(dev, queue_id);
+	WARN_ON_ONCE(!netif_is_queue_leasee(dev));
+
+	hw_rxq = __netif_get_rx_queue(dev, queue_id)->lease;
+
+	netdev_lock(hw_rxq->dev);
+	queue_id = get_netdev_rx_queue_index(hw_rxq);
+	__xsk_clear_pool_at_qid(hw_rxq->dev, queue_id);
+	netdev_unlock(hw_rxq->dev);
+}
+
+static int __xsk_reg_pool_at_qid(struct net_device *dev,
+				 struct xsk_buff_pool *pool, u16 queue_id)
+{
+	if (xsk_get_pool_from_qid(dev, queue_id))
+		return -EBUSY;
+
+	if (queue_id < dev->real_num_rx_queues)
+		dev->_rx[queue_id].pool = pool;
+	if (queue_id < dev->real_num_tx_queues)
+		dev->_tx[queue_id].pool = pool;
+
+	return 0;
 }
 
 /* The buffer pool is stored both in the _rx struct and the _tx struct as we do
@@ -130,17 +164,27 @@ void xsk_clear_pool_at_qid(struct net_device *dev, u16 queue_id)
 int xsk_reg_pool_at_qid(struct net_device *dev, struct xsk_buff_pool *pool,
 			u16 queue_id)
 {
-	if (queue_id >= max_t(unsigned int,
-			      dev->real_num_rx_queues,
-			      dev->real_num_tx_queues))
+	struct netdev_rx_queue *hw_rxq;
+	int ret;
+
+	if (queue_id >= max(dev->real_num_rx_queues,
+			    dev->real_num_tx_queues))
 		return -EINVAL;
 
-	if (queue_id < dev->real_num_rx_queues)
-		dev->_rx[queue_id].pool = pool;
-	if (queue_id < dev->real_num_tx_queues)
-		dev->_tx[queue_id].pool = pool;
+	if (queue_id >= dev->real_num_rx_queues ||
+	    !netif_rxq_is_leased(dev, queue_id))
+		return __xsk_reg_pool_at_qid(dev, pool, queue_id);
+	if (!netif_is_queue_leasee(dev))
+		return -EBUSY;
 
-	return 0;
+	hw_rxq = __netif_get_rx_queue(dev, queue_id)->lease;
+
+	netdev_lock(hw_rxq->dev);
+	queue_id = get_netdev_rx_queue_index(hw_rxq);
+	ret = __xsk_reg_pool_at_qid(hw_rxq->dev, pool, queue_id);
+	netdev_unlock(hw_rxq->dev);
+
+	return ret;
 }
 
 static int __xsk_rcv_zc(struct xdp_sock *xs, struct xdp_buff_xsk *xskb, u32 len,
@@ -342,12 +386,36 @@ static bool xsk_is_bound(struct xdp_sock *xs)
 	return false;
 }
 
+static bool xsk_dev_queue_valid(const struct xdp_sock *xs,
+				const struct xdp_rxq_info *info)
+{
+	struct net_device *dev = xs->dev;
+	u32 queue_index = xs->queue_id;
+	struct netdev_rx_queue *rxq;
+
+	if (info->dev == dev &&
+	    info->queue_index == queue_index)
+		return true;
+
+	if (queue_index < dev->real_num_rx_queues) {
+		rxq = READ_ONCE(__netif_get_rx_queue(dev, queue_index)->lease);
+		if (!rxq)
+			return false;
+
+		dev = rxq->dev;
+		queue_index = get_netdev_rx_queue_index(rxq);
+
+		return info->dev == dev &&
+		       info->queue_index == queue_index;
+	}
+	return false;
+}
+
 static int xsk_rcv_check(struct xdp_sock *xs, struct xdp_buff *xdp, u32 len)
 {
 	if (!xsk_is_bound(xs))
 		return -ENXIO;
-
-	if (xs->dev != xdp->rxq->dev || xs->queue_id != xdp->rxq->queue_index)
+	if (!xsk_dev_queue_valid(xs, xdp->rxq))
 		return -EINVAL;
 
 	if (len > __xsk_pool_get_rx_frame_size(xs->pool) && !xs->sg) {

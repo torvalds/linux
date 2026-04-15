@@ -96,7 +96,8 @@ union mlx5e_xdp_info {
 };
 
 struct mlx5e_xsk_param;
-int mlx5e_xdp_max_mtu(struct mlx5e_params *params, struct mlx5e_xsk_param *xsk);
+int mlx5e_xdp_max_mtu(struct mlx5e_params *params,
+		      struct mlx5e_rq_opt_param *rqo);
 bool mlx5e_xdp_handle(struct mlx5e_rq *rq,
 		      struct bpf_prog *prog, struct mlx5e_xdp_buff *mlctx);
 void mlx5e_xdp_mpwqe_complete(struct mlx5e_xdpsq *sq);

@@ -9,6 +9,7 @@
 #include <linux/types.h>
 
 #include "api/dbg-tlv.h"
+#include "api/nvm-reg.h"
 
 #include "file.h"
 #include "error-dump.h"
@@ -57,6 +58,9 @@ struct iwl_ucode_capabilities {
 
 	const struct iwl_fw_cmd_version *cmd_versions;
 	u32 n_cmd_versions;
+
+	const struct iwl_fw_cmd_bios_table *cmd_bios_tables;
+	u32 n_cmd_bios_tables;
 };
 
 static inline bool
@@ -273,6 +277,10 @@ iwl_get_ucode_image(const struct iwl_fw *fw, enum iwl_ucode_type ucode_type)
 
 	return &fw->img[ucode_type];
 }
+
+u8 iwl_fw_lookup_cmd_bios_supported_revision(const struct iwl_fw *fw,
+					     enum bios_source table_source,
+					     u32 cmd_id, u8 def);
 
 u8 iwl_fw_lookup_cmd_ver(const struct iwl_fw *fw, u32 cmd_id, u8 def);
 

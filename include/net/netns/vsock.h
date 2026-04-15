@@ -20,5 +20,7 @@ struct netns_vsock {
 
 	/* 0 = unlocked, 1 = locked to global, 2 = locked to local */
 	int child_ns_mode_locked;
+
+	int g2h_fallback;
 };
 #endif /* __NET_NET_NAMESPACE_VSOCK_H */

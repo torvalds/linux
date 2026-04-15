@@ -1630,16 +1630,6 @@ enum wmi_roam_mode {
 	WMI_LOCK_BSS_MODE = 3, /* Lock to the current BSS */
 };
 
-struct bss_bias {
-	u8 bssid[ETH_ALEN];
-	s8 bias;
-} __packed;
-
-struct bss_bias_info {
-	u8 num_bss;
-	struct bss_bias bss_bias[];
-} __packed;
-
 struct low_rssi_scan_params {
 	__le16 lrssi_scan_period;
 	a_sle16 lrssi_scan_threshold;
@@ -1652,7 +1642,6 @@ struct roam_ctrl_cmd {
 	union {
 		u8 bssid[ETH_ALEN]; /* WMI_FORCE_ROAM */
 		u8 roam_mode; /* WMI_SET_ROAM_MODE */
-		struct bss_bias_info bss; /* WMI_SET_HOST_BIAS */
 		struct low_rssi_scan_params params; /* WMI_SET_LRSSI_SCAN_PARAMS
 						     */
 	} __packed info;

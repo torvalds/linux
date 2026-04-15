@@ -298,8 +298,6 @@ static int hso_mux_submit_intr_urb(struct hso_shared_int *mux_int,
 				   struct usb_device *usb, gfp_t gfp);
 static void handle_usb_error(int status, const char *function,
 			     struct hso_device *hso_dev);
-static struct usb_endpoint_descriptor *hso_get_ep(struct usb_interface *intf,
-						  int type, int dir);
 static int hso_get_mux_ports(struct usb_interface *intf, unsigned char *ports);
 static void hso_free_interface(struct usb_interface *intf);
 static int hso_start_serial_device(struct hso_device *hso_dev, gfp_t flags);
@@ -2497,16 +2495,11 @@ static struct hso_device *hso_create_net_device(struct usb_interface *interface,
 	hso_net->net = net;
 	hso_net->parent = hso_dev;
 
-	hso_net->in_endp = hso_get_ep(interface, USB_ENDPOINT_XFER_BULK,
-				      USB_DIR_IN);
-	if (!hso_net->in_endp) {
-		dev_err(&interface->dev, "Can't find BULK IN endpoint\n");
-		goto err_net;
-	}
-	hso_net->out_endp = hso_get_ep(interface, USB_ENDPOINT_XFER_BULK,
-				       USB_DIR_OUT);
-	if (!hso_net->out_endp) {
-		dev_err(&interface->dev, "Can't find BULK OUT endpoint\n");
+	result = usb_find_common_endpoints(interface->cur_altsetting,
+					   &hso_net->in_endp, &hso_net->out_endp,
+					   NULL, NULL);
+	if (result) {
+		dev_err(&interface->dev, "Can't find BULK endpoints\n");
 		goto err_net;
 	}
 	SET_NETDEV_DEV(net, &interface->dev);
@@ -2608,10 +2601,12 @@ static void hso_free_serial_device(struct hso_device *hso_dev)
 static struct hso_device *hso_create_bulk_serial_device(
 			struct usb_interface *interface, int port)
 {
+	struct usb_host_interface *iface_desc = interface->cur_altsetting;
 	struct hso_device *hso_dev;
 	struct hso_serial *serial;
 	int num_urbs;
 	struct hso_tiocmget *tiocmget;
+	int ret;
 
 	hso_dev = hso_create_device(interface, port);
 	if (!hso_dev)
@@ -2634,10 +2629,8 @@ static struct hso_device *hso_create_bulk_serial_device(
 		if (!serial->tiocmget->serial_state_notification)
 			goto exit;
 		tiocmget = serial->tiocmget;
-		tiocmget->endp = hso_get_ep(interface,
-					    USB_ENDPOINT_XFER_INT,
-					    USB_DIR_IN);
-		if (!tiocmget->endp) {
+		ret = usb_find_int_in_endpoint(iface_desc, &tiocmget->endp);
+		if (ret) {
 			dev_err(&interface->dev, "Failed to find INT IN ep\n");
 			goto exit;
 		}
@@ -2656,17 +2649,10 @@ static struct hso_device *hso_create_bulk_serial_device(
 				     BULK_URB_TX_SIZE))
 		goto exit;
 
-	serial->in_endp = hso_get_ep(interface, USB_ENDPOINT_XFER_BULK,
-				     USB_DIR_IN);
-	if (!serial->in_endp) {
-		dev_err(&interface->dev, "Failed to find BULK IN ep\n");
-		goto exit2;
-	}
-
-	if (!
-	    (serial->out_endp =
-	     hso_get_ep(interface, USB_ENDPOINT_XFER_BULK, USB_DIR_OUT))) {
-		dev_err(&interface->dev, "Failed to find BULK OUT ep\n");
+	ret = usb_find_common_endpoints(iface_desc, &serial->in_endp,
+					&serial->out_endp, NULL, NULL);
+	if (ret) {
+		dev_err(&interface->dev, "Failed to find BULK eps\n");
 		goto exit2;
 	}
 
@@ -2754,13 +2740,14 @@ static
 struct hso_shared_int *hso_create_shared_int(struct usb_interface *interface)
 {
 	struct hso_shared_int *mux = kzalloc_obj(*mux);
+	int ret;
 
 	if (!mux)
 		return NULL;
 
-	mux->intr_endp = hso_get_ep(interface, USB_ENDPOINT_XFER_INT,
-				    USB_DIR_IN);
-	if (!mux->intr_endp) {
+	ret = usb_find_int_in_endpoint(interface->cur_altsetting,
+				       &mux->intr_endp);
+	if (ret) {
 		dev_err(&interface->dev, "Can't find INT IN endpoint\n");
 		goto exit;
 	}
@@ -3133,24 +3120,6 @@ static void hso_free_interface(struct usb_interface *interface)
 }
 
 /* Helper functions */
-
-/* Get the endpoint ! */
-static struct usb_endpoint_descriptor *hso_get_ep(struct usb_interface *intf,
-						  int type, int dir)
-{
-	int i;
-	struct usb_host_interface *iface = intf->cur_altsetting;
-	struct usb_endpoint_descriptor *endp;
-
-	for (i = 0; i < iface->desc.bNumEndpoints; i++) {
-		endp = &iface->endpoint[i].desc;
-		if (((endp->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == dir) &&
-		    (usb_endpoint_type(endp) == type))
-			return endp;
-	}
-
-	return NULL;
-}
 
 /* Get the byte that describes which ports are enabled */
 static int hso_get_mux_ports(struct usb_interface *intf, unsigned char *ports)

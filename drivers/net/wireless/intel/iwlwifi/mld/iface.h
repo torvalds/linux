@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2024-2025 Intel Corporation
+ * Copyright (C) 2024-2026 Intel Corporation
  */
 #ifndef __iwl_mld_iface_h__
 #define __iwl_mld_iface_h__
@@ -33,6 +33,7 @@ enum iwl_mld_cca_40mhz_wa_status {
  *      there is an indication that a non-BSS interface is to be added.
  * @IWL_MLD_EMLSR_BLOCKED_TPT: throughput is too low to make EMLSR worthwhile
  * @IWL_MLD_EMLSR_BLOCKED_NAN: NAN is preventing EMLSR.
+ * @IWL_MLD_EMLSR_BLOCKED_TDLS: TDLS connection is preventing EMLSR.
  */
 enum iwl_mld_emlsr_blocked {
 	IWL_MLD_EMLSR_BLOCKED_PREVENTION	= 0x1,
@@ -42,6 +43,7 @@ enum iwl_mld_emlsr_blocked {
 	IWL_MLD_EMLSR_BLOCKED_TMP_NON_BSS	= 0x10,
 	IWL_MLD_EMLSR_BLOCKED_TPT		= 0x20,
 	IWL_MLD_EMLSR_BLOCKED_NAN		= 0x40,
+	IWL_MLD_EMLSR_BLOCKED_TDLS		= 0x80,
 };
 
 /**
@@ -201,6 +203,15 @@ iwl_mld_vif_to_mac80211(struct iwl_mld_vif *mld_vif)
 	return container_of((void *)mld_vif, struct ieee80211_vif, drv_priv);
 }
 
+/* Call only for interfaces that were added to the driver! */
+static inline bool iwl_mld_vif_fw_id_valid(struct iwl_mld_vif *mld_vif)
+{
+	if (WARN_ON(mld_vif->fw_id >= ARRAY_SIZE(mld_vif->mld->fw_id_to_vif)))
+		return false;
+
+	return true;
+}
+
 #define iwl_mld_link_dereference_check(mld_vif, link_id)		\
 	rcu_dereference_check((mld_vif)->link[link_id],			\
 			      lockdep_is_held(&mld_vif->mld->wiphy->mtx))
@@ -218,8 +229,6 @@ iwl_mld_link_from_mac80211(struct ieee80211_bss_conf *bss_conf)
 
 	return iwl_mld_link_dereference_check(mld_vif, bss_conf->link_id);
 }
-
-int iwl_mld_mac80211_iftype_to_fw(const struct ieee80211_vif *vif);
 
 /* Cleanup function for struct iwl_mld_vif, will be called in restart */
 void iwl_mld_cleanup_vif(void *data, u8 *mac, struct ieee80211_vif *vif);

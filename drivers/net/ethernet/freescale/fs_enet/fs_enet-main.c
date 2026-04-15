@@ -951,7 +951,9 @@ static int fs_enet_probe(struct platform_device *ofdev)
 	spin_lock_init(&fep->lock);
 	spin_lock_init(&fep->tx_lock);
 
-	of_get_ethdev_address(ofdev->dev.of_node, ndev);
+	ret = of_get_ethdev_address(ofdev->dev.of_node, ndev);
+	if (ret == -EPROBE_DEFER)
+		goto out_cleanup_data;
 
 	ret = fep->ops->allocate_bd(ndev);
 	if (ret)

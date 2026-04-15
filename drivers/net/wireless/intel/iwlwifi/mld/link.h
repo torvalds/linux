@@ -40,6 +40,7 @@ struct iwl_probe_resp_data {
  * @bcast_sta: station used for broadcast packets. Used in AP, GO and IBSS.
  * @mcast_sta: station used for multicast packets. Used in AP, GO and IBSS.
  * @mon_sta: station used for TX injection in monitor interface.
+ * @last_cqm_rssi_event: rssi of the last cqm rssi event
  * @average_beacon_energy: average beacon energy for beacons received during
  *	client connections
  * @ap_early_keys: The firmware cannot install keys before bcast/mcast STAs,
@@ -66,6 +67,7 @@ struct iwl_mld_link {
 	struct iwl_mld_int_sta bcast_sta;
 	struct iwl_mld_int_sta mcast_sta;
 	struct iwl_mld_int_sta mon_sta;
+	int last_cqm_rssi_event;
 
 	/* we can only have 2 GTK + 2 IGTK + 2 BIGTK active at a time */
 	struct ieee80211_key_conf *ap_early_keys[6];

@@ -25,17 +25,42 @@
 #include <linux/skb_array.h>
 #include <linux/if_macvlan.h>
 #include <linux/bpf.h>
+#include <trace/events/qdisc.h>
 #include <net/sch_generic.h>
 #include <net/pkt_sched.h>
 #include <net/dst.h>
 #include <net/hotdata.h>
-#include <trace/events/qdisc.h>
 #include <trace/events/net.h>
 #include <net/xfrm.h>
 
 /* Qdisc to use by default */
 const struct Qdisc_ops *default_qdisc_ops = &pfifo_fast_ops;
 EXPORT_SYMBOL(default_qdisc_ops);
+
+void __tcf_kfree_skb_list(struct sk_buff *skb, struct Qdisc *q,
+			  struct netdev_queue *txq, struct net_device *dev)
+{
+	while (skb) {
+		u32 reason = tc_skb_cb(skb)->drop_reason;
+		struct sk_buff *next = skb->next;
+		enum skb_drop_reason skb_reason;
+
+		prefetch(next);
+		/* TC classifier and qdisc share drop_reason storage.
+		 * Check subsystem mask to identify qdisc drop reasons,
+		 * else pass through skb_drop_reason set by TC classifier.
+		 */
+		if ((reason & SKB_DROP_REASON_SUBSYS_MASK) == __QDISC_DROP_REASON) {
+			trace_qdisc_drop(q, txq, dev, skb, (enum qdisc_drop_reason)reason);
+			skb_reason = SKB_DROP_REASON_QDISC_DROP;
+		} else {
+			skb_reason = (enum skb_drop_reason)reason;
+		}
+		kfree_skb_reason(skb, skb_reason);
+		skb = next;
+	}
+}
+EXPORT_SYMBOL(__tcf_kfree_skb_list);
 
 static void qdisc_maybe_clear_missed(struct Qdisc *q,
 				     const struct netdev_queue *txq)
@@ -741,7 +766,7 @@ static int pfifo_fast_enqueue(struct sk_buff *skb, struct Qdisc *qdisc,
 	err = skb_array_produce(q, skb);
 
 	if (unlikely(err)) {
-		tcf_set_drop_reason(skb, SKB_DROP_REASON_QDISC_OVERLIMIT);
+		tcf_set_qdisc_drop_reason(skb, QDISC_DROP_OVERLIMIT);
 
 		if (qdisc_is_percpu_stats(qdisc))
 			return qdisc_drop_cpu(skb, qdisc, to_free);
@@ -825,7 +850,7 @@ static void pfifo_fast_reset(struct Qdisc *qdisc)
 			continue;
 
 		while ((skb = __skb_array_consume(q)) != NULL)
-			kfree_skb(skb);
+			rtnl_kfree_skbs(skb, skb);
 	}
 
 	if (qdisc_is_percpu_stats(qdisc)) {
@@ -1318,11 +1343,12 @@ static bool some_qdisc_is_busy(struct net_device *dev)
 /**
  * 	dev_deactivate_many - deactivate transmissions on several devices
  * 	@head: list of devices to deactivate
+ *	@reset_needed: qdisc should be reset if true.
  *
  *	This function returns only when all outstanding transmissions
  *	have completed, unless all devices are in dismantle phase.
  */
-void dev_deactivate_many(struct list_head *head)
+void dev_deactivate_many(struct list_head *head, bool reset_needed)
 {
 	bool sync_needed = false;
 	struct net_device *dev;
@@ -1341,11 +1367,14 @@ void dev_deactivate_many(struct list_head *head)
 	if (sync_needed)
 		synchronize_net();
 
-	list_for_each_entry(dev, head, close_list) {
-		netdev_for_each_tx_queue(dev, dev_reset_queue, NULL);
+	if (reset_needed) {
+		list_for_each_entry(dev, head, close_list) {
+			netdev_for_each_tx_queue(dev, dev_reset_queue, NULL);
 
-		if (dev_ingress_queue(dev))
-			dev_reset_queue(dev, dev_ingress_queue(dev), NULL);
+			if (dev_ingress_queue(dev))
+				dev_reset_queue(dev, dev_ingress_queue(dev),
+						NULL);
+		}
 	}
 
 	/* Wait for outstanding qdisc_run calls. */
@@ -1360,12 +1389,12 @@ void dev_deactivate_many(struct list_head *head)
 	}
 }
 
-void dev_deactivate(struct net_device *dev)
+void dev_deactivate(struct net_device *dev, bool reset_needed)
 {
 	LIST_HEAD(single);
 
 	list_add(&dev->close_list, &single);
-	dev_deactivate_many(&single);
+	dev_deactivate_many(&single, reset_needed);
 	list_del(&single);
 }
 EXPORT_SYMBOL(dev_deactivate);
@@ -1421,7 +1450,7 @@ int dev_qdisc_change_tx_queue_len(struct net_device *dev)
 	int ret = 0;
 
 	if (up)
-		dev_deactivate(dev);
+		dev_deactivate(dev, false);
 
 	for (i = 0; i < dev->num_tx_queues; i++) {
 		ret = qdisc_change_tx_queue_len(dev, &dev->_tx[i]);

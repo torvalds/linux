@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2008, 2009 open80211s Ltd.
- * Copyright (C) 2019, 2021-2025 Intel Corporation
+ * Copyright (C) 2019, 2021-2026 Intel Corporation
  * Author:     Luis Carlos Cobo <luisca@cozybit.com>
  */
 #include <linux/gfp.h>
@@ -13,7 +13,7 @@
 #include "rate.h"
 #include "mesh.h"
 
-#define PLINK_CNF_AID(mgmt) ((mgmt)->u.action.u.self_prot.variable + 2)
+#define PLINK_CNF_AID(mgmt) ((mgmt)->u.action.self_prot.variable + 2)
 #define PLINK_GET_LLID(p) (p + 2)
 #define PLINK_GET_PLID(p) (p + 4)
 
@@ -215,6 +215,7 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 			       enum ieee80211_self_protected_actioncode action,
 			       u8 *da, u16 llid, u16 plid, u16 reason)
 {
+	int hdr_len = IEEE80211_MIN_ACTION_SIZE(self_prot);
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *info;
@@ -223,7 +224,6 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 	u16 peering_proto = 0;
 	u8 *pos, ie_len = 4;
 	u8 ie_len_he_cap, ie_len_eht_cap;
-	int hdr_len = offsetofend(struct ieee80211_mgmt, u.action.u.self_prot);
 	int err = -ENOMEM;
 
 	ie_len_he_cap = ieee80211_ie_len_he_cap(sdata);
@@ -260,7 +260,7 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
 	memcpy(mgmt->bssid, sdata->vif.addr, ETH_ALEN);
 	mgmt->u.action.category = WLAN_CATEGORY_SELF_PROTECTED;
-	mgmt->u.action.u.self_prot.action_code = action;
+	mgmt->u.action.action_code = action;
 
 	if (action != WLAN_SP_MESH_PEERING_CLOSE) {
 		struct ieee80211_supported_band *sband;
@@ -450,12 +450,13 @@ static void mesh_sta_info_init(struct ieee80211_sub_if_data *sdata,
 		changed |= IEEE80211_RC_SUPP_RATES_CHANGED;
 	sta->sta.deflink.supp_rates[sband->band] = rates;
 
-	if (ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
+	if (ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, &sband->ht_cap,
 					      elems->ht_cap_elem,
 					      &sta->deflink))
 		changed |= IEEE80211_RC_BW_CHANGED;
 
 	ieee80211_vht_cap_ie_to_sta_vht_cap(sdata, sband,
+					    &sband->vht_cap,
 					    elems->vht_cap_elem, NULL,
 					    &sta->deflink);
 
@@ -711,7 +712,7 @@ void mesh_plink_timer(struct timer_list *t)
 				"Mesh plink for %pM (retry, timeout): %d %d\n",
 				sta->sta.addr, sta->mesh->plink_retries,
 				sta->mesh->plink_timeout);
-			get_random_bytes(&rand, sizeof(u32));
+			rand = get_random_u32();
 			sta->mesh->plink_timeout = sta->mesh->plink_timeout +
 					     rand % sta->mesh->plink_timeout;
 			++sta->mesh->plink_retries;
@@ -1141,7 +1142,7 @@ mesh_process_plink_frame(struct ieee80211_sub_if_data *sdata,
 		return;
 	}
 
-	ftype = mgmt->u.action.u.self_prot.action_code;
+	ftype = mgmt->u.action.action_code;
 	if ((ftype == WLAN_SP_MESH_PEERING_OPEN && ie_len != 4) ||
 	    (ftype == WLAN_SP_MESH_PEERING_CONFIRM && ie_len != 6) ||
 	    (ftype == WLAN_SP_MESH_PEERING_CLOSE && ie_len != 6
@@ -1224,8 +1225,8 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata,
 	size_t baselen;
 	u8 *baseaddr;
 
-	/* need action_code, aux */
-	if (len < IEEE80211_MIN_ACTION_SIZE + 3)
+	/* need aux */
+	if (len < IEEE80211_MIN_ACTION_SIZE(self_prot) + 1)
 		return;
 
 	if (sdata->u.mesh.user_mpm)
@@ -1238,10 +1239,9 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata,
 		return;
 	}
 
-	baseaddr = mgmt->u.action.u.self_prot.variable;
-	baselen = (u8 *) mgmt->u.action.u.self_prot.variable - (u8 *) mgmt;
-	if (mgmt->u.action.u.self_prot.action_code ==
-						WLAN_SP_MESH_PEERING_CONFIRM) {
+	baseaddr = mgmt->u.action.self_prot.variable;
+	baselen = mgmt->u.action.self_prot.variable - (u8 *)mgmt;
+	if (mgmt->u.action.action_code == WLAN_SP_MESH_PEERING_CONFIRM) {
 		baseaddr += 4;
 		baselen += 4;
 

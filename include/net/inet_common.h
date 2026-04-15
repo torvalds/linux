@@ -59,8 +59,7 @@ int inet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg);
 int inet_ctl_sock_create(struct sock **sk, unsigned short family,
 			 unsigned short type, unsigned char protocol,
 			 struct net *net);
-int inet_recv_error(struct sock *sk, struct msghdr *msg, int len,
-		    int *addr_len);
+int inet_recv_error(struct sock *sk, struct msghdr *msg, int len);
 
 struct sk_buff *inet_gro_receive(struct list_head *head, struct sk_buff *skb);
 int inet_gro_complete(struct sk_buff *skb, int nhoff);

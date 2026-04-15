@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: GPL-2.0
+// Test maximum advertised window limit when rcv_nxt advances past
+// rcv_mwnd_seq. The "usable window" must be properly clamped to zero
+// rather than becoming negative.
+
+--mss=1000
+
+`./defaults.sh`
+
+// Establish a connection.
+   +0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 setsockopt(3, SOL_SOCKET, SO_RCVBUF, [20000], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+   +0 < S 0:0(0) win 32792 <mss 1000,nop,wscale 7>
+   +0 > S. 0:0(0) ack 1 win 18980 <mss 1460,nop,wscale 0>
+  +.1 < . 1:1(0) ack 1 win 257
+
+   +0 accept(3, ..., ...) = 4
+
+// A too big packet is accepted if the receive queue is empty. It
+// does not trigger an immediate ACK.
+   +0 < P. 1:20001(20000) ack 1 win 257
+   +0 %{ assert tcpi_bytes_received == 20000, tcpi_bytes_received; }%
+
+// Send a RST immediately so that there is no rcv_wup/rcv_mwnd_seq update yet
+   +0 < R. 20001:20001(0) ack 1 win 257
+
+// Verify that the RST was accepted. Indirectly this also verifies that no
+// immediate ACK was sent for the data packet above.
+   +0 < . 20001:20001(0) ack 1 win 257
+   +0 > R 1:1(0)

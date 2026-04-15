@@ -163,7 +163,7 @@ out_put_sk:
 
 static const struct nla_policy nft_socket_policy[NFTA_SOCKET_MAX + 1] = {
 	[NFTA_SOCKET_KEY]		= NLA_POLICY_MAX(NLA_BE32, 255),
-	[NFTA_SOCKET_DREG]		= { .type = NLA_U32 },
+	[NFTA_SOCKET_DREG]		= NLA_POLICY_MAX(NLA_BE32, NFT_REG32_MAX),
 	[NFTA_SOCKET_LEVEL]		= NLA_POLICY_MAX(NLA_BE32, 255),
 };
 
@@ -249,31 +249,6 @@ static int nft_socket_dump(struct sk_buff *skb,
 	return 0;
 }
 
-static bool nft_socket_reduce(struct nft_regs_track *track,
-			      const struct nft_expr *expr)
-{
-	const struct nft_socket *priv = nft_expr_priv(expr);
-	const struct nft_socket *socket;
-
-	if (!nft_reg_track_cmp(track, expr, priv->dreg)) {
-		nft_reg_track_update(track, expr, priv->dreg, priv->len);
-		return false;
-	}
-
-	socket = nft_expr_priv(track->regs[priv->dreg].selector);
-	if (priv->key != socket->key ||
-	    priv->dreg != socket->dreg ||
-	    priv->level != socket->level) {
-		nft_reg_track_update(track, expr, priv->dreg, priv->len);
-		return false;
-	}
-
-	if (!track->regs[priv->dreg].bitwise)
-		return true;
-
-	return nft_expr_reduce_bitwise(track, expr);
-}
-
 static int nft_socket_validate(const struct nft_ctx *ctx,
 			       const struct nft_expr *expr)
 {
@@ -296,7 +271,6 @@ static const struct nft_expr_ops nft_socket_ops = {
 	.init		= nft_socket_init,
 	.dump		= nft_socket_dump,
 	.validate	= nft_socket_validate,
-	.reduce		= nft_socket_reduce,
 };
 
 static struct nft_expr_type nft_socket_type __read_mostly = {

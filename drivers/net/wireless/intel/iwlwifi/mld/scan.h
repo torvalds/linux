@@ -112,6 +112,7 @@ enum iwl_mld_traffic_load {
  * @traffic_load.status: The current traffic load status, see
  *	&enum iwl_mld_traffic_load
  * @cmd_size: size of %cmd.
+ * @cmd_ver: version of the scan command format.
  * @cmd: pointer to scan cmd buffer (allocated once in op mode start).
  * @last_6ghz_passive_jiffies: stores the last 6GHz passive scan time
  *	in jiffies.
@@ -137,6 +138,7 @@ struct iwl_mld_scan {
 	/* And here fields that survive a fw restart */
 	size_t cmd_size;
 	void *cmd;
+	u8 cmd_ver;
 	unsigned long last_6ghz_passive_jiffies;
 	unsigned long last_start_time_jiffies;
 	u64 last_mlo_scan_start_time;

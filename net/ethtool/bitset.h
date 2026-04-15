@@ -3,6 +3,9 @@
 #ifndef _NET_ETHTOOL_BITSET_H
 #define _NET_ETHTOOL_BITSET_H
 
+#include <linux/ethtool.h>
+#include <linux/netlink.h>
+
 #define ETHNL_MAX_BITSET_SIZE S16_MAX
 
 typedef const char (*const ethnl_string_array_t)[ETH_GSTRING_LEN];

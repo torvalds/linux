@@ -492,7 +492,7 @@ int nfcmrvl_fw_dnld_start(struct nci_dev *ndev, const char *firmware_name)
 	if (!firmware_name || !firmware_name[0])
 		return -EINVAL;
 
-	strcpy(fw_dnld->name, firmware_name);
+	strscpy(fw_dnld->name, firmware_name);
 
 	/*
 	 * Retrieve FW binary file and parse it to initialize FW download

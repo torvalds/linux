@@ -57,6 +57,7 @@ struct fbnic_dev {
 	u64 dsn;
 	u32 mps;
 	u32 readrq;
+	u8 relaxed_ord;
 
 	/* Local copy of the devices TCAM */
 	struct fbnic_act_tcam act_tcam[FBNIC_RPC_TCAM_ACT_NUM_ENTRIES];
@@ -98,6 +99,9 @@ struct fbnic_dev {
 
 	/* MDIO bus for PHYs */
 	struct mii_bus *mdio_bus;
+
+	/* In units of ms since API supports values in ms */
+	u16 ps_timeout;
 };
 
 /* Reserve entry 0 in the MSI-X "others" array until we have filled all
@@ -194,6 +198,38 @@ void fbnic_synchronize_irq(struct fbnic_dev *fbd, int nr);
 int fbnic_request_irq(struct fbnic_dev *dev, int nr, irq_handler_t handler,
 		      unsigned long flags, const char *name, void *data);
 void fbnic_free_irq(struct fbnic_dev *dev, int nr, void *data);
+
+/**
+ * enum fbnic_msix_self_test_codes - return codes from self test routines
+ *
+ * These are the codes returned from the self test routines and
+ * stored in the test result array indexed by the specific
+ * test name.
+ *
+ * @FBNIC_TEST_MSIX_SUCCESS: no errors
+ * @FBNIC_TEST_MSIX_NOMEM: allocation failure
+ * @FBNIC_TEST_MSIX_IRQ_REQ_FAIL: IRQ request failure
+ * @FBNIC_TEST_MSIX_MASK: masking failed to prevent IRQ
+ * @FBNIC_TEST_MSIX_UNMASK: unmasking failure w/ sw status set
+ * @FBNIC_TEST_MSIX_IRQ_CLEAR: interrupt when clearing mask
+ * @FBNIC_TEST_MSIX_NO_INTERRUPT: no interrupt when not masked
+ * @FBNIC_TEST_MSIX_NO_CLEAR_OR_MASK: status not cleared, or mask not set
+ * @FBNIC_TEST_MSIX_BITS_SET_AFTER_TEST: Bits are set after test
+ */
+enum fbnic_msix_self_test_codes {
+	FBNIC_TEST_MSIX_SUCCESS = 0,
+	FBNIC_TEST_MSIX_NOMEM = 5,
+	FBNIC_TEST_MSIX_IRQ_REQ_FAIL = 10,
+	FBNIC_TEST_MSIX_MASK = 20,
+	FBNIC_TEST_MSIX_UNMASK = 30,
+	FBNIC_TEST_MSIX_IRQ_CLEAR = 40,
+	FBNIC_TEST_MSIX_NO_INTERRUPT = 50,
+	FBNIC_TEST_MSIX_NO_CLEAR_OR_MASK = 60,
+	FBNIC_TEST_MSIX_BITS_SET_AFTER_TEST = 70,
+};
+
+enum fbnic_msix_self_test_codes fbnic_msix_test(struct fbnic_dev *fbd);
+
 void fbnic_free_irqs(struct fbnic_dev *fbd);
 int fbnic_alloc_irqs(struct fbnic_dev *fbd);
 

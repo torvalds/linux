@@ -63,6 +63,10 @@ static void mctp_test_fragment(struct kunit *test)
 		if (!skb2)
 			break;
 
+		/* avoid copying single-skb messages */
+		if (first && last)
+			KUNIT_EXPECT_PTR_EQ(test, skb, skb2);
+
 		hdr2 = mctp_hdr(skb2);
 
 		tag_mask = MCTP_HDR_TAG_MASK | MCTP_HDR_FLAG_TO;
@@ -170,7 +174,9 @@ static void mctp_rx_input_test_to_desc(const struct mctp_rx_input_test *t,
 KUNIT_ARRAY_PARAM(mctp_rx_input, mctp_rx_input_tests,
 		  mctp_rx_input_test_to_desc);
 
-/* set up a local dev, route on EID 8, and a socket listening on type 0 */
+/* set up a local dev (with addr 8), route on EID 8, and a socket listening on
+ * type 0
+ */
 static void __mctp_route_test_init(struct kunit *test,
 				   struct mctp_test_dev **devp,
 				   struct mctp_dst *dst,
@@ -186,6 +192,10 @@ static void __mctp_route_test_init(struct kunit *test,
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
 	if (netid != MCTP_NET_ANY)
 		WRITE_ONCE(dev->mdev->net, netid);
+
+	dev->mdev->addrs = kmalloc_objs(u8, 1, GFP_KERNEL);
+	dev->mdev->num_addrs = 1;
+	dev->mdev->addrs[0] = 8;
 
 	mctp_test_dst_setup(test, dst, dev, 68);
 
@@ -904,6 +914,48 @@ static void mctp_test_route_input_cloned_frag(struct kunit *test)
 	__mctp_route_test_fini(test, dev, &dst, sock);
 }
 
+/* check we can receive an incoming packet with the null EID as daddr, when
+ * no RTN_LOCAL routes are present.
+ */
+static void mctp_test_route_input_null_eid(struct kunit *test)
+{
+	struct mctp_hdr hdr = RX_HDR(1, 10, 0, FL_S | FL_E | FL_TO);
+	struct sk_buff *skb_pkt, *skb_sk;
+	struct mctp_test_dev *dev;
+	struct sockaddr_mctp addr;
+	struct socket *sock;
+	u8 type = 0;
+	int rc;
+
+	dev = mctp_test_create_dev();
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+
+	rc = sock_create_kern(&init_net, AF_MCTP, SOCK_DGRAM, 0, &sock);
+	KUNIT_ASSERT_EQ(test, rc, 0);
+
+	addr.smctp_family = AF_MCTP;
+	addr.smctp_network = MCTP_NET_ANY;
+	addr.smctp_addr.s_addr = MCTP_ADDR_ANY;
+	addr.smctp_type = type;
+	rc = kernel_bind(sock, (struct sockaddr_unsized *)&addr, sizeof(addr));
+	KUNIT_ASSERT_EQ(test, rc, 0);
+
+	skb_pkt = mctp_test_create_skb_data(&hdr, &type);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, skb_pkt);
+
+	skb_pkt->dev = dev->ndev;
+	skb_pkt->pkt_type = PACKET_HOST;
+
+	mctp_pkttype_receive(skb_pkt, dev->ndev, &mctp_packet_type, NULL);
+
+	skb_sk = skb_recv_datagram(sock->sk, MSG_DONTWAIT, &rc);
+	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, skb_sk);
+
+	skb_free_datagram(sock->sk, skb_sk);
+	sock_release(sock);
+	mctp_test_destroy_dev(dev);
+}
+
 #if IS_ENABLED(CONFIG_MCTP_FLOWS)
 
 static void mctp_test_flow_init(struct kunit *test,
@@ -923,11 +975,6 @@ static void mctp_test_flow_init(struct kunit *test,
 	 * route we provide
 	 */
 	__mctp_route_test_init(test, &dev, dst, sock, MCTP_NET_ANY);
-
-	/* Assign a single EID. ->addrs is freed on mctp netdev release */
-	dev->mdev->addrs = kmalloc(sizeof(u8), GFP_KERNEL);
-	dev->mdev->num_addrs = 1;
-	dev->mdev->addrs[0] = 8;
 
 	skb = alloc_skb(len + sizeof(struct mctp_hdr) + 1, GFP_KERNEL);
 	KUNIT_ASSERT_TRUE(test, skb);
@@ -1054,14 +1101,14 @@ static void mctp_test_route_output_key_create(struct kunit *test)
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
 	WRITE_ONCE(dev->mdev->net, netid);
 
-	mctp_test_dst_setup(test, &dst, dev, 68);
-
 	rc = sock_create_kern(&init_net, AF_MCTP, SOCK_DGRAM, 0, &sock);
 	KUNIT_ASSERT_EQ(test, rc, 0);
 
 	dev->mdev->addrs = kmalloc(sizeof(u8), GFP_KERNEL);
 	dev->mdev->num_addrs = 1;
 	dev->mdev->addrs[0] = src_eid;
+
+	mctp_test_dst_setup(test, &dst, dev, 68);
 
 	skb = alloc_skb(sizeof(struct mctp_hdr) + 1 + len, GFP_KERNEL);
 	KUNIT_ASSERT_TRUE(test, skb);
@@ -1161,7 +1208,7 @@ static void mctp_test_route_gw_lookup(struct kunit *test)
 	struct mctp_test_dev *dev;
 	int rc;
 
-	dev = mctp_test_create_dev();
+	dev = mctp_test_create_dev_with_addr(8);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
 
 	/* 8 (local) -> 10 (gateway) via 9 (direct) */
@@ -1191,7 +1238,7 @@ static void mctp_test_route_gw_loop(struct kunit *test)
 	struct mctp_test_dev *dev;
 	int rc;
 
-	dev = mctp_test_create_dev();
+	dev = mctp_test_create_dev_with_addr(8);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
 
 	/* two routes using each other as the gw */
@@ -1250,7 +1297,7 @@ static void mctp_test_route_gw_mtu(struct kunit *test)
 	unsigned int netid;
 	int rc;
 
-	dev = mctp_test_create_dev();
+	dev = mctp_test_create_dev_with_addr(8);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
 	dev->ndev->mtu = mtus->dev;
 	mdev = dev->mdev;
@@ -1565,6 +1612,117 @@ cleanup:
 	__mctp_route_test_fini(test, dev, &dst, sock_ty0);
 }
 
+static void mctp_test_route_output_direct_no_eids(struct kunit *test)
+{
+	struct mctp_dst dst = { 0 };
+	struct sk_buff *skb, *skb2;
+	struct mctp_test_route *rt;
+	struct mctp_test_dev *dev;
+	struct socket *sock;
+	const int len = 2;
+	int rc;
+
+	dev = mctp_test_create_dev();
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+
+	rt = mctp_test_create_route_direct(&init_net, dev->mdev, 9, 68);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, rt);
+
+	rc = mctp_route_lookup(&init_net, dev->mdev->net, 9, &dst);
+	KUNIT_ASSERT_EQ(test, rc, 0);
+
+	rc = sock_create_kern(&init_net, AF_MCTP, SOCK_DGRAM, 0, &sock);
+	KUNIT_ASSERT_EQ(test, rc, 0);
+
+	skb = alloc_skb(sizeof(struct mctp_hdr) + 1 + len, GFP_KERNEL);
+	KUNIT_ASSERT_TRUE(test, skb);
+	__mctp_cb(skb);
+	skb_reserve(skb, sizeof(struct mctp_hdr) + 1 + len);
+	memset(skb_put(skb, len), 0, len);
+
+	rc = mctp_local_output(sock->sk, &dst, skb, 9, MCTP_TAG_OWNER);
+	KUNIT_ASSERT_EQ(test, rc, 0);
+
+	KUNIT_ASSERT_EQ(test, dev->pkts.qlen, 1);
+
+	skb2 = skb_dequeue(&dev->pkts);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, skb2);
+
+	kfree_skb(skb2);
+	sock_release(sock);
+	mctp_dst_release(&dst);
+	mctp_test_route_destroy(test, rt);
+	mctp_test_destroy_dev(dev);
+}
+
+static void mctp_test_route_output_gw_no_eids(struct kunit *test)
+{
+	struct mctp_test_route *rt1, *rt2;
+	struct mctp_test_dev *dev;
+	struct mctp_dst dst = { 0 };
+	int rc;
+
+	dev = mctp_test_create_dev();
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+
+	/* route: direct to bridge */
+	rt1 = mctp_test_create_route_direct(&init_net, dev->mdev, 9, 68);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, rt1);
+
+	/* route: bridge gw to final dest */
+	rt2 = mctp_test_create_route_gw(&init_net, dev->mdev->net, 10, 9, 0);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, rt2);
+
+	/* route lookup should fail, due to no source address on dev */
+	rc = mctp_route_lookup(&init_net, dev->mdev->net, 10, &dst);
+	KUNIT_ASSERT_NE(test, rc, 0);
+
+	mctp_test_route_destroy(test, rt1);
+	mctp_test_route_destroy(test, rt2);
+	mctp_test_destroy_dev(dev);
+}
+
+static void mctp_test_route_output_extaddr_no_eids(struct kunit *test)
+{
+	struct mctp_dst dst = { 0 };
+	struct sk_buff *skb, *skb2;
+	struct mctp_test_dev *dev;
+	struct socket *sock;
+	const int len = 1;
+	struct net *net;
+	int rc;
+
+	dev = mctp_test_create_dev();
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+
+	net = dev_net(dev->ndev);
+
+	rc = mctp_dst_from_extaddr(&dst, net, dev->ndev->ifindex, 0, NULL);
+	KUNIT_ASSERT_EQ(test, rc, 0);
+
+	rc = sock_create_kern(net, AF_MCTP, SOCK_DGRAM, 0, &sock);
+	KUNIT_ASSERT_EQ(test, rc, 0);
+
+	skb = alloc_skb(sizeof(struct mctp_hdr) + 1 + len, GFP_KERNEL);
+	KUNIT_ASSERT_TRUE(test, skb);
+	__mctp_cb(skb);
+	skb_reserve(skb, sizeof(struct mctp_hdr) + 1 + len);
+	memset(skb_put(skb, len), 0, len);
+
+	rc = mctp_local_output(sock->sk, &dst, skb, 9, MCTP_TAG_OWNER);
+	KUNIT_ASSERT_EQ(test, rc, 0);
+
+	KUNIT_ASSERT_EQ(test, dev->pkts.qlen, 1);
+
+	skb2 = skb_dequeue(&dev->pkts);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, skb2);
+
+	kfree_skb(skb2);
+	sock_release(sock);
+	mctp_dst_release(&dst);
+	mctp_test_destroy_dev(dev);
+}
+
 static struct kunit_case mctp_test_cases[] = {
 	KUNIT_CASE_PARAM(mctp_test_fragment, mctp_frag_gen_params),
 	KUNIT_CASE_PARAM(mctp_test_rx_input, mctp_rx_input_gen_params),
@@ -1577,6 +1735,7 @@ static struct kunit_case mctp_test_cases[] = {
 	KUNIT_CASE(mctp_test_route_input_sk_fail_frag),
 	KUNIT_CASE(mctp_test_route_input_multiple_nets_bind),
 	KUNIT_CASE(mctp_test_route_input_multiple_nets_key),
+	KUNIT_CASE(mctp_test_route_input_null_eid),
 	KUNIT_CASE(mctp_test_packet_flow),
 	KUNIT_CASE(mctp_test_fragment_flow),
 	KUNIT_CASE(mctp_test_route_output_key_create),
@@ -1587,6 +1746,9 @@ static struct kunit_case mctp_test_cases[] = {
 	KUNIT_CASE_PARAM(mctp_test_route_gw_mtu, mctp_route_gw_mtu_gen_params),
 	KUNIT_CASE(mctp_test_route_gw_output),
 	KUNIT_CASE_PARAM(mctp_test_bind_lookup, mctp_bind_lookup_gen_params),
+	KUNIT_CASE(mctp_test_route_output_direct_no_eids),
+	KUNIT_CASE(mctp_test_route_output_gw_no_eids),
+	KUNIT_CASE(mctp_test_route_output_extaddr_no_eids),
 	{}
 };
 

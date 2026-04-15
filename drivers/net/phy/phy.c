@@ -1369,13 +1369,36 @@ void phy_error(struct phy_device *phydev)
 EXPORT_SYMBOL(phy_error);
 
 /**
+ * phy_write_barrier - ensure the last write completed for this PHY device
+ * @phydev: target phy_device struct
+ *
+ * MDIO bus controllers are not required to wait for write transactions to
+ * complete before returning. Calling this function ensures that the previous
+ * write has completed.
+ */
+static void phy_write_barrier(struct phy_device *phydev)
+{
+	if (mdiobus_read(phydev->mdio.bus, phydev->mdio.addr, MII_PHYSID1) ==
+	    -EOPNOTSUPP)
+		mdiobus_c45_read(phydev->mdio.bus, phydev->mdio.addr,
+				 MDIO_MMD_PMAPMD, MII_PHYSID1);
+}
+
+/**
  * phy_disable_interrupts - Disable the PHY interrupts from the PHY side
  * @phydev: target phy_device struct
  */
 int phy_disable_interrupts(struct phy_device *phydev)
 {
+	int err;
+
 	/* Disable PHY interrupts */
-	return phy_config_interrupt(phydev, PHY_INTERRUPT_DISABLED);
+	err = phy_config_interrupt(phydev, PHY_INTERRUPT_DISABLED);
+	if (err)
+		return err;
+
+	phy_write_barrier(phydev);
+	return 0;
 }
 
 /**

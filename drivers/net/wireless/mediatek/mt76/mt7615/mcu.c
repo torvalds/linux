@@ -2564,3 +2564,50 @@ int mt7615_mcu_set_roc(struct mt7615_phy *phy, struct ieee80211_vif *vif,
 	return mt76_mcu_send_msg(&dev->mt76, MCU_CE_CMD(SET_ROC),
 				 &req, sizeof(req), false);
 }
+
+int mt7615_mcu_set_protection(struct mt7615_phy *phy, struct ieee80211_vif *vif,
+			      u8 ht_mode, bool use_cts_prot)
+{
+	struct mt7615_dev *dev = phy->dev;
+	struct {
+		u8 prot_idx;
+		u8 band;
+		u8 rsv[2];
+
+		bool long_nav;
+		bool prot_mm;
+		bool prot_gf;
+		bool prot_bw40;
+		bool prot_rifs;
+		bool prot_bw80;
+		bool prot_bw160;
+		u8 prot_erp_mask;
+	} __packed req = {
+		.prot_idx = 0x2,
+		.band = phy != &dev->phy,
+	};
+
+	switch (ht_mode & IEEE80211_HT_OP_MODE_PROTECTION) {
+	case IEEE80211_HT_OP_MODE_PROTECTION_NONMEMBER:
+	case IEEE80211_HT_OP_MODE_PROTECTION_NONHT_MIXED:
+		req.prot_mm = true;
+		req.prot_gf = true;
+		fallthrough;
+	case IEEE80211_HT_OP_MODE_PROTECTION_20MHZ:
+		req.prot_bw40 = true;
+		break;
+	}
+
+	if (ht_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT)
+		req.prot_gf = true;
+
+	if (use_cts_prot) {
+		struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
+		u8 i = mvif->mt76.omac_idx > HW_BSSID_MAX ? HW_BSSID_0 : mvif->mt76.omac_idx;
+
+		req.prot_erp_mask = BIT(i);
+	}
+
+	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(PROTECT_CTRL), &req,
+				 sizeof(req), true);
+}

@@ -1489,41 +1489,26 @@ MODULE_DEVICE_TABLE(usb, port100_table);
 static int port100_probe(struct usb_interface *interface,
 			 const struct usb_device_id *id)
 {
+	struct usb_endpoint_descriptor *ep_in, *ep_out;
 	struct port100 *dev;
 	int rc;
-	struct usb_host_interface *iface_desc;
-	struct usb_endpoint_descriptor *endpoint;
-	int in_endpoint;
-	int out_endpoint;
 	u16 fw_version;
 	u64 cmd_type_mask;
-	int i;
 
 	dev = devm_kzalloc(&interface->dev, sizeof(struct port100), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
 
 	mutex_init(&dev->out_urb_lock);
-	dev->udev = usb_get_dev(interface_to_usbdev(interface));
+	dev->udev = interface_to_usbdev(interface);
 	dev->interface = interface;
 	usb_set_intfdata(interface, dev);
 
-	in_endpoint = out_endpoint = 0;
-	iface_desc = interface->cur_altsetting;
-	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
-		endpoint = &iface_desc->endpoint[i].desc;
-
-		if (!in_endpoint && usb_endpoint_is_bulk_in(endpoint))
-			in_endpoint = endpoint->bEndpointAddress;
-
-		if (!out_endpoint && usb_endpoint_is_bulk_out(endpoint))
-			out_endpoint = endpoint->bEndpointAddress;
-	}
-
-	if (!in_endpoint || !out_endpoint) {
+	rc = usb_find_common_endpoints(interface->cur_altsetting, &ep_in,
+				       &ep_out, NULL, NULL);
+	if (rc) {
 		nfc_err(&interface->dev,
 			"Could not find bulk-in or bulk-out endpoint\n");
-		rc = -ENODEV;
 		goto error;
 	}
 
@@ -1537,10 +1522,10 @@ static int port100_probe(struct usb_interface *interface,
 	}
 
 	usb_fill_bulk_urb(dev->in_urb, dev->udev,
-			  usb_rcvbulkpipe(dev->udev, in_endpoint),
+			  usb_rcvbulkpipe(dev->udev, usb_endpoint_num(ep_in)),
 			  NULL, 0, NULL, dev);
 	usb_fill_bulk_urb(dev->out_urb, dev->udev,
-			  usb_sndbulkpipe(dev->udev, out_endpoint),
+			  usb_sndbulkpipe(dev->udev, usb_endpoint_num(ep_out)),
 			  NULL, 0, port100_send_complete, dev);
 	dev->out_urb->transfer_flags = URB_ZERO_PACKET;
 
@@ -1616,7 +1601,6 @@ error:
 	usb_free_urb(dev->in_urb);
 	usb_kill_urb(dev->out_urb);
 	usb_free_urb(dev->out_urb);
-	usb_put_dev(dev->udev);
 
 	return rc;
 }
@@ -1636,7 +1620,6 @@ static void port100_disconnect(struct usb_interface *interface)
 
 	usb_free_urb(dev->in_urb);
 	usb_free_urb(dev->out_urb);
-	usb_put_dev(dev->udev);
 
 	kfree(dev->cmd);
 

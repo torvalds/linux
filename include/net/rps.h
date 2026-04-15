@@ -8,6 +8,7 @@
 #include <net/hotdata.h>
 
 #ifdef CONFIG_RPS
+#include <net/rps-types.h>
 
 extern struct static_key_false rps_needed;
 extern struct static_key_false rfs_needed;
@@ -39,17 +40,6 @@ struct rps_dev_flow {
 #define RPS_NO_FILTER 0xffff
 
 /*
- * The rps_dev_flow_table structure contains a table of flow mappings.
- */
-struct rps_dev_flow_table {
-	u8			log;
-	struct rcu_head		rcu;
-	struct rps_dev_flow	flows[];
-};
-#define RPS_DEV_FLOW_TABLE_SIZE(_num) (sizeof(struct rps_dev_flow_table) + \
-    ((_num) * sizeof(struct rps_dev_flow)))
-
-/*
  * The rps_sock_flow_table contains mappings of flows to the last CPU
  * on which they were processed by the application (set in recvmsg).
  * Each entry is a 32bit value. Upper part is the high-order bits
@@ -60,41 +50,38 @@ struct rps_dev_flow_table {
  * meaning we use 32-6=26 bits for the hash.
  */
 struct rps_sock_flow_table {
-	struct rcu_head	rcu;
-	u32		mask;
-
-	u32		ents[] ____cacheline_aligned_in_smp;
+	u32	ent;
 };
-#define	RPS_SOCK_FLOW_TABLE_SIZE(_num) (offsetof(struct rps_sock_flow_table, ents[_num]))
 
 #define RPS_NO_CPU 0xffff
 
-static inline void rps_record_sock_flow(struct rps_sock_flow_table *table,
-					u32 hash)
+static inline void rps_record_sock_flow(rps_tag_ptr tag_ptr, u32 hash)
 {
-	unsigned int index = hash & table->mask;
+	unsigned int index = hash & rps_tag_to_mask(tag_ptr);
 	u32 val = hash & ~net_hotdata.rps_cpu_mask;
+	struct rps_sock_flow_table *table;
 
 	/* We only give a hint, preemption can change CPU under us */
 	val |= raw_smp_processor_id();
 
+	table = rps_tag_to_table(tag_ptr);
 	/* The following WRITE_ONCE() is paired with the READ_ONCE()
 	 * here, and another one in get_rps_cpu().
 	 */
-	if (READ_ONCE(table->ents[index]) != val)
-		WRITE_ONCE(table->ents[index], val);
+	if (READ_ONCE(table[index].ent) != val)
+		WRITE_ONCE(table[index].ent, val);
 }
 
 static inline void _sock_rps_record_flow_hash(__u32 hash)
 {
-	struct rps_sock_flow_table *sock_flow_table;
+	rps_tag_ptr tag_ptr;
 
 	if (!hash)
 		return;
 	rcu_read_lock();
-	sock_flow_table = rcu_dereference(net_hotdata.rps_sock_flow_table);
-	if (sock_flow_table)
-		rps_record_sock_flow(sock_flow_table, hash);
+	tag_ptr = READ_ONCE(net_hotdata.rps_sock_flow_table);
+	if (tag_ptr)
+		rps_record_sock_flow(tag_ptr, hash);
 	rcu_read_unlock();
 }
 
@@ -121,6 +108,7 @@ static inline void _sock_rps_record_flow(const struct sock *sk)
 static inline void _sock_rps_delete_flow(const struct sock *sk)
 {
 	struct rps_sock_flow_table *table;
+	rps_tag_ptr tag_ptr;
 	u32 hash, index;
 
 	hash = READ_ONCE(sk->sk_rxhash);
@@ -128,11 +116,12 @@ static inline void _sock_rps_delete_flow(const struct sock *sk)
 		return;
 
 	rcu_read_lock();
-	table = rcu_dereference(net_hotdata.rps_sock_flow_table);
-	if (table) {
-		index = hash & table->mask;
-		if (READ_ONCE(table->ents[index]) != RPS_NO_CPU)
-			WRITE_ONCE(table->ents[index], RPS_NO_CPU);
+	tag_ptr = READ_ONCE(net_hotdata.rps_sock_flow_table);
+	if (tag_ptr) {
+		index = hash & rps_tag_to_mask(tag_ptr);
+		table = rps_tag_to_table(tag_ptr);
+		if (READ_ONCE(table[index].ent) != RPS_NO_CPU)
+			WRITE_ONCE(table[index].ent, RPS_NO_CPU);
 	}
 	rcu_read_unlock();
 }

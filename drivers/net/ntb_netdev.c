@@ -1,51 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only OR BSD-3-Clause
 /*
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- *   redistributing this file, you may do so under either license.
- *
- *   GPL LICENSE SUMMARY
- *
- *   Copyright(c) 2012 Intel Corporation. All rights reserved.
- *   Copyright (C) 2015 EMC Corporation. All Rights Reserved.
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of version 2 of the GNU General Public License as
- *   published by the Free Software Foundation.
- *
- *   BSD LICENSE
- *
- *   Copyright(c) 2012 Intel Corporation. All rights reserved.
- *   Copyright (C) 2015 EMC Corporation. All Rights Reserved.
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copy
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  * PCIe NTB Network Linux driver
- *
- * Contact Information:
- * Jon Mason <jon.mason@intel.com>
  */
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
@@ -53,6 +8,7 @@
 #include <linux/pci.h>
 #include <linux/ntb.h>
 #include <linux/ntb_transport.h>
+#include <linux/slab.h>
 
 #define NTB_NETDEV_VER	"0.7"
 
@@ -70,39 +26,112 @@ static unsigned int tx_start = 10;
 /* Number of descriptors still available before stop upper layer tx */
 static unsigned int tx_stop = 5;
 
-struct ntb_netdev {
-	struct pci_dev *pdev;
-	struct net_device *ndev;
+#define NTB_NETDEV_MAX_QUEUES		64
+#define NTB_NETDEV_DEFAULT_QUEUES	1
+
+struct ntb_netdev;
+
+struct ntb_netdev_queue {
+	struct ntb_netdev *ntdev;
 	struct ntb_transport_qp *qp;
 	struct timer_list tx_timer;
+	u16 qid;
+};
+
+struct ntb_netdev {
+	struct pci_dev *pdev;
+	struct device *client_dev;
+	struct net_device *ndev;
+	unsigned int num_queues;
+	struct ntb_netdev_queue *queues;
 };
 
 #define	NTB_TX_TIMEOUT_MS	1000
 #define	NTB_RXQ_SIZE		100
 
+static void ntb_netdev_update_carrier(struct ntb_netdev *dev)
+{
+	struct net_device *ndev;
+	bool any_up = false;
+	unsigned int i;
+
+	ndev = dev->ndev;
+
+	for (i = 0; i < dev->num_queues; i++) {
+		if (ntb_transport_link_query(dev->queues[i].qp)) {
+			any_up = true;
+			break;
+		}
+	}
+
+	if (any_up)
+		netif_carrier_on(ndev);
+	else
+		netif_carrier_off(ndev);
+}
+
+static void ntb_netdev_queue_rx_drain(struct ntb_netdev_queue *queue)
+{
+	struct sk_buff *skb;
+	int len;
+
+	while ((skb = ntb_transport_rx_remove(queue->qp, &len)))
+		dev_kfree_skb(skb);
+}
+
+static int ntb_netdev_queue_rx_fill(struct net_device *ndev,
+				    struct ntb_netdev_queue *queue)
+{
+	struct sk_buff *skb;
+	int rc, i;
+
+	for (i = 0; i < NTB_RXQ_SIZE; i++) {
+		skb = netdev_alloc_skb(ndev, ndev->mtu + ETH_HLEN);
+		if (!skb)
+			return -ENOMEM;
+
+		rc = ntb_transport_rx_enqueue(queue->qp, skb, skb->data,
+					      ndev->mtu + ETH_HLEN);
+		if (rc) {
+			dev_kfree_skb(skb);
+			return rc;
+		}
+	}
+
+	return 0;
+}
+
 static void ntb_netdev_event_handler(void *data, int link_is_up)
 {
-	struct net_device *ndev = data;
-	struct ntb_netdev *dev = netdev_priv(ndev);
+	struct ntb_netdev_queue *q = data;
+	struct ntb_netdev *dev = q->ntdev;
+	struct net_device *ndev;
 
-	netdev_dbg(ndev, "Event %x, Link %x\n", link_is_up,
-		   ntb_transport_link_query(dev->qp));
+	ndev = dev->ndev;
 
-	if (link_is_up) {
-		if (ntb_transport_link_query(dev->qp))
-			netif_carrier_on(ndev);
-	} else {
-		netif_carrier_off(ndev);
+	netdev_dbg(ndev, "Event %x, Link %x, qp %u\n", link_is_up,
+		   ntb_transport_link_query(q->qp), q->qid);
+
+	if (netif_running(ndev)) {
+		if (link_is_up)
+			netif_wake_subqueue(ndev, q->qid);
+		else
+			netif_stop_subqueue(ndev, q->qid);
 	}
+
+	ntb_netdev_update_carrier(dev);
 }
 
 static void ntb_netdev_rx_handler(struct ntb_transport_qp *qp, void *qp_data,
 				  void *data, int len)
 {
-	struct net_device *ndev = qp_data;
+	struct ntb_netdev_queue *q = qp_data;
+	struct ntb_netdev *dev = q->ntdev;
+	struct net_device *ndev;
 	struct sk_buff *skb;
 	int rc;
 
+	ndev = dev->ndev;
 	skb = data;
 	if (!skb)
 		return;
@@ -118,6 +147,7 @@ static void ntb_netdev_rx_handler(struct ntb_transport_qp *qp, void *qp_data,
 	skb_put(skb, len);
 	skb->protocol = eth_type_trans(skb, ndev);
 	skb->ip_summed = CHECKSUM_NONE;
+	skb_record_rx_queue(skb, q->qid);
 
 	if (netif_rx(skb) == NET_RX_DROP) {
 		ndev->stats.rx_errors++;
@@ -144,42 +174,46 @@ enqueue_again:
 }
 
 static int __ntb_netdev_maybe_stop_tx(struct net_device *netdev,
-				      struct ntb_transport_qp *qp, int size)
+				      struct ntb_netdev_queue *q, int size)
 {
-	struct ntb_netdev *dev = netdev_priv(netdev);
+	netif_stop_subqueue(netdev, q->qid);
 
-	netif_stop_queue(netdev);
 	/* Make sure to see the latest value of ntb_transport_tx_free_entry()
 	 * since the queue was last started.
 	 */
 	smp_mb();
 
-	if (likely(ntb_transport_tx_free_entry(qp) < size)) {
-		mod_timer(&dev->tx_timer, jiffies + usecs_to_jiffies(tx_time));
+	if (likely(ntb_transport_tx_free_entry(q->qp) < size)) {
+		mod_timer(&q->tx_timer, jiffies + usecs_to_jiffies(tx_time));
 		return -EBUSY;
 	}
 
-	netif_start_queue(netdev);
+	/* The subqueue must be kept stopped if the link is down */
+	if (ntb_transport_link_query(q->qp))
+		netif_start_subqueue(netdev, q->qid);
+
 	return 0;
 }
 
 static int ntb_netdev_maybe_stop_tx(struct net_device *ndev,
-				    struct ntb_transport_qp *qp, int size)
+				    struct ntb_netdev_queue *q, int size)
 {
-	if (netif_queue_stopped(ndev) ||
-	    (ntb_transport_tx_free_entry(qp) >= size))
+	if (__netif_subqueue_stopped(ndev, q->qid) ||
+	    (ntb_transport_tx_free_entry(q->qp) >= size))
 		return 0;
 
-	return __ntb_netdev_maybe_stop_tx(ndev, qp, size);
+	return __ntb_netdev_maybe_stop_tx(ndev, q, size);
 }
 
 static void ntb_netdev_tx_handler(struct ntb_transport_qp *qp, void *qp_data,
 				  void *data, int len)
 {
-	struct net_device *ndev = qp_data;
+	struct ntb_netdev_queue *q = qp_data;
+	struct ntb_netdev *dev = q->ntdev;
+	struct net_device *ndev;
 	struct sk_buff *skb;
-	struct ntb_netdev *dev = netdev_priv(ndev);
 
+	ndev = dev->ndev;
 	skb = data;
 	if (!skb || !ndev)
 		return;
@@ -194,30 +228,41 @@ static void ntb_netdev_tx_handler(struct ntb_transport_qp *qp, void *qp_data,
 
 	dev_kfree_skb_any(skb);
 
-	if (ntb_transport_tx_free_entry(dev->qp) >= tx_start) {
+	if (ntb_transport_tx_free_entry(qp) >= tx_start) {
 		/* Make sure anybody stopping the queue after this sees the new
 		 * value of ntb_transport_tx_free_entry()
 		 */
 		smp_mb();
-		if (netif_queue_stopped(ndev))
-			netif_wake_queue(ndev);
+		if (__netif_subqueue_stopped(ndev, q->qid) &&
+		    ntb_transport_link_query(q->qp))
+			netif_wake_subqueue(ndev, q->qid);
 	}
 }
+
+static const struct ntb_queue_handlers ntb_netdev_handlers = {
+	.tx_handler = ntb_netdev_tx_handler,
+	.rx_handler = ntb_netdev_rx_handler,
+	.event_handler = ntb_netdev_event_handler,
+};
 
 static netdev_tx_t ntb_netdev_start_xmit(struct sk_buff *skb,
 					 struct net_device *ndev)
 {
 	struct ntb_netdev *dev = netdev_priv(ndev);
+	u16 qid = skb_get_queue_mapping(skb);
+	struct ntb_netdev_queue *q;
 	int rc;
 
-	ntb_netdev_maybe_stop_tx(ndev, dev->qp, tx_stop);
+	q = &dev->queues[qid];
 
-	rc = ntb_transport_tx_enqueue(dev->qp, skb, skb->data, skb->len);
+	ntb_netdev_maybe_stop_tx(ndev, q, tx_stop);
+
+	rc = ntb_transport_tx_enqueue(q->qp, skb, skb->data, skb->len);
 	if (rc)
 		goto err;
 
 	/* check for next submit */
-	ntb_netdev_maybe_stop_tx(ndev, dev->qp, tx_stop);
+	ntb_netdev_maybe_stop_tx(ndev, q, tx_stop);
 
 	return NETDEV_TX_OK;
 
@@ -229,69 +274,77 @@ err:
 
 static void ntb_netdev_tx_timer(struct timer_list *t)
 {
-	struct ntb_netdev *dev = timer_container_of(dev, t, tx_timer);
-	struct net_device *ndev = dev->ndev;
+	struct ntb_netdev_queue *q = timer_container_of(q, t, tx_timer);
+	struct ntb_netdev *dev = q->ntdev;
+	struct net_device *ndev;
 
-	if (ntb_transport_tx_free_entry(dev->qp) < tx_stop) {
-		mod_timer(&dev->tx_timer, jiffies + usecs_to_jiffies(tx_time));
+	ndev = dev->ndev;
+
+	if (ntb_transport_tx_free_entry(q->qp) < tx_stop) {
+		mod_timer(&q->tx_timer, jiffies + usecs_to_jiffies(tx_time));
 	} else {
 		/* Make sure anybody stopping the queue after this sees the new
 		 * value of ntb_transport_tx_free_entry()
 		 */
 		smp_mb();
-		if (netif_queue_stopped(ndev))
-			netif_wake_queue(ndev);
+
+		/* The subqueue must be kept stopped if the link is down */
+		if (__netif_subqueue_stopped(ndev, q->qid) &&
+		    ntb_transport_link_query(q->qp))
+			netif_wake_subqueue(ndev, q->qid);
 	}
 }
 
 static int ntb_netdev_open(struct net_device *ndev)
 {
 	struct ntb_netdev *dev = netdev_priv(ndev);
-	struct sk_buff *skb;
-	int rc, i, len;
+	struct ntb_netdev_queue *queue;
+	unsigned int q;
+	int rc = 0;
 
-	/* Add some empty rx bufs */
-	for (i = 0; i < NTB_RXQ_SIZE; i++) {
-		skb = netdev_alloc_skb(ndev, ndev->mtu + ETH_HLEN);
-		if (!skb) {
-			rc = -ENOMEM;
-			goto err;
-		}
+	/* Add some empty rx bufs for each queue */
+	for (q = 0; q < dev->num_queues; q++) {
+		queue = &dev->queues[q];
 
-		rc = ntb_transport_rx_enqueue(dev->qp, skb, skb->data,
-					      ndev->mtu + ETH_HLEN);
-		if (rc) {
-			dev_kfree_skb(skb);
+		rc = ntb_netdev_queue_rx_fill(ndev, queue);
+		if (rc)
 			goto err;
-		}
+
+		timer_setup(&queue->tx_timer, ntb_netdev_tx_timer, 0);
 	}
 
-	timer_setup(&dev->tx_timer, ntb_netdev_tx_timer, 0);
-
 	netif_carrier_off(ndev);
-	ntb_transport_link_up(dev->qp);
-	netif_start_queue(ndev);
+	netif_tx_stop_all_queues(ndev);
+
+	for (q = 0; q < dev->num_queues; q++)
+		ntb_transport_link_up(dev->queues[q].qp);
 
 	return 0;
 
 err:
-	while ((skb = ntb_transport_rx_remove(dev->qp, &len)))
-		dev_kfree_skb(skb);
+	for (q = 0; q < dev->num_queues; q++) {
+		queue = &dev->queues[q];
+		ntb_netdev_queue_rx_drain(queue);
+	}
 	return rc;
 }
 
 static int ntb_netdev_close(struct net_device *ndev)
 {
 	struct ntb_netdev *dev = netdev_priv(ndev);
-	struct sk_buff *skb;
-	int len;
+	struct ntb_netdev_queue *queue;
+	unsigned int q;
 
-	ntb_transport_link_down(dev->qp);
+	netif_tx_stop_all_queues(ndev);
+	netif_carrier_off(ndev);
 
-	while ((skb = ntb_transport_rx_remove(dev->qp, &len)))
-		dev_kfree_skb(skb);
+	for (q = 0; q < dev->num_queues; q++) {
+		queue = &dev->queues[q];
 
-	timer_delete_sync(&dev->tx_timer);
+		ntb_transport_link_down(queue->qp);
+		ntb_netdev_queue_rx_drain(queue);
+		timer_delete_sync(&queue->tx_timer);
+	}
 
 	return 0;
 }
@@ -299,10 +352,12 @@ static int ntb_netdev_close(struct net_device *ndev)
 static int ntb_netdev_change_mtu(struct net_device *ndev, int new_mtu)
 {
 	struct ntb_netdev *dev = netdev_priv(ndev);
+	struct ntb_netdev_queue *queue;
 	struct sk_buff *skb;
-	int len, rc;
+	unsigned int q, i;
+	int len, rc = 0;
 
-	if (new_mtu > ntb_transport_max_size(dev->qp) - ETH_HLEN)
+	if (new_mtu > ntb_transport_max_size(dev->queues[0].qp) - ETH_HLEN)
 		return -EINVAL;
 
 	if (!netif_running(ndev)) {
@@ -311,41 +366,53 @@ static int ntb_netdev_change_mtu(struct net_device *ndev, int new_mtu)
 	}
 
 	/* Bring down the link and dispose of posted rx entries */
-	ntb_transport_link_down(dev->qp);
+	for (q = 0; q < dev->num_queues; q++)
+		ntb_transport_link_down(dev->queues[q].qp);
 
 	if (ndev->mtu < new_mtu) {
-		int i;
+		for (q = 0; q < dev->num_queues; q++) {
+			queue = &dev->queues[q];
 
-		for (i = 0; (skb = ntb_transport_rx_remove(dev->qp, &len)); i++)
-			dev_kfree_skb(skb);
-
-		for (; i; i--) {
-			skb = netdev_alloc_skb(ndev, new_mtu + ETH_HLEN);
-			if (!skb) {
-				rc = -ENOMEM;
-				goto err;
-			}
-
-			rc = ntb_transport_rx_enqueue(dev->qp, skb, skb->data,
-						      new_mtu + ETH_HLEN);
-			if (rc) {
+			for (i = 0;
+			     (skb = ntb_transport_rx_remove(queue->qp, &len));
+			     i++)
 				dev_kfree_skb(skb);
-				goto err;
+
+			for (; i; i--) {
+				skb = netdev_alloc_skb(ndev,
+						       new_mtu + ETH_HLEN);
+				if (!skb) {
+					rc = -ENOMEM;
+					goto err;
+				}
+
+				rc = ntb_transport_rx_enqueue(queue->qp, skb,
+							      skb->data,
+							      new_mtu +
+							      ETH_HLEN);
+				if (rc) {
+					dev_kfree_skb(skb);
+					goto err;
+				}
 			}
 		}
 	}
 
 	WRITE_ONCE(ndev->mtu, new_mtu);
 
-	ntb_transport_link_up(dev->qp);
+	for (q = 0; q < dev->num_queues; q++)
+		ntb_transport_link_up(dev->queues[q].qp);
 
 	return 0;
 
 err:
-	ntb_transport_link_down(dev->qp);
+	for (q = 0; q < dev->num_queues; q++) {
+		struct ntb_netdev_queue *queue = &dev->queues[q];
 
-	while ((skb = ntb_transport_rx_remove(dev->qp, &len)))
-		dev_kfree_skb(skb);
+		ntb_transport_link_down(queue->qp);
+
+		ntb_netdev_queue_rx_drain(queue);
+	}
 
 	netdev_err(ndev, "Error changing MTU, device inoperable\n");
 	return rc;
@@ -386,16 +453,155 @@ static int ntb_get_link_ksettings(struct net_device *dev,
 	return 0;
 }
 
+static void ntb_get_channels(struct net_device *ndev,
+			     struct ethtool_channels *channels)
+{
+	struct ntb_netdev *dev = netdev_priv(ndev);
+
+	channels->combined_count = dev->num_queues;
+	channels->max_combined = ndev->num_tx_queues;
+}
+
+static int ntb_inc_channels(struct net_device *ndev,
+			    unsigned int old, unsigned int new)
+{
+	struct ntb_netdev *dev = netdev_priv(ndev);
+	bool running = netif_running(ndev);
+	struct ntb_netdev_queue *queue;
+	unsigned int q, created;
+	int rc;
+
+	created = old;
+	for (q = old; q < new; q++) {
+		queue = &dev->queues[q];
+
+		queue->ntdev = dev;
+		queue->qid = q;
+		queue->qp = ntb_transport_create_queue(queue, dev->client_dev,
+						       &ntb_netdev_handlers);
+		if (!queue->qp) {
+			rc = -ENOSPC;
+			goto err_new;
+		}
+		created++;
+
+		if (!running)
+			continue;
+
+		timer_setup(&queue->tx_timer, ntb_netdev_tx_timer, 0);
+
+		rc = ntb_netdev_queue_rx_fill(ndev, queue);
+		if (rc)
+			goto err_new;
+
+		/*
+		 * Carrier may already be on due to other QPs. Keep the new
+		 * subqueue stopped until we get a Link Up event for this QP.
+		 */
+		netif_stop_subqueue(ndev, q);
+	}
+
+	rc = netif_set_real_num_queues(ndev, new, new);
+	if (rc)
+		goto err_new;
+
+	dev->num_queues = new;
+
+	if (running)
+		for (q = old; q < new; q++)
+			ntb_transport_link_up(dev->queues[q].qp);
+
+	return 0;
+
+err_new:
+	if (running) {
+		unsigned int rollback = created;
+
+		while (rollback-- > old) {
+			queue = &dev->queues[rollback];
+			ntb_transport_link_down(queue->qp);
+			ntb_netdev_queue_rx_drain(queue);
+			timer_delete_sync(&queue->tx_timer);
+		}
+	}
+	while (created-- > old) {
+		queue = &dev->queues[created];
+		ntb_transport_free_queue(queue->qp);
+		queue->qp = NULL;
+	}
+	return rc;
+}
+
+static int ntb_dec_channels(struct net_device *ndev,
+			    unsigned int old, unsigned int new)
+{
+	struct ntb_netdev *dev = netdev_priv(ndev);
+	bool running = netif_running(ndev);
+	struct ntb_netdev_queue *queue;
+	unsigned int q;
+	int rc;
+
+	if (running)
+		for (q = new; q < old; q++)
+			netif_stop_subqueue(ndev, q);
+
+	rc = netif_set_real_num_queues(ndev, new, new);
+	if (rc)
+		goto err;
+
+	/* Publish new queue count before invalidating QP pointers */
+	dev->num_queues = new;
+
+	for (q = new; q < old; q++) {
+		queue = &dev->queues[q];
+
+		if (running) {
+			ntb_transport_link_down(queue->qp);
+			ntb_netdev_queue_rx_drain(queue);
+			timer_delete_sync(&queue->tx_timer);
+		}
+
+		ntb_transport_free_queue(queue->qp);
+		queue->qp = NULL;
+	}
+
+	/*
+	 * It might be the case that the removed queues are the only queues that
+	 * were up, so see if the global carrier needs to change.
+	 */
+	ntb_netdev_update_carrier(dev);
+	return 0;
+
+err:
+	if (running) {
+		for (q = new; q < old; q++)
+			netif_wake_subqueue(ndev, q);
+	}
+	return rc;
+}
+
+static int ntb_set_channels(struct net_device *ndev,
+			    struct ethtool_channels *channels)
+{
+	struct ntb_netdev *dev = netdev_priv(ndev);
+	unsigned int new = channels->combined_count;
+	unsigned int old = dev->num_queues;
+
+	if (new == old)
+		return 0;
+
+	if (new < old)
+		return ntb_dec_channels(ndev, old, new);
+	else
+		return ntb_inc_channels(ndev, old, new);
+}
+
 static const struct ethtool_ops ntb_ethtool_ops = {
 	.get_drvinfo = ntb_get_drvinfo,
 	.get_link = ethtool_op_get_link,
 	.get_link_ksettings = ntb_get_link_ksettings,
-};
-
-static const struct ntb_queue_handlers ntb_netdev_handlers = {
-	.tx_handler = ntb_netdev_tx_handler,
-	.rx_handler = ntb_netdev_rx_handler,
-	.event_handler = ntb_netdev_event_handler,
+	.get_channels = ntb_get_channels,
+	.set_channels = ntb_set_channels,
 };
 
 static int ntb_netdev_probe(struct device *client_dev)
@@ -404,6 +610,7 @@ static int ntb_netdev_probe(struct device *client_dev)
 	struct net_device *ndev;
 	struct pci_dev *pdev;
 	struct ntb_netdev *dev;
+	unsigned int q;
 	int rc;
 
 	ntb = dev_ntb(client_dev->parent);
@@ -411,7 +618,7 @@ static int ntb_netdev_probe(struct device *client_dev)
 	if (!pdev)
 		return -ENODEV;
 
-	ndev = alloc_etherdev(sizeof(*dev));
+	ndev = alloc_etherdev_mq(sizeof(*dev), NTB_NETDEV_MAX_QUEUES);
 	if (!ndev)
 		return -ENOMEM;
 
@@ -420,6 +627,16 @@ static int ntb_netdev_probe(struct device *client_dev)
 	dev = netdev_priv(ndev);
 	dev->ndev = ndev;
 	dev->pdev = pdev;
+	dev->client_dev = client_dev;
+	dev->num_queues = 0;
+
+	dev->queues = kzalloc_objs(*dev->queues, NTB_NETDEV_MAX_QUEUES,
+				   GFP_KERNEL);
+	if (!dev->queues) {
+		rc = -ENOMEM;
+		goto err_free_netdev;
+	}
+
 	ndev->features = NETIF_F_HIGHDMA;
 
 	ndev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
@@ -436,26 +653,47 @@ static int ntb_netdev_probe(struct device *client_dev)
 	ndev->min_mtu = 0;
 	ndev->max_mtu = ETH_MAX_MTU;
 
-	dev->qp = ntb_transport_create_queue(ndev, client_dev,
-					     &ntb_netdev_handlers);
-	if (!dev->qp) {
-		rc = -EIO;
-		goto err;
+	for (q = 0; q < NTB_NETDEV_DEFAULT_QUEUES; q++) {
+		struct ntb_netdev_queue *queue = &dev->queues[q];
+
+		queue->ntdev = dev;
+		queue->qid = q;
+		queue->qp = ntb_transport_create_queue(queue, client_dev,
+						       &ntb_netdev_handlers);
+		if (!queue->qp)
+			break;
+
+		dev->num_queues++;
 	}
 
-	ndev->mtu = ntb_transport_max_size(dev->qp) - ETH_HLEN;
+	if (!dev->num_queues) {
+		rc = -EIO;
+		goto err_free_queues;
+	}
+
+	rc = netif_set_real_num_queues(ndev, dev->num_queues, dev->num_queues);
+	if (rc)
+		goto err_free_qps;
+
+	ndev->mtu = ntb_transport_max_size(dev->queues[0].qp) - ETH_HLEN;
 
 	rc = register_netdev(ndev);
 	if (rc)
-		goto err1;
+		goto err_free_qps;
 
 	dev_set_drvdata(client_dev, ndev);
-	dev_info(&pdev->dev, "%s created\n", ndev->name);
+	dev_info(&pdev->dev, "%s created with %u queue pairs\n",
+		 ndev->name, dev->num_queues);
 	return 0;
 
-err1:
-	ntb_transport_free_queue(dev->qp);
-err:
+err_free_qps:
+	for (q = 0; q < dev->num_queues; q++)
+		ntb_transport_free_queue(dev->queues[q].qp);
+
+err_free_queues:
+	kfree(dev->queues);
+
+err_free_netdev:
 	free_netdev(ndev);
 	return rc;
 }
@@ -464,9 +702,13 @@ static void ntb_netdev_remove(struct device *client_dev)
 {
 	struct net_device *ndev = dev_get_drvdata(client_dev);
 	struct ntb_netdev *dev = netdev_priv(ndev);
+	unsigned int q;
 
 	unregister_netdev(ndev);
-	ntb_transport_free_queue(dev->qp);
+	for (q = 0; q < dev->num_queues; q++)
+		ntb_transport_free_queue(dev->queues[q].qp);
+
+	kfree(dev->queues);
 	free_netdev(ndev);
 }
 

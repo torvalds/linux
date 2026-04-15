@@ -107,6 +107,28 @@ static int physdev_mt_check(const struct xt_mtchk_param *par)
 		return -EINVAL;
 	}
 
+#define X(memb) strnlen(info->memb, sizeof(info->memb)) >= sizeof(info->memb)
+	if (info->bitmask & XT_PHYSDEV_OP_IN) {
+		if (info->physindev[0] == '\0')
+			return -EINVAL;
+		if (X(physindev))
+			return -ENAMETOOLONG;
+	}
+
+	if (info->bitmask & XT_PHYSDEV_OP_OUT) {
+		if (info->physoutdev[0] == '\0')
+			return -EINVAL;
+
+		if (X(physoutdev))
+			return -ENAMETOOLONG;
+	}
+
+	if (X(in_mask))
+		return -ENAMETOOLONG;
+	if (X(out_mask))
+		return -ENAMETOOLONG;
+#undef X
+
 	if (!brnf_probed) {
 		brnf_probed = true;
 		request_module("br_netfilter");

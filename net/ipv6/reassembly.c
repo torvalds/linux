@@ -132,6 +132,9 @@ static int ip6_frag_queue(struct net *net,
 		/* note that if prob_offset is set, the skb is freed elsewhere,
 		 * we do not free it here.
 		 */
+		inet_frag_kill(&fq->q, refs);
+		__IP6_INC_STATS(net, ip6_dst_idev(skb_dst(skb)),
+				IPSTATS_MIB_REASMFAILS);
 		return -1;
 	}
 
@@ -163,6 +166,9 @@ static int ip6_frag_queue(struct net *net,
 			 * this case. -DaveM
 			 */
 			*prob_offset = offsetof(struct ipv6hdr, payload_len);
+			inet_frag_kill(&fq->q, refs);
+			__IP6_INC_STATS(net, ip6_dst_idev(skb_dst(skb)),
+					IPSTATS_MIB_REASMFAILS);
 			return -1;
 		}
 		if (end > fq->q.len) {

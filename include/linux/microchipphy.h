@@ -61,6 +61,11 @@
 /* Registers specific to the LAN7800/LAN7850 embedded phy */
 #define LAN78XX_PHY_LED_MODE_SELECT		(0x1D)
 
+/* PHY Control 3 register (page 1) */
+#define LAN78XX_PHY_CTRL3			(0x14)
+#define  LAN78XX_PHY_CTRL3_AUTO_DOWNSHIFT	BIT(4)
+#define  LAN78XX_PHY_CTRL3_DOWNSHIFT_CTRL_MASK	GENMASK(3, 2)
+
 /* DSP registers */
 #define PHY_ARDENNES_MMD_DEV_3_PHY_CFG		(0x806A)
 #define PHY_ARDENNES_MMD_DEV_3_PHY_CFG_ZD_DLY_EN_	(0x2000)

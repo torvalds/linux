@@ -270,6 +270,7 @@ struct mctp_dst {
 	struct mctp_dev *dev;
 	unsigned int mtu;
 	mctp_eid_t nexthop;
+	mctp_eid_t saddr;
 
 	/* set for direct addressing */
 	unsigned char halen;

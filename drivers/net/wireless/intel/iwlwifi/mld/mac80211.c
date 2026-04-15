@@ -754,6 +754,30 @@ void iwl_mld_mac80211_remove_interface(struct ieee80211_hw *hw,
 	mld->monitor.phy.valid = false;
 }
 
+static
+int iwl_mld_mac80211_change_interface(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
+				      enum nl80211_iftype new_type, bool p2p)
+{
+	enum nl80211_iftype old_type = vif->type;
+	bool old_p2p = vif->p2p;
+	int ret;
+
+	iwl_mld_mac80211_remove_interface(hw, vif);
+
+	/* set the new type for adding it cleanly */
+	vif->type = new_type;
+	vif->p2p = p2p;
+
+	ret = iwl_mld_mac80211_add_interface(hw, vif);
+
+	/* restore for mac80211, it will change it again */
+	vif->type = old_type;
+	vif->p2p = old_p2p;
+
+	return ret;
+}
+
 struct iwl_mld_mc_iter_data {
 	struct iwl_mld *mld;
 	int port_id;
@@ -1124,6 +1148,8 @@ int iwl_mld_assign_vif_chanctx(struct ieee80211_hw *hw,
 
 	/* Now activate the link */
 	if (iwl_mld_can_activate_link(mld, vif, link)) {
+		iwl_mld_tlc_update_phy(mld, vif, link);
+
 		ret = iwl_mld_activate_link(mld, link);
 		if (ret)
 			goto err;
@@ -1184,6 +1210,8 @@ void iwl_mld_unassign_vif_chanctx(struct ieee80211_hw *hw,
 	}
 
 	RCU_INIT_POINTER(mld_link->chan_ctx, NULL);
+
+	iwl_mld_tlc_update_phy(mld, vif, link);
 
 	/* in the non-MLO case, remove/re-add the link to clean up FW state.
 	 * In MLO, it'll be done in drv_change_vif_link
@@ -1727,13 +1755,22 @@ static int iwl_mld_move_sta_state_up(struct iwl_mld *mld,
 				return -EBUSY;
 		}
 
-		ret = iwl_mld_add_sta(mld, sta, vif, STATION_TYPE_PEER);
+		ret = iwl_mld_add_sta(mld, sta, vif);
 		if (ret)
 			return ret;
 
-		/* just added first TDLS STA, so disable PM */
-		if (sta->tdls && tdls_count == 0)
+		/* just added first TDLS STA, so disable PM and block EMLSR */
+		if (sta->tdls && tdls_count == 0) {
 			iwl_mld_update_mac_power(mld, vif, false);
+
+			/* TDLS requires single-link operation with
+			 * direct peer communication.
+			 * Block and exit EMLSR when TDLS is established.
+			 */
+			iwl_mld_block_emlsr(mld, vif,
+					    IWL_MLD_EMLSR_BLOCKED_TDLS,
+					    iwl_mld_get_primary_link(vif));
+		}
 
 		if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls)
 			mld_vif->ap_sta = sta;
@@ -1880,8 +1917,14 @@ static int iwl_mld_move_sta_state_down(struct iwl_mld *mld,
 		iwl_mld_remove_sta(mld, sta);
 
 		if (sta->tdls && iwl_mld_tdls_sta_count(mld) == 0) {
-			/* just removed last TDLS STA, so enable PM */
+			/* just removed last TDLS STA, so enable PM
+			 * and unblock EMLSR
+			 */
 			iwl_mld_update_mac_power(mld, vif, false);
+
+			/* Unblock EMLSR when TDLS connection is torn down */
+			iwl_mld_unblock_emlsr(mld, vif,
+					      IWL_MLD_EMLSR_BLOCKED_TDLS);
 		}
 
 		if (sta->tdls) {
@@ -2735,6 +2778,7 @@ const struct ieee80211_ops iwl_mld_hw_ops = {
 	.get_antenna = iwl_mld_get_antenna,
 	.set_antenna = iwl_mld_set_antenna,
 	.add_interface = iwl_mld_mac80211_add_interface,
+	.change_interface = iwl_mld_mac80211_change_interface,
 	.remove_interface = iwl_mld_mac80211_remove_interface,
 	.conf_tx = iwl_mld_mac80211_conf_tx,
 	.prepare_multicast = iwl_mld_mac80211_prepare_multicast,

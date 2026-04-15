@@ -227,7 +227,9 @@ mt76_tx_check_non_aql(struct mt76_dev *dev, struct mt76_wcid *wcid,
 		      struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_sta *sta;
 	int pending;
+	int i;
 
 	if (!wcid || info->tx_time_est)
 		return;
@@ -235,6 +237,17 @@ mt76_tx_check_non_aql(struct mt76_dev *dev, struct mt76_wcid *wcid,
 	pending = atomic_dec_return(&wcid->non_aql_packets);
 	if (pending < 0)
 		atomic_cmpxchg(&wcid->non_aql_packets, pending, 0);
+
+	sta = wcid_to_sta(wcid);
+	if (!sta || pending != MT_MAX_NON_AQL_PKT - 1)
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(sta->txq); i++) {
+		if (!sta->txq[i])
+			continue;
+
+		ieee80211_schedule_txq(dev->hw, sta->txq[i]);
+	}
 }
 
 void __mt76_tx_complete_skb(struct mt76_dev *dev, u16 wcid_idx, struct sk_buff *skb,
@@ -542,6 +555,9 @@ mt76_txq_schedule_list(struct mt76_phy *phy, enum mt76_txq_id qid)
 		if (!wcid || test_bit(MT_WCID_FLAG_PS, &wcid->flags))
 			continue;
 
+		if (atomic_read(&wcid->non_aql_packets) >= MT_MAX_NON_AQL_PKT)
+			continue;
+
 		phy = mt76_dev_phy(dev, wcid->phy_idx);
 		if (test_bit(MT76_RESET, &phy->state) || phy->offchannel)
 			continue;
@@ -616,7 +632,7 @@ mt76_txq_schedule_pending_wcid(struct mt76_phy *phy, struct mt76_wcid *wcid,
 
 		if ((dev->drv->drv_flags & MT_DRV_HW_MGMT_TXQ) &&
 		    !(info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP) &&
-		    !ieee80211_is_data(hdr->frame_control) &&
+		    !ieee80211_is_data_present(hdr->frame_control) &&
 		    (!ieee80211_is_bufferable_mmpdu(skb) ||
 		     ieee80211_is_deauth(hdr->frame_control) ||
 		     head == &wcid->tx_offchannel))
@@ -644,7 +660,7 @@ mt76_txq_schedule_pending_wcid(struct mt76_phy *phy, struct mt76_wcid *wcid,
 	return ret;
 }
 
-static void mt76_txq_schedule_pending(struct mt76_phy *phy)
+void mt76_txq_schedule_pending(struct mt76_phy *phy)
 {
 	LIST_HEAD(tx_list);
 	int ret = 0;
@@ -850,8 +866,14 @@ int mt76_token_consume(struct mt76_dev *dev, struct mt76_txwi_cache **ptxwi)
 	token = idr_alloc(&dev->token, *ptxwi, dev->token_start,
 			  dev->token_start + dev->token_size,
 			  GFP_ATOMIC);
-	if (token >= dev->token_start)
+	if (token >= dev->token_start) {
 		dev->token_count++;
+
+		if ((*ptxwi)->qid == MT_TXQ_PSD) {
+			struct mt76_phy *mphy = mt76_dev_phy(dev, (*ptxwi)->phy_idx);
+			atomic_inc(&mphy->mgmt_tx_pending);
+		}
+	}
 
 #ifdef CONFIG_NET_MEDIATEK_SOC_WED
 	if (mtk_wed_device_active(&dev->mmio.wed) &&
@@ -896,6 +918,12 @@ mt76_token_release(struct mt76_dev *dev, int token, bool *wake)
 	txwi = idr_remove(&dev->token, token);
 	if (txwi) {
 		dev->token_count--;
+
+		if (txwi->qid == MT_TXQ_PSD) {
+			struct mt76_phy *mphy = mt76_dev_phy(dev, txwi->phy_idx);
+			if (atomic_dec_and_test(&mphy->mgmt_tx_pending))
+				wake_up(&dev->tx_wait);
+		}
 
 #ifdef CONFIG_NET_MEDIATEK_SOC_WED
 		if (mtk_wed_device_active(&dev->mmio.wed) &&

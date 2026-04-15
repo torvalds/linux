@@ -32,19 +32,19 @@ tc qdisc replace dev dummy0 root handle 1: fq quantum 1514 initial_quantum 1514 
 DELAY=400000
 
 ./cmsg_sender -6 -p u -d "${DELAY}" -n 20 fdaa::2 8000
-OUT1="$(tc -s qdisc show dev dummy0 | grep '^\ Sent')"
+OUT1="$(tc -s qdisc show dev dummy0 | grep '^ Sent')"
 
 ./cmsg_sender -6 -p u -d "${DELAY}" -n 20 fdaa::2 8000
-OUT2="$(tc -s qdisc show dev dummy0 | grep '^\ Sent')"
+OUT2="$(tc -s qdisc show dev dummy0 | grep '^ Sent')"
 
 ./cmsg_sender -6 -p u -d "${DELAY}" -n 20 -P 7 fdaa::2 8000
-OUT3="$(tc -s qdisc show dev dummy0 | grep '^\ Sent')"
+OUT3="$(tc -s qdisc show dev dummy0 | grep '^ Sent')"
 
 # Initial stats will report zero sent, as all packets are still
 # queued in FQ. Sleep for at least the delay period and see that
 # twenty are now sent.
 sleep 0.6
-OUT4="$(tc -s qdisc show dev dummy0 | grep '^\ Sent')"
+OUT4="$(tc -s qdisc show dev dummy0 | grep '^ Sent')"
 
 # Log the output after the test
 echo "${OUT1}"
@@ -53,7 +53,7 @@ echo "${OUT3}"
 echo "${OUT4}"
 
 # Test the output for expected values
-echo "${OUT1}" | grep -q '0\ pkt\ (dropped\ 10'  || die "unexpected drop count at 1"
-echo "${OUT2}" | grep -q '0\ pkt\ (dropped\ 30'  || die "unexpected drop count at 2"
-echo "${OUT3}" | grep -q '0\ pkt\ (dropped\ 40'  || die "unexpected drop count at 3"
-echo "${OUT4}" | grep -q '20\ pkt\ (dropped\ 40' || die "unexpected accept count at 4"
+echo "${OUT1}" | grep -q '0 pkt (dropped 10'  || die "unexpected drop count at 1"
+echo "${OUT2}" | grep -q '0 pkt (dropped 30'  || die "unexpected drop count at 2"
+echo "${OUT3}" | grep -q '0 pkt (dropped 40'  || die "unexpected drop count at 3"
+echo "${OUT4}" | grep -q '20 pkt (dropped 40' || die "unexpected accept count at 4"

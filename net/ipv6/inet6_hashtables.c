@@ -23,20 +23,55 @@
 #include <net/sock_reuseport.h>
 #include <net/tcp.h>
 
+void inet6_init_ehash_secret(void)
+{
+	net_get_random_sleepable_once(&inet6_ehash_secret,
+				      sizeof(inet6_ehash_secret));
+	net_get_random_sleepable_once(&tcp_ipv6_hash_secret,
+				      sizeof(tcp_ipv6_hash_secret));
+}
+
 u32 inet6_ehashfn(const struct net *net,
 		  const struct in6_addr *laddr, const u16 lport,
 		  const struct in6_addr *faddr, const __be16 fport)
 {
-	u32 lhash, fhash;
+	u32 a, b, c;
 
-	net_get_random_once(&inet6_ehash_secret, sizeof(inet6_ehash_secret));
-	net_get_random_once(&tcp_ipv6_hash_secret, sizeof(tcp_ipv6_hash_secret));
+	/*
+	 * Please look at jhash() implementation for reference.
+	 * Hash laddr + faddr + lport/fport + net_hash_mix.
+	 * Notes:
+	 * We combine laddr[0] (high order 32 bits of local address)
+	 * with net_hash_mix() to hash a multiple of 3 words.
+	 *
+	 * We do not include JHASH_INITVAL + 36 contribution
+	 * to initial values of a, b, c.
+	 */
 
-	lhash = (__force u32)laddr->s6_addr32[3];
-	fhash = __ipv6_addr_jhash(faddr, tcp_ipv6_hash_secret);
+	a = b = c = tcp_ipv6_hash_secret;
 
-	return lport + __inet6_ehashfn(lhash, 0, fhash, fport,
-				       inet6_ehash_secret + net_hash_mix(net));
+	a += (__force u32)laddr->s6_addr32[0] ^ net_hash_mix(net);
+	b += (__force u32)laddr->s6_addr32[1];
+	c += (__force u32)laddr->s6_addr32[2];
+	__jhash_mix(a, b, c);
+
+	a += (__force u32)laddr->s6_addr32[3];
+	b += (__force u32)faddr->s6_addr32[0];
+	c += (__force u32)faddr->s6_addr32[1];
+	__jhash_mix(a, b, c);
+
+	a += (__force u32)faddr->s6_addr32[2];
+	b += (__force u32)faddr->s6_addr32[3];
+	c += (__force u32)fport;
+	__jhash_final(a, b, c);
+
+	/* Note: We need to add @lport instead of fully hashing it.
+	 * See commits 9544d60a2605 ("inet: change lport contribution
+	 * to inet_ehashfn() and inet6_ehashfn()") and d4438ce68bf1
+	 * ("inet: call inet6_ehashfn() once from inet6_hash_connect()")
+	 * for references.
+	 */
+	return lport + c;
 }
 EXPORT_SYMBOL_GPL(inet6_ehashfn);
 
@@ -362,6 +397,8 @@ int inet6_hash_connect(struct inet_timewait_death_row *death_row,
 
 	if (!inet_sk(sk)->inet_num)
 		port_offset = inet6_sk_port_offset(sk);
+
+	inet6_init_ehash_secret();
 
 	hash_port0 = inet6_ehashfn(net, daddr, 0, saddr, inet->inet_dport);
 

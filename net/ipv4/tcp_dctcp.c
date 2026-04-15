@@ -203,13 +203,17 @@ __bpf_kfunc static void dctcp_cwnd_event(struct sock *sk, enum tcp_ca_event ev)
 		tcp_plb_update_state_upon_rto(sk, &ca->plb);
 		dctcp_react_to_loss(sk);
 		break;
-	case CA_EVENT_TX_START:
-		tcp_plb_check_rehash(sk, &ca->plb); /* Maybe rehash when inflight is 0 */
-		break;
 	default:
 		/* Don't care for the rest. */
 		break;
 	}
+}
+
+__bpf_kfunc static void dctcp_cwnd_event_tx_start(struct sock *sk)
+{
+	struct dctcp *ca = inet_csk_ca(sk);
+
+	tcp_plb_check_rehash(sk, &ca->plb); /* Maybe rehash when inflight is 0 */
 }
 
 static size_t dctcp_get_info(struct sock *sk, u32 ext, int *attr,
@@ -252,6 +256,7 @@ static struct tcp_congestion_ops dctcp __read_mostly = {
 	.init		= dctcp_init,
 	.in_ack_event   = dctcp_update_alpha,
 	.cwnd_event	= dctcp_cwnd_event,
+	.cwnd_event_tx_start = dctcp_cwnd_event_tx_start,
 	.ssthresh	= dctcp_ssthresh,
 	.cong_avoid	= tcp_reno_cong_avoid,
 	.undo_cwnd	= dctcp_cwnd_undo,
@@ -275,6 +280,7 @@ BTF_KFUNCS_START(tcp_dctcp_check_kfunc_ids)
 BTF_ID_FLAGS(func, dctcp_init)
 BTF_ID_FLAGS(func, dctcp_update_alpha)
 BTF_ID_FLAGS(func, dctcp_cwnd_event)
+BTF_ID_FLAGS(func, dctcp_cwnd_event_tx_start)
 BTF_ID_FLAGS(func, dctcp_ssthresh)
 BTF_ID_FLAGS(func, dctcp_cwnd_undo)
 BTF_ID_FLAGS(func, dctcp_state)

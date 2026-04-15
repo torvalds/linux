@@ -767,8 +767,9 @@ static void fza_rx(struct net_device *dev)
 			fp->rx_dma[i] = dma;
 		} else {
 			fp->stats.rx_dropped++;
-			pr_notice("%s: memory squeeze, dropping packet\n",
-				  fp->name);
+			pr_notice_ratelimited(
+				"%s: memory squeeze, dropping packet\n",
+				fp->name);
 		}
 
 err_rx:

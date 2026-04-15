@@ -55,11 +55,6 @@ static int ndesc_get_tx_status(struct stmmac_extra_stats *x,
 	return ret;
 }
 
-static int ndesc_get_tx_len(struct dma_desc *p)
-{
-	return (le32_to_cpu(p->des1) & RDES1_BUFFER1_SIZE_MASK);
-}
-
 /* This function verifies if each incoming frame has some errors
  * and, if required, updates the multicast statistics.
  * In case of success, it returns good_frame because the GMAC device
@@ -113,8 +108,8 @@ static int ndesc_get_rx_status(struct stmmac_extra_stats *x,
 	return ret;
 }
 
-static void ndesc_init_rx_desc(struct dma_desc *p, int disable_rx_ic, int mode,
-			       int end, int bfsize)
+static void ndesc_init_rx_desc(struct dma_desc *p, int disable_rx_ic,
+			       u8 descriptor_mode, int end, int bfsize)
 {
 	int bfsize1;
 
@@ -123,7 +118,7 @@ static void ndesc_init_rx_desc(struct dma_desc *p, int disable_rx_ic, int mode,
 	bfsize1 = min(bfsize, BUF_SIZE_2KiB - 1);
 	p->des1 |= cpu_to_le32(bfsize1 & RDES1_BUFFER1_SIZE_MASK);
 
-	if (mode == STMMAC_CHAIN_MODE)
+	if (descriptor_mode == STMMAC_CHAIN_MODE)
 		ndesc_rx_set_on_chain(p, end);
 	else
 		ndesc_rx_set_on_ring(p, end, bfsize);
@@ -132,18 +127,13 @@ static void ndesc_init_rx_desc(struct dma_desc *p, int disable_rx_ic, int mode,
 		p->des1 |= cpu_to_le32(RDES1_DISABLE_IC);
 }
 
-static void ndesc_init_tx_desc(struct dma_desc *p, int mode, int end)
+static void ndesc_init_tx_desc(struct dma_desc *p, u8 descriptor_mode, int end)
 {
 	p->des0 &= cpu_to_le32(~TDES0_OWN);
-	if (mode == STMMAC_CHAIN_MODE)
+	if (descriptor_mode == STMMAC_CHAIN_MODE)
 		ndesc_tx_set_on_chain(p);
 	else
 		ndesc_end_tx_desc_on_ring(p, end);
-}
-
-static int ndesc_get_tx_owner(struct dma_desc *p)
-{
-	return (le32_to_cpu(p->des0) & TDES0_OWN) >> 31;
 }
 
 static void ndesc_set_tx_owner(struct dma_desc *p)
@@ -156,25 +146,21 @@ static void ndesc_set_rx_owner(struct dma_desc *p, int disable_rx_ic)
 	p->des0 |= cpu_to_le32(RDES0_OWN);
 }
 
-static int ndesc_get_tx_ls(struct dma_desc *p)
-{
-	return (le32_to_cpu(p->des1) & TDES1_LAST_SEGMENT) >> 30;
-}
-
-static void ndesc_release_tx_desc(struct dma_desc *p, int mode)
+static void ndesc_release_tx_desc(struct dma_desc *p, u8 descriptor_mode)
 {
 	int ter = (le32_to_cpu(p->des1) & TDES1_END_RING) >> 25;
 
 	memset(p, 0, offsetof(struct dma_desc, des2));
-	if (mode == STMMAC_CHAIN_MODE)
+	if (descriptor_mode == STMMAC_CHAIN_MODE)
 		ndesc_tx_set_on_chain(p);
 	else
 		ndesc_end_tx_desc_on_ring(p, ter);
 }
 
 static void ndesc_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
-				  bool csum_flag, int mode, bool tx_own,
-				  bool ls, unsigned int tot_pkt_len)
+				  bool csum_flag, u8 descriptor_mode,
+				  bool tx_own, bool ls,
+				  unsigned int tot_pkt_len)
 {
 	u32 tdes1 = le32_to_cpu(p->des1);
 
@@ -191,7 +177,7 @@ static void ndesc_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
 
 	p->des1 = cpu_to_le32(tdes1);
 
-	if (mode == STMMAC_CHAIN_MODE)
+	if (descriptor_mode == STMMAC_CHAIN_MODE)
 		norm_set_tx_desc_len_on_chain(p, len);
 	else
 		norm_set_tx_desc_len_on_ring(p, len);
@@ -291,14 +277,11 @@ static void ndesc_clear(struct dma_desc *p)
 const struct stmmac_desc_ops ndesc_ops = {
 	.tx_status = ndesc_get_tx_status,
 	.rx_status = ndesc_get_rx_status,
-	.get_tx_len = ndesc_get_tx_len,
 	.init_rx_desc = ndesc_init_rx_desc,
 	.init_tx_desc = ndesc_init_tx_desc,
-	.get_tx_owner = ndesc_get_tx_owner,
 	.release_tx_desc = ndesc_release_tx_desc,
 	.prepare_tx_desc = ndesc_prepare_tx_desc,
 	.set_tx_ic = ndesc_set_tx_ic,
-	.get_tx_ls = ndesc_get_tx_ls,
 	.set_tx_owner = ndesc_set_tx_owner,
 	.set_rx_owner = ndesc_set_rx_owner,
 	.get_rx_frame_len = ndesc_get_rx_frame_len,

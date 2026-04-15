@@ -19,6 +19,9 @@ if test -f "$build_include"; then
 	build_dir="$mk_build_dir"
 fi
 
+# Source settings for timeout value (also used by ksft runner)
+source "$current_dir"/settings
+
 # This test requires kernel source and the *.gcda data therein
 # Locate the top level of the kernel source, and the net/rds
 # subfolder with the appropriate *.gcno object files
@@ -194,8 +197,8 @@ set +e
 echo running RDS tests...
 echo Traces will be logged to "$TRACE_FILE"
 rm -f "$TRACE_FILE"
-strace -T -tt -o "$TRACE_FILE" python3 "$(dirname "$0")/test.py" --timeout 400 -d "$LOG_DIR" \
-       -l "$PLOSS" -c "$PCORRUPT" -u "$PDUP"
+strace -T -tt -o "$TRACE_FILE" python3 "$(dirname "$0")/test.py" \
+	--timeout "$timeout" -d "$LOG_DIR" -l "$PLOSS" -c "$PCORRUPT" -u "$PDUP"
 
 test_rc=$?
 dmesg > "${LOG_DIR}/dmesg.out"

@@ -12,6 +12,8 @@
 #include "npc.h"
 #include "rvu_npc_fs.h"
 #include "rvu_npc_hash.h"
+#include "cn20k/reg.h"
+#include "cn20k/npc.h"
 
 static const char * const npc_flow_names[] = {
 	[NPC_DMAC]	= "dmac",
@@ -81,19 +83,26 @@ const char *npc_get_field_name(u8 hdr)
 /* Compute keyword masks and figure out the number of keywords a field
  * spans in the key.
  */
-static void npc_set_kw_masks(struct npc_mcam *mcam, u8 type,
+static void npc_set_kw_masks(struct rvu *rvu, struct npc_mcam *mcam, u8 type,
 			     u8 nr_bits, int start_kwi, int offset, u8 intf)
 {
 	struct npc_key_field *field = &mcam->rx_key_fields[type];
 	u8 bits_in_kw;
 	int max_kwi;
 
-	if (mcam->banks_per_entry == 1)
-		max_kwi = 1; /* NPC_MCAM_KEY_X1 */
-	else if (mcam->banks_per_entry == 2)
-		max_kwi = 3; /* NPC_MCAM_KEY_X2 */
-	else
-		max_kwi = 6; /* NPC_MCAM_KEY_X4 */
+	if (is_cn20k(rvu->pdev)) {
+		if (mcam->banks_per_entry == 1)
+			max_kwi = 3; /* NPC_MCAM_KEY_X2 */
+		else
+			max_kwi = 7; /* NPC_MCAM_KEY_X4 */
+	} else {
+		if (mcam->banks_per_entry == 1)
+			max_kwi = 1; /* NPC_MCAM_KEY_X1 */
+		else if (mcam->banks_per_entry == 2)
+			max_kwi = 3; /* NPC_MCAM_KEY_X2 */
+		else
+			max_kwi = 6; /* NPC_MCAM_KEY_X4 */
+	}
 
 	if (is_npc_intf_tx(intf))
 		field = &mcam->tx_key_fields[type];
@@ -155,7 +164,8 @@ static bool npc_is_same(struct npc_key_field *input,
 		     sizeof(struct npc_layer_mdata)) == 0;
 }
 
-static void npc_set_layer_mdata(struct npc_mcam *mcam, enum key_fields type,
+static void npc_set_layer_mdata(struct rvu *rvu,
+				struct npc_mcam *mcam, enum key_fields type,
 				u64 cfg, u8 lid, u8 lt, u8 intf)
 {
 	struct npc_key_field *input = &mcam->rx_key_fields[type];
@@ -165,13 +175,17 @@ static void npc_set_layer_mdata(struct npc_mcam *mcam, enum key_fields type,
 
 	input->layer_mdata.hdr = FIELD_GET(NPC_HDR_OFFSET, cfg);
 	input->layer_mdata.key = FIELD_GET(NPC_KEY_OFFSET, cfg);
-	input->layer_mdata.len = FIELD_GET(NPC_BYTESM, cfg) + 1;
+	if (is_cn20k(rvu->pdev))
+		input->layer_mdata.len = FIELD_GET(NPC_CN20K_BYTESM, cfg) + 1;
+	else
+		input->layer_mdata.len = FIELD_GET(NPC_BYTESM, cfg) + 1;
 	input->layer_mdata.ltype = lt;
 	input->layer_mdata.lid = lid;
 }
 
 static bool npc_check_overlap_fields(struct npc_key_field *input1,
-				     struct npc_key_field *input2)
+				     struct npc_key_field *input2,
+				     int max_kw)
 {
 	int kwi;
 
@@ -182,7 +196,7 @@ static bool npc_check_overlap_fields(struct npc_key_field *input1,
 	    input1->layer_mdata.ltype != input2->layer_mdata.ltype)
 		return false;
 
-	for (kwi = 0; kwi < NPC_MAX_KWS_IN_KEY; kwi++) {
+	for (kwi = 0; kwi < max_kw; kwi++) {
 		if (input1->kw_mask[kwi] & input2->kw_mask[kwi])
 			return true;
 	}
@@ -202,6 +216,7 @@ static bool npc_check_overlap(struct rvu *rvu, int blkaddr,
 	struct npc_key_field *dummy, *input;
 	int start_kwi, offset;
 	u8 nr_bits, lid, lt, ld;
+	int extr, kws;
 	u64 cfg;
 
 	dummy = &mcam->rx_key_fields[NPC_UNKNOWN];
@@ -212,6 +227,11 @@ static bool npc_check_overlap(struct rvu *rvu, int blkaddr,
 		input = &mcam->tx_key_fields[type];
 	}
 
+	kws = NPC_KWS_IN_KEY_SZ_7;
+
+	if (is_cn20k(rvu->pdev))
+		goto skip_cn10k_config;
+
 	for (lid = start_lid; lid < NPC_MAX_LID; lid++) {
 		for (lt = 0; lt < NPC_MAX_LT; lt++) {
 			for (ld = 0; ld < NPC_MAX_LD; ld++) {
@@ -221,8 +241,8 @@ static bool npc_check_overlap(struct rvu *rvu, int blkaddr,
 				if (!FIELD_GET(NPC_LDATA_EN, cfg))
 					continue;
 				memset(dummy, 0, sizeof(struct npc_key_field));
-				npc_set_layer_mdata(mcam, NPC_UNKNOWN, cfg,
-						    lid, lt, intf);
+				npc_set_layer_mdata(rvu, mcam, NPC_UNKNOWN,
+						    cfg, lid, lt, intf);
 				/* exclude input */
 				if (npc_is_same(input, dummy))
 					continue;
@@ -230,14 +250,47 @@ static bool npc_check_overlap(struct rvu *rvu, int blkaddr,
 				offset = (dummy->layer_mdata.key * 8) % 64;
 				nr_bits = dummy->layer_mdata.len * 8;
 				/* form KW masks */
-				npc_set_kw_masks(mcam, NPC_UNKNOWN, nr_bits,
-						 start_kwi, offset, intf);
+				npc_set_kw_masks(rvu, mcam, NPC_UNKNOWN,
+						 nr_bits, start_kwi,
+						 offset, intf);
 				/* check any input field bits falls in any
 				 * other field bits.
 				 */
-				if (npc_check_overlap_fields(dummy, input))
+				if (npc_check_overlap_fields(dummy, input, kws))
 					return true;
 			}
+		}
+	}
+	return false;
+
+skip_cn10k_config:
+	for (extr = 0 ; extr < rvu->hw->npc_kex_extr; extr++) {
+		lid = CN20K_GET_EXTR_LID(intf, extr);
+		if (lid < start_lid)
+			continue;
+		for (lt = 0; lt < NPC_MAX_LT; lt++) {
+			cfg = CN20K_GET_EXTR_LT(intf, extr, lt);
+			if (!FIELD_GET(NPC_LDATA_EN, cfg))
+				continue;
+
+			memset(dummy, 0, sizeof(struct npc_key_field));
+			npc_set_layer_mdata(rvu, mcam, NPC_UNKNOWN, cfg,
+					    lid, lt, intf);
+			/* exclude input */
+			if (npc_is_same(input, dummy))
+				continue;
+			start_kwi = dummy->layer_mdata.key / 8;
+			offset = (dummy->layer_mdata.key * 8) % 64;
+			nr_bits = dummy->layer_mdata.len * 8;
+			/* form KW masks */
+			npc_set_kw_masks(rvu, mcam, NPC_UNKNOWN, nr_bits,
+					 start_kwi, offset, intf);
+			/* check any input field bits falls in any other
+			 * field bits
+			 */
+			if (npc_check_overlap_fields(dummy, input,
+						     NPC_KWS_IN_KEY_SZ_8))
+				return true;
 		}
 	}
 
@@ -253,7 +306,8 @@ static bool npc_check_field(struct rvu *rvu, int blkaddr, enum key_fields type,
 	return true;
 }
 
-static void npc_scan_exact_result(struct npc_mcam *mcam, u8 bit_number,
+static void npc_scan_exact_result(struct rvu *rvu,
+				  struct npc_mcam *mcam, u8 bit_number,
 				  u8 key_nibble, u8 intf)
 {
 	u8 offset = (key_nibble * 4) % 64; /* offset within key word */
@@ -269,16 +323,75 @@ static void npc_scan_exact_result(struct npc_mcam *mcam, u8 bit_number,
 	default:
 		return;
 	}
-	npc_set_kw_masks(mcam, type, nr_bits, kwi, offset, intf);
+	npc_set_kw_masks(rvu, mcam, type, nr_bits, kwi, offset, intf);
 }
 
-static void npc_scan_parse_result(struct npc_mcam *mcam, u8 bit_number,
+static void npc_cn20k_scan_parse_result(struct rvu *rvu, struct npc_mcam *mcam,
+					u8 bit_number, u8 key_nibble, u8 intf)
+{
+	u8 offset = (key_nibble * 4) % 64; /* offset within key word */
+	u8 kwi = (key_nibble * 4) / 64; /* which word in key */
+	u8 nr_bits = 4; /* bits in a nibble */
+	u8 type;
+
+	switch (bit_number) {
+	case 0 ... 2:
+		type = NPC_CHAN;
+		break;
+	case 3:
+		type = NPC_ERRLEV;
+		break;
+	case 4 ... 5:
+		type = NPC_ERRCODE;
+		break;
+	case 6:
+		type = NPC_LXMB;
+		break;
+	case 8:
+		type = NPC_LA;
+		break;
+	case 10:
+		type = NPC_LB;
+		break;
+	case 12:
+		type = NPC_LC;
+		break;
+	case 14:
+		type = NPC_LD;
+		break;
+	case 16:
+		type = NPC_LE;
+		break;
+	case 18:
+		type = NPC_LF;
+		break;
+	case 20:
+		type = NPC_LG;
+		break;
+	case 22:
+		type = NPC_LH;
+		break;
+	default:
+		return;
+	}
+
+	npc_set_kw_masks(rvu, mcam, type, nr_bits, kwi, offset, intf);
+}
+
+static void npc_scan_parse_result(struct rvu *rvu,
+				  struct npc_mcam *mcam, u8 bit_number,
 				  u8 key_nibble, u8 intf)
 {
 	u8 offset = (key_nibble * 4) % 64; /* offset within key word */
 	u8 kwi = (key_nibble * 4) / 64; /* which word in key */
 	u8 nr_bits = 4; /* bits in a nibble */
 	u8 type;
+
+	if (is_cn20k(rvu->pdev)) {
+		npc_cn20k_scan_parse_result(rvu, mcam, bit_number,
+					    key_nibble, intf);
+		return;
+	}
 
 	switch (bit_number) {
 	case 0 ... 2:
@@ -322,7 +435,7 @@ static void npc_scan_parse_result(struct npc_mcam *mcam, u8 bit_number,
 		return;
 	}
 
-	npc_set_kw_masks(mcam, type, nr_bits, kwi, offset, intf);
+	npc_set_kw_masks(rvu, mcam, type, nr_bits, kwi, offset, intf);
 }
 
 static void npc_handle_multi_layer_fields(struct rvu *rvu, int blkaddr, u8 intf)
@@ -343,8 +456,13 @@ static void npc_handle_multi_layer_fields(struct rvu *rvu, int blkaddr, u8 intf)
 	/* Inner VLAN TCI for double tagged frames */
 	struct npc_key_field *vlan_tag3;
 	u64 *features;
+	int i, max_kw;
 	u8 start_lid;
-	int i;
+
+	if (is_cn20k(rvu->pdev))
+		max_kw = NPC_KWS_IN_KEY_SZ_8;
+	else
+		max_kw = NPC_KWS_IN_KEY_SZ_7;
 
 	key_fields = mcam->rx_key_fields;
 	features = &mcam->rx_features;
@@ -382,7 +500,7 @@ static void npc_handle_multi_layer_fields(struct rvu *rvu, int blkaddr, u8 intf)
 
 	/* if key profile programmed extracts Ethertype from multiple layers */
 	if (etype_ether->nr_kws && etype_tag1->nr_kws) {
-		for (i = 0; i < NPC_MAX_KWS_IN_KEY; i++) {
+		for (i = 0; i < max_kw; i++) {
 			if (etype_ether->kw_mask[i] != etype_tag1->kw_mask[i]) {
 				dev_err(rvu->dev, "mkex: Etype pos is different for untagged and tagged pkts.\n");
 				goto vlan_tci;
@@ -391,7 +509,7 @@ static void npc_handle_multi_layer_fields(struct rvu *rvu, int blkaddr, u8 intf)
 		key_fields[NPC_ETYPE] = *etype_tag1;
 	}
 	if (etype_ether->nr_kws && etype_tag2->nr_kws) {
-		for (i = 0; i < NPC_MAX_KWS_IN_KEY; i++) {
+		for (i = 0; i < max_kw; i++) {
 			if (etype_ether->kw_mask[i] != etype_tag2->kw_mask[i]) {
 				dev_err(rvu->dev, "mkex: Etype pos is different for untagged and double tagged pkts.\n");
 				goto vlan_tci;
@@ -400,7 +518,7 @@ static void npc_handle_multi_layer_fields(struct rvu *rvu, int blkaddr, u8 intf)
 		key_fields[NPC_ETYPE] = *etype_tag2;
 	}
 	if (etype_tag1->nr_kws && etype_tag2->nr_kws) {
-		for (i = 0; i < NPC_MAX_KWS_IN_KEY; i++) {
+		for (i = 0; i < max_kw; i++) {
 			if (etype_tag1->kw_mask[i] != etype_tag2->kw_mask[i]) {
 				dev_err(rvu->dev, "mkex: Etype pos is different for tagged and double tagged pkts.\n");
 				goto vlan_tci;
@@ -431,7 +549,7 @@ vlan_tci:
 
 	/* if key profile extracts outer vlan tci from multiple layers */
 	if (vlan_tag1->nr_kws && vlan_tag2->nr_kws) {
-		for (i = 0; i < NPC_MAX_KWS_IN_KEY; i++) {
+		for (i = 0; i < max_kw; i++) {
 			if (vlan_tag1->kw_mask[i] != vlan_tag2->kw_mask[i]) {
 				dev_err(rvu->dev, "mkex: Out vlan tci pos is different for tagged and double tagged pkts.\n");
 				goto done;
@@ -466,7 +584,11 @@ static void npc_scan_ldata(struct rvu *rvu, int blkaddr, u8 lid,
 	/* starting KW index and starting bit position */
 	int start_kwi, offset;
 
-	nr_bytes = FIELD_GET(NPC_BYTESM, cfg) + 1;
+	if (is_cn20k(rvu->pdev))
+		nr_bytes = FIELD_GET(NPC_CN20K_BYTESM, cfg) + 1;
+	else
+		nr_bytes = FIELD_GET(NPC_BYTESM, cfg) + 1;
+
 	hdr = FIELD_GET(NPC_HDR_OFFSET, cfg);
 	key = FIELD_GET(NPC_KEY_OFFSET, cfg);
 
@@ -489,11 +611,12 @@ do {									       \
 		if ((hstart) >= hdr &&					       \
 		    ((hstart) + (hlen)) <= (hdr + nr_bytes)) {	               \
 			bit_offset = (hdr + nr_bytes - (hstart) - (hlen)) * 8; \
-			npc_set_layer_mdata(mcam, (name), cfg, lid, lt, intf); \
+			npc_set_layer_mdata(rvu, mcam, (name), cfg, lid, lt,   \
+									intf); \
 			offset += bit_offset;				       \
 			start_kwi += offset / 64;			       \
 			offset %= 64;					       \
-			npc_set_kw_masks(mcam, (name), (hlen) * 8,	       \
+			npc_set_kw_masks(rvu, mcam, (name), (hlen) * 8,	       \
 					 start_kwi, offset, intf);	       \
 		}							       \
 	}								       \
@@ -636,6 +759,7 @@ static int npc_scan_kex(struct rvu *rvu, int blkaddr, u8 intf)
 	u8 lid, lt, ld, bitnr;
 	u64 cfg, masked_cfg;
 	u8 key_nibble = 0;
+	int extr;
 
 	/* Scan and note how parse result is going to be in key.
 	 * A bit set in PARSE_NIBBLE_ENA corresponds to a nibble from
@@ -643,10 +767,22 @@ static int npc_scan_kex(struct rvu *rvu, int blkaddr, u8 intf)
 	 * will be concatenated in key.
 	 */
 	cfg = rvu_read64(rvu, blkaddr, NPC_AF_INTFX_KEX_CFG(intf));
-	masked_cfg = cfg & NPC_PARSE_NIBBLE;
-	for_each_set_bit(bitnr, (unsigned long *)&masked_cfg, 31) {
-		npc_scan_parse_result(mcam, bitnr, key_nibble, intf);
-		key_nibble++;
+	if (is_cn20k(rvu->pdev)) {
+		masked_cfg = cfg & NPC_CN20K_PARSE_NIBBLE;
+		for_each_set_bit(bitnr, (unsigned long *)&masked_cfg,
+				 NPC_CN20K_TOTAL_NIBBLE) {
+			npc_scan_parse_result(rvu, mcam, bitnr,
+					      key_nibble, intf);
+			key_nibble++;
+		}
+	} else {
+		masked_cfg = cfg & NPC_PARSE_NIBBLE;
+		for_each_set_bit(bitnr, (unsigned long *)&masked_cfg,
+				 NPC_TOTAL_NIBBLE) {
+			npc_scan_parse_result(rvu, mcam, bitnr,
+					      key_nibble, intf);
+			key_nibble++;
+		}
 	}
 
 	/* Ignore exact match bits for mcam entries except the first rule
@@ -656,9 +792,12 @@ static int npc_scan_kex(struct rvu *rvu, int blkaddr, u8 intf)
 	masked_cfg = cfg & NPC_EXACT_NIBBLE;
 	bitnr = NPC_EXACT_NIBBLE_START;
 	for_each_set_bit_from(bitnr, (unsigned long *)&masked_cfg, NPC_EXACT_NIBBLE_END + 1) {
-		npc_scan_exact_result(mcam, bitnr, key_nibble, intf);
+		npc_scan_exact_result(rvu, mcam, bitnr, key_nibble, intf);
 		key_nibble++;
 	}
+
+	if (is_cn20k(rvu->pdev))
+		goto skip_cn10k_config;
 
 	/* Scan and note how layer data is going to be in key */
 	for (lid = 0; lid < NPC_MAX_LID; lid++) {
@@ -675,6 +814,19 @@ static int npc_scan_kex(struct rvu *rvu, int blkaddr, u8 intf)
 		}
 	}
 
+	return 0;
+
+skip_cn10k_config:
+	for (extr = 0 ; extr < rvu->hw->npc_kex_extr; extr++) {
+		lid = CN20K_GET_EXTR_LID(intf, extr);
+		for (lt = 0; lt < NPC_MAX_LT; lt++) {
+			cfg = CN20K_GET_EXTR_LT(intf, extr, lt);
+			if (!FIELD_GET(NPC_LDATA_EN, cfg))
+				continue;
+			npc_scan_ldata(rvu, blkaddr, lid, lt, cfg,
+				       intf);
+		}
+	}
 	return 0;
 }
 
@@ -751,15 +903,17 @@ static int npc_check_unsupported_flows(struct rvu *rvu, u64 features, u8 intf)
  * dont care.
  */
 void npc_update_entry(struct rvu *rvu, enum key_fields type,
-		      struct mcam_entry *entry, u64 val_lo,
+		      struct mcam_entry_mdata *mdata, u64 val_lo,
 		      u64 val_hi, u64 mask_lo, u64 mask_hi, u8 intf)
 {
+	u64 kw_mask[NPC_KWS_IN_KEY_SZ_MAX] = { 0 };
+	u64 kw[NPC_KWS_IN_KEY_SZ_MAX] = { 0 };
 	struct npc_mcam *mcam = &rvu->hw->mcam;
-	struct mcam_entry dummy = { {0} };
 	struct npc_key_field *field;
 	u64 kw1, kw2, kw3;
+	u64 *val, *mask;
+	int i, max_kw;
 	u8 shift;
-	int i;
 
 	field = &mcam->rx_key_fields[type];
 	if (is_npc_intf_tx(intf))
@@ -768,17 +922,22 @@ void npc_update_entry(struct rvu *rvu, enum key_fields type,
 	if (!field->nr_kws)
 		return;
 
-	for (i = 0; i < NPC_MAX_KWS_IN_KEY; i++) {
+	if (is_cn20k(rvu->pdev))
+		max_kw = NPC_KWS_IN_KEY_SZ_8;
+	else
+		max_kw = NPC_KWS_IN_KEY_SZ_7;
+
+	for (i = 0; i < max_kw; i++) {
 		if (!field->kw_mask[i])
 			continue;
 		/* place key value in kw[x] */
 		shift = __ffs64(field->kw_mask[i]);
 		/* update entry value */
 		kw1 = (val_lo << shift) & field->kw_mask[i];
-		dummy.kw[i] = kw1;
+		kw[i] = kw1;
 		/* update entry mask */
 		kw1 = (mask_lo << shift) & field->kw_mask[i];
-		dummy.kw_mask[i] = kw1;
+		kw_mask[i] = kw1;
 
 		if (field->nr_kws == 1)
 			break;
@@ -788,12 +947,12 @@ void npc_update_entry(struct rvu *rvu, enum key_fields type,
 			kw2 = shift ? val_lo >> (64 - shift) : 0;
 			kw2 |= (val_hi << shift);
 			kw2 &= field->kw_mask[i + 1];
-			dummy.kw[i + 1] = kw2;
+			kw[i + 1] = kw2;
 			/* update entry mask */
 			kw2 = shift ? mask_lo >> (64 - shift) : 0;
 			kw2 |= (mask_hi << shift);
 			kw2 &= field->kw_mask[i + 1];
-			dummy.kw_mask[i + 1] = kw2;
+			kw_mask[i + 1] = kw2;
 			break;
 		}
 		/* place remaining bits of key value in kw[x + 1], kw[x + 2] */
@@ -804,34 +963,40 @@ void npc_update_entry(struct rvu *rvu, enum key_fields type,
 			kw2 &= field->kw_mask[i + 1];
 			kw3 = shift ? val_hi >> (64 - shift) : 0;
 			kw3 &= field->kw_mask[i + 2];
-			dummy.kw[i + 1] = kw2;
-			dummy.kw[i + 2] = kw3;
+			kw[i + 1] = kw2;
+			kw[i + 2] = kw3;
 			/* update entry mask */
 			kw2 = shift ? mask_lo >> (64 - shift) : 0;
 			kw2 |= (mask_hi << shift);
 			kw2 &= field->kw_mask[i + 1];
 			kw3 = shift ? mask_hi >> (64 - shift) : 0;
 			kw3 &= field->kw_mask[i + 2];
-			dummy.kw_mask[i + 1] = kw2;
-			dummy.kw_mask[i + 2] = kw3;
+			kw_mask[i + 1] = kw2;
+			kw_mask[i + 2] = kw3;
 			break;
 		}
 	}
 	/* dummy is ready with values and masks for given key
 	 * field now clear and update input entry with those
 	 */
-	for (i = 0; i < NPC_MAX_KWS_IN_KEY; i++) {
+
+	val = mdata->kw;
+	mask = mdata->kw_mask;
+
+	for (i = 0; i < max_kw; i++, val++, mask++) {
 		if (!field->kw_mask[i])
 			continue;
-		entry->kw[i] &= ~field->kw_mask[i];
-		entry->kw_mask[i] &= ~field->kw_mask[i];
 
-		entry->kw[i] |= dummy.kw[i];
-		entry->kw_mask[i] |= dummy.kw_mask[i];
+		*val &= ~field->kw_mask[i];
+		*mask &= ~field->kw_mask[i];
+
+		*val |= kw[i];
+		*mask |= kw_mask[i];
 	}
 }
 
-static void npc_update_ipv6_flow(struct rvu *rvu, struct mcam_entry *entry,
+static void npc_update_ipv6_flow(struct rvu *rvu,
+				 struct mcam_entry_mdata *mdata,
 				 u64 features, struct flow_msg *pkt,
 				 struct flow_msg *mask,
 				 struct rvu_npc_mcam_rule *output, u8 intf)
@@ -857,7 +1022,7 @@ static void npc_update_ipv6_flow(struct rvu *rvu, struct mcam_entry *entry,
 		val_hi = (u64)src_ip[0] << 32 | src_ip[1];
 		val_lo = (u64)src_ip[2] << 32 | src_ip[3];
 
-		npc_update_entry(rvu, NPC_SIP_IPV6, entry, val_lo, val_hi,
+		npc_update_entry(rvu, NPC_SIP_IPV6, mdata, val_lo, val_hi,
 				 mask_lo, mask_hi, intf);
 		memcpy(opkt->ip6src, pkt->ip6src, sizeof(opkt->ip6src));
 		memcpy(omask->ip6src, mask->ip6src, sizeof(omask->ip6src));
@@ -871,14 +1036,15 @@ static void npc_update_ipv6_flow(struct rvu *rvu, struct mcam_entry *entry,
 		val_hi = (u64)dst_ip[0] << 32 | dst_ip[1];
 		val_lo = (u64)dst_ip[2] << 32 | dst_ip[3];
 
-		npc_update_entry(rvu, NPC_DIP_IPV6, entry, val_lo, val_hi,
+		npc_update_entry(rvu, NPC_DIP_IPV6, mdata, val_lo, val_hi,
 				 mask_lo, mask_hi, intf);
 		memcpy(opkt->ip6dst, pkt->ip6dst, sizeof(opkt->ip6dst));
 		memcpy(omask->ip6dst, mask->ip6dst, sizeof(omask->ip6dst));
 	}
 }
 
-static void npc_update_vlan_features(struct rvu *rvu, struct mcam_entry *entry,
+static void npc_update_vlan_features(struct rvu *rvu,
+				     struct mcam_entry_mdata *mdata,
 				     u64 features, u8 intf)
 {
 	bool ctag = !!(features & BIT_ULL(NPC_VLAN_ETYPE_CTAG));
@@ -887,24 +1053,24 @@ static void npc_update_vlan_features(struct rvu *rvu, struct mcam_entry *entry,
 
 	/* If only VLAN id is given then always match outer VLAN id */
 	if (vid && !ctag && !stag) {
-		npc_update_entry(rvu, NPC_LB, entry,
+		npc_update_entry(rvu, NPC_LB, mdata,
 				 NPC_LT_LB_STAG_QINQ | NPC_LT_LB_CTAG, 0,
 				 NPC_LT_LB_STAG_QINQ & NPC_LT_LB_CTAG, 0, intf);
 		return;
 	}
 	if (ctag)
-		npc_update_entry(rvu, NPC_LB, entry, NPC_LT_LB_CTAG, 0,
+		npc_update_entry(rvu, NPC_LB, mdata, NPC_LT_LB_CTAG, 0,
 				 ~0ULL, 0, intf);
 	if (stag)
-		npc_update_entry(rvu, NPC_LB, entry, NPC_LT_LB_STAG_QINQ, 0,
+		npc_update_entry(rvu, NPC_LB, mdata, NPC_LT_LB_STAG_QINQ, 0,
 				 ~0ULL, 0, intf);
 }
 
-static void npc_update_flow(struct rvu *rvu, struct mcam_entry *entry,
-			    u64 features, struct flow_msg *pkt,
-			    struct flow_msg *mask,
-			    struct rvu_npc_mcam_rule *output, u8 intf,
-			    int blkaddr)
+void npc_update_flow(struct rvu *rvu, struct mcam_entry_mdata *mdata,
+		     u64 features, struct flow_msg *pkt,
+		     struct flow_msg *mask,
+		     struct rvu_npc_mcam_rule *output, u8 intf,
+		     int blkaddr)
 {
 	u64 dmac_mask = ether_addr_to_u64(mask->dmac);
 	u64 smac_mask = ether_addr_to_u64(mask->smac);
@@ -918,39 +1084,39 @@ static void npc_update_flow(struct rvu *rvu, struct mcam_entry *entry,
 
 	/* For tcp/udp/sctp LTYPE should be present in entry */
 	if (features & BIT_ULL(NPC_IPPROTO_TCP))
-		npc_update_entry(rvu, NPC_LD, entry, NPC_LT_LD_TCP,
+		npc_update_entry(rvu, NPC_LD, mdata, NPC_LT_LD_TCP,
 				 0, ~0ULL, 0, intf);
 	if (features & BIT_ULL(NPC_IPPROTO_UDP))
-		npc_update_entry(rvu, NPC_LD, entry, NPC_LT_LD_UDP,
+		npc_update_entry(rvu, NPC_LD, mdata, NPC_LT_LD_UDP,
 				 0, ~0ULL, 0, intf);
 	if (features & BIT_ULL(NPC_IPPROTO_SCTP))
-		npc_update_entry(rvu, NPC_LD, entry, NPC_LT_LD_SCTP,
+		npc_update_entry(rvu, NPC_LD, mdata, NPC_LT_LD_SCTP,
 				 0, ~0ULL, 0, intf);
 	if (features & BIT_ULL(NPC_IPPROTO_ICMP))
-		npc_update_entry(rvu, NPC_LD, entry, NPC_LT_LD_ICMP,
+		npc_update_entry(rvu, NPC_LD, mdata, NPC_LT_LD_ICMP,
 				 0, ~0ULL, 0, intf);
 	if (features & BIT_ULL(NPC_IPPROTO_ICMP6))
-		npc_update_entry(rvu, NPC_LD, entry, NPC_LT_LD_ICMP6,
+		npc_update_entry(rvu, NPC_LD, mdata, NPC_LT_LD_ICMP6,
 				 0, ~0ULL, 0, intf);
 
 	/* For AH, LTYPE should be present in entry */
 	if (features & BIT_ULL(NPC_IPPROTO_AH))
-		npc_update_entry(rvu, NPC_LD, entry, NPC_LT_LD_AH,
+		npc_update_entry(rvu, NPC_LD, mdata, NPC_LT_LD_AH,
 				 0, ~0ULL, 0, intf);
 	/* For ESP, LTYPE should be present in entry */
 	if (features & BIT_ULL(NPC_IPPROTO_ESP))
-		npc_update_entry(rvu, NPC_LE, entry, NPC_LT_LE_ESP,
+		npc_update_entry(rvu, NPC_LE, mdata, NPC_LT_LE_ESP,
 				 0, ~0ULL, 0, intf);
 
 	if (features & BIT_ULL(NPC_LXMB)) {
 		output->lxmb = is_broadcast_ether_addr(pkt->dmac) ? 2 : 1;
-		npc_update_entry(rvu, NPC_LXMB, entry, output->lxmb, 0,
+		npc_update_entry(rvu, NPC_LXMB, mdata, output->lxmb, 0,
 				 output->lxmb, 0, intf);
 	}
 #define NPC_WRITE_FLOW(field, member, val_lo, val_hi, mask_lo, mask_hi)	      \
 do {									      \
 	if (features & BIT_ULL((field))) {				      \
-		npc_update_entry(rvu, (field), entry, (val_lo), (val_hi),     \
+		npc_update_entry(rvu, (field), mdata, (val_lo), (val_hi),     \
 				 (mask_lo), (mask_hi), intf);		      \
 		memcpy(&opkt->member, &pkt->member, sizeof(pkt->member));     \
 		memcpy(&omask->member, &mask->member, sizeof(mask->member));  \
@@ -1038,10 +1204,10 @@ do {									      \
 
 	NPC_WRITE_FLOW(NPC_IPFRAG_IPV6, next_header, pkt->next_header, 0,
 		       mask->next_header, 0);
-	npc_update_ipv6_flow(rvu, entry, features, pkt, mask, output, intf);
-	npc_update_vlan_features(rvu, entry, features, intf);
+	npc_update_ipv6_flow(rvu, mdata, features, pkt, mask, output, intf);
+	npc_update_vlan_features(rvu, mdata, features, intf);
 
-	npc_update_field_hash(rvu, intf, entry, blkaddr, features,
+	npc_update_field_hash(rvu, intf, mdata, blkaddr, features,
 			      pkt, mask, opkt, omask);
 }
 
@@ -1082,6 +1248,10 @@ static void rvu_mcam_remove_counter_from_rule(struct rvu *rvu, u16 pcifunc,
 					      struct rvu_npc_mcam_rule *rule)
 {
 	struct npc_mcam *mcam = &rvu->hw->mcam;
+
+	/* There is no counter allotted for cn20k */
+	if (is_cn20k(rvu->pdev))
+		return;
 
 	mutex_lock(&mcam->lock);
 
@@ -1129,8 +1299,29 @@ static int npc_mcast_update_action_index(struct rvu *rvu, struct npc_install_flo
 	return 0;
 }
 
+void
+npc_populate_mcam_mdata(struct rvu *rvu,
+			struct mcam_entry_mdata *mdata,
+			struct cn20k_mcam_entry *cn20k_entry,
+			struct mcam_entry *entry)
+{
+	if (is_cn20k(rvu->pdev)) {
+		mdata->kw = cn20k_entry->kw;
+		mdata->kw_mask = cn20k_entry->kw_mask;
+		mdata->action = &cn20k_entry->action;
+		mdata->vtag_action = &cn20k_entry->vtag_action;
+		mdata->max_kw = NPC_KWS_IN_KEY_SZ_8;
+		return;
+	}
+	mdata->kw = entry->kw;
+	mdata->kw_mask = entry->kw_mask;
+	mdata->action = &entry->action;
+	mdata->vtag_action = &entry->vtag_action;
+	mdata->max_kw = NPC_KWS_IN_KEY_SZ_7;
+}
+
 static int npc_update_rx_entry(struct rvu *rvu, struct rvu_pfvf *pfvf,
-			       struct mcam_entry *entry,
+			       struct mcam_entry_mdata *mdata,
 			       struct npc_install_flow_req *req,
 			       u16 target, bool pf_set_vfs_mac)
 {
@@ -1141,7 +1332,7 @@ static int npc_update_rx_entry(struct rvu *rvu, struct rvu_pfvf *pfvf,
 	if (rswitch->mode == DEVLINK_ESWITCH_MODE_SWITCHDEV && pf_set_vfs_mac)
 		req->chan_mask = 0x0; /* Do not care channel */
 
-	npc_update_entry(rvu, NPC_CHAN, entry, req->channel, 0, req->chan_mask,
+	npc_update_entry(rvu, NPC_CHAN, mdata, req->channel, 0, req->chan_mask,
 			 0, NIX_INTF_RX);
 
 	*(u64 *)&action = 0x00;
@@ -1173,12 +1364,12 @@ static int npc_update_rx_entry(struct rvu *rvu, struct rvu_pfvf *pfvf,
 			action.match_id = req->match_id;
 	}
 
-	entry->action = *(u64 *)&action;
+	*mdata->action = *(u64 *)&action;
 
 	/* VTAG0 starts at 0th byte of LID_B.
 	 * VTAG1 starts at 4th byte of LID_B.
 	 */
-	entry->vtag_action = FIELD_PREP(RX_VTAG0_VALID_BIT, req->vtag0_valid) |
+	*mdata->vtag_action = FIELD_PREP(RX_VTAG0_VALID_BIT, req->vtag0_valid) |
 			     FIELD_PREP(RX_VTAG0_TYPE_MASK, req->vtag0_type) |
 			     FIELD_PREP(RX_VTAG0_LID_MASK, NPC_LID_LB) |
 			     FIELD_PREP(RX_VTAG0_RELPTR_MASK, 0) |
@@ -1191,7 +1382,7 @@ static int npc_update_rx_entry(struct rvu *rvu, struct rvu_pfvf *pfvf,
 }
 
 static int npc_update_tx_entry(struct rvu *rvu, struct rvu_pfvf *pfvf,
-			       struct mcam_entry *entry,
+			       struct mcam_entry_mdata *mdata,
 			       struct npc_install_flow_req *req, u16 target)
 {
 	struct nix_tx_action action;
@@ -1204,7 +1395,7 @@ static int npc_update_tx_entry(struct rvu *rvu, struct rvu_pfvf *pfvf,
 	if (is_pffunc_af(req->hdr.pcifunc))
 		mask = 0;
 
-	npc_update_entry(rvu, NPC_PF_FUNC, entry, (__force u16)htons(target),
+	npc_update_entry(rvu, NPC_PF_FUNC, mdata, (__force u16)htons(target),
 			 0, mask, 0, NIX_INTF_TX);
 
 	*(u64 *)&action = 0x00;
@@ -1217,12 +1408,12 @@ static int npc_update_tx_entry(struct rvu *rvu, struct rvu_pfvf *pfvf,
 
 	action.match_id = req->match_id;
 
-	entry->action = *(u64 *)&action;
+	*mdata->action = *(u64 *)&action;
 
 	/* VTAG0 starts at 0th byte of LID_B.
 	 * VTAG1 starts at 4th byte of LID_B.
 	 */
-	entry->vtag_action = FIELD_PREP(TX_VTAG0_DEF_MASK, req->vtag0_def) |
+	*mdata->vtag_action = FIELD_PREP(TX_VTAG0_DEF_MASK, req->vtag0_def) |
 			     FIELD_PREP(TX_VTAG0_OP_MASK, req->vtag0_op) |
 			     FIELD_PREP(TX_VTAG0_LID_MASK, NPC_LID_LA) |
 			     FIELD_PREP(TX_VTAG0_RELPTR_MASK, 20) |
@@ -1241,9 +1432,12 @@ static int npc_install_flow(struct rvu *rvu, int blkaddr, u16 target,
 			    bool pf_set_vfs_mac)
 {
 	struct rvu_npc_mcam_rule *def_ucast_rule = pfvf->def_ucast_rule;
+	struct npc_cn20k_mcam_write_entry_req cn20k_wreq = { 0 };
 	u64 features, installed_features, missing_features = 0;
 	struct npc_mcam_write_entry_req write_req = { 0 };
 	struct npc_mcam *mcam = &rvu->hw->mcam;
+	struct cn20k_mcam_entry *cn20k_entry;
+	struct mcam_entry_mdata mdata = { };
 	struct rvu_npc_mcam_rule dummy = { 0 };
 	struct rvu_npc_mcam_rule *rule;
 	u16 owner = req->hdr.pcifunc;
@@ -1255,18 +1449,23 @@ static int npc_install_flow(struct rvu *rvu, int blkaddr, u16 target,
 
 	installed_features = req->features;
 	features = req->features;
-	entry = &write_req.entry_data;
 	entry_index = req->entry;
 
-	npc_update_flow(rvu, entry, features, &req->packet, &req->mask, &dummy,
+	cn20k_entry = &cn20k_wreq.entry_data;
+	entry = &write_req.entry_data;
+
+	npc_populate_mcam_mdata(rvu, &mdata, cn20k_entry, entry);
+
+	npc_update_flow(rvu, &mdata, features, &req->packet, &req->mask, &dummy,
 			req->intf, blkaddr);
 
 	if (is_npc_intf_rx(req->intf)) {
-		err = npc_update_rx_entry(rvu, pfvf, entry, req, target, pf_set_vfs_mac);
+		err = npc_update_rx_entry(rvu, pfvf, &mdata, req, target,
+					  pf_set_vfs_mac);
 		if (err)
 			return err;
 	} else {
-		err = npc_update_tx_entry(rvu, pfvf, entry, req, target);
+		err = npc_update_tx_entry(rvu, pfvf, &mdata, req, target);
 		if (err)
 			return err;
 	}
@@ -1286,7 +1485,7 @@ static int npc_install_flow(struct rvu *rvu, int blkaddr, u16 target,
 		missing_features = (def_ucast_rule->features ^ features) &
 					def_ucast_rule->features;
 		if (missing_features)
-			npc_update_flow(rvu, entry, missing_features,
+			npc_update_flow(rvu, &mdata, missing_features,
 					&def_ucast_rule->packet,
 					&def_ucast_rule->mask,
 					&dummy, req->intf,
@@ -1303,51 +1502,91 @@ find_rule:
 		new = true;
 	}
 
-	/* allocate new counter if rule has no counter */
-	if (!req->default_rule && req->set_cntr && !rule->has_cntr)
-		rvu_mcam_add_counter_to_rule(rvu, owner, rule, rsp);
+	if (!is_cn20k(rvu->pdev)) {
+		write_req.hdr.pcifunc = owner;
 
-	/* if user wants to delete an existing counter for a rule then
-	 * free the counter
-	 */
-	if (!req->set_cntr && rule->has_cntr)
-		rvu_mcam_remove_counter_from_rule(rvu, owner, rule);
+		/* allocate new counter if rule has no counter */
+		if (!req->default_rule && req->set_cntr && !rule->has_cntr)
+			rvu_mcam_add_counter_to_rule(rvu, owner, rule, rsp);
 
-	write_req.hdr.pcifunc = owner;
+		/* if user wants to delete an existing counter for a rule then
+		 * free the counter
+		 */
+		if (!req->set_cntr && rule->has_cntr)
+			rvu_mcam_remove_counter_from_rule(rvu, owner, rule);
 
-	/* AF owns the default rules so change the owner just to relax
-	 * the checks in rvu_mbox_handler_npc_mcam_write_entry
-	 */
-	if (req->default_rule)
-		write_req.hdr.pcifunc = 0;
+		/* AF owns the default rules so change the owner just to relax
+		 * the checks in rvu_mbox_handler_npc_mcam_write_entry
+		 */
+		if (req->default_rule)
+			write_req.hdr.pcifunc = 0;
 
-	write_req.entry = entry_index;
-	write_req.intf = req->intf;
-	write_req.enable_entry = (u8)enable;
-	/* if counter is available then clear and use it */
-	if (req->set_cntr && rule->has_cntr) {
-		rvu_write64(rvu, blkaddr, NPC_AF_MATCH_STATX(rule->cntr), req->cntr_val);
-		write_req.set_cntr = 1;
-		write_req.cntr = rule->cntr;
+		write_req.entry = entry_index;
+		write_req.intf = req->intf;
+		write_req.enable_entry = (u8)enable;
+		/* if counter is available then clear and use it */
+		if (req->set_cntr && rule->has_cntr) {
+			rvu_write64(rvu, blkaddr,
+				    NPC_AF_MATCH_STATX(rule->cntr),
+				    req->cntr_val);
+			write_req.set_cntr = 1;
+			write_req.cntr = rule->cntr;
+		}
+		goto update_rule;
 	}
+
+	cn20k_wreq.hdr.pcifunc = owner;
+
+	if (req->default_rule)
+		cn20k_wreq.hdr.pcifunc = 0;
+
+	cn20k_wreq.entry = entry_index;
+	cn20k_wreq.intf = req->intf;
+	cn20k_wreq.enable_entry = (u8)enable;
+	cn20k_wreq.hw_prio = req->hw_prio;
+	cn20k_wreq.req_kw_type = req->req_kw_type;
+
+update_rule:
 
 	/* update rule */
 	memcpy(&rule->packet, &dummy.packet, sizeof(rule->packet));
 	memcpy(&rule->mask, &dummy.mask, sizeof(rule->mask));
 	rule->entry = entry_index;
-	memcpy(&rule->rx_action, &entry->action, sizeof(struct nix_rx_action));
-	if (is_npc_intf_tx(req->intf))
-		memcpy(&rule->tx_action, &entry->action,
-		       sizeof(struct nix_tx_action));
-	rule->vtag_action = entry->vtag_action;
+	if (is_cn20k(rvu->pdev)) {
+		memcpy(&rule->rx_action, &cn20k_entry->action,
+		       sizeof(struct nix_rx_action));
+		if (is_npc_intf_tx(req->intf))
+			memcpy(&rule->tx_action, &cn20k_entry->action,
+			       sizeof(struct nix_tx_action));
+		rule->vtag_action = cn20k_entry->vtag_action;
+	} else {
+		memcpy(&rule->rx_action, &entry->action,
+		       sizeof(struct nix_rx_action));
+		if (is_npc_intf_tx(req->intf))
+			memcpy(&rule->tx_action, &entry->action,
+			       sizeof(struct nix_tx_action));
+		rule->vtag_action = entry->vtag_action;
+	}
+
 	rule->features = installed_features;
 	rule->default_rule = req->default_rule;
 	rule->owner = owner;
 	rule->enable = enable;
-	rule->chan_mask = write_req.entry_data.kw_mask[0] & NPC_KEX_CHAN_MASK;
-	rule->chan = write_req.entry_data.kw[0] & NPC_KEX_CHAN_MASK;
+
+	if (is_cn20k(rvu->pdev)) {
+		rule->chan_mask = cn20k_wreq.entry_data.kw_mask[0] &
+						NPC_KEX_CHAN_MASK;
+		rule->chan = cn20k_wreq.entry_data.kw[0] &
+					NPC_KEX_CHAN_MASK;
+	} else {
+		rule->chan_mask = write_req.entry_data.kw_mask[0] &
+						NPC_KEX_CHAN_MASK;
+		rule->chan = write_req.entry_data.kw[0] & NPC_KEX_CHAN_MASK;
+	}
+
 	rule->chan &= rule->chan_mask;
 	rule->lxmb = dummy.lxmb;
+	rule->hw_prio = req->hw_prio;
 	if (is_npc_intf_tx(req->intf))
 		rule->intf = pfvf->nix_tx_intf;
 	else
@@ -1359,8 +1598,14 @@ find_rule:
 		pfvf->def_ucast_rule = rule;
 
 	/* write to mcam entry registers */
-	err = rvu_mbox_handler_npc_mcam_write_entry(rvu, &write_req,
-						    &write_rsp);
+	if (is_cn20k(rvu->pdev))
+		err = rvu_mbox_handler_npc_cn20k_mcam_write_entry(rvu,
+								  &cn20k_wreq,
+								  &write_rsp);
+	else
+		err = rvu_mbox_handler_npc_mcam_write_entry(rvu, &write_req,
+							    &write_rsp);
+
 	if (err) {
 		rvu_mcam_remove_counter_from_rule(rvu, owner, rule);
 		if (new) {
@@ -1393,6 +1638,79 @@ find_rule:
 	return 0;
 }
 
+static int
+rvu_npc_free_entry_for_flow_install(struct rvu *rvu, u16 pcifunc,
+				    bool free_entry, int mcam_idx)
+{
+	struct npc_mcam_free_entry_req free_req = { 0 };
+	struct msg_rsp rsp;
+	int rc;
+
+	if (!free_entry)
+		return 0;
+
+	free_req.hdr.pcifunc = pcifunc;
+	free_req.entry = mcam_idx;
+	rc = rvu_mbox_handler_npc_mcam_free_entry(rvu, &free_req, &rsp);
+	return rc;
+}
+
+static int
+rvu_npc_alloc_entry_for_flow_install(struct rvu *rvu,
+				     struct npc_install_flow_req *fl_req,
+				     u16 *mcam_idx, u8 *kw_type,
+				     bool *allocated)
+{
+	struct npc_mcam_alloc_entry_req entry_req;
+	struct npc_mcam_alloc_entry_rsp entry_rsp;
+	struct npc_get_num_kws_req kws_req;
+	struct npc_get_num_kws_rsp kws_rsp;
+	int off, kw_bits, rc;
+	u8 *src, *dst;
+
+	if (!is_cn20k(rvu->pdev)) {
+		*kw_type = -1;
+		return 0;
+	}
+
+	if (!fl_req->alloc_entry) {
+		*kw_type = -1;
+		return 0;
+	}
+
+	off = offsetof(struct npc_install_flow_req, packet);
+	dst = (u8 *)&kws_req.fl + off;
+	src = (u8 *)fl_req + off;
+	memcpy(dst, src, sizeof(struct npc_install_flow_req) - off);
+	rc = rvu_mbox_handler_npc_get_num_kws(rvu, &kws_req, &kws_rsp);
+	if (rc)
+		return rc;
+
+	kw_bits = kws_rsp.kws * 64;
+
+	*kw_type = NPC_MCAM_KEY_X2;
+	if (kw_bits > 256)
+		*kw_type = NPC_MCAM_KEY_X4;
+
+	memset(&entry_req, 0, sizeof(entry_req));
+	memset(&entry_rsp, 0, sizeof(entry_rsp));
+
+	entry_req.hdr.pcifunc = fl_req->hdr.pcifunc;
+	entry_req.ref_prio = fl_req->ref_prio;
+	entry_req.ref_entry = fl_req->ref_entry;
+	entry_req.kw_type = *kw_type;
+	entry_req.count = 1;
+	rc = rvu_mbox_handler_npc_mcam_alloc_entry(rvu,
+						   &entry_req,
+						   &entry_rsp);
+	if (rc)
+		return rc;
+
+	*mcam_idx = entry_rsp.entry_list[0];
+	*allocated = true;
+	return 0;
+}
+
 int rvu_mbox_handler_npc_install_flow(struct rvu *rvu,
 				      struct npc_install_flow_req *req,
 				      struct npc_install_flow_rsp *rsp)
@@ -1403,7 +1721,9 @@ int rvu_mbox_handler_npc_install_flow(struct rvu *rvu,
 	int blkaddr, nixlf, err;
 	struct rvu_pfvf *pfvf;
 	bool pf_set_vfs_mac = false;
+	bool allocated = false;
 	bool enable = true;
+	u8 kw_type;
 	u16 target;
 
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
@@ -1414,6 +1734,17 @@ int rvu_mbox_handler_npc_install_flow(struct rvu *rvu,
 
 	if (!is_npc_interface_valid(rvu, req->intf))
 		return NPC_FLOW_INTF_INVALID;
+
+	err = rvu_npc_alloc_entry_for_flow_install(rvu, req, &req->entry,
+						   &kw_type, &allocated);
+	if (err) {
+		dev_err(rvu->dev,
+			"%s: Error to alloc mcam entry for pcifunc=%#x\n",
+			__func__, req->hdr.pcifunc);
+		return err;
+	}
+
+	req->entry = npc_cn20k_vidx2idx(req->entry);
 
 	/* If DMAC is not extracted in MKEX, rules installed by AF
 	 * can rely on L2MB bit set by hardware protocol checker for
@@ -1428,6 +1759,10 @@ int rvu_mbox_handler_npc_install_flow(struct rvu *rvu,
 			dev_warn(rvu->dev,
 				 "%s: mkex profile does not support ucast flow\n",
 				 __func__);
+			rvu_npc_free_entry_for_flow_install(rvu,
+							    req->hdr.pcifunc,
+							    allocated,
+							    req->entry);
 			return NPC_FLOW_NOT_SUPPORTED;
 		}
 
@@ -1435,6 +1770,10 @@ int rvu_mbox_handler_npc_install_flow(struct rvu *rvu,
 			dev_warn(rvu->dev,
 				 "%s: mkex profile does not support bcast/mcast flow",
 				 __func__);
+			rvu_npc_free_entry_for_flow_install(rvu,
+							    req->hdr.pcifunc,
+							    allocated,
+							    req->entry);
 			return NPC_FLOW_NOT_SUPPORTED;
 		}
 
@@ -1444,8 +1783,11 @@ int rvu_mbox_handler_npc_install_flow(struct rvu *rvu,
 	}
 
 process_flow:
-	if (from_vf && req->default_rule)
+	if (from_vf && req->default_rule) {
+		rvu_npc_free_entry_for_flow_install(rvu, req->hdr.pcifunc,
+						    allocated, req->entry);
 		return NPC_FLOW_VF_PERM_DENIED;
+	}
 
 	/* Each PF/VF info is maintained in struct rvu_pfvf.
 	 * rvu_pfvf for the target PF/VF needs to be retrieved
@@ -1473,8 +1815,11 @@ process_flow:
 		req->chan_mask = 0xFFF;
 
 	err = npc_check_unsupported_flows(rvu, req->features, req->intf);
-	if (err)
+	if (err) {
+		rvu_npc_free_entry_for_flow_install(rvu, req->hdr.pcifunc,
+						    allocated, req->entry);
 		return NPC_FLOW_NOT_SUPPORTED;
+	}
 
 	pfvf = rvu_get_pfvf(rvu, target);
 
@@ -1493,8 +1838,11 @@ process_flow:
 
 	/* Proceed if NIXLF is attached or not for TX rules */
 	err = nix_get_nixlf(rvu, target, &nixlf, NULL);
-	if (err && is_npc_intf_rx(req->intf) && !pf_set_vfs_mac)
+	if (err && is_npc_intf_rx(req->intf) && !pf_set_vfs_mac) {
+		rvu_npc_free_entry_for_flow_install(rvu, req->hdr.pcifunc,
+						    allocated, req->entry);
 		return NPC_FLOW_NO_NIXLF;
+	}
 
 	/* don't enable rule when nixlf not attached or initialized */
 	if (!(is_nixlf_attached(rvu, target) &&
@@ -1509,20 +1857,31 @@ process_flow:
 		enable = true;
 
 	/* Do not allow requests from uninitialized VFs */
-	if (from_vf && !enable)
+	if (from_vf && !enable) {
+		rvu_npc_free_entry_for_flow_install(rvu, req->hdr.pcifunc,
+						    allocated, req->entry);
 		return NPC_FLOW_VF_NOT_INIT;
+	}
 
 	/* PF sets VF mac & VF NIXLF is not attached, update the mac addr */
 	if (pf_set_vfs_mac && !enable) {
 		ether_addr_copy(pfvf->default_mac, req->packet.dmac);
 		ether_addr_copy(pfvf->mac_addr, req->packet.dmac);
 		set_bit(PF_SET_VF_MAC, &pfvf->flags);
+		rvu_npc_free_entry_for_flow_install(rvu, req->hdr.pcifunc,
+						    allocated, req->entry);
 		return 0;
 	}
 
 	mutex_lock(&rswitch->switch_lock);
 	err = npc_install_flow(rvu, blkaddr, target, nixlf, pfvf,
 			       req, rsp, enable, pf_set_vfs_mac);
+	if (err)
+		rvu_npc_free_entry_for_flow_install(rvu, req->hdr.pcifunc,
+						    allocated, req->entry);
+
+	rsp->kw_type = kw_type;
+	rsp->entry = req->entry;
 	mutex_unlock(&rswitch->switch_lock);
 
 	return err;
@@ -1558,6 +1917,10 @@ int rvu_mbox_handler_npc_delete_flow(struct rvu *rvu,
 	u16 pcifunc = req->hdr.pcifunc;
 	struct list_head del_list;
 	int blkaddr;
+
+	req->entry = npc_cn20k_vidx2idx(req->entry);
+	req->start = npc_cn20k_vidx2idx(req->start);
+	req->end = npc_cn20k_vidx2idx(req->end);
 
 	INIT_LIST_HEAD(&del_list);
 
@@ -1601,28 +1964,49 @@ static int npc_update_dmac_value(struct rvu *rvu, int npcblkaddr,
 				 struct rvu_npc_mcam_rule *rule,
 				 struct rvu_pfvf *pfvf)
 {
+	struct npc_cn20k_mcam_write_entry_req cn20k_wreq = { 0 };
 	struct npc_mcam_write_entry_req write_req = { 0 };
-	struct mcam_entry *entry = &write_req.entry_data;
+	struct mcam_entry_mdata mdata = { };
 	struct npc_mcam *mcam = &rvu->hw->mcam;
+	struct cn20k_mcam_entry *cn20k_entry;
+	struct mcam_entry *entry;
+	u8 intf, enable, hw_prio;
 	struct msg_rsp rsp;
-	u8 intf, enable;
 	int err;
+
+	cn20k_entry = &cn20k_wreq.entry_data;
+	entry = &write_req.entry_data;
+	npc_populate_mcam_mdata(rvu, &mdata, cn20k_entry, entry);
 
 	ether_addr_copy(rule->packet.dmac, pfvf->mac_addr);
 
-	npc_read_mcam_entry(rvu, mcam, npcblkaddr, rule->entry,
-			    entry, &intf,  &enable);
+	if (is_cn20k(rvu->pdev))
+		npc_cn20k_read_mcam_entry(rvu, npcblkaddr, rule->entry,
+					  cn20k_entry, &intf,
+					  &enable, &hw_prio);
+	else
+		npc_read_mcam_entry(rvu, mcam, npcblkaddr, rule->entry,
+				    entry, &intf, &enable);
 
-	npc_update_entry(rvu, NPC_DMAC, entry,
+	npc_update_entry(rvu, NPC_DMAC, &mdata,
 			 ether_addr_to_u64(pfvf->mac_addr), 0,
 			 0xffffffffffffull, 0, intf);
 
-	write_req.hdr.pcifunc = rule->owner;
-	write_req.entry = rule->entry;
-	write_req.intf = pfvf->nix_rx_intf;
-
 	mutex_unlock(&mcam->lock);
-	err = rvu_mbox_handler_npc_mcam_write_entry(rvu, &write_req, &rsp);
+	if (is_cn20k(rvu->pdev)) {
+		cn20k_wreq.hdr.pcifunc = rule->owner;
+		cn20k_wreq.entry = rule->entry;
+		cn20k_wreq.intf = pfvf->nix_rx_intf;
+		err = rvu_mbox_handler_npc_cn20k_mcam_write_entry(rvu,
+								  &cn20k_wreq,
+								  &rsp);
+	} else {
+		write_req.hdr.pcifunc = rule->owner;
+		write_req.entry = rule->entry;
+		write_req.intf = pfvf->nix_rx_intf;
+		err = rvu_mbox_handler_npc_mcam_write_entry(rvu, &write_req,
+							    &rsp);
+	}
 	mutex_lock(&mcam->lock);
 
 	return err;
@@ -1710,10 +2094,12 @@ int npc_install_mcam_drop_rule(struct rvu *rvu, int mcam_idx, u16 *counter_idx,
 			       u64 chan_val, u64 chan_mask, u64 exact_val, u64 exact_mask,
 			       u64 bcast_mcast_val, u64 bcast_mcast_mask)
 {
+	struct npc_cn20k_mcam_write_entry_req cn20k_req = { 0 };
 	struct npc_mcam_alloc_counter_req cntr_req = { 0 };
 	struct npc_mcam_alloc_counter_rsp cntr_rsp = { 0 };
 	struct npc_mcam_write_entry_req req = { 0 };
 	struct npc_mcam *mcam = &rvu->hw->mcam;
+	struct mcam_entry_mdata mdata = { };
 	struct rvu_npc_mcam_rule *rule;
 	struct msg_rsp rsp;
 	bool enabled;
@@ -1757,25 +2143,50 @@ int npc_install_mcam_drop_rule(struct rvu *rvu, int mcam_idx, u16 *counter_idx,
 	/* Reserve slot 0 */
 	npc_mcam_rsrcs_reserve(rvu, blkaddr, mcam_idx);
 
-	/* Allocate counter for this single drop on non hit rule */
-	cntr_req.hdr.pcifunc = 0; /* AF request */
-	cntr_req.contig = true;
-	cntr_req.count = 1;
-	err = rvu_mbox_handler_npc_mcam_alloc_counter(rvu, &cntr_req, &cntr_rsp);
-	if (err) {
-		dev_err(rvu->dev, "%s: Err to allocate cntr for drop rule (err=%d)\n",
-			__func__, err);
-		return	-EFAULT;
+	if (!is_cn20k(rvu->pdev)) {
+		/* Allocate counter for this single drop on non hit rule */
+		cntr_req.hdr.pcifunc = 0; /* AF request */
+		cntr_req.contig = true;
+		cntr_req.count = 1;
+		err = rvu_mbox_handler_npc_mcam_alloc_counter(rvu, &cntr_req,
+							      &cntr_rsp);
+		if (err) {
+			dev_err(rvu->dev,
+				"%s: Err to allocate cntr for drop rule (err=%d)\n",
+				__func__, err);
+			return	-EFAULT;
+		}
+		*counter_idx = cntr_rsp.cntr;
 	}
-	*counter_idx = cntr_rsp.cntr;
+
+	npc_populate_mcam_mdata(rvu, &mdata,
+				&cn20k_req.entry_data,
+				&req.entry_data);
 
 	/* Fill in fields for this mcam entry */
-	npc_update_entry(rvu, NPC_EXACT_RESULT, &req.entry_data, exact_val, 0,
+	npc_update_entry(rvu, NPC_EXACT_RESULT, &mdata, exact_val, 0,
 			 exact_mask, 0, NIX_INTF_RX);
-	npc_update_entry(rvu, NPC_CHAN, &req.entry_data, chan_val, 0,
+	npc_update_entry(rvu, NPC_CHAN, &mdata, chan_val, 0,
 			 chan_mask, 0, NIX_INTF_RX);
-	npc_update_entry(rvu, NPC_LXMB, &req.entry_data, bcast_mcast_val, 0,
+	npc_update_entry(rvu, NPC_LXMB, &mdata, bcast_mcast_val, 0,
 			 bcast_mcast_mask, 0, NIX_INTF_RX);
+
+	if (is_cn20k(rvu->pdev)) {
+		cn20k_req.intf = NIX_INTF_RX;
+		cn20k_req.entry = mcam_idx;
+
+		err = rvu_mbox_handler_npc_cn20k_mcam_write_entry(rvu,
+								  &cn20k_req,
+								  &rsp);
+		if (err) {
+			dev_err(rvu->dev,
+				"%s: Installation of single drop on non hit rule at %d failed\n",
+				__func__, mcam_idx);
+			return err;
+		}
+
+		goto enable_entry;
+	}
 
 	req.intf = NIX_INTF_RX;
 	req.set_cntr = true;
@@ -1784,14 +2195,17 @@ int npc_install_mcam_drop_rule(struct rvu *rvu, int mcam_idx, u16 *counter_idx,
 
 	err = rvu_mbox_handler_npc_mcam_write_entry(rvu, &req, &rsp);
 	if (err) {
-		dev_err(rvu->dev, "%s: Installation of single drop on non hit rule at %d failed\n",
+		dev_err(rvu->dev,
+			"%s: Installation of single drop on non hit rule at %d failed\n",
 			__func__, mcam_idx);
 		return err;
 	}
 
-	dev_err(rvu->dev, "%s: Installed single drop on non hit rule at %d, cntr=%d\n",
+	dev_err(rvu->dev,
+		"%s: Installed single drop on non hit rule at %d, cntr=%d\n",
 		__func__, mcam_idx, req.cntr);
 
+enable_entry:
 	/* disable entry at Bank 0, index 0 */
 	npc_enable_mcam_entry(rvu, mcam, blkaddr, mcam_idx, false);
 

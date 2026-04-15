@@ -983,6 +983,38 @@ static int aq_ethtool_set_phy_tunable(struct net_device *ndev,
 	return err;
 }
 
+static bool aq_ethtool_can_read_module_eeprom(struct aq_nic_s *aq_nic)
+{
+	return aq_nic->aq_fw_ops->read_module_eeprom ||
+		aq_nic->aq_hw_ops->hw_read_module_eeprom;
+}
+
+static int aq_ethtool_read_module_eeprom(struct aq_nic_s *aq_nic, u8 dev_addr,
+					 u8 reg_start_addr, int len, u8 *data)
+{
+	const struct aq_fw_ops *fw_ops = aq_nic->aq_fw_ops;
+	const struct aq_hw_ops *hw_ops = aq_nic->aq_hw_ops;
+	int err = -EOPNOTSUPP;
+
+	if (fw_ops->read_module_eeprom) {
+		err = fw_ops->read_module_eeprom(aq_nic->aq_hw, dev_addr,
+						 reg_start_addr, len, data);
+
+		/* If the only error is that the firmware version doesn't
+		 * support reading EEPROM, we can still attempt to read it
+		 * directly from the hardware if supported.
+		 */
+		if (err != -EOPNOTSUPP)
+			return err;
+	}
+
+	if (hw_ops->hw_read_module_eeprom)
+		err = hw_ops->hw_read_module_eeprom(aq_nic->aq_hw, dev_addr,
+						    reg_start_addr, len, data);
+
+	return err;
+}
+
 static int aq_ethtool_get_module_info(struct net_device *ndev,
 				      struct ethtool_modinfo *modinfo)
 {
@@ -992,16 +1024,18 @@ static int aq_ethtool_get_module_info(struct net_device *ndev,
 
 	/* Module EEPROM is only supported for controllers with external PHY */
 	if (aq_nic->aq_nic_cfg.aq_hw_caps->media_type != AQ_HW_MEDIA_TYPE_FIBRE ||
-	    !aq_nic->aq_hw_ops->hw_read_module_eeprom)
+	    !aq_ethtool_can_read_module_eeprom(aq_nic))
 		return -EOPNOTSUPP;
 
-	err = aq_nic->aq_hw_ops->hw_read_module_eeprom(aq_nic->aq_hw,
-		SFF_8472_ID_ADDR, SFF_8472_COMP_ADDR, 1, &compliance_val);
+	err = aq_ethtool_read_module_eeprom(aq_nic, SFF_8472_ID_ADDR,
+					    SFF_8472_COMP_ADDR, 1,
+					    &compliance_val);
 	if (err)
 		return err;
 
-	err = aq_nic->aq_hw_ops->hw_read_module_eeprom(aq_nic->aq_hw,
-		SFF_8472_ID_ADDR, SFF_8472_DOM_TYPE_ADDR, 1, &dom_type);
+	err = aq_ethtool_read_module_eeprom(aq_nic, SFF_8472_ID_ADDR,
+					    SFF_8472_DOM_TYPE_ADDR, 1,
+					    &dom_type);
 	if (err)
 		return err;
 
@@ -1022,7 +1056,7 @@ static int aq_ethtool_get_module_eeprom(struct net_device *ndev,
 	unsigned int first, last, len;
 	int err;
 
-	if (!aq_nic->aq_hw_ops->hw_read_module_eeprom)
+	if (!aq_ethtool_can_read_module_eeprom(aq_nic))
 		return -EOPNOTSUPP;
 
 	first = ee->offset;
@@ -1032,8 +1066,8 @@ static int aq_ethtool_get_module_eeprom(struct net_device *ndev,
 		len = min(last, ETH_MODULE_SFF_8079_LEN);
 		len -= first;
 
-		err = aq_nic->aq_hw_ops->hw_read_module_eeprom(aq_nic->aq_hw,
-			SFF_8472_ID_ADDR, first, len, data);
+		err = aq_ethtool_read_module_eeprom(aq_nic, SFF_8472_ID_ADDR,
+						    first, len, data);
 		if (err)
 			return err;
 
@@ -1045,8 +1079,9 @@ static int aq_ethtool_get_module_eeprom(struct net_device *ndev,
 		len -= first;
 		first -= ETH_MODULE_SFF_8079_LEN;
 
-		err = aq_nic->aq_hw_ops->hw_read_module_eeprom(aq_nic->aq_hw,
-			SFF_8472_DIAGNOSTICS_ADDR, first, len, data);
+		err = aq_ethtool_read_module_eeprom(aq_nic,
+						    SFF_8472_DIAGNOSTICS_ADDR,
+						    first, len, data);
 		if (err)
 			return err;
 	}

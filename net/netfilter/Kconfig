@@ -209,17 +209,6 @@ config NF_CT_PROTO_SCTP
 
 	  If unsure, say Y.
 
-config NF_CT_PROTO_UDPLITE
-	bool 'UDP-Lite protocol connection tracking support'
-	depends on NETFILTER_ADVANCED
-	default y
-	help
-	  With this option enabled, the layer 3 independent connection
-	  tracking code will be able to do state tracking on UDP-Lite
-	  connections.
-
-	  If unsure, say Y.
-
 config NF_CONNTRACK_AMANDA
 	tristate "Amanda backup protocol support"
 	depends on NETFILTER_ADVANCED
@@ -249,7 +238,6 @@ config NF_CONNTRACK_FTP
 
 config NF_CONNTRACK_H323
 	tristate "H.323 protocol support"
-	depends on IPV6 || IPV6=n
 	depends on NETFILTER_ADVANCED
 	help
 	  H.323 is a VoIP signalling protocol from ITU-T. As one of the most
@@ -589,7 +577,6 @@ config NFT_QUOTA
 config NFT_REJECT
 	default m if NETFILTER_ADVANCED=n
 	tristate "Netfilter nf_tables reject support"
-	depends on !NF_TABLES_INET || (IPV6!=m || m)
 	help
 	  This option adds the "reject" expression that you can use to
 	  explicitly deny and notify via TCP reset/ICMP informational errors
@@ -636,7 +623,6 @@ config NFT_XFRM
 
 config NFT_SOCKET
 	tristate "Netfilter nf_tables socket match support"
-	depends on IPV6 || IPV6=n
 	select NF_SOCKET_IPV4
 	select NF_SOCKET_IPV6 if NF_TABLES_IPV6
 	help
@@ -652,7 +638,6 @@ config NFT_OSF
 
 config NFT_TPROXY
 	tristate "Netfilter nf_tables tproxy support"
-	depends on IPV6 || IPV6=n
 	select NF_DEFRAG_IPV4
 	select NF_DEFRAG_IPV6 if NF_TABLES_IPV6
 	select NF_TPROXY_IPV4
@@ -1071,7 +1056,6 @@ config NETFILTER_XT_TARGET_MASQUERADE
 config NETFILTER_XT_TARGET_TEE
 	tristate '"TEE" - packet cloning to alternate destination'
 	depends on NETFILTER_ADVANCED
-	depends on IPV6 || IPV6=n
 	depends on !NF_CONNTRACK || NF_CONNTRACK
 	depends on IP6_NF_IPTABLES || !IP6_NF_IPTABLES
 	select NF_DUP_IPV4
@@ -1084,7 +1068,6 @@ config NETFILTER_XT_TARGET_TPROXY
 	tristate '"TPROXY" target transparent proxying support'
 	depends on NETFILTER_XTABLES
 	depends on NETFILTER_ADVANCED
-	depends on IPV6 || IPV6=n
 	depends on IP6_NF_IPTABLES || IP6_NF_IPTABLES=n
 	depends on IP_NF_MANGLE || NFT_COMPAT
 	select NF_DEFRAG_IPV4
@@ -1126,7 +1109,6 @@ config NETFILTER_XT_TARGET_SECMARK
 
 config NETFILTER_XT_TARGET_TCPMSS
 	tristate '"TCPMSS" target support'
-	depends on IPV6 || IPV6=n
 	default m if NETFILTER_ADVANCED=n
 	help
 	  This option adds a `TCPMSS' target, which allows you to alter the
@@ -1581,7 +1563,6 @@ config NETFILTER_XT_MATCH_SOCKET
 	tristate '"socket" match support'
 	depends on NETFILTER_XTABLES
 	depends on NETFILTER_ADVANCED
-	depends on IPV6 || IPV6=n
 	depends on IP6_NF_IPTABLES || IP6_NF_IPTABLES=n
 	select NF_SOCKET_IPV4
 	select NF_SOCKET_IPV6 if IP6_NF_IPTABLES

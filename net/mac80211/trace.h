@@ -2,7 +2,7 @@
 /*
  * Portions of this file
  * Copyright(c) 2016-2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2024 Intel Corporation
+ * Copyright (C) 2018-2024, 2026 Intel Corporation
  */
 
 #if !defined(__MAC80211_DRIVER_TRACE) || defined(TRACE_HEADER_MULTI_READ)
@@ -37,64 +37,46 @@
 #define VIF_PR_FMT	" vif:%s(%d%s)"
 #define VIF_PR_ARG	__get_str(vif_name), __entry->vif_type, __entry->p2p ? "/p2p" : ""
 
-#define CHANDEF_ENTRY	__field(u32, control_freq)					\
-			__field(u32, freq_offset)					\
-			__field(u32, chan_width)					\
-			__field(u32, center_freq1)					\
-			__field(u32, freq1_offset)					\
-			__field(u32, center_freq2)
-#define CHANDEF_ASSIGN(c)							\
-			__entry->control_freq = (c) ? ((c)->chan ? (c)->chan->center_freq : 0) : 0;	\
-			__entry->freq_offset = (c) ? ((c)->chan ? (c)->chan->freq_offset : 0) : 0;	\
-			__entry->chan_width = (c) ? (c)->width : 0;			\
-			__entry->center_freq1 = (c) ? (c)->center_freq1 : 0;		\
-			__entry->freq1_offset = (c) ? (c)->freq1_offset : 0;		\
-			__entry->center_freq2 = (c) ? (c)->center_freq2 : 0;
-#define CHANDEF_PR_FMT	" chandef(%d.%03d MHz,width:%d,center: %d.%03d/%d MHz)"
-#define CHANDEF_PR_ARG	__entry->control_freq, __entry->freq_offset, __entry->chan_width, \
-			__entry->center_freq1, __entry->freq1_offset, __entry->center_freq2
+#define __CHANDEF_ENTRY(n)								\
+			__field(u32, n##control_freq)					\
+			__field(u32, n##freq_offset)					\
+			__field(u32, n##chan_width)					\
+			__field(u32, n##center_freq1)					\
+			__field(u32, n##freq1_offset)					\
+			__field(u32, n##center_freq2)					\
+			__field(u16, n##punctured)
+#define __CHANDEF_ASSIGN(n, c)								\
+			__entry->n##control_freq = (c) && (c)->chan ?			\
+				(c)->chan->center_freq : 0;				\
+			__entry->n##freq_offset = (c) && (c)->chan ?			\
+				(c)->chan->freq_offset : 0;				\
+			__entry->n##chan_width = (c) ? (c)->width : 0;			\
+			__entry->n##center_freq1 = (c) ? (c)->center_freq1 : 0;		\
+			__entry->n##freq1_offset = (c) ? (c)->freq1_offset : 0;		\
+			__entry->n##center_freq2 = (c) ? (c)->center_freq2 : 0;		\
+			__entry->n##punctured = (c) ? (c)->punctured : 0;
+#define __CHANDEF_PR_FMT(n)								\
+	" " #n "(%d.%03d MHz,width:%d,center: %d.%03d/%d MHz, punct:0x%x)"
+#define __CHANDEF_PR_ARG(n)								\
+			__entry->n##control_freq, __entry->n##freq_offset,		\
+			__entry->n##chan_width, __entry->n##center_freq1,		\
+			__entry->n##freq1_offset, __entry->n##center_freq2,		\
+			__entry->n##punctured
 
-#define MIN_CHANDEF_ENTRY								\
-			__field(u32, min_control_freq)					\
-			__field(u32, min_freq_offset)					\
-			__field(u32, min_chan_width)					\
-			__field(u32, min_center_freq1)					\
-			__field(u32, min_freq1_offset)					\
-			__field(u32, min_center_freq2)
+#define CHANDEF_ENTRY		__CHANDEF_ENTRY()
+#define CHANDEF_ASSIGN(c)	__CHANDEF_ASSIGN(, c)
+#define CHANDEF_PR_FMT		__CHANDEF_PR_FMT(chandef)
+#define CHANDEF_PR_ARG		__CHANDEF_PR_ARG()
 
-#define MIN_CHANDEF_ASSIGN(c)								\
-			__entry->min_control_freq = (c)->chan ? (c)->chan->center_freq : 0;	\
-			__entry->min_freq_offset = (c)->chan ? (c)->chan->freq_offset : 0;	\
-			__entry->min_chan_width = (c)->width;				\
-			__entry->min_center_freq1 = (c)->center_freq1;			\
-			__entry->min_freq1_offset = (c)->freq1_offset;			\
-			__entry->min_center_freq2 = (c)->center_freq2;
-#define MIN_CHANDEF_PR_FMT	" mindef(%d.%03d MHz,width:%d,center: %d.%03d/%d MHz)"
-#define MIN_CHANDEF_PR_ARG	__entry->min_control_freq, __entry->min_freq_offset,	\
-			__entry->min_chan_width,					\
-			__entry->min_center_freq1, __entry->min_freq1_offset,		\
-			__entry->min_center_freq2
+#define MIN_CHANDEF_ENTRY	__CHANDEF_ENTRY(min)
+#define MIN_CHANDEF_ASSIGN(c)	__CHANDEF_ASSIGN(min, c)
+#define MIN_CHANDEF_PR_FMT	__CHANDEF_PR_FMT(mindef)
+#define MIN_CHANDEF_PR_ARG	__CHANDEF_PR_ARG(min)
 
-#define AP_CHANDEF_ENTRY								\
-			__field(u32, ap_control_freq)					\
-			__field(u32, ap_freq_offset)					\
-			__field(u32, ap_chan_width)					\
-			__field(u32, ap_center_freq1)					\
-			__field(u32, ap_freq1_offset)					\
-			__field(u32, ap_center_freq2)
-
-#define AP_CHANDEF_ASSIGN(c)								\
-			__entry->ap_control_freq = (c)->chan ? (c)->chan->center_freq : 0;\
-			__entry->ap_freq_offset = (c)->chan ? (c)->chan->freq_offset : 0;\
-			__entry->ap_chan_width = (c)->chan ? (c)->width : 0;		\
-			__entry->ap_center_freq1 = (c)->chan ? (c)->center_freq1 : 0;	\
-			__entry->ap_freq1_offset = (c)->chan ? (c)->freq1_offset : 0;	\
-			__entry->ap_center_freq2 = (c)->chan ? (c)->center_freq2 : 0;
-#define AP_CHANDEF_PR_FMT	" ap(%d.%03d MHz,width:%d,center: %d.%03d/%d MHz)"
-#define AP_CHANDEF_PR_ARG	__entry->ap_control_freq, __entry->ap_freq_offset,	\
-			__entry->ap_chan_width,						\
-			__entry->ap_center_freq1, __entry->ap_freq1_offset,		\
-			__entry->ap_center_freq2
+#define AP_CHANDEF_ENTRY	__CHANDEF_ENTRY(ap)
+#define AP_CHANDEF_ASSIGN(c)	__CHANDEF_ASSIGN(ap, c)
+#define AP_CHANDEF_PR_FMT	__CHANDEF_PR_FMT(ap)
+#define AP_CHANDEF_PR_ARG	__CHANDEF_PR_ARG(ap)
 
 #define CHANCTX_ENTRY	CHANDEF_ENTRY							\
 			MIN_CHANDEF_ENTRY						\
@@ -1796,9 +1778,8 @@ TRACE_EVENT(drv_switch_vif_chanctx,
 				SWITCH_ENTRY_ASSIGN(vif.vif_type, vif->type);
 				SWITCH_ENTRY_ASSIGN(vif.p2p, vif->p2p);
 				SWITCH_ENTRY_ASSIGN(link_id, link_conf->link_id);
-				strncpy(local_vifs[i].vif.vif_name,
-					sdata->name,
-					sizeof(local_vifs[i].vif.vif_name));
+				strscpy_pad(local_vifs[i].vif.vif_name,
+					    sdata->name);
 				SWITCH_ENTRY_ASSIGN(old_chandef.control_freq,
 						old_ctx->def.chan->center_freq);
 				SWITCH_ENTRY_ASSIGN(old_chandef.freq_offset,
@@ -3382,6 +3363,37 @@ TRACE_EVENT(drv_set_eml_op_mode,
 		" (link:%d control:%02x link_bitmap:%04x)",
 		LOCAL_PR_ARG, VIF_PR_ARG, STA_PR_ARG, __entry->link_id,
 		__entry->control, __entry->link_bitmap
+	)
+);
+
+TRACE_EVENT(drv_nan_peer_sched_changed,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_sta *sta),
+
+	TP_ARGS(local, sdata, sta),
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		STA_ENTRY
+		__array(u8, map_ids, CFG80211_NAN_MAX_PEER_MAPS)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		STA_ASSIGN;
+		for (int i = 0; i < CFG80211_NAN_MAX_PEER_MAPS; i++)
+			__entry->map_ids[i] = sta->nan_sched ?
+					      sta->nan_sched->maps[i].map_id :
+					      0xff;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT  VIF_PR_FMT  STA_PR_FMT
+		" map_ids=[%u, %u]",
+		LOCAL_PR_ARG, VIF_PR_ARG, STA_PR_ARG,
+		__entry->map_ids[0], __entry->map_ids[1]
 	)
 );
 

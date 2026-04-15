@@ -2513,6 +2513,8 @@ int wx_sw_init(struct wx *wx)
 		return -ENOMEM;
 	}
 
+	spin_lock_init(&wx->hw_stats_lock);
+	mutex_init(&wx->reset_lock);
 	bitmap_zero(wx->state, WX_STATE_NBITS);
 	bitmap_zero(wx->flags, WX_PF_FLAGS_NBITS);
 	wx->misc_irq_domain = false;
@@ -2772,6 +2774,15 @@ int wx_fc_enable(struct wx *wx, bool tx_pause, bool rx_pause)
 		}
 	}
 
+	if (rx_pause && tx_pause)
+		wx->fc.mode = wx_fc_full;
+	else if (rx_pause)
+		wx->fc.mode = wx_fc_rx_pause;
+	else if (tx_pause)
+		wx->fc.mode = wx_fc_tx_pause;
+	else
+		wx->fc.mode = wx_fc_none;
+
 	/* Disable any previous flow control settings */
 	mflcn_reg = rd32(wx, WX_MAC_RX_FLOW_CTRL);
 	mflcn_reg &= ~WX_MAC_RX_FLOW_CTRL_RFE;
@@ -2790,7 +2801,9 @@ int wx_fc_enable(struct wx *wx, bool tx_pause, bool rx_pause)
 
 	/* Set up and enable Rx high/low water mark thresholds, enable XON. */
 	if (tx_pause && wx->fc.high_water) {
-		fcrtl = (wx->fc.low_water << 10) | WX_RDB_RFCL_XONE;
+		fcrtl = (wx->fc.low_water << 10);
+		if (wx->mac.type != wx_mac_sp)
+			fcrtl |= WX_RDB_RFCL_XONE;
 		wr32(wx, WX_RDB_RFCL, fcrtl);
 		fcrth = (wx->fc.high_water << 10) | WX_RDB_RFCH_XOFFE;
 	} else {
@@ -2831,6 +2844,21 @@ int wx_fc_enable(struct wx *wx, bool tx_pause, bool rx_pause)
 }
 EXPORT_SYMBOL(wx_fc_enable);
 
+static void wx_update_xoff_rx_lfc(struct wx *wx)
+{
+	struct wx_hw_stats *hwstats = &wx->stats;
+
+	if (wx->fc.mode != wx_fc_full &&
+	    wx->fc.mode != wx_fc_rx_pause)
+		return;
+
+	if (wx->mac.type >= wx_mac_aml)
+		hwstats->lxoffrxc += rd32_wrap(wx, WX_MAC_LXOFFRXC_AML,
+					       &wx->last_stats.lxoffrxc);
+	else
+		hwstats->lxoffrxc += rd64(wx, WX_MAC_LXOFFRXC);
+}
+
 /**
  * wx_update_stats - Update the board statistics counters.
  * @wx: board private structure
@@ -2843,6 +2871,12 @@ void wx_update_stats(struct wx *wx)
 	u64 hw_csum_rx_good = 0, hw_csum_rx_error = 0;
 	u64 restart_queue = 0, tx_busy = 0;
 	u32 i;
+
+	if (!netif_running(wx->netdev) ||
+	    test_bit(WX_STATE_RESETTING, wx->state))
+		return;
+
+	spin_lock(&wx->hw_stats_lock);
 
 	/* gather some stats to the wx struct that are per queue */
 	for (i = 0; i < wx->num_rx_queues; i++) {
@@ -2879,6 +2913,8 @@ void wx_update_stats(struct wx *wx)
 	wx->restart_queue = restart_queue;
 	wx->tx_busy = tx_busy;
 
+	wx_update_xoff_rx_lfc(wx);
+
 	hwstats->gprc += rd32(wx, WX_RDM_PKT_CNT);
 	hwstats->gptc += rd32(wx, WX_TDM_PKT_CNT);
 	hwstats->gorc += rd64(wx, WX_RDM_BYTE_CNT_LSB);
@@ -2893,7 +2929,11 @@ void wx_update_stats(struct wx *wx)
 	hwstats->mptc += rd64(wx, WX_TX_MC_FRAMES_GOOD_L);
 	hwstats->roc += rd32(wx, WX_RX_OVERSIZE_FRAMES_GOOD);
 	hwstats->ruc += rd32(wx, WX_RX_UNDERSIZE_FRAMES_GOOD);
-	hwstats->lxonoffrxc += rd32(wx, WX_MAC_LXONOFFRXC);
+	if (wx->mac.type >= wx_mac_aml)
+		hwstats->lxonrxc += rd32_wrap(wx, WX_MAC_LXONRXC_AML,
+					      &wx->last_stats.lxonrxc);
+	else
+		hwstats->lxonrxc += rd32(wx, WX_MAC_LXONRXC);
 	hwstats->lxontxc += rd32(wx, WX_RDB_LXONTXC);
 	hwstats->lxofftxc += rd32(wx, WX_RDB_LXOFFTXC);
 	hwstats->o2bgptc += rd32(wx, WX_TDM_OS2BMC_CNT);
@@ -2907,11 +2947,12 @@ void wx_update_stats(struct wx *wx)
 		hwstats->fdirmiss += rd32(wx, WX_RDB_FDIR_MISS);
 	}
 
-	/* qmprc is not cleared on read, manual reset it */
-	hwstats->qmprc = 0;
 	for (i = wx->num_vfs * wx->num_rx_queues_per_pool;
 	     i < wx->mac.max_rx_queues; i++)
-		hwstats->qmprc += rd32(wx, WX_PX_MPRC(i));
+		hwstats->qmprc += rd32_wrap(wx, WX_PX_MPRC(i),
+					    &wx->last_stats.qmprc[i]);
+
+	spin_unlock(&wx->hw_stats_lock);
 }
 EXPORT_SYMBOL(wx_update_stats);
 
@@ -2926,8 +2967,11 @@ void wx_clear_hw_cntrs(struct wx *wx)
 {
 	u16 i = 0;
 
-	for (i = 0; i < wx->mac.max_rx_queues; i++)
+	for (i = wx->num_vfs * wx->num_rx_queues_per_pool;
+	     i < wx->mac.max_rx_queues; i++) {
 		wr32(wx, WX_PX_MPRC(i), 0);
+		wx->last_stats.qmprc[i] = 0;
+	}
 
 	rd32(wx, WX_RDM_PKT_CNT);
 	rd32(wx, WX_TDM_PKT_CNT);
@@ -2946,7 +2990,15 @@ void wx_clear_hw_cntrs(struct wx *wx)
 	rd64(wx, WX_RX_LEN_ERROR_FRAMES_L);
 	rd32(wx, WX_RDB_LXONTXC);
 	rd32(wx, WX_RDB_LXOFFTXC);
-	rd32(wx, WX_MAC_LXONOFFRXC);
+	if (wx->mac.type >= wx_mac_aml) {
+		wr32(wx, WX_MAC_LXONRXC_AML, 0);
+		wr32(wx, WX_MAC_LXOFFRXC_AML, 0);
+		wx->last_stats.lxonrxc = 0;
+		wx->last_stats.lxoffrxc = 0;
+	} else {
+		rd32(wx, WX_MAC_LXONRXC);
+		rd64(wx, WX_MAC_LXOFFRXC);
+	}
 }
 EXPORT_SYMBOL(wx_clear_hw_cntrs);
 

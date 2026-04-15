@@ -164,6 +164,7 @@ enum ath12k_dbg_htt_ext_stats_type {
 	ATH12K_DBG_HTT_PDEV_MLO_IPC_STATS			= 64,
 	ATH12K_DBG_HTT_EXT_PDEV_RTT_RESP_STATS			= 65,
 	ATH12K_DBG_HTT_EXT_PDEV_RTT_INITIATOR_STATS		= 66,
+	ATH12K_DBG_HTT_EXT_CHAN_SWITCH_STATS			= 76,
 
 	/* keep this last */
 	ATH12K_DBG_HTT_NUM_EXT_STATS,
@@ -267,6 +268,7 @@ enum ath12k_dbg_htt_tlv_tag {
 	HTT_STATS_PDEV_RTT_HW_STATS_TAG			= 196,
 	HTT_STATS_PDEV_RTT_TBR_SELFGEN_QUEUED_STATS_TAG	= 197,
 	HTT_STATS_PDEV_RTT_TBR_CMD_RESULT_STATS_TAG	= 198,
+	HTT_STATS_CHAN_SWITCH_STATS_TAG			= 213,
 
 	HTT_STATS_MAX_TAG,
 };
@@ -2154,6 +2156,30 @@ struct htt_tx_hwq_stats_cmn_tlv {
 	__le32 mpdu_filt_cnt;
 	__le32 false_mpdu_ack_count;
 	__le32 txq_timeout;
+} __packed;
+
+#define ATH12K_HTT_CHAN_SWITCH_STATS_BUF_LEN	10
+
+#define ATH12K_HTT_STATS_CHAN_SWITCH_BW_MHZ		GENMASK(15, 0)
+#define ATH12K_HTT_STATS_CHAN_SWITCH_BAND_FREQ		GENMASK(31, 16)
+#define ATH12K_HTT_STATS_CHAN_SWITCH_PHY_MODE		GENMASK(7, 0)
+#define ATH12K_HTT_STATS_CHAN_SWITCH_TX_CHAINMASK	GENMASK(15, 8)
+#define ATH12K_HTT_STATS_CHAN_SWITCH_RX_CHAINMASK	GENMASK(23, 16)
+#define ATH12K_HTT_STATS_CHAN_SWITCH_SW_PROFILE		GENMASK(31, 24)
+
+struct ath12k_htt_chan_switch_stats_tlv {
+	struct {
+		__le32 chan_switch_freq;
+		__le32 chan_switch_profile;
+		__le32 chan_switch_time;
+		__le32 cal_module_time;
+		__le32 ini_module_time;
+		__le32 tpc_module_time;
+		__le32 misc_module_time;
+		__le32 ctl_module_time;
+		__le32 reserved;
+	} chan_stats[ATH12K_HTT_CHAN_SWITCH_STATS_BUF_LEN];
+	__le32 switch_count; /* shows how many channel changes have occurred */
 } __packed;
 
 #endif

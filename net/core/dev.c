@@ -1060,16 +1060,18 @@ struct net_device *dev_get_by_napi_id(unsigned int napi_id)
  * This helper is intended for locking net_device after it has been looked up
  * using a lockless lookup helper. Lock prevents the instance from going away.
  */
-struct net_device *__netdev_put_lock(struct net_device *dev, struct net *net)
+struct net_device *
+netdev_put_lock(struct net_device *dev, struct net *net,
+		netdevice_tracker *tracker)
 {
 	netdev_lock(dev);
 	if (dev->reg_state > NETREG_REGISTERED ||
 	    dev->moving_ns || !net_eq(dev_net(dev), net)) {
 		netdev_unlock(dev);
-		dev_put(dev);
+		netdev_put(dev, tracker);
 		return NULL;
 	}
-	dev_put(dev);
+	netdev_put(dev, tracker);
 	return dev;
 }
 
@@ -1182,7 +1184,6 @@ void netdev_copy_name(struct net_device *dev, char *name)
 		strscpy(name, dev->name, IFNAMSIZ);
 	} while (read_seqretry(&netdev_rename_lock, seq));
 }
-EXPORT_IPV6_MOD_GPL(netdev_copy_name);
 
 /**
  *	netdev_get_name - get a netdevice name, knowing its ifindex.
@@ -1312,7 +1313,6 @@ struct net_device *netdev_get_by_flags_rcu(struct net *net, netdevice_tracker *t
 
 	return NULL;
 }
-EXPORT_IPV6_MOD(netdev_get_by_flags_rcu);
 
 /**
  *	dev_valid_name - check if name is okay for network device
@@ -1731,6 +1731,7 @@ int netif_open(struct net_device *dev, struct netlink_ext_ack *extack)
 
 	return ret;
 }
+EXPORT_SYMBOL(netif_open);
 
 static void __dev_close_many(struct list_head *head)
 {
@@ -1756,7 +1757,7 @@ static void __dev_close_many(struct list_head *head)
 		smp_mb__after_atomic(); /* Commit netif_running(). */
 	}
 
-	dev_deactivate_many(head);
+	dev_deactivate_many(head, true);
 
 	list_for_each_entry(dev, head, close_list) {
 		const struct net_device_ops *ops = dev->netdev_ops;
@@ -1837,7 +1838,6 @@ void netif_disable_lro(struct net_device *dev)
 		netdev_unlock_ops(lower_dev);
 	}
 }
-EXPORT_IPV6_MOD(netif_disable_lro);
 
 /**
  *	dev_disable_gro_hw - disable HW Generic Receive Offload on a device
@@ -4103,15 +4103,16 @@ struct sk_buff *validate_xmit_skb_list(struct sk_buff *skb, struct net_device *d
 }
 EXPORT_SYMBOL_GPL(validate_xmit_skb_list);
 
-static void qdisc_pkt_len_segs_init(struct sk_buff *skb)
+static enum skb_drop_reason qdisc_pkt_len_segs_init(struct sk_buff *skb)
 {
 	struct skb_shared_info *shinfo = skb_shinfo(skb);
+	unsigned int hdr_len, tlen;
 	u16 gso_segs;
 
 	qdisc_skb_cb(skb)->pkt_len = skb->len;
 	if (!shinfo->gso_size) {
 		qdisc_skb_cb(skb)->pkt_segs = 1;
-		return;
+		return SKB_NOT_DROPPED_YET;
 	}
 
 	qdisc_skb_cb(skb)->pkt_segs = gso_segs = shinfo->gso_segs;
@@ -4119,44 +4120,49 @@ static void qdisc_pkt_len_segs_init(struct sk_buff *skb)
 	/* To get more precise estimation of bytes sent on wire,
 	 * we add to pkt_len the headers size of all segments
 	 */
-	if (skb_transport_header_was_set(skb)) {
-		unsigned int hdr_len;
 
-		/* mac layer + network layer */
-		if (!skb->encapsulation)
-			hdr_len = skb_transport_offset(skb);
-		else
-			hdr_len = skb_inner_transport_offset(skb);
-
-		/* + transport layer */
-		if (likely(shinfo->gso_type & (SKB_GSO_TCPV4 | SKB_GSO_TCPV6))) {
-			const struct tcphdr *th;
-			struct tcphdr _tcphdr;
-
-			th = skb_header_pointer(skb, hdr_len,
-						sizeof(_tcphdr), &_tcphdr);
-			if (likely(th))
-				hdr_len += __tcp_hdrlen(th);
-		} else if (shinfo->gso_type & SKB_GSO_UDP_L4) {
-			struct udphdr _udphdr;
-
-			if (skb_header_pointer(skb, hdr_len,
-					       sizeof(_udphdr), &_udphdr))
-				hdr_len += sizeof(struct udphdr);
-		}
-
-		if (unlikely(shinfo->gso_type & SKB_GSO_DODGY)) {
-			int payload = skb->len - hdr_len;
-
-			/* Malicious packet. */
-			if (payload <= 0)
-				return;
-			gso_segs = DIV_ROUND_UP(payload, shinfo->gso_size);
-			shinfo->gso_segs = gso_segs;
-			qdisc_skb_cb(skb)->pkt_segs = gso_segs;
-		}
-		qdisc_skb_cb(skb)->pkt_len += (gso_segs - 1) * hdr_len;
+	/* mac layer + network layer */
+	if (!skb->encapsulation) {
+		if (unlikely(!skb_transport_header_was_set(skb)))
+			return SKB_NOT_DROPPED_YET;
+		hdr_len = skb_transport_offset(skb);
+	} else {
+		hdr_len = skb_inner_transport_offset(skb);
 	}
+	/* + transport layer */
+	if (likely(shinfo->gso_type & (SKB_GSO_TCPV4 | SKB_GSO_TCPV6))) {
+		const struct tcphdr *th;
+
+		if (!pskb_may_pull(skb, hdr_len + sizeof(struct tcphdr)))
+			return SKB_DROP_REASON_SKB_BAD_GSO;
+
+		th = (const struct tcphdr *)(skb->data + hdr_len);
+		tlen = __tcp_hdrlen(th);
+		if (tlen < sizeof(*th))
+			return SKB_DROP_REASON_SKB_BAD_GSO;
+		hdr_len += tlen;
+		if (!pskb_may_pull(skb, hdr_len))
+			return SKB_DROP_REASON_SKB_BAD_GSO;
+	} else if (shinfo->gso_type & SKB_GSO_UDP_L4) {
+		if (!pskb_may_pull(skb, hdr_len + sizeof(struct udphdr)))
+			return SKB_DROP_REASON_SKB_BAD_GSO;
+		hdr_len += sizeof(struct udphdr);
+	}
+
+	/* prior pskb_may_pull() might have changed skb->head. */
+	shinfo = skb_shinfo(skb);
+	if (unlikely(shinfo->gso_type & SKB_GSO_DODGY)) {
+		int payload = skb->len - hdr_len;
+
+		/* Malicious packet. */
+		if (payload <= 0)
+			return SKB_DROP_REASON_SKB_BAD_GSO;
+		gso_segs = DIV_ROUND_UP(payload, shinfo->gso_size);
+		shinfo->gso_segs = gso_segs;
+		qdisc_skb_cb(skb)->pkt_segs = gso_segs;
+	}
+	qdisc_skb_cb(skb)->pkt_len += (gso_segs - 1) * hdr_len;
+	return SKB_NOT_DROPPED_YET;
 }
 
 static int dev_qdisc_enqueue(struct sk_buff *skb, struct Qdisc *q,
@@ -4183,7 +4189,7 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 
 	qdisc_calculate_pkt_len(skb, q);
 
-	tcf_set_drop_reason(skb, SKB_DROP_REASON_QDISC_DROP);
+	tcf_set_qdisc_drop_reason(skb, QDISC_DROP_GENERIC);
 
 	if (q->flags & TCQ_F_NOLOCK) {
 		if (q->flags & TCQ_F_CAN_BYPASS && nolock_qdisc_is_empty(q) &&
@@ -4291,8 +4297,8 @@ unlock:
 	spin_unlock(root_lock);
 
 free_skbs:
-	tcf_kfree_skb_list(to_free);
-	tcf_kfree_skb_list(to_free2);
+	tcf_kfree_skb_list(to_free, q, txq, dev);
+	tcf_kfree_skb_list(to_free2, q, txq, dev);
 	return rc;
 }
 
@@ -4761,9 +4767,10 @@ int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
 {
 	struct net_device *dev = skb->dev;
 	struct netdev_queue *txq = NULL;
-	struct Qdisc *q;
-	int rc = -ENOMEM;
+	enum skb_drop_reason reason;
+	int cpu, rc = -ENOMEM;
 	bool again = false;
+	struct Qdisc *q;
 
 	skb_reset_mac_header(skb);
 	skb_assert_len(skb);
@@ -4772,6 +4779,12 @@ int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
 		     (SKBTX_SCHED_TSTAMP | SKBTX_BPF)))
 		__skb_tstamp_tx(skb, NULL, NULL, skb->sk, SCM_TSTAMP_SCHED);
 
+	reason = qdisc_pkt_len_segs_init(skb);
+	if (unlikely(reason)) {
+		dev_core_stats_tx_dropped_inc(dev);
+		kfree_skb_reason(skb, reason);
+		return -EINVAL;
+	}
 	/* Disable soft irqs for various locks below. Also
 	 * stops preemption for RCU.
 	 */
@@ -4779,7 +4792,6 @@ int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
 
 	skb_update_prio(skb);
 
-	qdisc_pkt_len_segs_init(skb);
 	tcx_set_ingress(skb, false);
 #ifdef CONFIG_NET_EGRESS
 	if (static_branch_unlikely(&egress_needed_key)) {
@@ -4832,59 +4844,62 @@ int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
 	 * Check this and shot the lock. It is not prone from deadlocks.
 	 *Either shot noqueue qdisc, it is even simpler 8)
 	 */
-	if (dev->flags & IFF_UP) {
-		int cpu = smp_processor_id(); /* ok because BHs are off */
-
-		if (!netif_tx_owned(txq, cpu)) {
-			bool is_list = false;
-
-			if (dev_xmit_recursion())
-				goto recursion_alert;
-
-			skb = validate_xmit_skb(skb, dev, &again);
-			if (!skb)
-				goto out;
-
-			HARD_TX_LOCK(dev, txq, cpu);
-
-			if (!netif_xmit_stopped(txq)) {
-				is_list = !!skb->next;
-
-				dev_xmit_recursion_inc();
-				skb = dev_hard_start_xmit(skb, dev, txq, &rc);
-				dev_xmit_recursion_dec();
-
-				/* GSO segments a single SKB into
-				 * a list of frames. TCP expects error
-				 * to mean none of the data was sent.
-				 */
-				if (is_list)
-					rc = NETDEV_TX_OK;
-			}
-			HARD_TX_UNLOCK(dev, txq);
-			if (!skb) /* xmit completed */
-				goto out;
-
-			net_crit_ratelimited("Virtual device %s asks to queue packet!\n",
-					     dev->name);
-			/* NETDEV_TX_BUSY or queue was stopped */
-			if (!is_list)
-				rc = -ENETDOWN;
-		} else {
-			/* Recursion is detected! It is possible,
-			 * unfortunately
-			 */
-recursion_alert:
-			net_crit_ratelimited("Dead loop on virtual device %s, fix it urgently!\n",
-					     dev->name);
-			rc = -ENETDOWN;
-		}
+	if (unlikely(!(dev->flags & IFF_UP))) {
+		reason = SKB_DROP_REASON_DEV_READY;
+		goto drop;
 	}
 
+	cpu = smp_processor_id(); /* ok because BHs are off */
+
+	if (likely(!netif_tx_owned(txq, cpu))) {
+		bool is_list = false;
+
+		if (dev_xmit_recursion())
+			goto recursion_alert;
+
+		skb = validate_xmit_skb(skb, dev, &again);
+		if (!skb)
+			goto out;
+
+		HARD_TX_LOCK(dev, txq, cpu);
+
+		if (!netif_xmit_stopped(txq)) {
+			is_list = !!skb->next;
+
+			dev_xmit_recursion_inc();
+			skb = dev_hard_start_xmit(skb, dev, txq, &rc);
+			dev_xmit_recursion_dec();
+
+			/* GSO segments a single SKB into a list of frames.
+			 * TCP expects error to mean none of the data was sent.
+			 */
+			if (is_list)
+				rc = NETDEV_TX_OK;
+		}
+		HARD_TX_UNLOCK(dev, txq);
+		if (!skb) /* xmit completed */
+			goto out;
+
+		net_crit_ratelimited("Virtual device %s asks to queue packet!\n",
+				     dev->name);
+		/* NETDEV_TX_BUSY or queue was stopped */
+		if (!is_list)
+			rc = -ENETDOWN;
+	} else {
+		/* Recursion is detected! It is possible unfortunately. */
+recursion_alert:
+		net_crit_ratelimited("Dead loop on virtual device %s (net %llu), fix it urgently!\n",
+				     dev->name, dev_net(dev)->net_cookie);
+
+		rc = -ENETDOWN;
+	}
+
+	reason = SKB_DROP_REASON_RECURSION_LIMIT;
+drop:
 	rcu_read_unlock_bh();
 
 	dev_core_stats_tx_dropped_inc(dev);
-	kfree_skb_list(skb);
+	kfree_skb_list_reason(skb, reason);
 	return rc;
 out:
 	rcu_read_unlock_bh();
@@ -4982,16 +4997,16 @@ EXPORT_SYMBOL(rps_needed);
 struct static_key_false rfs_needed __read_mostly;
 EXPORT_SYMBOL(rfs_needed);
 
-static u32 rfs_slot(u32 hash, const struct rps_dev_flow_table *flow_table)
+static u32 rfs_slot(u32 hash, rps_tag_ptr tag_ptr)
 {
-	return hash_32(hash, flow_table->log);
+	return hash_32(hash, rps_tag_to_log(tag_ptr));
 }
 
 #ifdef CONFIG_RFS_ACCEL
 /**
  * rps_flow_is_active - check whether the flow is recently active.
  * @rflow: Specific flow to check activity.
- * @flow_table: per-queue flowtable that @rflow belongs to.
+ * @log: ilog2(hashsize).
  * @cpu: CPU saved in @rflow.
  *
  * If the CPU has processed many packets since the flow's last activity
@@ -5000,7 +5015,7 @@ static u32 rfs_slot(u32 hash, const struct rps_dev_flow_table *flow_table)
  * Return: true if flow was recently active.
  */
 static bool rps_flow_is_active(struct rps_dev_flow *rflow,
-			       struct rps_dev_flow_table *flow_table,
+			       u8 log,
 			       unsigned int cpu)
 {
 	unsigned int flow_last_active;
@@ -5013,7 +5028,7 @@ static bool rps_flow_is_active(struct rps_dev_flow *rflow,
 	flow_last_active = READ_ONCE(rflow->last_qtail);
 
 	return (int)(sd_input_head - flow_last_active) <
-		(int)(10 << flow_table->log);
+		(int)(10 << log);
 }
 #endif
 
@@ -5025,9 +5040,10 @@ set_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 		u32 head;
 #ifdef CONFIG_RFS_ACCEL
 		struct netdev_rx_queue *rxqueue;
-		struct rps_dev_flow_table *flow_table;
+		struct rps_dev_flow *flow_table;
 		struct rps_dev_flow *old_rflow;
 		struct rps_dev_flow *tmp_rflow;
+		rps_tag_ptr q_tag_ptr;
 		unsigned int tmp_cpu;
 		u16 rxq_index;
 		u32 flow_id;
@@ -5042,16 +5058,18 @@ set_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 			goto out;
 
 		rxqueue = dev->_rx + rxq_index;
-		flow_table = rcu_dereference(rxqueue->rps_flow_table);
-		if (!flow_table)
+		q_tag_ptr = READ_ONCE(rxqueue->rps_flow_table);
+		if (!q_tag_ptr)
 			goto out;
 
-		flow_id = rfs_slot(hash, flow_table);
-		tmp_rflow = &flow_table->flows[flow_id];
+		flow_id = rfs_slot(hash, q_tag_ptr);
+		flow_table = rps_tag_to_table(q_tag_ptr);
+		tmp_rflow = flow_table + flow_id;
 		tmp_cpu = READ_ONCE(tmp_rflow->cpu);
 
 		if (READ_ONCE(tmp_rflow->filter) != RPS_NO_FILTER) {
-			if (rps_flow_is_active(tmp_rflow, flow_table,
+			if (rps_flow_is_active(tmp_rflow,
+					       rps_tag_to_log(q_tag_ptr),
 					       tmp_cpu)) {
 				if (hash != READ_ONCE(tmp_rflow->hash) ||
 				    next_cpu == tmp_cpu)
@@ -5089,9 +5107,8 @@ set_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 		       struct rps_dev_flow **rflowp)
 {
-	const struct rps_sock_flow_table *sock_flow_table;
 	struct netdev_rx_queue *rxqueue = dev->_rx;
-	struct rps_dev_flow_table *flow_table;
+	rps_tag_ptr global_tag_ptr, q_tag_ptr;
 	struct rps_map *map;
 	int cpu = -1;
 	u32 tcpu;
@@ -5112,9 +5129,9 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 
 	/* Avoid computing hash if RFS/RPS is not active for this rxqueue */
 
-	flow_table = rcu_dereference(rxqueue->rps_flow_table);
+	q_tag_ptr = READ_ONCE(rxqueue->rps_flow_table);
 	map = rcu_dereference(rxqueue->rps_map);
-	if (!flow_table && !map)
+	if (!q_tag_ptr && !map)
 		goto done;
 
 	skb_reset_network_header(skb);
@@ -5122,16 +5139,21 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 	if (!hash)
 		goto done;
 
-	sock_flow_table = rcu_dereference(net_hotdata.rps_sock_flow_table);
-	if (flow_table && sock_flow_table) {
+	global_tag_ptr = READ_ONCE(net_hotdata.rps_sock_flow_table);
+	if (q_tag_ptr && global_tag_ptr) {
+		struct rps_sock_flow_table *sock_flow_table;
+		struct rps_dev_flow *flow_table;
 		struct rps_dev_flow *rflow;
 		u32 next_cpu;
+		u32 flow_id;
 		u32 ident;
 
 		/* First check into global flow table if there is a match.
 		 * This READ_ONCE() pairs with WRITE_ONCE() from rps_record_sock_flow().
 		 */
-		ident = READ_ONCE(sock_flow_table->ents[hash & sock_flow_table->mask]);
+		flow_id = hash & rps_tag_to_mask(global_tag_ptr);
+		sock_flow_table = rps_tag_to_table(global_tag_ptr);
+		ident = READ_ONCE(sock_flow_table[flow_id].ent);
 		if ((ident ^ hash) & ~net_hotdata.rps_cpu_mask)
 			goto try_rps;
 
@@ -5140,7 +5162,9 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 		/* OK, now we know there is a match,
 		 * we can look at the local (per receive queue) flow table
 		 */
-		rflow = &flow_table->flows[rfs_slot(hash, flow_table)];
+		flow_id = rfs_slot(hash, q_tag_ptr);
+		flow_table = rps_tag_to_table(q_tag_ptr);
+		rflow = flow_table + flow_id;
 		tcpu = rflow->cpu;
 
 		/*
@@ -5200,19 +5224,23 @@ bool rps_may_expire_flow(struct net_device *dev, u16 rxq_index,
 			 u32 flow_id, u16 filter_id)
 {
 	struct netdev_rx_queue *rxqueue = dev->_rx + rxq_index;
-	struct rps_dev_flow_table *flow_table;
+	struct rps_dev_flow *flow_table;
 	struct rps_dev_flow *rflow;
+	rps_tag_ptr q_tag_ptr;
 	bool expire = true;
+	u8 log;
 
 	rcu_read_lock();
-	flow_table = rcu_dereference(rxqueue->rps_flow_table);
-	if (flow_table && flow_id < (1UL << flow_table->log)) {
+	q_tag_ptr = READ_ONCE(rxqueue->rps_flow_table);
+	log = rps_tag_to_log(q_tag_ptr);
+	if (q_tag_ptr && flow_id < (1UL << log)) {
 		unsigned int cpu;
 
-		rflow = &flow_table->flows[flow_id];
+		flow_table = rps_tag_to_table(q_tag_ptr);
+		rflow = flow_table + flow_id;
 		cpu = READ_ONCE(rflow->cpu);
 		if (READ_ONCE(rflow->filter) == filter_id &&
-		    rps_flow_is_active(rflow, flow_table, cpu))
+		    rps_flow_is_active(rflow, log, cpu))
 			expire = false;
 	}
 	rcu_read_unlock();
@@ -5825,7 +5853,7 @@ static __latent_entropy void net_tx_action(void)
 			to_free = qdisc_run(q);
 			if (root_lock)
 				spin_unlock(root_lock);
-			tcf_kfree_skb_list(to_free);
+			tcf_kfree_skb_list(to_free, q, NULL, qdisc_dev(q));
 		}
 
 		rcu_read_unlock();
@@ -8132,7 +8160,8 @@ struct net_device *netdev_upper_get_next_dev_rcu(struct net_device *dev,
 {
 	struct netdev_adjacent *upper;
 
-	WARN_ON_ONCE(!rcu_read_lock_held() && !lockdep_rtnl_is_held());
+	WARN_ON_ONCE(!rcu_read_lock_held() && !rcu_read_lock_bh_held() &&
+		     !lockdep_rtnl_is_held());
 
 	upper = list_entry_rcu((*iter)->next, struct netdev_adjacent, list);
 
@@ -12316,10 +12345,8 @@ static void dev_memory_provider_uninstall(struct net_device *dev)
 
 	for (i = 0; i < dev->real_num_rx_queues; i++) {
 		struct netdev_rx_queue *rxq = &dev->_rx[i];
-		struct pp_memory_provider_params *p = &rxq->mp_params;
 
-		if (p->mp_ops && p->mp_ops->uninstall)
-			p->mp_ops->uninstall(rxq->mp_params.mp_priv, rxq);
+		__netif_mp_uninstall_rxq(rxq, &rxq->mp_params);
 	}
 }
 
@@ -12350,6 +12377,12 @@ static void netif_close_many_and_unlock_cond(struct list_head *close_head)
 	if (lockdep_depth(current) > limit)
 		netif_close_many_and_unlock(close_head);
 #endif
+}
+
+bool unregister_netdevice_queued(const struct net_device *dev)
+{
+	ASSERT_RTNL();
+	return !list_empty(&dev->unreg_list);
 }
 
 void unregister_netdevice_many_notify(struct list_head *head,

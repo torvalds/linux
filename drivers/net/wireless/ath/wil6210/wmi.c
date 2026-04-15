@@ -1076,7 +1076,7 @@ static void wmi_evt_connect(struct wil6210_vif *vif, int id, void *d, int len)
 		if (rc) {
 			if (disable_ap_sme)
 				/* notify new_sta has failed */
-				cfg80211_del_sta(ndev, evt->bssid, GFP_KERNEL);
+				cfg80211_del_sta(wdev, evt->bssid, GFP_KERNEL);
 			goto out;
 		}
 
@@ -1093,7 +1093,8 @@ static void wmi_evt_connect(struct wil6210_vif *vif, int id, void *d, int len)
 			sinfo->assoc_req_ies_len = assoc_req_ielen;
 		}
 
-		cfg80211_new_sta(ndev, evt->bssid, sinfo, GFP_KERNEL);
+		cfg80211_new_sta(ndev->ieee80211_ptr, evt->bssid, sinfo,
+				 GFP_KERNEL);
 
 		kfree(sinfo);
 	} else {
