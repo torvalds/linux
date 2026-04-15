@@ -33,9 +33,9 @@
 
 #define NEWPORT_LEN	0x10000
 
-#define FONT_DATA ((unsigned char *)font_vga_8x16.data)
+#define FONT_DATA font_vga_8x16.data
 
-static unsigned char *font_data[MAX_NR_CONSOLES];
+static font_data_t *font_data[MAX_NR_CONSOLES];
 
 static struct newport_regs *npregs;
 static unsigned long newport_addr;
@@ -370,9 +370,9 @@ static void newport_clear(struct vc_data *vc, unsigned int sy, unsigned int sx,
 static void newport_putc(struct vc_data *vc, u16 charattr, unsigned int ypos,
 			 unsigned int xpos)
 {
-	unsigned char *p;
+	const unsigned char *p;
 
-	p = &font_data[vc->vc_num][(charattr & 0xff) << 4];
+	p = &font_data_buf(font_data[vc->vc_num])[(charattr & 0xff) << 4];
 	charattr = (charattr >> 8) & 0xff;
 	xpos <<= 3;
 	ypos <<= 4;
@@ -400,7 +400,7 @@ static void newport_putcs(struct vc_data *vc, const u16 *s,
 			  unsigned int count, unsigned int ypos,
 			  unsigned int xpos)
 {
-	unsigned char *p;
+	const unsigned char *p;
 	unsigned int i;
 	u16 charattr;
 
@@ -424,7 +424,7 @@ static void newport_putcs(struct vc_data *vc, const u16 *s,
 				 NPORT_DMODE0_L32);
 
 	for (i = 0; i < count; i++, xpos += 8) {
-		p = &font_data[vc->vc_num][(scr_readw(s++) & 0xff) << 4];
+		p = &font_data_buf(font_data[vc->vc_num])[(scr_readw(s++) & 0xff) << 4];
 
 		newport_wait(npregs);
 
@@ -501,52 +501,32 @@ static int newport_set_font(int unit, const struct console_font *op,
 {
 	int w = op->width;
 	int h = op->height;
-	int size = h * op->charcount;
 	int i;
-	unsigned char *new_data, *data = op->data, *p;
+	font_data_t *new_data;
 
 	/* ladis: when I grow up, there will be a day... and more sizes will
 	 * be supported ;-) */
-	if ((w != 8) || (h != 16) || (vpitch != 32)
-	    || (op->charcount != 256 && op->charcount != 512))
+	if (w != 8 || h != 16 || (op->charcount != 256 && op->charcount != 512))
 		return -EINVAL;
 
-	if (!(new_data = kmalloc(FONT_EXTRA_WORDS * sizeof(int) + size,
-	     GFP_USER))) return -ENOMEM;
-
-	new_data += FONT_EXTRA_WORDS * sizeof(int);
-	FNTSIZE(new_data) = size;
-	FNTCHARCNT(new_data) = op->charcount;
-	REFCOUNT(new_data) = 0;	/* usage counter */
-	FNTSUM(new_data) = 0;
-
-	p = new_data;
-	for (i = 0; i < op->charcount; i++) {
-		memcpy(p, data, h);
-		data += 32;
-		p += h;
-	}
+	new_data = font_data_import(op, vpitch, NULL);
+	if (IS_ERR(new_data))
+		return PTR_ERR(new_data);
 
 	/* check if font is already used by other console */
 	for (i = 0; i < MAX_NR_CONSOLES; i++) {
-		if (font_data[i] != FONT_DATA
-		    && FNTSIZE(font_data[i]) == size
-		    && !memcmp(font_data[i], new_data, size)) {
-			kfree(new_data - FONT_EXTRA_WORDS * sizeof(int));
+		if (font_data_is_equal(font_data[i], new_data)) {
+			font_data_put(new_data);
 			/* current font is the same as the new one */
 			if (i == unit)
 				return 0;
 			new_data = font_data[i];
+			font_data_get(new_data);
 			break;
 		}
 	}
-	/* old font is user font */
-	if (font_data[unit] != FONT_DATA) {
-		if (--REFCOUNT(font_data[unit]) == 0)
-			kfree(font_data[unit] -
-			      FONT_EXTRA_WORDS * sizeof(int));
-	}
-	REFCOUNT(new_data)++;
+
+	font_data_put(font_data[unit]);
 	font_data[unit] = new_data;
 
 	return 0;
@@ -554,12 +534,9 @@ static int newport_set_font(int unit, const struct console_font *op,
 
 static int newport_set_def_font(int unit, struct console_font *op)
 {
-	if (font_data[unit] != FONT_DATA) {
-		if (--REFCOUNT(font_data[unit]) == 0)
-			kfree(font_data[unit] -
-			      FONT_EXTRA_WORDS * sizeof(int));
-		font_data[unit] = FONT_DATA;
-	}
+	font_data_put(font_data[unit]);
+	font_data[unit] = FONT_DATA;
+	font_data_get(font_data[unit]);
 
 	return 0;
 }

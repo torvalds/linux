@@ -148,25 +148,15 @@ EXPORT_SYMBOL_GPL(wmt_ge_sync);
 
 static int wmt_ge_rops_probe(struct platform_device *pdev)
 {
-	struct resource *res;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL) {
-		dev_err(&pdev->dev, "no I/O memory resource defined\n");
-		return -ENODEV;
-	}
-
 	/* Only one ROP engine is presently supported. */
 	if (unlikely(regbase)) {
 		WARN_ON(1);
 		return -EBUSY;
 	}
 
-	regbase = ioremap(res->start, resource_size(res));
-	if (regbase == NULL) {
-		dev_err(&pdev->dev, "failed to map I/O memory\n");
-		return -EBUSY;
-	}
+	regbase = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(regbase))
+		return PTR_ERR(regbase);
 
 	writel(1, regbase + GE_ENABLE_OFF);
 	printk(KERN_INFO "Enabled support for WMT GE raster acceleration\n");
@@ -176,7 +166,7 @@ static int wmt_ge_rops_probe(struct platform_device *pdev)
 
 static void wmt_ge_rops_remove(struct platform_device *pdev)
 {
-	iounmap(regbase);
+	regbase = NULL;
 }
 
 static const struct of_device_id wmt_dt_ids[] = {

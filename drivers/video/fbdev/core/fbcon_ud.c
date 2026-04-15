@@ -26,7 +26,7 @@ static void ud_update_attr(u8 *dst, u8 *src, int attribute,
 				  struct vc_data *vc)
 {
 	int i, offset = (vc->vc_font.height < 10) ? 1 : 2;
-	int width = (vc->vc_font.width + 7) >> 3;
+	int width = font_glyph_pitch(vc->vc_font.width);
 	unsigned int cellsize = vc->vc_font.height * width;
 	u8 c;
 
@@ -92,7 +92,7 @@ static inline void ud_putcs_aligned(struct vc_data *vc, struct fb_info *info,
 	u8 *src;
 
 	while (cnt--) {
-		src = par->fontbuffer + (scr_readw(s--) & charmask) * cellsize;
+		src = par->rotated.buf + (scr_readw(s--) & charmask) * cellsize;
 
 		if (attr) {
 			ud_update_attr(buf, src, attr, vc);
@@ -127,7 +127,7 @@ static inline void ud_putcs_unaligned(struct vc_data *vc,
 	u8 *src;
 
 	while (cnt--) {
-		src = par->fontbuffer + (scr_readw(s--) & charmask) * cellsize;
+		src = par->rotated.buf + (scr_readw(s--) & charmask) * cellsize;
 
 		if (attr) {
 			ud_update_attr(buf, src, attr, vc);
@@ -153,7 +153,7 @@ static void ud_putcs(struct vc_data *vc, struct fb_info *info,
 {
 	struct fb_image image;
 	struct fbcon_par *par = info->fbcon_par;
-	u32 width = (vc->vc_font.width + 7)/8;
+	u32 width = font_glyph_pitch(vc->vc_font.width);
 	u32 cellsize = width * vc->vc_font.height;
 	u32 maxcnt = info->pixmap.size/cellsize;
 	u32 scan_align = info->pixmap.scan_align - 1;
@@ -164,7 +164,7 @@ static void ud_putcs(struct vc_data *vc, struct fb_info *info,
 	u32 vyres = GETVYRES(par->p, info);
 	u32 vxres = GETVXRES(par->p, info);
 
-	if (!par->fontbuffer)
+	if (!par->rotated.buf)
 		return;
 
 	image.fg_color = fg;
@@ -253,7 +253,8 @@ static void ud_cursor(struct vc_data *vc, struct fb_info *info, bool enable,
 	struct fb_cursor cursor;
 	struct fbcon_par *par = info->fbcon_par;
 	unsigned short charmask = vc->vc_hi_font_mask ? 0x1ff : 0xff;
-	int w = (vc->vc_font.width + 7) >> 3, c;
+	int w = font_glyph_pitch(vc->vc_font.width);
+	int c;
 	int y = real_y(par->p, vc->state.y);
 	int attribute, use_sw = vc->vc_cursor_type & CUR_SW;
 	int err = 1, dx, dy;
@@ -261,14 +262,14 @@ static void ud_cursor(struct vc_data *vc, struct fb_info *info, bool enable,
 	u32 vyres = GETVYRES(par->p, info);
 	u32 vxres = GETVXRES(par->p, info);
 
-	if (!par->fontbuffer)
+	if (!par->rotated.buf)
 		return;
 
 	cursor.set = 0;
 
  	c = scr_readw((u16 *) vc->vc_pos);
 	attribute = get_attribute(info, c);
-	src = par->fontbuffer + ((c & charmask) * (w * vc->vc_font.height));
+	src = par->rotated.buf + ((c & charmask) * (w * vc->vc_font.height));
 
 	if (par->cursor_state.image.data != src ||
 	    par->cursor_reset) {
@@ -325,50 +326,26 @@ static void ud_cursor(struct vc_data *vc, struct fb_info *info, bool enable,
 	    vc->vc_cursor_type != par->p->cursor_shape ||
 	    par->cursor_state.mask == NULL ||
 	    par->cursor_reset) {
-		char *mask = kmalloc_array(w, vc->vc_font.height, GFP_ATOMIC);
-		int cur_height, size, i = 0;
-		u8 msk = 0xff;
+		unsigned char *tmp, *mask;
 
-		if (!mask)
+		tmp = kmalloc_array(vc->vc_font.height, w, GFP_ATOMIC);
+		if (!tmp)
 			return;
+		fbcon_fill_cursor_mask(par, vc, tmp);
+
+		mask = kmalloc_array(vc->vc_font.height, w, GFP_ATOMIC);
+		if (!mask) {
+			kfree(tmp);
+			return;
+		}
+		font_glyph_rotate_180(tmp, vc->vc_font.width, vc->vc_font.height, mask);
+		kfree(tmp);
 
 		kfree(par->cursor_state.mask);
-		par->cursor_state.mask = mask;
+		par->cursor_state.mask = (const char *)mask;
 
 		par->p->cursor_shape = vc->vc_cursor_type;
 		cursor.set |= FB_CUR_SETSHAPE;
-
-		switch (CUR_SIZE(par->p->cursor_shape)) {
-		case CUR_NONE:
-			cur_height = 0;
-			break;
-		case CUR_UNDERLINE:
-			cur_height = (vc->vc_font.height < 10) ? 1 : 2;
-			break;
-		case CUR_LOWER_THIRD:
-			cur_height = vc->vc_font.height/3;
-			break;
-		case CUR_LOWER_HALF:
-			cur_height = vc->vc_font.height >> 1;
-			break;
-		case CUR_TWO_THIRDS:
-			cur_height = (vc->vc_font.height << 1)/3;
-			break;
-		case CUR_BLOCK:
-		default:
-			cur_height = vc->vc_font.height;
-			break;
-		}
-
-		size = cur_height * w;
-
-		while (size--)
-			mask[i++] = msk;
-
-		size = (vc->vc_font.height - cur_height) * w;
-
-		while (size--)
-			mask[i++] = ~msk;
 	}
 
 	par->cursor_state.enable = enable && !use_sw;

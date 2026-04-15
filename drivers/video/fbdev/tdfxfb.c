@@ -77,6 +77,7 @@
 #include <asm/io.h>
 
 #include <video/tdfx.h>
+#include <video/vga.h>
 
 #define DPRINTK(a, b...) pr_debug("fb: %s: " a, __func__ , ## b)
 
@@ -496,6 +497,9 @@ static int tdfxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		}
 	}
 
+	if (!var->pixclock)
+		return -EINVAL;
+
 	if (PICOS2KHZ(var->pixclock) > par->max_pixclock) {
 		DPRINTK("pixclock too high (%ldKHz)\n",
 			PICOS2KHZ(var->pixclock));
@@ -591,7 +595,7 @@ static int tdfxfb_set_par(struct fb_info *info)
 		vt = ve + (info->var.upper_margin << 1) - 1;
 		reg.screensize = info->var.xres | (info->var.yres << 13);
 		reg.vidcfg |= VIDCFG_HALF_MODE;
-		reg.crt[0x09] = 0x80;
+		reg.crt[VGA_CRTC_MAX_SCAN] = 0x80;
 	} else {
 		vd = info->var.yres - 1;
 		vs  = vd + info->var.lower_margin;
@@ -609,59 +613,59 @@ static int tdfxfb_set_par(struct fb_info *info)
 			 info->var.xres < 480 ? 0x60 :
 			 info->var.xres < 768 ? 0xe0 : 0x20);
 
-	reg.gra[0x05] = 0x40;
-	reg.gra[0x06] = 0x05;
-	reg.gra[0x07] = 0x0f;
-	reg.gra[0x08] = 0xff;
+	reg.gra[VGA_GFX_MODE]         = 0x40;
+	reg.gra[VGA_GFX_MISC]         = 0x05;
+	reg.gra[VGA_GFX_COMPARE_MASK] = 0x0f;
+	reg.gra[VGA_GFX_BIT_MASK]     = 0xff;
 
-	reg.att[0x00] = 0x00;
-	reg.att[0x01] = 0x01;
-	reg.att[0x02] = 0x02;
-	reg.att[0x03] = 0x03;
-	reg.att[0x04] = 0x04;
-	reg.att[0x05] = 0x05;
-	reg.att[0x06] = 0x06;
-	reg.att[0x07] = 0x07;
-	reg.att[0x08] = 0x08;
-	reg.att[0x09] = 0x09;
-	reg.att[0x0a] = 0x0a;
-	reg.att[0x0b] = 0x0b;
-	reg.att[0x0c] = 0x0c;
-	reg.att[0x0d] = 0x0d;
-	reg.att[0x0e] = 0x0e;
-	reg.att[0x0f] = 0x0f;
-	reg.att[0x10] = 0x41;
-	reg.att[0x12] = 0x0f;
+	reg.att[VGA_ATC_PALETTE0]     = 0x00;
+	reg.att[VGA_ATC_PALETTE1]     = 0x01;
+	reg.att[VGA_ATC_PALETTE2]     = 0x02;
+	reg.att[VGA_ATC_PALETTE3]     = 0x03;
+	reg.att[VGA_ATC_PALETTE4]     = 0x04;
+	reg.att[VGA_ATC_PALETTE5]     = 0x05;
+	reg.att[VGA_ATC_PALETTE6]     = 0x06;
+	reg.att[VGA_ATC_PALETTE7]     = 0x07;
+	reg.att[VGA_ATC_PALETTE8]     = 0x08;
+	reg.att[VGA_ATC_PALETTE9]     = 0x09;
+	reg.att[VGA_ATC_PALETTEA]     = 0x0a;
+	reg.att[VGA_ATC_PALETTEB]     = 0x0b;
+	reg.att[VGA_ATC_PALETTEC]     = 0x0c;
+	reg.att[VGA_ATC_PALETTED]     = 0x0d;
+	reg.att[VGA_ATC_PALETTEE]     = 0x0e;
+	reg.att[VGA_ATC_PALETTEF]     = 0x0f;
+	reg.att[VGA_ATC_MODE]         = 0x41;
+	reg.att[VGA_ATC_PLANE_ENABLE] = 0x0f;
 
-	reg.seq[0x00] = 0x03;
-	reg.seq[0x01] = 0x01; /* fixme: clkdiv2? */
-	reg.seq[0x02] = 0x0f;
-	reg.seq[0x03] = 0x00;
-	reg.seq[0x04] = 0x0e;
+	reg.seq[VGA_SEQ_RESET]         = 0x03;
+	reg.seq[VGA_SEQ_CLOCK_MODE]    = 0x01; /* fixme: clkdiv2? */
+	reg.seq[VGA_SEQ_PLANE_WRITE]   = 0x0f;
+	reg.seq[VGA_SEQ_CHARACTER_MAP] = 0x00;
+	reg.seq[VGA_SEQ_MEMORY_MODE]   = 0x0e;
 
-	reg.crt[0x00] = ht - 4;
-	reg.crt[0x01] = hd;
-	reg.crt[0x02] = hbs;
-	reg.crt[0x03] = 0x80 | (hbe & 0x1f);
-	reg.crt[0x04] = hs;
-	reg.crt[0x05] = ((hbe & 0x20) << 2) | (he & 0x1f);
-	reg.crt[0x06] = vt;
-	reg.crt[0x07] = ((vs & 0x200) >> 2) |
-			((vd & 0x200) >> 3) |
-			((vt & 0x200) >> 4) | 0x10 |
-			((vbs & 0x100) >> 5) |
-			((vs & 0x100) >> 6) |
-			((vd & 0x100) >> 7) |
-			((vt & 0x100) >> 8);
-	reg.crt[0x09] |= 0x40 | ((vbs & 0x200) >> 4);
-	reg.crt[0x10] = vs;
-	reg.crt[0x11] = (ve & 0x0f) | 0x20;
-	reg.crt[0x12] = vd;
-	reg.crt[0x13] = wd;
-	reg.crt[0x15] = vbs;
-	reg.crt[0x16] = vbe + 1;
-	reg.crt[0x17] = 0xc3;
-	reg.crt[0x18] = 0xff;
+	reg.crt[VGA_CRTC_H_TOTAL]       = ht - 4;
+	reg.crt[VGA_CRTC_H_DISP]        = hd;
+	reg.crt[VGA_CRTC_H_BLANK_START] = hbs;
+	reg.crt[VGA_CRTC_H_BLANK_END]   = 0x80 | (hbe & 0x1f);
+	reg.crt[VGA_CRTC_H_SYNC_START]  = hs;
+	reg.crt[VGA_CRTC_H_SYNC_END]    = ((hbe & 0x20) << 2) | (he & 0x1f);
+	reg.crt[VGA_CRTC_V_TOTAL]       = vt;
+	reg.crt[VGA_CRTC_OVERFLOW]      = ((vs & 0x200) >> 2) |
+					  ((vd & 0x200) >> 3) |
+					  ((vt & 0x200) >> 4) | 0x10 |
+					  ((vbs & 0x100) >> 5) |
+					  ((vs & 0x100) >> 6) |
+					  ((vd & 0x100) >> 7) |
+					  ((vt & 0x100) >> 8);
+	reg.crt[VGA_CRTC_MAX_SCAN]     |= 0x40 | ((vbs & 0x200) >> 4);
+	reg.crt[VGA_CRTC_V_SYNC_START]  = vs;
+	reg.crt[VGA_CRTC_V_SYNC_END]    = (ve & 0x0f) | 0x20;
+	reg.crt[VGA_CRTC_V_DISP_END]    = vd;
+	reg.crt[VGA_CRTC_OFFSET]        = wd;
+	reg.crt[VGA_CRTC_V_BLANK_START] = vbs;
+	reg.crt[VGA_CRTC_V_BLANK_END]   = vbe + 1;
+	reg.crt[VGA_CRTC_MODE]          = 0xc3;
+	reg.crt[VGA_CRTC_LINE_COMPARE]  = 0xff;
 
 	/* Banshee's nonvga stuff */
 	reg.ext[0x00] = (((ht & 0x100) >> 8) |

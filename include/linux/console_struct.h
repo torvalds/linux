@@ -13,8 +13,8 @@
 #ifndef _LINUX_CONSOLE_STRUCT_H
 #define _LINUX_CONSOLE_STRUCT_H
 
-#include <linux/wait.h>
 #include <linux/vt.h>
+#include <linux/wait.h>
 #include <linux/workqueue.h>
 
 struct uni_pagedict;
@@ -57,6 +57,33 @@ struct vc_state {
 	bool		blink;
 	bool		reverse;
 };
+
+/**
+ * struct vc_font - Describes a font
+ * @width: The width of a single glyph in bits
+ * @height: The height of a single glyph in scanlines
+ * @charcount: The number of glyphs in the font
+ * @data: The raw font data
+ *
+ * Font data is organized as an array of glyphs. Each glyph is a bitmap with
+ * set bits indicating the foreground color. Unset bits indicate background
+ * color. The fields @width and @height store a single glyph's number of
+ * horizontal bits and vertical scanlines. If width is not a multiple of 8,
+ * there are trailing bits to fill up the byte. These bits should not be drawn.
+ *
+ * The field @data points to the first glyph's first byte. The value @charcount
+ * gives the number of glyphs in the font. There are no empty scanlines between
+ * two adjacent glyphs.
+ */
+struct vc_font {
+	unsigned int width;
+	unsigned int height;
+	unsigned int charcount;
+	const unsigned char *data;
+};
+
+unsigned int vc_font_pitch(const struct vc_font *font);
+unsigned int vc_font_size(const struct vc_font *font);
 
 /*
  * Example: vc_data of a console that was scrolled 3 lines down.
@@ -120,9 +147,9 @@ struct vc_data {
 	unsigned short	vc_complement_mask;	/* [#] Xor mask for mouse pointer */
 	unsigned short	vc_s_complement_mask;	/* Saved mouse pointer mask */
 	unsigned long	vc_pos;			/* Cursor address */
-	/* fonts */	
+	/* fonts */
 	unsigned short	vc_hi_font_mask;	/* [#] Attribute set for upper 256 chars of font or 0 if not supported */
-	struct console_font vc_font;		/* Current VC font set */
+	struct vc_font vc_font;			/* Current VC font set */
 	unsigned short	vc_video_erase_char;	/* Background erase character */
 	/* VT terminal data */
 	unsigned int	vc_state;		/* Escape sequence parser state */

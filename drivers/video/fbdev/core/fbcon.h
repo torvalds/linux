@@ -11,6 +11,7 @@
 #ifndef _VIDEO_FBCON_H
 #define _VIDEO_FBCON_H
 
+#include <linux/font.h>
 #include <linux/types.h>
 #include <linux/vt_buffer.h>
 #include <linux/vt_kern.h>
@@ -25,8 +26,7 @@
 
 struct fbcon_display {
     /* Filled in by the low-level console driver */
-    const u_char *fontdata;
-    int userfont;                   /* != 0 if fontdata kmalloc()ed */
+    font_data_t *fontdata;
 #ifdef CONFIG_FRAMEBUFFER_CONSOLE_LEGACY_ACCELERATION
     u_short scrollmode;             /* Scroll Method, use fb_scrollmode() */
 #endif
@@ -80,13 +80,17 @@ struct fbcon_par {
 	int    graphics;
 	bool   initialized;
 	int    rotate;
-	int    cur_rotate;
 	char  *cursor_data;
-	u8    *fontbuffer;
-	u8    *fontdata;
+#ifdef CONFIG_FRAMEBUFFER_CONSOLE_ROTATION
+	struct {
+		font_data_t *fontdata;  /* source font */
+		u8 *buf;                /* rotated glyphs */
+		size_t bufsize;
+		int buf_rotate;         /* rotation of buf */
+	} rotated;
+#endif
 	u8    *cursor_src;
 	u32    cursor_size;
-	u32    fd_size;
 
 	const struct fbcon_bitops *bitops;
 };
@@ -191,6 +195,8 @@ extern void fbcon_set_tileops(struct vc_data *vc, struct fb_info *info);
 #endif
 extern void fbcon_set_bitops_ur(struct fbcon_par *par);
 extern int  soft_cursor(struct fb_info *info, struct fb_cursor *cursor);
+
+void fbcon_fill_cursor_mask(struct fbcon_par *par, struct vc_data *vc, unsigned char *mask);
 
 #define FBCON_ATTRIBUTE_UNDERLINE 1
 #define FBCON_ATTRIBUTE_REVERSE   2
