@@ -548,40 +548,21 @@ static void xive_dec_target_count(int cpu)
 static int xive_find_target_in_mask(const struct cpumask *mask,
 				    unsigned int fuzz)
 {
-	int cpu, first, num, i;
+	int cpu, first;
 
 	/* Pick up a starting point CPU in the mask based on  fuzz */
-	num = min_t(int, cpumask_weight(mask), nr_cpu_ids);
-	first = fuzz % num;
-
-	/* Locate it */
-	cpu = cpumask_first(mask);
-	for (i = 0; i < first && cpu < nr_cpu_ids; i++)
-		cpu = cpumask_next(cpu, mask);
-
-	/* Sanity check */
-	if (WARN_ON(cpu >= nr_cpu_ids))
-		cpu = cpumask_first(cpu_online_mask);
-
-	/* Remember first one to handle wrap-around */
-	first = cpu;
+	fuzz %= cpumask_weight(mask);
+	first = cpumask_nth(fuzz, mask);
+	WARN_ON(first >= nr_cpu_ids);
 
 	/*
 	 * Now go through the entire mask until we find a valid
 	 * target.
 	 */
-	do {
-		/*
-		 * We re-check online as the fallback case passes us
-		 * an untested affinity mask
-		 */
+	for_each_cpu_wrap(cpu, mask, first) {
 		if (cpu_online(cpu) && xive_try_pick_target(cpu))
 			return cpu;
-		cpu = cpumask_next(cpu, mask);
-		/* Wrap around */
-		if (cpu >= nr_cpu_ids)
-			cpu = cpumask_first(mask);
-	} while (cpu != first);
+	}
 
 	return -1;
 }
@@ -1038,13 +1019,19 @@ static struct xive_irq_data *xive_irq_alloc_data(unsigned int virq, irq_hw_numbe
 	return xd;
 }
 
-static void xive_irq_free_data(unsigned int virq)
+static void xive_irq_free_data(struct irq_domain *domain, unsigned int virq)
 {
-	struct xive_irq_data *xd = irq_get_chip_data(virq);
+	struct xive_irq_data *xd;
+	struct irq_data *data = irq_domain_get_irq_data(domain, virq);
 
+	if (!data)
+		return;
+
+	xd = irq_data_get_irq_chip_data(data);
 	if (!xd)
 		return;
-	irq_set_chip_data(virq, NULL);
+
+	irq_domain_reset_irq_data(data);
 	xive_cleanup_irq_data(xd);
 	kfree(xd);
 }
@@ -1305,7 +1292,7 @@ static int xive_irq_domain_map(struct irq_domain *h, unsigned int virq,
 
 static void xive_irq_domain_unmap(struct irq_domain *d, unsigned int virq)
 {
-	xive_irq_free_data(virq);
+	xive_irq_free_data(d, virq);
 }
 
 static int xive_irq_domain_xlate(struct irq_domain *h, struct device_node *ct,
@@ -1443,7 +1430,7 @@ static void xive_irq_domain_free(struct irq_domain *domain,
 	pr_debug("%s %d #%d\n", __func__, virq, nr_irqs);
 
 	for (i = 0; i < nr_irqs; i++)
-		xive_irq_free_data(virq + i);
+		xive_irq_free_data(domain, virq + i);
 }
 #endif
 

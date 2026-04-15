@@ -8,6 +8,7 @@
 
 #include <linux/bitops.h>
 #include <linux/in6.h>
+#include <linux/uaccess.h>
 /*
  * Computes the checksum of a memory block at src, length len,
  * and adds in "sum" (32-bit), while copying the block to dst.
@@ -21,11 +22,24 @@
 extern __wsum csum_partial_copy_generic(const void *src, void *dst, int len);
 
 #define _HAVE_ARCH_COPY_AND_CSUM_FROM_USER
-extern __wsum csum_and_copy_from_user(const void __user *src, void *dst,
-				      int len);
+static inline __wsum csum_and_copy_from_user(const void __user *src, void *dst, int len)
+{
+	scoped_user_read_access_size(src, len, efault)
+		return csum_partial_copy_generic((void __force *)src, dst, len);
+
+efault:
+	return 0;
+}
+
 #define HAVE_CSUM_COPY_USER
-extern __wsum csum_and_copy_to_user(const void *src, void __user *dst,
-				    int len);
+static inline __wsum csum_and_copy_to_user(const void *src, void __user *dst, int len)
+{
+	scoped_user_write_access_size(dst, len, efault)
+		return csum_partial_copy_generic(src, (void __force *)dst, len);
+
+efault:
+	return 0;
+}
 
 #define _HAVE_ARCH_CSUM_AND_COPY
 #define csum_partial_copy_nocheck(src, dst, len)   \

@@ -309,8 +309,8 @@ void __init uic_init_tree(void)
 
 			cascade_virq = irq_of_parse_and_map(np, 0);
 
-			irq_set_handler_data(cascade_virq, uic);
-			irq_set_chained_handler(cascade_virq, uic_irq_cascade);
+			irq_set_chained_handler_and_data(cascade_virq,
+							 uic_irq_cascade, uic);
 
 			/* FIXME: setup critical cascade?? */
 		}

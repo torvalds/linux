@@ -5,6 +5,7 @@
 #include "struct_ops_private_stack_fail.skel.h"
 #include "struct_ops_private_stack_recur.skel.h"
 
+#if defined(__x86_64__) || defined(__aarch64__) || defined(__powerpc64__)
 static void test_private_stack(void)
 {
 	struct struct_ops_private_stack *skel;
@@ -14,11 +15,6 @@ static void test_private_stack(void)
 	skel = struct_ops_private_stack__open();
 	if (!ASSERT_OK_PTR(skel, "struct_ops_private_stack__open"))
 		return;
-
-	if (skel->data->skip) {
-		test__skip();
-		goto cleanup;
-	}
 
 	err = struct_ops_private_stack__load(skel);
 	if (!ASSERT_OK(err, "struct_ops_private_stack__load"))
@@ -48,15 +44,9 @@ static void test_private_stack_fail(void)
 	if (!ASSERT_OK_PTR(skel, "struct_ops_private_stack_fail__open"))
 		return;
 
-	if (skel->data->skip) {
-		test__skip();
-		goto cleanup;
-	}
-
 	err = struct_ops_private_stack_fail__load(skel);
 	ASSERT_ERR(err, "struct_ops_private_stack_fail__load");
 
-cleanup:
 	struct_ops_private_stack_fail__destroy(skel);
 }
 
@@ -69,11 +59,6 @@ static void test_private_stack_recur(void)
 	skel = struct_ops_private_stack_recur__open();
 	if (!ASSERT_OK_PTR(skel, "struct_ops_private_stack_recur__open"))
 		return;
-
-	if (skel->data->skip) {
-		test__skip();
-		goto cleanup;
-	}
 
 	err = struct_ops_private_stack_recur__load(skel);
 	if (!ASSERT_OK(err, "struct_ops_private_stack_recur__load"))
@@ -93,7 +78,7 @@ cleanup:
 	struct_ops_private_stack_recur__destroy(skel);
 }
 
-void test_struct_ops_private_stack(void)
+static void __test_struct_ops_private_stack(void)
 {
 	if (test__start_subtest("private_stack"))
 		test_private_stack();
@@ -101,4 +86,15 @@ void test_struct_ops_private_stack(void)
 		test_private_stack_fail();
 	if (test__start_subtest("private_stack_recur"))
 		test_private_stack_recur();
+}
+#else
+static void __test_struct_ops_private_stack(void)
+{
+	test__skip();
+}
+#endif
+
+void test_struct_ops_private_stack(void)
+{
+	__test_struct_ops_private_stack();
 }

@@ -374,33 +374,6 @@ static int load_backup_segment(struct kimage *image, struct kexec_buf *kbuf)
 	return 0;
 }
 
-/**
- * update_backup_region_phdr - Update backup region's offset for the core to
- *                             export the region appropriately.
- * @image:                     Kexec image.
- * @ehdr:                      ELF core header.
- *
- * Assumes an exclusive program header is setup for the backup region
- * in the ELF headers
- *
- * Returns nothing.
- */
-static void update_backup_region_phdr(struct kimage *image, Elf64_Ehdr *ehdr)
-{
-	Elf64_Phdr *phdr;
-	unsigned int i;
-
-	phdr = (Elf64_Phdr *)(ehdr + 1);
-	for (i = 0; i < ehdr->e_phnum; i++) {
-		if (phdr->p_paddr == BACKUP_SRC_START) {
-			phdr->p_offset = image->arch.backup_start;
-			kexec_dprintk("Backup region offset updated to 0x%lx\n",
-				      image->arch.backup_start);
-			return;
-		}
-	}
-}
-
 static unsigned int kdump_extra_elfcorehdr_size(struct crash_mem *cmem)
 {
 #if defined(CONFIG_CRASH_HOTPLUG) && defined(CONFIG_MEMORY_HOTPLUG)
@@ -445,7 +418,7 @@ static int load_elfcorehdr_segment(struct kimage *image, struct kexec_buf *kbuf)
 	}
 
 	/* Fix the offset for backup region in the ELF header */
-	update_backup_region_phdr(image, headers);
+	sync_backup_region_phdr(image, headers, false);
 
 	kbuf->buffer = headers;
 	kbuf->mem = KEXEC_BUF_MEM_UNKNOWN;
