@@ -66,6 +66,13 @@ struct pt_iommu {
 	struct device *iommu_device;
 };
 
+static inline struct pt_iommu *iommupt_from_domain(struct iommu_domain *domain)
+{
+	if (!IS_ENABLED(CONFIG_IOMMU_PT) || !domain->is_iommupt)
+		return NULL;
+	return container_of(domain, struct pt_iommu, domain);
+}
+
 /**
  * struct pt_iommu_info - Details about the IOMMU page table
  *
@@ -80,6 +87,56 @@ struct pt_iommu_info {
 };
 
 struct pt_iommu_ops {
+	/**
+	 * @map_range: Install translation for an IOVA range
+	 * @iommu_table: Table to manipulate
+	 * @iova: IO virtual address to start
+	 * @paddr: Physical/Output address to start
+	 * @len: Length of the range starting from @iova
+	 * @prot: A bitmap of IOMMU_READ/WRITE/CACHE/NOEXEC/MMIO
+	 * @gfp: GFP flags for any memory allocations
+	 *
+	 * The range starting at IOVA will have paddr installed into it. The
+	 * rage is automatically segmented into optimally sized table entries,
+	 * and can have any valid alignment.
+	 *
+	 * On error the caller will probably want to invoke unmap on the range
+	 * from iova up to the amount indicated by @mapped to return the table
+	 * back to an unchanged state.
+	 *
+	 * Context: The caller must hold a write range lock that includes
+	 * the whole range.
+	 *
+	 * Returns: -ERRNO on failure, 0 on success. The number of bytes of VA
+	 * that were mapped are added to @mapped, @mapped is not zerod first.
+	 */
+	int (*map_range)(struct pt_iommu *iommu_table, dma_addr_t iova,
+			 phys_addr_t paddr, dma_addr_t len, unsigned int prot,
+			 gfp_t gfp, size_t *mapped);
+
+	/**
+	 * @unmap_range: Make a range of IOVA empty/not present
+	 * @iommu_table: Table to manipulate
+	 * @iova: IO virtual address to start
+	 * @len: Length of the range starting from @iova
+	 * @iotlb_gather: Gather struct that must be flushed on return
+	 *
+	 * unmap_range() will remove a translation created by map_range(). It
+	 * cannot subdivide a mapping created by map_range(), so it should be
+	 * called with IOVA ranges that match those passed to map_pages. The
+	 * IOVA range can aggregate contiguous map_range() calls so long as no
+	 * individual range is split.
+	 *
+	 * Context: The caller must hold a write range lock that includes
+	 * the whole range.
+	 *
+	 * Returns: Number of bytes of VA unmapped. iova + res will be the
+	 * point unmapping stopped.
+	 */
+	size_t (*unmap_range)(struct pt_iommu *iommu_table, dma_addr_t iova,
+			      dma_addr_t len,
+			      struct iommu_iotlb_gather *iotlb_gather);
+
 	/**
 	 * @set_dirty: Make the iova write dirty
 	 * @iommu_table: Table to manipulate
@@ -194,14 +251,6 @@ struct pt_iommu_cfg {
 #define IOMMU_PROTOTYPES(fmt)                                                  \
 	phys_addr_t pt_iommu_##fmt##_iova_to_phys(struct iommu_domain *domain, \
 						  dma_addr_t iova);            \
-	int pt_iommu_##fmt##_map_pages(struct iommu_domain *domain,            \
-				       unsigned long iova, phys_addr_t paddr,  \
-				       size_t pgsize, size_t pgcount,          \
-				       int prot, gfp_t gfp, size_t *mapped);   \
-	size_t pt_iommu_##fmt##_unmap_pages(                                   \
-		struct iommu_domain *domain, unsigned long iova,               \
-		size_t pgsize, size_t pgcount,                                 \
-		struct iommu_iotlb_gather *iotlb_gather);                      \
 	int pt_iommu_##fmt##_read_and_clear_dirty(                             \
 		struct iommu_domain *domain, unsigned long iova, size_t size,  \
 		unsigned long flags, struct iommu_dirty_bitmap *dirty);        \
@@ -222,9 +271,7 @@ struct pt_iommu_cfg {
  * iommu_pt
  */
 #define IOMMU_PT_DOMAIN_OPS(fmt)                        \
-	.iova_to_phys = &pt_iommu_##fmt##_iova_to_phys, \
-	.map_pages = &pt_iommu_##fmt##_map_pages,       \
-	.unmap_pages = &pt_iommu_##fmt##_unmap_pages
+	.iova_to_phys = &pt_iommu_##fmt##_iova_to_phys
 #define IOMMU_PT_DIRTY_OPS(fmt) \
 	.read_and_clear_dirty = &pt_iommu_##fmt##_read_and_clear_dirty
 
@@ -274,6 +321,17 @@ struct pt_iommu_vtdss_hw_info {
 };
 
 IOMMU_FORMAT(vtdss, vtdss_pt);
+
+struct pt_iommu_riscv_64_cfg {
+	struct pt_iommu_cfg common;
+};
+
+struct pt_iommu_riscv_64_hw_info {
+	u64 ppn;
+	u8 fsc_iosatp_mode;
+};
+
+IOMMU_FORMAT(riscv_64, riscv_64pt);
 
 struct pt_iommu_x86_64_cfg {
 	struct pt_iommu_cfg common;

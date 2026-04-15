@@ -132,8 +132,8 @@ DEFINE_EVENT(cache_tag_log, cache_tag_unassign,
 
 DECLARE_EVENT_CLASS(cache_tag_flush,
 	TP_PROTO(struct cache_tag *tag, unsigned long start, unsigned long end,
-		 unsigned long addr, unsigned long pages, unsigned long mask),
-	TP_ARGS(tag, start, end, addr, pages, mask),
+		 unsigned long addr, unsigned long mask),
+	TP_ARGS(tag, start, end, addr, mask),
 	TP_STRUCT__entry(
 		__string(iommu, tag->iommu->name)
 		__string(dev, dev_name(tag->dev))
@@ -143,7 +143,6 @@ DECLARE_EVENT_CLASS(cache_tag_flush,
 		__field(unsigned long, start)
 		__field(unsigned long, end)
 		__field(unsigned long, addr)
-		__field(unsigned long, pages)
 		__field(unsigned long, mask)
 	),
 	TP_fast_assign(
@@ -155,10 +154,9 @@ DECLARE_EVENT_CLASS(cache_tag_flush,
 		__entry->start = start;
 		__entry->end = end;
 		__entry->addr = addr;
-		__entry->pages = pages;
 		__entry->mask = mask;
 	),
-	TP_printk("%s %s[%d] type %s did %d [0x%lx-0x%lx] addr 0x%lx pages 0x%lx mask 0x%lx",
+	TP_printk("%s %s[%d] type %s did %d [0x%lx-0x%lx] addr 0x%lx mask 0x%lx",
 		  __get_str(iommu), __get_str(dev), __entry->pasid,
 		  __print_symbolic(__entry->type,
 			{ CACHE_TAG_IOTLB,		"iotlb" },
@@ -166,20 +164,20 @@ DECLARE_EVENT_CLASS(cache_tag_flush,
 			{ CACHE_TAG_NESTING_IOTLB,	"nesting_iotlb" },
 			{ CACHE_TAG_NESTING_DEVTLB,	"nesting_devtlb" }),
 		__entry->domain_id, __entry->start, __entry->end,
-		__entry->addr, __entry->pages, __entry->mask
+		__entry->addr, __entry->mask
 	)
 );
 
 DEFINE_EVENT(cache_tag_flush, cache_tag_flush_range,
 	TP_PROTO(struct cache_tag *tag, unsigned long start, unsigned long end,
-		 unsigned long addr, unsigned long pages, unsigned long mask),
-	TP_ARGS(tag, start, end, addr, pages, mask)
+		 unsigned long addr, unsigned long mask),
+	TP_ARGS(tag, start, end, addr, mask)
 );
 
 DEFINE_EVENT(cache_tag_flush, cache_tag_flush_range_np,
 	TP_PROTO(struct cache_tag *tag, unsigned long start, unsigned long end,
-		 unsigned long addr, unsigned long pages, unsigned long mask),
-	TP_ARGS(tag, start, end, addr, pages, mask)
+		 unsigned long addr, unsigned long mask),
+	TP_ARGS(tag, start, end, addr, mask)
 );
 #endif /* _TRACE_INTEL_IOMMU_H */
 
