@@ -1,22 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Driver for Texas Instruments INA219, INA226 power monitor chips
- *
- * INA219:
- * Zero Drift Bi-Directional Current/Power Monitor with I2C Interface
- * Datasheet: https://www.ti.com/product/ina219
- *
- * INA220:
- * Bi-Directional Current/Power Monitor with I2C Interface
- * Datasheet: https://www.ti.com/product/ina220
- *
- * INA226:
- * Bi-Directional Current/Power Monitor with I2C Interface
- * Datasheet: https://www.ti.com/product/ina226
- *
- * INA230:
- * Bi-directional Current/Power Monitor with I2C Interface
- * Datasheet: https://www.ti.com/product/ina230
+ * Driver for Texas Instruments INA219, INA226 and register-layout compatible
+ * current/power monitor chips with I2C Interface
  *
  * Copyright (C) 2012 Lothar Felten <lothar.felten@gmail.com>
  * Thanks to Jan Volkering
@@ -49,7 +34,6 @@
 /* INA226 register definitions */
 #define INA226_MASK_ENABLE		0x06
 #define INA226_ALERT_LIMIT		0x07
-#define INA226_DIE_ID			0xFF
 
 /* SY24655 register definitions */
 #define SY24655_EIN				0x0A
@@ -135,18 +119,27 @@ static const struct regmap_config ina2xx_regmap_config = {
 	.writeable_reg = ina2xx_writeable_reg,
 };
 
-enum ina2xx_ids { ina219, ina226, ina260, sy24655 };
+enum ina2xx_ids {
+	ina219,
+	ina226,
+	ina234,
+	ina260,
+	sy24655
+};
 
 struct ina2xx_config {
 	u16 config_default;
 	bool has_alerts;	/* chip supports alerts and limits */
 	bool has_ishunt;	/* chip has internal shunt resistor */
-	bool has_power_average;	/* chip has internal shunt resistor */
+	bool has_power_average;	/* chip supports average power */
+	bool has_update_interval;
 	int calibration_value;
 	int shunt_div;
+	int shunt_voltage_shift;
 	int bus_voltage_shift;
 	int bus_voltage_lsb;	/* uV */
 	int power_lsb_factor;
+	int current_shift;
 };
 
 struct ina2xx_data {
@@ -165,44 +158,70 @@ static const struct ina2xx_config ina2xx_config[] = {
 		.config_default = INA219_CONFIG_DEFAULT,
 		.calibration_value = 4096,
 		.shunt_div = 100,
+		.shunt_voltage_shift = 0,
 		.bus_voltage_shift = 3,
 		.bus_voltage_lsb = 4000,
 		.power_lsb_factor = 20,
 		.has_alerts = false,
 		.has_ishunt = false,
 		.has_power_average = false,
+		.current_shift = 0,
+		.has_update_interval = false,
 	},
 	[ina226] = {
 		.config_default = INA226_CONFIG_DEFAULT,
 		.calibration_value = 2048,
 		.shunt_div = 400,
+		.shunt_voltage_shift = 0,
 		.bus_voltage_shift = 0,
 		.bus_voltage_lsb = 1250,
 		.power_lsb_factor = 25,
 		.has_alerts = true,
 		.has_ishunt = false,
 		.has_power_average = false,
+		.current_shift = 0,
+		.has_update_interval = true,
+	},
+	[ina234] = {
+		.config_default = INA226_CONFIG_DEFAULT,
+		.calibration_value = 2048,
+		.shunt_div = 25, /* 2.5 µV/LSB raw ADC reading from INA2XX_SHUNT_VOLTAGE */
+		.shunt_voltage_shift = 4,
+		.bus_voltage_shift = 4,
+		.bus_voltage_lsb = 25600,
+		.power_lsb_factor = 32,
+		.has_alerts = true,
+		.has_ishunt = false,
+		.has_power_average = false,
+		.current_shift = 4,
+		.has_update_interval = true,
 	},
 	[ina260] = {
 		.config_default = INA260_CONFIG_DEFAULT,
 		.shunt_div = 400,
+		.shunt_voltage_shift = 0,
 		.bus_voltage_shift = 0,
 		.bus_voltage_lsb = 1250,
 		.power_lsb_factor = 8,
 		.has_alerts = true,
 		.has_ishunt = true,
 		.has_power_average = false,
+		.current_shift = 0,
+		.has_update_interval = true,
 	},
 	[sy24655] = {
 		.config_default = SY24655_CONFIG_DEFAULT,
 		.calibration_value = 4096,
 		.shunt_div = 400,
+		.shunt_voltage_shift = 0,
 		.bus_voltage_shift = 0,
 		.bus_voltage_lsb = 1250,
 		.power_lsb_factor = 25,
 		.has_alerts = true,
 		.has_ishunt = false,
 		.has_power_average = true,
+		.current_shift = 0,
+		.has_update_interval = false,
 	},
 };
 
@@ -255,7 +274,8 @@ static int ina2xx_get_value(struct ina2xx_data *data, u8 reg,
 	switch (reg) {
 	case INA2XX_SHUNT_VOLTAGE:
 		/* signed register */
-		val = DIV_ROUND_CLOSEST((s16)regval, data->config->shunt_div);
+		val = (s16)regval >> data->config->shunt_voltage_shift;
+		val = DIV_ROUND_CLOSEST(val, data->config->shunt_div);
 		break;
 	case INA2XX_BUS_VOLTAGE:
 		val = (regval >> data->config->bus_voltage_shift) *
@@ -267,7 +287,8 @@ static int ina2xx_get_value(struct ina2xx_data *data, u8 reg,
 		break;
 	case INA2XX_CURRENT:
 		/* signed register, result in mA */
-		val = (s16)regval * data->current_lsb_uA;
+		val = ((s16)regval >> data->config->current_shift) *
+		  data->current_lsb_uA;
 		val = DIV_ROUND_CLOSEST(val, 1000);
 		break;
 	case INA2XX_CALIBRATION:
@@ -361,6 +382,7 @@ static u16 ina226_alert_to_reg(struct ina2xx_data *data, int reg, long val)
 	case INA2XX_SHUNT_VOLTAGE:
 		val = clamp_val(val, 0, SHRT_MAX * data->config->shunt_div);
 		val *= data->config->shunt_div;
+		val <<= data->config->shunt_voltage_shift;
 		return clamp_val(val, 0, SHRT_MAX);
 	case INA2XX_BUS_VOLTAGE:
 		val = clamp_val(val, 0, 200000);
@@ -375,6 +397,7 @@ static u16 ina226_alert_to_reg(struct ina2xx_data *data, int reg, long val)
 		val = clamp_val(val, INT_MIN / 1000, INT_MAX / 1000);
 		/* signed register, result in mA */
 		val = DIV_ROUND_CLOSEST(val * 1000, data->current_lsb_uA);
+		val <<= data->config->current_shift;
 		return clamp_val(val, SHRT_MIN, SHRT_MAX);
 	default:
 		/* programmer goofed */
@@ -706,7 +729,7 @@ static umode_t ina2xx_is_visible(const void *_data, enum hwmon_sensor_types type
 	const struct ina2xx_data *data = _data;
 	bool has_alerts = data->config->has_alerts;
 	bool has_power_average = data->config->has_power_average;
-	enum ina2xx_ids chip = data->chip;
+	bool has_update_interval = data->config->has_update_interval;
 
 	switch (type) {
 	case hwmon_in:
@@ -768,7 +791,7 @@ static umode_t ina2xx_is_visible(const void *_data, enum hwmon_sensor_types type
 	case hwmon_chip:
 		switch (attr) {
 		case hwmon_chip_update_interval:
-			if (chip == ina226 || chip == ina260)
+			if (has_update_interval)
 				return 0644;
 			break;
 		default:
@@ -982,6 +1005,7 @@ static const struct i2c_device_id ina2xx_id[] = {
 	{ "ina226", ina226 },
 	{ "ina230", ina226 },
 	{ "ina231", ina226 },
+	{ "ina234", ina234 },
 	{ "ina260", ina260 },
 	{ "sy24655", sy24655 },
 	{ }
@@ -1012,6 +1036,10 @@ static const struct of_device_id __maybe_unused ina2xx_of_match[] = {
 	{
 		.compatible = "ti,ina231",
 		.data = (void *)ina226
+	},
+	{
+		.compatible = "ti,ina234",
+		.data = (void *)ina234
 	},
 	{
 		.compatible = "ti,ina260",

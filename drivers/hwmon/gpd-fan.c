@@ -210,6 +210,14 @@ static const struct dmi_system_id dmi_table[] = {
 		.driver_data = &gpd_duo_drvdata,
 	},
 	{
+		// GPD Win 5 with AMD AI MAX 395
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "GPD"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "G1618-05"),
+		},
+		.driver_data = &gpd_duo_drvdata,
+	},
+	{
 		// GPD Pocket 4
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "GPD"),

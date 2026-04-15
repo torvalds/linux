@@ -77,6 +77,15 @@ config SENSORS_ADP1050_REGULATOR
 	  µModule regulators that can provide microprocessor power from 54V
 	  power distribution architecture.
 
+config SENSORS_APS_379
+	tristate "Sony APS-379 Power Supplies"
+	help
+	  If you say yes here you get hardware monitoring support for Sony
+	  APS-379 Power Supplies.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called aps-379.
+
 config SENSORS_BEL_PFE
 	tristate "Bel PFE Compatible Power Supplies"
 	help
@@ -702,6 +711,15 @@ config SENSORS_XDP710
 	  This driver can also be built as a module. If so, the module will
 	  be called xdp710.
 
+config SENSORS_XDP720
+	tristate "Infineon XDP720 family"
+	help
+	  If you say yes here you get hardware monitoring support for Infineon
+	  XDP720.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called xdp720.
+
 config SENSORS_XDPE152
 	tristate "Infineon XDPE152 family"
 	help
@@ -710,6 +728,15 @@ config SENSORS_XDPE152
 
 	  This driver can also be built as a module. If so, the module will
 	  be called xdpe152c4.
+
+config SENSORS_XDPE1A2G7B
+	tristate "Infineon XDPE1A2G7B"
+	help
+	  If you say yes here you get hardware monitoring support for Infineon
+	  XDPE1A2G5B and XDPE1A2G7B.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called xdpe1a2g7b.
 
 config SENSORS_XDPE122
 	tristate "Infineon XDPE122 family"

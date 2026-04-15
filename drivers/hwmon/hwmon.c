@@ -505,6 +505,7 @@ static bool is_string_attr(enum hwmon_sensor_types type, u32 attr)
 	       (type == hwmon_curr && attr == hwmon_curr_label) ||
 	       (type == hwmon_power && attr == hwmon_power_label) ||
 	       (type == hwmon_energy && attr == hwmon_energy_label) ||
+	       (type == hwmon_energy64 && attr == hwmon_energy_label) ||
 	       (type == hwmon_humidity && attr == hwmon_humidity_label) ||
 	       (type == hwmon_fan && attr == hwmon_fan_label);
 }

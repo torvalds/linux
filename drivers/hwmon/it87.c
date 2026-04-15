@@ -16,6 +16,7 @@
  *            IT8622E  Super I/O chip w/LPC interface
  *            IT8623E  Super I/O chip w/LPC interface
  *            IT8628E  Super I/O chip w/LPC interface
+ *            IT8689E  Super I/O chip w/LPC interface
  *            IT8705F  Super I/O chip w/LPC interface
  *            IT8712F  Super I/O chip w/LPC interface
  *            IT8716F  Super I/O chip w/LPC interface
@@ -64,7 +65,7 @@
 
 enum chips { it87, it8712, it8716, it8718, it8720, it8721, it8728, it8732,
 	     it8771, it8772, it8781, it8782, it8783, it8786, it8790,
-	     it8792, it8603, it8620, it8622, it8628, it87952 };
+	     it8792, it8603, it8620, it8622, it8628, it8689, it87952 };
 
 static struct platform_device *it87_pdev[2];
 
@@ -162,6 +163,7 @@ static inline void superio_exit(int ioreg, bool noexit)
 #define IT8622E_DEVID 0x8622
 #define IT8623E_DEVID 0x8623
 #define IT8628E_DEVID 0x8628
+#define IT8689E_DEVID 0x8689
 #define IT87952E_DEVID 0x8695
 
 /* Logical device 4 (Environmental Monitor) registers */
@@ -501,6 +503,15 @@ static const struct it87_devices it87_devices[] = {
 		  | FEAT_IN7_INTERNAL | FEAT_SIX_PWM | FEAT_PWM_FREQ2
 		  | FEAT_SIX_TEMP | FEAT_VIN3_5V | FEAT_FANCTL_ONOFF,
 		.peci_mask = 0x07,
+	},
+	[it8689] = {
+		.name = "it8689",
+		.model = "IT8689E",
+		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
+		  | FEAT_TEMP_OFFSET | FEAT_SIX_FANS | FEAT_IN7_INTERNAL
+		  | FEAT_SIX_PWM | FEAT_PWM_FREQ2 | FEAT_SIX_TEMP | FEAT_AVCC3
+		  | FEAT_FANCTL_ONOFF,
+		.smbus_bitmap = BIT(1) | BIT(2),
 	},
 	[it87952] = {
 		.name = "it87952",
@@ -2785,6 +2796,9 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 	case IT8628E_DEVID:
 		sio_data->type = it8628;
 		break;
+	case IT8689E_DEVID:
+		sio_data->type = it8689;
+		break;
 	case IT87952E_DEVID:
 		sio_data->type = it87952;
 		break;
@@ -2999,6 +3013,51 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 			sio_data->internal |= BIT(0);
 		else
 			sio_data->skip_in |= BIT(9);
+
+		sio_data->beep_pin = superio_inb(sioaddr,
+						 IT87_SIO_BEEP_PIN_REG) & 0x3f;
+	} else if (sio_data->type == it8689) {
+		int reg;
+
+		superio_select(sioaddr, GPIO);
+
+		/* Check for pwm5 */
+		reg = superio_inb(sioaddr, IT87_SIO_GPIO1_REG);
+		if (reg & BIT(6))
+			sio_data->skip_pwm |= BIT(4);
+
+		/* Check for fan4, fan5 */
+		reg = superio_inb(sioaddr, IT87_SIO_GPIO2_REG);
+		if (!(reg & BIT(5)))
+			sio_data->skip_fan |= BIT(3);
+		if (!(reg & BIT(4)))
+			sio_data->skip_fan |= BIT(4);
+
+		/* Check for pwm3, fan3 */
+		reg = superio_inb(sioaddr, IT87_SIO_GPIO3_REG);
+		if (reg & BIT(6))
+			sio_data->skip_pwm |= BIT(2);
+		if (reg & BIT(7))
+			sio_data->skip_fan |= BIT(2);
+
+		/* Check for pwm4 */
+		reg = superio_inb(sioaddr, IT87_SIO_GPIO4_REG);
+		if (reg & BIT(2))
+			sio_data->skip_pwm |= BIT(3);
+
+		/* Check for pwm2, fan2 */
+		reg = superio_inb(sioaddr, IT87_SIO_GPIO5_REG);
+		if (reg & BIT(1))
+			sio_data->skip_pwm |= BIT(1);
+		if (reg & BIT(2))
+			sio_data->skip_fan |= BIT(1);
+		/* Check for pwm6, fan6 */
+		if (!(reg & BIT(7))) {
+			sio_data->skip_pwm |= BIT(5);
+			sio_data->skip_fan |= BIT(5);
+		}
+
+		/* in9 (AVCC3) is always internal, no PINX2 check needed */
 
 		sio_data->beep_pin = superio_inb(sioaddr,
 						 IT87_SIO_BEEP_PIN_REG) & 0x3f;

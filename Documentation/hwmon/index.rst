@@ -41,6 +41,7 @@ Hardware Monitoring Kernel Drivers
    adt7475
    aht10
    amc6821
+   aps-379
    aquacomputer_d5next
    asb100
    asc7621
@@ -52,7 +53,6 @@ Hardware Monitoring Kernel Drivers
    bcm54140
    bel-pfe
    bpa-rs600
-   bt1-pvt
    cgbc-hwmon
    chipcap2
    coretemp
@@ -111,6 +111,7 @@ Hardware Monitoring Kernel Drivers
    kbatt
    kfan
    lan966x
+   lattepanda-sigma-ec
    lineage-pem
    lm25066
    lm63
@@ -174,6 +175,7 @@ Hardware Monitoring Kernel Drivers
    mc33xs2410_hwmon
    mc34vr500
    mcp3021
+   mcp9982
    menf21bmc
    mlxreg-fan
    mp2856
@@ -282,4 +284,5 @@ Hardware Monitoring Kernel Drivers
    xdp710
    xdpe12284
    xdpe152c4
+   yogafan
    zl6100

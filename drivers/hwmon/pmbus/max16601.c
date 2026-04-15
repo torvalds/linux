@@ -318,7 +318,7 @@ static int max16601_probe(struct i2c_client *client)
 	if (chip_id < 0)
 		return chip_id;
 
-	id = i2c_match_id(max16601_id, client);
+	id = i2c_client_get_device_id(client);
 	if (chip_id != id->driver_data)
 		dev_warn(&client->dev,
 			 "Device mismatch: Configured %s (%d), detected %d\n",

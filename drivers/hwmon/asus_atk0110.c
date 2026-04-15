@@ -17,6 +17,7 @@
 #include <linux/jiffies.h>
 #include <linux/err.h>
 #include <linux/acpi.h>
+#include <linux/platform_device.h>
 #include <linux/string_choices.h>
 
 #define ATK_HID "ATK0110"
@@ -107,7 +108,7 @@ enum atk_pack_member {
 struct atk_data {
 	struct device *hwmon_dev;
 	acpi_handle atk_handle;
-	struct acpi_device *acpi_dev;
+	struct device *dev;
 
 	bool old_interface;
 
@@ -187,18 +188,17 @@ struct atk_acpi_input_buf {
 	u32 param2;
 };
 
-static int atk_add(struct acpi_device *device);
-static void atk_remove(struct acpi_device *device);
+static int atk_probe(struct platform_device *pdev);
+static void atk_remove(struct platform_device *pdev);
 static void atk_print_sensor(struct atk_data *data, union acpi_object *obj);
 static int atk_read_value(struct atk_sensor_data *sensor, u64 *value);
 
-static struct acpi_driver atk_driver = {
-	.name	= ATK_HID,
-	.class	= "hwmon",
-	.ids	= atk_ids,
-	.ops	= {
-		.add	= atk_add,
-		.remove	= atk_remove,
+static struct platform_driver atk_driver = {
+	.probe = atk_probe,
+	.remove = atk_remove,
+	.driver = {
+		.name = ATK_HID,
+		.acpi_match_table = atk_ids,
 	},
 };
 
@@ -327,7 +327,7 @@ static union acpi_object *atk_get_pack_member(struct atk_data *data,
  */
 static int validate_hwmon_pack(struct atk_data *data, union acpi_object *obj)
 {
-	struct device *dev = &data->acpi_dev->dev;
+	struct device *dev = data->dev;
 	union acpi_object *tmp;
 	bool old_if = data->old_interface;
 	int const expected_size = old_if ? _HWMON_OLD_PACK_SIZE :
@@ -422,7 +422,7 @@ static char const *atk_sensor_type(union acpi_object *flags)
 static void atk_print_sensor(struct atk_data *data, union acpi_object *obj)
 {
 #ifdef DEBUG
-	struct device *dev = &data->acpi_dev->dev;
+	struct device *dev = data->dev;
 	union acpi_object *flags;
 	union acpi_object *name;
 	union acpi_object *limit1;
@@ -449,7 +449,7 @@ static void atk_print_sensor(struct atk_data *data, union acpi_object *obj)
 static int atk_read_value_old(struct atk_sensor_data *sensor, u64 *value)
 {
 	struct atk_data *data = sensor->data;
-	struct device *dev = &data->acpi_dev->dev;
+	struct device *dev = data->dev;
 	struct acpi_object_list params;
 	union acpi_object id;
 	acpi_status status;
@@ -487,7 +487,7 @@ static int atk_read_value_old(struct atk_sensor_data *sensor, u64 *value)
 
 static union acpi_object *atk_ggrp(struct atk_data *data, u16 mux)
 {
-	struct device *dev = &data->acpi_dev->dev;
+	struct device *dev = data->dev;
 	struct acpi_buffer buf;
 	acpi_status ret;
 	struct acpi_object_list params;
@@ -523,7 +523,7 @@ static union acpi_object *atk_ggrp(struct atk_data *data, u16 mux)
 
 static union acpi_object *atk_gitm(struct atk_data *data, u64 id)
 {
-	struct device *dev = &data->acpi_dev->dev;
+	struct device *dev = data->dev;
 	struct atk_acpi_input_buf buf;
 	union acpi_object tmp;
 	struct acpi_object_list params;
@@ -565,7 +565,7 @@ static union acpi_object *atk_gitm(struct atk_data *data, u64 id)
 static union acpi_object *atk_sitm(struct atk_data *data,
 		struct atk_acpi_input_buf *buf)
 {
-	struct device *dev = &data->acpi_dev->dev;
+	struct device *dev = data->dev;
 	struct acpi_object_list params;
 	union acpi_object tmp;
 	struct acpi_buffer ret;
@@ -602,7 +602,7 @@ static union acpi_object *atk_sitm(struct atk_data *data,
 static int atk_read_value_new(struct atk_sensor_data *sensor, u64 *value)
 {
 	struct atk_data *data = sensor->data;
-	struct device *dev = &data->acpi_dev->dev;
+	struct device *dev = data->dev;
 	union acpi_object *obj;
 	struct atk_acpi_ret_buffer *buf;
 	int err = 0;
@@ -819,7 +819,7 @@ static void atk_debugfs_cleanup(struct atk_data *data)
 
 static int atk_add_sensor(struct atk_data *data, union acpi_object *obj)
 {
-	struct device *dev = &data->acpi_dev->dev;
+	struct device *dev = data->dev;
 	union acpi_object *flags;
 	union acpi_object *name;
 	union acpi_object *limit1;
@@ -937,7 +937,7 @@ static int atk_add_sensor(struct atk_data *data, union acpi_object *obj)
 
 static int atk_enumerate_old_hwmon(struct atk_data *data)
 {
-	struct device *dev = &data->acpi_dev->dev;
+	struct device *dev = data->dev;
 	struct acpi_buffer buf;
 	union acpi_object *pack;
 	acpi_status status;
@@ -1012,7 +1012,7 @@ static int atk_enumerate_old_hwmon(struct atk_data *data)
 
 static int atk_ec_present(struct atk_data *data)
 {
-	struct device *dev = &data->acpi_dev->dev;
+	struct device *dev = data->dev;
 	union acpi_object *pack;
 	union acpi_object *ec;
 	int ret;
@@ -1058,7 +1058,7 @@ static int atk_ec_present(struct atk_data *data)
 
 static int atk_ec_enabled(struct atk_data *data)
 {
-	struct device *dev = &data->acpi_dev->dev;
+	struct device *dev = data->dev;
 	union acpi_object *obj;
 	struct atk_acpi_ret_buffer *buf;
 	int err;
@@ -1084,7 +1084,7 @@ static int atk_ec_enabled(struct atk_data *data)
 
 static int atk_ec_ctl(struct atk_data *data, int enable)
 {
-	struct device *dev = &data->acpi_dev->dev;
+	struct device *dev = data->dev;
 	union acpi_object *obj;
 	struct atk_acpi_input_buf sitm;
 	struct atk_acpi_ret_buffer *ec_ret;
@@ -1113,7 +1113,7 @@ static int atk_ec_ctl(struct atk_data *data, int enable)
 
 static int atk_enumerate_new_hwmon(struct atk_data *data)
 {
-	struct device *dev = &data->acpi_dev->dev;
+	struct device *dev = data->dev;
 	union acpi_object *pack;
 	int err;
 	int i;
@@ -1155,7 +1155,7 @@ static int atk_enumerate_new_hwmon(struct atk_data *data)
 
 static int atk_init_attribute_groups(struct atk_data *data)
 {
-	struct device *dev = &data->acpi_dev->dev;
+	struct device *dev = data->dev;
 	struct atk_sensor_data *s;
 	struct attribute **attrs;
 	int i = 0;
@@ -1181,7 +1181,7 @@ static int atk_init_attribute_groups(struct atk_data *data)
 
 static int atk_register_hwmon(struct atk_data *data)
 {
-	struct device *dev = &data->acpi_dev->dev;
+	struct device *dev = data->dev;
 
 	dev_dbg(dev, "registering hwmon device\n");
 	data->hwmon_dev = hwmon_device_register_with_groups(dev, "atk0110",
@@ -1193,7 +1193,7 @@ static int atk_register_hwmon(struct atk_data *data)
 
 static int atk_probe_if(struct atk_data *data)
 {
-	struct device *dev = &data->acpi_dev->dev;
+	struct device *dev = data->dev;
 	acpi_handle ret;
 	acpi_status status;
 	int err = 0;
@@ -1266,7 +1266,7 @@ static int atk_probe_if(struct atk_data *data)
 	return err;
 }
 
-static int atk_add(struct acpi_device *device)
+static int atk_probe(struct platform_device *pdev)
 {
 	acpi_status ret;
 	int err;
@@ -1274,14 +1274,14 @@ static int atk_add(struct acpi_device *device)
 	union acpi_object *obj;
 	struct atk_data *data;
 
-	dev_dbg(&device->dev, "adding...\n");
+	dev_dbg(&pdev->dev, "adding...\n");
 
-	data = devm_kzalloc(&device->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	data->acpi_dev = device;
-	data->atk_handle = device->handle;
+	data->dev = &pdev->dev;
+	data->atk_handle = ACPI_HANDLE(&pdev->dev);
 	INIT_LIST_HEAD(&data->sensor_list);
 	data->disable_ec = false;
 
@@ -1289,13 +1289,13 @@ static int atk_add(struct acpi_device *device)
 	ret = acpi_evaluate_object_typed(data->atk_handle, BOARD_ID, NULL,
 			&buf, ACPI_TYPE_PACKAGE);
 	if (ret != AE_OK) {
-		dev_dbg(&device->dev, "atk: method MBIF not found\n");
+		dev_dbg(&pdev->dev, "atk: method MBIF not found\n");
 	} else {
 		obj = buf.pointer;
 		if (obj->package.count >= 2) {
 			union acpi_object *id = &obj->package.elements[1];
 			if (id->type == ACPI_TYPE_STRING)
-				dev_dbg(&device->dev, "board ID = %s\n",
+				dev_dbg(&pdev->dev, "board ID = %s\n",
 					id->string.pointer);
 		}
 		ACPI_FREE(buf.pointer);
@@ -1303,21 +1303,21 @@ static int atk_add(struct acpi_device *device)
 
 	err = atk_probe_if(data);
 	if (err) {
-		dev_err(&device->dev, "No usable hwmon interface detected\n");
+		dev_err(&pdev->dev, "No usable hwmon interface detected\n");
 		goto out;
 	}
 
 	if (data->old_interface) {
-		dev_dbg(&device->dev, "Using old hwmon interface\n");
+		dev_dbg(&pdev->dev, "Using old hwmon interface\n");
 		err = atk_enumerate_old_hwmon(data);
 	} else {
-		dev_dbg(&device->dev, "Using new hwmon interface\n");
+		dev_dbg(&pdev->dev, "Using new hwmon interface\n");
 		err = atk_enumerate_new_hwmon(data);
 	}
 	if (err < 0)
 		goto out;
 	if (err == 0) {
-		dev_info(&device->dev,
+		dev_info(&pdev->dev,
 			 "No usable sensor detected, bailing out\n");
 		err = -ENODEV;
 		goto out;
@@ -1332,7 +1332,8 @@ static int atk_add(struct acpi_device *device)
 
 	atk_debugfs_init(data);
 
-	device->driver_data = data;
+	platform_set_drvdata(pdev, data);
+
 	return 0;
 out:
 	if (data->disable_ec)
@@ -1340,12 +1341,11 @@ out:
 	return err;
 }
 
-static void atk_remove(struct acpi_device *device)
+static void atk_remove(struct platform_device *pdev)
 {
-	struct atk_data *data = device->driver_data;
-	dev_dbg(&device->dev, "removing...\n");
+	struct atk_data *data = platform_get_drvdata(pdev);
 
-	device->driver_data = NULL;
+	dev_dbg(&pdev->dev, "removing...\n");
 
 	atk_debugfs_cleanup(data);
 
@@ -1353,7 +1353,7 @@ static void atk_remove(struct acpi_device *device)
 
 	if (data->disable_ec) {
 		if (atk_ec_ctl(data, 0))
-			dev_err(&device->dev, "Failed to disable EC\n");
+			dev_err(&pdev->dev, "Failed to disable EC\n");
 	}
 }
 
@@ -1370,16 +1370,16 @@ static int __init atk0110_init(void)
 	if (dmi_check_system(atk_force_new_if))
 		new_if = true;
 
-	ret = acpi_bus_register_driver(&atk_driver);
+	ret = platform_driver_register(&atk_driver);
 	if (ret)
-		pr_info("acpi_bus_register_driver failed: %d\n", ret);
+		pr_info("platform_driver_register failed: %d\n", ret);
 
 	return ret;
 }
 
 static void __exit atk0110_exit(void)
 {
-	acpi_bus_unregister_driver(&atk_driver);
+	platform_driver_unregister(&atk_driver);
 }
 
 module_init(atk0110_init);

@@ -9,8 +9,7 @@ Supported chips:
 
     Prefix: 'ltc4282'
 
-    Addresses scanned: - I2C 0x40 - 0x5A (7-bit)
-    Addresses scanned: - I2C 0x80 - 0xB4 with a step of 2 (8-bit)
+    Addresses scanned: -
 
     Datasheet:
 
