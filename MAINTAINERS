@@ -6424,7 +6424,7 @@ F:	include/linux/compiler_attributes.h
 
 COMPUTE EXPRESS LINK (CXL)
 M:	Davidlohr Bueso <dave@stgolabs.net>
-M:	Jonathan Cameron <jonathan.cameron@huawei.com>
+M:	Jonathan Cameron <jic23@kernel.org>
 M:	Dave Jiang <dave.jiang@intel.com>
 M:	Alison Schofield <alison.schofield@intel.com>
 M:	Vishal Verma <vishal.l.verma@intel.com>
@@ -6440,7 +6440,7 @@ F:	include/uapi/linux/cxl_mem.h
 F:	tools/testing/cxl/
 
 COMPUTE EXPRESS LINK PMU (CPMU)
-M:	Jonathan Cameron <jonathan.cameron@huawei.com>
+M:	Jonathan Cameron <jic23@kernel.org>
 L:	linux-cxl@vger.kernel.org
 S:	Maintained
 F:	Documentation/admin-guide/perf/cxl.rst
@@ -10524,7 +10524,7 @@ FWCTL SUBSYSTEM
 M:	Dave Jiang <dave.jiang@intel.com>
 M:	Jason Gunthorpe <jgg@nvidia.com>
 M:	Saeed Mahameed <saeedm@nvidia.com>
-R:	Jonathan Cameron <Jonathan.Cameron@huawei.com>
+R:	Jonathan Cameron <jic23@kernel.org>
 S:	Maintained
 F:	Documentation/userspace-api/fwctl/
 F:	drivers/fwctl/
@@ -25136,7 +25136,7 @@ F:	drivers/staging/
 
 STANDALONE CACHE CONTROLLER DRIVERS
 M:	Conor Dooley <conor@kernel.org>
-M:	Jonathan Cameron <jonathan.cameron@huawei.com>
+M:	Jonathan Cameron <jic23@kernel.org>
 S:	Maintained
 T:	git https://git.kernel.org/pub/scm/linux/kernel/git/conor/linux.git/
 F:	Documentation/devicetree/bindings/cache/
