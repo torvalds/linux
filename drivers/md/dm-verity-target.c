@@ -733,8 +733,8 @@ static void verity_prefetch_io(struct work_struct *work)
 
 			hash_block_start &= ~(sector_t)(cluster - 1);
 			hash_block_end |= cluster - 1;
-			if (unlikely(hash_block_end >= v->hash_blocks))
-				hash_block_end = v->hash_blocks - 1;
+			if (unlikely(hash_block_end >= v->hash_end))
+				hash_block_end = v->hash_end - 1;
 		}
 no_prefetch_cluster:
 		dm_bufio_prefetch_with_ioprio(v->bufio, hash_block_start,
@@ -1011,13 +1011,7 @@ static void verity_io_hints(struct dm_target *ti, struct queue_limits *limits)
 {
 	struct dm_verity *v = ti->private;
 
-	if (limits->logical_block_size < 1 << v->data_dev_block_bits)
-		limits->logical_block_size = 1 << v->data_dev_block_bits;
-
-	if (limits->physical_block_size < 1 << v->data_dev_block_bits)
-		limits->physical_block_size = 1 << v->data_dev_block_bits;
-
-	limits->io_min = limits->logical_block_size;
+	dm_stack_bs_limits(limits, 1 << v->data_dev_block_bits);
 
 	/*
 	 * Similar to what dm-crypt does, opt dm-verity out of support for
@@ -1607,7 +1601,7 @@ static int verity_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		}
 		hash_position += s;
 	}
-	v->hash_blocks = hash_position;
+	v->hash_end = hash_position;
 
 	r = mempool_init_page_pool(&v->recheck_pool, 1, 0);
 	if (unlikely(r)) {
@@ -1634,7 +1628,7 @@ static int verity_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad;
 	}
 
-	if (dm_bufio_get_device_size(v->bufio) < v->hash_blocks) {
+	if (dm_bufio_get_device_size(v->bufio) < v->hash_end) {
 		ti->error = "Hash device is too small";
 		r = -E2BIG;
 		goto bad;

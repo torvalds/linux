@@ -64,7 +64,11 @@ struct vers_iter {
 static struct rb_root name_rb_tree = RB_ROOT;
 static struct rb_root uuid_rb_tree = RB_ROOT;
 
-static void dm_hash_remove_all(bool keep_open_devices, bool mark_deferred, bool only_deferred);
+#define DM_REMOVE_KEEP_OPEN_DEVICES	1
+#define DM_REMOVE_MARK_DEFERRED		2
+#define DM_REMOVE_ONLY_DEFERRED		4
+#define DM_REMOVE_INTERRUPTIBLE		8
+static int dm_hash_remove_all(unsigned flags);
 
 /*
  * Guards access to both hash tables.
@@ -78,7 +82,7 @@ static DEFINE_MUTEX(dm_hash_cells_mutex);
 
 static void dm_hash_exit(void)
 {
-	dm_hash_remove_all(false, false, false);
+	dm_hash_remove_all(0);
 }
 
 /*
@@ -333,7 +337,7 @@ static struct dm_table *__hash_remove(struct hash_cell *hc)
 	return table;
 }
 
-static void dm_hash_remove_all(bool keep_open_devices, bool mark_deferred, bool only_deferred)
+static int dm_hash_remove_all(unsigned flags)
 {
 	int dev_skipped;
 	struct rb_node *n;
@@ -347,12 +351,17 @@ retry:
 	down_write(&_hash_lock);
 
 	for (n = rb_first(&name_rb_tree); n; n = rb_next(n)) {
+		if (flags & DM_REMOVE_INTERRUPTIBLE && fatal_signal_pending(current)) {
+			up_write(&_hash_lock);
+			return -EINTR;
+		}
+
 		hc = container_of(n, struct hash_cell, name_node);
 		md = hc->md;
 		dm_get(md);
 
-		if (keep_open_devices &&
-		    dm_lock_for_deletion(md, mark_deferred, only_deferred)) {
+		if (flags & DM_REMOVE_KEEP_OPEN_DEVICES &&
+		    dm_lock_for_deletion(md, !!(flags & DM_REMOVE_MARK_DEFERRED), !!(flags & DM_REMOVE_ONLY_DEFERRED))) {
 			dm_put(md);
 			dev_skipped++;
 			continue;
@@ -368,7 +377,7 @@ retry:
 		}
 		dm_ima_measure_on_device_remove(md, true);
 		dm_put(md);
-		if (likely(keep_open_devices))
+		if (likely(flags & DM_REMOVE_KEEP_OPEN_DEVICES))
 			dm_destroy(md);
 		else
 			dm_destroy_immediate(md);
@@ -384,8 +393,10 @@ retry:
 
 	up_write(&_hash_lock);
 
-	if (dev_skipped)
+	if (dev_skipped && !(flags & DM_REMOVE_ONLY_DEFERRED))
 		DMWARN("remove_all left %d open device(s)", dev_skipped);
+
+	return 0;
 }
 
 /*
@@ -513,7 +524,7 @@ static struct mapped_device *dm_hash_rename(struct dm_ioctl *param,
 
 void dm_deferred_remove(void)
 {
-	dm_hash_remove_all(true, false, true);
+	dm_hash_remove_all(DM_REMOVE_KEEP_OPEN_DEVICES | DM_REMOVE_ONLY_DEFERRED);
 }
 
 /*
@@ -529,9 +540,13 @@ typedef int (*ioctl_fn)(struct file *filp, struct dm_ioctl *param, size_t param_
 
 static int remove_all(struct file *filp, struct dm_ioctl *param, size_t param_size)
 {
-	dm_hash_remove_all(true, !!(param->flags & DM_DEFERRED_REMOVE), false);
+	int r;
+	int flags = DM_REMOVE_KEEP_OPEN_DEVICES | DM_REMOVE_INTERRUPTIBLE;
+	if (param->flags & DM_DEFERRED_REMOVE)
+		flags |= DM_REMOVE_MARK_DEFERRED;
+	r = dm_hash_remove_all(flags);
 	param->data_size = 0;
-	return 0;
+	return r;
 }
 
 /*
@@ -1341,6 +1356,10 @@ static void retrieve_status(struct dm_table *table,
 		used = param->data_start + (outptr - outbuf);
 
 		outptr = align_ptr(outptr);
+		if (!outptr || outptr > outbuf + len) {
+			param->flags |= DM_BUFFER_FULL_FLAG;
+			break;
+		}
 		spec->next = outptr - outbuf;
 	}
 

@@ -608,6 +608,12 @@ struct vdo_config {
 	block_count_t slab_journal_blocks; /* number of slab journal blocks */
 };
 
+/** The maximum logical space is 4 petabytes, which is 1 terablock. */
+#define MAXIMUM_VDO_LOGICAL_BLOCKS ((block_count_t)(1024ULL * 1024 * 1024 * 1024))
+
+/** The maximum physical space is 256 terabytes, which is 64 gigablocks. */
+#define MAXIMUM_VDO_PHYSICAL_BLOCKS ((block_count_t)(1024ULL * 1024 * 1024 * 64))
+
 /* This is the structure that captures the vdo fields saved as a super block component. */
 struct vdo_component {
 	enum vdo_state state;
@@ -803,6 +809,12 @@ vdo_get_index_region_size(struct volume_geometry geometry)
 		vdo_get_index_region_start(geometry);
 }
 
+int vdo_initialize_volume_geometry(nonce_t nonce, uuid_t *uuid,
+				   const struct index_config *index_config,
+				   struct volume_geometry *geometry);
+
+int vdo_encode_volume_geometry(u8 *buffer, const struct volume_geometry *geometry,
+			       u32 version);
 int __must_check vdo_parse_geometry_block(unsigned char *block,
 					  struct volume_geometry *geometry);
 
@@ -1263,6 +1275,11 @@ int __must_check vdo_validate_component_states(struct vdo_component_states *stat
 
 void vdo_encode_super_block(u8 *buffer, struct vdo_component_states *states);
 int __must_check vdo_decode_super_block(u8 *buffer);
+
+int vdo_initialize_component_states(const struct vdo_config *vdo_config,
+				    const struct volume_geometry *geometry,
+				    nonce_t nonce,
+				    struct vdo_component_states *states);
 
 /* We start with 0L and postcondition with ~0L to match our historical usage in userspace. */
 static inline u32 vdo_crc32(const void *buf, unsigned long len)

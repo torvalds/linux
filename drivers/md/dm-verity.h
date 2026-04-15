@@ -53,9 +53,9 @@ struct dm_verity {
 	unsigned int sig_size;	/* root digest signature size */
 #endif /* CONFIG_SECURITY */
 	unsigned int salt_size;
-	sector_t hash_start;	/* hash start in blocks */
+	sector_t hash_start;	/* index of first hash block on hash_dev */
+	sector_t hash_end;	/* 1 + index of last hash block on hash dev */
 	sector_t data_blocks;	/* the number of data blocks */
-	sector_t hash_blocks;	/* the number of hash blocks */
 	unsigned char data_dev_block_bits;	/* log2(data blocksize) */
 	unsigned char hash_dev_block_bits;	/* log2(hash blocksize) */
 	unsigned char hash_per_block_bits;	/* log2(hashes in hash block) */

@@ -12,9 +12,7 @@
 
 #include <linux/ima.h>
 #include <linux/sched/mm.h>
-#include <crypto/hash.h>
-#include <linux/crypto.h>
-#include <crypto/hash_info.h>
+#include <crypto/sha2.h>
 
 #define DM_MSG_PREFIX "ima"
 
@@ -178,19 +176,13 @@ void dm_ima_measure_on_table_load(struct dm_table *table, unsigned int status_fl
 	size_t device_data_buf_len, target_metadata_buf_len, target_data_buf_len, l = 0;
 	char *target_metadata_buf = NULL, *target_data_buf = NULL, *digest_buf = NULL;
 	char *ima_buf = NULL, *device_data_buf = NULL;
-	int digest_size, last_target_measured = -1, r;
+	int last_target_measured = -1;
 	status_type_t type = STATUSTYPE_IMA;
 	size_t cur_total_buf_len = 0;
 	unsigned int num_targets, i;
-	SHASH_DESC_ON_STACK(shash, NULL);
-	struct crypto_shash *tfm = NULL;
-	u8 *digest = NULL;
+	struct sha256_ctx hash_ctx;
+	u8 digest[SHA256_DIGEST_SIZE];
 	bool noio = false;
-	/*
-	 * In below hash_alg_prefix_len assignment +1 is for the additional char (':'),
-	 * when prefixing the hash value with the hash algorithm name. e.g. sha256:<hash_value>.
-	 */
-	const size_t hash_alg_prefix_len = strlen(DM_IMA_TABLE_HASH_ALG) + 1;
 	char table_load_event_name[] = "dm_table_load";
 
 	ima_buf = dm_ima_alloc(DM_IMA_MEASUREMENT_BUF_LEN, noio);
@@ -210,19 +202,7 @@ void dm_ima_measure_on_table_load(struct dm_table *table, unsigned int status_fl
 	if (dm_ima_alloc_and_copy_device_data(table->md, &device_data_buf, num_targets, noio))
 		goto error;
 
-	tfm = crypto_alloc_shash(DM_IMA_TABLE_HASH_ALG, 0, 0);
-	if (IS_ERR(tfm))
-		goto error;
-
-	shash->tfm = tfm;
-	digest_size = crypto_shash_digestsize(tfm);
-	digest = dm_ima_alloc(digest_size, noio);
-	if (!digest)
-		goto error;
-
-	r = crypto_shash_init(shash);
-	if (r)
-		goto error;
+	sha256_init(&hash_ctx);
 
 	memcpy(ima_buf + l, DM_IMA_VERSION_STR, table->md->ima.dm_version_str_len);
 	l += table->md->ima.dm_version_str_len;
@@ -270,9 +250,7 @@ void dm_ima_measure_on_table_load(struct dm_table *table, unsigned int status_fl
 		 */
 		if (unlikely(cur_total_buf_len >= DM_IMA_MEASUREMENT_BUF_LEN)) {
 			dm_ima_measure_data(table_load_event_name, ima_buf, l, noio);
-			r = crypto_shash_update(shash, (const u8 *)ima_buf, l);
-			if (r < 0)
-				goto error;
+			sha256_update(&hash_ctx, (const u8 *)ima_buf, l);
 
 			memset(ima_buf, 0, DM_IMA_MEASUREMENT_BUF_LEN);
 			l = 0;
@@ -311,9 +289,7 @@ void dm_ima_measure_on_table_load(struct dm_table *table, unsigned int status_fl
 	if (!last_target_measured) {
 		dm_ima_measure_data(table_load_event_name, ima_buf, l, noio);
 
-		r = crypto_shash_update(shash, (const u8 *)ima_buf, l);
-		if (r < 0)
-			goto error;
+		sha256_update(&hash_ctx, (const u8 *)ima_buf, l);
 	}
 
 	/*
@@ -321,19 +297,12 @@ void dm_ima_measure_on_table_load(struct dm_table *table, unsigned int status_fl
 	 * so that the table data can be verified against the future device state change
 	 * events, e.g. resume, rename, remove, table-clear etc.
 	 */
-	r = crypto_shash_final(shash, digest);
-	if (r < 0)
-		goto error;
+	sha256_final(&hash_ctx, digest);
 
-	digest_buf = dm_ima_alloc((digest_size*2) + hash_alg_prefix_len + 1, noio);
-
+	digest_buf = kasprintf(GFP_KERNEL, "sha256:%*phN", SHA256_DIGEST_SIZE,
+			       digest);
 	if (!digest_buf)
 		goto error;
-
-	snprintf(digest_buf, hash_alg_prefix_len + 1, "%s:", DM_IMA_TABLE_HASH_ALG);
-
-	for (i = 0; i < digest_size; i++)
-		snprintf((digest_buf + hash_alg_prefix_len + (i*2)), 3, "%02x", digest[i]);
 
 	if (table->md->ima.active_table.hash != table->md->ima.inactive_table.hash)
 		kfree(table->md->ima.inactive_table.hash);
@@ -354,9 +323,6 @@ error:
 	kfree(digest_buf);
 	kfree(device_data_buf);
 exit:
-	kfree(digest);
-	if (tfm)
-		crypto_free_shash(tfm);
 	kfree(ima_buf);
 	kfree(target_metadata_buf);
 	kfree(target_data_buf);

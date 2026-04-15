@@ -11,13 +11,13 @@
 #include "dm-verity.h"
 #include <linux/rslib.h>
 
-/* Reed-Solomon(M, N) parameters */
-#define DM_VERITY_FEC_RSM		255
-#define DM_VERITY_FEC_MAX_RSN		253
-#define DM_VERITY_FEC_MIN_RSN		231	/* ~10% space overhead */
+/* Reed-Solomon(n, k) parameters */
+#define DM_VERITY_FEC_RS_N	255
+#define DM_VERITY_FEC_MIN_ROOTS	2	/* RS(255, 253): ~0.8% space overhead */
+#define DM_VERITY_FEC_MAX_ROOTS	24	/* RS(255, 231): ~10% space overhead */
 
 /* buffers for deinterleaving and decoding */
-#define DM_VERITY_FEC_BUF_RS_BITS	4	/* 1 << RS blocks per buffer */
+#define DM_VERITY_FEC_BUF_RS_BITS	4 /* log2(RS messages per buffer) */
 
 #define DM_VERITY_OPT_FEC_DEV		"use_fec_from_device"
 #define DM_VERITY_OPT_FEC_BLOCKS	"fec_blocks"
@@ -29,13 +29,13 @@ struct dm_verity_fec {
 	struct dm_dev *dev;	/* parity data device */
 	struct dm_bufio_client *data_bufio;	/* for data dev access */
 	struct dm_bufio_client *bufio;		/* for parity data access */
-	size_t io_size;		/* IO size for roots */
+	size_t block_size;	/* size of data, hash, and parity blocks in bytes */
 	sector_t start;		/* parity data start in blocks */
 	sector_t blocks;	/* number of blocks covered */
-	sector_t rounds;	/* number of interleaving rounds */
+	sector_t region_blocks; /* blocks per region: ceil(blocks / rs_k) */
 	sector_t hash_blocks;	/* blocks covered after v->hash_start */
-	unsigned char roots;	/* number of parity bytes, M-N of RS(M, N) */
-	unsigned char rsn;	/* N of RS(M, N) */
+	unsigned char roots;	/* parity bytes per RS codeword, n-k of RS(n, k) */
+	unsigned char rs_k;	/* message bytes per RS codeword, k of RS(n, k) */
 	mempool_t fio_pool;	/* mempool for dm_verity_fec_io */
 	mempool_t rs_pool;	/* mempool for fio->rs */
 	mempool_t prealloc_pool;	/* mempool for preallocated buffers */
@@ -47,15 +47,15 @@ struct dm_verity_fec {
 /* per-bio data */
 struct dm_verity_fec_io {
 	struct rs_control *rs;	/* Reed-Solomon state */
-	int erasures[DM_VERITY_FEC_MAX_RSN];	/* erasures for decode_rs8 */
+	int erasures[DM_VERITY_FEC_MAX_ROOTS + 1]; /* erasures for decode_rs8 */
 	u8 *output;		/* buffer for corrected output */
 	unsigned int level;		/* recursion level */
 	unsigned int nbufs;		/* number of buffers allocated */
 	/*
-	 * Buffers for deinterleaving RS blocks.  Each buffer has space for
-	 * the data bytes of (1 << DM_VERITY_FEC_BUF_RS_BITS) RS blocks.  The
-	 * array length is fec_max_nbufs(v), and we try to allocate that many
-	 * buffers.  However, in low-memory situations we may be unable to
+	 * Buffers for deinterleaving RS codewords.  Each buffer has space for
+	 * the message bytes of (1 << DM_VERITY_FEC_BUF_RS_BITS) RS codewords.
+	 * The array length is fec_max_nbufs(v), and we try to allocate that
+	 * many buffers.  However, in low-memory situations we may be unable to
 	 * allocate all buffers.  'nbufs' holds the number actually allocated.
 	 */
 	u8 *bufs[];

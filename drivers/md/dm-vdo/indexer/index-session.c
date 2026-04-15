@@ -217,7 +217,7 @@ static int __must_check make_empty_index_session(struct uds_index_session **inde
 	int result;
 	struct uds_index_session *session;
 
-	result = vdo_allocate(1, struct uds_index_session, __func__, &session);
+	result = vdo_allocate(1, __func__, &session);
 	if (result != VDO_SUCCESS)
 		return result;
 

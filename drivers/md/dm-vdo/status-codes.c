@@ -80,6 +80,8 @@ int vdo_status_to_errno(int error)
 
 	/* VDO or UDS error */
 	switch (error) {
+	case VDO_BAD_CONFIGURATION:
+		return -EINVAL;
 	case VDO_NO_SPACE:
 		return -ENOSPC;
 	case VDO_READ_ONLY:

@@ -222,13 +222,12 @@ static int __must_check initialize_cached_chapter_index(struct cached_chapter_in
 	chapter->virtual_chapter = NO_CHAPTER;
 	chapter->index_pages_count = geometry->index_pages_per_chapter;
 
-	result = vdo_allocate(chapter->index_pages_count, struct delta_index_page,
-			      __func__, &chapter->index_pages);
+	result = vdo_allocate(chapter->index_pages_count, __func__, &chapter->index_pages);
 	if (result != VDO_SUCCESS)
 		return result;
 
-	return vdo_allocate(chapter->index_pages_count, struct dm_buffer *,
-			    "sparse index volume pages", &chapter->page_buffers);
+	return vdo_allocate(chapter->index_pages_count, "sparse index volume pages",
+			    &chapter->page_buffers);
 }
 
 static int __must_check make_search_list(struct sparse_cache *cache,
@@ -294,8 +293,7 @@ int uds_make_sparse_cache(const struct index_geometry *geometry, unsigned int ca
 	}
 
 	/* purge_search_list() needs some temporary lists for sorting. */
-	result = vdo_allocate(capacity * 2, struct cached_chapter_index *,
-			      "scratch entries", &cache->scratch_entries);
+	result = vdo_allocate(capacity * 2, "scratch entries", &cache->scratch_entries);
 	if (result != VDO_SUCCESS)
 		goto out;
 

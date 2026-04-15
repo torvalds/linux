@@ -249,6 +249,32 @@ static int __must_check compute_sizes(const struct uds_configuration *config,
 	return UDS_SUCCESS;
 }
 
+int uds_compute_index_size(const struct uds_parameters *parameters, u64 *index_size)
+{
+	int result;
+	struct uds_configuration *index_config;
+	struct save_layout_sizes sizes;
+
+	if (index_size == NULL) {
+		vdo_log_error("Missing output size pointer");
+		return -EINVAL;
+	}
+
+	result = uds_make_configuration(parameters, &index_config);
+	if (result != UDS_SUCCESS) {
+		vdo_log_error_strerror(result, "cannot compute index size");
+		return result;
+	}
+
+	result = compute_sizes(index_config, &sizes);
+	uds_free_configuration(index_config);
+	if (result != UDS_SUCCESS)
+		return result;
+
+	*index_size = sizes.total_size;
+	return UDS_SUCCESS;
+}
+
 /* Create unique data using the current time and a pseudorandom number. */
 static void create_unique_nonce_data(u8 *buffer)
 {
@@ -459,8 +485,7 @@ static int __must_check make_index_save_region_table(struct index_save_layout *i
 		type = RH_TYPE_UNSAVED;
 	}
 
-	result = vdo_allocate_extended(struct region_table, region_count,
-				       struct layout_region,
+	result = vdo_allocate_extended(region_count, regions,
 				       "layout region table for ISL", &table);
 	if (result != VDO_SUCCESS)
 		return result;
@@ -520,7 +545,7 @@ static int __must_check write_index_save_header(struct index_save_layout *isl,
 	u8 *buffer;
 	size_t offset = 0;
 
-	result = vdo_allocate(table->encoded_size, u8, "index save data", &buffer);
+	result = vdo_allocate(table->encoded_size, "index save data", &buffer);
 	if (result != VDO_SUCCESS)
 		return result;
 
@@ -642,9 +667,8 @@ static int __must_check make_layout_region_table(struct index_layout *layout,
 	struct region_table *table;
 	struct layout_region *lr;
 
-	result = vdo_allocate_extended(struct region_table, region_count,
-				       struct layout_region, "layout region table",
-				       &table);
+	result = vdo_allocate_extended(region_count, regions,
+				       "layout region table", &table);
 	if (result != VDO_SUCCESS)
 		return result;
 
@@ -690,7 +714,7 @@ static int __must_check write_layout_header(struct index_layout *layout,
 	u8 *buffer;
 	size_t offset = 0;
 
-	result = vdo_allocate(table->encoded_size, u8, "layout data", &buffer);
+	result = vdo_allocate(table->encoded_size, "layout data", &buffer);
 	if (result != VDO_SUCCESS)
 		return result;
 
@@ -780,8 +804,7 @@ static int create_index_layout(struct index_layout *layout, struct uds_configura
 	if (result != UDS_SUCCESS)
 		return result;
 
-	result = vdo_allocate(sizes.save_count, struct index_save_layout, __func__,
-			      &layout->index.saves);
+	result = vdo_allocate(sizes.save_count, __func__, &layout->index.saves);
 	if (result != VDO_SUCCESS)
 		return result;
 
@@ -1138,8 +1161,7 @@ static int __must_check load_region_table(struct buffered_reader *reader,
 					      header.version);
 	}
 
-	result = vdo_allocate_extended(struct region_table, header.region_count,
-				       struct layout_region,
+	result = vdo_allocate_extended(header.region_count, regions,
 				       "single file layout region table", &table);
 	if (result != VDO_SUCCESS)
 		return result;
@@ -1177,7 +1199,7 @@ static int __must_check read_super_block_data(struct buffered_reader *reader,
 	u8 *buffer;
 	size_t offset = 0;
 
-	result = vdo_allocate(saved_size, u8, "super block data", &buffer);
+	result = vdo_allocate(saved_size, "super block data", &buffer);
 	if (result != VDO_SUCCESS)
 		return result;
 
@@ -1311,8 +1333,7 @@ static int __must_check reconstitute_layout(struct index_layout *layout,
 	int result;
 	u64 next_block = first_block;
 
-	result = vdo_allocate(layout->super.max_saves, struct index_save_layout,
-			      __func__, &layout->index.saves);
+	result = vdo_allocate(layout->super.max_saves, __func__, &layout->index.saves);
 	if (result != VDO_SUCCESS)
 		return result;
 
@@ -1445,6 +1466,9 @@ static int __must_check reconstruct_index_save(struct index_save_layout *isl,
 	u64 last_block = next_block + isl->index_save.block_count;
 
 	isl->zone_count = table->header.region_count - 3;
+	if (isl->zone_count > MAX_ZONES)
+		return vdo_log_error_strerror(UDS_CORRUPT_DATA,
+					      "invalid zone count");
 
 	last_region = &table->regions[table->header.region_count - 1];
 	if (last_region->kind == RL_KIND_EMPTY) {
@@ -1672,7 +1696,7 @@ int uds_make_index_layout(struct uds_configuration *config, bool new_layout,
 	if (result != UDS_SUCCESS)
 		return result;
 
-	result = vdo_allocate(1, struct index_layout, __func__, &layout);
+	result = vdo_allocate(1, __func__, &layout);
 	if (result != VDO_SUCCESS)
 		return result;
 

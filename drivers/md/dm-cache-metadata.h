@@ -135,16 +135,16 @@ int dm_cache_get_metadata_dev_size(struct dm_cache_metadata *cmd,
  */
 int dm_cache_write_hints(struct dm_cache_metadata *cmd, struct dm_cache_policy *p);
 
-/*
- * Query method.  Are all the blocks in the cache clean?
- */
-int dm_cache_metadata_all_clean(struct dm_cache_metadata *cmd, bool *result);
-
 int dm_cache_metadata_needs_check(struct dm_cache_metadata *cmd, bool *result);
 int dm_cache_metadata_set_needs_check(struct dm_cache_metadata *cmd);
 void dm_cache_metadata_set_read_only(struct dm_cache_metadata *cmd);
 void dm_cache_metadata_set_read_write(struct dm_cache_metadata *cmd);
 int dm_cache_metadata_abort(struct dm_cache_metadata *cmd);
+
+/*
+ * Query method.  Was the metadata cleanly shut down when opened?
+ */
+int dm_cache_metadata_clean_when_opened(struct dm_cache_metadata *cmd, bool *result);
 
 /*----------------------------------------------------------------*/
 

@@ -56,7 +56,7 @@ int vdo_create_thread(void (*thread_function)(void *), void *thread_data,
 	struct thread *thread;
 	int result;
 
-	result = vdo_allocate(1, struct thread, __func__, &thread);
+	result = vdo_allocate(1, __func__, &thread);
 	if (result != VDO_SUCCESS) {
 		vdo_log_warning("Error allocating memory for %s", name);
 		return result;

@@ -226,6 +226,7 @@ config BLK_DEV_DM
 	select BLOCK_HOLDER_DEPRECATED if SYSFS
 	select BLK_DEV_DM_BUILTIN
 	select BLK_MQ_STACKING
+	select CRYPTO_LIB_SHA256 if IMA
 	depends on DAX || DAX=n
 	help
 	  Device-mapper is a low level volume manager.  It works by allowing
@@ -299,6 +300,7 @@ config DM_CRYPT
 	select CRYPTO
 	select CRYPTO_CBC
 	select CRYPTO_ESSIV
+	select CRYPTO_LIB_AES
 	select CRYPTO_LIB_MD5 # needed by lmk IV mode
 	help
 	  This device-mapper target allows you to create a device that

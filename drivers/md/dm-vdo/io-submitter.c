@@ -365,6 +365,33 @@ void __submit_metadata_vio(struct vio *vio, physical_block_number_t physical,
 }
 
 /**
+ * vdo_submit_metadata_vio_wait() - Submit I/O for a metadata vio and wait for completion.
+ * @vio: the vio for which to issue I/O
+ * @physical: the physical block number to read or write
+ * @operation: the type of I/O to perform
+ *
+ * The function operates similarly to __submit_metadata_vio except that it will
+ * block until the work is done. It can be used to do i/o before work queues
+ * and thread completions are set up.
+ *
+ * Return: VDO_SUCCESS or an error.
+ */
+int vdo_submit_metadata_vio_wait(struct vio *vio,
+				 physical_block_number_t physical,
+				 blk_opf_t operation)
+{
+	int result;
+
+	result = vio_reset_bio(vio, vio->data, NULL, operation | REQ_META, physical);
+	if (result != VDO_SUCCESS)
+		return result;
+
+	bio_set_dev(vio->bio, vdo_get_backing_device(vio->completion.vdo));
+	submit_bio_wait(vio->bio);
+	return blk_status_to_errno(vio->bio->bi_status);
+}
+
+/**
  * vdo_make_io_submitter() - Create an io_submitter structure.
  * @thread_count: Number of bio-submission threads to set up.
  * @rotation_interval: Interval to use when rotating between bio-submission threads when enqueuing
@@ -383,8 +410,7 @@ int vdo_make_io_submitter(unsigned int thread_count, unsigned int rotation_inter
 	struct io_submitter *io_submitter;
 	int result;
 
-	result = vdo_allocate_extended(struct io_submitter, thread_count,
-				       struct bio_queue_data, "bio submission data",
+	result = vdo_allocate_extended(thread_count, bio_queue_data, "bio submission data",
 				       &io_submitter);
 	if (result != VDO_SUCCESS)
 		return result;

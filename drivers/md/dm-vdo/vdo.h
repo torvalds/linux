@@ -144,6 +144,13 @@ struct thread_config {
 
 struct thread_count_config;
 
+struct vdo_geometry_block {
+	/* The vio for reading and writing the geometry block to disk */
+	struct vio vio;
+	/* A buffer to hold the geometry block */
+	u8 *buffer;
+};
+
 struct vdo_super_block {
 	/* The vio for reading and writing the super block to disk */
 	struct vio vio;
@@ -185,6 +192,9 @@ struct vdo {
 	struct device_config *device_config;
 	/* The thread mapping */
 	struct thread_config thread_config;
+
+	/* The geometry block */
+	struct vdo_geometry_block geometry_block;
 
 	/* The super block */
 	struct vdo_super_block super_block;
@@ -236,6 +246,7 @@ struct vdo {
 	const struct admin_state_code *suspend_type;
 	bool allocations_allowed;
 	bool dump_on_shutdown;
+	bool needs_formatting;
 	atomic_t processing_message;
 
 	/*
@@ -304,6 +315,10 @@ int __must_check vdo_make(unsigned int instance, struct device_config *config,
 
 void vdo_destroy(struct vdo *vdo);
 
+int __must_check vdo_format_components(struct vdo *vdo);
+
+void vdo_format_super_block(struct vdo *vdo, struct vdo_completion *parent);
+
 void vdo_load_super_block(struct vdo *vdo, struct vdo_completion *parent);
 
 struct block_device * __must_check vdo_get_backing_device(const struct vdo *vdo);
@@ -325,6 +340,10 @@ thread_id_t vdo_get_callback_thread_id(void);
 enum vdo_state __must_check vdo_get_state(const struct vdo *vdo);
 
 void vdo_set_state(struct vdo *vdo, enum vdo_state state);
+
+int vdo_clear_layout(struct vdo *vdo);
+void vdo_save_geometry_block(struct vdo *vdo, struct vdo_completion *parent);
+void vdo_save_super_block(struct vdo *vdo, struct vdo_completion *parent);
 
 void vdo_save_components(struct vdo *vdo, struct vdo_completion *parent);
 

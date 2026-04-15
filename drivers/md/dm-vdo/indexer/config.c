@@ -325,7 +325,7 @@ int uds_make_configuration(const struct uds_parameters *params,
 	if (result != UDS_SUCCESS)
 		return result;
 
-	result = vdo_allocate(1, struct uds_configuration, __func__, &config);
+	result = vdo_allocate(1, __func__, &config);
 	if (result != VDO_SUCCESS)
 		return result;
 

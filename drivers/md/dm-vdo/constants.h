@@ -44,6 +44,9 @@ enum {
 	/* The default size of each slab journal, in blocks */
 	DEFAULT_VDO_SLAB_JOURNAL_SIZE = 224,
 
+	/* The recovery journal starting sequence number set at format time */
+	RECOVERY_JOURNAL_STARTING_SEQUENCE_NUMBER = 1,
+
 	/*
 	 * The initial size of lbn_operations and pbn_operations, which is based upon the expected
 	 * maximum number of outstanding VIOs. This value was chosen to make it highly unlikely
@@ -57,8 +60,14 @@ enum {
 	/* The maximum number of physical zones */
 	MAX_VDO_PHYSICAL_ZONES = 16,
 
-	/* The base-2 logarithm of the maximum blocks in one slab */
-	MAX_VDO_SLAB_BITS = 23,
+	/* The default blocks in one slab */
+	DEFAULT_VDO_SLAB_BLOCKS = 1U << 19,
+
+	/* The minimum blocks in one slab */
+	MIN_VDO_SLAB_BLOCKS = 1U << 13,
+
+	/* The maximum blocks in one slab */
+	MAX_VDO_SLAB_BLOCKS = 1U << 23,
 
 	/* The maximum number of slabs the slab depot supports */
 	MAX_VDO_SLABS = 8192,

@@ -56,4 +56,8 @@ static inline void vdo_submit_flush_vio(struct vio *vio, bio_end_io_t callback,
 			      REQ_OP_WRITE | REQ_PREFLUSH, NULL, 0);
 }
 
+int vdo_submit_metadata_vio_wait(struct vio *vio,
+				 physical_block_number_t physical,
+				 blk_opf_t operation);
+
 #endif /* VDO_IO_SUBMITTER_H */

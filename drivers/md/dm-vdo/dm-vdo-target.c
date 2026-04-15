@@ -9,6 +9,7 @@
 #include <linux/delay.h>
 #include <linux/device-mapper.h>
 #include <linux/err.h>
+#include <linux/log2.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
@@ -60,6 +61,11 @@ enum admin_phases {
 	LOAD_PHASE_DRAIN_JOURNAL,
 	LOAD_PHASE_WAIT_FOR_READ_ONLY,
 	PRE_LOAD_PHASE_START,
+	PRE_LOAD_PHASE_FORMAT_START,
+	PRE_LOAD_PHASE_FORMAT_SUPER,
+	PRE_LOAD_PHASE_FORMAT_GEOMETRY,
+	PRE_LOAD_PHASE_FORMAT_END,
+	PRE_LOAD_PHASE_LOAD_SUPER,
 	PRE_LOAD_PHASE_LOAD_COMPONENTS,
 	PRE_LOAD_PHASE_END,
 	PREPARE_GROW_PHYSICAL_PHASE_START,
@@ -109,6 +115,11 @@ static const char * const ADMIN_PHASE_NAMES[] = {
 	"LOAD_PHASE_DRAIN_JOURNAL",
 	"LOAD_PHASE_WAIT_FOR_READ_ONLY",
 	"PRE_LOAD_PHASE_START",
+	"PRE_LOAD_PHASE_FORMAT_START",
+	"PRE_LOAD_PHASE_FORMAT_SUPER",
+	"PRE_LOAD_PHASE_FORMAT_GEOMETRY",
+	"PRE_LOAD_PHASE_FORMAT_END",
+	"PRE_LOAD_PHASE_LOAD_SUPER",
 	"PRE_LOAD_PHASE_LOAD_COMPONENTS",
 	"PRE_LOAD_PHASE_END",
 	"PREPARE_GROW_PHYSICAL_PHASE_START",
@@ -273,8 +284,7 @@ static int split_string(const char *string, char separator, char ***substring_ar
 			substring_count++;
 	}
 
-	result = vdo_allocate(substring_count + 1, char *, "string-splitting array",
-			      &substrings);
+	result = vdo_allocate(substring_count + 1, "string-splitting array", &substrings);
 	if (result != VDO_SUCCESS)
 		return result;
 
@@ -282,7 +292,7 @@ static int split_string(const char *string, char separator, char ***substring_ar
 		if (*s == separator) {
 			ptrdiff_t length = s - string;
 
-			result = vdo_allocate(length + 1, char, "split string",
+			result = vdo_allocate(length + 1, "split string",
 					      &substrings[current_substring]);
 			if (result != VDO_SUCCESS) {
 				free_string_array(substrings);
@@ -303,8 +313,7 @@ static int split_string(const char *string, char separator, char ***substring_ar
 	BUG_ON(current_substring != (substring_count - 1));
 	length = strlen(string);
 
-	result = vdo_allocate(length + 1, char, "split string",
-			      &substrings[current_substring]);
+	result = vdo_allocate(length + 1, "split string", &substrings[current_substring]);
 	if (result != VDO_SUCCESS) {
 		free_string_array(substrings);
 		return result;
@@ -332,7 +341,7 @@ static int join_strings(char **substring_array, size_t array_length, char separa
 	for (i = 0; (i < array_length) && (substring_array[i] != NULL); i++)
 		string_length += strlen(substring_array[i]) + 1;
 
-	result = vdo_allocate(string_length, char, __func__, &output);
+	result = vdo_allocate(string_length, __func__, &output);
 	if (result != VDO_SUCCESS)
 		return result;
 
@@ -376,6 +385,75 @@ static inline int __must_check parse_bool(const char *bool_str, const char *true
 		return VDO_BAD_CONFIGURATION;
 
 	*bool_ptr = value;
+	return VDO_SUCCESS;
+}
+
+/**
+ * parse_memory() - Parse a string into an index memory value.
+ * @memory_str: The string value to convert to a memory value.
+ * @memory_ptr: A pointer to return the memory value in.
+ *
+ * Return: VDO_SUCCESS or an error
+ */
+static int __must_check parse_memory(const char *memory_str,
+				     uds_memory_config_size_t *memory_ptr)
+{
+	uds_memory_config_size_t memory;
+
+	if (strcmp(memory_str, "0.25") == 0) {
+		memory = UDS_MEMORY_CONFIG_256MB;
+	} else if ((strcmp(memory_str, "0.5") == 0) || (strcmp(memory_str, "0.50") == 0)) {
+		memory = UDS_MEMORY_CONFIG_512MB;
+	} else if (strcmp(memory_str, "0.75") == 0) {
+		memory = UDS_MEMORY_CONFIG_768MB;
+	} else {
+		unsigned int value;
+		int result;
+
+		result = kstrtouint(memory_str, 10, &value);
+		if (result) {
+			vdo_log_error("optional parameter error: invalid memory size, must be a positive integer");
+			return -EINVAL;
+		}
+
+		if (value > UDS_MEMORY_CONFIG_MAX) {
+			vdo_log_error("optional parameter error: invalid memory size, must not be greater than %d",
+				      UDS_MEMORY_CONFIG_MAX);
+			return -EINVAL;
+		}
+
+		memory = value;
+	}
+
+	*memory_ptr = memory;
+	return VDO_SUCCESS;
+}
+
+/**
+ * parse_slab_size() - Parse a string option into a slab size value.
+ * @slab_str: The string value representing slab size.
+ * @slab_size_ptr: A pointer to return the slab size in.
+ *
+ * Return: VDO_SUCCESS or an error
+ */
+static int __must_check parse_slab_size(const char *slab_str, block_count_t *slab_size_ptr)
+{
+	block_count_t value;
+	int result;
+
+	result = kstrtoull(slab_str, 10, &value);
+	if (result) {
+		vdo_log_error("optional parameter error: invalid slab size, must be a postive integer");
+		return -EINVAL;
+	}
+
+	if (value < MIN_VDO_SLAB_BLOCKS || value > MAX_VDO_SLAB_BLOCKS || (!is_power_of_2(value))) {
+		vdo_log_error("optional parameter error: invalid slab size, must be a power of two between %u and %u",
+			      MIN_VDO_SLAB_BLOCKS, MAX_VDO_SLAB_BLOCKS);
+		return -EINVAL;
+	}
+
+	*slab_size_ptr = value;
 	return VDO_SUCCESS;
 }
 
@@ -568,7 +646,7 @@ static int process_one_key_value_pair(const char *key, unsigned int value,
 		}
 		/* Max discard sectors in blkdev_issue_discard is UINT_MAX >> 9 */
 		if (value > (UINT_MAX / VDO_BLOCK_SIZE)) {
-			vdo_log_error("optional parameter error: at most %d max discard	 blocks are allowed",
+			vdo_log_error("optional parameter error: at most %d max discard blocks are allowed",
 				      UINT_MAX / VDO_BLOCK_SIZE);
 			return -EINVAL;
 		}
@@ -600,7 +678,16 @@ static int parse_one_key_value_pair(const char *key, const char *value,
 	if (strcmp(key, "compression") == 0)
 		return parse_bool(value, "on", "off", &config->compression);
 
-	/* The remaining arguments must have integral values. */
+	if (strcmp(key, "indexSparse") == 0)
+		return parse_bool(value, "on", "off", &config->index_sparse);
+
+	if (strcmp(key, "indexMemory") == 0)
+		return parse_memory(value, &config->index_memory);
+
+	if (strcmp(key, "slabSize") == 0)
+		return parse_slab_size(value, &config->slab_blocks);
+
+	/* The remaining arguments must have non-negative integral values. */
 	result = kstrtouint(value, 10, &count);
 	if (result) {
 		vdo_log_error("optional config string error: integer value needed, found \"%s\"",
@@ -715,6 +802,12 @@ static int parse_device_config(int argc, char **argv, struct dm_target *ti,
 	struct device_config *config = NULL;
 	int result;
 
+	if (logical_bytes > (MAXIMUM_VDO_LOGICAL_BLOCKS * VDO_BLOCK_SIZE)) {
+		handle_parse_error(config, error_ptr,
+				   "Logical size exceeds the maximum");
+		return VDO_BAD_CONFIGURATION;
+	}
+
 	if ((logical_bytes % VDO_BLOCK_SIZE) != 0) {
 		handle_parse_error(config, error_ptr,
 				   "Logical size must be a multiple of 4096");
@@ -726,7 +819,7 @@ static int parse_device_config(int argc, char **argv, struct dm_target *ti,
 		return VDO_BAD_CONFIGURATION;
 	}
 
-	result = vdo_allocate(1, struct device_config, "device_config", &config);
+	result = vdo_allocate(1, "device_config", &config);
 	if (result != VDO_SUCCESS) {
 		handle_parse_error(config, error_ptr,
 				   "Could not allocate config structure");
@@ -758,6 +851,9 @@ static int parse_device_config(int argc, char **argv, struct dm_target *ti,
 	config->max_discard_blocks = 1;
 	config->deduplication = true;
 	config->compression = false;
+	config->index_memory = UDS_MEMORY_CONFIG_256MB;
+	config->index_sparse = false;
+	config->slab_blocks = DEFAULT_VDO_SLAB_BLOCKS;
 
 	arg_set.argc = argc;
 	arg_set.argv = argv;
@@ -783,7 +879,7 @@ static int parse_device_config(int argc, char **argv, struct dm_target *ti,
 	/* Get the physical blocks, if known. */
 	if (config->version >= 1) {
 		result = kstrtoull(dm_shift_arg(&arg_set), 10, &config->physical_blocks);
-		if (result != VDO_SUCCESS) {
+		if (result) {
 			handle_parse_error(config, error_ptr,
 					   "Invalid physical block count");
 			return VDO_BAD_CONFIGURATION;
@@ -804,7 +900,7 @@ static int parse_device_config(int argc, char **argv, struct dm_target *ti,
 
 	/* Get the page cache size. */
 	result = kstrtouint(dm_shift_arg(&arg_set), 10, &config->cache_size);
-	if (result != VDO_SUCCESS) {
+	if (result) {
 		handle_parse_error(config, error_ptr,
 				   "Invalid block map page cache size");
 		return VDO_BAD_CONFIGURATION;
@@ -812,7 +908,7 @@ static int parse_device_config(int argc, char **argv, struct dm_target *ti,
 
 	/* Get the block map era length. */
 	result = kstrtouint(dm_shift_arg(&arg_set), 10, &config->block_map_maximum_age);
-	if (result != VDO_SUCCESS) {
+	if (result) {
 		handle_parse_error(config, error_ptr, "Invalid block map maximum age");
 		return VDO_BAD_CONFIGURATION;
 	}
@@ -1401,7 +1497,33 @@ static void pre_load_callback(struct vdo_completion *completion)
 			vdo_continue_completion(completion, result);
 			return;
 		}
+		if (vdo->needs_formatting)
+			vdo->admin.phase = PRE_LOAD_PHASE_FORMAT_START;
+		else
+			vdo->admin.phase = PRE_LOAD_PHASE_LOAD_SUPER;
 
+		vdo_continue_completion(completion, VDO_SUCCESS);
+		return;
+
+	case PRE_LOAD_PHASE_FORMAT_START:
+		vdo_continue_completion(completion, vdo_clear_layout(vdo));
+		return;
+
+	case PRE_LOAD_PHASE_FORMAT_SUPER:
+		vdo_save_super_block(vdo, completion);
+		return;
+
+	case PRE_LOAD_PHASE_FORMAT_GEOMETRY:
+		vdo_save_geometry_block(vdo, completion);
+		return;
+
+	case PRE_LOAD_PHASE_FORMAT_END:
+		/* cleanup layout before load adds to it */
+		vdo_uninitialize_layout(&vdo->states.layout);
+		vdo_continue_completion(completion, VDO_SUCCESS);
+		return;
+
+	case PRE_LOAD_PHASE_LOAD_SUPER:
 		vdo_load_super_block(vdo, completion);
 		return;
 
@@ -1459,10 +1581,13 @@ static int vdo_initialize(struct dm_target *ti, unsigned int instance,
 	vdo_log_debug("Logical blocks         = %llu", logical_blocks);
 	vdo_log_debug("Physical block size    = %llu", (u64) block_size);
 	vdo_log_debug("Physical blocks        = %llu", config->physical_blocks);
+	vdo_log_debug("Slab size              = %llu", config->slab_blocks);
 	vdo_log_debug("Block map cache blocks = %u", config->cache_size);
 	vdo_log_debug("Block map maximum age  = %u", config->block_map_maximum_age);
 	vdo_log_debug("Deduplication          = %s", (config->deduplication ? "on" : "off"));
 	vdo_log_debug("Compression            = %s", (config->compression ? "on" : "off"));
+	vdo_log_debug("Index memory           = %u", config->index_memory);
+	vdo_log_debug("Index sparse           = %s", (config->index_sparse ? "on" : "off"));
 
 	vdo = vdo_find_matching(vdo_uses_device, config);
 	if (vdo != NULL) {
@@ -2858,7 +2983,7 @@ static void vdo_resume(struct dm_target *ti)
 static struct target_type vdo_target_bio = {
 	.features = DM_TARGET_SINGLETON,
 	.name = "vdo",
-	.version = { 9, 1, 0 },
+	.version = { 9, 2, 0 },
 	.module = THIS_MODULE,
 	.ctr = vdo_ctr,
 	.dtr = vdo_dtr,
