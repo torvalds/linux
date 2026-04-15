@@ -8,6 +8,7 @@
 #define __SCX_COMPAT_H
 
 #include <bpf/btf.h>
+#include <bpf/libbpf.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -115,6 +116,7 @@ static inline bool __COMPAT_struct_has_field(const char *type, const char *field
 #define SCX_OPS_ENQ_MIGRATION_DISABLED SCX_OPS_FLAG(SCX_OPS_ENQ_MIGRATION_DISABLED)
 #define SCX_OPS_ALLOW_QUEUED_WAKEUP SCX_OPS_FLAG(SCX_OPS_ALLOW_QUEUED_WAKEUP)
 #define SCX_OPS_BUILTIN_IDLE_PER_NODE SCX_OPS_FLAG(SCX_OPS_BUILTIN_IDLE_PER_NODE)
+#define SCX_OPS_ALWAYS_ENQ_IMMED SCX_OPS_FLAG(SCX_OPS_ALWAYS_ENQ_IMMED)
 
 #define SCX_PICK_IDLE_FLAG(name) __COMPAT_ENUM_OR_ZERO("scx_pick_idle_cpu_flags", #name)
 
@@ -158,6 +160,7 @@ static inline long scx_hotplug_seq(void)
  * COMPAT:
  * - v6.17: ops.cgroup_set_bandwidth()
  * - v6.19: ops.cgroup_set_idle()
+ * - v7.1:  ops.sub_attach(), ops.sub_detach(), ops.sub_cgroup_id
  */
 #define SCX_OPS_OPEN(__ops_name, __scx_name) ({					\
 	struct __scx_name *__skel;						\
@@ -179,18 +182,65 @@ static inline long scx_hotplug_seq(void)
 		fprintf(stderr, "WARNING: kernel doesn't support ops.cgroup_set_idle()\n"); \
 		__skel->struct_ops.__ops_name->cgroup_set_idle = NULL;	\
 	}									\
+	if (__skel->struct_ops.__ops_name->sub_attach &&			\
+	    !__COMPAT_struct_has_field("sched_ext_ops", "sub_attach")) {	\
+		fprintf(stderr, "WARNING: kernel doesn't support ops.sub_attach()\n"); \
+		__skel->struct_ops.__ops_name->sub_attach = NULL;		\
+	}									\
+	if (__skel->struct_ops.__ops_name->sub_detach &&			\
+	    !__COMPAT_struct_has_field("sched_ext_ops", "sub_detach")) {	\
+		fprintf(stderr, "WARNING: kernel doesn't support ops.sub_detach()\n"); \
+		__skel->struct_ops.__ops_name->sub_detach = NULL;		\
+	}									\
+	if (__skel->struct_ops.__ops_name->sub_cgroup_id > 0 &&		\
+	    !__COMPAT_struct_has_field("sched_ext_ops", "sub_cgroup_id")) { \
+		fprintf(stderr, "WARNING: kernel doesn't support ops.sub_cgroup_id\n"); \
+		__skel->struct_ops.__ops_name->sub_cgroup_id = 0;		\
+	}									\
 	__skel; 								\
 })
 
+/*
+ * Associate non-struct_ops BPF programs with the scheduler's struct_ops map so
+ * that scx_prog_sched() can determine which scheduler a BPF program belongs
+ * to. Requires libbpf >= 1.7.
+ */
+#if LIBBPF_MAJOR_VERSION > 1 ||							\
+	(LIBBPF_MAJOR_VERSION == 1 && LIBBPF_MINOR_VERSION >= 7)
+static inline void __scx_ops_assoc_prog(struct bpf_program *prog,
+					struct bpf_map *map,
+					const char *ops_name)
+{
+	s32 err = bpf_program__assoc_struct_ops(prog, map, NULL);
+	if (err)
+		fprintf(stderr,
+			"ERROR: Failed to associate %s with %s: %d\n",
+			bpf_program__name(prog), ops_name, err);
+}
+#else
+static inline void __scx_ops_assoc_prog(struct bpf_program *prog,
+					struct bpf_map *map,
+					const char *ops_name)
+{
+}
+#endif
+
 #define SCX_OPS_LOAD(__skel, __ops_name, __scx_name, __uei_name) ({		\
+	struct bpf_program *__prog;						\
 	UEI_SET_SIZE(__skel, __ops_name, __uei_name);				\
 	SCX_BUG_ON(__scx_name##__load((__skel)), "Failed to load skel");	\
+	bpf_object__for_each_program(__prog, (__skel)->obj) {			\
+		if (bpf_program__type(__prog) == BPF_PROG_TYPE_STRUCT_OPS)	\
+			continue;						\
+		__scx_ops_assoc_prog(__prog, (__skel)->maps.__ops_name,		\
+				     #__ops_name);				\
+	}									\
 })
 
 /*
  * New versions of bpftool now emit additional link placeholders for BPF maps,
  * and set up BPF skeleton in such a way that libbpf will auto-attach BPF maps
- * automatically, assumming libbpf is recent enough (v1.5+). Old libbpf will do
+ * automatically, assuming libbpf is recent enough (v1.5+). Old libbpf will do
  * nothing with those links and won't attempt to auto-attach maps.
  *
  * To maintain compatibility with older libbpf while avoiding trying to attach

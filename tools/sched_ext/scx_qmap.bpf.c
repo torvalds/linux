@@ -11,8 +11,6 @@
  *
  * - BPF-side queueing using PIDs.
  * - Sleepable per-task storage allocation using ops.prep_enable().
- * - Using ops.cpu_release() to handle a higher priority scheduling class taking
- *   the CPU away.
  * - Core-sched support.
  *
  * This scheduler is primarily for demonstration and testing of sched_ext
@@ -26,8 +24,11 @@
 
 enum consts {
 	ONE_SEC_IN_NS		= 1000000000,
+	ONE_MSEC_IN_NS		= 1000000,
+	LOWPRI_INTV_NS		= 10 * ONE_MSEC_IN_NS,
 	SHARED_DSQ		= 0,
 	HIGHPRI_DSQ		= 1,
+	LOWPRI_DSQ		= 2,
 	HIGHPRI_WEIGHT		= 8668,		/* this is what -20 maps to */
 };
 
@@ -41,11 +42,17 @@ const volatile u32 dsp_batch;
 const volatile bool highpri_boosting;
 const volatile bool print_dsqs_and_events;
 const volatile bool print_msgs;
+const volatile u64 sub_cgroup_id;
 const volatile s32 disallow_tgid;
 const volatile bool suppress_dump;
+const volatile bool always_enq_immed;
+const volatile u32 immed_stress_nth;
 
 u64 nr_highpri_queued;
 u32 test_error_cnt;
+
+#define MAX_SUB_SCHEDS		8
+u64 sub_sched_cgroup_ids[MAX_SUB_SCHEDS];
 
 UEI_DEFINE(uei);
 
@@ -127,7 +134,7 @@ struct {
 } cpu_ctx_stor SEC(".maps");
 
 /* Statistics */
-u64 nr_enqueued, nr_dispatched, nr_reenqueued, nr_dequeued, nr_ddsp_from_enq;
+u64 nr_enqueued, nr_dispatched, nr_reenqueued, nr_reenqueued_cpu0, nr_dequeued, nr_ddsp_from_enq;
 u64 nr_core_sched_execed;
 u64 nr_expedited_local, nr_expedited_remote, nr_expedited_lost, nr_expedited_from_timer;
 u32 cpuperf_min, cpuperf_avg, cpuperf_max;
@@ -137,8 +144,10 @@ static s32 pick_direct_dispatch_cpu(struct task_struct *p, s32 prev_cpu)
 {
 	s32 cpu;
 
-	if (p->nr_cpus_allowed == 1 ||
-	    scx_bpf_test_and_clear_cpu_idle(prev_cpu))
+	if (!always_enq_immed && p->nr_cpus_allowed == 1)
+		return prev_cpu;
+
+	if (scx_bpf_test_and_clear_cpu_idle(prev_cpu))
 		return prev_cpu;
 
 	cpu = scx_bpf_pick_idle_cpu(p->cpus_ptr, 0);
@@ -167,6 +176,9 @@ s32 BPF_STRUCT_OPS(qmap_select_cpu, struct task_struct *p,
 
 	if (!(tctx = lookup_task_ctx(p)))
 		return -ESRCH;
+
+	if (p->scx.weight < 2 && !(p->flags & PF_KTHREAD))
+		return prev_cpu;
 
 	cpu = pick_direct_dispatch_cpu(p, prev_cpu);
 
@@ -202,8 +214,11 @@ void BPF_STRUCT_OPS(qmap_enqueue, struct task_struct *p, u64 enq_flags)
 	void *ring;
 	s32 cpu;
 
-	if (enq_flags & SCX_ENQ_REENQ)
+	if (enq_flags & SCX_ENQ_REENQ) {
 		__sync_fetch_and_add(&nr_reenqueued, 1);
+		if (scx_bpf_task_cpu(p) == 0)
+			__sync_fetch_and_add(&nr_reenqueued_cpu0, 1);
+	}
 
 	if (p->flags & PF_KTHREAD) {
 		if (stall_kernel_nth && !(++kernel_cnt % stall_kernel_nth))
@@ -226,12 +241,35 @@ void BPF_STRUCT_OPS(qmap_enqueue, struct task_struct *p, u64 enq_flags)
 	tctx->core_sched_seq = core_sched_tail_seqs[idx]++;
 
 	/*
+	 * IMMED stress testing: Every immed_stress_nth'th enqueue, dispatch
+	 * directly to prev_cpu's local DSQ even when busy to force dsq->nr > 1
+	 * and exercise the kernel IMMED reenqueue trigger paths.
+	 */
+	if (immed_stress_nth && !(enq_flags & SCX_ENQ_REENQ)) {
+		static u32 immed_stress_cnt;
+
+		if (!(++immed_stress_cnt % immed_stress_nth)) {
+			tctx->force_local = false;
+			scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL_ON | scx_bpf_task_cpu(p),
+					   slice_ns, enq_flags);
+			return;
+		}
+	}
+
+	/*
 	 * If qmap_select_cpu() is telling us to or this is the last runnable
 	 * task on the CPU, enqueue locally.
 	 */
 	if (tctx->force_local) {
 		tctx->force_local = false;
 		scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL, slice_ns, enq_flags);
+		return;
+	}
+
+	/* see lowpri_timerfn() */
+	if (__COMPAT_has_generic_reenq() &&
+	    p->scx.weight < 2 && !(p->flags & PF_KTHREAD) && !(enq_flags & SCX_ENQ_REENQ)) {
+		scx_bpf_dsq_insert(p, LOWPRI_DSQ, slice_ns, enq_flags);
 		return;
 	}
 
@@ -375,7 +413,7 @@ void BPF_STRUCT_OPS(qmap_dispatch, s32 cpu, struct task_struct *prev)
 	if (dispatch_highpri(false))
 		return;
 
-	if (!nr_highpri_queued && scx_bpf_dsq_move_to_local(SHARED_DSQ))
+	if (!nr_highpri_queued && scx_bpf_dsq_move_to_local(SHARED_DSQ, 0))
 		return;
 
 	if (dsp_inf_loop_after && nr_dispatched > dsp_inf_loop_after) {
@@ -433,6 +471,46 @@ void BPF_STRUCT_OPS(qmap_dispatch, s32 cpu, struct task_struct *prev)
 			__sync_fetch_and_add(&nr_dispatched, 1);
 
 			scx_bpf_dsq_insert(p, SHARED_DSQ, slice_ns, 0);
+
+			/*
+			 * scx_qmap uses a global BPF queue that any CPU's
+			 * dispatch can pop from. If this CPU popped a task that
+			 * can't run here, it gets stranded on SHARED_DSQ after
+			 * consume_dispatch_q() skips it. Kick the task's home
+			 * CPU so it drains SHARED_DSQ.
+			 *
+			 * There's a race between the pop and the flush of the
+			 * buffered dsq_insert:
+			 *
+			 *  CPU 0 (dispatching)      CPU 1 (home, idle)
+			 *  ~~~~~~~~~~~~~~~~~~~      ~~~~~~~~~~~~~~~~~~~
+			 *  pop from BPF queue
+			 *  dsq_insert(buffered)
+			 *                           balance:
+			 *                             SHARED_DSQ empty
+			 *                             BPF queue empty
+			 *                             -> goes idle
+			 *  flush -> on SHARED
+			 *  kick CPU 1
+			 *                           wakes, drains task
+			 *
+			 * The kick prevents indefinite stalls but a per-CPU
+			 * kthread like ksoftirqd can be briefly stranded when
+			 * its home CPU enters idle with softirq pending,
+			 * triggering:
+			 *
+			 *  "NOHZ tick-stop error: local softirq work is pending, handler #N!!!"
+			 *
+			 * from report_idle_softirq(). The kick lands shortly
+			 * after and the home CPU drains the task. This could be
+			 * avoided by e.g. dispatching pinned tasks to local or
+			 * global DSQs, but the current code is left as-is to
+			 * document this class of issue -- other schedulers
+			 * seeing similar warnings can use this as a reference.
+			 */
+			if (!bpf_cpumask_test_cpu(cpu, p->cpus_ptr))
+				scx_bpf_kick_cpu(scx_bpf_task_cpu(p), 0);
+
 			bpf_task_release(p);
 
 			batch--;
@@ -440,7 +518,7 @@ void BPF_STRUCT_OPS(qmap_dispatch, s32 cpu, struct task_struct *prev)
 			if (!batch || !scx_bpf_dispatch_nr_slots()) {
 				if (dispatch_highpri(false))
 					return;
-				scx_bpf_dsq_move_to_local(SHARED_DSQ);
+				scx_bpf_dsq_move_to_local(SHARED_DSQ, 0);
 				return;
 			}
 			if (!cpuc->dsp_cnt)
@@ -448,6 +526,12 @@ void BPF_STRUCT_OPS(qmap_dispatch, s32 cpu, struct task_struct *prev)
 		}
 
 		cpuc->dsp_cnt = 0;
+	}
+
+	for (i = 0; i < MAX_SUB_SCHEDS; i++) {
+		if (sub_sched_cgroup_ids[i] &&
+		    scx_bpf_sub_dispatch(sub_sched_cgroup_ids[i]))
+			return;
 	}
 
 	/*
@@ -532,36 +616,11 @@ bool BPF_STRUCT_OPS(qmap_core_sched_before,
 	return task_qdist(a) > task_qdist(b);
 }
 
-SEC("tp_btf/sched_switch")
-int BPF_PROG(qmap_sched_switch, bool preempt, struct task_struct *prev,
-	     struct task_struct *next, unsigned long prev_state)
-{
-	if (!__COMPAT_scx_bpf_reenqueue_local_from_anywhere())
-		return 0;
-
-	/*
-	 * If @cpu is taken by a higher priority scheduling class, it is no
-	 * longer available for executing sched_ext tasks. As we don't want the
-	 * tasks in @cpu's local dsq to sit there until @cpu becomes available
-	 * again, re-enqueue them into the global dsq. See %SCX_ENQ_REENQ
-	 * handling in qmap_enqueue().
-	 */
-	switch (next->policy) {
-	case 1: /* SCHED_FIFO */
-	case 2: /* SCHED_RR */
-	case 6: /* SCHED_DEADLINE */
-		scx_bpf_reenqueue_local();
-	}
-
-	return 0;
-}
-
-void BPF_STRUCT_OPS(qmap_cpu_release, s32 cpu, struct scx_cpu_release_args *args)
-{
-	/* see qmap_sched_switch() to learn how to do this on newer kernels */
-	if (!__COMPAT_scx_bpf_reenqueue_local_from_anywhere())
-		scx_bpf_reenqueue_local();
-}
+/*
+ * sched_switch tracepoint and cpu_release handlers are no longer needed.
+ * With SCX_OPS_ALWAYS_ENQ_IMMED, wakeup_preempt_scx() reenqueues IMMED
+ * tasks when a higher-priority scheduling class takes the CPU.
+ */
 
 s32 BPF_STRUCT_OPS(qmap_init_task, struct task_struct *p,
 		   struct scx_init_task_args *args)
@@ -856,13 +915,35 @@ static int monitor_timerfn(void *map, int *key, struct bpf_timer *timer)
 	return 0;
 }
 
+struct lowpri_timer {
+	struct bpf_timer timer;
+};
+
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, u32);
+	__type(value, struct lowpri_timer);
+} lowpri_timer SEC(".maps");
+
+/*
+ * Nice 19 tasks are put into the lowpri DSQ. Every 10ms, reenq is triggered and
+ * the tasks are transferred to SHARED_DSQ.
+ */
+static int lowpri_timerfn(void *map, int *key, struct bpf_timer *timer)
+{
+	scx_bpf_dsq_reenq(LOWPRI_DSQ, 0);
+	bpf_timer_start(timer, LOWPRI_INTV_NS, 0);
+	return 0;
+}
+
 s32 BPF_STRUCT_OPS_SLEEPABLE(qmap_init)
 {
 	u32 key = 0;
 	struct bpf_timer *timer;
 	s32 ret;
 
-	if (print_msgs)
+	if (print_msgs && !sub_cgroup_id)
 		print_cpus();
 
 	ret = scx_bpf_create_dsq(SHARED_DSQ, -1);
@@ -877,19 +958,67 @@ s32 BPF_STRUCT_OPS_SLEEPABLE(qmap_init)
 		return ret;
 	}
 
+	ret = scx_bpf_create_dsq(LOWPRI_DSQ, -1);
+	if (ret)
+		return ret;
+
 	timer = bpf_map_lookup_elem(&monitor_timer, &key);
 	if (!timer)
 		return -ESRCH;
-
 	bpf_timer_init(timer, &monitor_timer, CLOCK_MONOTONIC);
 	bpf_timer_set_callback(timer, monitor_timerfn);
+	ret = bpf_timer_start(timer, ONE_SEC_IN_NS, 0);
+	if (ret)
+		return ret;
 
-	return bpf_timer_start(timer, ONE_SEC_IN_NS, 0);
+	if (__COMPAT_has_generic_reenq()) {
+		/* see lowpri_timerfn() */
+		timer = bpf_map_lookup_elem(&lowpri_timer, &key);
+		if (!timer)
+			return -ESRCH;
+		bpf_timer_init(timer, &lowpri_timer, CLOCK_MONOTONIC);
+		bpf_timer_set_callback(timer, lowpri_timerfn);
+		ret = bpf_timer_start(timer, LOWPRI_INTV_NS, 0);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 void BPF_STRUCT_OPS(qmap_exit, struct scx_exit_info *ei)
 {
 	UEI_RECORD(uei, ei);
+}
+
+s32 BPF_STRUCT_OPS(qmap_sub_attach, struct scx_sub_attach_args *args)
+{
+	s32 i;
+
+	for (i = 0; i < MAX_SUB_SCHEDS; i++) {
+		if (!sub_sched_cgroup_ids[i]) {
+			sub_sched_cgroup_ids[i] = args->ops->sub_cgroup_id;
+			bpf_printk("attaching sub-sched[%d] on %s",
+				   i, args->cgroup_path);
+			return 0;
+		}
+	}
+
+	return -ENOSPC;
+}
+
+void BPF_STRUCT_OPS(qmap_sub_detach, struct scx_sub_detach_args *args)
+{
+	s32 i;
+
+	for (i = 0; i < MAX_SUB_SCHEDS; i++) {
+		if (sub_sched_cgroup_ids[i] == args->ops->sub_cgroup_id) {
+			sub_sched_cgroup_ids[i] = 0;
+			bpf_printk("detaching sub-sched[%d] on %s",
+				   i, args->cgroup_path);
+			break;
+		}
+	}
 }
 
 SCX_OPS_DEFINE(qmap_ops,
@@ -899,7 +1028,6 @@ SCX_OPS_DEFINE(qmap_ops,
 	       .dispatch		= (void *)qmap_dispatch,
 	       .tick			= (void *)qmap_tick,
 	       .core_sched_before	= (void *)qmap_core_sched_before,
-	       .cpu_release		= (void *)qmap_cpu_release,
 	       .init_task		= (void *)qmap_init_task,
 	       .dump			= (void *)qmap_dump,
 	       .dump_cpu		= (void *)qmap_dump_cpu,
@@ -907,6 +1035,8 @@ SCX_OPS_DEFINE(qmap_ops,
 	       .cgroup_init		= (void *)qmap_cgroup_init,
 	       .cgroup_set_weight	= (void *)qmap_cgroup_set_weight,
 	       .cgroup_set_bandwidth	= (void *)qmap_cgroup_set_bandwidth,
+	       .sub_attach		= (void *)qmap_sub_attach,
+	       .sub_detach		= (void *)qmap_sub_detach,
 	       .cpu_online		= (void *)qmap_cpu_online,
 	       .cpu_offline		= (void *)qmap_cpu_offline,
 	       .init			= (void *)qmap_init,

@@ -68,7 +68,7 @@ void BPF_STRUCT_OPS(numa_dispatch, s32 cpu, struct task_struct *prev)
 {
 	int node = __COMPAT_scx_bpf_cpu_node(cpu);
 
-	scx_bpf_dsq_move_to_local(node);
+	scx_bpf_dsq_move_to_local(node, 0);
 }
 
 s32 BPF_STRUCT_OPS_SLEEPABLE(numa_init)

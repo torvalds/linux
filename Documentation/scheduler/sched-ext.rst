@@ -93,6 +93,55 @@ scheduler has been loaded):
     # cat /sys/kernel/sched_ext/enable_seq
     1
 
+Each running scheduler also exposes a per-scheduler ``events`` file under
+``/sys/kernel/sched_ext/<scheduler-name>/events`` that tracks diagnostic
+counters. Each counter occupies one ``name value`` line:
+
+.. code-block:: none
+
+    # cat /sys/kernel/sched_ext/simple/events
+    SCX_EV_SELECT_CPU_FALLBACK 0
+    SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE 0
+    SCX_EV_DISPATCH_KEEP_LAST 123
+    SCX_EV_ENQ_SKIP_EXITING 0
+    SCX_EV_ENQ_SKIP_MIGRATION_DISABLED 0
+    SCX_EV_REENQ_IMMED 0
+    SCX_EV_REENQ_LOCAL_REPEAT 0
+    SCX_EV_REFILL_SLICE_DFL 456789
+    SCX_EV_BYPASS_DURATION 0
+    SCX_EV_BYPASS_DISPATCH 0
+    SCX_EV_BYPASS_ACTIVATE 0
+    SCX_EV_INSERT_NOT_OWNED 0
+    SCX_EV_SUB_BYPASS_DISPATCH 0
+
+The counters are described in ``kernel/sched/ext_internal.h``; briefly:
+
+* ``SCX_EV_SELECT_CPU_FALLBACK``: ops.select_cpu() returned a CPU unusable by
+  the task and the core scheduler silently picked a fallback CPU.
+* ``SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE``: a local-DSQ dispatch was redirected
+  to the global DSQ because the target CPU went offline.
+* ``SCX_EV_DISPATCH_KEEP_LAST``: a task continued running because no other
+  task was available (only when ``SCX_OPS_ENQ_LAST`` is not set).
+* ``SCX_EV_ENQ_SKIP_EXITING``: an exiting task was dispatched to the local DSQ
+  directly, bypassing ops.enqueue() (only when ``SCX_OPS_ENQ_EXITING`` is not set).
+* ``SCX_EV_ENQ_SKIP_MIGRATION_DISABLED``: a migration-disabled task was
+  dispatched to its local DSQ directly (only when
+  ``SCX_OPS_ENQ_MIGRATION_DISABLED`` is not set).
+* ``SCX_EV_REENQ_IMMED``: a task dispatched with ``SCX_ENQ_IMMED`` was
+  re-enqueued because the target CPU was not available for immediate execution.
+* ``SCX_EV_REENQ_LOCAL_REPEAT``: a reenqueue of the local DSQ triggered
+  another reenqueue; recurring counts indicate incorrect ``SCX_ENQ_REENQ``
+  handling in the BPF scheduler.
+* ``SCX_EV_REFILL_SLICE_DFL``: a task's time slice was refilled with the
+  default value (``SCX_SLICE_DFL``).
+* ``SCX_EV_BYPASS_DURATION``: total nanoseconds spent in bypass mode.
+* ``SCX_EV_BYPASS_DISPATCH``: number of tasks dispatched while in bypass mode.
+* ``SCX_EV_BYPASS_ACTIVATE``: number of times bypass mode was activated.
+* ``SCX_EV_INSERT_NOT_OWNED``: attempted to insert a task not owned by this
+  scheduler into a DSQ; such attempts are silently ignored.
+* ``SCX_EV_SUB_BYPASS_DISPATCH``: tasks dispatched from sub-scheduler bypass
+  DSQs (only relevant with ``CONFIG_EXT_SUB_SCHED``).
+
 ``tools/sched_ext/scx_show_state.py`` is a drgn script which shows more
 detailed information:
 
@@ -228,15 +277,22 @@ The following briefly shows how a waking task is scheduled and executed.
    scheduler can wake up any cpu using the ``scx_bpf_kick_cpu()`` helper,
    using ``ops.select_cpu()`` judiciously can be simpler and more efficient.
 
-   A task can be immediately inserted into a DSQ from ``ops.select_cpu()``
-   by calling ``scx_bpf_dsq_insert()``. If the task is inserted into
-   ``SCX_DSQ_LOCAL`` from ``ops.select_cpu()``, it will be inserted into the
-   local DSQ of whichever CPU is returned from ``ops.select_cpu()``.
-   Additionally, inserting directly from ``ops.select_cpu()`` will cause the
-   ``ops.enqueue()`` callback to be skipped.
-
    Note that the scheduler core will ignore an invalid CPU selection, for
    example, if it's outside the allowed cpumask of the task.
+
+   A task can be immediately inserted into a DSQ from ``ops.select_cpu()``
+   by calling ``scx_bpf_dsq_insert()`` or ``scx_bpf_dsq_insert_vtime()``.
+
+   If the task is inserted into ``SCX_DSQ_LOCAL`` from
+   ``ops.select_cpu()``, it will be added to the local DSQ of whichever CPU
+   is returned from ``ops.select_cpu()``. Additionally, inserting directly
+   from ``ops.select_cpu()`` will cause the ``ops.enqueue()`` callback to
+   be skipped.
+
+   Any other attempt to store a task in BPF-internal data structures from
+   ``ops.select_cpu()`` does not prevent ``ops.enqueue()`` from being
+   invoked. This is discouraged, as it can introduce racy behavior or
+   inconsistent state.
 
 2. Once the target CPU is selected, ``ops.enqueue()`` is invoked (unless the
    task was inserted directly from ``ops.select_cpu()``). ``ops.enqueue()``
@@ -251,6 +307,61 @@ The following briefly shows how a waking task is scheduled and executed.
 
    * Queue the task on the BPF side.
 
+   **Task State Tracking and ops.dequeue() Semantics**
+
+   A task is in the "BPF scheduler's custody" when the BPF scheduler is
+   responsible for managing its lifecycle. A task enters custody when it is
+   dispatched to a user DSQ or stored in the BPF scheduler's internal data
+   structures. Custody is entered only from ``ops.enqueue()`` for those
+   operations. The only exception is dispatching to a user DSQ from
+   ``ops.select_cpu()``: although the task is not yet technically in BPF
+   scheduler custody at that point, the dispatch has the same semantic
+   effect as dispatching from ``ops.enqueue()`` for custody-related
+   purposes.
+
+   Once ``ops.enqueue()`` is called, the task may or may not enter custody
+   depending on what the scheduler does:
+
+   * **Directly dispatched to terminal DSQs** (``SCX_DSQ_LOCAL``,
+     ``SCX_DSQ_LOCAL_ON | cpu``, or ``SCX_DSQ_GLOBAL``): the BPF scheduler
+     is done with the task - it either goes straight to a CPU's local run
+     queue or to the global DSQ as a fallback. The task never enters (or
+     exits) BPF custody, and ``ops.dequeue()`` will not be called.
+
+   * **Dispatch to user-created DSQs** (custom DSQs): the task enters the
+     BPF scheduler's custody. When the task later leaves BPF custody
+     (dispatched to a terminal DSQ, picked by core-sched, or dequeued for
+     sleep/property changes), ``ops.dequeue()`` will be called exactly
+     once.
+
+   * **Stored in BPF data structures** (e.g., internal BPF queues): the
+     task is in BPF custody. ``ops.dequeue()`` will be called when it
+     leaves (e.g., when ``ops.dispatch()`` moves it to a terminal DSQ, or
+     on property change / sleep).
+
+   When a task leaves BPF scheduler custody, ``ops.dequeue()`` is invoked.
+   The dequeue can happen for different reasons, distinguished by flags:
+
+   1. **Regular dispatch**: when a task in BPF custody is dispatched to a
+      terminal DSQ from ``ops.dispatch()`` (leaving BPF custody for
+      execution), ``ops.dequeue()`` is triggered without any special flags.
+
+   2. **Core scheduling pick**: when ``CONFIG_SCHED_CORE`` is enabled and
+      core scheduling picks a task for execution while it's still in BPF
+      custody, ``ops.dequeue()`` is called with the
+      ``SCX_DEQ_CORE_SCHED_EXEC`` flag.
+
+   3. **Scheduling property change**: when a task property changes (via
+      operations like ``sched_setaffinity()``, ``sched_setscheduler()``,
+      priority changes, CPU migrations, etc.) while the task is still in
+      BPF custody, ``ops.dequeue()`` is called with the
+      ``SCX_DEQ_SCHED_CHANGE`` flag set in ``deq_flags``.
+
+   **Important**: Once a task has left BPF custody (e.g., after being
+   dispatched to a terminal DSQ), property changes will not trigger
+   ``ops.dequeue()``, since the task is no longer managed by the BPF
+   scheduler.
+
 3. When a CPU is ready to schedule, it first looks at its local DSQ. If
    empty, it then looks at the global DSQ. If there still isn't a task to
    run, ``ops.dispatch()`` is invoked which can use the following two
@@ -264,9 +375,9 @@ The following briefly shows how a waking task is scheduled and executed.
      rather than performing them immediately. There can be up to
      ``ops.dispatch_max_batch`` pending tasks.
 
-   * ``scx_bpf_move_to_local()`` moves a task from the specified non-local
+   * ``scx_bpf_dsq_move_to_local()`` moves a task from the specified non-local
      DSQ to the dispatching DSQ. This function cannot be called with any BPF
-     locks held. ``scx_bpf_move_to_local()`` flushes the pending insertions
+     locks held. ``scx_bpf_dsq_move_to_local()`` flushes the pending insertions
      tasks before trying to move from the specified DSQ.
 
 4. After ``ops.dispatch()`` returns, if there are tasks in the local DSQ,
@@ -297,8 +408,8 @@ for more information.
 Task Lifecycle
 --------------
 
-The following pseudo-code summarizes the entire lifecycle of a task managed
-by a sched_ext scheduler:
+The following pseudo-code presents a rough overview of the entire lifecycle
+of a task managed by a sched_ext scheduler:
 
 .. code-block:: c
 
@@ -311,22 +422,37 @@ by a sched_ext scheduler:
 
         ops.runnable();         /* Task becomes ready to run */
 
-        while (task is runnable) {
-            if (task is not in a DSQ && task->scx.slice == 0) {
+        while (task_is_runnable(task)) {
+            if (task is not in a DSQ || task->scx.slice == 0) {
                 ops.enqueue();  /* Task can be added to a DSQ */
+
+                /* Task property change (i.e., affinity, nice, etc.)? */
+                if (sched_change(task)) {
+                    ops.dequeue(); /* Exiting BPF scheduler custody */
+                    ops.quiescent();
+
+                    /* Property change callback, e.g. ops.set_weight() */
+
+                    ops.runnable();
+                    continue;
+                }
 
                 /* Any usable CPU becomes available */
 
-                ops.dispatch(); /* Task is moved to a local DSQ */
+                ops.dispatch();     /* Task is moved to a local DSQ */
+                ops.dequeue();      /* Exiting BPF scheduler custody */
             }
+
             ops.running();      /* Task starts running on its assigned CPU */
-            while (task->scx.slice > 0 && task is runnable)
+
+            while (task_is_runnable(task) && task->scx.slice > 0) {
                 ops.tick();     /* Called every 1/HZ seconds */
+
+                if (task->scx.slice == 0)
+                    ops.dispatch(); /* task->scx.slice can be refilled */
+            }
+
             ops.stopping();     /* Task stops running (time slice expires or wait) */
-
-            /* Task's CPU becomes available */
-
-            ops.dispatch();     /* task->scx.slice can be refilled */
         }
 
         ops.quiescent();        /* Task releases its assigned CPU (wait) */
@@ -334,6 +460,30 @@ by a sched_ext scheduler:
 
     ops.disable();              /* Disable BPF scheduling for the task */
     ops.exit_task();            /* Task is destroyed */
+
+Note that the above pseudo-code does not cover all possible state transitions
+and edge cases, to name a few examples:
+
+* ``ops.dispatch()`` may fail to move the task to a local DSQ due to a racing
+  property change on that task, in which case ``ops.dispatch()`` will be
+  retried.
+
+* The task may be direct-dispatched to a local DSQ from ``ops.enqueue()``,
+  in which case ``ops.dispatch()`` and ``ops.dequeue()`` are skipped and we go
+  straight to ``ops.running()``.
+
+* Property changes may occur at virtually any point during the task's lifecycle,
+  not just when the task is queued and waiting to be dispatched. For example,
+  changing a property of a running task will lead to the callback sequence
+  ``ops.stopping()`` -> ``ops.quiescent()`` -> (property change callback) ->
+  ``ops.runnable()`` -> ``ops.running()``.
+
+* A sched_ext task can be preempted by a task from a higher-priority scheduling
+  class, in which case it will exit the tick-dispatch loop even though it is runnable
+  and has a non-zero slice.
+
+See the "Scheduling Cycle" section for a more detailed description of how
+a freshly woken up task gets on a CPU.
 
 Where to Look
 =============
@@ -376,6 +526,25 @@ Where to Look
   * ``scx_userland[.bpf].c``: A minimal scheduler demonstrating user space
     scheduling. Tasks with CPU affinity are direct-dispatched in FIFO order;
     all others are scheduled in user space by a simple vruntime scheduler.
+
+Module Parameters
+=================
+
+sched_ext exposes two module parameters under the ``sched_ext.`` prefix that
+control bypass-mode behaviour. These knobs are primarily for debugging; there
+is usually no reason to change them during normal operation. They can be read
+and written at runtime (mode 0600) via
+``/sys/module/sched_ext/parameters/``.
+
+``sched_ext.slice_bypass_us`` (default: 5000 µs)
+    The time slice assigned to all tasks when the scheduler is in bypass mode,
+    i.e. during BPF scheduler load, unload, and error recovery. Valid range is
+    100 µs to 100 ms.
+
+``sched_ext.bypass_lb_intv_us`` (default: 500000 µs)
+    The interval at which the bypass-mode load balancer redistributes tasks
+    across CPUs. Set to 0 to disable load balancing during bypass mode. Valid
+    range is 0 to 10 s.
 
 ABI Instability
 ===============

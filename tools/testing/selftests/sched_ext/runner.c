@@ -18,7 +18,7 @@ const char help_fmt[] =
 "It's required for the testcases to be serial, as only a single host-wide sched_ext\n"
 "scheduler may be loaded at any given time."
 "\n"
-"Usage: %s [-t TEST] [-h]\n"
+"Usage: %s [-t TEST] [-s] [-l] [-q]\n"
 "\n"
 "  -t TEST       Only run tests whose name includes this string\n"
 "  -s            Include print output for skipped tests\n"
@@ -133,6 +133,8 @@ static bool test_valid(const struct scx_test *test)
 int main(int argc, char **argv)
 {
 	const char *filter = NULL;
+	const char *failed_tests[MAX_SCX_TESTS];
+	const char *skipped_tests[MAX_SCX_TESTS];
 	unsigned testnum = 0, i;
 	unsigned passed = 0, skipped = 0, failed = 0;
 	int opt;
@@ -159,6 +161,26 @@ int main(int argc, char **argv)
 		default:
 			fprintf(stderr, help_fmt, basename(argv[0]));
 			return opt != 'h';
+		}
+	}
+
+	if (optind < argc) {
+		fprintf(stderr, "Unexpected argument '%s'. Use -t to filter tests.\n",
+			argv[optind]);
+		return 1;
+	}
+
+	if (filter) {
+		for (i = 0; i < __scx_num_tests; i++) {
+			if (!should_skip_test(&__scx_tests[i], filter))
+				break;
+		}
+		if (i == __scx_num_tests) {
+			fprintf(stderr, "No tests matched filter '%s'\n", filter);
+			fprintf(stderr, "Available tests (use -l to list):\n");
+			for (i = 0; i < __scx_num_tests; i++)
+				fprintf(stderr, "  %s\n", __scx_tests[i].name);
+			return 1;
 		}
 	}
 
@@ -198,10 +220,10 @@ int main(int argc, char **argv)
 			passed++;
 			break;
 		case SCX_TEST_SKIP:
-			skipped++;
+			skipped_tests[skipped++] = test->name;
 			break;
 		case SCX_TEST_FAIL:
-			failed++;
+			failed_tests[failed++] = test->name;
 			break;
 		}
 	}
@@ -210,8 +232,18 @@ int main(int argc, char **argv)
 	printf("PASSED:  %u\n", passed);
 	printf("SKIPPED: %u\n", skipped);
 	printf("FAILED:  %u\n", failed);
+	if (skipped > 0) {
+		printf("\nSkipped tests:\n");
+		for (i = 0; i < skipped; i++)
+			printf("  - %s\n", skipped_tests[i]);
+	}
+	if (failed > 0) {
+		printf("\nFailed tests:\n");
+		for (i = 0; i < failed; i++)
+			printf("  - %s\n", failed_tests[i]);
+	}
 
-	return 0;
+	return failed > 0 ? 1 : 0;
 }
 
 void scx_test_register(struct scx_test *test)

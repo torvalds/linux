@@ -21,7 +21,7 @@ const char help_fmt[] =
 "\n"
 "See the top-level comment in .bpf.c for more details.\n"
 "\n"
-"Usage: %s [-S STRIDE]\n"
+"Usage: %s [-S STRIDE] [-v]\n"
 "\n"
 "  -S STRIDE     Override CPU pair stride (default: nr_cpus_ids / 2)\n"
 "  -v            Print libbpf debug messages\n"
@@ -48,6 +48,7 @@ int main(int argc, char **argv)
 	struct bpf_link *link;
 	__u64 seq = 0, ecode;
 	__s32 stride, i, opt, outer_fd;
+	__u32 pair_id = 0;
 
 	libbpf_set_print(libbpf_print_fn);
 	signal(SIGINT, sigint_handler);
@@ -82,6 +83,14 @@ restart:
 		scx_pair__destroy(skel);
 		return -1;
 	}
+
+	if (skel->rodata->nr_cpu_ids & 1) {
+		fprintf(stderr, "scx_pair requires an even CPU count, got %u\n",
+			skel->rodata->nr_cpu_ids);
+		scx_pair__destroy(skel);
+		return -1;
+	}
+
 	bpf_map__set_max_entries(skel->maps.pair_ctx, skel->rodata->nr_cpu_ids / 2);
 
 	/* Resize arrays so their element count is equal to cpu count. */
@@ -109,10 +118,11 @@ restart:
 
 		skel->rodata_pair_cpu->pair_cpu[i] = j;
 		skel->rodata_pair_cpu->pair_cpu[j] = i;
-		skel->rodata_pair_id->pair_id[i] = i;
-		skel->rodata_pair_id->pair_id[j] = i;
+		skel->rodata_pair_id->pair_id[i] = pair_id;
+		skel->rodata_pair_id->pair_id[j] = pair_id;
 		skel->rodata_in_pair_idx->in_pair_idx[i] = 0;
 		skel->rodata_in_pair_idx->in_pair_idx[j] = 1;
+		pair_id++;
 
 		printf("[%d, %d] ", i, j);
 	}

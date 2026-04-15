@@ -10,4 +10,4 @@
 long file_read_long(const char *path);
 int file_write_long(const char *path, long val);
 
-#endif // __SCX_TEST_H__
+#endif // __SCX_TEST_UTIL_H__

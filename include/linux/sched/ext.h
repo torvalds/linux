@@ -62,6 +62,16 @@ enum scx_dsq_id_flags {
 	SCX_DSQ_LOCAL_CPU_MASK	= 0xffffffffLLU,
 };
 
+struct scx_deferred_reenq_user {
+	struct list_head	node;
+	u64			flags;
+};
+
+struct scx_dsq_pcpu {
+	struct scx_dispatch_q	*dsq;
+	struct scx_deferred_reenq_user deferred_reenq_user;
+};
+
 /*
  * A dispatch queue (DSQ) can be either a FIFO or p->scx.dsq_vtime ordered
  * queue. A built-in DSQ is always a FIFO. The built-in local DSQs are used to
@@ -78,62 +88,63 @@ struct scx_dispatch_q {
 	u64			id;
 	struct rhash_head	hash_node;
 	struct llist_node	free_node;
+	struct scx_sched	*sched;
+	struct scx_dsq_pcpu __percpu *pcpu;
 	struct rcu_head		rcu;
 };
 
-/* scx_entity.flags */
+/* sched_ext_entity.flags */
 enum scx_ent_flags {
 	SCX_TASK_QUEUED		= 1 << 0, /* on ext runqueue */
+	SCX_TASK_IN_CUSTODY	= 1 << 1, /* in custody, needs ops.dequeue() when leaving */
 	SCX_TASK_RESET_RUNNABLE_AT = 1 << 2, /* runnable_at should be reset */
 	SCX_TASK_DEQD_FOR_SLEEP	= 1 << 3, /* last dequeue was for SLEEP */
+	SCX_TASK_SUB_INIT	= 1 << 4, /* task being initialized for a sub sched */
+	SCX_TASK_IMMED		= 1 << 5, /* task is on local DSQ with %SCX_ENQ_IMMED */
 
-	SCX_TASK_STATE_SHIFT	= 8,	  /* bit 8 and 9 are used to carry scx_task_state */
+	/*
+	 * Bits 8 and 9 are used to carry task state:
+	 *
+	 * NONE		ops.init_task() not called yet
+	 * INIT		ops.init_task() succeeded, but task can be cancelled
+	 * READY	fully initialized, but not in sched_ext
+	 * ENABLED	fully initialized and in sched_ext
+	 */
+	SCX_TASK_STATE_SHIFT	= 8,	  /* bits 8 and 9 are used to carry task state */
 	SCX_TASK_STATE_BITS	= 2,
 	SCX_TASK_STATE_MASK	= ((1 << SCX_TASK_STATE_BITS) - 1) << SCX_TASK_STATE_SHIFT,
 
-	SCX_TASK_CURSOR		= 1 << 31, /* iteration cursor, not a task */
-};
+	SCX_TASK_NONE		= 0 << SCX_TASK_STATE_SHIFT,
+	SCX_TASK_INIT		= 1 << SCX_TASK_STATE_SHIFT,
+	SCX_TASK_READY		= 2 << SCX_TASK_STATE_SHIFT,
+	SCX_TASK_ENABLED	= 3 << SCX_TASK_STATE_SHIFT,
 
-/* scx_entity.flags & SCX_TASK_STATE_MASK */
-enum scx_task_state {
-	SCX_TASK_NONE,		/* ops.init_task() not called yet */
-	SCX_TASK_INIT,		/* ops.init_task() succeeded, but task can be cancelled */
-	SCX_TASK_READY,		/* fully initialized, but not in sched_ext */
-	SCX_TASK_ENABLED,	/* fully initialized and in sched_ext */
+	/*
+	 * Bits 12 and 13 are used to carry reenqueue reason. In addition to
+	 * %SCX_ENQ_REENQ flag, ops.enqueue() can also test for
+	 * %SCX_TASK_REENQ_REASON_NONE to distinguish reenqueues.
+	 *
+	 * NONE		not being reenqueued
+	 * KFUNC	reenqueued by scx_bpf_dsq_reenq() and friends
+	 * IMMED	reenqueued due to failed ENQ_IMMED
+	 * PREEMPTED	preempted while running
+	 */
+	SCX_TASK_REENQ_REASON_SHIFT = 12,
+	SCX_TASK_REENQ_REASON_BITS = 2,
+	SCX_TASK_REENQ_REASON_MASK = ((1 << SCX_TASK_REENQ_REASON_BITS) - 1) << SCX_TASK_REENQ_REASON_SHIFT,
 
-	SCX_TASK_NR_STATES,
+	SCX_TASK_REENQ_NONE	= 0 << SCX_TASK_REENQ_REASON_SHIFT,
+	SCX_TASK_REENQ_KFUNC	= 1 << SCX_TASK_REENQ_REASON_SHIFT,
+	SCX_TASK_REENQ_IMMED	= 2 << SCX_TASK_REENQ_REASON_SHIFT,
+	SCX_TASK_REENQ_PREEMPTED = 3 << SCX_TASK_REENQ_REASON_SHIFT,
+
+	/* iteration cursor, not a task */
+	SCX_TASK_CURSOR		= 1 << 31,
 };
 
 /* scx_entity.dsq_flags */
 enum scx_ent_dsq_flags {
 	SCX_TASK_DSQ_ON_PRIQ	= 1 << 0, /* task is queued on the priority queue of a dsq */
-};
-
-/*
- * Mask bits for scx_entity.kf_mask. Not all kfuncs can be called from
- * everywhere and the following bits track which kfunc sets are currently
- * allowed for %current. This simple per-task tracking works because SCX ops
- * nest in a limited way. BPF will likely implement a way to allow and disallow
- * kfuncs depending on the calling context which will replace this manual
- * mechanism. See scx_kf_allow().
- */
-enum scx_kf_mask {
-	SCX_KF_UNLOCKED		= 0,	  /* sleepable and not rq locked */
-	/* ENQUEUE and DISPATCH may be nested inside CPU_RELEASE */
-	SCX_KF_CPU_RELEASE	= 1 << 0, /* ops.cpu_release() */
-	/*
-	 * ops.dispatch() may release rq lock temporarily and thus ENQUEUE and
-	 * SELECT_CPU may be nested inside. ops.dequeue (in REST) may also be
-	 * nested inside DISPATCH.
-	 */
-	SCX_KF_DISPATCH		= 1 << 1, /* ops.dispatch() */
-	SCX_KF_ENQUEUE		= 1 << 2, /* ops.enqueue() and ops.select_cpu() */
-	SCX_KF_SELECT_CPU	= 1 << 3, /* ops.select_cpu() */
-	SCX_KF_REST		= 1 << 4, /* other rq-locked operations */
-
-	__SCX_KF_RQ_LOCKED	= SCX_KF_CPU_RELEASE | SCX_KF_DISPATCH |
-				  SCX_KF_ENQUEUE | SCX_KF_SELECT_CPU | SCX_KF_REST,
-	__SCX_KF_TERMINAL	= SCX_KF_ENQUEUE | SCX_KF_SELECT_CPU | SCX_KF_REST,
 };
 
 enum scx_dsq_lnode_flags {
@@ -149,19 +160,31 @@ struct scx_dsq_list_node {
 	u32			priv;		/* can be used by iter cursor */
 };
 
-#define INIT_DSQ_LIST_CURSOR(__node, __flags, __priv)				\
+#define INIT_DSQ_LIST_CURSOR(__cursor, __dsq, __flags)				\
 	(struct scx_dsq_list_node) {						\
-		.node = LIST_HEAD_INIT((__node).node),				\
+		.node = LIST_HEAD_INIT((__cursor).node),			\
 		.flags = SCX_DSQ_LNODE_ITER_CURSOR | (__flags),			\
-		.priv = (__priv),						\
+		.priv = READ_ONCE((__dsq)->seq),				\
 	}
+
+struct scx_sched;
 
 /*
  * The following is embedded in task_struct and contains all fields necessary
  * for a task to be scheduled by SCX.
  */
 struct sched_ext_entity {
+#ifdef CONFIG_CGROUPS
+	/*
+	 * Associated scx_sched. Updated either during fork or while holding
+	 * both p->pi_lock and rq lock.
+	 */
+	struct scx_sched __rcu	*sched;
+#endif
 	struct scx_dispatch_q	*dsq;
+	atomic_long_t		ops_state;
+	u64			ddsp_dsq_id;
+	u64			ddsp_enq_flags;
 	struct scx_dsq_list_node dsq_list;	/* dispatch order */
 	struct rb_node		dsq_priq;	/* p->scx.dsq_vtime order */
 	u32			dsq_seq;
@@ -171,9 +194,7 @@ struct sched_ext_entity {
 	s32			sticky_cpu;
 	s32			holding_cpu;
 	s32			selected_cpu;
-	u32			kf_mask;	/* see scx_kf_mask above */
 	struct task_struct	*kf_tasks[2];	/* see SCX_CALL_OP_TASK() */
-	atomic_long_t		ops_state;
 
 	struct list_head	runnable_node;	/* rq->scx.runnable_list */
 	unsigned long		runnable_at;
@@ -181,8 +202,6 @@ struct sched_ext_entity {
 #ifdef CONFIG_SCHED_CORE
 	u64			core_sched_at;	/* see scx_prio_less() */
 #endif
-	u64			ddsp_dsq_id;
-	u64			ddsp_enq_flags;
 
 	/* BPF scheduler modifiable fields */
 

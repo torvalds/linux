@@ -38,7 +38,7 @@ const char help_fmt[] =
 "\n"
 "Try to reduce `sysctl kernel.pid_max` if this program triggers OOMs.\n"
 "\n"
-"Usage: %s [-b BATCH]\n"
+"Usage: %s [-b BATCH] [-v]\n"
 "\n"
 "  -b BATCH      The number of tasks to batch when dispatching (default: 8)\n"
 "  -v            Print libbpf debug messages\n"

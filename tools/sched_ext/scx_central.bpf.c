@@ -60,6 +60,7 @@ const volatile u32 nr_cpu_ids = 1;	/* !0 for veristat, set during init */
 const volatile u64 slice_ns;
 
 bool timer_pinned = true;
+bool timer_started;
 u64 nr_total, nr_locals, nr_queued, nr_lost_pids;
 u64 nr_timers, nr_dispatches, nr_mismatches, nr_retries;
 u64 nr_overflows;
@@ -179,9 +180,47 @@ static bool dispatch_to_cpu(s32 cpu)
 	return false;
 }
 
+static void start_central_timer(void)
+{
+	struct bpf_timer *timer;
+	u32 key = 0;
+	int ret;
+
+	if (likely(timer_started))
+		return;
+
+	timer = bpf_map_lookup_elem(&central_timer, &key);
+	if (!timer) {
+		scx_bpf_error("failed to lookup central timer");
+		return;
+	}
+
+	ret = bpf_timer_start(timer, TIMER_INTERVAL_NS, BPF_F_TIMER_CPU_PIN);
+	/*
+	 * BPF_F_TIMER_CPU_PIN is pretty new (>=6.7). If we're running in a
+	 * kernel which doesn't have it, bpf_timer_start() will return -EINVAL.
+	 * Retry without the PIN. This would be the perfect use case for
+	 * bpf_core_enum_value_exists() but the enum type doesn't have a name
+	 * and can't be used with bpf_core_enum_value_exists(). Oh well...
+	 */
+	if (ret == -EINVAL) {
+		timer_pinned = false;
+		ret = bpf_timer_start(timer, TIMER_INTERVAL_NS, 0);
+	}
+
+	if (ret) {
+		scx_bpf_error("bpf_timer_start failed (%d)", ret);
+		return;
+	}
+
+	timer_started = true;
+}
+
 void BPF_STRUCT_OPS(central_dispatch, s32 cpu, struct task_struct *prev)
 {
 	if (cpu == central_cpu) {
+		start_central_timer();
+
 		/* dispatch for all other CPUs first */
 		__sync_fetch_and_add(&nr_dispatches, 1);
 
@@ -214,13 +253,13 @@ void BPF_STRUCT_OPS(central_dispatch, s32 cpu, struct task_struct *prev)
 		}
 
 		/* look for a task to run on the central CPU */
-		if (scx_bpf_dsq_move_to_local(FALLBACK_DSQ_ID))
+		if (scx_bpf_dsq_move_to_local(FALLBACK_DSQ_ID, 0))
 			return;
 		dispatch_to_cpu(central_cpu);
 	} else {
 		bool *gimme;
 
-		if (scx_bpf_dsq_move_to_local(FALLBACK_DSQ_ID))
+		if (scx_bpf_dsq_move_to_local(FALLBACK_DSQ_ID, 0))
 			return;
 
 		gimme = ARRAY_ELEM_PTR(cpu_gimme_task, cpu, nr_cpu_ids);
@@ -310,29 +349,12 @@ int BPF_STRUCT_OPS_SLEEPABLE(central_init)
 	if (!timer)
 		return -ESRCH;
 
-	if (bpf_get_smp_processor_id() != central_cpu) {
-		scx_bpf_error("init from non-central CPU");
-		return -EINVAL;
-	}
-
 	bpf_timer_init(timer, &central_timer, CLOCK_MONOTONIC);
 	bpf_timer_set_callback(timer, central_timerfn);
 
-	ret = bpf_timer_start(timer, TIMER_INTERVAL_NS, BPF_F_TIMER_CPU_PIN);
-	/*
-	 * BPF_F_TIMER_CPU_PIN is pretty new (>=6.7). If we're running in a
-	 * kernel which doesn't have it, bpf_timer_start() will return -EINVAL.
-	 * Retry without the PIN. This would be the perfect use case for
-	 * bpf_core_enum_value_exists() but the enum type doesn't have a name
-	 * and can't be used with bpf_core_enum_value_exists(). Oh well...
-	 */
-	if (ret == -EINVAL) {
-		timer_pinned = false;
-		ret = bpf_timer_start(timer, TIMER_INTERVAL_NS, 0);
-	}
-	if (ret)
-		scx_bpf_error("bpf_timer_start failed (%d)", ret);
-	return ret;
+	scx_bpf_kick_cpu(central_cpu, 0);
+
+	return 0;
 }
 
 void BPF_STRUCT_OPS(central_exit, struct scx_exit_info *ei)

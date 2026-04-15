@@ -18,7 +18,7 @@
  * 100/(100+100) == 1/2. At its parent level, A is competing against D and A's
  * share in that competition is 100/(200+100) == 1/3. B's eventual share in the
  * system can be calculated by multiplying the two shares, 1/2 * 1/3 == 1/6. C's
- * eventual shaer is the same at 1/6. D is only competing at the top level and
+ * eventual share is the same at 1/6. D is only competing at the top level and
  * its share is 200/(100+200) == 2/3.
  *
  * So, instead of hierarchically scheduling level-by-level, we can consider it
@@ -551,9 +551,11 @@ void BPF_STRUCT_OPS(fcg_stopping, struct task_struct *p, bool runnable)
 	 * too much, determine the execution time by taking explicit timestamps
 	 * instead of depending on @p->scx.slice.
 	 */
-	if (!fifo_sched)
-		p->scx.dsq_vtime +=
-			(SCX_SLICE_DFL - p->scx.slice) * 100 / p->scx.weight;
+	if (!fifo_sched) {
+		u64 delta = scale_by_task_weight_inverse(p, SCX_SLICE_DFL - p->scx.slice);
+
+		scx_bpf_task_set_dsq_vtime(p, p->scx.dsq_vtime + delta);
+	}
 
 	taskc = bpf_task_storage_get(&task_ctx, p, 0, 0);
 	if (!taskc) {
@@ -660,7 +662,7 @@ static bool try_pick_next_cgroup(u64 *cgidp)
 		goto out_free;
 	}
 
-	if (!scx_bpf_dsq_move_to_local(cgid)) {
+	if (!scx_bpf_dsq_move_to_local(cgid, 0)) {
 		bpf_cgroup_release(cgrp);
 		stat_inc(FCG_STAT_PNC_EMPTY);
 		goto out_stash;
@@ -740,7 +742,7 @@ void BPF_STRUCT_OPS(fcg_dispatch, s32 cpu, struct task_struct *prev)
 		goto pick_next_cgroup;
 
 	if (time_before(now, cpuc->cur_at + cgrp_slice_ns)) {
-		if (scx_bpf_dsq_move_to_local(cpuc->cur_cgid)) {
+		if (scx_bpf_dsq_move_to_local(cpuc->cur_cgid, 0)) {
 			stat_inc(FCG_STAT_CNS_KEEP);
 			return;
 		}
@@ -780,7 +782,7 @@ void BPF_STRUCT_OPS(fcg_dispatch, s32 cpu, struct task_struct *prev)
 pick_next_cgroup:
 	cpuc->cur_at = now;
 
-	if (scx_bpf_dsq_move_to_local(FALLBACK_DSQ)) {
+	if (scx_bpf_dsq_move_to_local(FALLBACK_DSQ, 0)) {
 		cpuc->cur_cgid = 0;
 		return;
 	}
@@ -822,7 +824,7 @@ s32 BPF_STRUCT_OPS(fcg_init_task, struct task_struct *p,
 	if (!(cgc = find_cgrp_ctx(args->cgroup)))
 		return -ENOENT;
 
-	p->scx.dsq_vtime = cgc->tvtime_now;
+	scx_bpf_task_set_dsq_vtime(p, cgc->tvtime_now);
 
 	return 0;
 }
@@ -919,12 +921,12 @@ void BPF_STRUCT_OPS(fcg_cgroup_move, struct task_struct *p,
 	struct fcg_cgrp_ctx *from_cgc, *to_cgc;
 	s64 delta;
 
-	/* find_cgrp_ctx() triggers scx_ops_error() on lookup failures */
+	/* find_cgrp_ctx() triggers scx_bpf_error() on lookup failures */
 	if (!(from_cgc = find_cgrp_ctx(from)) || !(to_cgc = find_cgrp_ctx(to)))
 		return;
 
 	delta = time_delta(p->scx.dsq_vtime, from_cgc->tvtime_now);
-	p->scx.dsq_vtime = to_cgc->tvtime_now + delta;
+	scx_bpf_task_set_dsq_vtime(p, to_cgc->tvtime_now + delta);
 }
 
 s32 BPF_STRUCT_OPS_SLEEPABLE(fcg_init)
@@ -960,5 +962,5 @@ SCX_OPS_DEFINE(flatcg_ops,
 	       .cgroup_move		= (void *)fcg_cgroup_move,
 	       .init			= (void *)fcg_init,
 	       .exit			= (void *)fcg_exit,
-	       .flags			= SCX_OPS_HAS_CGROUP_WEIGHT | SCX_OPS_ENQ_EXITING,
+	       .flags			= SCX_OPS_ENQ_EXITING,
 	       .name			= "flatcg");

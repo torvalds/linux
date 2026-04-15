@@ -1190,6 +1190,10 @@ config EXT_GROUP_SCHED
 
 endif #CGROUP_SCHED
 
+config EXT_SUB_SCHED
+        def_bool y
+        depends on SCHED_CLASS_EXT && CGROUPS
+
 config SCHED_MM_CID
 	def_bool y
 	depends on SMP && RSEQ

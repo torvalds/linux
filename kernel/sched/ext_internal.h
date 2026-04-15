@@ -6,6 +6,7 @@
  * Copyright (c) 2025 Tejun Heo <tj@kernel.org>
  */
 #define SCX_OP_IDX(op)		(offsetof(struct sched_ext_ops, op) / sizeof(void (*)(void)))
+#define SCX_MOFF_IDX(moff)	((moff) / sizeof(void (*)(void)))
 
 enum scx_consts {
 	SCX_DSP_DFL_MAX_BATCH		= 32,
@@ -24,10 +25,16 @@ enum scx_consts {
 	 */
 	SCX_TASK_ITER_BATCH		= 32,
 
+	SCX_BYPASS_HOST_NTH		= 2,
+
 	SCX_BYPASS_LB_DFL_INTV_US	= 500 * USEC_PER_MSEC,
 	SCX_BYPASS_LB_DONOR_PCT		= 125,
 	SCX_BYPASS_LB_MIN_DELTA_DIV	= 4,
 	SCX_BYPASS_LB_BATCH		= 256,
+
+	SCX_REENQ_LOCAL_MAX_REPEAT	= 256,
+
+	SCX_SUB_MAX_DEPTH		= 4,
 };
 
 enum scx_exit_kind {
@@ -38,6 +45,7 @@ enum scx_exit_kind {
 	SCX_EXIT_UNREG_BPF,	/* BPF-initiated unregistration */
 	SCX_EXIT_UNREG_KERN,	/* kernel-initiated unregistration */
 	SCX_EXIT_SYSRQ,		/* requested by 'S' sysrq */
+	SCX_EXIT_PARENT,	/* parent exiting */
 
 	SCX_EXIT_ERROR = 1024,	/* runtime error, error msg contains details */
 	SCX_EXIT_ERROR_BPF,	/* ERROR but triggered through scx_bpf_error() */
@@ -62,6 +70,7 @@ enum scx_exit_kind {
 enum scx_exit_code {
 	/* Reasons */
 	SCX_ECODE_RSN_HOTPLUG	= 1LLU << 32,
+	SCX_ECODE_RSN_CGROUP_OFFLINE = 2LLU << 32,
 
 	/* Actions */
 	SCX_ECODE_ACT_RESTART	= 1LLU << 48,
@@ -175,9 +184,10 @@ enum scx_ops_flags {
 	SCX_OPS_BUILTIN_IDLE_PER_NODE	= 1LLU << 6,
 
 	/*
-	 * CPU cgroup support flags
+	 * If set, %SCX_ENQ_IMMED is assumed to be set on all local DSQ
+	 * enqueues.
 	 */
-	SCX_OPS_HAS_CGROUP_WEIGHT	= 1LLU << 16,	/* DEPRECATED, will be removed on 6.18 */
+	SCX_OPS_ALWAYS_ENQ_IMMED	= 1LLU << 7,
 
 	SCX_OPS_ALL_FLAGS		= SCX_OPS_KEEP_BUILTIN_IDLE |
 					  SCX_OPS_ENQ_LAST |
@@ -186,7 +196,7 @@ enum scx_ops_flags {
 					  SCX_OPS_ALLOW_QUEUED_WAKEUP |
 					  SCX_OPS_SWITCH_PARTIAL |
 					  SCX_OPS_BUILTIN_IDLE_PER_NODE |
-					  SCX_OPS_HAS_CGROUP_WEIGHT,
+					  SCX_OPS_ALWAYS_ENQ_IMMED,
 
 	/* high 8 bits are internal, don't include in SCX_OPS_ALL_FLAGS */
 	__SCX_OPS_INTERNAL_MASK		= 0xffLLU << 56,
@@ -213,7 +223,7 @@ struct scx_exit_task_args {
 	bool cancelled;
 };
 
-/* argument container for ops->cgroup_init() */
+/* argument container for ops.cgroup_init() */
 struct scx_cgroup_init_args {
 	/* the weight of the cgroup [1..10000] */
 	u32			weight;
@@ -236,12 +246,12 @@ enum scx_cpu_preempt_reason {
 };
 
 /*
- * Argument container for ops->cpu_acquire(). Currently empty, but may be
+ * Argument container for ops.cpu_acquire(). Currently empty, but may be
  * expanded in the future.
  */
 struct scx_cpu_acquire_args {};
 
-/* argument container for ops->cpu_release() */
+/* argument container for ops.cpu_release() */
 struct scx_cpu_release_args {
 	/* the reason the CPU was preempted */
 	enum scx_cpu_preempt_reason reason;
@@ -250,15 +260,25 @@ struct scx_cpu_release_args {
 	struct task_struct	*task;
 };
 
-/*
- * Informational context provided to dump operations.
- */
+/* informational context provided to dump operations */
 struct scx_dump_ctx {
 	enum scx_exit_kind	kind;
 	s64			exit_code;
 	const char		*reason;
 	u64			at_ns;
 	u64			at_jiffies;
+};
+
+/* argument container for ops.sub_attach() */
+struct scx_sub_attach_args {
+	struct sched_ext_ops	*ops;
+	char			*cgroup_path;
+};
+
+/* argument container for ops.sub_detach() */
+struct scx_sub_detach_args {
+	struct sched_ext_ops	*ops;
+	char			*cgroup_path;
 };
 
 /**
@@ -721,6 +741,20 @@ struct sched_ext_ops {
 
 #endif	/* CONFIG_EXT_GROUP_SCHED */
 
+	/**
+	 * @sub_attach: Attach a sub-scheduler
+	 * @args: argument container, see the struct definition
+	 *
+	 * Return 0 to accept the sub-scheduler. -errno to reject.
+	 */
+	s32 (*sub_attach)(struct scx_sub_attach_args *args);
+
+	/**
+	 * @sub_detach: Detach a sub-scheduler
+	 * @args: argument container, see the struct definition
+	 */
+	void (*sub_detach)(struct scx_sub_detach_args *args);
+
 	/*
 	 * All online ops must come before ops.cpu_online().
 	 */
@@ -762,6 +796,10 @@ struct sched_ext_ops {
 	 */
 	void (*exit)(struct scx_exit_info *info);
 
+	/*
+	 * Data fields must comes after all ops fields.
+	 */
+
 	/**
 	 * @dispatch_max_batch: Max nr of tasks that dispatch() can dispatch
 	 */
@@ -797,6 +835,12 @@ struct sched_ext_ops {
 	u64 hotplug_seq;
 
 	/**
+	 * @cgroup_id: When >1, attach the scheduler as a sub-scheduler on the
+	 * specified cgroup.
+	 */
+	u64 sub_cgroup_id;
+
+	/**
 	 * @name: BPF scheduler's name
 	 *
 	 * Must be a non-zero valid BPF object name including only isalnum(),
@@ -806,7 +850,7 @@ struct sched_ext_ops {
 	char name[SCX_OPS_NAME_LEN];
 
 	/* internal use only, must be NULL */
-	void *priv;
+	void __rcu *priv;
 };
 
 enum scx_opi {
@@ -854,6 +898,24 @@ struct scx_event_stats {
 	s64		SCX_EV_ENQ_SKIP_MIGRATION_DISABLED;
 
 	/*
+	 * The number of times a task, enqueued on a local DSQ with
+	 * SCX_ENQ_IMMED, was re-enqueued because the CPU was not available for
+	 * immediate execution.
+	 */
+	s64		SCX_EV_REENQ_IMMED;
+
+	/*
+	 * The number of times a reenq of local DSQ caused another reenq of
+	 * local DSQ. This can happen when %SCX_ENQ_IMMED races against a higher
+	 * priority class task even if the BPF scheduler always satisfies the
+	 * prerequisites for %SCX_ENQ_IMMED at the time of enqueue. However,
+	 * that scenario is very unlikely and this count going up regularly
+	 * indicates that the BPF scheduler is handling %SCX_ENQ_REENQ
+	 * incorrectly causing recursive reenqueues.
+	 */
+	s64		SCX_EV_REENQ_LOCAL_REPEAT;
+
+	/*
 	 * Total number of times a task's time slice was refilled with the
 	 * default value (SCX_SLICE_DFL).
 	 */
@@ -873,15 +935,77 @@ struct scx_event_stats {
 	 * The number of times the bypassing mode has been activated.
 	 */
 	s64		SCX_EV_BYPASS_ACTIVATE;
+
+	/*
+	 * The number of times the scheduler attempted to insert a task that it
+	 * doesn't own into a DSQ. Such attempts are ignored.
+	 *
+	 * As BPF schedulers are allowed to ignore dequeues, it's difficult to
+	 * tell whether such an attempt is from a scheduler malfunction or an
+	 * ignored dequeue around sub-sched enabling. If this count keeps going
+	 * up regardless of sub-sched enabling, it likely indicates a bug in the
+	 * scheduler.
+	 */
+	s64		SCX_EV_INSERT_NOT_OWNED;
+
+	/*
+	 * The number of times tasks from bypassing descendants are scheduled
+	 * from sub_bypass_dsq's.
+	 */
+	s64		SCX_EV_SUB_BYPASS_DISPATCH;
+};
+
+struct scx_sched;
+
+enum scx_sched_pcpu_flags {
+	SCX_SCHED_PCPU_BYPASSING	= 1LLU << 0,
+};
+
+/* dispatch buf */
+struct scx_dsp_buf_ent {
+	struct task_struct	*task;
+	unsigned long		qseq;
+	u64			dsq_id;
+	u64			enq_flags;
+};
+
+struct scx_dsp_ctx {
+	struct rq		*rq;
+	u32			cursor;
+	u32			nr_tasks;
+	struct scx_dsp_buf_ent	buf[];
+};
+
+struct scx_deferred_reenq_local {
+	struct list_head	node;
+	u64			flags;
+	u64			seq;
+	u32			cnt;
 };
 
 struct scx_sched_pcpu {
+	struct scx_sched	*sch;
+	u64			flags;	/* protected by rq lock */
+
 	/*
 	 * The event counters are in a per-CPU variable to minimize the
 	 * accounting overhead. A system-wide view on the event counter is
 	 * constructed when requested by scx_bpf_events().
 	 */
 	struct scx_event_stats	event_stats;
+
+	struct scx_deferred_reenq_local deferred_reenq_local;
+	struct scx_dispatch_q	bypass_dsq;
+#ifdef CONFIG_EXT_SUB_SCHED
+	u32			bypass_host_seq;
+#endif
+
+	/* must be the last entry - contains flex array */
+	struct scx_dsp_ctx	dsp_ctx;
+};
+
+struct scx_sched_pnode {
+	struct scx_dispatch_q	global_dsq;
 };
 
 struct scx_sched {
@@ -897,8 +1021,21 @@ struct scx_sched {
 	 * per-node split isn't sufficient, it can be further split.
 	 */
 	struct rhashtable	dsq_hash;
-	struct scx_dispatch_q	**global_dsqs;
+	struct scx_sched_pnode	**pnode;
 	struct scx_sched_pcpu __percpu *pcpu;
+
+	u64			slice_dfl;
+	u64			bypass_timestamp;
+	s32			bypass_depth;
+
+	/* bypass dispatch path enable state, see bypass_dsp_enabled() */
+	unsigned long		bypass_dsp_claim;
+	atomic_t		bypass_dsp_enable_depth;
+
+	bool			aborting;
+	bool			dump_disabled;	/* protected by scx_dump_lock */
+	u32			dsp_max_batch;
+	s32			level;
 
 	/*
 	 * Updates to the following warned bitfields can race causing RMW issues
@@ -906,6 +1043,28 @@ struct scx_sched {
 	 */
 	bool			warned_zero_slice:1;
 	bool			warned_deprecated_rq:1;
+	bool			warned_unassoc_progs:1;
+
+	struct list_head	all;
+
+#ifdef CONFIG_EXT_SUB_SCHED
+	struct rhash_head	hash_node;
+
+	struct list_head	children;
+	struct list_head	sibling;
+	struct cgroup		*cgrp;
+	char			*cgrp_path;
+	struct kset		*sub_kset;
+
+	bool			sub_attached;
+#endif	/* CONFIG_EXT_SUB_SCHED */
+
+	/*
+	 * The maximum amount of time in jiffies that a task may be runnable
+	 * without being scheduled on a CPU. If this timeout is exceeded, it
+	 * will trigger scx_error().
+	 */
+	unsigned long		watchdog_timeout;
 
 	atomic_t		exit_kind;
 	struct scx_exit_info	*exit_info;
@@ -913,9 +1072,13 @@ struct scx_sched {
 	struct kobject		kobj;
 
 	struct kthread_worker	*helper;
-	struct irq_work		error_irq_work;
+	struct irq_work		disable_irq_work;
 	struct kthread_work	disable_work;
+	struct timer_list	bypass_lb_timer;
 	struct rcu_work		rcu_work;
+
+	/* all ancestors including self */
+	struct scx_sched	*ancestors[];
 };
 
 enum scx_wake_flags {
@@ -942,13 +1105,27 @@ enum scx_enq_flags {
 	SCX_ENQ_PREEMPT		= 1LLU << 32,
 
 	/*
-	 * The task being enqueued was previously enqueued on the current CPU's
-	 * %SCX_DSQ_LOCAL, but was removed from it in a call to the
-	 * scx_bpf_reenqueue_local() kfunc. If scx_bpf_reenqueue_local() was
-	 * invoked in a ->cpu_release() callback, and the task is again
-	 * dispatched back to %SCX_LOCAL_DSQ by this current ->enqueue(), the
-	 * task will not be scheduled on the CPU until at least the next invocation
-	 * of the ->cpu_acquire() callback.
+	 * Only allowed on local DSQs. Guarantees that the task either gets
+	 * on the CPU immediately and stays on it, or gets reenqueued back
+	 * to the BPF scheduler. It will never linger on a local DSQ or be
+	 * silently put back after preemption.
+	 *
+	 * The protection persists until the next fresh enqueue - it
+	 * survives SAVE/RESTORE cycles, slice extensions and preemption.
+	 * If the task can't stay on the CPU for any reason, it gets
+	 * reenqueued back to the BPF scheduler.
+	 *
+	 * Exiting and migration-disabled tasks bypass ops.enqueue() and
+	 * are placed directly on a local DSQ without IMMED protection
+	 * unless %SCX_OPS_ENQ_EXITING and %SCX_OPS_ENQ_MIGRATION_DISABLED
+	 * are set respectively.
+	 */
+	SCX_ENQ_IMMED		= 1LLU << 33,
+
+	/*
+	 * The task being enqueued was previously enqueued on a DSQ, but was
+	 * removed and is being re-enqueued. See SCX_TASK_REENQ_* flags to find
+	 * out why a given task is being reenqueued.
 	 */
 	SCX_ENQ_REENQ		= 1LLU << 40,
 
@@ -969,6 +1146,7 @@ enum scx_enq_flags {
 	SCX_ENQ_CLEAR_OPSS	= 1LLU << 56,
 	SCX_ENQ_DSQ_PRIQ	= 1LLU << 57,
 	SCX_ENQ_NESTED		= 1LLU << 58,
+	SCX_ENQ_GDSQ_FALLBACK	= 1LLU << 59,	/* fell back to global DSQ */
 };
 
 enum scx_deq_flags {
@@ -982,6 +1160,28 @@ enum scx_deq_flags {
 	 * it hasn't been dispatched yet. Dequeue from the BPF side.
 	 */
 	SCX_DEQ_CORE_SCHED_EXEC	= 1LLU << 32,
+
+	/*
+	 * The task is being dequeued due to a property change (e.g.,
+	 * sched_setaffinity(), sched_setscheduler(), set_user_nice(),
+	 * etc.).
+	 */
+	SCX_DEQ_SCHED_CHANGE	= 1LLU << 33,
+};
+
+enum scx_reenq_flags {
+	/* low 16bits determine which tasks should be reenqueued */
+	SCX_REENQ_ANY		= 1LLU << 0,	/* all tasks */
+
+	__SCX_REENQ_FILTER_MASK	= 0xffffLLU,
+
+	__SCX_REENQ_USER_MASK	= SCX_REENQ_ANY,
+
+	/* bits 32-35 used by task_should_reenq() */
+	SCX_REENQ_TSR_RQ_OPEN	= 1LLU << 32,
+	SCX_REENQ_TSR_NOT_FIRST	= 1LLU << 33,
+
+	__SCX_REENQ_TSR_MASK	= 0xfLLU << 32,
 };
 
 enum scx_pick_idle_cpu_flags {
@@ -1161,7 +1361,10 @@ enum scx_ops_state {
 #define SCX_OPSS_STATE_MASK	((1LU << SCX_OPSS_QSEQ_SHIFT) - 1)
 #define SCX_OPSS_QSEQ_MASK	(~SCX_OPSS_STATE_MASK)
 
+extern struct scx_sched __rcu *scx_root;
 DECLARE_PER_CPU(struct rq *, scx_locked_rq_state);
+
+int scx_kfunc_context_filter(const struct bpf_prog *prog, u32 kfunc_id);
 
 /*
  * Return the rq currently locked from an scx callback, or NULL if no rq is
@@ -1172,12 +1375,107 @@ static inline struct rq *scx_locked_rq(void)
 	return __this_cpu_read(scx_locked_rq_state);
 }
 
-static inline bool scx_kf_allowed_if_unlocked(void)
+static inline bool scx_bypassing(struct scx_sched *sch, s32 cpu)
 {
-	return !current->scx.kf_mask;
+	return unlikely(per_cpu_ptr(sch->pcpu, cpu)->flags &
+			SCX_SCHED_PCPU_BYPASSING);
 }
 
-static inline bool scx_rq_bypassing(struct rq *rq)
+#ifdef CONFIG_EXT_SUB_SCHED
+/**
+ * scx_task_sched - Find scx_sched scheduling a task
+ * @p: task of interest
+ *
+ * Return @p's scheduler instance. Must be called with @p's pi_lock or rq lock
+ * held.
+ */
+static inline struct scx_sched *scx_task_sched(const struct task_struct *p)
 {
-	return unlikely(rq->scx.flags & SCX_RQ_BYPASSING);
+	return rcu_dereference_protected(p->scx.sched,
+					 lockdep_is_held(&p->pi_lock) ||
+					 lockdep_is_held(__rq_lockp(task_rq(p))));
 }
+
+/**
+ * scx_task_sched_rcu - Find scx_sched scheduling a task
+ * @p: task of interest
+ *
+ * Return @p's scheduler instance. The returned scx_sched is RCU protected.
+ */
+static inline struct scx_sched *scx_task_sched_rcu(const struct task_struct *p)
+{
+	return rcu_dereference_all(p->scx.sched);
+}
+
+/**
+ * scx_task_on_sched - Is a task on the specified sched?
+ * @sch: sched to test against
+ * @p: task of interest
+ *
+ * Returns %true if @p is on @sch, %false otherwise.
+ */
+static inline bool scx_task_on_sched(struct scx_sched *sch,
+				     const struct task_struct *p)
+{
+	return rcu_access_pointer(p->scx.sched) == sch;
+}
+
+/**
+ * scx_prog_sched - Find scx_sched associated with a BPF prog
+ * @aux: aux passed in from BPF to a kfunc
+ *
+ * To be called from kfuncs. Return the scheduler instance associated with the
+ * BPF program given the implicit kfunc argument aux. The returned scx_sched is
+ * RCU protected.
+ */
+static inline struct scx_sched *scx_prog_sched(const struct bpf_prog_aux *aux)
+{
+	struct sched_ext_ops *ops;
+	struct scx_sched *root;
+
+	ops = bpf_prog_get_assoc_struct_ops(aux);
+	if (likely(ops))
+		return rcu_dereference_all(ops->priv);
+
+	root = rcu_dereference_all(scx_root);
+	if (root) {
+		/*
+		 * COMPAT-v6.19: Schedulers built before sub-sched support was
+		 * introduced may have unassociated non-struct_ops programs.
+		 */
+		if (!root->ops.sub_attach)
+			return root;
+
+		if (!root->warned_unassoc_progs) {
+			printk_deferred(KERN_WARNING "sched_ext: Unassociated program %s (id %d)\n",
+					aux->name, aux->id);
+			root->warned_unassoc_progs = true;
+		}
+	}
+
+	return NULL;
+}
+#else	/* CONFIG_EXT_SUB_SCHED */
+static inline struct scx_sched *scx_task_sched(const struct task_struct *p)
+{
+	return rcu_dereference_protected(scx_root,
+					 lockdep_is_held(&p->pi_lock) ||
+					 lockdep_is_held(__rq_lockp(task_rq(p))));
+}
+
+static inline struct scx_sched *scx_task_sched_rcu(const struct task_struct *p)
+{
+	return rcu_dereference_all(scx_root);
+}
+
+static inline bool scx_task_on_sched(struct scx_sched *sch,
+				     const struct task_struct *p)
+{
+	return true;
+}
+
+static struct scx_sched *scx_prog_sched(const struct bpf_prog_aux *aux)
+{
+	return rcu_dereference_all(scx_root);
+}
+#endif	/* CONFIG_EXT_SUB_SCHED */
