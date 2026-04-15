@@ -461,6 +461,8 @@ static ssize_t sequence_store(struct device *dev, struct device_attribute *attr,
 	param = (struct ec_params_lightbar *)msg->data;
 	param->cmd = LIGHTBAR_CMD_SEQ;
 	param->seq.num = num;
+	msg->outsize = offsetof(typeof(*param), seq) + sizeof(param->seq);
+	msg->insize = 0;
 	ret = lb_throttle();
 	if (ret)
 		goto exit;
@@ -516,6 +518,7 @@ static ssize_t program_store(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		goto exit;
 	param = (struct ec_params_lightbar *)msg->data;
+	msg->insize = 0;
 
 	if (lb_version < 3) {
 		dev_info(dev, "Copying %zu byte program to EC", count);
