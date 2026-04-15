@@ -163,8 +163,8 @@ static int chv3_dma_close(struct snd_soc_component *component,
 	return 0;
 }
 
-static int chv3_dma_pcm_construct(struct snd_soc_component *component,
-				  struct snd_soc_pcm_runtime *rtd)
+static int chv3_dma_pcm_new(struct snd_soc_component *component,
+			    struct snd_soc_pcm_runtime *rtd)
 {
 	struct chv3_i2s_dev *i2s = snd_soc_dai_get_drvdata(snd_soc_rtd_to_cpu(rtd, 0));
 	struct snd_pcm_substream *substream;
@@ -271,7 +271,7 @@ static const struct snd_soc_component_driver chv3_i2s_comp = {
 	.name = "chv3-i2s-comp",
 	.open = chv3_dma_open,
 	.close = chv3_dma_close,
-	.pcm_construct = chv3_dma_pcm_construct,
+	.pcm_new = chv3_dma_pcm_new,
 	.hw_params = chv3_dma_hw_params,
 	.prepare = chv3_dma_prepare,
 	.pointer = chv3_dma_pointer,

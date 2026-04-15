@@ -3598,20 +3598,18 @@ static int tegra210_sfc_platform_probe(struct platform_device *pdev)
 
 	sfc->regmap = devm_regmap_init_mmio(dev, regs,
 					    &tegra210_sfc_regmap_config);
-	if (IS_ERR(sfc->regmap)) {
-		dev_err(dev, "regmap init failed\n");
-		return PTR_ERR(sfc->regmap);
-	}
+	if (IS_ERR(sfc->regmap))
+		return dev_err_probe(dev, PTR_ERR(sfc->regmap),
+				     "regmap init failed\n");
 
 	regcache_cache_only(sfc->regmap, true);
 
 	err = devm_snd_soc_register_component(dev, &tegra210_sfc_cmpnt,
 					      tegra210_sfc_dais,
 					      ARRAY_SIZE(tegra210_sfc_dais));
-	if (err) {
-		dev_err(dev, "can't register SFC component, err: %d\n", err);
-		return err;
-	}
+	if (err)
+		return dev_err_probe(dev, err,
+				     "can't register SFC component\n");
 
 	pm_runtime_enable(&pdev->dev);
 

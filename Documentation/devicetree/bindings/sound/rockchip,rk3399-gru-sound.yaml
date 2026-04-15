@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/rockchip,rk3399-gru-sound.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Rockchip with MAX98357A/RT5514/DA7219 codecs on GRU boards
+
+maintainers:
+  - Heiko Stuebner <heiko@sntech.de>
+
+properties:
+  compatible:
+    const: rockchip,rk3399-gru-sound
+
+  rockchip,cpu:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    description: |
+      List of phandles to the Rockchip CPU DAI controllers connected to codecs
+    minItems: 1
+    items:
+      - items:
+          - description: Phandle to the Rockchip I2S controllers
+      - items:
+          - description: |
+              Phandle to the Rockchip SPDIF controller. Required when a
+              DisplayPort audio codec is referenced in rockchip,codec
+
+  rockchip,codec:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    description: |
+      The phandles of the audio codecs connected to the Rockchip CPU DAI
+      controllers
+    minItems: 1
+    maxItems: 6
+    items:
+      maxItems: 1
+
+  dmic-wakeup-delay-ms:
+    description: |
+      specify delay time (ms) for DMIC ready.
+      If this option is specified, a delay is required for DMIC to get ready
+      so that rt5514 can avoid recording before DMIC sends valid data
+
+required:
+  - compatible
+  - rockchip,cpu
+  - rockchip,codec
+
+additionalProperties: false
+
+examples:
+  - |
+    sound {
+      compatible = "rockchip,rk3399-gru-sound";
+      rockchip,cpu = <&i2s0 &spdif>;
+      rockchip,codec = <&max98357a &rt5514 &da7219 &cdn_dp>;
+      dmic-wakeup-delay-ms = <20>;
+    };
+

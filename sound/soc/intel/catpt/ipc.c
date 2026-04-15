@@ -5,6 +5,7 @@
 // Author: Cezary Rojewski <cezary.rojewski@intel.com>
 //
 
+#include <linux/cleanup.h>
 #include <linux/irqreturn.h>
 #include "core.h"
 #include "messages.h"
@@ -150,6 +151,8 @@ catpt_dsp_notify_stream(struct catpt_dev *cdev, union catpt_notify_msg msg)
 	struct catpt_stream_runtime *stream;
 	struct catpt_notify_position pos;
 	struct catpt_notify_glitch glitch;
+
+	guard(mutex)(&cdev->stream_mutex);
 
 	stream = catpt_stream_find(cdev, msg.stream_hw_id);
 	if (!stream) {

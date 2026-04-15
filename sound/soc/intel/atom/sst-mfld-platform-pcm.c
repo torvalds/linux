@@ -707,7 +707,7 @@ static const struct snd_soc_component_driver sst_soc_platform_drv  = {
 	.pointer	= sst_soc_pointer,
 	.delay		= sst_soc_delay,
 	.compress_ops	= &sst_platform_compress_ops,
-	.pcm_construct	= sst_soc_pcm_new,
+	.pcm_new	= sst_soc_pcm_new,
 };
 
 static int sst_platform_probe(struct platform_device *pdev)

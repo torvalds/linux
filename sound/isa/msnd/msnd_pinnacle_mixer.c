@@ -310,6 +310,10 @@ EXPORT_SYMBOL(snd_msndmix_new);
 
 void snd_msndmix_setup(struct snd_msnd *dev)
 {
+	writew(dev->left_levels[MSND_MIXER_VOLUME],
+	       dev->SMA + SMA_wCurrMastVolLeft);
+	writew(dev->right_levels[MSND_MIXER_VOLUME],
+	       dev->SMA + SMA_wCurrMastVolRight);
 	update_pot(MSND_MIXER_LINE, bInPotPos, HDEXAR_IN_SET_POTS);
 	update_potm(MSND_MIXER_AUX, bAuxPotPos, HDEXAR_AUX_SET_POTS);
 	update_volm(MSND_MIXER_PCM, wCurrPlayVol);

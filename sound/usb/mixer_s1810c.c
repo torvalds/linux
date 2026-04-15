@@ -362,6 +362,7 @@ static int snd_s1810c_init_mixer_maps(struct snd_usb_audio *chip)
 		snd_s1810c_send_ctl_packet(dev, a, 3, 0, 1, MIXER_LEVEL_0DB);
 		break;
 
+	case USB_ID(0x194f, 0x0107): /* 1824 */
 	case USB_ID(0x194f, 0x010d): /* 1824c */
 		/* Set all output faders to unity gain */
 		a = SC1810C_SEL_OUTPUT;
@@ -685,6 +686,7 @@ int snd_sc1810_init_mixer(struct usb_mixer_interface *mixer)
 			return ret;
 
 		break;
+	case USB_ID(0x194f, 0x0107): /* Presonus Studio 1824 */
 	case USB_ID(0x194f, 0x010d): /* Presonus Studio 1824c */
 		ret = snd_s1810c_switch_init(mixer, &snd_s1824c_mono_sw);
 		if (ret < 0)

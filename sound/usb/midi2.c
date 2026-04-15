@@ -1057,10 +1057,8 @@ static void set_fallback_rawmidi_names(struct snd_usb_midi2_interface *umidi)
 			strscpy(ump->core.name, ump->info.name,
 				sizeof(ump->core.name));
 		/* use serial number string as unique UMP product id */
-		if (!*ump->info.product_id && dev->descriptor.iSerialNumber)
-			usb_string(dev, dev->descriptor.iSerialNumber,
-				   ump->info.product_id,
-				   sizeof(ump->info.product_id));
+		if (!*ump->info.product_id && dev->serial && *dev->serial)
+			strscpy(ump->info.product_id, dev->serial);
 	}
 }
 

@@ -11,15 +11,23 @@
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/device/faux.h>
+#include <linux/gpio/driver.h>
 #include <linux/module.h>
 #include <linux/random.h>
 #include <linux/regmap.h>
 #include <linux/seq_buf.h>
 #include <sound/cs35l56.h>
 
+struct cs35l56_shared_test_mock_gpio {
+	unsigned int pin_state;
+	struct gpio_chip chip;
+};
+
 struct cs35l56_shared_test_priv {
 	struct kunit *test;
 	struct faux_device *amp_dev;
+	struct faux_device *gpio_dev;
+	struct cs35l56_shared_test_mock_gpio *gpio_priv;
 	struct regmap *registers;
 	struct cs35l56_base *cs35l56_base;
 	u8 applied_pad_pull_state[CS35L56_MAX_GPIO];
@@ -36,6 +44,94 @@ KUNIT_DEFINE_ACTION_WRAPPER(faux_device_destroy_wrapper, faux_device_destroy,
 			    struct faux_device *)
 
 KUNIT_DEFINE_ACTION_WRAPPER(regmap_exit_wrapper, regmap_exit, struct regmap *)
+
+KUNIT_DEFINE_ACTION_WRAPPER(device_remove_software_node_wrapper,
+			    device_remove_software_node,
+			    struct device *)
+
+static int cs35l56_shared_test_mock_gpio_get_direction(struct gpio_chip *chip,
+						       unsigned int offset)
+{
+	return GPIO_LINE_DIRECTION_IN;
+}
+
+static int cs35l56_shared_test_mock_gpio_direction_in(struct gpio_chip *chip,
+						      unsigned int offset)
+{
+	return 0;
+}
+
+static int cs35l56_shared_test_mock_gpio_get(struct gpio_chip *chip, unsigned int offset)
+{
+	struct cs35l56_shared_test_mock_gpio *gpio_priv = gpiochip_get_data(chip);
+
+	return !!(gpio_priv->pin_state & BIT(offset));
+}
+
+static const struct gpio_chip cs35l56_shared_test_mock_gpio_chip = {
+	.label			= "cs35l56_shared_test_mock_gpio",
+	.owner			= THIS_MODULE,
+	.get_direction		= cs35l56_shared_test_mock_gpio_get_direction,
+	.direction_input	= cs35l56_shared_test_mock_gpio_direction_in,
+	.get			= cs35l56_shared_test_mock_gpio_get,
+	.base			= -1,
+	.ngpio			= 32,
+};
+
+/* software_node referencing the gpio driver */
+static const struct software_node cs35l56_shared_test_mock_gpio_swnode = {
+	.name = "cs35l56_shared_test_mock_gpio",
+};
+
+static int cs35l56_shared_test_mock_gpio_probe(struct faux_device *fdev)
+{
+	struct cs35l56_shared_test_mock_gpio *gpio_priv;
+	struct device *dev = &fdev->dev;
+	int ret;
+
+	gpio_priv = devm_kzalloc(dev, sizeof(*gpio_priv), GFP_KERNEL);
+	if (!gpio_priv)
+		return -ENOMEM;
+
+	ret = device_add_software_node(dev, &cs35l56_shared_test_mock_gpio_swnode);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(dev, device_remove_software_node_wrapper, dev);
+	if (ret)
+		return ret;
+
+	/* GPIO core modifies our struct gpio_chip so use a copy */
+	gpio_priv->chip = cs35l56_shared_test_mock_gpio_chip;
+	gpio_priv->chip.parent = dev;
+	ret = devm_gpiochip_add_data(dev, &gpio_priv->chip, gpio_priv);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to add gpiochip\n");
+
+	dev_set_drvdata(dev, gpio_priv);
+
+	return 0;
+}
+
+static struct faux_device_ops cs35l56_shared_test_mock_gpio_drv = {
+	.probe		= cs35l56_shared_test_mock_gpio_probe,
+};
+
+static void _cs35l56_shared_test_create_dummy_gpio(struct kunit *test)
+{
+	struct cs35l56_shared_test_priv *priv = test->priv;
+
+	priv->gpio_dev = faux_device_create("cs35l56_shared_test_mock_gpio", NULL,
+					    &cs35l56_shared_test_mock_gpio_drv);
+	KUNIT_ASSERT_NOT_NULL(test, priv->gpio_dev);
+	KUNIT_ASSERT_EQ(test, 0,
+			kunit_add_action_or_reset(test,
+						  faux_device_destroy_wrapper,
+						  priv->gpio_dev));
+
+	priv->gpio_priv = dev_get_drvdata(&priv->gpio_dev->dev);
+	KUNIT_ASSERT_NOT_NULL(test, priv->gpio_priv);
+}
 
 static const struct regmap_config cs35l56_shared_test_mock_registers_regmap = {
 	.reg_bits = 32,
@@ -410,6 +506,109 @@ static void cs35l56_shared_test_onchip_speaker_id_not_defined(struct kunit *test
 	KUNIT_EXPECT_EQ(test, cs35l56_read_onchip_spkid(cs35l56_base), -ENOENT);
 }
 
+/* simulate cs_amp_get_vendor_spkid() reading a vendor-specific ID of 1 */
+static int cs35l56_shared_test_get_vendor_spkid_1(struct device *dev)
+{
+	return 1;
+}
+
+static void cs35l56_shared_test_get_speaker_id_vendor(struct kunit *test)
+{
+	struct cs35l56_shared_test_priv *priv = test->priv;
+
+	/* Hook cs_amp_get_vendor_spkid() to return an ID of 1 */
+	kunit_activate_static_stub(test, cs_amp_get_vendor_spkid,
+				   cs35l56_shared_test_get_vendor_spkid_1);
+
+	KUNIT_EXPECT_EQ(test, cs35l56_get_speaker_id(priv->cs35l56_base), 1);
+}
+
+static void cs35l56_shared_test_get_speaker_id_property(struct kunit *test)
+{
+	struct cs35l56_shared_test_priv *priv = test->priv;
+	const struct property_entry dev_props[] = {
+		PROPERTY_ENTRY_U32("cirrus,speaker-id", 2),
+		{ }
+	};
+	const struct software_node dev_node = SOFTWARE_NODE("SPK1", dev_props, NULL);
+
+	KUNIT_ASSERT_EQ(test, device_add_software_node(priv->cs35l56_base->dev, &dev_node), 0);
+	KUNIT_ASSERT_EQ(test, 0,
+			kunit_add_action_or_reset(test,
+						  device_remove_software_node_wrapper,
+						  priv->cs35l56_base->dev));
+
+	KUNIT_EXPECT_EQ(test, cs35l56_get_speaker_id(priv->cs35l56_base), 2);
+}
+
+/*
+ * Create software nodes equivalent to ACPI structure
+ *
+ * Device(GSPK) {
+ *	Name(_DSD, ...) {
+ *	Package() {
+ *		cs-gpios {
+ *			GPIO, n, 0,
+ *			...
+ *		}
+ *	}
+ */
+static void _cs35l56_shared_test_create_spkid_swnode(struct kunit *test,
+						     struct device *dev,
+						     const struct software_node_ref_args *args,
+						     int num_args)
+{
+	struct cs35l56_shared_test_priv *priv = test->priv;
+	const struct property_entry props_template[] = {
+		PROPERTY_ENTRY_REF_ARRAY_LEN("spk-id-gpios", args, num_args),
+		{ }
+	};
+	struct property_entry *props;
+	struct software_node *node;
+
+	props = kunit_kzalloc(test, sizeof(props_template), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, props);
+	memcpy(props, props_template, sizeof(props_template));
+
+	node = kunit_kzalloc(test, sizeof(*node), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, node);
+	*node = SOFTWARE_NODE("GSPK", props, NULL);
+
+	KUNIT_ASSERT_EQ(test, device_add_software_node(dev, node), 0);
+	KUNIT_ASSERT_EQ(test, 0,
+			kunit_add_action_or_reset(test,
+						  device_remove_software_node_wrapper,
+						  priv->cs35l56_base->dev));
+}
+
+static void cs35l56_shared_test_get_speaker_id_from_host_gpio(struct kunit *test)
+{
+	const struct cs35l56_shared_test_param *param = test->param_value;
+	struct cs35l56_shared_test_priv *priv = test->priv;
+	struct cs35l56_base *cs35l56_base = priv->cs35l56_base;
+	struct software_node_ref_args *ref;
+	int i;
+
+	if (!IS_REACHABLE(CONFIG_GPIOLIB)) {
+		kunit_skip(test, "Requires CONFIG_GPIOLIB");
+		return;
+	}
+
+	_cs35l56_shared_test_create_dummy_gpio(test);
+
+	ref = kunit_kcalloc(test, ARRAY_SIZE(param->spkid_gpios), sizeof(*ref), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ref);
+
+	for (i = 0; param->spkid_gpios[i] >= 0; i++) {
+		ref[i] = SOFTWARE_NODE_REFERENCE(&cs35l56_shared_test_mock_gpio_swnode,
+						 param->spkid_gpios[i], 0);
+	}
+	_cs35l56_shared_test_create_spkid_swnode(test, cs35l56_base->dev, ref, i);
+
+	priv->gpio_priv->pin_state = param->gpio_status;
+	KUNIT_EXPECT_EQ(test, cs35l56_get_speaker_id(priv->cs35l56_base), param->spkid);
+}
+
 static int cs35l56_shared_test_case_regmap_init(struct kunit *test,
 						const struct regmap_config *regmap_config)
 {
@@ -602,6 +801,40 @@ KUNIT_ARRAY_PARAM(cs35l56_shared_test_onchip_spkid_pull,
 		  cs35l56_shared_test_onchip_spkid_pull_cases,
 		  cs35l56_shared_test_gpio_param_desc);
 
+/* Note: spk-id-gpios property bit order is LSbit...MSbit */
+static const struct cs35l56_shared_test_param cs35l56_shared_test_host_gpio_spkid_cases[] = {
+	{ .spkid_gpios = { 0, -1 },	  .gpio_status = 0,			.spkid = 0 },
+	{ .spkid_gpios = { 0, -1 },	  .gpio_status = ~BIT(0),		.spkid = 0 },
+	{ .spkid_gpios = { 0, -1 },	  .gpio_status = BIT(0),		.spkid = 1 },
+
+	{ .spkid_gpios = { 6, -1 },	  .gpio_status = 0,			.spkid = 0 },
+	{ .spkid_gpios = { 6, -1 },	  .gpio_status = ~BIT(6),		.spkid = 0 },
+	{ .spkid_gpios = { 6, -1 },	  .gpio_status = BIT(6),		.spkid = 1 },
+
+	{ .spkid_gpios = { 6, 0, -1 },	  .gpio_status = 0,			.spkid = 0 },
+	{ .spkid_gpios = { 6, 0, -1 },	  .gpio_status = ~(BIT(0) | BIT(6)),	.spkid = 0 },
+	{ .spkid_gpios = { 6, 0, -1 },	  .gpio_status = BIT(6),		.spkid = 1 },
+	{ .spkid_gpios = { 6, 0, -1 },	  .gpio_status = BIT(0),		.spkid = 2 },
+	{ .spkid_gpios = { 6, 0, -1 },	  .gpio_status = BIT(6) | BIT(0),	.spkid = 3 },
+
+	{ .spkid_gpios = { 0, 6, -1 },	  .gpio_status = 0,			.spkid = 0 },
+	{ .spkid_gpios = { 0, 6, -1 },	  .gpio_status = ~(BIT(6) | BIT(0)),	.spkid = 0 },
+	{ .spkid_gpios = { 0, 6, -1 },	  .gpio_status = BIT(0),		.spkid = 1 },
+	{ .spkid_gpios = { 0, 6, -1 },	  .gpio_status = BIT(6),		.spkid = 2 },
+	{ .spkid_gpios = { 0, 6, -1 },	  .gpio_status = BIT(6) | BIT(0),	.spkid = 3 },
+
+	{ .spkid_gpios = { 0, 6, 2, -1 }, .gpio_status = 0,			   .spkid = 0 },
+	{ .spkid_gpios = { 0, 6, 2, -1 }, .gpio_status = BIT(0),		   .spkid = 1 },
+	{ .spkid_gpios = { 0, 6, 2, -1 }, .gpio_status = BIT(6),		   .spkid = 2 },
+	{ .spkid_gpios = { 0, 6, 2, -1 }, .gpio_status = BIT(6) | BIT(0),	   .spkid = 3 },
+	{ .spkid_gpios = { 0, 6, 2, -1 }, .gpio_status = BIT(2),		   .spkid = 4 },
+	{ .spkid_gpios = { 0, 6, 2, -1 }, .gpio_status = BIT(2) | BIT(0),	   .spkid = 5 },
+	{ .spkid_gpios = { 0, 6, 2, -1 }, .gpio_status = BIT(2) | BIT(6),	   .spkid = 6 },
+	{ .spkid_gpios = { 0, 6, 2, -1 }, .gpio_status = BIT(2) | BIT(6) | BIT(0), .spkid = 7 },
+};
+KUNIT_ARRAY_PARAM(cs35l56_shared_test_host_gpio_spkid, cs35l56_shared_test_host_gpio_spkid_cases,
+		  cs35l56_shared_test_gpio_param_desc);
+
 static struct kunit_case cs35l56_shared_test_cases[] = {
 	/* Tests for speaker id */
 	KUNIT_CASE_PARAM(cs35l56_shared_test_mock_gpio_status_selftest,
@@ -616,6 +849,13 @@ static struct kunit_case cs35l56_shared_test_cases[] = {
 			 cs35l56_shared_test_onchip_spkid_pull_gen_params),
 	KUNIT_CASE(cs35l56_shared_test_stash_onchip_spkid_pins_reject_invalid),
 	KUNIT_CASE(cs35l56_shared_test_onchip_speaker_id_not_defined),
+
+	KUNIT_CASE(cs35l56_shared_test_get_speaker_id_vendor),
+	KUNIT_CASE(cs35l56_shared_test_get_speaker_id_property),
+	KUNIT_CASE_PARAM_ATTR(cs35l56_shared_test_get_speaker_id_from_host_gpio,
+			      cs35l56_shared_test_host_gpio_spkid_gen_params,
+			      { KUNIT_SPEED_SLOW }),
+
 	{ }
 };
 

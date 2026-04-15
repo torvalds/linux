@@ -2376,6 +2376,13 @@ quirk_flags
           Skip the probe-time interface setup (usb_set_interface,
           init_pitch, init_sample_rate); redundant with
           snd_usb_endpoint_prepare() at stream-open time
+        * bit 27: ``mixer_playback_linear_vol``
+          Set linear volume mapping for devices where the playback volume
+          control value is mapped to voltage (instead of dB) level linearly.
+          In short: ``x(raw) = (raw - raw_min) / (raw_max - raw_min)``;
+          ``V(x) = k * x``; ``dB(x) = 20 * log10(x)``. Overrides bit 24
+        * bit 28: ``mixer_capture_linear_vol``
+          Similar to bit 27 but for capture streams. Overrides bit 25
 
 This module supports multiple devices, autoprobe and hotplugging.
 

@@ -351,7 +351,8 @@ static const struct snd_soc_component_driver acp63_pdm_component = {
 	.close		= acp63_pdm_dma_close,
 	.hw_params	= acp63_pdm_dma_hw_params,
 	.pointer	= acp63_pdm_dma_pointer,
-	.pcm_construct	= acp63_pdm_dma_new,
+	.pcm_new	= acp63_pdm_dma_new,
+	.use_dai_pcm_id = true,
 };
 
 static int acp63_pdm_audio_probe(struct platform_device *pdev)

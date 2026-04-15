@@ -514,7 +514,7 @@ static const struct snd_soc_component_driver msiof_component_driver = {
 	.open		= msiof_open,
 	.close		= msiof_close,
 	.pointer	= msiof_pointer,
-	.pcm_construct	= msiof_new,
+	.pcm_new	= msiof_new,
 	.trigger	= msiof_trigger,
 	.hw_params	= msiof_hw_params,
 };

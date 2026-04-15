@@ -61,7 +61,7 @@ struct cs42l43_codec {
 	unsigned int refclk_freq;
 	struct completion pll_ready;
 
-	unsigned int decim_cache[4];
+	unsigned int decim_cache[6];
 	unsigned int adc_ena;
 	unsigned int hp_ena;
 
@@ -103,7 +103,7 @@ struct cs42l43_codec {
 	bool hp_ilimited;
 	int hp_ilimit_count;
 
-	struct snd_kcontrol *kctl[5];
+	struct snd_kcontrol *kctl[7];
 };
 
 #if IS_REACHABLE(CONFIG_SND_SOC_CS42L43_SDW)

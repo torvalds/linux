@@ -341,5 +341,5 @@ const struct snd_soc_component_driver loongson_i2s_component = {
 	.trigger	= loongson_pcm_trigger,
 	.pointer	= loongson_pcm_pointer,
 	.mmap		= loongson_pcm_mmap,
-	.pcm_construct	= loongson_pcm_new,
+	.pcm_new	= loongson_pcm_new,
 };

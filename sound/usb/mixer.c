@@ -1204,6 +1204,13 @@ static void volume_control_quirks(struct usb_mixer_elem_info *cval,
 			cval->min = -11264; /* Mute under it */
 		}
 		break;
+	case USB_ID(0x31b2, 0x0111): /* MOONDROP JU Jiu */
+		if (!strcmp(kctl->id.name, "PCM Playback Volume")) {
+			usb_audio_info(chip,
+				       "set volume quirk for MOONDROP JU Jiu\n");
+			cval->min = -10880; /* Mute under it */
+		}
+		break;
 	}
 }
 
@@ -1226,12 +1233,79 @@ static void init_cur_mix_raw(struct usb_mixer_elem_info *cval, int ch, int idx)
 }
 
 /*
+ * Additional checks for sticky mixers
+ *
+ * Some devices' volume control mixers are sticky, which accept SET_CUR but
+ * do absolutely nothing.
+ *
+ * Prevent sticky mixers from being registered, otherwise they confuses
+ * userspace and results in ineffective volume control.
+ */
+static int check_sticky_volume_control(struct usb_mixer_elem_info *cval,
+				       int channel, int saved)
+{
+	int sticky_test_values[] = { cval->min, cval->max };
+	int test, check, i;
+
+	for (i = 0; i < ARRAY_SIZE(sticky_test_values); i++) {
+		test = sticky_test_values[i];
+		if (test == saved)
+			continue;
+
+		/* Assume non-sticky on failure. */
+		if (snd_usb_set_cur_mix_value(cval, channel, 0, test) ||
+		    get_cur_mix_raw(cval, channel, &check) ||
+		    check != saved) /* SET_CUR effective, non-sticky. */
+			return 0;
+	}
+
+	usb_audio_err(cval->head.mixer->chip,
+		      "%d:%d: sticky mixer values (%d/%d/%d => %d), disabling\n",
+		      cval->head.id, mixer_ctrl_intf(cval->head.mixer),
+		      cval->min, cval->max, cval->res, saved);
+
+	return -ENODEV;
+}
+
+/*
+ * Additional checks for the proper resolution
+ *
+ * Some devices report smaller resolutions than actually reacting.
+ * They don't return errors but simply clip to the lower aligned value.
+ */
+static void check_volume_control_res(struct usb_mixer_elem_info *cval,
+				     int channel, int saved)
+{
+	int last_valid_res = cval->res;
+	int test, check;
+
+	for (;;) {
+		test = saved;
+		if (test < cval->max)
+			test += cval->res;
+		else
+			test -= cval->res;
+
+		if (test < cval->min || test > cval->max ||
+		    snd_usb_set_cur_mix_value(cval, channel, 0, test) ||
+		    get_cur_mix_raw(cval, channel, &check)) {
+			cval->res = last_valid_res;
+			break;
+		}
+		if (test == check)
+			break;
+
+		cval->res *= 2;
+	}
+}
+
+/*
  * retrieve the minimum and maximum values for the specified control
  */
 static int get_min_max_with_quirks(struct usb_mixer_elem_info *cval,
 				   int default_min, struct snd_kcontrol *kctl)
 {
-	int i, idx;
+	int i, idx, ret;
 
 	/* for failsafe */
 	cval->min = default_min;
@@ -1257,7 +1331,7 @@ static int get_min_max_with_quirks(struct usb_mixer_elem_info *cval,
 				      "%d:%d: cannot get min/max values for control %d (id %d)\n",
 				   cval->head.id, mixer_ctrl_intf(cval->head.mixer),
 							       cval->control, cval->head.id);
-			return -EINVAL;
+			return -EAGAIN;
 		}
 		if (get_ctl_value(cval, UAC_GET_RES,
 				  (cval->control << 8) | minchn,
@@ -1280,37 +1354,25 @@ static int get_min_max_with_quirks(struct usb_mixer_elem_info *cval,
 		if (cval->res == 0)
 			cval->res = 1;
 
-		/* Additional checks for the proper resolution
-		 *
-		 * Some devices report smaller resolutions than actually
-		 * reacting.  They don't return errors but simply clip
-		 * to the lower aligned value.
-		 */
-		if (cval->min + cval->res < cval->max) {
-			int last_valid_res = cval->res;
-			int saved, test, check;
+		if (cval->min < cval->max) {
+			int saved;
+
 			if (get_cur_mix_raw(cval, minchn, &saved) < 0)
-				goto no_res_check;
-			for (;;) {
-				test = saved;
-				if (test < cval->max)
-					test += cval->res;
-				else
-					test -= cval->res;
-				if (test < cval->min || test > cval->max ||
-				    snd_usb_set_cur_mix_value(cval, minchn, 0, test) ||
-				    get_cur_mix_raw(cval, minchn, &check)) {
-					cval->res = last_valid_res;
-					break;
-				}
-				if (test == check)
-					break;
-				cval->res *= 2;
+				goto no_checks;
+
+			ret = check_sticky_volume_control(cval, minchn, saved);
+			if (ret < 0) {
+				snd_usb_set_cur_mix_value(cval, minchn, 0, saved);
+				return ret;
 			}
+
+			if (cval->min + cval->res < cval->max)
+				check_volume_control_res(cval, minchn, saved);
+
 			snd_usb_set_cur_mix_value(cval, minchn, 0, saved);
 		}
 
-no_res_check:
+no_checks:
 		cval->initialized = 1;
 	}
 
@@ -1381,6 +1443,7 @@ static int mixer_ctl_feature_info(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_info *uinfo)
 {
 	struct usb_mixer_elem_info *cval = snd_kcontrol_chip(kcontrol);
+	int ret;
 
 	if (cval->val_type == USB_MIXER_BOOLEAN ||
 	    cval->val_type == USB_MIXER_INV_BOOLEAN)
@@ -1391,8 +1454,9 @@ static int mixer_ctl_feature_info(struct snd_kcontrol *kcontrol,
 	if (cval->val_type != USB_MIXER_BOOLEAN &&
 	    cval->val_type != USB_MIXER_INV_BOOLEAN) {
 		if (!cval->initialized) {
-			get_min_max_with_quirks(cval, 0, kcontrol);
-			if (cval->initialized && cval->dBmin >= cval->dBmax) {
+			ret = get_min_max_with_quirks(cval, 0, kcontrol);
+			if ((ret >= 0 || ret == -EAGAIN) &&
+			    cval->initialized && cval->dBmin >= cval->dBmax) {
 				kcontrol->vd[0].access &= 
 					~(SNDRV_CTL_ELEM_ACCESS_TLV_READ |
 					  SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK);
@@ -1660,9 +1724,72 @@ static const struct usb_feature_control_info *get_feature_control_info(int contr
 	return NULL;
 }
 
+static bool check_insane_volume_range(struct usb_mixer_interface *mixer,
+				      struct snd_kcontrol *kctl,
+				      struct usb_mixer_elem_info *cval)
+{
+	int range, steps, threshold;
+
+	/*
+	 * If a device quirk has overrode our TLV callback, no warning should
+	 * be generated since our checks are only meaningful for dB volume.
+	 */
+	if (!(kctl->vd[0].access & SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK) ||
+	    kctl->tlv.c != snd_usb_mixer_vol_tlv)
+		return false;
+
+	/*
+	 * Meaningless volume control capability (<1dB). This should cover
+	 * devices mapping their volume to val = 0/100/1, which are very likely
+	 * to be quirky.
+	 */
+	range = cval->max - cval->min;
+	if (range < 256) {
+		usb_audio_warn(mixer->chip,
+			       "Warning! Unlikely small volume range (=%u), linear volume or custom curve?",
+			       range);
+		return true;
+	}
+
+	steps = range / cval->res;
+
+	/*
+	 * There are definitely devices with ~20,000 ranges (e.g., HyperX Cloud
+	 * III with val = -18944/0/1), so we use some heuristics here:
+	 *
+	 * min < 0 < max: Attenuator + amplifier? Likely to be sane
+	 *
+	 * min < 0 = max: DSP? Voltage attenuator with FW conversion to dB?
+	 * Likely to be sane
+	 *
+	 * min < max < 0: Measured values? Neutral
+	 *
+	 * min = 0 < max: Oversimplified FW conversion? Linear volume? Likely to
+	 * be quirky (e.g., MV-SILICON)
+	 *
+	 * 0 < min < max: Amplifier with fixed gains? Likely to be quirky
+	 * (e.g., Logitech webcam)
+	 */
+	if (cval->min < 0 && 0 <= cval->max)
+		threshold = 24576; /* 65535 * (3 / 8) */
+	else if (cval->min < cval->max && cval->max < 0)
+		threshold = 1024;
+	else
+		threshold = 384;
+
+	if (steps > threshold) {
+		usb_audio_warn(mixer->chip,
+			       "Warning! Unlikely big volume step count (=%u), linear volume or wrong cval->res?",
+			       steps);
+		return true;
+	}
+
+	return false;
+}
+
 static void __build_feature_ctl(struct usb_mixer_interface *mixer,
 				const struct usbmix_name_map *imap,
-				unsigned int ctl_mask, int control,
+				u64 ctl_mask, int control,
 				struct usb_audio_term *iterm,
 				struct usb_audio_term *oterm,
 				int unitid, int nameid, int readonly_mask)
@@ -1673,7 +1800,7 @@ static void __build_feature_ctl(struct usb_mixer_interface *mixer,
 	struct snd_kcontrol *kctl;
 	struct usb_mixer_elem_info *cval;
 	const struct usbmix_name_map *map;
-	unsigned int range;
+	int ret;
 
 	if (control == UAC_FU_GRAPHIC_EQUALIZER) {
 		/* FIXME: not supported yet */
@@ -1707,7 +1834,7 @@ static void __build_feature_ctl(struct usb_mixer_interface *mixer,
 		cval->master_readonly = readonly_mask;
 	} else {
 		int i, c = 0;
-		for (i = 0; i < 16; i++)
+		for (i = 0; i < MAX_CHANNELS; i++)
 			if (ctl_mask & BIT(i))
 				c++;
 		cval->channels = c;
@@ -1787,10 +1914,10 @@ static void __build_feature_ctl(struct usb_mixer_interface *mixer,
 	}
 
 	/* get min/max values */
-	get_min_max_with_quirks(cval, 0, kctl);
+	ret = get_min_max_with_quirks(cval, 0, kctl);
 
 	/* skip a bogus volume range */
-	if (cval->max <= cval->min) {
+	if ((ret < 0 && ret != -EAGAIN) || cval->max <= cval->min) {
 		usb_audio_dbg(mixer->chip,
 			      "[%d] FU [%s] skipped due to invalid volume\n",
 			      cval->head.id, kctl->id.name);
@@ -1811,29 +1938,21 @@ static void __build_feature_ctl(struct usb_mixer_interface *mixer,
 
 	snd_usb_mixer_fu_apply_quirk(mixer, cval, unitid, kctl);
 
-	range = (cval->max - cval->min) / cval->res;
-	/*
-	 * There are definitely devices with a range of ~20,000, so let's be
-	 * conservative and allow for a bit more.
-	 */
-	if (range > 65535) {
-		usb_audio_warn(mixer->chip,
-			       "Warning! Unlikely big volume range (=%u), cval->res is probably wrong.",
-			       range);
-		usb_audio_warn(mixer->chip,
-			       "[%d] FU [%s] ch = %d, val = %d/%d/%d",
+	if (check_insane_volume_range(mixer, kctl, cval)) {
+		usb_audio_warn(mixer->chip, "[%d] FU [%s] ch = %d, val = %d/%d/%d\n",
 			       cval->head.id, kctl->id.name, cval->channels,
 			       cval->min, cval->max, cval->res);
+	} else {
+		usb_audio_dbg(mixer->chip, "[%d] FU [%s] ch = %d, val = %d/%d/%d\n",
+			      cval->head.id, kctl->id.name, cval->channels,
+			      cval->min, cval->max, cval->res);
 	}
 
-	usb_audio_dbg(mixer->chip, "[%d] FU [%s] ch = %d, val = %d/%d/%d\n",
-		      cval->head.id, kctl->id.name, cval->channels,
-		      cval->min, cval->max, cval->res);
 	snd_usb_mixer_add_control(&cval->head, kctl);
 }
 
 static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
-			      unsigned int ctl_mask, int control,
+			      u64 ctl_mask, int control,
 			      struct usb_audio_term *iterm, int unitid,
 			      int readonly_mask)
 {
@@ -1845,7 +1964,7 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 }
 
 static void build_feature_ctl_badd(struct usb_mixer_interface *mixer,
-			      unsigned int ctl_mask, int control, int unitid,
+			      u64 ctl_mask, int control, int unitid,
 			      const struct usbmix_name_map *badd_map)
 {
 	__build_feature_ctl(mixer, badd_map, ctl_mask, control,
@@ -2021,7 +2140,7 @@ static int parse_audio_feature_unit(struct mixer_build *state, int unitid,
 		bmaControls = ftr->bmaControls;
 	}
 
-	if (channels > 32) {
+	if (channels > MAX_CHANNELS) {
 		usb_audio_info(state->chip,
 			       "usbmixer: too many channels (%d) in unit %d\n",
 			       channels, unitid);
@@ -2059,7 +2178,7 @@ static int parse_audio_feature_unit(struct mixer_build *state, int unitid,
 	if (state->mixer->protocol == UAC_VERSION_1) {
 		/* check all control types */
 		for (i = 0; i < 10; i++) {
-			unsigned int ch_bits = 0;
+			u64 ch_bits = 0;
 			int control = audio_feature_info[i].control;
 
 			for (j = 0; j < channels; j++) {
@@ -2085,7 +2204,7 @@ static int parse_audio_feature_unit(struct mixer_build *state, int unitid,
 		}
 	} else { /* UAC_VERSION_2/3 */
 		for (i = 0; i < ARRAY_SIZE(audio_feature_info); i++) {
-			unsigned int ch_bits = 0;
+			u64 ch_bits = 0;
 			unsigned int ch_read_only = 0;
 			int control = audio_feature_info[i].control;
 
@@ -2172,6 +2291,7 @@ static void build_mixer_unit_ctl(struct mixer_build *state,
 	unsigned int i, len;
 	struct snd_kcontrol *kctl;
 	const struct usbmix_name_map *map;
+	int ret;
 
 	map = find_map(state->map, unitid, 0);
 	if (check_ignored_ctl(map))
@@ -2194,7 +2314,11 @@ static void build_mixer_unit_ctl(struct mixer_build *state,
 	}
 
 	/* get min/max values */
-	get_min_max(cval, 0);
+	ret = get_min_max(cval, 0);
+	if (ret < 0 && ret != -EAGAIN) {
+		usb_mixer_elem_info_free(cval);
+		return;
+	}
 
 	kctl = snd_ctl_new1(&usb_feature_unit_ctl, cval);
 	if (!kctl) {
@@ -2563,10 +2687,11 @@ static int build_audio_procunit(struct mixer_build *state, int unitid,
 				cval->max = control_spec[0];
 				cval->res = 1;
 				cval->initialized = 1;
+				err = 0;
 				break;
 			}
 
-			get_min_max(cval, valinfo->min_value);
+			err = get_min_max(cval, valinfo->min_value);
 			break;
 		}
 		case USB_XU_CLOCK_RATE:
@@ -2578,10 +2703,15 @@ static int build_audio_procunit(struct mixer_build *state, int unitid,
 			cval->max = 5;
 			cval->res = 1;
 			cval->initialized = 1;
+			err = 0;
 			break;
 		default:
-			get_min_max(cval, valinfo->min_value);
+			err = get_min_max(cval, valinfo->min_value);
 			break;
+		}
+		if (err < 0 && err != -EAGAIN) {
+			usb_mixer_elem_info_free(cval);
+			return err;
 		}
 
 		err = get_cur_ctl_value(cval, cval->control << 8, &val);
@@ -3398,7 +3528,7 @@ static void snd_usb_mixer_dump_cval(struct snd_info_buffer *buffer,
 		[USB_MIXER_U32] = "U32",
 		[USB_MIXER_BESPOKEN] = "BESPOKEN",
 	};
-	snd_iprintf(buffer, "    Info: id=%i, control=%i, cmask=0x%x, "
+	snd_iprintf(buffer, "    Info: id=%i, control=%i, cmask=0x%llx, "
 			    "channels=%i, type=\"%s\"\n", cval->head.id,
 			    cval->control, cval->cmask, cval->channels,
 			    val_types[cval->val_type]);

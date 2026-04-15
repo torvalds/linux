@@ -35,6 +35,10 @@ properties:
 
   dvdd-supply: true
 
+  firmware-name:
+    maxItems: 1
+    description: Name of the *_acf.bin file used for amplifier initialization
+
   awinic,audio-channel:
     description:
       It is used to distinguish multiple PA devices, so that different

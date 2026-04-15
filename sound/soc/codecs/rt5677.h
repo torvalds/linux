@@ -421,7 +421,7 @@
 #define RT5677_DAC3_R_VOL_MASK			(0xff)
 #define RT5677_DAC3_R_VOL_SFT			0
 
-/* DAC3 Digital Volume (0x19) */
+/* DAC1 Digital Volume (0x19) */
 #define RT5677_DAC1_L_VOL_MASK			(0xff << 8)
 #define RT5677_DAC1_L_VOL_SFT			8
 #define RT5677_DAC1_R_VOL_MASK			(0xff)

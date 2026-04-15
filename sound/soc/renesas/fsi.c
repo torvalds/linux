@@ -1817,7 +1817,7 @@ static const struct snd_soc_component_driver fsi_soc_component = {
 	.name		= "fsi",
 	.open		= fsi_pcm_open,
 	.pointer	= fsi_pointer,
-	.pcm_construct	= fsi_pcm_new,
+	.pcm_new	= fsi_pcm_new,
 };
 
 /*

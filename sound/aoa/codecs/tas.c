@@ -872,6 +872,7 @@ static int tas_i2c_probe(struct i2c_client *client)
 	return 0;
  fail:
 	mutex_destroy(&tas->mtx);
+	of_node_put(tas->codec.node);
 	kfree(tas);
 	return -EINVAL;
 }

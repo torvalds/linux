@@ -11,7 +11,6 @@
 #include <sound/jack.h>
 #include <sound/soc-acpi.h>
 #include <linux/clk.h>
-#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/i2c.h>

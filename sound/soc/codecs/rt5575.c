@@ -339,7 +339,6 @@ MODULE_DEVICE_TABLE(of, rt5575_of_match);
 static struct i2c_driver rt5575_i2c_driver = {
 	.driver = {
 		.name = "rt5575",
-		.owner = THIS_MODULE,
 		.of_match_table = rt5575_of_match,
 	},
 	.probe = rt5575_i2c_probe,

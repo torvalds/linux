@@ -342,14 +342,22 @@ int snd_soc_component_of_xlate_dai_name(struct snd_soc_component *component,
 	return -ENOTSUPP;
 }
 
-void snd_soc_component_setup_regmap(struct snd_soc_component *component)
+int snd_soc_component_regmap_val_bytes(struct snd_soc_component *component)
 {
-	int val_bytes = regmap_get_val_bytes(component->regmap);
+	int val_bytes;
 
 	/* Errors are legitimate for non-integer byte multiples */
-	if (val_bytes > 0)
-		component->val_bytes = val_bytes;
+
+	if (!component->regmap)
+		return 0;
+
+	val_bytes = regmap_get_val_bytes(component->regmap);
+	if (val_bytes < 0)
+		return 0;
+
+	return val_bytes;
 }
+EXPORT_SYMBOL_GPL(snd_soc_component_regmap_val_bytes);
 
 #ifdef CONFIG_REGMAP
 
@@ -368,7 +376,6 @@ void snd_soc_component_init_regmap(struct snd_soc_component *component,
 				   struct regmap *regmap)
 {
 	component->regmap = regmap;
-	snd_soc_component_setup_regmap(component);
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_init_regmap);
 
@@ -1037,8 +1044,8 @@ int snd_soc_pcm_component_new(struct snd_soc_pcm_runtime *rtd)
 	int i;
 
 	for_each_rtd_components(rtd, i, component) {
-		if (component->driver->pcm_construct) {
-			ret = component->driver->pcm_construct(component, rtd);
+		if (component->driver->pcm_new) {
+			ret = component->driver->pcm_new(component, rtd);
 			if (ret < 0)
 				return soc_component_ret(component, ret);
 		}
@@ -1056,8 +1063,8 @@ void snd_soc_pcm_component_free(struct snd_soc_pcm_runtime *rtd)
 		return;
 
 	for_each_rtd_components(rtd, i, component)
-		if (component->driver->pcm_destruct)
-			component->driver->pcm_destruct(component, rtd->pcm);
+		if (component->driver->pcm_free)
+			component->driver->pcm_free(component, rtd->pcm);
 }
 
 int snd_soc_pcm_component_prepare(struct snd_pcm_substream *substream)

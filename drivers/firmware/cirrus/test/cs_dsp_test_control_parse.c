@@ -1805,30 +1805,35 @@ static struct kunit_suite cs_dsp_ctl_parse_test_halo = {
 	.name = "cs_dsp_ctl_parse_wmfwV3_halo",
 	.init = cs_dsp_ctl_parse_test_halo_init,
 	.test_cases = cs_dsp_ctl_parse_test_cases_v2_v3,
+	.attr.speed = KUNIT_SPEED_SLOW,
 };
 
 static struct kunit_suite cs_dsp_ctl_parse_test_adsp2_32bit_wmfw1 = {
 	.name = "cs_dsp_ctl_parse_wmfwV1_adsp2_32bit",
 	.init = cs_dsp_ctl_parse_test_adsp2_32bit_wmfw1_init,
 	.test_cases = cs_dsp_ctl_parse_test_cases_v1,
+	.attr.speed = KUNIT_SPEED_SLOW,
 };
 
 static struct kunit_suite cs_dsp_ctl_parse_test_adsp2_32bit_wmfw2 = {
 	.name = "cs_dsp_ctl_parse_wmfwV2_adsp2_32bit",
 	.init = cs_dsp_ctl_parse_test_adsp2_32bit_wmfw2_init,
 	.test_cases = cs_dsp_ctl_parse_test_cases_v2_v3,
+	.attr.speed = KUNIT_SPEED_SLOW,
 };
 
 static struct kunit_suite cs_dsp_ctl_parse_test_adsp2_16bit_wmfw1 = {
 	.name = "cs_dsp_ctl_parse_wmfwV1_adsp2_16bit",
 	.init = cs_dsp_ctl_parse_test_adsp2_16bit_wmfw1_init,
 	.test_cases = cs_dsp_ctl_parse_test_cases_v1,
+	.attr.speed = KUNIT_SPEED_SLOW,
 };
 
 static struct kunit_suite cs_dsp_ctl_parse_test_adsp2_16bit_wmfw2 = {
 	.name = "cs_dsp_ctl_parse_wmfwV2_adsp2_16bit",
 	.init = cs_dsp_ctl_parse_test_adsp2_16bit_wmfw2_init,
 	.test_cases = cs_dsp_ctl_parse_test_cases_v2_v3,
+	.attr.speed = KUNIT_SPEED_SLOW,
 };
 
 kunit_test_suites(&cs_dsp_ctl_parse_test_halo,

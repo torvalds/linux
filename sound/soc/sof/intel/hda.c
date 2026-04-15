@@ -1178,6 +1178,9 @@ static struct snd_soc_acpi_adr_device *find_acpi_adr_device(struct device *dev,
 		struct snd_soc_acpi_endpoint *endpoints;
 		int amp_group_id = 1;
 
+		if (sdw_device->id.mfg_id != codec_info_list[i].vendor_id)
+			continue;
+
 		if (sdw_device->id.part_id != codec_info_list[i].part_id)
 			continue;
 
@@ -1192,8 +1195,8 @@ static struct snd_soc_acpi_adr_device *find_acpi_adr_device(struct device *dev,
 		 * dereference
 		 */
 		if (!name_prefix) {
-			dev_err(dev, "codec_info_list name_prefix of part id %#x is missing\n",
-				codec_info_list[i].part_id);
+			dev_err(dev, "codec_info_list name_prefix of part id %#x-%#x is missing\n",
+				codec_info_list[i].vendor_id, codec_info_list[i].part_id);
 			return NULL;
 		}
 		for (j = 0; j < codec_info_list[i].dai_num; j++) {
@@ -1226,6 +1229,16 @@ static struct snd_soc_acpi_adr_device *find_acpi_adr_device(struct device *dev,
 		dev_err(dev, "part id %#x is not supported\n", sdw_device->id.part_id);
 		return NULL;
 	}
+
+	/*
+	 * codec_info_list[].is_amp is a codec-level override: for multi-function
+	 * codecs we must treat the whole codec as an AMP when it is described as
+	 * such in the codec info table, even if some endpoints were detected as
+	 * non-AMP above. Callers/UCM rely on this to keep name_prefix and AMP
+	 * indexing stable and backwards compatible.
+	 */
+	if (codec_info_list[i].is_amp)
+		is_amp = true;
 
 	adr_dev[index].adr = ((u64)sdw_device->id.class_id & 0xFF) |
 			((u64)sdw_device->id.part_id & 0xFFFF) << 8 |

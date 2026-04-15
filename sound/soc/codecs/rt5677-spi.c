@@ -404,7 +404,7 @@ static const struct snd_soc_component_driver rt5677_spi_dai_component = {
 	.hw_free		= rt5677_spi_hw_free,
 	.prepare		= rt5677_spi_prepare,
 	.pointer		= rt5677_spi_pcm_pointer,
-	.pcm_construct		= rt5677_spi_pcm_new,
+	.pcm_new		= rt5677_spi_pcm_new,
 	.legacy_dai_naming	= 1,
 };
 
@@ -624,12 +624,19 @@ static const struct acpi_device_id rt5677_spi_acpi_id[] = {
 MODULE_DEVICE_TABLE(acpi, rt5677_spi_acpi_id);
 #endif
 
+static const struct spi_device_id rt5677_spi_ids[] = {
+	{ "rt5677", 0 },
+	{ },
+};
+MODULE_DEVICE_TABLE(spi, rt5677_spi_ids);
+
 static struct spi_driver rt5677_spi_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.acpi_match_table = ACPI_PTR(rt5677_spi_acpi_id),
 	},
 	.probe = rt5677_spi_probe,
+	.id_table = rt5677_spi_ids,
 };
 module_spi_driver(rt5677_spi_driver);
 

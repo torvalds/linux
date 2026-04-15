@@ -10,9 +10,7 @@
 #define FW_CS_DSP_H
 
 #if IS_ENABLED(CONFIG_KUNIT)
-extern bool cs_dsp_suppress_err_messages;
-extern bool cs_dsp_suppress_warn_messages;
-extern bool cs_dsp_suppress_info_messages;
+bool cs_dsp_can_emit_message(void);
 #endif
 
 #endif /* ifndef FW_CS_DSP_H */

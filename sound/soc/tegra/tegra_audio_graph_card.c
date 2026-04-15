@@ -174,20 +174,23 @@ static int tegra_audio_graph_card_probe(struct snd_soc_card *card)
 {
 	struct simple_util_priv *simple = snd_soc_card_get_drvdata(card);
 	struct tegra_audio_priv *priv = simple_to_tegra_priv(simple);
+	int ret;
 
 	priv->clk_plla = devm_clk_get(card->dev, "pll_a");
-	if (IS_ERR(priv->clk_plla)) {
-		dev_err(card->dev, "Can't retrieve clk pll_a\n");
-		return PTR_ERR(priv->clk_plla);
-	}
+	if (IS_ERR(priv->clk_plla))
+		return dev_err_probe(card->dev, PTR_ERR(priv->clk_plla),
+				     "can't retrieve clk pll_a\n");
 
 	priv->clk_plla_out0 = devm_clk_get(card->dev, "plla_out0");
-	if (IS_ERR(priv->clk_plla_out0)) {
-		dev_err(card->dev, "Can't retrieve clk plla_out0\n");
-		return PTR_ERR(priv->clk_plla_out0);
-	}
+	if (IS_ERR(priv->clk_plla_out0))
+		return dev_err_probe(card->dev, PTR_ERR(priv->clk_plla_out0),
+				     "can't retrieve clk plla_out0\n");
 
-	return graph_util_card_probe(card);
+	ret = graph_util_card_probe(card);
+	if (ret < 0)
+		return dev_err_probe(card->dev, ret, "graph_util_card_probe failed\n");
+
+	return ret;
 }
 
 static int tegra_audio_graph_probe(struct platform_device *pdev)

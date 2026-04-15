@@ -46,13 +46,6 @@ static int cmedia_probe(struct hda_codec *codec, const struct hda_device_id *id)
 	if (err < 0)
 		goto error;
 
-	err = snd_hda_parse_pin_defcfg(codec, cfg, NULL, 0);
-	if (err < 0)
-		goto error;
-	err = snd_hda_gen_parse_auto_config(codec, cfg);
-	if (err < 0)
-		goto error;
-
 	if (is_cmi8888) {
 		if (get_defcfg_device(snd_hda_codec_get_pincfg(codec, 0x10)) ==
 		    AC_JACK_HP_OUT) {

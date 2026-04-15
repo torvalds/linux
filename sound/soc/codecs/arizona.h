@@ -100,6 +100,7 @@ struct arizona_priv {
 	struct snd_soc_jack *jack;
 	struct regulator *micvdd;
 	struct gpio_desc *micd_pol_gpio;
+	struct gpio_desc *hpdet_id_gpio;
 
 	u16 last_jackdet;
 
