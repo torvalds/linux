@@ -69,14 +69,6 @@
 #define CGROUP_FILE_NOTIFY_MIN_INTV	DIV_ROUND_UP(HZ, 100)
 
 /*
- * To avoid confusing the compiler (and generating warnings) with code
- * that attempts to access what would be a 0-element array (i.e. sized
- * to a potentially empty array when CGROUP_SUBSYS_COUNT == 0), this
- * constant expression can be added.
- */
-#define CGROUP_HAS_SUBSYS_CONFIG	(CGROUP_SUBSYS_COUNT > 0)
-
-/*
  * cgroup_mutex is the master lock.  Any modification to cgroup or its
  * hierarchy must be performed while holding it.
  *
@@ -106,12 +98,6 @@ static bool cgroup_debug __read_mostly;
  * grabbing cgroup_mutex.
  */
 static DEFINE_SPINLOCK(cgroup_idr_lock);
-
-/*
- * Protects cgroup_file->kn for !self csses.  It synchronizes notifications
- * against file removal/re-creation across css hiding.
- */
-static DEFINE_SPINLOCK(cgroup_file_kn_lock);
 
 DEFINE_PERCPU_RWSEM(cgroup_threadgroup_rwsem);
 
@@ -510,27 +496,6 @@ static u32 cgroup_ss_mask(struct cgroup *cgrp)
 }
 
 /**
- * cgroup_css - obtain a cgroup's css for the specified subsystem
- * @cgrp: the cgroup of interest
- * @ss: the subsystem of interest (%NULL returns @cgrp->self)
- *
- * Return @cgrp's css (cgroup_subsys_state) associated with @ss.  This
- * function must be called either under cgroup_mutex or rcu_read_lock() and
- * the caller is responsible for pinning the returned css if it wants to
- * keep accessing it outside the said locks.  This function may return
- * %NULL if @cgrp doesn't have @subsys_id enabled.
- */
-static struct cgroup_subsys_state *cgroup_css(struct cgroup *cgrp,
-					      struct cgroup_subsys *ss)
-{
-	if (CGROUP_HAS_SUBSYS_CONFIG && ss)
-		return rcu_dereference_check(cgrp->subsys[ss->id],
-					lockdep_is_held(&cgroup_mutex));
-	else
-		return &cgrp->self;
-}
-
-/**
  * cgroup_e_css_by_mask - obtain a cgroup's effective css for the specified ss
  * @cgrp: the cgroup of interest
  * @ss: the subsystem of interest (%NULL returns @cgrp->self)
@@ -740,32 +705,6 @@ EXPORT_SYMBOL_GPL(of_css);
 		}							\
 	}								\
 } while (false)
-
-/* iterate over child cgrps, lock should be held throughout iteration */
-#define cgroup_for_each_live_child(child, cgrp)				\
-	list_for_each_entry((child), &(cgrp)->self.children, self.sibling) \
-		if (({ lockdep_assert_held(&cgroup_mutex);		\
-		       cgroup_is_dead(child); }))			\
-			;						\
-		else
-
-/* walk live descendants in pre order */
-#define cgroup_for_each_live_descendant_pre(dsct, d_css, cgrp)		\
-	css_for_each_descendant_pre((d_css), cgroup_css((cgrp), NULL))	\
-		if (({ lockdep_assert_held(&cgroup_mutex);		\
-		       (dsct) = (d_css)->cgroup;			\
-		       cgroup_is_dead(dsct); }))			\
-			;						\
-		else
-
-/* walk live descendants in postorder */
-#define cgroup_for_each_live_descendant_post(dsct, d_css, cgrp)		\
-	css_for_each_descendant_post((d_css), cgroup_css((cgrp), NULL))	\
-		if (({ lockdep_assert_held(&cgroup_mutex);		\
-		       (dsct) = (d_css)->cgroup;			\
-		       cgroup_is_dead(dsct); }))			\
-			;						\
-		else
 
 /*
  * The default css_set - used by init and its children prior to any
@@ -1748,9 +1687,9 @@ static void cgroup_rm_file(struct cgroup *cgrp, const struct cftype *cft)
 		struct cgroup_subsys_state *css = cgroup_css(cgrp, cft->ss);
 		struct cgroup_file *cfile = (void *)css + cft->file_offset;
 
-		spin_lock_irq(&cgroup_file_kn_lock);
-		cfile->kn = NULL;
-		spin_unlock_irq(&cgroup_file_kn_lock);
+		spin_lock_irq(&cfile->lock);
+		WRITE_ONCE(cfile->kn, NULL);
+		spin_unlock_irq(&cfile->lock);
 
 		timer_delete_sync(&cfile->notify_timer);
 	}
@@ -4429,10 +4368,8 @@ static int cgroup_add_file(struct cgroup_subsys_state *css, struct cgroup *cgrp,
 		struct cgroup_file *cfile = (void *)css + cft->file_offset;
 
 		timer_setup(&cfile->notify_timer, cgroup_file_notify_timer, 0);
-
-		spin_lock_irq(&cgroup_file_kn_lock);
+		spin_lock_init(&cfile->lock);
 		cfile->kn = kn;
-		spin_unlock_irq(&cgroup_file_kn_lock);
 	}
 
 	return 0;
@@ -4687,21 +4624,32 @@ int cgroup_add_legacy_cftypes(struct cgroup_subsys *ss, struct cftype *cfts)
  */
 void cgroup_file_notify(struct cgroup_file *cfile)
 {
-	unsigned long flags;
+	unsigned long flags, last, next;
+	struct kernfs_node *kn = NULL;
 
-	spin_lock_irqsave(&cgroup_file_kn_lock, flags);
-	if (cfile->kn) {
-		unsigned long last = cfile->notified_at;
-		unsigned long next = last + CGROUP_FILE_NOTIFY_MIN_INTV;
+	if (!READ_ONCE(cfile->kn))
+		return;
 
-		if (time_in_range(jiffies, last, next)) {
-			timer_reduce(&cfile->notify_timer, next);
-		} else {
-			kernfs_notify(cfile->kn);
-			cfile->notified_at = jiffies;
-		}
+	last = READ_ONCE(cfile->notified_at);
+	next = last + CGROUP_FILE_NOTIFY_MIN_INTV;
+	if (time_in_range(jiffies, last, next)) {
+		timer_reduce(&cfile->notify_timer, next);
+		if (timer_pending(&cfile->notify_timer))
+			return;
 	}
-	spin_unlock_irqrestore(&cgroup_file_kn_lock, flags);
+
+	spin_lock_irqsave(&cfile->lock, flags);
+	if (cfile->kn) {
+		kn = cfile->kn;
+		kernfs_get(kn);
+		WRITE_ONCE(cfile->notified_at, jiffies);
+	}
+	spin_unlock_irqrestore(&cfile->lock, flags);
+
+	if (kn) {
+		kernfs_notify(kn);
+		kernfs_put(kn);
+	}
 }
 EXPORT_SYMBOL_GPL(cgroup_file_notify);
 
@@ -4714,10 +4662,10 @@ void cgroup_file_show(struct cgroup_file *cfile, bool show)
 {
 	struct kernfs_node *kn;
 
-	spin_lock_irq(&cgroup_file_kn_lock);
+	spin_lock_irq(&cfile->lock);
 	kn = cfile->kn;
 	kernfs_get(kn);
-	spin_unlock_irq(&cgroup_file_kn_lock);
+	spin_unlock_irq(&cfile->lock);
 
 	if (kn)
 		kernfs_show(kn, show);
