@@ -94,32 +94,13 @@ static struct tracefs_dir_ops {
 	int (*rmdir)(const char *name);
 } tracefs_ops __ro_after_init;
 
-static char *get_dname(struct dentry *dentry)
-{
-	const char *dname;
-	char *name;
-	int len = dentry->d_name.len;
-
-	dname = dentry->d_name.name;
-	name = kmalloc(len + 1, GFP_KERNEL);
-	if (!name)
-		return NULL;
-	memcpy(name, dname, len);
-	name[len] = 0;
-	return name;
-}
-
 static struct dentry *tracefs_syscall_mkdir(struct mnt_idmap *idmap,
 					    struct inode *inode, struct dentry *dentry,
 					    umode_t mode)
 {
 	struct tracefs_inode *ti;
-	char *name;
+	struct name_snapshot name;
 	int ret;
-
-	name = get_dname(dentry);
-	if (!name)
-		return ERR_PTR(-ENOMEM);
 
 	/*
 	 * This is a new directory that does not take the default of
@@ -135,23 +116,19 @@ static struct dentry *tracefs_syscall_mkdir(struct mnt_idmap *idmap,
 	 * the files within the tracefs system. It is up to the individual
 	 * mkdir routine to handle races.
 	 */
+	take_dentry_name_snapshot(&name, dentry);
 	inode_unlock(inode);
-	ret = tracefs_ops.mkdir(name);
+	ret = tracefs_ops.mkdir(name.name.name);
 	inode_lock(inode);
-
-	kfree(name);
+	release_dentry_name_snapshot(&name);
 
 	return ERR_PTR(ret);
 }
 
 static int tracefs_syscall_rmdir(struct inode *inode, struct dentry *dentry)
 {
-	char *name;
+	struct name_snapshot name;
 	int ret;
-
-	name = get_dname(dentry);
-	if (!name)
-		return -ENOMEM;
 
 	/*
 	 * The rmdir call can call the generic functions that create
@@ -160,15 +137,15 @@ static int tracefs_syscall_rmdir(struct inode *inode, struct dentry *dentry)
 	 * This time we need to unlock not only the parent (inode) but
 	 * also the directory that is being deleted.
 	 */
+	take_dentry_name_snapshot(&name, dentry);
 	inode_unlock(inode);
 	inode_unlock(d_inode(dentry));
 
-	ret = tracefs_ops.rmdir(name);
+	ret = tracefs_ops.rmdir(name.name.name);
 
 	inode_lock_nested(inode, I_MUTEX_PARENT);
 	inode_lock(d_inode(dentry));
-
-	kfree(name);
+	release_dentry_name_snapshot(&name);
 
 	return ret;
 }
@@ -491,6 +468,7 @@ static int tracefs_fill_super(struct super_block *sb, struct fs_context *fc)
 		return err;
 
 	sb->s_op = &tracefs_super_operations;
+	tracefs_apply_options(sb, false);
 	set_default_d_op(sb, &tracefs_dentry_operations);
 
 	return 0;
