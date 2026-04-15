@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/reset.h>
 #include <linux/platform_device.h>
 
 #include "sdhci.h"
@@ -223,6 +224,21 @@ static inline int spacemit_sdhci_get_clocks(struct device *dev,
 	return 0;
 }
 
+static inline int spacemit_sdhci_get_resets(struct device *dev)
+{
+	struct reset_control *rst;
+
+	rst = devm_reset_control_get_optional_shared_deasserted(dev, "axi");
+	if (IS_ERR(rst))
+		return PTR_ERR(rst);
+
+	rst = devm_reset_control_get_optional_exclusive_deasserted(dev, "sdh");
+	if (IS_ERR(rst))
+		return PTR_ERR(rst);
+
+	return 0;
+}
+
 static const struct sdhci_ops spacemit_sdhci_ops = {
 	.get_max_clock		= spacemit_sdhci_clk_get_max_clock,
 	.reset			= spacemit_sdhci_reset,
@@ -243,8 +259,20 @@ static const struct sdhci_pltfm_data spacemit_sdhci_k1_pdata = {
 		   SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
 };
 
+static const struct sdhci_pltfm_data spacemit_sdhci_k3_pdata = {
+	.ops = &spacemit_sdhci_ops,
+	.quirks = SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
+		  SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC |
+		  SDHCI_QUIRK_32BIT_ADMA_SIZE |
+		  SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN |
+		  SDHCI_QUIRK_BROKEN_CARD_DETECTION |
+		  SDHCI_QUIRK_BROKEN_TIMEOUT_VAL,
+	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
+};
+
 static const struct of_device_id spacemit_sdhci_of_match[] = {
-	{ .compatible = "spacemit,k1-sdhci" },
+	{ .compatible = "spacemit,k1-sdhci", .data = &spacemit_sdhci_k1_pdata },
+	{ .compatible = "spacemit,k3-sdhci", .data = &spacemit_sdhci_k3_pdata },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, spacemit_sdhci_of_match);
@@ -255,10 +283,13 @@ static int spacemit_sdhci_probe(struct platform_device *pdev)
 	struct spacemit_sdhci_host *sdhst;
 	struct sdhci_pltfm_host *pltfm_host;
 	struct sdhci_host *host;
+	const struct sdhci_pltfm_data *data;
 	struct mmc_host_ops *mops;
 	int ret;
 
-	host = sdhci_pltfm_init(pdev, &spacemit_sdhci_k1_pdata, sizeof(*sdhst));
+	data = of_device_get_match_data(&pdev->dev);
+
+	host = sdhci_pltfm_init(pdev, data, sizeof(*sdhst));
 	if (IS_ERR(host))
 		return PTR_ERR(host);
 
@@ -281,6 +312,10 @@ static int spacemit_sdhci_probe(struct platform_device *pdev)
 	host->mmc->caps |= MMC_CAP_NEED_RSP_BUSY;
 
 	ret = spacemit_sdhci_get_clocks(dev, pltfm_host);
+	if (ret)
+		goto err_pltfm;
+
+	ret = spacemit_sdhci_get_resets(dev);
 	if (ret)
 		goto err_pltfm;
 

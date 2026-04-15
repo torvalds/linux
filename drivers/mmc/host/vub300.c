@@ -2107,19 +2107,19 @@ static int vub300_probe(struct usb_interface *interface,
 	command_out_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!command_out_urb) {
 		retval = -ENOMEM;
-		goto error0;
+		goto err_put_udev;
 	}
 	command_res_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!command_res_urb) {
 		retval = -ENOMEM;
-		goto error1;
+		goto err_free_out_urb;
 	}
 	/* this also allocates memory for our VUB300 mmc host device */
 	mmc = mmc_alloc_host(sizeof(*vub300), &udev->dev);
 	if (!mmc) {
 		retval = -ENOMEM;
 		dev_err(&udev->dev, "not enough memory for the mmc_host\n");
-		goto error4;
+		goto err_free_res_urb;
 	}
 	/* MMC core transfer sizes tunable parameters */
 	mmc->caps = 0;
@@ -2336,10 +2336,11 @@ static int vub300_probe(struct usb_interface *interface,
 			 interface_to_InterfaceNumber(interface));
 	retval = mmc_add_host(mmc);
 	if (retval)
-		goto error6;
+		goto err_delete_timer;
 
 	return 0;
-error6:
+
+err_delete_timer:
 	timer_delete_sync(&vub300->inactivity_timer);
 err_free_host:
 	mmc_free_host(mmc);
@@ -2347,12 +2348,13 @@ err_free_host:
 	 * and hence also frees vub300
 	 * which is contained at the end of struct mmc
 	 */
-error4:
+err_free_res_urb:
 	usb_free_urb(command_res_urb);
-error1:
+err_free_out_urb:
 	usb_free_urb(command_out_urb);
-error0:
+err_put_udev:
 	usb_put_dev(udev);
+
 	return retval;
 }
 
@@ -2427,37 +2429,36 @@ static int __init vub300_init(void)
 
 	pr_info("VUB300 Driver rom wait states = %02X irqpoll timeout = %04X",
 		firmware_rom_wait_states, 0x0FFFF & firmware_irqpoll_timeout);
+
 	cmndworkqueue = create_singlethread_workqueue("kvub300c");
-	if (!cmndworkqueue) {
-		pr_err("not enough memory for the REQUEST workqueue");
-		result = -ENOMEM;
-		goto out1;
-	}
+	if (!cmndworkqueue)
+		return -ENOMEM;
+
 	pollworkqueue = create_singlethread_workqueue("kvub300p");
 	if (!pollworkqueue) {
-		pr_err("not enough memory for the IRQPOLL workqueue");
 		result = -ENOMEM;
-		goto out2;
+		goto err_destroy_cmdwq;
 	}
+
 	deadworkqueue = create_singlethread_workqueue("kvub300d");
 	if (!deadworkqueue) {
-		pr_err("not enough memory for the EXPIRED workqueue");
 		result = -ENOMEM;
-		goto out3;
+		goto err_destroy_pollwq;
 	}
+
 	result = usb_register(&vub300_driver);
-	if (result) {
-		pr_err("usb_register failed. Error number %d", result);
-		goto out4;
-	}
+	if (result)
+		goto err_destroy_deadwq;
+
 	return 0;
-out4:
+
+err_destroy_deadwq:
 	destroy_workqueue(deadworkqueue);
-out3:
+err_destroy_pollwq:
 	destroy_workqueue(pollworkqueue);
-out2:
+err_destroy_cmdwq:
 	destroy_workqueue(cmndworkqueue);
-out1:
+
 	return result;
 }
 

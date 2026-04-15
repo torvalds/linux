@@ -47,6 +47,10 @@ properties:
               - rockchip,rv1126-dw-mshc
           - const: rockchip,rk3288-dw-mshc
       # for Rockchip RK3576 with phase tuning inside the controller
+      - items:
+          - enum:
+              - rockchip,rv1103b-dw-mshc
+          - const: rockchip,rk3576-dw-mshc
       - const: rockchip,rk3576-dw-mshc
 
   reg:

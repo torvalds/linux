@@ -106,6 +106,9 @@ properties:
         description:
           For this device it is strongly suggested to include
           arasan,soc-ctl-syscon.
+      - items:
+          - const: axiado,ax3000-sdhci-5.1-emmc  # Axiado AX3000 eMMC controller
+          - const: arasan,sdhci-5.1
 
   reg:
     maxItems: 1
@@ -120,6 +123,8 @@ properties:
       - const: clk_xin
       - const: clk_ahb
       - const: gate
+
+  dma-coherent: true
 
   interrupts:
     minItems: 1

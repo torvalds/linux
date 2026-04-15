@@ -61,14 +61,17 @@ enum mmc_drv_op {
 	MMC_DRV_OP_GET_EXT_CSD,
 };
 
+#define	MQRQ_XFER_SINGLE_BLOCK		BIT(0)
+
 struct mmc_queue_req {
 	struct mmc_blk_request	brq;
 	struct scatterlist	*sg;
 	enum mmc_drv_op		drv_op;
 	int			drv_op_result;
 	void			*drv_op_data;
-	unsigned int		ioc_count;
-	int			retries;
+	u8			ioc_count;
+	u8			retries;
+	u8			flags;
 };
 
 struct mmc_queue {

@@ -4,10 +4,21 @@
 #
 
 config MULTIPLEXER
-	tristate
+	bool
+
+config MUX_CORE
+	bool "Generic Multiplexer Support"
+	select MULTIPLEXER
+	help
+	  This framework is designed to abstract multiplexer handling for
+	  devices via various GPIO-, MMIO/Regmap or specific multiplexer
+	  controller chips.
+
+	  If unsure, say no.
+
+if MULTIPLEXER
 
 menu "Multiplexer drivers"
-	depends on MULTIPLEXER
 
 config MUX_ADG792A
 	tristate "Analog Devices ADG792A/ADG792G Multiplexers"
@@ -60,3 +71,5 @@ config MUX_MMIO
 	  be called mux-mmio.
 
 endmenu
+
+endif # MULTIPLEXER

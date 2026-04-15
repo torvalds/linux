@@ -939,21 +939,6 @@ static int rcar_gen3_phy_usb2_vbus_regulator_register(struct rcar_gen3_chan *cha
 	return rcar_gen3_phy_usb2_vbus_regulator_get_exclusive_enable(channel, enable);
 }
 
-/* Temporary wrapper until the multiplexer subsystem supports optional muxes */
-static inline struct mux_state *
-devm_mux_state_get_optional(struct device *dev, const char *mux_name)
-{
-	if (!of_property_present(dev->of_node, "mux-states"))
-		return NULL;
-
-	return devm_mux_state_get(dev, mux_name);
-}
-
-static void rcar_gen3_phy_mux_state_deselect(void *data)
-{
-	mux_state_deselect(data);
-}
-
 static int rcar_gen3_phy_usb2_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1036,20 +1021,9 @@ static int rcar_gen3_phy_usb2_probe(struct platform_device *pdev)
 		phy_set_drvdata(channel->rphys[i].phy, &channel->rphys[i]);
 	}
 
-	mux_state = devm_mux_state_get_optional(dev, NULL);
+	mux_state = devm_mux_state_get_optional_selected(dev, NULL);
 	if (IS_ERR(mux_state))
-		return PTR_ERR(mux_state);
-	if (mux_state) {
-		ret = mux_state_select(mux_state);
-		if (ret)
-			return dev_err_probe(dev, ret, "Failed to select USB mux\n");
-
-		ret = devm_add_action_or_reset(dev, rcar_gen3_phy_mux_state_deselect,
-					       mux_state);
-		if (ret)
-			return dev_err_probe(dev, ret,
-					     "Failed to register USB mux state deselect\n");
-	}
+		return dev_err_probe(dev, PTR_ERR(mux_state), "Failed to get USB mux\n");
 
 	if (channel->phy_data->no_adp_ctrl && channel->is_otg_channel) {
 		ret = rcar_gen3_phy_usb2_vbus_regulator_register(channel);

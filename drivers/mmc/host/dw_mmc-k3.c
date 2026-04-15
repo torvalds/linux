@@ -53,7 +53,6 @@
 #define USE_DLY_MAX_SMPL (14)
 
 struct k3_priv {
-	int ctrl_id;
 	u32 cur_speed;
 	struct regmap	*reg;
 };
@@ -127,26 +126,17 @@ static int dw_mci_hi6220_parse_dt(struct dw_mci *host)
 	if (IS_ERR(priv->reg))
 		priv->reg = NULL;
 
-	priv->ctrl_id = of_alias_get_id(host->dev->of_node, "mshc");
-	if (priv->ctrl_id < 0)
-		priv->ctrl_id = 0;
-
-	if (priv->ctrl_id >= TIMING_MODE)
-		return -EINVAL;
-
 	host->priv = priv;
 	return 0;
 }
 
-static int dw_mci_hi6220_switch_voltage(struct mmc_host *mmc, struct mmc_ios *ios)
+static int dw_mci_hi6220_switch_voltage(struct dw_mci *host, struct mmc_ios *ios)
 {
-	struct dw_mci_slot *slot = mmc_priv(mmc);
 	struct k3_priv *priv;
-	struct dw_mci *host;
+	struct mmc_host *mmc = host->mmc;
 	int min_uv, max_uv;
 	int ret;
 
-	host = slot->host;
 	priv = host->priv;
 
 	if (!priv || !priv->reg)
@@ -199,7 +189,7 @@ static void dw_mci_hi6220_set_ios(struct dw_mci *host, struct mmc_ios *ios)
 	host->bus_hz = clk_get_rate(host->biu_clk);
 }
 
-static int dw_mci_hi6220_execute_tuning(struct dw_mci_slot *slot, u32 opcode)
+static int dw_mci_hi6220_execute_tuning(struct dw_mci *host, u32 opcode)
 {
 	return 0;
 }
@@ -213,7 +203,7 @@ static const struct dw_mci_drv_data hi6220_data = {
 	.execute_tuning		= dw_mci_hi6220_execute_tuning,
 };
 
-static void dw_mci_hs_set_timing(struct dw_mci *host, int timing,
+static int dw_mci_hs_set_timing(struct dw_mci *host, int timing,
 				     int smpl_phase)
 {
 	u32 drv_phase;
@@ -222,10 +212,10 @@ static void dw_mci_hs_set_timing(struct dw_mci *host, int timing,
 	u32 enable_shift = 0;
 	u32 reg_value;
 	int ctrl_id;
-	struct k3_priv *priv;
 
-	priv = host->priv;
-	ctrl_id = priv->ctrl_id;
+	ctrl_id = host->mmc->index;
+	if (ctrl_id >= TIMING_MODE)
+		return -EINVAL;
 
 	drv_phase = hs_timing_cfg[ctrl_id][timing].drv_phase;
 	smpl_dly   = hs_timing_cfg[ctrl_id][timing].smpl_dly;
@@ -262,6 +252,8 @@ static void dw_mci_hs_set_timing(struct dw_mci *host, int timing,
 
 	/* We should delay 1ms wait for timing setting finished. */
 	usleep_range(1000, 2000);
+
+	return 0;
 }
 
 static int dw_mci_hi3660_init(struct dw_mci *host)
@@ -269,10 +261,9 @@ static int dw_mci_hi3660_init(struct dw_mci *host)
 	mci_writel(host, CDTHRCTL, SDMMC_SET_THLD(SDCARD_RD_THRESHOLD,
 		    SDMMC_CARD_RD_THR_EN));
 
-	dw_mci_hs_set_timing(host, MMC_TIMING_LEGACY, -1);
 	host->bus_hz /= (GENCLK_DIV + 1);
 
-	return 0;
+	return dw_mci_hs_set_timing(host, MMC_TIMING_LEGACY, -1);
 }
 
 static int dw_mci_set_sel18(struct dw_mci *host, bool set)
@@ -364,11 +355,10 @@ static int dw_mci_get_best_clksmpl(unsigned int sample_flag)
 	return middle_range;
 }
 
-static int dw_mci_hi3660_execute_tuning(struct dw_mci_slot *slot, u32 opcode)
+static int dw_mci_hi3660_execute_tuning(struct dw_mci *host, u32 opcode)
 {
 	int i = 0;
-	struct dw_mci *host = slot->host;
-	struct mmc_host *mmc = slot->mmc;
+	struct mmc_host *mmc = host->mmc;
 	int smpl_phase = 0;
 	u32 tuning_sample_flag = 0;
 	int best_clksmpl = 0;
@@ -398,21 +388,19 @@ static int dw_mci_hi3660_execute_tuning(struct dw_mci_slot *slot, u32 opcode)
 	return 0;
 }
 
-static int dw_mci_hi3660_switch_voltage(struct mmc_host *mmc,
+static int dw_mci_hi3660_switch_voltage(struct dw_mci *host,
 					struct mmc_ios *ios)
 {
-	int ret = 0;
-	struct dw_mci_slot *slot = mmc_priv(mmc);
 	struct k3_priv *priv;
-	struct dw_mci *host;
+	struct mmc_host *mmc = host->mmc;
+	int ret = 0;
 
-	host = slot->host;
 	priv = host->priv;
 
 	if (!priv || !priv->reg)
 		return 0;
 
-	if (priv->ctrl_id == DWMMC_SDIO_ID)
+	if (mmc->index == DWMMC_SDIO_ID)
 		return 0;
 
 	if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_330)
@@ -460,11 +448,6 @@ static int dw_mci_k3_probe(struct platform_device *pdev)
 	return dw_mci_pltfm_register(pdev, drv_data);
 }
 
-static const struct dev_pm_ops dw_mci_k3_dev_pm_ops = {
-	SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
-	RUNTIME_PM_OPS(dw_mci_runtime_suspend, dw_mci_runtime_resume, NULL)
-};
-
 static struct platform_driver dw_mci_k3_pltfm_driver = {
 	.probe		= dw_mci_k3_probe,
 	.remove		= dw_mci_pltfm_remove,
@@ -472,7 +455,7 @@ static struct platform_driver dw_mci_k3_pltfm_driver = {
 		.name		= "dwmmc_k3",
 		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table	= dw_mci_k3_match,
-		.pm		= pm_ptr(&dw_mci_k3_dev_pm_ops),
+		.pm		= pm_ptr(&dw_mci_pmops),
 	},
 };
 

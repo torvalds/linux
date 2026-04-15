@@ -26,7 +26,12 @@ properties:
   reg:
     minItems: 1
 
+  dma-coherent: true
+
   interrupts:
+    maxItems: 1
+
+  iommus:
     maxItems: 1
 
   clocks:

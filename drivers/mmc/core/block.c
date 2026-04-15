@@ -1401,6 +1401,9 @@ static void mmc_blk_data_prep(struct mmc_queue *mq, struct mmc_queue_req *mqrq,
 		    rq_data_dir(req) == WRITE &&
 		    (md->flags & MMC_BLK_REL_WR);
 
+	if (mqrq->flags & MQRQ_XFER_SINGLE_BLOCK)
+		recovery_mode = 1;
+
 	memset(brq, 0, sizeof(struct mmc_blk_request));
 
 	mmc_crypto_prepare_req(mqrq);
@@ -1455,7 +1458,7 @@ static void mmc_blk_data_prep(struct mmc_queue *mq, struct mmc_queue_req *mqrq,
 		 * sectors can be read successfully.
 		 */
 		if (recovery_mode)
-			brq->data.blocks = queue_physical_block_size(mq->queue) >> 9;
+			brq->data.blocks = queue_physical_block_size(mq->queue) >> SECTOR_SHIFT;
 
 		/*
 		 * Some controllers have HW issues while operating
@@ -1540,10 +1543,12 @@ static void mmc_blk_cqe_complete_rq(struct mmc_queue *mq, struct request *req)
 		err = 0;
 
 	if (err) {
-		if (mqrq->retries++ < MMC_CQE_RETRIES)
+		if (mqrq->retries++ < MMC_CQE_RETRIES) {
+			mqrq->flags |= MQRQ_XFER_SINGLE_BLOCK;
 			blk_mq_requeue_request(req, true);
-		else
+		} else {
 			blk_mq_end_request(req, BLK_STS_IOERR);
+		}
 	} else if (mrq->data) {
 		if (blk_update_request(req, BLK_STS_OK, mrq->data->bytes_xfered))
 			blk_mq_requeue_request(req, true);
@@ -1776,63 +1781,6 @@ static int mmc_blk_fix_state(struct mmc_card *card, struct request *req)
 	return err;
 }
 
-#define MMC_READ_SINGLE_RETRIES	2
-
-/* Single (native) sector read during recovery */
-static void mmc_blk_read_single(struct mmc_queue *mq, struct request *req)
-{
-	struct mmc_queue_req *mqrq = req_to_mmc_queue_req(req);
-	struct mmc_request *mrq = &mqrq->brq.mrq;
-	struct mmc_card *card = mq->card;
-	struct mmc_host *host = card->host;
-	blk_status_t error = BLK_STS_OK;
-	size_t bytes_per_read = queue_physical_block_size(mq->queue);
-
-	do {
-		u32 status;
-		int err;
-		int retries = 0;
-
-		while (retries++ <= MMC_READ_SINGLE_RETRIES) {
-			mmc_blk_rw_rq_prep(mqrq, card, 1, mq);
-
-			mmc_wait_for_req(host, mrq);
-
-			err = mmc_send_status(card, &status);
-			if (err)
-				goto error_exit;
-
-			if (!mmc_host_is_spi(host) &&
-			    !mmc_ready_for_data(status)) {
-				err = mmc_blk_fix_state(card, req);
-				if (err)
-					goto error_exit;
-			}
-
-			if (!mrq->cmd->error)
-				break;
-		}
-
-		if (mrq->cmd->error ||
-		    mrq->data->error ||
-		    (!mmc_host_is_spi(host) &&
-		     (mrq->cmd->resp[0] & CMD_ERRORS || status & CMD_ERRORS)))
-			error = BLK_STS_IOERR;
-		else
-			error = BLK_STS_OK;
-
-	} while (blk_update_request(req, error, bytes_per_read));
-
-	return;
-
-error_exit:
-	mrq->data->bytes_xfered = 0;
-	blk_update_request(req, BLK_STS_IOERR, bytes_per_read);
-	/* Let it try the remaining request again */
-	if (mqrq->retries > MMC_MAX_RETRIES - 1)
-		mqrq->retries = MMC_MAX_RETRIES - 1;
-}
-
 static inline bool mmc_blk_oor_valid(struct mmc_blk_request *brq)
 {
 	return !!brq->mrq.sbc;
@@ -1968,13 +1916,6 @@ static void mmc_blk_mq_rw_recovery(struct mmc_queue *mq, struct request *req)
 		mqrq->retries = MMC_MAX_RETRIES - MMC_DATA_RETRIES;
 		return;
 	}
-
-	if (rq_data_dir(req) == READ && brq->data.blocks >
-			queue_physical_block_size(mq->queue) >> 9) {
-		/* Read one (native) sector at a time */
-		mmc_blk_read_single(mq, req);
-		return;
-	}
 }
 
 static inline bool mmc_blk_rq_error(struct mmc_blk_request *brq)
@@ -2085,6 +2026,7 @@ static void mmc_blk_mq_complete_rq(struct mmc_queue *mq, struct request *req)
 	} else if (!blk_rq_bytes(req)) {
 		__blk_mq_end_request(req, BLK_STS_IOERR);
 	} else if (mqrq->retries++ < MMC_MAX_RETRIES) {
+		mqrq->flags |= MQRQ_XFER_SINGLE_BLOCK;
 		blk_mq_requeue_request(req, true);
 	} else {
 		if (mmc_card_removed(mq->card))
@@ -3017,14 +2959,14 @@ static int mmc_blk_alloc_parts(struct mmc_card *card, struct mmc_blk_data *md)
 			 */
 			ret = mmc_blk_alloc_rpmb_part(card, md,
 				card->part[idx].part_cfg,
-				card->part[idx].size >> 9,
+				card->part[idx].size >> SECTOR_SHIFT,
 				card->part[idx].name);
 			if (ret)
 				return ret;
 		} else if (card->part[idx].size) {
 			ret = mmc_blk_alloc_part(card, md,
 				card->part[idx].part_cfg,
-				card->part[idx].size >> 9,
+				card->part[idx].size >> SECTOR_SHIFT,
 				card->part[idx].force_ro,
 				card->part[idx].name,
 				card->part[idx].area_type);
@@ -3354,7 +3296,6 @@ static void mmc_blk_shutdown(struct mmc_card *card)
 	_mmc_blk_suspend(card);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int mmc_blk_suspend(struct device *dev)
 {
 	struct mmc_card *card = mmc_dev_to_card(dev);
@@ -3380,14 +3321,13 @@ static int mmc_blk_resume(struct device *dev)
 	}
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(mmc_blk_pm_ops, mmc_blk_suspend, mmc_blk_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(mmc_blk_pm_ops, mmc_blk_suspend, mmc_blk_resume);
 
 static struct mmc_driver mmc_driver = {
 	.drv		= {
 		.name	= "mmcblk",
-		.pm	= &mmc_blk_pm_ops,
+		.pm	= pm_sleep_ptr(&mmc_blk_pm_ops),
 	},
 	.probe		= mmc_blk_probe,
 	.remove		= mmc_blk_remove,

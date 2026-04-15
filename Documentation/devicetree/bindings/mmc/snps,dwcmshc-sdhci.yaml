@@ -23,6 +23,9 @@ properties:
           - const: sophgo,sg2044-dwcmshc
           - const: sophgo,sg2042-dwcmshc
       - enum:
+          - canaan,k230-emmc
+          - canaan,k230-sdio
+          - hpe,gsc-dwcmshc
           - rockchip,rk3568-dwcmshc
           - rockchip,rk3588-dwcmshc
           - snps,dwcmshc-sdhci
@@ -50,10 +53,17 @@ properties:
     maxItems: 1
 
   resets:
+    minItems: 4
     maxItems: 5
 
   reset-names:
+    minItems: 4
     maxItems: 5
+
+  canaan,usb-phy:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: Phandle to the Canaan K230 USB PHY node required for
+                 k230-emmc/sdio.
 
   rockchip,txclk-tapnum:
     description: Specify the number of delay for tx sampling.
@@ -77,6 +87,17 @@ properties:
     description: Specifies the drive impedance in Ohm.
     enum: [33, 40, 50, 66, 100]
 
+  hpe,gxp-sysreg:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: phandle to HPE GXP SoC system register block (syscon)
+          - description: offset of the MSHCCS register within the syscon block
+    description:
+      Phandle to the HPE GXP SoC system register block (syscon) and
+      offset of the MSHCCS register used to configure clock
+      synchronisation for HS200 tuning.
+
 required:
   - compatible
   - reg
@@ -86,6 +107,47 @@ required:
 
 allOf:
   - $ref: mmc-controller.yaml#
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - canaan,k230-emmc
+              - canaan,k230-sdio
+    then:
+      properties:
+        clocks:
+          minItems: 5
+        clock-names:
+          items:
+            - const: core
+            - const: bus
+            - const: axi
+            - const: block
+            - const: timer
+      required:
+        - canaan,usb-phy
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: hpe,gsc-dwcmshc
+
+    then:
+      properties:
+        clocks:
+          items:
+            - description: core clock
+        clock-names:
+          items:
+            - const: core
+      required:
+        - hpe,gxp-sysreg
+    else:
+      properties:
+        hpe,gxp-sysreg: false
 
   - if:
       properties:
@@ -146,6 +208,7 @@ allOf:
     else:
       properties:
         resets:
+          minItems: 5
           maxItems: 5
         reset-names:
           items:

@@ -10,13 +10,14 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/pci.h>
+#include <linux/pci-epf.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
 #include "dw_mmc.h"
+#include "dw_mmc-pltfm.h"
 
-#define PCI_BAR_NO 2
 #define SYNOPSYS_DW_MCI_VENDOR_ID 0x700
 #define SYNOPSYS_DW_MCI_DEVICE_ID 0x1107
 /* Defining the Capabilities */
@@ -24,11 +25,8 @@
 				MMC_CAP_SD_HIGHSPEED | MMC_CAP_8_BIT_DATA |\
 				MMC_CAP_SDIO_IRQ)
 
-static struct dw_mci_board pci_board_data = {
-	.caps				= DW_MCI_CAPABILITIES,
-	.bus_hz				= 33 * 1000 * 1000,
-	.detect_delay_ms		= 200,
-	.fifo_depth			= 32,
+static const struct dw_mci_drv_data pci_drv_data = {
+	.common_caps = DW_MCI_CAPABILITIES,
 };
 
 static int dw_mci_pci_probe(struct pci_dev *pdev,
@@ -41,20 +39,20 @@ static int dw_mci_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		return ret;
 
-	host = devm_kzalloc(&pdev->dev, sizeof(struct dw_mci), GFP_KERNEL);
-	if (!host)
-		return -ENOMEM;
+	host = dw_mci_alloc_host(&pdev->dev);
+	if (IS_ERR(host))
+		return PTR_ERR(host);
 
 	host->irq = pdev->irq;
 	host->irq_flags = IRQF_SHARED;
-	host->dev = &pdev->dev;
-	host->pdata = &pci_board_data;
+	host->fifo_depth = 32;
+	host->detect_delay_ms = 200;
+	host->bus_hz = 33 * 1000 * 1000;
+	host->drv_data = &pci_drv_data;
 
-	ret = pcim_iomap_regions(pdev, 1 << PCI_BAR_NO, pci_name(pdev));
-	if (ret)
-		return ret;
-
-	host->regs = pcim_iomap_table(pdev)[PCI_BAR_NO];
+	host->regs = pcim_iomap_region(pdev, BAR_2, pci_name(pdev));
+	if (IS_ERR(host->regs))
+		return PTR_ERR(host->regs);
 
 	pci_set_master(pdev);
 
@@ -74,11 +72,6 @@ static void dw_mci_pci_remove(struct pci_dev *pdev)
 	dw_mci_remove(host);
 }
 
-static const struct dev_pm_ops dw_mci_pci_dev_pm_ops = {
-	SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
-	RUNTIME_PM_OPS(dw_mci_runtime_suspend, dw_mci_runtime_resume, NULL)
-};
-
 static const struct pci_device_id dw_mci_pci_id[] = {
 	{ PCI_DEVICE(SYNOPSYS_DW_MCI_VENDOR_ID, SYNOPSYS_DW_MCI_DEVICE_ID) },
 	{}
@@ -91,7 +84,7 @@ static struct pci_driver dw_mci_pci_driver = {
 	.probe		= dw_mci_pci_probe,
 	.remove		= dw_mci_pci_remove,
 	.driver		=	{
-		.pm =   pm_ptr(&dw_mci_pci_dev_pm_ops),
+		.pm =   pm_ptr(&dw_mci_pmops),
 	},
 };
 

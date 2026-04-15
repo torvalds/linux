@@ -33,18 +33,16 @@ int dw_mci_pltfm_register(struct platform_device *pdev,
 	struct dw_mci *host;
 	struct resource	*regs;
 
-	host = devm_kzalloc(&pdev->dev, sizeof(struct dw_mci), GFP_KERNEL);
-	if (!host)
-		return -ENOMEM;
+	host = dw_mci_alloc_host(&pdev->dev);
+	if (IS_ERR(host))
+		return PTR_ERR(host);
 
 	host->irq = platform_get_irq(pdev, 0);
 	if (host->irq < 0)
 		return host->irq;
 
 	host->drv_data = drv_data;
-	host->dev = &pdev->dev;
 	host->irq_flags = 0;
-	host->pdata = pdev->dev.platform_data;
 
 	host->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &regs);
 	if (IS_ERR(host->regs))
@@ -58,24 +56,16 @@ int dw_mci_pltfm_register(struct platform_device *pdev,
 }
 EXPORT_SYMBOL_GPL(dw_mci_pltfm_register);
 
-const struct dev_pm_ops dw_mci_pltfm_pmops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
-	SET_RUNTIME_PM_OPS(dw_mci_runtime_suspend,
-			   dw_mci_runtime_resume,
-			   NULL)
-};
-EXPORT_SYMBOL_GPL(dw_mci_pltfm_pmops);
-
 static int dw_mci_socfpga_priv_init(struct dw_mci *host)
 {
 	struct device_node *np = host->dev->of_node;
+	struct mmc_clk_phase phase;
 	struct regmap *sys_mgr_base_addr;
-	u32 clk_phase[2] = {0}, reg_offset, reg_shift;
-	int i, rc, hs_timing;
+	u32 reg_offset, reg_shift;
+	int hs_timing;
 
-	rc = of_property_read_variable_u32_array(np, "clk-phase-sd-hs", &clk_phase[0], 2, 0);
-	if (rc < 0)
+	phase = host->phase_map.phase[MMC_TIMING_SD_HS];
+	if (!phase.valid)
 		return 0;
 
 	sys_mgr_base_addr = altr_sysmgr_regmap_lookup_by_phandle(np, "altr,sysmgr-syscon");
@@ -87,10 +77,10 @@ static int dw_mci_socfpga_priv_init(struct dw_mci *host)
 	of_property_read_u32_index(np, "altr,sysmgr-syscon", 1, &reg_offset);
 	of_property_read_u32_index(np, "altr,sysmgr-syscon", 2, &reg_shift);
 
-	for (i = 0; i < ARRAY_SIZE(clk_phase); i++)
-		clk_phase[i] /= SOCFPGA_DW_MMC_CLK_PHASE_STEP;
+	phase.in_deg /= SOCFPGA_DW_MMC_CLK_PHASE_STEP;
+	phase.out_deg /= SOCFPGA_DW_MMC_CLK_PHASE_STEP;
 
-	hs_timing = SYSMGR_SDMMC_CTRL_SET(clk_phase[0], clk_phase[1], reg_shift);
+	hs_timing = SYSMGR_SDMMC_CTRL_SET(phase.in_deg, phase.out_deg, reg_shift);
 	regmap_write(sys_mgr_base_addr, reg_offset, hs_timing);
 
 	return 0;
@@ -136,7 +126,7 @@ static struct platform_driver dw_mci_pltfm_driver = {
 		.name		= "dw_mmc",
 		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table	= dw_mci_pltfm_match,
-		.pm		= &dw_mci_pltfm_pmops,
+		.pm		= pm_ptr(&dw_mci_pmops),
 	},
 };
 
