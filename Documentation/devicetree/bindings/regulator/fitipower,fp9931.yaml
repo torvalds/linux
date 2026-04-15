@@ -66,6 +66,7 @@ properties:
 required:
   - compatible
   - reg
+  - vin-supply
   - pg-gpios
   - enable-gpios
 

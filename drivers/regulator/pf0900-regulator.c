@@ -771,7 +771,7 @@ static const struct pf0900_regulator_desc pf0900_regulators[] = {
 	},
 };
 
-struct pf0900_regulator_irq regu_irqs[] = {
+static const struct pf0900_regulator_irq regu_irqs[] = {
 	PF0900_REGU_IRQ(PF0900_REG_SW_ILIM_INT, PF0900_SW, REGULATOR_ERROR_OVER_CURRENT_WARN),
 	PF0900_REGU_IRQ(PF0900_REG_LDO_ILIM_INT, PF0900_LDO, REGULATOR_ERROR_OVER_CURRENT_WARN),
 	PF0900_REGU_IRQ(PF0900_REG_SW_UV_INT, PF0900_SW, REGULATOR_ERROR_UNDER_VOLTAGE_WARN),

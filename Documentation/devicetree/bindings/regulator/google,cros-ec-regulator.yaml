@@ -24,6 +24,9 @@ properties:
     maxItems: 1
     description: Identifier for the voltage regulator to ChromeOS EC.
 
+  vin-supply:
+    description: Input supply phandle
+
 required:
   - compatible
   - reg
@@ -48,6 +51,7 @@ examples:
                 regulator-min-microvolt = <1800000>;
                 regulator-max-microvolt = <3300000>;
                 reg = <0>;
+                vin-supply = <&pp4200_s5>;
             };
         };
     };

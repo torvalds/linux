@@ -67,7 +67,7 @@ struct da9063_regulator_data {
 
 struct da9063_regulators_pdata {
 	unsigned int			n_regulators;
-	struct da9063_regulator_data	*regulator_data;
+	struct da9063_regulator_data	regulator_data[] __counted_by(n_regulators);
 };
 
 /* Regulator capabilities and registers description */
@@ -857,15 +857,10 @@ static struct da9063_regulators_pdata *da9063_parse_regulators_dt(
 		return ERR_PTR(-EINVAL);
 	}
 
-	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc(&pdev->dev, struct_size(pdata, regulator_data, num), GFP_KERNEL);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
-	pdata->regulator_data = devm_kcalloc(&pdev->dev,
-					num, sizeof(*pdata->regulator_data),
-					GFP_KERNEL);
-	if (!pdata->regulator_data)
-		return ERR_PTR(-ENOMEM);
 	pdata->n_regulators = num;
 
 	n = 0;
