@@ -378,9 +378,9 @@ Affinity Scopes
 
 An unbound workqueue groups CPUs according to its affinity scope to improve
 cache locality. For example, if a workqueue is using the default affinity
-scope of "cache", it will group CPUs according to last level cache
-boundaries. A work item queued on the workqueue will be assigned to a worker
-on one of the CPUs which share the last level cache with the issuing CPU.
+scope of "cache_shard", it will group CPUs into sub-LLC shards. A work item
+queued on the workqueue will be assigned to a worker on one of the CPUs
+within the same shard as the issuing CPU.
 Once started, the worker may or may not be allowed to move outside the scope
 depending on the ``affinity_strict`` setting of the scope.
 
@@ -402,7 +402,13 @@ Workqueue currently supports the following affinity scopes.
 ``cache``
   CPUs are grouped according to cache boundaries. Which specific cache
   boundary is used is determined by the arch code. L3 is used in a lot of
-  cases. This is the default affinity scope.
+  cases.
+
+``cache_shard``
+  CPUs are grouped into sub-LLC shards of at most ``wq_cache_shard_size``
+  cores (default 8, tunable via the ``workqueue.cache_shard_size`` boot
+  parameter). Shards are always split on core (SMT group) boundaries.
+  This is the default affinity scope.
 
 ``numa``
   CPUs are grouped according to NUMA boundaries.

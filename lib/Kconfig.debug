@@ -2636,6 +2636,16 @@ config TEST_VMALLOC
 
 	  If unsure, say N.
 
+config TEST_WORKQUEUE
+	tristate "Test module for stress/performance analysis of workqueue"
+	default n
+	help
+	  This builds the "test_workqueue" module for benchmarking
+	  workqueue throughput under contention. Useful for evaluating
+	  affinity scope changes (e.g., cache_shard vs cache).
+
+	  If unsure, say N.
+
 config TEST_BPF
 	tristate "Test BPF filter functionality"
 	depends on m && NET
