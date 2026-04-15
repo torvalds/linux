@@ -405,7 +405,10 @@ struct trace_array {
 	unsigned char		trace_flags_index[TRACE_FLAGS_MAX_SIZE];
 	unsigned int		flags;
 	raw_spinlock_t		start_lock;
-	const char		*system_names;
+	union {
+		const char	*system_names;
+		char		*boot_events;
+	};
 	struct list_head	err_log;
 	struct dentry		*dir;
 	struct dentry		*options;
@@ -453,6 +456,12 @@ struct trace_array {
 	 * we do not waste memory on systems that are not using tracing.
 	 */
 	bool ring_buffer_expanded;
+	/*
+	 * If the ring buffer is a read only backup instance, it will be
+	 * removed after dumping all data via pipe, because no readable data.
+	 */
+	bool free_on_close;
+	struct work_struct	autoremove_work;
 };
 
 enum {
@@ -462,6 +471,7 @@ enum {
 	TRACE_ARRAY_FL_MOD_INIT		= BIT(3),
 	TRACE_ARRAY_FL_MEMMAP		= BIT(4),
 	TRACE_ARRAY_FL_VMALLOC		= BIT(5),
+	TRACE_ARRAY_FL_RDONLY		= BIT(6),
 };
 
 #ifdef CONFIG_MODULES
@@ -490,6 +500,12 @@ extern bool trace_clock_in_ns(struct trace_array *tr);
 extern unsigned long trace_adjust_address(struct trace_array *tr, unsigned long addr);
 
 extern struct trace_array *printk_trace;
+
+static inline bool trace_array_is_readonly(struct trace_array *tr)
+{
+	/* backup instance is read only. */
+	return tr->flags & TRACE_ARRAY_FL_RDONLY;
+}
 
 /*
  * The global tracer (top) should be the first trace array added,
@@ -689,6 +705,13 @@ struct dentry *trace_create_file(const char *name,
 				 struct dentry *parent,
 				 void *data,
 				 const struct file_operations *fops);
+struct dentry *trace_create_cpu_file(const char *name,
+				     umode_t mode,
+				     struct dentry *parent,
+				     void *data,
+				     long cpu,
+				     const struct file_operations *fops);
+int tracing_get_cpu(struct inode *inode);
 
 
 /**
