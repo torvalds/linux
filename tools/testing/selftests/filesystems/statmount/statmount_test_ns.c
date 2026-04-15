@@ -34,31 +34,6 @@ static void handle_result(int ret, const char *testname)
 		ksft_test_result_skip("%s\n", testname);
 }
 
-static inline int wait_for_pid(pid_t pid)
-{
-	int status, ret;
-
-again:
-	ret = waitpid(pid, &status, 0);
-	if (ret == -1) {
-		if (errno == EINTR)
-			goto again;
-
-		ksft_print_msg("waitpid returned -1, errno=%d\n", errno);
-		return -1;
-	}
-
-	if (!WIFEXITED(status)) {
-		ksft_print_msg(
-		       "waitpid !WIFEXITED, WIFSIGNALED=%d, WTERMSIG=%d\n",
-		       WIFSIGNALED(status), WTERMSIG(status));
-		return -1;
-	}
-
-	ret = WEXITSTATUS(status);
-	return ret;
-}
-
 static int get_mnt_ns_id(const char *mnt_ns, uint64_t *mnt_ns_id)
 {
 	int fd = open(mnt_ns, O_RDONLY);

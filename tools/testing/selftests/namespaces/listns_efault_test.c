@@ -19,7 +19,6 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include "../kselftest_harness.h"
-#include "../filesystems/utils.h"
 #include "../pidfd/pidfd.h"
 #include "wrappers.h"
 

@@ -96,7 +96,8 @@ static struct nsproxy *create_new_namespaces(u64 flags,
 	if (!new_nsp)
 		return ERR_PTR(-ENOMEM);
 
-	new_nsp->mnt_ns = copy_mnt_ns(flags, tsk->nsproxy->mnt_ns, user_ns, new_fs);
+	new_nsp->mnt_ns = copy_mnt_ns(flags, tsk->nsproxy->mnt_ns,
+				      user_ns, new_fs);
 	if (IS_ERR(new_nsp->mnt_ns)) {
 		err = PTR_ERR(new_nsp->mnt_ns);
 		goto out_ns;
@@ -211,16 +212,26 @@ int unshare_nsproxy_namespaces(unsigned long unshare_flags,
 	struct nsproxy **new_nsp, struct cred *new_cred, struct fs_struct *new_fs)
 {
 	struct user_namespace *user_ns;
+	u64 flags = unshare_flags;
 	int err = 0;
 
-	if (!(unshare_flags & (CLONE_NS_ALL & ~CLONE_NEWUSER)))
+	if (!(flags & (CLONE_NS_ALL & ~CLONE_NEWUSER)))
 		return 0;
 
 	user_ns = new_cred ? new_cred->user_ns : current_user_ns();
 	if (!ns_capable(user_ns, CAP_SYS_ADMIN))
 		return -EPERM;
 
-	*new_nsp = create_new_namespaces(unshare_flags, current, user_ns,
+	/*
+	 * Convert the 32-bit UNSHARE_EMPTY_MNTNS (which aliases
+	 * CLONE_PARENT_SETTID) to the unique 64-bit CLONE_EMPTY_MNTNS.
+	 */
+	if (flags & UNSHARE_EMPTY_MNTNS) {
+		flags &= ~(u64)UNSHARE_EMPTY_MNTNS;
+		flags |= CLONE_EMPTY_MNTNS;
+	}
+
+	*new_nsp = create_new_namespaces(flags, current, user_ns,
 					 new_fs ? new_fs : current->fs);
 	if (IS_ERR(*new_nsp)) {
 		err = PTR_ERR(*new_nsp);
