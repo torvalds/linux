@@ -35,10 +35,10 @@ properties:
   interrupts:
     maxItems: 1
 
-  clock-names:
+  clocks:
     maxItems: 1
 
-  clocks:
+  resets:
     maxItems: 1
 
   microchip,apb-datawidth:

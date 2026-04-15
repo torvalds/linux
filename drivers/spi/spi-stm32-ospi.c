@@ -469,11 +469,6 @@ static int stm32_ospi_send(struct spi_device *spi, const struct spi_mem_op *op)
 	int timeout, err = 0, err_poll_status = 0;
 	u8 cs = spi->chip_select[ffs(spi->cs_index_mask) - 1];
 
-	dev_dbg(ospi->dev, "cmd:%#x mode:%d.%d.%d.%d addr:%#llx len:%#x\n",
-		op->cmd.opcode, op->cmd.buswidth, op->addr.buswidth,
-		op->dummy.buswidth, op->data.buswidth,
-		op->addr.val, op->data.nbytes);
-
 	cr = readl_relaxed(ospi->regs_base + OSPI_CR);
 	cr &= ~CR_CSSEL;
 	cr |= FIELD_PREP(CR_CSSEL, cs);

@@ -1659,7 +1659,7 @@ static int stm32_spi_transfer_one_dma(struct stm32_spi *spi,
 			ret = stm32_spi_prepare_rx_dma_mdma_chaining(spi, xfer, &rx_dma_conf,
 								     &rx_dma_desc, &rx_mdma_desc);
 			if (ret) { /* RX DMA MDMA chaining not possible, fallback to DMA only */
-				rx_dma_conf.peripheral_config = 0;
+				rx_dma_conf.peripheral_config = NULL;
 				rx_dma_desc = NULL;
 			}
 		}
@@ -2360,25 +2360,20 @@ static int stm32_spi_probe(struct platform_device *pdev)
 	int ret;
 
 	cfg = of_device_get_match_data(&pdev->dev);
-	if (!cfg) {
-		dev_err(&pdev->dev, "Failed to get match data for platform\n");
-		return -ENODEV;
-	}
+	if (!cfg)
+		return dev_err_probe(&pdev->dev, -ENODEV,
+				     "Failed to get match data for platform\n");
 
 	device_mode = of_property_read_bool(np, "spi-slave");
-	if (!cfg->has_device_mode && device_mode) {
-		dev_err(&pdev->dev, "spi-slave not supported\n");
-		return -EPERM;
-	}
+	if (!cfg->has_device_mode && device_mode)
+		return dev_err_probe(&pdev->dev, -EPERM, "spi-slave not supported\n");
 
 	if (device_mode)
 		ctrl = devm_spi_alloc_target(&pdev->dev, sizeof(struct stm32_spi));
 	else
 		ctrl = devm_spi_alloc_host(&pdev->dev, sizeof(struct stm32_spi));
-	if (!ctrl) {
-		dev_err(&pdev->dev, "spi controller allocation failed\n");
-		return -ENOMEM;
-	}
+	if (!ctrl)
+		return dev_err_probe(&pdev->dev, -ENOMEM, "spi controller allocation failed\n");
 	platform_set_drvdata(pdev, ctrl);
 
 	spi = spi_controller_get_devdata(ctrl);
@@ -2409,32 +2404,18 @@ static int stm32_spi_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	spi->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(spi->clk)) {
-		ret = PTR_ERR(spi->clk);
-		dev_err(&pdev->dev, "clk get failed: %d\n", ret);
-		return ret;
-	}
+	spi->clk = devm_clk_get_enabled(&pdev->dev, NULL);
+	if (IS_ERR(spi->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(spi->clk), "clk enabled failed\n");
 
-	ret = clk_prepare_enable(spi->clk);
-	if (ret) {
-		dev_err(&pdev->dev, "clk enable failed: %d\n", ret);
-		return ret;
-	}
 	spi->clk_rate = clk_get_rate(spi->clk);
-	if (!spi->clk_rate) {
-		dev_err(&pdev->dev, "clk rate = 0\n");
-		ret = -EINVAL;
-		goto err_clk_disable;
-	}
+	if (!spi->clk_rate)
+		return dev_err_probe(&pdev->dev, -EINVAL, "clk rate = 0\n");
 
 	rst = devm_reset_control_get_optional_exclusive(&pdev->dev, NULL);
 	if (rst) {
-		if (IS_ERR(rst)) {
-			ret = dev_err_probe(&pdev->dev, PTR_ERR(rst),
-					    "failed to get reset\n");
-			goto err_clk_disable;
-		}
+		if (IS_ERR(rst))
+			return dev_err_probe(&pdev->dev, PTR_ERR(rst), "failed to get reset\n");
 
 		reset_control_assert(rst);
 		udelay(2);
@@ -2461,11 +2442,8 @@ static int stm32_spi_probe(struct platform_device *pdev)
 	dev_dbg(spi->dev, "one message max size %d\n", spi->t_size_max);
 
 	ret = spi->cfg->config(spi);
-	if (ret) {
-		dev_err(&pdev->dev, "controller configuration failed: %d\n",
-			ret);
-		goto err_clk_disable;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "controller configuration failed: %d\n", ret);
 
 	ctrl->auto_runtime_pm = true;
 	ctrl->bus_num = pdev->id;
@@ -2490,8 +2468,7 @@ static int stm32_spi_probe(struct platform_device *pdev)
 			dev_info(&pdev->dev, "tx dma disabled\n");
 			spi->dma_tx = NULL;
 		} else {
-			dev_err_probe(&pdev->dev, ret, "failed to request tx dma channel\n");
-			goto err_clk_disable;
+			return dev_err_probe(&pdev->dev, ret, "failed to request tx dma channel\n");
 		}
 	} else {
 		ctrl->dma_tx = spi->dma_tx;
@@ -2505,7 +2482,7 @@ static int stm32_spi_probe(struct platform_device *pdev)
 			spi->dma_rx = NULL;
 		} else {
 			dev_err_probe(&pdev->dev, ret, "failed to request rx dma channel\n");
-			goto err_dma_release;
+			goto err_dma_tx_release;
 		}
 	} else {
 		ctrl->dma_rx = spi->dma_rx;
@@ -2574,13 +2551,11 @@ err_pool_free:
 	if (spi->sram_pool)
 		gen_pool_free(spi->sram_pool, (unsigned long)spi->sram_rx_buf,
 			      spi->sram_rx_buf_size);
-err_dma_release:
-	if (spi->dma_tx)
-		dma_release_channel(spi->dma_tx);
 	if (spi->dma_rx)
 		dma_release_channel(spi->dma_rx);
-err_clk_disable:
-	clk_disable_unprepare(spi->clk);
+err_dma_tx_release:
+	if (spi->dma_tx)
+		dma_release_channel(spi->dma_tx);
 
 	return ret;
 }
@@ -2609,9 +2584,6 @@ static void stm32_spi_remove(struct platform_device *pdev)
 	if (spi->sram_rx_buf)
 		gen_pool_free(spi->sram_pool, (unsigned long)spi->sram_rx_buf,
 			      spi->sram_rx_buf_size);
-
-	clk_disable_unprepare(spi->clk);
-
 
 	pinctrl_pm_select_sleep_state(&pdev->dev);
 }

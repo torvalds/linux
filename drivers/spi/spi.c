@@ -89,25 +89,22 @@ static ssize_t driver_override_show(struct device *dev,
 }
 static DEVICE_ATTR_RW(driver_override);
 
-static struct spi_statistics __percpu *spi_alloc_pcpu_stats(struct device *dev)
+static struct spi_statistics __percpu *spi_alloc_pcpu_stats(void)
 {
 	struct spi_statistics __percpu *pcpu_stats;
+	int cpu;
 
-	if (dev)
-		pcpu_stats = devm_alloc_percpu(dev, struct spi_statistics);
-	else
-		pcpu_stats = alloc_percpu_gfp(struct spi_statistics, GFP_KERNEL);
+	pcpu_stats = alloc_percpu_gfp(struct spi_statistics, GFP_KERNEL);
+	if (!pcpu_stats)
+		return NULL;
 
-	if (pcpu_stats) {
-		int cpu;
+	for_each_possible_cpu(cpu) {
+		struct spi_statistics *stat;
 
-		for_each_possible_cpu(cpu) {
-			struct spi_statistics *stat;
-
-			stat = per_cpu_ptr(pcpu_stats, cpu);
-			u64_stats_init(&stat->syncp);
-		}
+		stat = per_cpu_ptr(pcpu_stats, cpu);
+		u64_stats_init(&stat->syncp);
 	}
+
 	return pcpu_stats;
 }
 
@@ -569,7 +566,7 @@ struct spi_device *spi_alloc_device(struct spi_controller *ctlr)
 		return NULL;
 	}
 
-	spi->pcpu_statistics = spi_alloc_pcpu_stats(NULL);
+	spi->pcpu_statistics = spi_alloc_pcpu_stats();
 	if (!spi->pcpu_statistics) {
 		kfree(spi);
 		spi_controller_put(ctlr);
@@ -636,11 +633,25 @@ static inline int spi_dev_check_cs(struct device *dev,
 	return 0;
 }
 
+struct spi_dev_check_info {
+	struct spi_device *new_spi;
+	struct spi_device *parent;	/* set for ancillary devices */
+};
+
 static int spi_dev_check(struct device *dev, void *data)
 {
 	struct spi_device *spi = to_spi_device(dev);
-	struct spi_device *new_spi = data;
+	struct spi_dev_check_info *info = data;
+	struct spi_device *new_spi = info->new_spi;
 	int status, idx;
+
+	/*
+	 * When registering an ancillary device, skip checking against the
+	 * parent device since the ancillary is intentionally using one of
+	 * the parent's chip selects.
+	 */
+	if (info->parent && spi == info->parent)
+		return 0;
 
 	if (spi->controller == new_spi->controller) {
 		for (idx = 0; idx < spi->num_chipselect; idx++) {
@@ -658,10 +669,11 @@ static void spi_cleanup(struct spi_device *spi)
 		spi->controller->cleanup(spi);
 }
 
-static int __spi_add_device(struct spi_device *spi)
+static int __spi_add_device(struct spi_device *spi, struct spi_device *parent)
 {
 	struct spi_controller *ctlr = spi->controller;
 	struct device *dev = ctlr->dev.parent;
+	struct spi_dev_check_info check_info;
 	int status, idx;
 	u8 cs;
 
@@ -705,7 +717,9 @@ static int __spi_add_device(struct spi_device *spi)
 	 * chipselect **BEFORE** we call setup(), else we'll trash
 	 * its configuration.
 	 */
-	status = bus_for_each_dev(&spi_bus_type, NULL, spi, spi_dev_check);
+	check_info.new_spi = spi;
+	check_info.parent = parent;
+	status = bus_for_each_dev(&spi_bus_type, NULL, &check_info, spi_dev_check);
 	if (status)
 		return status;
 
@@ -767,7 +781,7 @@ int spi_add_device(struct spi_device *spi)
 	spi_dev_set_name(spi);
 
 	mutex_lock(&ctlr->add_lock);
-	status = __spi_add_device(spi);
+	status = __spi_add_device(spi, NULL);
 	mutex_unlock(&ctlr->add_lock);
 	return status;
 }
@@ -2710,8 +2724,8 @@ struct spi_device *spi_new_ancillary_device(struct spi_device *spi,
 
 	WARN_ON(!mutex_is_locked(&ctlr->add_lock));
 
-	/* Register the new device */
-	rc = __spi_add_device(ancillary);
+	/* Register the new device, passing the parent to skip CS conflict check */
+	rc = __spi_add_device(ancillary, spi);
 	if (rc) {
 		dev_err(&spi->dev, "failed to register ancillary device\n");
 		goto err_out;
@@ -2724,6 +2738,46 @@ err_out:
 	return ERR_PTR(rc);
 }
 EXPORT_SYMBOL_GPL(spi_new_ancillary_device);
+
+static void devm_spi_unregister_device(void *spi)
+{
+	spi_unregister_device(spi);
+}
+
+/**
+ * devm_spi_new_ancillary_device() - Register managed ancillary SPI device
+ * @spi:         Pointer to the main SPI device registering the ancillary device
+ * @chip_select: Chip Select of the ancillary device
+ *
+ * Register an ancillary SPI device; for example some chips have a chip-select
+ * for normal device usage and another one for setup/firmware upload.
+ *
+ * This is the managed version of spi_new_ancillary_device(). The ancillary
+ * device will be unregistered automatically when the parent SPI device is
+ * unregistered.
+ *
+ * This may only be called from main SPI device's probe routine.
+ *
+ * Return: Pointer to new ancillary device on success; ERR_PTR on failure
+ */
+struct spi_device *devm_spi_new_ancillary_device(struct spi_device *spi,
+						 u8 chip_select)
+{
+	struct spi_device *ancillary;
+	int ret;
+
+	ancillary = spi_new_ancillary_device(spi, chip_select);
+	if (IS_ERR(ancillary))
+		return ancillary;
+
+	ret = devm_add_action_or_reset(&spi->dev, devm_spi_unregister_device,
+				       ancillary);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return ancillary;
+}
+EXPORT_SYMBOL_GPL(devm_spi_new_ancillary_device);
 
 #ifdef CONFIG_ACPI
 struct acpi_spi_lookup {
@@ -3189,7 +3243,7 @@ struct spi_controller *__spi_alloc_controller(struct device *dev,
 	if (!ctlr)
 		return NULL;
 
-	ctlr->pcpu_statistics = spi_alloc_pcpu_stats(NULL);
+	ctlr->pcpu_statistics = spi_alloc_pcpu_stats();
 	if (!ctlr->pcpu_statistics) {
 		kfree(ctlr);
 		return NULL;
@@ -3386,8 +3440,8 @@ static int spi_controller_id_alloc(struct spi_controller *ctlr, int start, int e
  * device identification, boards need configuration tables telling which
  * chip is at which address.
  *
- * This must be called from context that can sleep.  It returns zero on
- * success, else a negative error code (dropping the controller's refcount).
+ * This must be called from context that can sleep.
+ *
  * After a successful return, the caller is responsible for calling
  * spi_unregister_controller().
  *
@@ -3521,7 +3575,8 @@ static void devm_spi_unregister_controller(void *ctlr)
  * Context: can sleep
  *
  * Register a SPI device as with spi_register_controller() which will
- * automatically be unregistered and freed.
+ * automatically be unregistered (and freed unless it has been allocated using
+ * devm_spi_alloc_host/target()).
  *
  * Return: zero on success, else a negative error code.
  */
@@ -3566,7 +3621,8 @@ static int __unregister(struct device *dev, void *null)
  *
  * This must be called from context that can sleep.
  *
- * Note that this function also drops a reference to the controller.
+ * Note that this function also drops a reference to the controller unless it
+ * has been allocated using devm_spi_alloc_host/target().
  */
 void spi_unregister_controller(struct spi_controller *ctlr)
 {
@@ -4232,12 +4288,7 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 		 * SPI transfer length should be multiple of SPI word size
 		 * where SPI word size should be power-of-two multiple.
 		 */
-		if (xfer->bits_per_word <= 8)
-			w_size = 1;
-		else if (xfer->bits_per_word <= 16)
-			w_size = 2;
-		else
-			w_size = 4;
+		w_size = spi_bpw_to_bytes(xfer->bits_per_word);
 
 		/* No partial transfers accepted */
 		if (xfer->len % w_size)

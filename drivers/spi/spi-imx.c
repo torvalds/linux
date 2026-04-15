@@ -2231,11 +2231,9 @@ static int spi_imx_probe(struct platform_device *pdev)
 	target_mode = devtype_data->has_targetmode &&
 		      of_property_read_bool(np, "spi-slave");
 	if (target_mode)
-		controller = spi_alloc_target(&pdev->dev,
-					      sizeof(struct spi_imx_data));
+		controller = devm_spi_alloc_target(&pdev->dev, sizeof(*spi_imx));
 	else
-		controller = spi_alloc_host(&pdev->dev,
-					    sizeof(struct spi_imx_data));
+		controller = devm_spi_alloc_host(&pdev->dev, sizeof(*spi_imx));
 	if (!controller)
 		return -ENOMEM;
 
@@ -2304,40 +2302,31 @@ static int spi_imx_probe(struct platform_device *pdev)
 	init_completion(&spi_imx->xfer_done);
 
 	spi_imx->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
-	if (IS_ERR(spi_imx->base)) {
-		ret = PTR_ERR(spi_imx->base);
-		goto out_controller_put;
-	}
+	if (IS_ERR(spi_imx->base))
+		return PTR_ERR(spi_imx->base);
+
 	spi_imx->base_phys = res->start;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		ret = irq;
-		goto out_controller_put;
-	}
+	if (irq < 0)
+		return irq;
 
 	ret = devm_request_irq(&pdev->dev, irq, spi_imx_isr, 0,
 			       dev_name(&pdev->dev), spi_imx);
-	if (ret) {
-		dev_err(&pdev->dev, "can't get irq%d: %d\n", irq, ret);
-		goto out_controller_put;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "can't get irq%d\n", irq);
 
 	spi_imx->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
-	if (IS_ERR(spi_imx->clk_ipg)) {
-		ret = PTR_ERR(spi_imx->clk_ipg);
-		goto out_controller_put;
-	}
+	if (IS_ERR(spi_imx->clk_ipg))
+		return PTR_ERR(spi_imx->clk_ipg);
 
 	spi_imx->clk_per = devm_clk_get(&pdev->dev, "per");
-	if (IS_ERR(spi_imx->clk_per)) {
-		ret = PTR_ERR(spi_imx->clk_per);
-		goto out_controller_put;
-	}
+	if (IS_ERR(spi_imx->clk_per))
+		return PTR_ERR(spi_imx->clk_per);
 
 	ret = clk_prepare_enable(spi_imx->clk_per);
 	if (ret)
-		goto out_controller_put;
+		return ret;
 
 	ret = clk_prepare_enable(spi_imx->clk_ipg);
 	if (ret)
@@ -2389,8 +2378,6 @@ out_runtime_pm_put:
 	clk_disable_unprepare(spi_imx->clk_ipg);
 out_put_per:
 	clk_disable_unprepare(spi_imx->clk_per);
-out_controller_put:
-	spi_controller_put(controller);
 
 	return ret;
 }

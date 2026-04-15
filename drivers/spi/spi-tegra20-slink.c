@@ -1007,7 +1007,7 @@ static int tegra_slink_probe(struct platform_device *pdev)
 
 	cdata = of_device_get_match_data(&pdev->dev);
 
-	host = spi_alloc_host(&pdev->dev, sizeof(*tspi));
+	host = devm_spi_alloc_host(&pdev->dev, sizeof(*tspi));
 	if (!host) {
 		dev_err(&pdev->dev, "host allocation failed\n");
 		return -ENOMEM;
@@ -1034,37 +1034,34 @@ static int tegra_slink_probe(struct platform_device *pdev)
 		host->max_speed_hz = 25000000; /* 25MHz */
 
 	tspi->base = devm_platform_get_and_ioremap_resource(pdev, 0, &r);
-	if (IS_ERR(tspi->base)) {
-		ret = PTR_ERR(tspi->base);
-		goto exit_free_host;
-	}
+	if (IS_ERR(tspi->base))
+		return PTR_ERR(tspi->base);
+
 	tspi->phys = r->start;
 
 	/* disabled clock may cause interrupt storm upon request */
 	tspi->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(tspi->clk)) {
 		ret = PTR_ERR(tspi->clk);
-		dev_err(&pdev->dev, "Can not get clock %d\n", ret);
-		goto exit_free_host;
+		return dev_err_probe(&pdev->dev, ret, "Can not get clock\n");
 	}
 
 	tspi->rst = devm_reset_control_get_exclusive(&pdev->dev, "spi");
 	if (IS_ERR(tspi->rst)) {
-		dev_err(&pdev->dev, "can not get reset\n");
 		ret = PTR_ERR(tspi->rst);
-		goto exit_free_host;
+		return dev_err_probe(&pdev->dev, ret, "can not get reset\n");
 	}
 
 	ret = devm_tegra_core_dev_init_opp_table_common(&pdev->dev);
 	if (ret)
-		goto exit_free_host;
+		return ret;
 
 	tspi->max_buf_size = SLINK_FIFO_DEPTH << 2;
 	tspi->dma_buf_size = DEFAULT_SPI_DMA_BUF_LEN;
 
 	ret = tegra_slink_init_dma_param(tspi, true);
 	if (ret < 0)
-		goto exit_free_host;
+		return ret;
 	ret = tegra_slink_init_dma_param(tspi, false);
 	if (ret < 0)
 		goto exit_rx_dma_free;
@@ -1125,14 +1122,13 @@ exit_pm_disable:
 	tegra_slink_deinit_dma_param(tspi, false);
 exit_rx_dma_free:
 	tegra_slink_deinit_dma_param(tspi, true);
-exit_free_host:
-	spi_controller_put(host);
+
 	return ret;
 }
 
 static void tegra_slink_remove(struct platform_device *pdev)
 {
-	struct spi_controller *host = spi_controller_get(platform_get_drvdata(pdev));
+	struct spi_controller *host = platform_get_drvdata(pdev);
 	struct tegra_slink_data	*tspi = spi_controller_get_devdata(host);
 
 	spi_unregister_controller(host);
@@ -1146,8 +1142,6 @@ static void tegra_slink_remove(struct platform_device *pdev)
 
 	if (tspi->rx_dma_chan)
 		tegra_slink_deinit_dma_param(tspi, true);
-
-	spi_controller_put(host);
 }
 
 #ifdef CONFIG_PM_SLEEP

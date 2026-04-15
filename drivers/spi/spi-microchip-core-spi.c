@@ -384,7 +384,7 @@ static int mchp_corespi_probe(struct platform_device *pdev)
 
 	mchp_corespi_init(host, spi);
 
-	ret = devm_spi_register_controller(dev, host);
+	ret = spi_register_controller(host);
 	if (ret) {
 		mchp_corespi_disable_ints(spi);
 		mchp_corespi_disable(spi);
@@ -398,6 +398,8 @@ static void mchp_corespi_remove(struct platform_device *pdev)
 {
 	struct spi_controller *host = platform_get_drvdata(pdev);
 	struct mchp_corespi *spi = spi_controller_get_devdata(host);
+
+	spi_unregister_controller(host);
 
 	mchp_corespi_disable_ints(spi);
 	mchp_corespi_disable(spi);
