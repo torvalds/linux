@@ -41,8 +41,6 @@ void __init paging_init(void)
 	unsigned long next_pgtable;
 	int i;
 
-	empty_zero_page = memblock_alloc_or_panic(PAGE_SIZE, PAGE_SIZE);
-
 	pg_dir = swapper_pg_dir;
 	memset(swapper_pg_dir, 0, sizeof(swapper_pg_dir));
 

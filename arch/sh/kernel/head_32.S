@@ -26,7 +26,7 @@
 #endif
 
 	.section	.empty_zero_page, "aw"
-ENTRY(empty_zero_page)
+ENTRY(boot_params_page)
 	.long	1		/* MOUNT_ROOT_RDONLY */
 	.long	0		/* RAMDISK_FLAGS */
 	.long	0x0200		/* ORIG_ROOT_DEV */
@@ -39,7 +39,7 @@ ENTRY(empty_zero_page)
 	.long	0x53453f00 + 29	/* "SE?" = 29 bit */
 #endif
 1:
-	.skip	PAGE_SIZE - empty_zero_page - 1b
+	.skip	PAGE_SIZE - boot_params_page - 1b
 
 	__HEAD
 

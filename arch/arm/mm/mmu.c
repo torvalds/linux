@@ -42,13 +42,6 @@
 extern unsigned long __atags_pointer;
 
 /*
- * empty_zero_page is a special page that is used for
- * zero-initialized data and COW.
- */
-unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)] __page_aligned_bss;
-EXPORT_SYMBOL(empty_zero_page);
-
-/*
  * The pmd table for the upper-most set of pages.
  */
 pmd_t *top_pmd;

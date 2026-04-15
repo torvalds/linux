@@ -24,7 +24,7 @@ static int __check_vma(struct dev_dax *dev_dax, vma_flags_t flags,
 		return -ENXIO;
 
 	/* prevent private mappings from being established */
-	if (!vma_flags_test(&flags, VMA_MAYSHARE_BIT)) {
+	if (!vma_flags_test_any(&flags, VMA_MAYSHARE_BIT)) {
 		dev_info_ratelimited(dev,
 				"%s: %s: fail, attempted private mapping\n",
 				current->comm, func);

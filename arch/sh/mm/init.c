@@ -332,7 +332,6 @@ void __init mem_init(void)
 	cpu_cache_init();
 
 	/* clear the zero-page */
-	memset(empty_zero_page, 0, PAGE_SIZE);
 	__flush_wback_region(empty_zero_page, PAGE_SIZE);
 
 	vsyscall_init();

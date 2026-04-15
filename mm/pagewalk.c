@@ -5,7 +5,6 @@
 #include <linux/hugetlb.h>
 #include <linux/mmu_context.h>
 #include <linux/swap.h>
-#include <linux/leafops.h>
 
 #include <asm/tlbflush.h>
 
@@ -860,9 +859,6 @@ int walk_page_mapping(struct address_space *mapping, pgoff_t first_index,
  * VM as documented by vm_normal_page(). If requested, zeropages will be
  * returned as well.
  *
- * As default, this function only considers present page table entries.
- * If requested, it will also consider migration entries.
- *
  * If this function returns NULL it might either indicate "there is nothing" or
  * "there is nothing suitable".
  *
@@ -873,11 +869,10 @@ int walk_page_mapping(struct address_space *mapping, pgoff_t first_index,
  * that call.
  *
  * @fw->page will correspond to the page that is effectively referenced by
- * @addr. However, for migration entries and shared zeropages @fw->page is
- * set to NULL. Note that large folios might be mapped by multiple page table
- * entries, and this function will always only lookup a single entry as
- * specified by @addr, which might or might not cover more than a single page of
- * the returned folio.
+ * @addr. However, for shared zeropages @fw->page is set to NULL. Note that
+ * large folios might be mapped by multiple page table entries, and this
+ * function will always only lookup a single entry as specified by @addr, which
+ * might or might not cover more than a single page of the returned folio.
  *
  * This function must *not* be used as a naive replacement for
  * get_user_pages() / pin_user_pages(), especially not to perform DMA or
@@ -904,7 +899,7 @@ struct folio *folio_walk_start(struct folio_walk *fw,
 		folio_walk_flags_t flags)
 {
 	unsigned long entry_size;
-	bool expose_page = true;
+	bool zeropage = false;
 	struct page *page;
 	pud_t *pudp, pud;
 	pmd_t *pmdp, pmd;
@@ -952,10 +947,6 @@ struct folio *folio_walk_start(struct folio_walk *fw,
 			if (page)
 				goto found;
 		}
-		/*
-		 * TODO: FW_MIGRATION support for PUD migration entries
-		 * once there are relevant users.
-		 */
 		spin_unlock(ptl);
 		goto not_found;
 	}
@@ -989,16 +980,9 @@ pmd_table:
 			} else if ((flags & FW_ZEROPAGE) &&
 				    is_huge_zero_pmd(pmd)) {
 				page = pfn_to_page(pmd_pfn(pmd));
-				expose_page = false;
+				zeropage = true;
 				goto found;
 			}
-		} else if ((flags & FW_MIGRATION) &&
-			   pmd_is_migration_entry(pmd)) {
-			const softleaf_t entry = softleaf_from_pmd(pmd);
-
-			page = softleaf_to_page(entry);
-			expose_page = false;
-			goto found;
 		}
 		spin_unlock(ptl);
 		goto not_found;
@@ -1023,15 +1007,7 @@ pte_table:
 		if ((flags & FW_ZEROPAGE) &&
 		    is_zero_pfn(pte_pfn(pte))) {
 			page = pfn_to_page(pte_pfn(pte));
-			expose_page = false;
-			goto found;
-		}
-	} else if (!pte_none(pte)) {
-		const softleaf_t entry = softleaf_from_pte(pte);
-
-		if ((flags & FW_MIGRATION) && softleaf_is_migration(entry)) {
-			page = softleaf_to_page(entry);
-			expose_page = false;
+			zeropage = true;
 			goto found;
 		}
 	}
@@ -1040,7 +1016,7 @@ not_found:
 	vma_pgtable_walk_end(vma);
 	return NULL;
 found:
-	if (expose_page)
+	if (!zeropage)
 		/* Note: Offset from the mapped page, not the folio start. */
 		fw->page = page + ((addr & (entry_size - 1)) >> PAGE_SHIFT);
 	else

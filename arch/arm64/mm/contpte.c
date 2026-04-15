@@ -509,9 +509,8 @@ pte_t contpte_get_and_clear_full_ptes(struct mm_struct *mm,
 }
 EXPORT_SYMBOL_GPL(contpte_get_and_clear_full_ptes);
 
-int contpte_test_and_clear_young_ptes(struct vm_area_struct *vma,
-					unsigned long addr, pte_t *ptep,
-					unsigned int nr)
+bool contpte_test_and_clear_young_ptes(struct vm_area_struct *vma,
+		unsigned long addr, pte_t *ptep, unsigned int nr)
 {
 	/*
 	 * ptep_clear_flush_young() technically requires us to clear the access
@@ -526,7 +525,7 @@ int contpte_test_and_clear_young_ptes(struct vm_area_struct *vma,
 	 */
 
 	unsigned long end = addr + nr * PAGE_SIZE;
-	int young = 0;
+	bool young = false;
 
 	ptep = contpte_align_addr_ptep(&addr, &end, ptep, nr);
 	for (; addr != end; ptep++, addr += PAGE_SIZE)
@@ -536,11 +535,10 @@ int contpte_test_and_clear_young_ptes(struct vm_area_struct *vma,
 }
 EXPORT_SYMBOL_GPL(contpte_test_and_clear_young_ptes);
 
-int contpte_clear_flush_young_ptes(struct vm_area_struct *vma,
-				unsigned long addr, pte_t *ptep,
-				unsigned int nr)
+bool contpte_clear_flush_young_ptes(struct vm_area_struct *vma,
+		unsigned long addr, pte_t *ptep, unsigned int nr)
 {
-	int young;
+	bool young;
 
 	young = contpte_test_and_clear_young_ptes(vma, addr, ptep, nr);
 

@@ -98,7 +98,11 @@ struct vma_merge_struct {
 	unsigned long end;
 	pgoff_t pgoff;
 
-	vm_flags_t vm_flags;
+	union {
+		/* Temporary while VMA flags are being converted. */
+		vm_flags_t vm_flags;
+		vma_flags_t vma_flags;
+	};
 	struct file *file;
 	struct anon_vma *anon_vma;
 	struct mempolicy *policy;
@@ -233,13 +237,13 @@ static inline pgoff_t vma_pgoff_offset(struct vm_area_struct *vma,
 	return vma->vm_pgoff + PHYS_PFN(addr - vma->vm_start);
 }
 
-#define VMG_STATE(name, mm_, vmi_, start_, end_, vm_flags_, pgoff_)	\
+#define VMG_STATE(name, mm_, vmi_, start_, end_, vma_flags_, pgoff_)	\
 	struct vma_merge_struct name = {				\
 		.mm = mm_,						\
 		.vmi = vmi_,						\
 		.start = start_,					\
 		.end = end_,						\
-		.vm_flags = vm_flags_,					\
+		.vma_flags = vma_flags_,				\
 		.pgoff = pgoff_,					\
 		.state = VMA_MERGE_START,				\
 	}
@@ -296,7 +300,7 @@ static inline int vma_iter_store_gfp(struct vma_iterator *vmi,
  * f_op->mmap() but which might have an underlying file system which implements
  * f_op->mmap_prepare().
  */
-static inline void set_vma_from_desc(struct vm_area_struct *vma,
+static inline void compat_set_vma_from_desc(struct vm_area_struct *vma,
 		struct vm_area_desc *desc)
 {
 	/*
@@ -338,24 +342,23 @@ void unmap_region(struct unmap_desc *unmap);
  * @vma: The VMA containing the range @start to @end to be updated.
  * @start: The start of the range to update. May be offset within @vma.
  * @end: The exclusive end of the range to update, may be offset within @vma.
- * @vm_flags_ptr: A pointer to the VMA flags that the @start to @end range is
+ * @vma_flags_ptr: A pointer to the VMA flags that the @start to @end range is
  * about to be set to. On merge, this will be updated to include sticky flags.
  *
  * IMPORTANT: The actual modification being requested here is NOT applied,
  * rather the VMA is perhaps split, perhaps merged to accommodate the change,
  * and the caller is expected to perform the actual modification.
  *
- * In order to account for sticky VMA flags, the @vm_flags_ptr parameter points
+ * In order to account for sticky VMA flags, the @vma_flags_ptr parameter points
  * to the requested flags which are then updated so the caller, should they
  * overwrite any existing flags, correctly retains these.
  *
  * Returns: A VMA which contains the range @start to @end ready to have its
- * flags altered to *@vm_flags.
+ * flags altered to *@vma_flags.
  */
 __must_check struct vm_area_struct *vma_modify_flags(struct vma_iterator *vmi,
 		struct vm_area_struct *prev, struct vm_area_struct *vma,
-		unsigned long start, unsigned long end,
-		vm_flags_t *vm_flags_ptr);
+		unsigned long start, unsigned long end, vma_flags_t *vma_flags_ptr);
 
 /**
  * vma_modify_name() - Perform any necessary split/merge in preparation for
@@ -414,7 +417,7 @@ __must_check struct vm_area_struct *vma_modify_policy(struct vma_iterator *vmi,
  * @vma: The VMA containing the range @start to @end to be updated.
  * @start: The start of the range to update. May be offset within @vma.
  * @end: The exclusive end of the range to update, may be offset within @vma.
- * @vm_flags: The VMA flags that the @start to @end range is about to be set to.
+ * @vma_flags: The VMA flags that the @start to @end range is about to be set to.
  * @new_ctx: The userfaultfd context that the @start to @end range is about to
  * be set to.
  * @give_up_on_oom: If an out of memory condition occurs on merge, simply give
@@ -425,11 +428,11 @@ __must_check struct vm_area_struct *vma_modify_policy(struct vma_iterator *vmi,
  * and the caller is expected to perform the actual modification.
  *
  * Returns: A VMA which contains the range @start to @end ready to have its VMA
- * flags changed to @vm_flags and its userfaultfd context changed to @new_ctx.
+ * flags changed to @vma_flags and its userfaultfd context changed to @new_ctx.
  */
 __must_check struct vm_area_struct *vma_modify_flags_uffd(struct vma_iterator *vmi,
 		struct vm_area_struct *prev, struct vm_area_struct *vma,
-		unsigned long start, unsigned long end, vm_flags_t vm_flags,
+		unsigned long start, unsigned long end, const vma_flags_t *vma_flags,
 		struct vm_userfaultfd_ctx new_ctx, bool give_up_on_oom);
 
 __must_check struct vm_area_struct *vma_merge_new_range(struct vma_merge_struct *vmg);
@@ -461,7 +464,8 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
 		struct list_head *uf);
 
 int do_brk_flags(struct vma_iterator *vmi, struct vm_area_struct *brkvma,
-		 unsigned long addr, unsigned long request, unsigned long flags);
+		 unsigned long addr, unsigned long request,
+		 vma_flags_t vma_flags);
 
 unsigned long unmapped_area(struct vm_unmapped_area_info *info);
 unsigned long unmapped_area_topdown(struct vm_unmapped_area_info *info);
@@ -523,6 +527,11 @@ static inline bool is_data_mapping(vm_flags_t flags)
 	return (flags & (VM_WRITE | VM_SHARED | VM_STACK)) == VM_WRITE;
 }
 
+static inline bool is_data_mapping_vma_flags(const vma_flags_t *vma_flags)
+{
+	return vma_flags_test(vma_flags, VMA_WRITE_BIT) &&
+		!vma_flags_test_any(vma_flags, VMA_SHARED_BIT, VMA_STACK_BIT);
+}
 
 static inline void vma_iter_config(struct vma_iterator *vmi,
 		unsigned long index, unsigned long last)
@@ -691,6 +700,57 @@ void vm_area_free(struct vm_area_struct *vma);
 int create_init_stack_vma(struct mm_struct *mm, struct vm_area_struct **vmap,
 			  unsigned long *top_mem_p);
 int relocate_vma_down(struct vm_area_struct *vma, unsigned long shift);
+#endif
+
+#ifdef CONFIG_MMU
+/*
+ * Denies creating a writable executable mapping or gaining executable permissions.
+ *
+ * This denies the following:
+ *
+ *	a)	mmap(PROT_WRITE | PROT_EXEC)
+ *
+ *	b)	mmap(PROT_WRITE)
+ *		mprotect(PROT_EXEC)
+ *
+ *	c)	mmap(PROT_WRITE)
+ *		mprotect(PROT_READ)
+ *		mprotect(PROT_EXEC)
+ *
+ * But allows the following:
+ *
+ *	d)	mmap(PROT_READ | PROT_EXEC)
+ *		mmap(PROT_READ | PROT_EXEC | PROT_BTI)
+ *
+ * This is only applicable if the user has set the Memory-Deny-Write-Execute
+ * (MDWE) protection mask for the current process.
+ *
+ * @old specifies the VMA flags the VMA originally possessed, and @new the ones
+ * we propose to set.
+ *
+ * Return: false if proposed change is OK, true if not ok and should be denied.
+ */
+static inline bool map_deny_write_exec(const vma_flags_t *old,
+				       const vma_flags_t *new)
+{
+	/* If MDWE is disabled, we have nothing to deny. */
+	if (!mm_flags_test(MMF_HAS_MDWE, current->mm))
+		return false;
+
+	/* If the new VMA is not executable, we have nothing to deny. */
+	if (!vma_flags_test(new, VMA_EXEC_BIT))
+		return false;
+
+	/* Under MDWE we do not accept newly writably executable VMAs... */
+	if (vma_flags_test(new, VMA_WRITE_BIT))
+		return true;
+
+	/* ...nor previously non-executable VMAs becoming executable. */
+	if (!vma_flags_test(old, VMA_EXEC_BIT))
+		return true;
+
+	return false;
+}
 #endif
 
 #endif	/* __MM_VMA_H */

@@ -35,6 +35,24 @@
 #define ASSERT_EQ(_val1, _val2) ASSERT_TRUE((_val1) == (_val2))
 #define ASSERT_NE(_val1, _val2) ASSERT_TRUE((_val1) != (_val2))
 
+#define ASSERT_FLAGS_SAME_MASK(_flags, _flags_other) \
+	ASSERT_TRUE(vma_flags_same_mask((_flags), (_flags_other)))
+
+#define ASSERT_FLAGS_NOT_SAME_MASK(_flags, _flags_other) \
+	ASSERT_FALSE(vma_flags_same_mask((_flags), (_flags_other)))
+
+#define ASSERT_FLAGS_SAME(_flags, ...) \
+	ASSERT_TRUE(vma_flags_same(_flags, __VA_ARGS__))
+
+#define ASSERT_FLAGS_NOT_SAME(_flags, ...) \
+	ASSERT_FALSE(vma_flags_same(_flags, __VA_ARGS__))
+
+#define ASSERT_FLAGS_EMPTY(_flags) \
+	ASSERT_TRUE(vma_flags_empty(_flags))
+
+#define ASSERT_FLAGS_NONEMPTY(_flags) \
+	ASSERT_FALSE(vma_flags_empty(_flags))
+
 #define IS_SET(_val, _flags) ((_val & _flags) == _flags)
 
 extern bool fail_prealloc;
@@ -76,7 +94,7 @@ static inline void dummy_close(struct vm_area_struct *)
 /* Helper function to simply allocate a VMA. */
 struct vm_area_struct *alloc_vma(struct mm_struct *mm,
 		unsigned long start, unsigned long end,
-		pgoff_t pgoff, vm_flags_t vm_flags);
+		pgoff_t pgoff, vma_flags_t vma_flags);
 
 /* Helper function to detach and free a VMA. */
 void detach_free_vma(struct vm_area_struct *vma);
@@ -84,7 +102,7 @@ void detach_free_vma(struct vm_area_struct *vma);
 /* Helper function to allocate a VMA and link it to the tree. */
 struct vm_area_struct *alloc_and_link_vma(struct mm_struct *mm,
 		unsigned long start, unsigned long end,
-		pgoff_t pgoff, vm_flags_t vm_flags);
+		pgoff_t pgoff, vma_flags_t vma_flags);
 
 /*
  * Helper function to reset the dummy anon_vma to indicate it has not been

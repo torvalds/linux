@@ -63,15 +63,12 @@ phys_addr_t phys_ram_base __ro_after_init;
 EXPORT_SYMBOL(phys_ram_base);
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
-#define VMEMMAP_ADDR_ALIGN	(1ULL << SECTION_SIZE_BITS)
+#define VMEMMAP_ADDR_ALIGN	max(1ULL << SECTION_SIZE_BITS, \
+				    MAX_FOLIO_VMEMMAP_ALIGN)
 
 unsigned long vmemmap_start_pfn __ro_after_init;
 EXPORT_SYMBOL(vmemmap_start_pfn);
 #endif
-
-unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)]
-							__page_aligned_bss;
-EXPORT_SYMBOL(empty_zero_page);
 
 extern char _start[];
 void *_dtb_early_va __initdata;

@@ -217,7 +217,7 @@ MPOL_PREFERRED
 	the MPOL_F_STATIC_NODES or MPOL_F_RELATIVE_NODES flags
 	described below.
 
-MPOL_INTERLEAVED
+MPOL_INTERLEAVE
 	This mode specifies that page allocations be interleaved, on a
 	page granularity, across the nodes specified in the policy.
 	This mode also behaves slightly differently, based on the

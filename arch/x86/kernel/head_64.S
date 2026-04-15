@@ -684,10 +684,3 @@ SYM_PIC_ALIAS(phys_base);
 EXPORT_SYMBOL(phys_base)
 
 #include "../xen/xen-head.S"
-
-	__PAGE_ALIGNED_BSS
-SYM_DATA_START_PAGE_ALIGNED(empty_zero_page)
-	.skip PAGE_SIZE
-SYM_DATA_END(empty_zero_page)
-EXPORT_SYMBOL(empty_zero_page)
-

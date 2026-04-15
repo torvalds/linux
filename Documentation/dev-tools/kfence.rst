@@ -81,6 +81,13 @@ tables being allocated.
 Error reports
 ~~~~~~~~~~~~~
 
+The boot parameter ``kfence.fault`` can be used to control the behavior when a
+KFENCE error is detected:
+
+- ``kfence.fault=report``: Print the error report and continue (default).
+- ``kfence.fault=oops``: Print the error report and oops.
+- ``kfence.fault=panic``: Print the error report and panic.
+
 A typical out-of-bounds access looks like this::
 
     ==================================================================

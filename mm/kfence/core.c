@@ -51,7 +51,7 @@
 
 /* === Data ================================================================= */
 
-static bool kfence_enabled __read_mostly;
+bool kfence_enabled __read_mostly;
 static bool disabled_by_warn __read_mostly;
 
 unsigned long kfence_sample_interval __read_mostly = CONFIG_KFENCE_SAMPLE_INTERVAL;
@@ -336,6 +336,7 @@ out:
 static check_canary_attributes bool check_canary_byte(u8 *addr)
 {
 	struct kfence_metadata *meta;
+	enum kfence_fault fault;
 	unsigned long flags;
 
 	if (likely(*addr == KFENCE_CANARY_PATTERN_U8(addr)))
@@ -345,8 +346,9 @@ static check_canary_attributes bool check_canary_byte(u8 *addr)
 
 	meta = addr_to_metadata((unsigned long)addr);
 	raw_spin_lock_irqsave(&meta->lock, flags);
-	kfence_report_error((unsigned long)addr, false, NULL, meta, KFENCE_ERROR_CORRUPTION);
+	fault = kfence_report_error((unsigned long)addr, false, NULL, meta, KFENCE_ERROR_CORRUPTION);
 	raw_spin_unlock_irqrestore(&meta->lock, flags);
+	kfence_handle_fault(fault);
 
 	return false;
 }
@@ -525,11 +527,14 @@ static void kfence_guarded_free(void *addr, struct kfence_metadata *meta, bool z
 	raw_spin_lock_irqsave(&meta->lock, flags);
 
 	if (!kfence_obj_allocated(meta) || meta->addr != (unsigned long)addr) {
+		enum kfence_fault fault;
+
 		/* Invalid or double-free, bail out. */
 		atomic_long_inc(&counters[KFENCE_COUNTER_BUGS]);
-		kfence_report_error((unsigned long)addr, false, NULL, meta,
-				    KFENCE_ERROR_INVALID_FREE);
+		fault = kfence_report_error((unsigned long)addr, false, NULL, meta,
+					    KFENCE_ERROR_INVALID_FREE);
 		raw_spin_unlock_irqrestore(&meta->lock, flags);
+		kfence_handle_fault(fault);
 		return;
 	}
 
@@ -831,7 +836,8 @@ static void kfence_check_all_canary(void)
 static int kfence_check_canary_callback(struct notifier_block *nb,
 					unsigned long reason, void *arg)
 {
-	kfence_check_all_canary();
+	if (READ_ONCE(kfence_enabled))
+		kfence_check_all_canary();
 	return NOTIFY_OK;
 }
 
@@ -1266,6 +1272,7 @@ bool kfence_handle_page_fault(unsigned long addr, bool is_write, struct pt_regs 
 	struct kfence_metadata *to_report = NULL;
 	unsigned long unprotected_page = 0;
 	enum kfence_error_type error_type;
+	enum kfence_fault fault;
 	unsigned long flags;
 
 	if (!is_kfence_address((void *)addr))
@@ -1324,12 +1331,14 @@ out:
 	if (to_report) {
 		raw_spin_lock_irqsave(&to_report->lock, flags);
 		to_report->unprotected_page = unprotected_page;
-		kfence_report_error(addr, is_write, regs, to_report, error_type);
+		fault = kfence_report_error(addr, is_write, regs, to_report, error_type);
 		raw_spin_unlock_irqrestore(&to_report->lock, flags);
 	} else {
 		/* This may be a UAF or OOB access, but we can't be sure. */
-		kfence_report_error(addr, is_write, regs, NULL, KFENCE_ERROR_INVALID);
+		fault = kfence_report_error(addr, is_write, regs, NULL, KFENCE_ERROR_INVALID);
 	}
+
+	kfence_handle_fault(fault);
 
 	return kfence_unprotect(addr); /* Unprotect and let access proceed. */
 }

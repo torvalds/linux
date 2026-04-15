@@ -43,8 +43,6 @@ void __init paging_init(void)
 	unsigned long bootmem_end;
 	unsigned long size;
 
-	empty_zero_page = memblock_alloc_or_panic(PAGE_SIZE, PAGE_SIZE);
-
 	address = PAGE_OFFSET;
 	pg_dir = swapper_pg_dir;
 	memset (swapper_pg_dir, 0, sizeof (swapper_pg_dir));

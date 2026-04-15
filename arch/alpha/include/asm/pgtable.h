@@ -127,12 +127,6 @@ struct vm_area_struct;
 #define pgprot_noncached(prot)	(prot)
 
 /*
- * ZERO_PAGE is a global shared page that is always zero:  used
- * for zero-mapped memory areas etc..
- */
-#define ZERO_PAGE(vaddr)	(virt_to_page(ZERO_PGE))
-
-/*
  * On certain platforms whose physical address space can overlap KSEG,
  * namely EV6 and above, we must re-twiddle the physaddr to restore the
  * correct high-order bits.

@@ -37,6 +37,7 @@ struct swap_cluster_info {
 	u8 flags;
 	u8 order;
 	atomic_long_t __rcu *table;	/* Swap table entries, see mm/swap_table.h */
+	unsigned int *extend_table;	/* For large swap count, protected by ci->lock */
 	struct list_head list;
 };
 
@@ -84,7 +85,7 @@ static inline struct swap_cluster_info *__swap_offset_to_cluster(
 		struct swap_info_struct *si, pgoff_t offset)
 {
 	VM_WARN_ON_ONCE(percpu_ref_is_zero(&si->users)); /* race with swapoff */
-	VM_WARN_ON_ONCE(offset >= si->max);
+	VM_WARN_ON_ONCE(offset >= roundup(si->max, SWAPFILE_CLUSTER));
 	return &si->cluster_info[offset / SWAPFILE_CLUSTER];
 }
 
@@ -183,6 +184,8 @@ static inline void swap_cluster_unlock_irq(struct swap_cluster_info *ci)
 	spin_unlock_irq(&ci->lock);
 }
 
+extern int swap_retry_table_alloc(swp_entry_t entry, gfp_t gfp);
+
 /*
  * Below are the core routines for doing swap for a folio.
  * All helpers requires the folio to be locked, and a locked folio
@@ -192,12 +195,13 @@ static inline void swap_cluster_unlock_irq(struct swap_cluster_info *ci)
  *
  * folio_alloc_swap(): the entry point for a folio to be swapped
  * out. It allocates swap slots and pins the slots with swap cache.
- * The slots start with a swap count of zero.
+ * The slots start with a swap count of zero. The slots are pinned
+ * by swap cache reference which doesn't contribute to swap count.
  *
  * folio_dup_swap(): increases the swap count of a folio, usually
  * during it gets unmapped and a swap entry is installed to replace
  * it (e.g., swap entry in page table). A swap slot with swap
- * count == 0 should only be increasd by this helper.
+ * count == 0 can only be increased by this helper.
  *
  * folio_put_swap(): does the opposite thing of folio_dup_swap().
  */
@@ -206,9 +210,9 @@ int folio_dup_swap(struct folio *folio, struct page *subpage);
 void folio_put_swap(struct folio *folio, struct page *subpage);
 
 /* For internal use */
-extern void swap_entries_free(struct swap_info_struct *si,
-			      struct swap_cluster_info *ci,
-			      unsigned long offset, unsigned int nr_pages);
+extern void __swap_cluster_free_entries(struct swap_info_struct *si,
+					struct swap_cluster_info *ci,
+					unsigned int ci_off, unsigned int nr_pages);
 
 /* linux/mm/page_io.c */
 int sio_pool_init(void);
@@ -286,7 +290,6 @@ void __swap_cache_del_folio(struct swap_cluster_info *ci,
 			    struct folio *folio, swp_entry_t entry, void *shadow);
 void __swap_cache_replace_folio(struct swap_cluster_info *ci,
 				struct folio *old, struct folio *new);
-void __swap_cache_clear_shadow(swp_entry_t entry, int nr_ents);
 
 void show_swap_cache_info(void);
 void swapcache_clear(struct swap_info_struct *si, swp_entry_t entry, int nr);
@@ -444,6 +447,11 @@ static inline int swap_writeout(struct folio *folio,
 		struct swap_iocb **swap_plug)
 {
 	return 0;
+}
+
+static inline int swap_retry_table_alloc(swp_entry_t entry, gfp_t gfp)
+{
+	return -EINVAL;
 }
 
 static inline bool swap_cache_has_folio(swp_entry_t entry)

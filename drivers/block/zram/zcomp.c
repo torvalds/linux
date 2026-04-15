@@ -84,9 +84,14 @@ static const struct zcomp_ops *lookup_backend_ops(const char *comp)
 	return backends[i];
 }
 
-bool zcomp_available_algorithm(const char *comp)
+const char *zcomp_lookup_backend_name(const char *comp)
 {
-	return lookup_backend_ops(comp) != NULL;
+	const struct zcomp_ops *backend = lookup_backend_ops(comp);
+
+	if (backend)
+		return backend->name;
+
+	return NULL;
 }
 
 /* show available compressors */

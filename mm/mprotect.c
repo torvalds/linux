@@ -697,7 +697,8 @@ mprotect_fixup(struct vma_iterator *vmi, struct mmu_gather *tlb,
 	       unsigned long start, unsigned long end, vm_flags_t newflags)
 {
 	struct mm_struct *mm = vma->vm_mm;
-	vm_flags_t oldflags = READ_ONCE(vma->vm_flags);
+	const vma_flags_t old_vma_flags = READ_ONCE(vma->flags);
+	vma_flags_t new_vma_flags = legacy_to_vma_flags(newflags);
 	long nrpages = (end - start) >> PAGE_SHIFT;
 	unsigned int mm_cp_flags = 0;
 	unsigned long charged = 0;
@@ -706,7 +707,7 @@ mprotect_fixup(struct vma_iterator *vmi, struct mmu_gather *tlb,
 	if (vma_is_sealed(vma))
 		return -EPERM;
 
-	if (newflags == oldflags) {
+	if (vma_flags_same_pair(&old_vma_flags, &new_vma_flags)) {
 		*pprev = vma;
 		return 0;
 	}
@@ -717,8 +718,9 @@ mprotect_fixup(struct vma_iterator *vmi, struct mmu_gather *tlb,
 	 * uncommon case, so doesn't need to be very optimized.
 	 */
 	if (arch_has_pfn_modify_check() &&
-	    (oldflags & (VM_PFNMAP|VM_MIXEDMAP)) &&
-	    (newflags & VM_ACCESS_FLAGS) == 0) {
+	    vma_flags_test_any(&old_vma_flags, VMA_PFNMAP_BIT,
+			       VMA_MIXEDMAP_BIT) &&
+	    !vma_flags_test_any_mask(&new_vma_flags, VMA_ACCESS_FLAGS)) {
 		pgprot_t new_pgprot = vm_get_page_prot(newflags);
 
 		error = walk_page_range(current->mm, start, end,
@@ -736,24 +738,25 @@ mprotect_fixup(struct vma_iterator *vmi, struct mmu_gather *tlb,
 	 * hugetlb mapping were accounted for even if read-only so there is
 	 * no need to account for them here.
 	 */
-	if (newflags & VM_WRITE) {
+	if (vma_flags_test(&new_vma_flags, VMA_WRITE_BIT)) {
 		/* Check space limits when area turns into data. */
-		if (!may_expand_vm(mm, newflags, nrpages) &&
-				may_expand_vm(mm, oldflags, nrpages))
+		if (!may_expand_vm(mm, &new_vma_flags, nrpages) &&
+		    may_expand_vm(mm, &old_vma_flags, nrpages))
 			return -ENOMEM;
-		if (!(oldflags & (VM_ACCOUNT|VM_WRITE|VM_HUGETLB|
-						VM_SHARED|VM_NORESERVE))) {
+		if (!vma_flags_test_any(&old_vma_flags,
+				VMA_ACCOUNT_BIT, VMA_WRITE_BIT, VMA_HUGETLB_BIT,
+				VMA_SHARED_BIT, VMA_NORESERVE_BIT)) {
 			charged = nrpages;
 			if (security_vm_enough_memory_mm(mm, charged))
 				return -ENOMEM;
-			newflags |= VM_ACCOUNT;
+			vma_flags_set(&new_vma_flags, VMA_ACCOUNT_BIT);
 		}
-	} else if ((oldflags & VM_ACCOUNT) && vma_is_anonymous(vma) &&
-		   !vma->anon_vma) {
-		newflags &= ~VM_ACCOUNT;
+	} else if (vma_flags_test(&old_vma_flags, VMA_ACCOUNT_BIT) &&
+		   vma_is_anonymous(vma) && !vma->anon_vma) {
+		vma_flags_clear(&new_vma_flags, VMA_ACCOUNT_BIT);
 	}
 
-	vma = vma_modify_flags(vmi, *pprev, vma, start, end, &newflags);
+	vma = vma_modify_flags(vmi, *pprev, vma, start, end, &new_vma_flags);
 	if (IS_ERR(vma)) {
 		error = PTR_ERR(vma);
 		goto fail;
@@ -766,26 +769,28 @@ mprotect_fixup(struct vma_iterator *vmi, struct mmu_gather *tlb,
 	 * held in write mode.
 	 */
 	vma_start_write(vma);
-	vm_flags_reset_once(vma, newflags);
+	vma_flags_reset_once(vma, &new_vma_flags);
 	if (vma_wants_manual_pte_write_upgrade(vma))
 		mm_cp_flags |= MM_CP_TRY_CHANGE_WRITABLE;
 	vma_set_page_prot(vma);
 
 	change_protection(tlb, vma, start, end, mm_cp_flags);
 
-	if ((oldflags & VM_ACCOUNT) && !(newflags & VM_ACCOUNT))
+	if (vma_flags_test(&old_vma_flags, VMA_ACCOUNT_BIT) &&
+	    !vma_flags_test(&new_vma_flags, VMA_ACCOUNT_BIT))
 		vm_unacct_memory(nrpages);
 
 	/*
 	 * Private VM_LOCKED VMA becoming writable: trigger COW to avoid major
 	 * fault on access.
 	 */
-	if ((oldflags & (VM_WRITE | VM_SHARED | VM_LOCKED)) == VM_LOCKED &&
-			(newflags & VM_WRITE)) {
+	if (vma_flags_test(&new_vma_flags, VMA_WRITE_BIT) &&
+	    vma_flags_test(&old_vma_flags, VMA_LOCKED_BIT) &&
+	    !vma_flags_test_any(&old_vma_flags, VMA_WRITE_BIT, VMA_SHARED_BIT))
 		populate_vma_page_range(vma, start, end, NULL);
-	}
 
-	vm_stat_account(mm, oldflags, -nrpages);
+	vm_stat_account(mm, vma_flags_to_legacy(old_vma_flags), -nrpages);
+	newflags = vma_flags_to_legacy(new_vma_flags);
 	vm_stat_account(mm, newflags, nrpages);
 	perf_event_mmap(vma);
 	return 0;
@@ -873,6 +878,7 @@ static int do_mprotect_pkey(unsigned long start, size_t len,
 	tmp = vma->vm_start;
 	for_each_vma_range(vmi, vma, end) {
 		vm_flags_t mask_off_old_flags;
+		vma_flags_t new_vma_flags;
 		vm_flags_t newflags;
 		int new_vma_pkey;
 
@@ -895,6 +901,7 @@ static int do_mprotect_pkey(unsigned long start, size_t len,
 		new_vma_pkey = arch_override_mprotect_pkey(vma, prot, pkey);
 		newflags = calc_vm_prot_bits(prot, new_vma_pkey);
 		newflags |= (vma->vm_flags & ~mask_off_old_flags);
+		new_vma_flags = legacy_to_vma_flags(newflags);
 
 		/* newflags >> 4 shift VM_MAY% in place of VM_% */
 		if ((newflags & ~(newflags >> 4)) & VM_ACCESS_FLAGS) {
@@ -902,7 +909,7 @@ static int do_mprotect_pkey(unsigned long start, size_t len,
 			break;
 		}
 
-		if (map_deny_write_exec(vma->vm_flags, newflags)) {
+		if (map_deny_write_exec(&vma->flags, &new_vma_flags)) {
 			error = -EACCES;
 			break;
 		}
@@ -978,7 +985,7 @@ SYSCALL_DEFINE2(pkey_alloc, unsigned long, flags, unsigned long, init_val)
 	if (pkey == -1)
 		goto out;
 
-	ret = arch_set_user_pkey_access(current, pkey, init_val);
+	ret = arch_set_user_pkey_access(pkey, init_val);
 	if (ret) {
 		mm_pkey_free(current->mm, pkey);
 		goto out;

@@ -74,15 +74,6 @@
 struct mm_struct;
 struct vm_area_struct;
 
-/*
- * ZERO_PAGE is a global shared page that is always zero; used
- * for zero-mapped memory areas etc..
- */
-
-extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
-
-#define ZERO_PAGE(vaddr)	virt_to_page(empty_zero_page)
-
 #ifdef CONFIG_32BIT
 
 #define VMALLOC_START	(vm_map_base + PCI_IOSIZE + (2 * PAGE_SIZE))
@@ -113,7 +104,8 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 	 min(PTRS_PER_PGD * PTRS_PER_PUD * PTRS_PER_PMD * PTRS_PER_PTE * PAGE_SIZE, (1UL << cpu_vabits) / 2) - PMD_SIZE - VMEMMAP_SIZE - KFENCE_AREA_SIZE)
 #endif
 
-#define vmemmap		((struct page *)((VMALLOC_END + PMD_SIZE) & PMD_MASK))
+#define VMEMMAP_ALIGN	max(PMD_SIZE, MAX_FOLIO_VMEMMAP_ALIGN)
+#define vmemmap		((struct page *)(ALIGN(VMALLOC_END, VMEMMAP_ALIGN)))
 #define VMEMMAP_END	((unsigned long)vmemmap + VMEMMAP_SIZE - 1)
 
 #define KFENCE_AREA_START	(VMEMMAP_END + 1)

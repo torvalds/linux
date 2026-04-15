@@ -13,7 +13,7 @@
 #include <linux/swap.h>
 #include <linux/swapops.h>
 #include <linux/pagemap.h>
-#include <linux/pagevec.h>
+#include <linux/folio_batch.h>
 #include <linux/pagewalk.h>
 #include <linux/mempolicy.h>
 #include <linux/syscalls.h>
@@ -415,13 +415,14 @@ out:
  * @vma - vma containing range to be mlock()ed or munlock()ed
  * @start - start address in @vma of the range
  * @end - end of range in @vma
- * @newflags - the new set of flags for @vma.
+ * @new_vma_flags - the new set of flags for @vma.
  *
  * Called for mlock(), mlock2() and mlockall(), to set @vma VM_LOCKED;
  * called for munlock() and munlockall(), to clear VM_LOCKED from @vma.
  */
 static void mlock_vma_pages_range(struct vm_area_struct *vma,
-	unsigned long start, unsigned long end, vm_flags_t newflags)
+	unsigned long start, unsigned long end,
+	vma_flags_t *new_vma_flags)
 {
 	static const struct mm_walk_ops mlock_walk_ops = {
 		.pmd_entry = mlock_pte_range,
@@ -439,18 +440,18 @@ static void mlock_vma_pages_range(struct vm_area_struct *vma,
 	 * combination should not be visible to other mmap_lock users;
 	 * but WRITE_ONCE so rmap walkers must see VM_IO if VM_LOCKED.
 	 */
-	if (newflags & VM_LOCKED)
-		newflags |= VM_IO;
+	if (vma_flags_test(new_vma_flags, VMA_LOCKED_BIT))
+		vma_flags_set(new_vma_flags, VMA_IO_BIT);
 	vma_start_write(vma);
-	vm_flags_reset_once(vma, newflags);
+	vma_flags_reset_once(vma, new_vma_flags);
 
 	lru_add_drain();
 	walk_page_range(vma->vm_mm, start, end, &mlock_walk_ops, NULL);
 	lru_add_drain();
 
-	if (newflags & VM_IO) {
-		newflags &= ~VM_IO;
-		vm_flags_reset_once(vma, newflags);
+	if (vma_flags_test(new_vma_flags, VMA_IO_BIT)) {
+		vma_flags_clear(new_vma_flags, VMA_IO_BIT);
+		vma_flags_reset_once(vma, new_vma_flags);
 	}
 }
 
@@ -467,18 +468,22 @@ static int mlock_fixup(struct vma_iterator *vmi, struct vm_area_struct *vma,
 	       struct vm_area_struct **prev, unsigned long start,
 	       unsigned long end, vm_flags_t newflags)
 {
+	vma_flags_t new_vma_flags = legacy_to_vma_flags(newflags);
+	const vma_flags_t old_vma_flags = vma->flags;
 	struct mm_struct *mm = vma->vm_mm;
 	int nr_pages;
 	int ret = 0;
-	vm_flags_t oldflags = vma->vm_flags;
 
-	if (newflags == oldflags || (oldflags & VM_SPECIAL) ||
-	    is_vm_hugetlb_page(vma) || vma == get_gate_vma(current->mm) ||
-	    vma_is_dax(vma) || vma_is_secretmem(vma) || (oldflags & VM_DROPPABLE))
-		/* don't set VM_LOCKED or VM_LOCKONFAULT and don't count */
+	if (vma_flags_same_pair(&old_vma_flags, &new_vma_flags) ||
+	    vma_is_secretmem(vma) || !vma_supports_mlock(vma)) {
+		/*
+		 * Don't set VM_LOCKED or VM_LOCKONFAULT and don't count.
+		 * For secretmem, don't allow the memory to be unlocked.
+		 */
 		goto out;
+	}
 
-	vma = vma_modify_flags(vmi, *prev, vma, start, end, &newflags);
+	vma = vma_modify_flags(vmi, *prev, vma, start, end, &new_vma_flags);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto out;
@@ -488,9 +493,9 @@ static int mlock_fixup(struct vma_iterator *vmi, struct vm_area_struct *vma,
 	 * Keep track of amount of locked VM.
 	 */
 	nr_pages = (end - start) >> PAGE_SHIFT;
-	if (!(newflags & VM_LOCKED))
+	if (!vma_flags_test(&new_vma_flags, VMA_LOCKED_BIT))
 		nr_pages = -nr_pages;
-	else if (oldflags & VM_LOCKED)
+	else if (vma_flags_test(&old_vma_flags, VMA_LOCKED_BIT))
 		nr_pages = 0;
 	mm->locked_vm += nr_pages;
 
@@ -499,12 +504,13 @@ static int mlock_fixup(struct vma_iterator *vmi, struct vm_area_struct *vma,
 	 * It's okay if try_to_unmap_one unmaps a page just after we
 	 * set VM_LOCKED, populate_vma_page_range will bring it back.
 	 */
-	if ((newflags & VM_LOCKED) && (oldflags & VM_LOCKED)) {
+	if (vma_flags_test(&new_vma_flags, VMA_LOCKED_BIT) &&
+	    vma_flags_test(&old_vma_flags, VMA_LOCKED_BIT)) {
 		/* No work to do, and mlocking twice would be wrong */
 		vma_start_write(vma);
-		vm_flags_reset(vma, newflags);
+		vma->flags = new_vma_flags;
 	} else {
-		mlock_vma_pages_range(vma, start, end, newflags);
+		mlock_vma_pages_range(vma, start, end, &new_vma_flags);
 	}
 out:
 	*prev = vma;

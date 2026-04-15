@@ -352,8 +352,8 @@ bool __kasan_mempool_poison_object(void *ptr, unsigned long ip);
  * kasan_mempool_unpoison_object().
  *
  * This function operates on all slab allocations including large kmalloc
- * allocations (the ones returned by kmalloc_large() or by kmalloc() with the
- * size > KMALLOC_MAX_SIZE).
+ * allocations (i.e. the ones backed directly by the buddy allocator rather
+ * than kmalloc slab caches).
  *
  * Return: true if the allocation can be safely reused; false otherwise.
  */
@@ -381,8 +381,8 @@ void __kasan_mempool_unpoison_object(void *ptr, size_t size, unsigned long ip);
  * original tags based on the pointer value.
  *
  * This function operates on all slab allocations including large kmalloc
- * allocations (the ones returned by kmalloc_large() or by kmalloc() with the
- * size > KMALLOC_MAX_SIZE).
+ * allocations (i.e. the ones backed directly by the buddy allocator rather
+ * than kmalloc slab caches).
  */
 static __always_inline void kasan_mempool_unpoison_object(void *ptr,
 							  size_t size)

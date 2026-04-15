@@ -17,7 +17,6 @@ EXPORT_SYMBOL(raw_copy_to_user);
 EXPORT_SYMBOL(__vmgetie);
 EXPORT_SYMBOL(__vmsetie);
 EXPORT_SYMBOL(__vmyield);
-EXPORT_SYMBOL(empty_zero_page);
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memset);
 

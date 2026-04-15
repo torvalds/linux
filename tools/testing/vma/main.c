@@ -14,6 +14,8 @@
 #include "tests/mmap.c"
 #include "tests/vma.c"
 
+int sysctl_max_map_count __read_mostly = DEFAULT_MAX_MAP_COUNT;
+
 /* Helper functions which utilise static kernel functions. */
 
 struct vm_area_struct *merge_existing(struct vma_merge_struct *vmg)
