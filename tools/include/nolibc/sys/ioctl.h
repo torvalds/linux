@@ -19,11 +19,11 @@
  */
 
 static __attribute__((unused))
-long sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
+long _sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
 {
-	return my_syscall3(__NR_ioctl, fd, cmd, arg);
+	return __nolibc_syscall3(__NR_ioctl, fd, cmd, arg);
 }
 
-#define ioctl(fd, cmd, arg) __sysret(sys_ioctl(fd, cmd, (unsigned long)(arg)))
+#define ioctl(fd, cmd, arg) __sysret(_sys_ioctl(fd, cmd, (unsigned long)(arg)))
 
 #endif /* _NOLIBC_SYS_IOCTL_H */

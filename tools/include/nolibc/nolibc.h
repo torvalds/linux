@@ -12,24 +12,24 @@
  *
  * Syscalls are split into 3 levels:
  *   - The lower level is the arch-specific syscall() definition, consisting in
- *     assembly code in compound expressions. These are called my_syscall0() to
- *     my_syscall6() depending on the number of arguments. All input arguments
+ *     assembly code in compound expressions. These are called __nolibc_syscall0() to
+ *     __nolibc_syscall6() depending on the number of arguments. All input arguments
  *     are castto a long stored in a register. These expressions always return
  *     the syscall's return value as a signed long value which is often either
  *     a pointer or the negated errno value.
  *
  *   - The second level is mostly architecture-independent. It is made of
- *     static functions called sys_<name>() which rely on my_syscallN()
+ *     static functions called _sys_<name>() which rely on __nolibc_syscallN()
  *     depending on the syscall definition. These functions are responsible
  *     for exposing the appropriate types for the syscall arguments (int,
  *     pointers, etc) and for setting the appropriate return type (often int).
  *     A few of them are architecture-specific because the syscalls are not all
  *     mapped exactly the same among architectures. For example, some archs do
- *     not implement select() and need pselect6() instead, so the sys_select()
+ *     not implement select() and need pselect6() instead, so the _sys_select()
  *     function will have to abstract this.
  *
  *   - The third level is the libc call definition. It exposes the lower raw
- *     sys_<name>() calls in a way that looks like what a libc usually does,
+ *     _sys_<name>() calls in a way that looks like what a libc usually does,
  *     takes care of specific input values, and of setting errno upon error.
  *     There can be minor variations compared to standard libc calls.
  *
@@ -130,6 +130,9 @@
 #include "getopt.h"
 #include "poll.h"
 #include "math.h"
+#include "err.h"
+#include "byteswap.h"
+#include "endian.h"
 
 /* Used by programs to avoid std includes */
 #define NOLIBC

@@ -20,10 +20,10 @@
  *           const void *data);
  */
 static __attribute__((unused))
-int sys_mount(const char *src, const char *tgt, const char *fst,
-	      unsigned long flags, const void *data)
+int _sys_mount(const char *src, const char *tgt, const char *fst,
+	       unsigned long flags, const void *data)
 {
-	return my_syscall5(__NR_mount, src, tgt, fst, flags, data);
+	return __nolibc_syscall5(__NR_mount, src, tgt, fst, flags, data);
 }
 
 static __attribute__((unused))
@@ -31,7 +31,7 @@ int mount(const char *src, const char *tgt,
 	  const char *fst, unsigned long flags,
 	  const void *data)
 {
-	return __sysret(sys_mount(src, tgt, fst, flags, data));
+	return __sysret(_sys_mount(src, tgt, fst, flags, data));
 }
 
 #endif /* _NOLIBC_SYS_MOUNT_H */

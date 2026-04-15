@@ -28,15 +28,15 @@ struct utsname {
 };
 
 static __attribute__((unused))
-int sys_uname(struct utsname *buf)
+int _sys_uname(struct utsname *buf)
 {
-	return my_syscall1(__NR_uname, buf);
+	return __nolibc_syscall1(__NR_uname, buf);
 }
 
 static __attribute__((unused))
 int uname(struct utsname *buf)
 {
-	return __sysret(sys_uname(buf));
+	return __sysret(_sys_uname(buf));
 }
 
 #endif /* _NOLIBC_SYS_UTSNAME_H */

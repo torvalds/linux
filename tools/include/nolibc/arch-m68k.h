@@ -15,7 +15,7 @@
 
 #define _NOLIBC_SYSCALL_CLOBBERLIST "memory"
 
-#define my_syscall0(num)                                                      \
+#define __nolibc_syscall0(num)                                                \
 ({                                                                            \
 	register long _num __asm__ ("d0") = (num);                            \
 									      \
@@ -28,7 +28,7 @@
 	_num;                                                                 \
 })
 
-#define my_syscall1(num, arg1)                                                \
+#define __nolibc_syscall1(num, arg1)                                          \
 ({                                                                            \
 	register long _num __asm__ ("d0") = (num);                            \
 	register long _arg1 __asm__ ("d1") = (long)(arg1);                    \
@@ -42,7 +42,7 @@
 	_num;                                                                 \
 })
 
-#define my_syscall2(num, arg1, arg2)                                          \
+#define __nolibc_syscall2(num, arg1, arg2)                                    \
 ({                                                                            \
 	register long _num __asm__ ("d0") = (num);                            \
 	register long _arg1 __asm__ ("d1") = (long)(arg1);                    \
@@ -57,7 +57,7 @@
 	_num;                                                                 \
 })
 
-#define my_syscall3(num, arg1, arg2, arg3)                                    \
+#define __nolibc_syscall3(num, arg1, arg2, arg3)                              \
 ({                                                                            \
 	register long _num __asm__ ("d0")  = (num);                           \
 	register long _arg1 __asm__ ("d1") = (long)(arg1);                    \
@@ -73,7 +73,7 @@
 	_num;                                                                 \
 })
 
-#define my_syscall4(num, arg1, arg2, arg3, arg4)                              \
+#define __nolibc_syscall4(num, arg1, arg2, arg3, arg4)                        \
 ({                                                                            \
 	register long _num __asm__ ("d0") = (num);                            \
 	register long _arg1 __asm__ ("d1") = (long)(arg1);                    \
@@ -90,7 +90,7 @@
 	_num;                                                                 \
 })
 
-#define my_syscall5(num, arg1, arg2, arg3, arg4, arg5)                        \
+#define __nolibc_syscall5(num, arg1, arg2, arg3, arg4, arg5)                  \
 ({                                                                            \
 	register long _num __asm__ ("d0") = (num);                            \
 	register long _arg1 __asm__ ("d1") = (long)(arg1);                    \
@@ -108,7 +108,7 @@
 	_num;                                                                 \
 })
 
-#define my_syscall6(num, arg1, arg2, arg3, arg4, arg5, arg6)                  \
+#define __nolibc_syscall6(num, arg1, arg2, arg3, arg4, arg5, arg6)            \
 ({                                                                            \
 	register long _num __asm__ ("d0")  = (num);                           \
 	register long _arg1 __asm__ ("d1") = (long)(arg1);                    \

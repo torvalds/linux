@@ -20,15 +20,15 @@
  */
 
 static __attribute__((unused))
-ssize_t sys_getrandom(void *buf, size_t buflen, unsigned int flags)
+ssize_t _sys_getrandom(void *buf, size_t buflen, unsigned int flags)
 {
-	return my_syscall3(__NR_getrandom, buf, buflen, flags);
+	return __nolibc_syscall3(__NR_getrandom, buf, buflen, flags);
 }
 
 static __attribute__((unused))
 ssize_t getrandom(void *buf, size_t buflen, unsigned int flags)
 {
-	return __sysret(sys_getrandom(buf, buflen, flags));
+	return __sysret(_sys_getrandom(buf, buflen, flags));
 }
 
 #endif /* _NOLIBC_SYS_RANDOM_H */

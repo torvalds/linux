@@ -31,15 +31,15 @@
  */
 
 static __attribute__((unused))
-int sys_faccessat(int fd, const char *path, int amode, int flag)
+int _sys_faccessat(int fd, const char *path, int amode, int flag)
 {
-	return my_syscall4(__NR_faccessat, fd, path, amode, flag);
+	return __nolibc_syscall4(__NR_faccessat, fd, path, amode, flag);
 }
 
 static __attribute__((unused))
 int faccessat(int fd, const char *path, int amode, int flag)
 {
-	return __sysret(sys_faccessat(fd, path, amode, flag));
+	return __sysret(_sys_faccessat(fd, path, amode, flag));
 }
 
 static __attribute__((unused))
@@ -54,7 +54,7 @@ int msleep(unsigned int msecs)
 {
 	struct timeval my_timeval = { msecs / 1000, (msecs % 1000) * 1000 };
 
-	if (sys_select(0, NULL, NULL, NULL, &my_timeval) < 0)
+	if (_sys_select(0, NULL, NULL, NULL, &my_timeval) < 0)
 		return (my_timeval.tv_sec * 1000) +
 			(my_timeval.tv_usec / 1000) +
 			!!(my_timeval.tv_usec % 1000);
@@ -67,7 +67,7 @@ unsigned int sleep(unsigned int seconds)
 {
 	struct timeval my_timeval = { seconds, 0 };
 
-	if (sys_select(0, NULL, NULL, NULL, &my_timeval) < 0)
+	if (_sys_select(0, NULL, NULL, NULL, &my_timeval) < 0)
 		return my_timeval.tv_sec + !!my_timeval.tv_usec;
 	else
 		return 0;
@@ -78,7 +78,7 @@ int usleep(unsigned int usecs)
 {
 	struct timeval my_timeval = { usecs / 1000000, usecs % 1000000 };
 
-	return sys_select(0, NULL, NULL, NULL, &my_timeval);
+	return _sys_select(0, NULL, NULL, NULL, &my_timeval);
 }
 
 static __attribute__((unused))

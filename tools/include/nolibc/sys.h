@@ -63,7 +63,7 @@ static __inline__ int __nolibc_enosys(const char *syscall, ...)
  *   - the "internal" ones, which matches the raw syscall interface at the
  *     kernel level, which may sometimes slightly differ from the documented
  *     libc-level ones. For example most of them return either a valid value
- *     or -errno. All of these are prefixed with "sys_". They may be called
+ *     or -errno. All of these are prefixed with "_sys_". They may be called
  *     by non-portable applications if desired.
  *
  *   - the "exported" ones, whose interface must closely match the one
@@ -85,15 +85,15 @@ static __inline__ int __nolibc_enosys(const char *syscall, ...)
  */
 
 static __attribute__((unused))
-void *sys_brk(void *addr)
+void *_sys_brk(void *addr)
 {
-	return (void *)my_syscall1(__NR_brk, addr);
+	return (void *)__nolibc_syscall1(__NR_brk, addr);
 }
 
 static __attribute__((unused))
 int brk(void *addr)
 {
-	void *ret = sys_brk(addr);
+	void *ret = _sys_brk(addr);
 
 	if (!ret) {
 		SET_ERRNO(ENOMEM);
@@ -106,9 +106,9 @@ static __attribute__((unused))
 void *sbrk(intptr_t inc)
 {
 	/* first call to find current end */
-	void *ret = sys_brk(NULL);
+	void *ret = _sys_brk(NULL);
 
-	if (ret && sys_brk(ret + inc) == ret + inc)
+	if (ret && _sys_brk(ret + inc) == ret + inc)
 		return ret + inc;
 
 	SET_ERRNO(ENOMEM);
@@ -122,27 +122,27 @@ void *sbrk(intptr_t inc)
  */
 
 static __attribute__((unused))
-int sys_chdir(const char *path)
+int _sys_chdir(const char *path)
 {
-	return my_syscall1(__NR_chdir, path);
+	return __nolibc_syscall1(__NR_chdir, path);
 }
 
 static __attribute__((unused))
 int chdir(const char *path)
 {
-	return __sysret(sys_chdir(path));
+	return __sysret(_sys_chdir(path));
 }
 
 static __attribute__((unused))
-int sys_fchdir(int fildes)
+int _sys_fchdir(int fildes)
 {
-	return my_syscall1(__NR_fchdir, fildes);
+	return __nolibc_syscall1(__NR_fchdir, fildes);
 }
 
 static __attribute__((unused))
 int fchdir(int fildes)
 {
-	return __sysret(sys_fchdir(fildes));
+	return __sysret(_sys_fchdir(fildes));
 }
 
 
@@ -151,19 +151,19 @@ int fchdir(int fildes)
  */
 
 static __attribute__((unused))
-int sys_chmod(const char *path, mode_t mode)
+int _sys_chmod(const char *path, mode_t mode)
 {
 #if defined(__NR_fchmodat)
-	return my_syscall4(__NR_fchmodat, AT_FDCWD, path, mode, 0);
+	return __nolibc_syscall4(__NR_fchmodat, AT_FDCWD, path, mode, 0);
 #else
-	return my_syscall2(__NR_chmod, path, mode);
+	return __nolibc_syscall2(__NR_chmod, path, mode);
 #endif
 }
 
 static __attribute__((unused))
 int chmod(const char *path, mode_t mode)
 {
-	return __sysret(sys_chmod(path, mode));
+	return __sysret(_sys_chmod(path, mode));
 }
 
 
@@ -172,19 +172,19 @@ int chmod(const char *path, mode_t mode)
  */
 
 static __attribute__((unused))
-int sys_chown(const char *path, uid_t owner, gid_t group)
+int _sys_chown(const char *path, uid_t owner, gid_t group)
 {
 #if defined(__NR_fchownat)
-	return my_syscall5(__NR_fchownat, AT_FDCWD, path, owner, group, 0);
+	return __nolibc_syscall5(__NR_fchownat, AT_FDCWD, path, owner, group, 0);
 #else
-	return my_syscall3(__NR_chown, path, owner, group);
+	return __nolibc_syscall3(__NR_chown, path, owner, group);
 #endif
 }
 
 static __attribute__((unused))
 int chown(const char *path, uid_t owner, gid_t group)
 {
-	return __sysret(sys_chown(path, owner, group));
+	return __sysret(_sys_chown(path, owner, group));
 }
 
 
@@ -193,15 +193,15 @@ int chown(const char *path, uid_t owner, gid_t group)
  */
 
 static __attribute__((unused))
-int sys_chroot(const char *path)
+int _sys_chroot(const char *path)
 {
-	return my_syscall1(__NR_chroot, path);
+	return __nolibc_syscall1(__NR_chroot, path);
 }
 
 static __attribute__((unused))
 int chroot(const char *path)
 {
-	return __sysret(sys_chroot(path));
+	return __sysret(_sys_chroot(path));
 }
 
 
@@ -210,15 +210,15 @@ int chroot(const char *path)
  */
 
 static __attribute__((unused))
-int sys_close(int fd)
+int _sys_close(int fd)
 {
-	return my_syscall1(__NR_close, fd);
+	return __nolibc_syscall1(__NR_close, fd);
 }
 
 static __attribute__((unused))
 int close(int fd)
 {
-	return __sysret(sys_close(fd));
+	return __sysret(_sys_close(fd));
 }
 
 
@@ -227,15 +227,15 @@ int close(int fd)
  */
 
 static __attribute__((unused))
-int sys_dup(int fd)
+int _sys_dup(int fd)
 {
-	return my_syscall1(__NR_dup, fd);
+	return __nolibc_syscall1(__NR_dup, fd);
 }
 
 static __attribute__((unused))
 int dup(int fd)
 {
-	return __sysret(sys_dup(fd));
+	return __sysret(_sys_dup(fd));
 }
 
 
@@ -244,7 +244,7 @@ int dup(int fd)
  */
 
 static __attribute__((unused))
-int sys_dup2(int old, int new)
+int _sys_dup2(int old, int new)
 {
 #if defined(__NR_dup3)
 	int ret, nr_fcntl;
@@ -256,20 +256,20 @@ int sys_dup2(int old, int new)
 #endif
 
 	if (old == new) {
-		ret = my_syscall2(nr_fcntl, old, F_GETFD);
+		ret = __nolibc_syscall2(nr_fcntl, old, F_GETFD);
 		return ret < 0 ? ret : old;
 	}
 
-	return my_syscall3(__NR_dup3, old, new, 0);
+	return __nolibc_syscall3(__NR_dup3, old, new, 0);
 #else
-	return my_syscall2(__NR_dup2, old, new);
+	return __nolibc_syscall2(__NR_dup2, old, new);
 #endif
 }
 
 static __attribute__((unused))
 int dup2(int old, int new)
 {
-	return __sysret(sys_dup2(old, new));
+	return __sysret(_sys_dup2(old, new));
 }
 
 
@@ -279,15 +279,15 @@ int dup2(int old, int new)
 
 #if defined(__NR_dup3)
 static __attribute__((unused))
-int sys_dup3(int old, int new, int flags)
+int _sys_dup3(int old, int new, int flags)
 {
-	return my_syscall3(__NR_dup3, old, new, flags);
+	return __nolibc_syscall3(__NR_dup3, old, new, flags);
 }
 
 static __attribute__((unused))
 int dup3(int old, int new, int flags)
 {
-	return __sysret(sys_dup3(old, new, flags));
+	return __sysret(_sys_dup3(old, new, flags));
 }
 #endif
 
@@ -297,15 +297,15 @@ int dup3(int old, int new, int flags)
  */
 
 static __attribute__((unused))
-int sys_execve(const char *filename, char *const argv[], char *const envp[])
+int _sys_execve(const char *filename, char *const argv[], char *const envp[])
 {
-	return my_syscall3(__NR_execve, filename, argv, envp);
+	return __nolibc_syscall3(__NR_execve, filename, argv, envp);
 }
 
 static __attribute__((unused))
 int execve(const char *filename, char *const argv[], char *const envp[])
 {
-	return __sysret(sys_execve(filename, argv, envp));
+	return __sysret(_sys_execve(filename, argv, envp));
 }
 
 
@@ -314,16 +314,16 @@ int execve(const char *filename, char *const argv[], char *const envp[])
  */
 
 static __attribute__((noreturn,unused))
-void sys_exit(int status)
+void _sys_exit(int status)
 {
-	my_syscall1(__NR_exit, status & 255);
+	__nolibc_syscall1(__NR_exit, status & 255);
 	while(1); /* shut the "noreturn" warnings. */
 }
 
 static __attribute__((noreturn,unused))
 void _exit(int status)
 {
-	sys_exit(status);
+	_sys_exit(status);
 }
 
 static __attribute__((noreturn,unused))
@@ -337,18 +337,18 @@ void exit(int status)
  * pid_t fork(void);
  */
 
-#ifndef sys_fork
+#ifndef _sys_fork
 static __attribute__((unused))
-pid_t sys_fork(void)
+pid_t _sys_fork(void)
 {
 #if defined(__NR_clone)
 	/* note: some archs only have clone() and not fork(). Different archs
 	 * have a different API, but most archs have the flags on first arg and
 	 * will not use the rest with no other flag.
 	 */
-	return my_syscall5(__NR_clone, SIGCHLD, 0, 0, 0, 0);
+	return __nolibc_syscall5(__NR_clone, SIGCHLD, 0, 0, 0, 0);
 #else
-	return my_syscall0(__NR_fork);
+	return __nolibc_syscall0(__NR_fork);
 #endif
 }
 #endif
@@ -356,18 +356,18 @@ pid_t sys_fork(void)
 static __attribute__((unused))
 pid_t fork(void)
 {
-	return __sysret(sys_fork());
+	return __sysret(_sys_fork());
 }
 
-#ifndef sys_vfork
+#ifndef _sys_vfork
 static __attribute__((unused))
-pid_t sys_vfork(void)
+pid_t _sys_vfork(void)
 {
 #if defined(__NR_clone)
-	/* See the note in sys_fork(). */
-	return my_syscall5(__NR_clone, CLONE_VM | CLONE_VFORK | SIGCHLD, 0, 0, 0, 0);
+	/* See the note in _sys_fork(). */
+	return __nolibc_syscall5(__NR_clone, CLONE_VM | CLONE_VFORK | SIGCHLD, 0, 0, 0, 0);
 #elif defined(__NR_vfork)
-	return my_syscall0(__NR_vfork);
+	return __nolibc_syscall0(__NR_vfork);
 #endif
 }
 #endif
@@ -375,7 +375,7 @@ pid_t sys_vfork(void)
 static __attribute__((unused))
 pid_t vfork(void)
 {
-	return __sysret(sys_vfork());
+	return __sysret(_sys_vfork());
 }
 
 /*
@@ -383,15 +383,15 @@ pid_t vfork(void)
  */
 
 static __attribute__((unused))
-int sys_fsync(int fd)
+int _sys_fsync(int fd)
 {
-	return my_syscall1(__NR_fsync, fd);
+	return __nolibc_syscall1(__NR_fsync, fd);
 }
 
 static __attribute__((unused))
 int fsync(int fd)
 {
-	return __sysret(sys_fsync(fd));
+	return __sysret(_sys_fsync(fd));
 }
 
 
@@ -400,15 +400,15 @@ int fsync(int fd)
  */
 
 static __attribute__((unused))
-int sys_getdents64(int fd, struct linux_dirent64 *dirp, int count)
+int _sys_getdents64(int fd, struct linux_dirent64 *dirp, int count)
 {
-	return my_syscall3(__NR_getdents64, fd, dirp, count);
+	return __nolibc_syscall3(__NR_getdents64, fd, dirp, count);
 }
 
 static __attribute__((unused))
 int getdents64(int fd, struct linux_dirent64 *dirp, int count)
 {
-	return __sysret(sys_getdents64(fd, dirp, count));
+	return __sysret(_sys_getdents64(fd, dirp, count));
 }
 
 
@@ -417,19 +417,19 @@ int getdents64(int fd, struct linux_dirent64 *dirp, int count)
  */
 
 static __attribute__((unused))
-uid_t sys_geteuid(void)
+uid_t _sys_geteuid(void)
 {
 #if defined(__NR_geteuid32)
-	return my_syscall0(__NR_geteuid32);
+	return __nolibc_syscall0(__NR_geteuid32);
 #else
-	return my_syscall0(__NR_geteuid);
+	return __nolibc_syscall0(__NR_geteuid);
 #endif
 }
 
 static __attribute__((unused))
 uid_t geteuid(void)
 {
-	return sys_geteuid();
+	return _sys_geteuid();
 }
 
 
@@ -438,15 +438,15 @@ uid_t geteuid(void)
  */
 
 static __attribute__((unused))
-pid_t sys_getpgid(pid_t pid)
+pid_t _sys_getpgid(pid_t pid)
 {
-	return my_syscall1(__NR_getpgid, pid);
+	return __nolibc_syscall1(__NR_getpgid, pid);
 }
 
 static __attribute__((unused))
 pid_t getpgid(pid_t pid)
 {
-	return __sysret(sys_getpgid(pid));
+	return __sysret(_sys_getpgid(pid));
 }
 
 
@@ -455,15 +455,15 @@ pid_t getpgid(pid_t pid)
  */
 
 static __attribute__((unused))
-pid_t sys_getpgrp(void)
+pid_t _sys_getpgrp(void)
 {
-	return sys_getpgid(0);
+	return _sys_getpgid(0);
 }
 
 static __attribute__((unused))
 pid_t getpgrp(void)
 {
-	return sys_getpgrp();
+	return _sys_getpgrp();
 }
 
 
@@ -472,15 +472,15 @@ pid_t getpgrp(void)
  */
 
 static __attribute__((unused))
-pid_t sys_getpid(void)
+pid_t _sys_getpid(void)
 {
-	return my_syscall0(__NR_getpid);
+	return __nolibc_syscall0(__NR_getpid);
 }
 
 static __attribute__((unused))
 pid_t getpid(void)
 {
-	return sys_getpid();
+	return _sys_getpid();
 }
 
 
@@ -489,15 +489,15 @@ pid_t getpid(void)
  */
 
 static __attribute__((unused))
-pid_t sys_getppid(void)
+pid_t _sys_getppid(void)
 {
-	return my_syscall0(__NR_getppid);
+	return __nolibc_syscall0(__NR_getppid);
 }
 
 static __attribute__((unused))
 pid_t getppid(void)
 {
-	return sys_getppid();
+	return _sys_getppid();
 }
 
 
@@ -506,15 +506,15 @@ pid_t getppid(void)
  */
 
 static __attribute__((unused))
-pid_t sys_gettid(void)
+pid_t _sys_gettid(void)
 {
-	return my_syscall0(__NR_gettid);
+	return __nolibc_syscall0(__NR_gettid);
 }
 
 static __attribute__((unused))
 pid_t gettid(void)
 {
-	return sys_gettid();
+	return _sys_gettid();
 }
 
 #ifndef NOLIBC_NO_RUNTIME
@@ -536,19 +536,19 @@ int getpagesize(void)
  */
 
 static __attribute__((unused))
-uid_t sys_getuid(void)
+uid_t _sys_getuid(void)
 {
 #if defined(__NR_getuid32)
-	return my_syscall0(__NR_getuid32);
+	return __nolibc_syscall0(__NR_getuid32);
 #else
-	return my_syscall0(__NR_getuid);
+	return __nolibc_syscall0(__NR_getuid);
 #endif
 }
 
 static __attribute__((unused))
 uid_t getuid(void)
 {
-	return sys_getuid();
+	return _sys_getuid();
 }
 
 
@@ -557,15 +557,15 @@ uid_t getuid(void)
  */
 
 static __attribute__((unused))
-int sys_kill(pid_t pid, int signal)
+int _sys_kill(pid_t pid, int signal)
 {
-	return my_syscall2(__NR_kill, pid, signal);
+	return __nolibc_syscall2(__NR_kill, pid, signal);
 }
 
 static __attribute__((unused))
 int kill(pid_t pid, int signal)
 {
-	return __sysret(sys_kill(pid, signal));
+	return __sysret(_sys_kill(pid, signal));
 }
 
 
@@ -574,19 +574,19 @@ int kill(pid_t pid, int signal)
  */
 
 static __attribute__((unused))
-int sys_link(const char *old, const char *new)
+int _sys_link(const char *old, const char *new)
 {
 #if defined(__NR_linkat)
-	return my_syscall5(__NR_linkat, AT_FDCWD, old, AT_FDCWD, new, 0);
+	return __nolibc_syscall5(__NR_linkat, AT_FDCWD, old, AT_FDCWD, new, 0);
 #else
-	return my_syscall2(__NR_link, old, new);
+	return __nolibc_syscall2(__NR_link, old, new);
 #endif
 }
 
 static __attribute__((unused))
 int link(const char *old, const char *new)
 {
-	return __sysret(sys_link(old, new));
+	return __sysret(_sys_link(old, new));
 }
 
 
@@ -595,14 +595,14 @@ int link(const char *old, const char *new)
  */
 
 static __attribute__((unused))
-off_t sys_lseek(int fd, off_t offset, int whence)
+off_t _sys_lseek(int fd, off_t offset, int whence)
 {
 #if defined(__NR_llseek)
 	__kernel_loff_t loff = 0;
 	off_t result;
 	int ret;
 
-	ret = my_syscall5(__NR_llseek, fd, offset >> 32, (uint32_t)offset, &loff, whence);
+	ret = __nolibc_syscall5(__NR_llseek, fd, offset >> 32, (uint32_t)offset, &loff, whence);
 	if (ret < 0)
 		result = ret;
 	else
@@ -610,14 +610,14 @@ off_t sys_lseek(int fd, off_t offset, int whence)
 
 	return result;
 #else
-	return my_syscall3(__NR_lseek, fd, offset, whence);
+	return __nolibc_syscall3(__NR_lseek, fd, offset, whence);
 #endif
 }
 
 static __attribute__((unused))
 off_t lseek(int fd, off_t offset, int whence)
 {
-	return __sysret(sys_lseek(fd, offset, whence));
+	return __sysret(_sys_lseek(fd, offset, whence));
 }
 
 
@@ -626,19 +626,19 @@ off_t lseek(int fd, off_t offset, int whence)
  */
 
 static __attribute__((unused))
-int sys_mkdir(const char *path, mode_t mode)
+int _sys_mkdir(const char *path, mode_t mode)
 {
 #if defined(__NR_mkdirat)
-	return my_syscall3(__NR_mkdirat, AT_FDCWD, path, mode);
+	return __nolibc_syscall3(__NR_mkdirat, AT_FDCWD, path, mode);
 #else
-	return my_syscall2(__NR_mkdir, path, mode);
+	return __nolibc_syscall2(__NR_mkdir, path, mode);
 #endif
 }
 
 static __attribute__((unused))
 int mkdir(const char *path, mode_t mode)
 {
-	return __sysret(sys_mkdir(path, mode));
+	return __sysret(_sys_mkdir(path, mode));
 }
 
 /*
@@ -646,19 +646,19 @@ int mkdir(const char *path, mode_t mode)
  */
 
 static __attribute__((unused))
-int sys_rmdir(const char *path)
+int _sys_rmdir(const char *path)
 {
 #if defined(__NR_rmdir)
-	return my_syscall1(__NR_rmdir, path);
+	return __nolibc_syscall1(__NR_rmdir, path);
 #else
-	return my_syscall3(__NR_unlinkat, AT_FDCWD, path, AT_REMOVEDIR);
+	return __nolibc_syscall3(__NR_unlinkat, AT_FDCWD, path, AT_REMOVEDIR);
 #endif
 }
 
 static __attribute__((unused))
 int rmdir(const char *path)
 {
-	return __sysret(sys_rmdir(path));
+	return __sysret(_sys_rmdir(path));
 }
 
 
@@ -667,19 +667,19 @@ int rmdir(const char *path)
  */
 
 static __attribute__((unused))
-long sys_mknod(const char *path, mode_t mode, dev_t dev)
+long _sys_mknod(const char *path, mode_t mode, dev_t dev)
 {
 #if defined(__NR_mknodat)
-	return my_syscall4(__NR_mknodat, AT_FDCWD, path, mode, dev);
+	return __nolibc_syscall4(__NR_mknodat, AT_FDCWD, path, mode, dev);
 #else
-	return my_syscall3(__NR_mknod, path, mode, dev);
+	return __nolibc_syscall3(__NR_mknod, path, mode, dev);
 #endif
 }
 
 static __attribute__((unused))
 int mknod(const char *path, mode_t mode, dev_t dev)
 {
-	return __sysret(sys_mknod(path, mode, dev));
+	return __sysret(_sys_mknod(path, mode, dev));
 }
 
 
@@ -689,15 +689,15 @@ int mknod(const char *path, mode_t mode, dev_t dev)
  */
 
 static __attribute__((unused))
-int sys_pipe2(int pipefd[2], int flags)
+int _sys_pipe2(int pipefd[2], int flags)
 {
-	return my_syscall2(__NR_pipe2, pipefd, flags);
+	return __nolibc_syscall2(__NR_pipe2, pipefd, flags);
 }
 
 static __attribute__((unused))
 int pipe2(int pipefd[2], int flags)
 {
-	return __sysret(sys_pipe2(pipefd, flags));
+	return __sysret(_sys_pipe2(pipefd, flags));
 }
 
 static __attribute__((unused))
@@ -712,15 +712,15 @@ int pipe(int pipefd[2])
  */
 
 static __attribute__((unused))
-int sys_pivot_root(const char *new, const char *old)
+int _sys_pivot_root(const char *new, const char *old)
 {
-	return my_syscall2(__NR_pivot_root, new, old);
+	return __nolibc_syscall2(__NR_pivot_root, new, old);
 }
 
 static __attribute__((unused))
 int pivot_root(const char *new, const char *old)
 {
-	return __sysret(sys_pivot_root(new, old));
+	return __sysret(_sys_pivot_root(new, old));
 }
 
 
@@ -729,15 +729,15 @@ int pivot_root(const char *new, const char *old)
  */
 
 static __attribute__((unused))
-ssize_t sys_read(int fd, void *buf, size_t count)
+ssize_t _sys_read(int fd, void *buf, size_t count)
 {
-	return my_syscall3(__NR_read, fd, buf, count);
+	return __nolibc_syscall3(__NR_read, fd, buf, count);
 }
 
 static __attribute__((unused))
 ssize_t read(int fd, void *buf, size_t count)
 {
-	return __sysret(sys_read(fd, buf, count));
+	return __sysret(_sys_read(fd, buf, count));
 }
 
 
@@ -746,15 +746,15 @@ ssize_t read(int fd, void *buf, size_t count)
  */
 
 static __attribute__((unused))
-int sys_sched_yield(void)
+int _sys_sched_yield(void)
 {
-	return my_syscall0(__NR_sched_yield);
+	return __nolibc_syscall0(__NR_sched_yield);
 }
 
 static __attribute__((unused))
 int sched_yield(void)
 {
-	return __sysret(sys_sched_yield());
+	return __sysret(_sys_sched_yield());
 }
 
 
@@ -763,15 +763,15 @@ int sched_yield(void)
  */
 
 static __attribute__((unused))
-int sys_setpgid(pid_t pid, pid_t pgid)
+int _sys_setpgid(pid_t pid, pid_t pgid)
 {
-	return my_syscall2(__NR_setpgid, pid, pgid);
+	return __nolibc_syscall2(__NR_setpgid, pid, pgid);
 }
 
 static __attribute__((unused))
 int setpgid(pid_t pid, pid_t pgid)
 {
-	return __sysret(sys_setpgid(pid, pgid));
+	return __sysret(_sys_setpgid(pid, pgid));
 }
 
 /*
@@ -790,15 +790,15 @@ pid_t setpgrp(void)
  */
 
 static __attribute__((unused))
-pid_t sys_setsid(void)
+pid_t _sys_setsid(void)
 {
-	return my_syscall0(__NR_setsid);
+	return __nolibc_syscall0(__NR_setsid);
 }
 
 static __attribute__((unused))
 pid_t setsid(void)
 {
-	return __sysret(sys_setsid());
+	return __sysret(_sys_setsid());
 }
 
 
@@ -807,19 +807,19 @@ pid_t setsid(void)
  */
 
 static __attribute__((unused))
-int sys_symlink(const char *old, const char *new)
+int _sys_symlink(const char *old, const char *new)
 {
 #if defined(__NR_symlinkat)
-	return my_syscall3(__NR_symlinkat, old, AT_FDCWD, new);
+	return __nolibc_syscall3(__NR_symlinkat, old, AT_FDCWD, new);
 #else
-	return my_syscall2(__NR_symlink, old, new);
+	return __nolibc_syscall2(__NR_symlink, old, new);
 #endif
 }
 
 static __attribute__((unused))
 int symlink(const char *old, const char *new)
 {
-	return __sysret(sys_symlink(old, new));
+	return __sysret(_sys_symlink(old, new));
 }
 
 
@@ -828,15 +828,15 @@ int symlink(const char *old, const char *new)
  */
 
 static __attribute__((unused))
-mode_t sys_umask(mode_t mode)
+mode_t _sys_umask(mode_t mode)
 {
-	return my_syscall1(__NR_umask, mode);
+	return __nolibc_syscall1(__NR_umask, mode);
 }
 
 static __attribute__((unused))
 mode_t umask(mode_t mode)
 {
-	return sys_umask(mode);
+	return _sys_umask(mode);
 }
 
 
@@ -845,15 +845,15 @@ mode_t umask(mode_t mode)
  */
 
 static __attribute__((unused))
-int sys_umount2(const char *path, int flags)
+int _sys_umount2(const char *path, int flags)
 {
-	return my_syscall2(__NR_umount2, path, flags);
+	return __nolibc_syscall2(__NR_umount2, path, flags);
 }
 
 static __attribute__((unused))
 int umount2(const char *path, int flags)
 {
-	return __sysret(sys_umount2(path, flags));
+	return __sysret(_sys_umount2(path, flags));
 }
 
 
@@ -862,19 +862,19 @@ int umount2(const char *path, int flags)
  */
 
 static __attribute__((unused))
-int sys_unlink(const char *path)
+int _sys_unlink(const char *path)
 {
 #if defined(__NR_unlinkat)
-	return my_syscall3(__NR_unlinkat, AT_FDCWD, path, 0);
+	return __nolibc_syscall3(__NR_unlinkat, AT_FDCWD, path, 0);
 #else
-	return my_syscall1(__NR_unlink, path);
+	return __nolibc_syscall1(__NR_unlink, path);
 #endif
 }
 
 static __attribute__((unused))
 int unlink(const char *path)
 {
-	return __sysret(sys_unlink(path));
+	return __sysret(_sys_unlink(path));
 }
 
 
@@ -883,15 +883,15 @@ int unlink(const char *path)
  */
 
 static __attribute__((unused))
-ssize_t sys_write(int fd, const void *buf, size_t count)
+ssize_t _sys_write(int fd, const void *buf, size_t count)
 {
-	return my_syscall3(__NR_write, fd, buf, count);
+	return __nolibc_syscall3(__NR_write, fd, buf, count);
 }
 
 static __attribute__((unused))
 ssize_t write(int fd, const void *buf, size_t count)
 {
-	return __sysret(sys_write(fd, buf, count));
+	return __sysret(_sys_write(fd, buf, count));
 }
 
 
@@ -900,15 +900,15 @@ ssize_t write(int fd, const void *buf, size_t count)
  */
 
 static __attribute__((unused))
-int sys_memfd_create(const char *name, unsigned int flags)
+int _sys_memfd_create(const char *name, unsigned int flags)
 {
-	return my_syscall2(__NR_memfd_create, name, flags);
+	return __nolibc_syscall2(__NR_memfd_create, name, flags);
 }
 
 static __attribute__((unused))
 int memfd_create(const char *name, unsigned int flags)
 {
-	return __sysret(sys_memfd_create(name, flags));
+	return __sysret(_sys_memfd_create(name, flags));
 }
 
 #endif /* _NOLIBC_SYS_H */

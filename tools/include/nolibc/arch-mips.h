@@ -39,11 +39,19 @@
  *   - stack is 16-byte aligned
  */
 
+#if !defined(__mips_isa_rev) || __mips_isa_rev < 6
+#define _NOLIBC_SYSCALL_CLOBBER_HI_LO "hi", "lo"
+#else
+#define _NOLIBC_SYSCALL_CLOBBER_HI_LO "$0"
+#endif
+
 #if defined(_ABIO32)
 
 #define _NOLIBC_SYSCALL_CLOBBERLIST \
-	"memory", "cc", "at", "v1", "hi", "lo", \
-	"t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"
+	"memory", "cc", "at", "v1", \
+	"t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9", \
+	_NOLIBC_SYSCALL_CLOBBER_HI_LO
+
 #define _NOLIBC_SYSCALL_STACK_RESERVE "addiu $sp, $sp, -32\n"
 #define _NOLIBC_SYSCALL_STACK_UNRESERVE "addiu $sp, $sp, 32\n"
 
@@ -52,14 +60,15 @@
 /* binutils, GCC and clang disagree about register aliases, use numbers instead. */
 #define _NOLIBC_SYSCALL_CLOBBERLIST \
 	"memory", "cc", "at", "v1", \
-	"10", "11", "12", "13", "14", "15", "24", "25"
+	"10", "11", "12", "13", "14", "15", "24", "25", \
+	_NOLIBC_SYSCALL_CLOBBER_HI_LO
 
 #define _NOLIBC_SYSCALL_STACK_RESERVE
 #define _NOLIBC_SYSCALL_STACK_UNRESERVE
 
 #endif /* _ABIO32 */
 
-#define my_syscall0(num)                                                      \
+#define __nolibc_syscall0(num)                                                \
 ({                                                                            \
 	register long _num __asm__ ("v0") = (num);                            \
 	register long _arg4 __asm__ ("a3");                                   \
@@ -75,7 +84,7 @@
 	_arg4 ? -_num : _num;                                                 \
 })
 
-#define my_syscall1(num, arg1)                                                \
+#define __nolibc_syscall1(num, arg1)                                          \
 ({                                                                            \
 	register long _num __asm__ ("v0") = (num);                            \
 	register long _arg1 __asm__ ("a0") = (long)(arg1);                    \
@@ -93,7 +102,7 @@
 	_arg4 ? -_num : _num;                                                 \
 })
 
-#define my_syscall2(num, arg1, arg2)                                          \
+#define __nolibc_syscall2(num, arg1, arg2)                                    \
 ({                                                                            \
 	register long _num __asm__ ("v0") = (num);                            \
 	register long _arg1 __asm__ ("a0") = (long)(arg1);                    \
@@ -112,7 +121,7 @@
 	_arg4 ? -_num : _num;                                                 \
 })
 
-#define my_syscall3(num, arg1, arg2, arg3)                                    \
+#define __nolibc_syscall3(num, arg1, arg2, arg3)                              \
 ({                                                                            \
 	register long _num __asm__ ("v0")  = (num);                           \
 	register long _arg1 __asm__ ("a0") = (long)(arg1);                    \
@@ -132,7 +141,7 @@
 	_arg4 ? -_num : _num;                                                 \
 })
 
-#define my_syscall4(num, arg1, arg2, arg3, arg4)                              \
+#define __nolibc_syscall4(num, arg1, arg2, arg3, arg4)                        \
 ({                                                                            \
 	register long _num __asm__ ("v0") = (num);                            \
 	register long _arg1 __asm__ ("a0") = (long)(arg1);                    \
@@ -154,7 +163,7 @@
 
 #if defined(_ABIO32)
 
-#define my_syscall5(num, arg1, arg2, arg3, arg4, arg5)                        \
+#define __nolibc_syscall5(num, arg1, arg2, arg3, arg4, arg5)                  \
 ({                                                                            \
 	register long _num __asm__ ("v0") = (num);                            \
 	register long _arg1 __asm__ ("a0") = (long)(arg1);                    \
@@ -176,7 +185,7 @@
 	_arg4 ? -_num : _num;                                                 \
 })
 
-#define my_syscall6(num, arg1, arg2, arg3, arg4, arg5, arg6)                  \
+#define __nolibc_syscall6(num, arg1, arg2, arg3, arg4, arg5, arg6)            \
 ({                                                                            \
 	register long _num __asm__ ("v0")  = (num);                           \
 	register long _arg1 __asm__ ("a0") = (long)(arg1);                    \
@@ -203,7 +212,7 @@
 
 #else /* _ABIN32 || _ABI64 */
 
-#define my_syscall5(num, arg1, arg2, arg3, arg4, arg5)                        \
+#define __nolibc_syscall5(num, arg1, arg2, arg3, arg4, arg5)                  \
 ({                                                                            \
 	register long _num __asm__ ("v0") = (num);                            \
 	register long _arg1 __asm__ ("$4") = (long)(arg1);                    \
@@ -222,7 +231,7 @@
 	_arg4 ? -_num : _num;                                                 \
 })
 
-#define my_syscall6(num, arg1, arg2, arg3, arg4, arg5, arg6)                  \
+#define __nolibc_syscall6(num, arg1, arg2, arg3, arg4, arg5, arg6)            \
 ({                                                                            \
 	register long _num __asm__ ("v0")  = (num);                           \
 	register long _arg1 __asm__ ("$4") = (long)(arg1);                    \

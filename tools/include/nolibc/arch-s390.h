@@ -28,7 +28,7 @@
  *
  */
 
-#define my_syscall0(num)						\
+#define __nolibc_syscall0(num)						\
 ({									\
 	register long _num __asm__ ("1") = (num);			\
 	register long _rc __asm__ ("2");				\
@@ -42,7 +42,7 @@
 	_rc;								\
 })
 
-#define my_syscall1(num, arg1)						\
+#define __nolibc_syscall1(num, arg1)					\
 ({									\
 	register long _num __asm__ ("1") = (num);			\
 	register long _arg1 __asm__ ("2") = (long)(arg1);		\
@@ -56,7 +56,7 @@
 	_arg1;								\
 })
 
-#define my_syscall2(num, arg1, arg2)					\
+#define __nolibc_syscall2(num, arg1, arg2)				\
 ({									\
 	register long _num __asm__ ("1") = (num);			\
 	register long _arg1 __asm__ ("2") = (long)(arg1);		\
@@ -71,7 +71,7 @@
 	_arg1;								\
 })
 
-#define my_syscall3(num, arg1, arg2, arg3)				\
+#define __nolibc_syscall3(num, arg1, arg2, arg3)			\
 ({									\
 	register long _num __asm__ ("1") = (num);			\
 	register long _arg1 __asm__ ("2") = (long)(arg1);		\
@@ -87,7 +87,7 @@
 	_arg1;								\
 })
 
-#define my_syscall4(num, arg1, arg2, arg3, arg4)			\
+#define __nolibc_syscall4(num, arg1, arg2, arg3, arg4)			\
 ({									\
 	register long _num __asm__ ("1") = (num);			\
 	register long _arg1 __asm__ ("2") = (long)(arg1);		\
@@ -104,7 +104,7 @@
 	_arg1;								\
 })
 
-#define my_syscall5(num, arg1, arg2, arg3, arg4, arg5)			\
+#define __nolibc_syscall5(num, arg1, arg2, arg3, arg4, arg5)		\
 ({									\
 	register long _num __asm__ ("1") = (num);			\
 	register long _arg1 __asm__ ("2") = (long)(arg1);		\
@@ -123,7 +123,7 @@
 	_arg1;								\
 })
 
-#define my_syscall6(num, arg1, arg2, arg3, arg4, arg5, arg6)		\
+#define __nolibc_syscall6(num, arg1, arg2, arg3, arg4, arg5, arg6)	\
 ({									\
 	register long _num __asm__ ("1") = (num);			\
 	register long _arg1 __asm__ ("2") = (long)(arg1);		\
@@ -167,8 +167,8 @@ struct s390_mmap_arg_struct {
 };
 
 static __attribute__((unused))
-void *sys_mmap(void *addr, size_t length, int prot, int flags, int fd,
-	       off_t offset)
+void *_sys_mmap(void *addr, size_t length, int prot, int flags, int fd,
+		off_t offset)
 {
 	struct s390_mmap_arg_struct args = {
 		.addr = (unsigned long)addr,
@@ -179,22 +179,22 @@ void *sys_mmap(void *addr, size_t length, int prot, int flags, int fd,
 		.offset = (unsigned long)offset
 	};
 
-	return (void *)my_syscall1(__NR_mmap, &args);
+	return (void *)__nolibc_syscall1(__NR_mmap, &args);
 }
-#define sys_mmap sys_mmap
+#define _sys_mmap _sys_mmap
 
 static __attribute__((unused))
-pid_t sys_fork(void)
+pid_t _sys_fork(void)
 {
-	return my_syscall5(__NR_clone, 0, SIGCHLD, 0, 0, 0);
+	return __nolibc_syscall5(__NR_clone, 0, SIGCHLD, 0, 0, 0);
 }
-#define sys_fork sys_fork
+#define _sys_fork _sys_fork
 
 static __attribute__((unused))
-pid_t sys_vfork(void)
+pid_t _sys_vfork(void)
 {
-	return my_syscall5(__NR_clone, 0, CLONE_VM | CLONE_VFORK | SIGCHLD, 0, 0, 0);
+	return __nolibc_syscall5(__NR_clone, 0, CLONE_VM | CLONE_VFORK | SIGCHLD, 0, 0, 0);
 }
-#define sys_vfork sys_vfork
+#define _sys_vfork _sys_vfork
 
 #endif /* _NOLIBC_ARCH_S390_H */

@@ -20,17 +20,17 @@
  */
 
 static __attribute__((unused))
-int sys_prctl(int option, unsigned long arg2, unsigned long arg3,
-			  unsigned long arg4, unsigned long arg5)
+int _sys_prctl(int option, unsigned long arg2, unsigned long arg3,
+			   unsigned long arg4, unsigned long arg5)
 {
-	return my_syscall5(__NR_prctl, option, arg2, arg3, arg4, arg5);
+	return __nolibc_syscall5(__NR_prctl, option, arg2, arg3, arg4, arg5);
 }
 
 static __attribute__((unused))
 int prctl(int option, unsigned long arg2, unsigned long arg3,
 		      unsigned long arg4, unsigned long arg5)
 {
-	return __sysret(sys_prctl(option, arg2, arg3, arg4, arg5));
+	return __sysret(_sys_prctl(option, arg2, arg3, arg4, arg5));
 }
 
 #endif /* _NOLIBC_SYS_PRCTL_H */

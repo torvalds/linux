@@ -38,7 +38,7 @@
 
 #endif /* __arch64__ */
 
-#define my_syscall0(num)                                                      \
+#define __nolibc_syscall0(num)                                                \
 ({                                                                            \
 	register long _num  __asm__ ("g1") = (num);                           \
 	register long _arg1 __asm__ ("o0");                                   \
@@ -52,7 +52,7 @@
 	_arg1;                                                                \
 })
 
-#define my_syscall1(num, arg1)                                                \
+#define __nolibc_syscall1(num, arg1)                                          \
 ({                                                                            \
 	register long _num  __asm__ ("g1") = (num);                           \
 	register long _arg1 __asm__ ("o0") = (long)(arg1);                    \
@@ -66,7 +66,7 @@
 	_arg1;                                                                \
 })
 
-#define my_syscall2(num, arg1, arg2)                                          \
+#define __nolibc_syscall2(num, arg1, arg2)                                    \
 ({                                                                            \
 	register long _num  __asm__ ("g1") = (num);                           \
 	register long _arg1 __asm__ ("o0") = (long)(arg1);                    \
@@ -81,7 +81,7 @@
 	_arg1;                                                                \
 })
 
-#define my_syscall3(num, arg1, arg2, arg3)                                    \
+#define __nolibc_syscall3(num, arg1, arg2, arg3)                              \
 ({                                                                            \
 	register long _num  __asm__ ("g1") = (num);                           \
 	register long _arg1 __asm__ ("o0") = (long)(arg1);                    \
@@ -97,7 +97,7 @@
 	_arg1;                                                                \
 })
 
-#define my_syscall4(num, arg1, arg2, arg3, arg4)                              \
+#define __nolibc_syscall4(num, arg1, arg2, arg3, arg4)                        \
 ({                                                                            \
 	register long _num  __asm__ ("g1") = (num);                           \
 	register long _arg1 __asm__ ("o0") = (long)(arg1);                    \
@@ -114,7 +114,7 @@
 	_arg1;                                                                \
 })
 
-#define my_syscall5(num, arg1, arg2, arg3, arg4, arg5)                        \
+#define __nolibc_syscall5(num, arg1, arg2, arg3, arg4, arg5)                  \
 ({                                                                            \
 	register long _num  __asm__ ("g1") = (num);                           \
 	register long _arg1 __asm__ ("o0") = (long)(arg1);                    \
@@ -132,7 +132,7 @@
 	_arg1;                                                                \
 })
 
-#define my_syscall6(num, arg1, arg2, arg3, arg4, arg5, arg6)                  \
+#define __nolibc_syscall6(num, arg1, arg2, arg3, arg4, arg5, arg6)            \
 ({                                                                            \
 	register long _num  __asm__ ("g1") = (num);                           \
 	register long _arg1 __asm__ ("o0") = (long)(arg1);                    \
@@ -175,12 +175,12 @@ void __attribute__((weak, noreturn)) __nolibc_entrypoint __no_stack_protector _s
 static pid_t getpid(void);
 
 static __attribute__((unused))
-pid_t sys_fork(void)
+pid_t _sys_fork(void)
 {
 	pid_t parent, ret;
 
 	parent = getpid();
-	ret = my_syscall0(__NR_fork);
+	ret = __nolibc_syscall0(__NR_fork);
 
 	/* The syscall returns the parent pid in the child instead of 0 */
 	if (ret == parent)
@@ -188,15 +188,15 @@ pid_t sys_fork(void)
 	else
 		return ret;
 }
-#define sys_fork sys_fork
+#define _sys_fork _sys_fork
 
 static __attribute__((unused))
-pid_t sys_vfork(void)
+pid_t _sys_vfork(void)
 {
 	pid_t parent, ret;
 
 	parent = getpid();
-	ret = my_syscall0(__NR_vfork);
+	ret = __nolibc_syscall0(__NR_vfork);
 
 	/* The syscall returns the parent pid in the child instead of 0 */
 	if (ret == parent)
@@ -204,6 +204,6 @@ pid_t sys_vfork(void)
 	else
 		return ret;
 }
-#define sys_vfork sys_vfork
+#define _sys_vfork _sys_vfork
 
 #endif /* _NOLIBC_ARCH_SPARC_H */

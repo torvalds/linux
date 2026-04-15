@@ -17,6 +17,7 @@ const unsigned long *_auxv __attribute__((weak));
 void _start(void);
 static void __stack_chk_init(void);
 static void exit(int);
+static char *strrchr(const char *s, int c);
 
 extern void (*const __preinit_array_start[])(int, char **, char**) __attribute__((weak));
 extern void (*const __preinit_array_end[])(int, char **, char**) __attribute__((weak));
@@ -27,11 +28,26 @@ extern void (*const __init_array_end[])(int, char **, char**) __attribute__((wea
 extern void (*const __fini_array_start[])(void) __attribute__((weak));
 extern void (*const __fini_array_end[])(void) __attribute__((weak));
 
+#ifndef NOLIBC_IGNORE_ERRNO
+extern char *program_invocation_name __attribute__((weak));
+extern char *program_invocation_short_name __attribute__((weak));
+
+static __inline__
+char *__nolibc_program_invocation_short_name(char *long_name)
+{
+
+	char *short_name;
+
+	short_name = strrchr(long_name, '/');
+	if (!short_name || !short_name[0])
+		return long_name;
+
+	return short_name + 1;
+}
+#endif /* NOLIBC_IGNORE_ERRNO */
+
 void _start_c(long *sp);
-__attribute__((weak,used))
-#if __nolibc_has_feature(undefined_behavior_sanitizer)
-	__attribute__((no_sanitize("function")))
-#endif
+__attribute__((weak,used)) __nolibc_no_sanitize_undefined
 void _start_c(long *sp)
 {
 	long argc;
@@ -75,6 +91,13 @@ void _start_c(long *sp)
 	for (auxv = (void *)envp; *auxv++;)
 		;
 	_auxv = auxv;
+
+#ifndef NOLIBC_IGNORE_ERRNO
+	if (argc > 0 && argv[0]) {
+		program_invocation_name = argv[0];
+		program_invocation_short_name = __nolibc_program_invocation_short_name(argv[0]);
+	}
+#endif /* NOLIBC_IGNORE_ERRNO */
 
 	for (ctor_func = __preinit_array_start; ctor_func < __preinit_array_end; ctor_func++)
 		(*ctor_func)(argc, argv, envp);

@@ -13,10 +13,10 @@
 #include "../arch.h"
 #include "../sys.h"
 
-#ifndef sys_mmap
+#ifndef _sys_mmap
 static __attribute__((unused))
-void *sys_mmap(void *addr, size_t length, int prot, int flags, int fd,
-	       off_t offset)
+void *_sys_mmap(void *addr, size_t length, int prot, int flags, int fd,
+		off_t offset)
 {
 	int n;
 
@@ -27,14 +27,14 @@ void *sys_mmap(void *addr, size_t length, int prot, int flags, int fd,
 	n = __NR_mmap;
 #endif
 
-	return (void *)my_syscall6(n, addr, length, prot, flags, fd, offset);
+	return (void *)__nolibc_syscall6(n, addr, length, prot, flags, fd, offset);
 }
 #endif
 
 static __attribute__((unused))
 void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
 {
-	void *ret = sys_mmap(addr, length, prot, flags, fd, offset);
+	void *ret = _sys_mmap(addr, length, prot, flags, fd, offset);
 
 	if ((unsigned long)ret >= -4095UL) {
 		SET_ERRNO(-(long)ret);
@@ -44,16 +44,16 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
 }
 
 static __attribute__((unused))
-void *sys_mremap(void *old_address, size_t old_size, size_t new_size, int flags, void *new_address)
+void *_sys_mremap(void *old_address, size_t old_size, size_t new_size, int flags, void *new_address)
 {
-	return (void *)my_syscall5(__NR_mremap, old_address, old_size,
-				   new_size, flags, new_address);
+	return (void *)__nolibc_syscall5(__NR_mremap, old_address, old_size,
+					 new_size, flags, new_address);
 }
 
 static __attribute__((unused))
 void *mremap(void *old_address, size_t old_size, size_t new_size, int flags, void *new_address)
 {
-	void *ret = sys_mremap(old_address, old_size, new_size, flags, new_address);
+	void *ret = _sys_mremap(old_address, old_size, new_size, flags, new_address);
 
 	if ((unsigned long)ret >= -4095UL) {
 		SET_ERRNO(-(long)ret);
@@ -63,15 +63,15 @@ void *mremap(void *old_address, size_t old_size, size_t new_size, int flags, voi
 }
 
 static __attribute__((unused))
-int sys_munmap(void *addr, size_t length)
+int _sys_munmap(void *addr, size_t length)
 {
-	return my_syscall2(__NR_munmap, addr, length);
+	return __nolibc_syscall2(__NR_munmap, addr, length);
 }
 
 static __attribute__((unused))
 int munmap(void *addr, size_t length)
 {
-	return __sysret(sys_munmap(addr, length));
+	return __sysret(_sys_munmap(addr, length));
 }
 
 #endif /* _NOLIBC_SYS_MMAN_H */

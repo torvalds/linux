@@ -19,9 +19,9 @@
  */
 
 static __attribute__((unused))
-int sys_openat(int dirfd, const char *path, int flags, mode_t mode)
+int _sys_openat(int dirfd, const char *path, int flags, mode_t mode)
 {
-	return my_syscall4(__NR_openat, dirfd, path, flags, mode);
+	return __nolibc_syscall4(__NR_openat, dirfd, path, flags, mode);
 }
 
 static __attribute__((unused))
@@ -37,7 +37,7 @@ int openat(int dirfd, const char *path, int flags, ...)
 		va_end(args);
 	}
 
-	return __sysret(sys_openat(dirfd, path, flags, mode));
+	return __sysret(_sys_openat(dirfd, path, flags, mode));
 }
 
 /*
@@ -45,9 +45,9 @@ int openat(int dirfd, const char *path, int flags, ...)
  */
 
 static __attribute__((unused))
-int sys_open(const char *path, int flags, mode_t mode)
+int _sys_open(const char *path, int flags, mode_t mode)
 {
-	return my_syscall4(__NR_openat, AT_FDCWD, path, flags, mode);
+	return __nolibc_syscall4(__NR_openat, AT_FDCWD, path, flags, mode);
 }
 
 static __attribute__((unused))
@@ -63,7 +63,7 @@ int open(const char *path, int flags, ...)
 		va_end(args);
 	}
 
-	return __sysret(sys_open(path, flags, mode));
+	return __sysret(_sys_open(path, flags, mode));
 }
 
 #endif /* _NOLIBC_FCNTL_H */

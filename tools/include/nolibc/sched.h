@@ -19,15 +19,15 @@
  */
 
 static __attribute__((unused))
-int sys_setns(int fd, int nstype)
+int _sys_setns(int fd, int nstype)
 {
-	return my_syscall2(__NR_setns, fd, nstype);
+	return __nolibc_syscall2(__NR_setns, fd, nstype);
 }
 
 static __attribute__((unused))
 int setns(int fd, int nstype)
 {
-	return __sysret(sys_setns(fd, nstype));
+	return __sysret(_sys_setns(fd, nstype));
 }
 
 
@@ -36,15 +36,15 @@ int setns(int fd, int nstype)
  */
 
 static __attribute__((unused))
-int sys_unshare(int flags)
+int _sys_unshare(int flags)
 {
-	return my_syscall1(__NR_unshare, flags);
+	return __nolibc_syscall1(__NR_unshare, flags);
 }
 
 static __attribute__((unused))
 int unshare(int flags)
 {
-	return __sysret(sys_unshare(flags));
+	return __sysret(_sys_unshare(flags));
 }
 
 #endif /* _NOLIBC_SCHED_H */

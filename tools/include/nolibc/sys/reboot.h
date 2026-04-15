@@ -20,15 +20,15 @@
  */
 
 static __attribute__((unused))
-ssize_t sys_reboot(int magic1, int magic2, int cmd, void *arg)
+ssize_t _sys_reboot(int magic1, int magic2, int cmd, void *arg)
 {
-	return my_syscall4(__NR_reboot, magic1, magic2, cmd, arg);
+	return __nolibc_syscall4(__NR_reboot, magic1, magic2, cmd, arg);
 }
 
 static __attribute__((unused))
 int reboot(int cmd)
 {
-	return __sysret(sys_reboot(LINUX_REBOOT_MAGIC1, LINUX_REBOOT_MAGIC2, cmd, NULL));
+	return __sysret(_sys_reboot(LINUX_REBOOT_MAGIC1, LINUX_REBOOT_MAGIC2, cmd, NULL));
 }
 
 #endif /* _NOLIBC_SYS_REBOOT_H */
