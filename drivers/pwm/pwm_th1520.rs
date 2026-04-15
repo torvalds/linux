@@ -64,10 +64,7 @@ const TH1520_PWM_REG_SIZE: usize = 0xB0;
 fn ns_to_cycles(ns: u64, rate_hz: u64) -> u64 {
     const NSEC_PER_SEC_U64: u64 = time::NSEC_PER_SEC as u64;
 
-    (match ns.checked_mul(rate_hz) {
-        Some(product) => product,
-        None => u64::MAX,
-    }) / NSEC_PER_SEC_U64
+    ns.saturating_mul(rate_hz) / NSEC_PER_SEC_U64
 }
 
 fn cycles_to_ns(cycles: u64, rate_hz: u64) -> u64 {

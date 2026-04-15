@@ -352,7 +352,7 @@ static int pwm_imx_tpm_probe(struct platform_device *pdev)
 	struct clk *clk;
 	void __iomem *base;
 	int ret;
-	unsigned int npwm;
+	unsigned int i, npwm;
 	u32 val;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
@@ -381,6 +381,13 @@ static int pwm_imx_tpm_probe(struct platform_device *pdev)
 	chip->ops = &imx_tpm_pwm_ops;
 
 	mutex_init(&tpm->lock);
+
+	/* count the enabled channels */
+	for (i = 0; i < npwm; ++i) {
+		val = readl(base + PWM_IMX_TPM_CnSC(i));
+		if (FIELD_GET(PWM_IMX_TPM_CnSC_ELS, val))
+			++tpm->enable_count;
+	}
 
 	ret = devm_pwmchip_add(&pdev->dev, chip);
 	if (ret)
