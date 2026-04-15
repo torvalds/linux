@@ -84,8 +84,20 @@ struct gntab_unmap_queue_data
 };
 
 int gnttab_init(void);
+#ifdef CONFIG_HIBERNATE_CALLBACKS
 int gnttab_suspend(void);
 int gnttab_resume(void);
+#else
+static inline int gnttab_suspend(void)
+{
+	return 0;
+}
+
+static inline int gnttab_resume(void)
+{
+	return 0;
+}
+#endif
 
 int gnttab_grant_foreign_access(domid_t domid, unsigned long frame,
 				int readonly);
