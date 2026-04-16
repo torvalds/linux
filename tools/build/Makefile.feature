@@ -115,6 +115,7 @@ FEATURE_TESTS_EXTRA :=                  \
          hello                          \
          libbabeltrace                  \
          libcapstone                    \
+         libcheck                       \
          libbfd-liberty                 \
          libbfd-liberty-z               \
          libopencsd                     \
@@ -175,6 +176,8 @@ endef
 ifneq ($(PKG_CONFIG),)
   $(foreach package,$(FEATURE_PKG_CONFIG),$(call feature_pkg_config,$(package)))
 endif
+
+FEATURE_CHECK_LDFLAGS-libcheck = -lcheck
 
 # Set FEATURE_CHECK_(C|LD)FLAGS-all for all FEATURE_TESTS features.
 # If in the future we need per-feature checks/flags for features not

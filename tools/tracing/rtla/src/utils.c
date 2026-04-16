@@ -19,7 +19,7 @@
 #include <stdio.h>
 #include <limits.h>
 
-#include "utils.h"
+#include "common.h"
 
 #define MAX_MSG_LENGTH	1024
 int config_debug;
@@ -119,13 +119,10 @@ int parse_cpu_set(char *cpu_list, cpu_set_t *set)
 {
 	const char *p;
 	int end_cpu;
-	int nr_cpus;
 	int cpu;
 	int i;
 
 	CPU_ZERO(set);
-
-	nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
 
 	for (p = cpu_list; *p; ) {
 		cpu = atoi(p);
@@ -165,6 +162,24 @@ err:
 }
 
 /*
+ * parse_stack_format - parse the stack format
+ *
+ * Return: the stack format on success, -1 otherwise.
+ */
+int parse_stack_format(char *arg)
+{
+	if (!strcmp(arg, "truncate"))
+		return STACK_FORMAT_TRUNCATE;
+	if (!strcmp(arg, "skip"))
+		return STACK_FORMAT_SKIP;
+	if (!strcmp(arg, "full"))
+		return STACK_FORMAT_FULL;
+
+	debug_msg("Error parsing the stack format %s\n", arg);
+	return -1;
+}
+
+/*
  * parse_duration - parse duration with s/m/h/d suffix converting it to seconds
  */
 long parse_seconds_duration(char *val)
@@ -199,6 +214,21 @@ long parse_seconds_duration(char *val)
 }
 
 /*
+ * match_time_unit - check if str starts with unit followed by end-of-string or ':'
+ *
+ * This allows the time unit parser to work both in standalone duration strings
+ * like "100ms" and in colon-delimited SCHED_DEADLINE specifications like
+ * "d:10ms:100ms", while still rejecting malformed input like "100msx".
+ */
+static bool match_time_unit(const char *str, const char *unit)
+{
+	size_t len = strlen(unit);
+
+	return strncmp(str, unit, len) == 0 &&
+	       (str[len] == '\0' || str[len] == ':');
+}
+
+/*
  * parse_ns_duration - parse duration with ns/us/ms/s converting it to nanoseconds
  */
 long parse_ns_duration(char *val)
@@ -209,15 +239,15 @@ long parse_ns_duration(char *val)
 	t = strtol(val, &end, 10);
 
 	if (end) {
-		if (!strncmp(end, "ns", 2)) {
+		if (match_time_unit(end, "ns")) {
 			return t;
-		} else if (!strncmp(end, "us", 2)) {
+		} else if (match_time_unit(end, "us")) {
 			t *= 1000;
 			return t;
-		} else if (!strncmp(end, "ms", 2)) {
+		} else if (match_time_unit(end, "ms")) {
 			t *= 1000 * 1000;
 			return t;
-		} else if (!strncmp(end, "s", 1)) {
+		} else if (match_time_unit(end, "s")) {
 			t *= 1000 * 1000 * 1000;
 			return t;
 		}
@@ -294,7 +324,7 @@ static int procfs_is_workload_pid(const char *comm_prefix, struct dirent *proc_e
 		return 0;
 
 	/* check if the string is a pid */
-	for (t_name = proc_entry->d_name; t_name; t_name++) {
+	for (t_name = proc_entry->d_name; *t_name; t_name++) {
 		if (!isdigit(*t_name))
 			break;
 	}
@@ -316,8 +346,7 @@ static int procfs_is_workload_pid(const char *comm_prefix, struct dirent *proc_e
 		return 0;
 
 	buffer[MAX_PATH-1] = '\0';
-	retval = strncmp(comm_prefix, buffer, strlen(comm_prefix));
-	if (retval)
+	if (!str_has_prefix(buffer, comm_prefix))
 		return 0;
 
 	/* comm already have \n */
@@ -361,22 +390,23 @@ int set_comm_sched_attr(const char *comm_prefix, struct sched_attr *attr)
 
 		if (strtoi(proc_entry->d_name, &pid)) {
 			err_msg("'%s' is not a valid pid", proc_entry->d_name);
-			goto out_err;
+			retval = 1;
+			goto out;
 		}
 		/* procfs_is_workload_pid confirmed it is a pid */
 		retval = __set_sched_attr(pid, attr);
 		if (retval) {
 			err_msg("Error setting sched attributes for pid:%s\n", proc_entry->d_name);
-			goto out_err;
+			goto out;
 		}
 
 		debug_msg("Set sched attributes for pid:%s\n", proc_entry->d_name);
 	}
-	return 0;
 
-out_err:
+	retval = 0;
+out:
 	closedir(procfs);
-	return 1;
+	return retval;
 }
 
 #define INVALID_VAL	(~0L)
@@ -559,7 +589,6 @@ int save_cpu_idle_disable_state(unsigned int cpu)
 	unsigned int nr_states;
 	unsigned int state;
 	int disabled;
-	int nr_cpus;
 
 	nr_states = cpuidle_state_count(cpu);
 
@@ -567,7 +596,6 @@ int save_cpu_idle_disable_state(unsigned int cpu)
 		return 0;
 
 	if (saved_cpu_idle_disable_state == NULL) {
-		nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
 		saved_cpu_idle_disable_state = calloc(nr_cpus, sizeof(unsigned int *));
 		if (!saved_cpu_idle_disable_state)
 			return -1;
@@ -644,12 +672,9 @@ int restore_cpu_idle_disable_state(unsigned int cpu)
 void free_cpu_idle_disable_states(void)
 {
 	int cpu;
-	int nr_cpus;
 
 	if (!saved_cpu_idle_disable_state)
 		return;
-
-	nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
 
 	for (cpu = 0; cpu < nr_cpus; cpu++) {
 		free(saved_cpu_idle_disable_state[cpu]);
@@ -809,6 +834,7 @@ static int open_cgroup_procs(const char *cgroup)
 	char cgroup_procs[MAX_PATH];
 	int retval;
 	int cg_fd;
+	size_t cg_path_len;
 
 	retval = find_mount("cgroup2", cgroup_path, sizeof(cgroup_path));
 	if (!retval) {
@@ -816,16 +842,18 @@ static int open_cgroup_procs(const char *cgroup)
 		return -1;
 	}
 
+	cg_path_len = strlen(cgroup_path);
+
 	if (!cgroup) {
-		retval = get_self_cgroup(&cgroup_path[strlen(cgroup_path)],
-				sizeof(cgroup_path) - strlen(cgroup_path));
+		retval = get_self_cgroup(&cgroup_path[cg_path_len],
+				sizeof(cgroup_path) - cg_path_len);
 		if (!retval) {
 			err_msg("Did not find self cgroup\n");
 			return -1;
 		}
 	} else {
-		snprintf(&cgroup_path[strlen(cgroup_path)],
-				sizeof(cgroup_path) - strlen(cgroup_path), "%s/", cgroup);
+		snprintf(&cgroup_path[cg_path_len],
+				sizeof(cgroup_path) - cg_path_len, "%s/", cgroup);
 	}
 
 	snprintf(cgroup_procs, MAX_PATH, "%s/cgroup.procs", cgroup_path);
@@ -1029,4 +1057,39 @@ int strtoi(const char *s, int *res)
 
 	*res = (int) lres;
 	return 0;
+}
+
+static inline void fatal_alloc(void)
+{
+	fatal("Error allocating memory\n");
+}
+
+void *calloc_fatal(size_t n, size_t size)
+{
+	void *p = calloc(n, size);
+
+	if (!p)
+		fatal_alloc();
+
+	return p;
+}
+
+void *reallocarray_fatal(void *p, size_t n, size_t size)
+{
+	p = reallocarray(p, n, size);
+
+	if (!p)
+		fatal_alloc();
+
+	return p;
+}
+
+char *strdup_fatal(const char *s)
+{
+	char *p = strdup(s);
+
+	if (!p)
+		fatal_alloc();
+
+	return p;
 }

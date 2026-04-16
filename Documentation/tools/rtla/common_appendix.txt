@@ -1,5 +1,26 @@
 .. SPDX-License-Identifier: GPL-2.0
 
+SIGINT BEHAVIOR
+===============
+
+On the first SIGINT, RTLA exits after collecting all outstanding samples up to
+the point of receiving the signal.
+
+When receiving more than one SIGINT, RTLA discards any outstanding samples, and
+exits while displaying only samples that have already been processed.
+
+If SIGINT is received during RTLA cleanup, RTLA exits immediately via
+the default signal handler.
+
+Note: For the purpose of SIGINT behavior, the expiry of duration specified via
+the -d/--duration option is treated as equivalent to receiving a SIGINT. For
+example, a SIGINT received after duration expired but samples have not been
+processed yet will drop any outstanding samples.
+
+Also note that when using the timerlat tool in BPF mode, samples are processed
+in-kernel; RTLA only copies them out to display them to the user. A second
+SIGINT does not affect in-kernel sample aggregation.
+
 EXIT STATUS
 ===========
 

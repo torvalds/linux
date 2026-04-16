@@ -83,3 +83,15 @@
 
         **Note**: BPF actions require BPF support to be available. If BPF is not available
         or disabled, the tool falls back to tracefs mode and BPF actions are not supported.
+
+**--stack-format** *format*
+
+        Adjust the format of the stack trace printed during auto-analysis.
+
+        The supported values for *format* are:
+
+        * **truncate**    Print the stack trace up to the first unknown address (default).
+        * **skip**        Skip unknown addresses.
+        * **full**        Print the entire stack trace, including unknown addresses.
+
+        For unknown addresses, the raw pointer is printed.

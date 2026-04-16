@@ -102,8 +102,8 @@ struct timerlat_aa_data {
  * The analysis context and system wide view
  */
 struct timerlat_aa_context {
-	int nr_cpus;
 	int dump_tasks;
+	enum stack_format stack_format;
 
 	/* per CPU data */
 	struct timerlat_aa_data *taa_data;
@@ -417,8 +417,8 @@ static int timerlat_aa_softirq_handler(struct trace_seq *s, struct tep_record *r
 	taa_data->thread_softirq_sum += duration;
 
 	trace_seq_printf(taa_data->softirqs_seq, "  %24s:%-3llu %.*s %9.2f us\n",
-			 softirq_name[vector], vector,
-			 24, spaces,
+			 vector < ARRAY_SIZE(softirq_name) ? softirq_name[vector] : "UNKNOWN",
+			 vector, 24, spaces,
 			 ns_to_usf(duration));
 	return 0;
 }
@@ -481,23 +481,43 @@ static int timerlat_aa_stack_handler(struct trace_seq *s, struct tep_record *rec
 {
 	struct timerlat_aa_context *taa_ctx = timerlat_aa_get_ctx();
 	struct timerlat_aa_data *taa_data = timerlat_aa_get_data(taa_ctx, record->cpu);
+	enum stack_format stack_format = taa_ctx->stack_format;
 	unsigned long *caller;
 	const char *function;
-	int val, i;
+	int val;
+	unsigned long long i;
 
 	trace_seq_reset(taa_data->stack_seq);
 
 	trace_seq_printf(taa_data->stack_seq, "    Blocking thread stack trace\n");
 	caller = tep_get_field_raw(s, event, "caller", record, &val, 1);
+
 	if (caller) {
-		for (i = 0; ; i++) {
+		unsigned long long size;
+		unsigned long long max_entries;
+
+		if (tep_get_field_val(s, event, "size", record, &size, 1) == 0)
+			max_entries = size < 64 ? size : 64;
+		else
+			max_entries = 64;
+
+		for (i = 0; i < max_entries; i++) {
 			function = tep_find_function(taa_ctx->tool->trace.tep, caller[i]);
-			if (!function)
-				break;
-			trace_seq_printf(taa_data->stack_seq, " %.*s -> %s\n",
-					 14, spaces, function);
+			if (!function) {
+				if (stack_format == STACK_FORMAT_TRUNCATE)
+					break;
+				else if (stack_format == STACK_FORMAT_SKIP)
+					continue;
+				else if (stack_format == STACK_FORMAT_FULL)
+					trace_seq_printf(taa_data->stack_seq, " %.*s -> 0x%lx\n",
+						     14, spaces, caller[i]);
+			} else {
+				trace_seq_printf(taa_data->stack_seq, " %.*s -> %s\n",
+						 14, spaces, function);
+			}
 		}
 	}
+
 	return 0;
 }
 
@@ -738,7 +758,7 @@ void timerlat_auto_analysis(int irq_thresh, int thread_thresh)
 	irq_thresh = irq_thresh * 1000;
 	thread_thresh = thread_thresh * 1000;
 
-	for (cpu = 0; cpu < taa_ctx->nr_cpus; cpu++) {
+	for (cpu = 0; cpu < nr_cpus; cpu++) {
 		taa_data = timerlat_aa_get_data(taa_ctx, cpu);
 
 		if (irq_thresh && taa_data->tlat_irq_latency >= irq_thresh) {
@@ -766,7 +786,7 @@ void timerlat_auto_analysis(int irq_thresh, int thread_thresh)
 
 	printf("\n");
 	printf("Printing CPU tasks:\n");
-	for (cpu = 0; cpu < taa_ctx->nr_cpus; cpu++) {
+	for (cpu = 0; cpu < nr_cpus; cpu++) {
 		taa_data = timerlat_aa_get_data(taa_ctx, cpu);
 		tep = taa_ctx->tool->trace.tep;
 
@@ -792,7 +812,7 @@ static void timerlat_aa_destroy_seqs(struct timerlat_aa_context *taa_ctx)
 	if (!taa_ctx->taa_data)
 		return;
 
-	for (i = 0; i < taa_ctx->nr_cpus; i++) {
+	for (i = 0; i < nr_cpus; i++) {
 		taa_data = timerlat_aa_get_data(taa_ctx, i);
 
 		if (taa_data->prev_irqs_seq) {
@@ -842,7 +862,7 @@ static int timerlat_aa_init_seqs(struct timerlat_aa_context *taa_ctx)
 	struct timerlat_aa_data *taa_data;
 	int i;
 
-	for (i = 0; i < taa_ctx->nr_cpus; i++) {
+	for (i = 0; i < nr_cpus; i++) {
 
 		taa_data = timerlat_aa_get_data(taa_ctx, i);
 
@@ -1020,9 +1040,8 @@ out_ctx:
  *
  * Returns 0 on success, -1 otherwise.
  */
-int timerlat_aa_init(struct osnoise_tool *tool, int dump_tasks)
+int timerlat_aa_init(struct osnoise_tool *tool, int dump_tasks, enum stack_format stack_format)
 {
-	int nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
 	struct timerlat_aa_context *taa_ctx;
 	int retval;
 
@@ -1032,9 +1051,9 @@ int timerlat_aa_init(struct osnoise_tool *tool, int dump_tasks)
 
 	__timerlat_aa_ctx = taa_ctx;
 
-	taa_ctx->nr_cpus = nr_cpus;
 	taa_ctx->tool = tool;
 	taa_ctx->dump_tasks = dump_tasks;
+	taa_ctx->stack_format = stack_format;
 
 	taa_ctx->taa_data = calloc(nr_cpus, sizeof(*taa_ctx->taa_data));
 	if (!taa_ctx->taa_data)
