@@ -257,7 +257,9 @@ Git 和邮箱配置
 
 	Update the translation through commit b080e52110ea
 	("docs: update self-protection __ro_after_init status")
-	# 请执行 git log --oneline <您翻译的英文文档路径>，并替换上述内容
+	# 请执行 git log --no-merges --oneline <您翻译的英文文档路径>
+	# 并替换上述内容。注意：应引用实际修改文件内容的 commit，
+	# 而非 merge commit
 
 	Signed-off-by: Yanteng Si <si.yanteng@linux.dev>
 	# 如果您前面的步骤正确执行，该行会自动显示，否则请检查 gitconfig 文件
