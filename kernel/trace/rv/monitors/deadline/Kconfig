@@ -1,0 +1,10 @@
+config RV_MON_DEADLINE
+	depends on RV
+	bool "deadline monitor"
+	help
+	  Collection of monitors to check the deadline scheduler and server
+	  behave according to specifications. Enable this to enable all
+	  scheduler specification supported by the current kernel.
+
+	  For further information, see:
+	    Documentation/trace/rv/monitor_deadline.rst

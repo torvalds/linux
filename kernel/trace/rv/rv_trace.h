@@ -62,8 +62,38 @@ DECLARE_EVENT_CLASS(error_da_monitor,
 #include <monitors/scpd/scpd_trace.h>
 #include <monitors/snep/snep_trace.h>
 #include <monitors/sts/sts_trace.h>
-#include <monitors/opid/opid_trace.h>
 // Add new monitors based on CONFIG_DA_MON_EVENTS_IMPLICIT here
+
+#ifdef CONFIG_HA_MON_EVENTS_IMPLICIT
+/* For simplicity this class is marked as DA although relevant only for HA */
+DECLARE_EVENT_CLASS(error_env_da_monitor,
+
+	TP_PROTO(char *state, char *event, char *env),
+
+	TP_ARGS(state, event, env),
+
+	TP_STRUCT__entry(
+		__string(	state,	state	)
+		__string(	event,	event	)
+		__string(	env,	env	)
+	),
+
+	TP_fast_assign(
+		__assign_str(state);
+		__assign_str(event);
+		__assign_str(env);
+	),
+
+	TP_printk("event %s not expected in the state %s with env %s",
+		__get_str(event),
+		__get_str(state),
+		__get_str(env))
+);
+
+#include <monitors/opid/opid_trace.h>
+// Add new monitors based on CONFIG_HA_MON_EVENTS_IMPLICIT here
+
+#endif
 
 #endif /* CONFIG_DA_MON_EVENTS_IMPLICIT */
 
@@ -127,6 +157,41 @@ DECLARE_EVENT_CLASS(error_da_monitor_id,
 #include <monitors/nrp/nrp_trace.h>
 #include <monitors/sssw/sssw_trace.h>
 // Add new monitors based on CONFIG_DA_MON_EVENTS_ID here
+
+#ifdef CONFIG_HA_MON_EVENTS_ID
+/* For simplicity this class is marked as DA although relevant only for HA */
+DECLARE_EVENT_CLASS(error_env_da_monitor_id,
+
+	TP_PROTO(int id, char *state, char *event, char *env),
+
+	TP_ARGS(id, state, event, env),
+
+	TP_STRUCT__entry(
+		__field(	int,	id	)
+		__string(	state,	state	)
+		__string(	event,	event	)
+		__string(	env,	env	)
+	),
+
+	TP_fast_assign(
+		__assign_str(state);
+		__assign_str(event);
+		__assign_str(env);
+		__entry->id	= id;
+	),
+
+	TP_printk("%d: event %s not expected in the state %s with env %s",
+		__entry->id,
+		__get_str(event),
+		__get_str(state),
+		__get_str(env))
+);
+
+#include <monitors/stall/stall_trace.h>
+#include <monitors/nomiss/nomiss_trace.h>
+// Add new monitors based on CONFIG_HA_MON_EVENTS_ID here
+
+#endif
 
 #endif /* CONFIG_DA_MON_EVENTS_ID */
 #ifdef CONFIG_LTL_MON_EVENTS_ID

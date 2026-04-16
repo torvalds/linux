@@ -3,7 +3,7 @@
 #
 # Copyright (C) 2019-2022 Red Hat, Inc. Daniel Bristot de Oliveira <bristot@kernel.org>
 #
-# Abtract class for generating kernel runtime verification monitors from specification file
+# Abstract class for generating kernel runtime verification monitors from specification file
 
 import platform
 import os
@@ -40,7 +40,7 @@ class RVGenerator:
         if platform.system() != "Linux":
             raise OSError("I can only run on Linux.")
 
-        kernel_path = os.path.join("/lib/modules/%s/build" % platform.release(), self.rv_dir)
+        kernel_path = os.path.join(f"/lib/modules/{platform.release()}/build", self.rv_dir)
 
         # if the current kernel is from a distro this may not be a full kernel tree
         # verify that one of the files we are going to modify is available
@@ -51,32 +51,26 @@ class RVGenerator:
         raise FileNotFoundError("Could not find the rv directory, do you have the kernel source installed?")
 
     def _read_file(self, path):
-        try:
-            fd = open(path, 'r')
-        except OSError:
-            raise Exception("Cannot open the file: %s" % path)
-
-        content = fd.read()
-
-        fd.close()
+        with open(path, 'r') as fd:
+            content = fd.read()
         return content
 
     def _read_template_file(self, file):
         try:
             path = os.path.join(self.abs_template_dir, file)
             return self._read_file(path)
-        except Exception:
+        except OSError:
             # Specific template file not found. Try the generic template file in the template/
             # directory, which is one level up
             path = os.path.join(self.abs_template_dir, "..", file)
             return self._read_file(path)
 
     def fill_parent(self):
-        return "&rv_%s" % self.parent if self.parent else "NULL"
+        return f"&rv_{self.parent}" if self.parent else "NULL"
 
     def fill_include_parent(self):
         if self.parent:
-            return "#include <monitors/%s/%s.h>\n" % (self.parent, self.parent)
+            return f"#include <monitors/{self.parent}/{self.parent}.h>\n"
         return ""
 
     def fill_tracepoint_handlers_skel(self):
@@ -122,7 +116,7 @@ class RVGenerator:
         buff = []
         buff.append("	# XXX: add dependencies if there")
         if self.parent:
-            buff.append("	depends on RV_MON_%s" % self.parent.upper())
+            buff.append(f"	depends on RV_MON_{self.parent.upper()}")
             buff.append("	default y")
         return '\n'.join(buff)
 
@@ -148,31 +142,30 @@ class RVGenerator:
         monitor_class_type = self.fill_monitor_class_type()
         if self.auto_patch:
             self._patch_file("rv_trace.h",
-                            "// Add new monitors based on CONFIG_%s here" % monitor_class_type,
-                            "#include <monitors/%s/%s_trace.h>" % (self.name, self.name))
-            return "  - Patching %s/rv_trace.h, double check the result" % self.rv_dir
+                            f"// Add new monitors based on CONFIG_{monitor_class_type} here",
+                            f"#include <monitors/{self.name}/{self.name}_trace.h>")
+            return f"  - Patching {self.rv_dir}/rv_trace.h, double check the result"
 
-        return """  - Edit %s/rv_trace.h:
-Add this line where other tracepoints are included and %s is defined:
-#include <monitors/%s/%s_trace.h>
-""" % (self.rv_dir, monitor_class_type, self.name, self.name)
+        return f"""  - Edit {self.rv_dir}/rv_trace.h:
+Add this line where other tracepoints are included and {monitor_class_type} is defined:
+#include <monitors/{self.name}/{self.name}_trace.h>
+"""
 
     def _kconfig_marker(self, container=None) -> str:
-        return "# Add new %smonitors here" % (container + " "
-                                              if container else "")
+        return f"# Add new {container + ' ' if container else ''}monitors here"
 
     def fill_kconfig_tooltip(self):
         if self.auto_patch:
             # monitors with a container should stay together in the Kconfig
             self._patch_file("Kconfig",
                              self._kconfig_marker(self.parent),
-                            "source \"kernel/trace/rv/monitors/%s/Kconfig\"" % (self.name))
-            return "  - Patching %s/Kconfig, double check the result" % self.rv_dir
+                            f"source \"kernel/trace/rv/monitors/{self.name}/Kconfig\"")
+            return f"  - Patching {self.rv_dir}/Kconfig, double check the result"
 
-        return """  - Edit %s/Kconfig:
+        return f"""  - Edit {self.rv_dir}/Kconfig:
 Add this line where other monitors are included:
-source \"kernel/trace/rv/monitors/%s/Kconfig\"
-""" % (self.rv_dir, self.name)
+source \"kernel/trace/rv/monitors/{self.name}/Kconfig\"
+"""
 
     def fill_makefile_tooltip(self):
         name = self.name
@@ -180,18 +173,18 @@ source \"kernel/trace/rv/monitors/%s/Kconfig\"
         if self.auto_patch:
             self._patch_file("Makefile",
                             "# Add new monitors here",
-                            "obj-$(CONFIG_RV_MON_%s) += monitors/%s/%s.o" % (name_up, name, name))
-            return "  - Patching %s/Makefile, double check the result" % self.rv_dir
+                            f"obj-$(CONFIG_RV_MON_{name_up}) += monitors/{name}/{name}.o")
+            return f"  - Patching {self.rv_dir}/Makefile, double check the result"
 
-        return """  - Edit %s/Makefile:
+        return f"""  - Edit {self.rv_dir}/Makefile:
 Add this line where other monitors are included:
-obj-$(CONFIG_RV_MON_%s) += monitors/%s/%s.o
-""" % (self.rv_dir, name_up, name, name)
+obj-$(CONFIG_RV_MON_{name_up}) += monitors/{name}/{name}.o
+"""
 
     def fill_monitor_tooltip(self):
         if self.auto_patch:
-            return "  - Monitor created in %s/monitors/%s" % (self.rv_dir, self. name)
-        return "  - Move %s/ to the kernel's monitor directory (%s/monitors)" % (self.name, self.rv_dir)
+            return f"  - Monitor created in {self.rv_dir}/monitors/{self.name}"
+        return f"  - Move {self.name}/ to the kernel's monitor directory ({self.rv_dir}/monitors)"
 
     def __create_directory(self):
         path = self.name
@@ -201,41 +194,27 @@ obj-$(CONFIG_RV_MON_%s) += monitors/%s/%s.o
             os.mkdir(path)
         except FileExistsError:
             return
-        except:
-            print("Fail creating the output dir: %s" % self.name)
 
     def __write_file(self, file_name, content):
-        try:
-            file = open(file_name, 'w')
-        except:
-            print("Fail writing to file: %s" % file_name)
-
-        file.write(content)
-
-        file.close()
+        with open(file_name, 'w') as file:
+            file.write(content)
 
     def _create_file(self, file_name, content):
-        path = "%s/%s" % (self.name, file_name)
+        path = f"{self.name}/{file_name}"
         if self.auto_patch:
             path = os.path.join(self.rv_dir, "monitors", path)
         self.__write_file(path, content)
-
-    def __get_main_name(self):
-        path = "%s/%s" % (self.name, "main.c")
-        if not os.path.exists(path):
-            return "main.c"
-        return "__main.c"
 
     def print_files(self):
         main_c = self.fill_main_c()
 
         self.__create_directory()
 
-        path = "%s.c" % self.name
+        path = f"{self.name}.c"
         self._create_file(path, main_c)
 
         model_h = self.fill_model_h()
-        path = "%s.h" % self.name
+        path = f"{self.name}.h"
         self._create_file(path, model_h)
 
         kconfig = self.fill_kconfig()
@@ -243,7 +222,7 @@ obj-$(CONFIG_RV_MON_%s) += monitors/%s/%s.o
 
 
 class Monitor(RVGenerator):
-    monitor_types = { "global" : 1, "per_cpu" : 2, "per_task" : 3 }
+    monitor_types = {"global": 1, "per_cpu": 2, "per_task": 3, "per_obj": 4}
 
     def __init__(self, extra_params={}):
         super().__init__(extra_params)
@@ -255,16 +234,18 @@ class Monitor(RVGenerator):
         monitor_class_type = self.fill_monitor_class_type()
         tracepoint_args_skel_event = self.fill_tracepoint_args_skel("event")
         tracepoint_args_skel_error = self.fill_tracepoint_args_skel("error")
+        tracepoint_args_skel_error_env = self.fill_tracepoint_args_skel("error_env")
         trace_h = trace_h.replace("%%MODEL_NAME%%", self.name)
         trace_h = trace_h.replace("%%MODEL_NAME_UP%%", self.name.upper())
         trace_h = trace_h.replace("%%MONITOR_CLASS%%", monitor_class)
         trace_h = trace_h.replace("%%MONITOR_CLASS_TYPE%%", monitor_class_type)
         trace_h = trace_h.replace("%%TRACEPOINT_ARGS_SKEL_EVENT%%", tracepoint_args_skel_event)
         trace_h = trace_h.replace("%%TRACEPOINT_ARGS_SKEL_ERROR%%", tracepoint_args_skel_error)
+        trace_h = trace_h.replace("%%TRACEPOINT_ARGS_SKEL_ERROR_ENV%%", tracepoint_args_skel_error_env)
         return trace_h
 
     def print_files(self):
         super().print_files()
         trace_h = self.fill_trace_h()
-        path = "%s_trace.h" % self.name
+        path = f"{self.name}_trace.h"
         self._create_file(path, trace_h)

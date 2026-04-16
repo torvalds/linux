@@ -9,6 +9,7 @@
 
 from ply.lex import lex
 from ply.yacc import yacc
+from .automata import AutomataError
 
 # Grammar:
 # 	ltl ::= opd | ( ltl ) | ltl binop ltl | unop ltl
@@ -62,7 +63,7 @@ t_ignore_COMMENT = r'\#.*'
 t_ignore = ' \t\n'
 
 def t_error(t):
-    raise ValueError(f"Illegal character '{t.value[0]}'")
+    raise AutomataError(f"Illegal character '{t.value[0]}'")
 
 lexer = lex()
 
@@ -394,7 +395,7 @@ class Variable:
     @staticmethod
     def expand(n: ASTNode, node: GraphNode, node_set) -> set[GraphNode]:
         for f in node.old:
-            if isinstance(f, NotOp) and f.op.child is n:
+            if isinstance(f.op, NotOp) and f.op.child is n:
                 return node_set
         node.old |= {n}
         return node.expand(node_set)
@@ -487,7 +488,7 @@ def p_unop(p):
     elif p[1] == "not":
         op = NotOp(p[2])
     else:
-        raise ValueError(f"Invalid unary operator {p[1]}")
+        raise AutomataError(f"Invalid unary operator {p[1]}")
 
     p[0] = ASTNode(op)
 
@@ -507,7 +508,7 @@ def p_binop(p):
     elif p[2] == "imply":
         op = ImplyOp(p[1], p[3])
     else:
-        raise ValueError(f"Invalid binary operator {p[2]}")
+        raise AutomataError(f"Invalid binary operator {p[2]}")
 
     p[0] = ASTNode(op)
 
@@ -526,7 +527,7 @@ def parse_ltl(s: str) -> ASTNode:
             subexpr[assign[0]] = assign[1]
 
     if rule is None:
-        raise ValueError("Please define your specification in the \"RULE = <LTL spec>\" format")
+        raise AutomataError("Please define your specification in the \"RULE = <LTL spec>\" format")
 
     for node in rule:
         if not isinstance(node.op, Variable):

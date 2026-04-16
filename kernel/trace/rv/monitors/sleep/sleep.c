@@ -49,6 +49,7 @@ static void ltl_atoms_init(struct task_struct *task, struct ltl_monitor *mon, bo
 		ltl_atom_set(mon, LTL_NANOSLEEP_TIMER_ABSTIME, false);
 		ltl_atom_set(mon, LTL_CLOCK_NANOSLEEP, false);
 		ltl_atom_set(mon, LTL_FUTEX_WAIT, false);
+		ltl_atom_set(mon, LTL_EPOLL_WAIT, false);
 		ltl_atom_set(mon, LTL_FUTEX_LOCK_PI, false);
 		ltl_atom_set(mon, LTL_BLOCK_ON_RT_MUTEX, false);
 	}
@@ -63,6 +64,7 @@ static void ltl_atoms_init(struct task_struct *task, struct ltl_monitor *mon, bo
 		ltl_atom_set(mon, LTL_NANOSLEEP_CLOCK_TAI, false);
 		ltl_atom_set(mon, LTL_NANOSLEEP_TIMER_ABSTIME, false);
 		ltl_atom_set(mon, LTL_CLOCK_NANOSLEEP, false);
+		ltl_atom_set(mon, LTL_EPOLL_WAIT, false);
 
 		if (strstarts(task->comm, "migration/"))
 			ltl_atom_set(mon, LTL_TASK_IS_MIGRATION, true);
@@ -162,6 +164,11 @@ static void handle_sys_enter(void *data, struct pt_regs *regs, long id)
 			break;
 		}
 		break;
+#ifdef __NR_epoll_wait
+	case __NR_epoll_wait:
+		ltl_atom_update(current, LTL_EPOLL_WAIT, true);
+		break;
+#endif
 	}
 }
 
@@ -174,6 +181,7 @@ static void handle_sys_exit(void *data, struct pt_regs *regs, long ret)
 	ltl_atom_set(mon, LTL_NANOSLEEP_CLOCK_MONOTONIC, false);
 	ltl_atom_set(mon, LTL_NANOSLEEP_CLOCK_TAI, false);
 	ltl_atom_set(mon, LTL_NANOSLEEP_TIMER_ABSTIME, false);
+	ltl_atom_set(mon, LTL_EPOLL_WAIT, false);
 	ltl_atom_update(current, LTL_CLOCK_NANOSLEEP, false);
 }
 

@@ -21,7 +21,7 @@
  */
 #define RV_MON_TYPE RV_MON_%%MONITOR_TYPE%%
 #include "%%MODEL_NAME%%.h"
-#include <rv/da_monitor.h>
+#include <rv/%%MONITOR_CLASS%%_monitor.h>
 
 /*
  * This is the instrumentation part of the monitor.

@@ -23,6 +23,19 @@ config LTL_MON_EVENTS_ID
 config RV_LTL_MONITOR
 	bool
 
+config RV_HA_MONITOR
+	bool
+
+config HA_MON_EVENTS_IMPLICIT
+	select DA_MON_EVENTS_IMPLICIT
+	select RV_HA_MONITOR
+	bool
+
+config HA_MON_EVENTS_ID
+	select DA_MON_EVENTS_ID
+	select RV_HA_MONITOR
+	bool
+
 menuconfig RV
 	bool "Runtime Verification"
 	select TRACING
@@ -64,6 +77,11 @@ source "kernel/trace/rv/monitors/rtapp/Kconfig"
 source "kernel/trace/rv/monitors/pagefault/Kconfig"
 source "kernel/trace/rv/monitors/sleep/Kconfig"
 # Add new rtapp monitors here
+
+source "kernel/trace/rv/monitors/stall/Kconfig"
+source "kernel/trace/rv/monitors/deadline/Kconfig"
+source "kernel/trace/rv/monitors/nomiss/Kconfig"
+# Add new deadline monitors here
 
 # Add new monitors here
 
