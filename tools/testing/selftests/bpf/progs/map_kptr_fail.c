@@ -385,4 +385,19 @@ int kptr_xchg_possibly_null(struct __sk_buff *ctx)
 	return 0;
 }
 
+SEC("?tc")
+__failure __msg("invalid kptr access, R")
+int reject_scalar_store_to_kptr(struct __sk_buff *ctx)
+{
+	struct map_value *v;
+	int key = 0;
+
+	v = bpf_map_lookup_elem(&array_map, &key);
+	if (!v)
+		return 0;
+
+	*(volatile u64 *)&v->unref_ptr = 0xBADC0DE;
+	return 0;
+}
+
 char _license[] SEC("license") = "GPL";
