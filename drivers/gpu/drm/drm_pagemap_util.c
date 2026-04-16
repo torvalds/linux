@@ -65,18 +65,14 @@ static void drm_pagemap_cache_fini(void *arg)
 	drm_dbg(cache->shrinker->drm, "Destroying dpagemap cache.\n");
 	spin_lock(&cache->lock);
 	dpagemap = cache->dpagemap;
-	if (!dpagemap) {
-		spin_unlock(&cache->lock);
-		goto out;
-	}
+	cache->dpagemap = NULL;
+	if (dpagemap && !drm_pagemap_shrinker_cancel(dpagemap))
+		dpagemap = NULL;
+	spin_unlock(&cache->lock);
 
-	if (drm_pagemap_shrinker_cancel(dpagemap)) {
-		cache->dpagemap = NULL;
-		spin_unlock(&cache->lock);
+	if (dpagemap)
 		drm_pagemap_destroy(dpagemap, false);
-	}
 
-out:
 	mutex_destroy(&cache->lookup_mutex);
 	kfree(cache);
 }

@@ -247,8 +247,8 @@ operations:
       flags: [admin-perm]
 
       do:
-        pre: net-shaper-nl-pre-doit
-        post: net-shaper-nl-post-doit
+        pre: net-shaper-nl-pre-doit-write
+        post: net-shaper-nl-post-doit-write
         request:
           attributes:
             - ifindex
@@ -278,8 +278,8 @@ operations:
       flags: [admin-perm]
 
       do:
-        pre: net-shaper-nl-pre-doit
-        post: net-shaper-nl-post-doit
+        pre: net-shaper-nl-pre-doit-write
+        post: net-shaper-nl-post-doit-write
         request:
           attributes: *ns-binding
 
@@ -309,8 +309,8 @@ operations:
       flags: [admin-perm]
 
       do:
-        pre: net-shaper-nl-pre-doit
-        post: net-shaper-nl-post-doit
+        pre: net-shaper-nl-pre-doit-write
+        post: net-shaper-nl-post-doit-write
         request:
           attributes:
             - ifindex

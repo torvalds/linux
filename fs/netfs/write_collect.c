@@ -228,7 +228,8 @@ reassess_streams:
 		if (!smp_load_acquire(&stream->active))
 			continue;
 
-		front = stream->front;
+		front = list_first_entry_or_null(&stream->subrequests,
+						 struct netfs_io_subrequest, rreq_link);
 		while (front) {
 			trace_netfs_collect_sreq(wreq, front);
 			//_debug("sreq [%x] %llx %zx/%zx",
@@ -279,7 +280,6 @@ reassess_streams:
 			list_del_init(&front->rreq_link);
 			front = list_first_entry_or_null(&stream->subrequests,
 							 struct netfs_io_subrequest, rreq_link);
-			stream->front = front;
 			spin_unlock(&wreq->lock);
 			netfs_put_subrequest(remove,
 					     notes & SAW_FAILURE ?

@@ -62,7 +62,7 @@ struct stack_frame {
 		struct {
 			unsigned long sie_control_block;
 			unsigned long sie_savearea;
-			unsigned long sie_reason;
+			unsigned long sie_return;
 			unsigned long sie_flags;
 			unsigned long sie_control_block_phys;
 			unsigned long sie_guest_asce;
