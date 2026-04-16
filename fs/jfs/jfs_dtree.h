@@ -253,4 +253,8 @@ extern int dtModify(tid_t tid, struct inode *ip, struct component_name * key,
 		    ino_t * orig_ino, ino_t new_ino, int flag);
 
 extern int jfs_readdir(struct file *file, struct dir_context *ctx);
+
+extern bool check_dtroot(dtroot_t *p);
+
+extern bool check_dtpage(dtpage_t *p);
 #endif				/* !_H_JFS_DTREE */

@@ -378,11 +378,12 @@ static int chkSuper(struct super_block *sb)
 	sbi->nbperpage = PSIZE >> sbi->l2bsize;
 	sbi->l2nbperpage = L2PSIZE - sbi->l2bsize;
 	sbi->l2niperblk = sbi->l2bsize - L2DISIZE;
+	uuid_copy(&sbi->uuid, &j_sb->s_uuid);
+
 	if (sbi->mntflag & JFS_INLINELOG)
 		sbi->logpxd = j_sb->s_logpxd;
 	else {
 		sbi->logdev = new_decode_dev(le32_to_cpu(j_sb->s_logdev));
-		uuid_copy(&sbi->uuid, &j_sb->s_uuid);
 		uuid_copy(&sbi->loguuid, &j_sb->s_loguuid);
 	}
 	sbi->fsckpxd = j_sb->s_fsckpxd;

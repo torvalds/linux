@@ -134,6 +134,93 @@ static const s8 budtab[256] = {
 };
 
 /*
+ * check_dmapctl - Validate integrity of a dmapctl structure
+ * @dcp: Pointer to the dmapctl structure to check
+ *
+ * Return: true if valid, false if corrupted
+ */
+static bool check_dmapctl(struct dmapctl *dcp)
+{
+	s8 budmin = dcp->budmin;
+	u32 nleafs, l2nleafs, leafidx, height;
+	int i;
+
+	nleafs = le32_to_cpu(dcp->nleafs);
+	/* Check basic field ranges */
+	if (unlikely(nleafs > LPERCTL)) {
+		jfs_err("dmapctl: invalid nleafs %u (max %u)",
+			nleafs, LPERCTL);
+		return false;
+	}
+
+	l2nleafs = le32_to_cpu(dcp->l2nleafs);
+	if (unlikely(l2nleafs > L2LPERCTL)) {
+		jfs_err("dmapctl: invalid l2nleafs %u (max %u)",
+			l2nleafs, L2LPERCTL);
+		return false;
+	}
+
+	/* Verify nleafs matches l2nleafs (must be power of two) */
+	if (unlikely((1U << l2nleafs) != nleafs)) {
+		jfs_err("dmapctl: nleafs %u != 2^%u",
+			nleafs, l2nleafs);
+		return false;
+	}
+
+	leafidx = le32_to_cpu(dcp->leafidx);
+	/* Check leaf index matches expected position */
+	if (unlikely(leafidx != CTLLEAFIND)) {
+		jfs_err("dmapctl: invalid leafidx %u (expected %u)",
+			leafidx, CTLLEAFIND);
+		return false;
+	}
+
+	height = le32_to_cpu(dcp->height);
+	/* Check tree height is within valid range */
+	if (unlikely(height > (L2LPERCTL >> 1))) {
+		jfs_err("dmapctl: invalid height %u (max %u)",
+			height, L2LPERCTL >> 1);
+		return false;
+	}
+
+	/* Check budmin is valid (cannot be NOFREE for non-empty tree) */
+	if (budmin == NOFREE) {
+		if (unlikely(nleafs > 0)) {
+			jfs_err("dmapctl: budmin is NOFREE but nleafs %u",
+				nleafs);
+			return false;
+		}
+	} else if (unlikely(budmin < BUDMIN)) {
+		jfs_err("dmapctl: invalid budmin %d (min %d)",
+			budmin, BUDMIN);
+		return false;
+	}
+
+	/* Check leaf nodes fit within stree array */
+	if (unlikely(leafidx + nleafs > CTLTREESIZE)) {
+		jfs_err("dmapctl: leaf range exceeds stree size (end %u > %u)",
+			leafidx + nleafs, CTLTREESIZE);
+		return false;
+	}
+
+	/* Check leaf nodes have valid values */
+	for (i = leafidx; i < leafidx + nleafs; i++) {
+		s8 val = dcp->stree[i];
+
+		if (unlikely(val < NOFREE)) {
+			jfs_err("dmapctl: invalid leaf value %d at index %d",
+					val, i);
+			return false;
+		} else if (unlikely(val > 31)) {
+			jfs_err("dmapctl: leaf value %d too large at index %d", val, i);
+			return false;
+		}
+	}
+
+	return true;
+}
+
+/*
  * NAME:	dbMount()
  *
  * FUNCTION:	initializate the block allocation map.
@@ -1372,7 +1459,7 @@ dbAllocAG(struct bmap * bmp, int agno, s64 nblocks, int l2nb, s64 * results)
 	dcp = (struct dmapctl *) mp->data;
 	budmin = dcp->budmin;
 
-	if (dcp->leafidx != cpu_to_le32(CTLLEAFIND)) {
+	if (unlikely(!check_dmapctl(dcp))) {
 		jfs_error(bmp->db_ipbmap->i_sb, "Corrupt dmapctl page\n");
 		release_metapage(mp);
 		return -EIO;
@@ -1702,7 +1789,7 @@ static int dbFindCtl(struct bmap * bmp, int l2nb, int level, s64 * blkno)
 		dcp = (struct dmapctl *) mp->data;
 		budmin = dcp->budmin;
 
-		if (dcp->leafidx != cpu_to_le32(CTLLEAFIND)) {
+		if (unlikely(!check_dmapctl(dcp))) {
 			jfs_error(bmp->db_ipbmap->i_sb,
 				  "Corrupt dmapctl page\n");
 			release_metapage(mp);
@@ -2485,7 +2572,7 @@ dbAdjCtl(struct bmap * bmp, s64 blkno, int newval, int alloc, int level)
 		return -EIO;
 	dcp = (struct dmapctl *) mp->data;
 
-	if (dcp->leafidx != cpu_to_le32(CTLLEAFIND)) {
+	if (unlikely(!check_dmapctl(dcp))) {
 		jfs_error(bmp->db_ipbmap->i_sb, "Corrupt dmapctl page\n");
 		release_metapage(mp);
 		return -EIO;
@@ -3454,6 +3541,11 @@ int dbExtendFS(struct inode *ipbmap, s64 blkno,	s64 nblocks)
 		return -EIO;
 	}
 	l2dcp = (struct dmapctl *) l2mp->data;
+	if (unlikely(!check_dmapctl(l2dcp))) {
+		jfs_error(ipbmap->i_sb, "Corrupt dmapctl page\n");
+		release_metapage(l2mp);
+		return -EIO;
+	}
 
 	/* compute start L1 */
 	k = blkno >> L2MAXL1SIZE;
@@ -3471,6 +3563,10 @@ int dbExtendFS(struct inode *ipbmap, s64 blkno,	s64 nblocks)
 			if (l1mp == NULL)
 				goto errout;
 			l1dcp = (struct dmapctl *) l1mp->data;
+			if (unlikely(!check_dmapctl(l1dcp))) {
+				jfs_error(ipbmap->i_sb, "Corrupt dmapctl page\n");
+				goto errout;
+			}
 
 			/* compute start L0 */
 			j = (blkno & (MAXL1SIZE - 1)) >> L2MAXL0SIZE;
@@ -3484,6 +3580,10 @@ int dbExtendFS(struct inode *ipbmap, s64 blkno,	s64 nblocks)
 				goto errout;
 
 			l1dcp = (struct dmapctl *) l1mp->data;
+			if (unlikely(!check_dmapctl(l1dcp))) {
+				jfs_error(ipbmap->i_sb, "Corrupt dmapctl page\n");
+				goto errout;
+			}
 
 			/* compute start L0 */
 			j = 0;
@@ -3503,6 +3603,10 @@ int dbExtendFS(struct inode *ipbmap, s64 blkno,	s64 nblocks)
 				if (l0mp == NULL)
 					goto errout;
 				l0dcp = (struct dmapctl *) l0mp->data;
+				if (unlikely(!check_dmapctl(l0dcp))) {
+					jfs_error(ipbmap->i_sb, "Corrupt dmapctl page\n");
+					goto errout;
+				}
 
 				/* compute start dmap */
 				i = (blkno & (MAXL0SIZE - 1)) >>
@@ -3518,6 +3622,10 @@ int dbExtendFS(struct inode *ipbmap, s64 blkno,	s64 nblocks)
 					goto errout;
 
 				l0dcp = (struct dmapctl *) l0mp->data;
+				if (unlikely(!check_dmapctl(l0dcp))) {
+					jfs_error(ipbmap->i_sb, "Corrupt dmapctl page\n");
+					goto errout;
+				}
 
 				/* compute start dmap */
 				i = 0;

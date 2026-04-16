@@ -20,6 +20,7 @@
 #include "jfs_superblock.h"
 #include "jfs_dmap.h"
 #include "jfs_imap.h"
+#include "jfs_logmgr.h"
 #include "jfs_metapage.h"
 #include "jfs_debug.h"
 
@@ -58,6 +59,12 @@ int jfs_umount(struct super_block *sb)
 		jfs_flush_journal(log, 2);
 
 	/*
+	 * Hold log lock so write_special_inodes (lmLogSync) cannot see
+	 * this sbi with a NULL inode pointer while iterating log->sb_list.
+	 */
+	if (log)
+		LOG_LOCK(log);
+	/*
 	 * close fileset inode allocation map (aka fileset inode)
 	 */
 	diUnmount(ipimap, 0);
@@ -94,6 +101,9 @@ int jfs_umount(struct super_block *sb)
 	 * the superblock as clean
 	 */
 	filemap_write_and_wait(sbi->direct_inode->i_mapping);
+
+	if (log)
+		LOG_UNLOCK(log);
 
 	/*
 	 * ensure all file system file pages are propagated to their
