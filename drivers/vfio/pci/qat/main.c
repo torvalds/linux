@@ -121,18 +121,12 @@ static long qat_vf_precopy_ioctl(struct file *filp, unsigned int cmd,
 	struct qat_mig_dev *mig_dev = qat_vdev->mdev;
 	struct vfio_precopy_info info;
 	loff_t *pos = &filp->f_pos;
-	unsigned long minsz;
 	int ret = 0;
 
-	if (cmd != VFIO_MIG_GET_PRECOPY_INFO)
-		return -ENOTTY;
-
-	minsz = offsetofend(struct vfio_precopy_info, dirty_bytes);
-
-	if (copy_from_user(&info, (void __user *)arg, minsz))
-		return -EFAULT;
-	if (info.argsz < minsz)
-		return -EINVAL;
+	ret = vfio_check_precopy_ioctl(&qat_vdev->core_device.vdev, cmd, arg,
+				       &info);
+	if (ret)
+		return ret;
 
 	mutex_lock(&qat_vdev->state_mutex);
 	if (qat_vdev->mig_state != VFIO_DEVICE_STATE_PRE_COPY &&
@@ -160,7 +154,8 @@ out:
 	mutex_unlock(&qat_vdev->state_mutex);
 	if (ret)
 		return ret;
-	return copy_to_user((void __user *)arg, &info, minsz) ? -EFAULT : 0;
+	return copy_to_user((void __user *)arg, &info,
+		offsetofend(struct vfio_precopy_info, dirty_bytes)) ? -EFAULT : 0;
 }
 
 static ssize_t qat_vf_save_read(struct file *filp, char __user *buf,
@@ -677,6 +672,8 @@ static const struct pci_device_id qat_vf_vfio_pci_table[] = {
 	{ PCI_DRIVER_OVERRIDE_DEVICE_VFIO(PCI_VENDOR_ID_INTEL, 0x4941) },
 	{ PCI_DRIVER_OVERRIDE_DEVICE_VFIO(PCI_VENDOR_ID_INTEL, 0x4943) },
 	{ PCI_DRIVER_OVERRIDE_DEVICE_VFIO(PCI_VENDOR_ID_INTEL, 0x4945) },
+	/* Intel QAT GEN5 420xx VF device */
+	{ PCI_DRIVER_OVERRIDE_DEVICE_VFIO(PCI_VENDOR_ID_INTEL, 0x4947) },
 	/* Intel QAT GEN6 6xxx VF device */
 	{ PCI_DRIVER_OVERRIDE_DEVICE_VFIO(PCI_VENDOR_ID_INTEL, 0x4949) },
 	{}

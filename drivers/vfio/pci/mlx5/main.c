@@ -179,7 +179,8 @@ static ssize_t mlx5vf_save_read(struct file *filp, char __user *buf, size_t len,
 				!list_empty(&migf->buf_list) ||
 				migf->state == MLX5_MIGF_STATE_ERROR ||
 				migf->state == MLX5_MIGF_STATE_PRE_COPY_ERROR ||
-				migf->state == MLX5_MIGF_STATE_PRE_COPY ||
+				(migf->state == MLX5_MIGF_STATE_PRE_COPY &&
+				 !migf->inflight_save) ||
 				migf->state == MLX5_MIGF_STATE_COMPLETE))
 			return -ERESTARTSYS;
 	}
@@ -463,21 +464,16 @@ static long mlx5vf_precopy_ioctl(struct file *filp, unsigned int cmd,
 	struct mlx5_vhca_data_buffer *buf;
 	struct vfio_precopy_info info = {};
 	loff_t *pos = &filp->f_pos;
-	unsigned long minsz;
+	u8 migration_state = 0;
 	size_t inc_length = 0;
-	bool end_of_data = false;
+	bool reinit_state;
+	bool end_of_data;
 	int ret;
 
-	if (cmd != VFIO_MIG_GET_PRECOPY_INFO)
-		return -ENOTTY;
-
-	minsz = offsetofend(struct vfio_precopy_info, dirty_bytes);
-
-	if (copy_from_user(&info, (void __user *)arg, minsz))
-		return -EFAULT;
-
-	if (info.argsz < minsz)
-		return -EINVAL;
+	ret = vfio_check_precopy_ioctl(&mvdev->core_device.vdev, cmd, arg,
+				       &info);
+	if (ret)
+		return ret;
 
 	mutex_lock(&mvdev->state_mutex);
 	if (mvdev->mig_state != VFIO_DEVICE_STATE_PRE_COPY &&
@@ -498,7 +494,8 @@ static long mlx5vf_precopy_ioctl(struct file *filp, unsigned int cmd,
 		 * As so, the other code below is safe with the proper locks.
 		 */
 		ret = mlx5vf_cmd_query_vhca_migration_state(mvdev, &inc_length,
-							    NULL, MLX5VF_QUERY_INC);
+							    NULL, &migration_state,
+							    MLX5VF_QUERY_INC);
 		if (ret)
 			goto err_state_unlock;
 	}
@@ -509,43 +506,70 @@ static long mlx5vf_precopy_ioctl(struct file *filp, unsigned int cmd,
 		goto err_migf_unlock;
 	}
 
-	if (migf->pre_copy_initial_bytes > *pos) {
-		info.initial_bytes = migf->pre_copy_initial_bytes - *pos;
-	} else {
-		info.dirty_bytes = migf->max_pos - *pos;
-		if (!info.dirty_bytes)
-			end_of_data = true;
-		info.dirty_bytes += inc_length;
-	}
-
-	if (!end_of_data || !inc_length) {
-		mutex_unlock(&migf->lock);
-		goto done;
-	}
-
-	mutex_unlock(&migf->lock);
 	/*
-	 * We finished transferring the current state and the device has a
-	 * dirty state, save a new state to be ready for.
+	 * opt-in for VFIO_DEVICE_FEATURE_MIG_PRECOPY_INFOv2 serves
+	 * as opt-in for VFIO_PRECOPY_INFO_REINIT as well
 	 */
-	buf = mlx5vf_get_data_buffer(migf, DIV_ROUND_UP(inc_length, PAGE_SIZE),
-				     DMA_FROM_DEVICE);
-	if (IS_ERR(buf)) {
-		ret = PTR_ERR(buf);
-		mlx5vf_mark_err(migf);
-		goto err_state_unlock;
+	reinit_state = mvdev->core_device.vdev.precopy_info_v2 &&
+			migration_state == MLX5_QUERY_VHCA_MIG_STATE_OPER_MIGRATION_INIT;
+	end_of_data = !(migf->max_pos - *pos);
+	if (reinit_state) {
+		/*
+		 * Any bytes already present in memory are treated as initial
+		 * bytes, since the caller is required to read them before
+		 * reaching the new initial-bytes region.
+		 */
+		migf->pre_copy_initial_bytes_start = *pos;
+		migf->pre_copy_initial_bytes = migf->max_pos - *pos;
+		info.initial_bytes = migf->pre_copy_initial_bytes + inc_length;
+		info.flags |= VFIO_PRECOPY_INFO_REINIT;
+	} else {
+		if (migf->pre_copy_initial_bytes_start +
+		    migf->pre_copy_initial_bytes > *pos) {
+			WARN_ON_ONCE(end_of_data);
+			info.initial_bytes = migf->pre_copy_initial_bytes_start +
+				migf->pre_copy_initial_bytes - *pos;
+		} else {
+			info.dirty_bytes = (migf->max_pos - *pos) + inc_length;
+		}
+	}
+	mutex_unlock(&migf->lock);
+
+	if ((reinit_state || end_of_data) && inc_length) {
+		/*
+		 * In case we finished transferring the current state and the
+		 * device has a dirty state, or that the device has a new init
+		 * state, save a new state to be ready for.
+		 */
+		buf = mlx5vf_get_data_buffer(migf, DIV_ROUND_UP(inc_length, PAGE_SIZE),
+					     DMA_FROM_DEVICE);
+		if (IS_ERR(buf)) {
+			ret = PTR_ERR(buf);
+			mlx5vf_mark_err(migf);
+			goto err_state_unlock;
+		}
+
+		buf->pre_copy_init_bytes_chunk = reinit_state;
+		ret = mlx5vf_cmd_save_vhca_state(mvdev, migf, buf, true, true);
+		if (ret) {
+			mlx5vf_mark_err(migf);
+			mlx5vf_put_data_buffer(buf);
+			goto err_state_unlock;
+		}
+
+		/*
+		 * SAVE appends a header record via add_buf_header(),
+		 * let's account it as well.
+		 */
+		if (reinit_state)
+			info.initial_bytes += sizeof(struct mlx5_vf_migration_header);
+		else
+			info.dirty_bytes += sizeof(struct mlx5_vf_migration_header);
 	}
 
-	ret = mlx5vf_cmd_save_vhca_state(mvdev, migf, buf, true, true);
-	if (ret) {
-		mlx5vf_mark_err(migf);
-		mlx5vf_put_data_buffer(buf);
-		goto err_state_unlock;
-	}
-
-done:
 	mlx5vf_state_mutex_unlock(mvdev);
-	if (copy_to_user((void __user *)arg, &info, minsz))
+	if (copy_to_user((void __user *)arg, &info,
+			 offsetofend(struct vfio_precopy_info, dirty_bytes)))
 		return -EFAULT;
 	return 0;
 
@@ -575,7 +599,7 @@ static int mlx5vf_pci_save_device_inc_data(struct mlx5vf_pci_core_device *mvdev)
 	if (migf->state == MLX5_MIGF_STATE_ERROR)
 		return -ENODEV;
 
-	ret = mlx5vf_cmd_query_vhca_migration_state(mvdev, &length, NULL,
+	ret = mlx5vf_cmd_query_vhca_migration_state(mvdev, &length, NULL, NULL,
 				MLX5VF_QUERY_INC | MLX5VF_QUERY_FINAL);
 	if (ret)
 		goto err;
@@ -641,7 +665,7 @@ mlx5vf_pci_save_device_data(struct mlx5vf_pci_core_device *mvdev, bool track)
 	if (ret)
 		goto out;
 
-	ret = mlx5vf_cmd_query_vhca_migration_state(mvdev, &length, &full_size, 0);
+	ret = mlx5vf_cmd_query_vhca_migration_state(mvdev, &length, &full_size, NULL, 0);
 	if (ret)
 		goto out_pd;
 
@@ -1128,7 +1152,7 @@ mlx5vf_pci_step_device_state_locked(struct mlx5vf_pci_core_device *mvdev,
 		enum mlx5_vf_migf_state state;
 		size_t size;
 
-		ret = mlx5vf_cmd_query_vhca_migration_state(mvdev, &size, NULL,
+		ret = mlx5vf_cmd_query_vhca_migration_state(mvdev, &size, NULL, NULL,
 					MLX5VF_QUERY_INC | MLX5VF_QUERY_CLEANUP);
 		if (ret)
 			return ERR_PTR(ret);
@@ -1253,7 +1277,7 @@ static int mlx5vf_pci_get_data_size(struct vfio_device *vdev,
 
 	mutex_lock(&mvdev->state_mutex);
 	ret = mlx5vf_cmd_query_vhca_migration_state(mvdev, &state_size,
-						    &total_size, 0);
+						    &total_size, NULL, 0);
 	if (!ret)
 		*stop_copy_length = total_size;
 	mlx5vf_state_mutex_unlock(mvdev);

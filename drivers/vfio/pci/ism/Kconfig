@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0
+config ISM_VFIO_PCI
+	tristate "VFIO support for ISM devices"
+	depends on S390
+	select VFIO_PCI_CORE
+	help
+	  This provides user space support for IBM Internal Shared Memory (ISM)
+	  Adapter devices using the VFIO framework.
+
+	  If you don't know what to do here, say N.

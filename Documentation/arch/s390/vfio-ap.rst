@@ -431,17 +431,14 @@ matrix device.
 * callback interfaces
 
   open_device:
-    The vfio_ap driver uses this callback to register a
-    VFIO_GROUP_NOTIFY_SET_KVM notifier callback function for the matrix mdev
-    devices. The open_device callback is invoked by userspace to connect the
-    VFIO iommu group for the matrix mdev device to the MDEV bus. Access to the
-    KVM structure used to configure the KVM guest is provided via this callback.
-    The KVM structure, is used to configure the guest's access to the AP matrix
-    defined via the vfio_ap mediated device's sysfs attribute files.
+    the open_device callback is invoked by userspace to connect the
+    VFIO iommu group for the matrix mdev device to the MDEV bus.  The
+    callback retrieves the KVM structure used to configure the KVM guest
+    and configures the guest's access to the AP matrix defined via the
+    vfio_ap mediated device's sysfs attribute files.
 
   close_device:
-    unregisters the VFIO_GROUP_NOTIFY_SET_KVM notifier callback function for the
-    matrix mdev device and deconfigures the guest's AP matrix.
+    this callback deconfigures the guest's AP matrix.
 
   ioctl:
     this callback handles the VFIO_DEVICE_GET_INFO and VFIO_DEVICE_RESET ioctls
@@ -449,9 +446,8 @@ matrix device.
 
 Configure the guest's AP resources
 ----------------------------------
-Configuring the AP resources for a KVM guest will be performed when the
-VFIO_GROUP_NOTIFY_SET_KVM notifier callback is invoked. The notifier
-function is called when userspace connects to KVM. The guest's AP resources are
+Configuring the AP resources for a KVM guest will be performed at the
+time of ``open_device`` and ``close_device``. The guest's AP resources are
 configured via its APCB by:
 
 * Setting the bits in the APM corresponding to the APIDs assigned to the

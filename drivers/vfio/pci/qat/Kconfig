@@ -2,7 +2,7 @@
 config QAT_VFIO_PCI
 	tristate "VFIO support for QAT VF PCI devices"
 	select VFIO_PCI_CORE
-	depends on CRYPTO_DEV_QAT_4XXX
+	depends on CRYPTO_DEV_QAT_4XXX || CRYPTO_DEV_QAT_420XX || CRYPTO_DEV_QAT_6XXX
 	help
 	  This provides migration support for Intel(R) QAT Virtual Function
 	  using the VFIO framework.
