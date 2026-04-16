@@ -6,18 +6,21 @@
 #include "trace_printk.lskel.h"
 
 #define SEARCHMSG	"testing,testing"
+#define SEARCHMSG_UTF8	"中文,测试"
 
 static void trace_pipe_cb(const char *str, void *data)
 {
 	if (strstr(str, SEARCHMSG) != NULL)
-		(*(int *)data)++;
+		((int *)data)[0]++;
+	if (strstr(str, SEARCHMSG_UTF8))
+		((int *)data)[1]++;
 }
 
 void serial_test_trace_printk(void)
 {
 	struct trace_printk_lskel__bss *bss;
 	struct trace_printk_lskel *skel;
-	int err = 0, found = 0;
+	int err = 0, found[2] = {};
 
 	skel = trace_printk_lskel__open();
 	if (!ASSERT_OK_PTR(skel, "trace_printk__open"))
@@ -46,11 +49,24 @@ void serial_test_trace_printk(void)
 	if (!ASSERT_GT(bss->trace_printk_ret, 0, "bss->trace_printk_ret"))
 		goto cleanup;
 
-	/* verify our search string is in the trace buffer */
-	ASSERT_OK(read_trace_pipe_iter(trace_pipe_cb, &found, 1000),
-		 "read_trace_pipe_iter");
+	if (!ASSERT_GT(bss->trace_printk_utf8_ran, 0, "bss->trace_printk_utf8_ran"))
+		goto cleanup;
 
-	if (!ASSERT_EQ(found, bss->trace_printk_ran, "found"))
+	if (!ASSERT_GT(bss->trace_printk_utf8_ret, 0, "bss->trace_printk_utf8_ret"))
+		goto cleanup;
+
+	if (!ASSERT_LT(bss->trace_printk_invalid_spec_ret, 0,
+		       "bss->trace_printk_invalid_spec_ret"))
+		goto cleanup;
+
+	/* verify our search strings are in the trace buffer */
+	ASSERT_OK(read_trace_pipe_iter(trace_pipe_cb, found, 1000),
+		  "read_trace_pipe_iter");
+
+	if (!ASSERT_EQ(found[0], bss->trace_printk_ran, "found"))
+		goto cleanup;
+
+	if (!ASSERT_EQ(found[1], bss->trace_printk_utf8_ran, "found_utf8"))
 		goto cleanup;
 
 cleanup:
