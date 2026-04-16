@@ -22,7 +22,6 @@ unsigned long __ro_after_init efi_mem_attr_table = EFI_INVALID_TABLE_ADDR;
 void __init efi_memattr_init(void)
 {
 	efi_memory_attributes_table_t *tbl;
-	unsigned long size;
 
 	if (efi_mem_attr_table == EFI_INVALID_TABLE_ADDR)
 		return;
@@ -40,22 +39,42 @@ void __init efi_memattr_init(void)
 		goto unmap;
 	}
 
+	/*
+	 * The EFI memory attributes table descriptors might potentially be
+	 * smaller than those used by the EFI memory map, as long as they can
+	 * fit a efi_memory_desc_t. However, a larger descriptor size makes no
+	 * sense, and might be an indication that the table is corrupted.
+	 *
+	 * The only exception is kexec_load(), where the EFI memory map is
+	 * reconstructed by user space, and may use a smaller descriptor size
+	 * than the original. Given that, ignoring this companion table is
+	 * still the right thing to do here, but don't complain too loudly when
+	 * this happens.
+	 */
+	if (tbl->desc_size < sizeof(efi_memory_desc_t) ||
+	    tbl->desc_size > efi.memmap.desc_size) {
+		pr_warn("Unexpected EFI Memory Attributes descriptor size %u (expected: %lu)\n",
+			tbl->desc_size, efi.memmap.desc_size);
+		goto unmap;
+	}
 
 	/*
-	 * Sanity check: the Memory Attributes Table contains up to 3 entries
-	 * for each entry of type EfiRuntimeServicesCode in the EFI memory map.
-	 * So if the size of the table exceeds 3x the size of the entire EFI
-	 * memory map, there is clearly something wrong, and the table should
-	 * just be ignored altogether.
+	 * Sanity check: the Memory Attributes Table contains multiple entries
+	 * for each EFI runtime services code or data region in the EFI memory
+	 * map, each with the permission attributes that may be applied when
+	 * mapping the region.  There is no upper bound for the number of
+	 * entries, as it could conceivably contain more entries than the EFI
+	 * memory map itself. So pick an arbitrary limit of 64k, which is
+	 * ludicrously high. This prevents a corrupted table from eating all
+	 * system RAM.
 	 */
-	size = tbl->num_entries * tbl->desc_size;
-	if (size > 3 * efi.memmap.nr_map * efi.memmap.desc_size) {
+	if (tbl->num_entries > SZ_64K) {
 		pr_warn(FW_BUG "Corrupted EFI Memory Attributes Table detected! (version == %u, desc_size == %u, num_entries == %u)\n",
 			tbl->version, tbl->desc_size, tbl->num_entries);
 		goto unmap;
 	}
 
-	tbl_size = sizeof(*tbl) + size;
+	tbl_size = sizeof(*tbl) + tbl->num_entries * tbl->desc_size;
 	memblock_reserve(efi_mem_attr_table, tbl_size);
 	set_bit(EFI_MEM_ATTR, &efi.flags);
 

@@ -1116,6 +1116,21 @@ int __init_memblock memblock_reserved_mark_noinit(phys_addr_t base, phys_addr_t 
 }
 
 /**
+ * memblock_reserved_mark_kern - Mark a reserved memory region with flag
+ * MEMBLOCK_RSRV_KERN
+ *
+ * @base: the base phys addr of the region
+ * @size: the size of the region
+ *
+ * Return: 0 on success, -errno on failure.
+ */
+int __init_memblock memblock_reserved_mark_kern(phys_addr_t base, phys_addr_t size)
+{
+	return memblock_setclr_flag(&memblock.reserved, base, size, 1,
+				    MEMBLOCK_RSRV_KERN);
+}
+
+/**
  * memblock_mark_kho_scratch - Mark a memory region as MEMBLOCK_KHO_SCRATCH.
  * @base: the base phys addr of the region
  * @size: the size of the region
