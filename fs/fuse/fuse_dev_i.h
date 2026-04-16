@@ -39,18 +39,36 @@ struct fuse_copy_state {
 	} ring;
 };
 
-#define FUSE_DEV_SYNC_INIT ((struct fuse_dev *) 1)
-#define FUSE_DEV_PTR_MASK (~1UL)
+/* fud->fc gets assigned to this value when /dev/fuse is closed */
+#define FUSE_DEV_FC_DISCONNECTED ((struct fuse_conn *) 1)
+
+/*
+ * Lockless access is OK, because fud->fc is set once during mount and is valid
+ * until the file is released.
+ *
+ * fud->fc is set to FUSE_DEV_FC_DISCONNECTED only after the containing file is
+ * released, so result is safe to dereference in most cases.  Exceptions are:
+ * fuse_dev_put() and fuse_fill_super_common().
+ */
+static inline struct fuse_conn *fuse_dev_fc_get(struct fuse_dev *fud)
+{
+	/* Pairs with xchg() in fuse_dev_install() */
+	return smp_load_acquire(&fud->fc);
+}
+
+static inline struct fuse_dev *fuse_file_to_fud(struct file *file)
+{
+	return file->private_data;
+}
 
 static inline struct fuse_dev *__fuse_get_dev(struct file *file)
 {
-	/*
-	 * Lockless access is OK, because file->private data is set
-	 * once during mount and is valid until the file is released.
-	 */
-	struct fuse_dev *fud = READ_ONCE(file->private_data);
+	struct fuse_dev *fud = fuse_file_to_fud(file);
 
-	return (typeof(fud)) ((unsigned long) fud & FUSE_DEV_PTR_MASK);
+	if (!fuse_dev_fc_get(fud))
+		return NULL;
+
+	return fud;
 }
 
 struct fuse_dev *fuse_get_dev(struct file *file);

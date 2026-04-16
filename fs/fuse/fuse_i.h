@@ -345,6 +345,7 @@ struct fuse_args {
 	bool is_ext:1;
 	bool is_pinned:1;
 	bool invalidate_vmap:1;
+	bool abort_on_kill:1;
 	struct fuse_in_arg in_args[4];
 	struct fuse_arg out_args[2];
 	void (*end)(struct fuse_mount *fm, struct fuse_args *args, int error);
@@ -576,6 +577,12 @@ struct fuse_pqueue {
  * Fuse device instance
  */
 struct fuse_dev {
+	/** Reference count of this object */
+	refcount_t ref;
+
+	/** Issue FUSE_INIT synchronously */
+	bool sync_init;
+
 	/** Fuse connection for this device */
 	struct fuse_conn *fc;
 
@@ -599,13 +606,11 @@ static inline bool fuse_is_inode_dax_mode(enum fuse_dax_mode mode)
 }
 
 struct fuse_fs_context {
-	int fd;
-	struct file *file;
+	struct fuse_dev *fud;
 	unsigned int rootmode;
 	kuid_t user_id;
 	kgid_t group_id;
 	bool is_bdev:1;
-	bool fd_present:1;
 	bool rootmode_present:1;
 	bool user_id_present:1;
 	bool group_id_present:1;
@@ -622,9 +627,6 @@ struct fuse_fs_context {
 
 	/* DAX device, may be NULL */
 	struct dax_device *dax_dev;
-
-	/* fuse_dev pointer to fill in, should contain NULL on entry */
-	void **fudptr;
 };
 
 struct fuse_sync_bucket {
@@ -647,9 +649,6 @@ struct fuse_conn {
 
 	/** Refcount */
 	refcount_t count;
-
-	/** Number of fuse_dev's */
-	atomic_t dev_count;
 
 	/** Current epoch for up-to-date dentries */
 	atomic_t epoch;
@@ -1343,7 +1342,7 @@ void fuse_conn_put(struct fuse_conn *fc);
 struct fuse_dev *fuse_dev_alloc_install(struct fuse_conn *fc);
 struct fuse_dev *fuse_dev_alloc(void);
 void fuse_dev_install(struct fuse_dev *fud, struct fuse_conn *fc);
-void fuse_dev_free(struct fuse_dev *fud);
+void fuse_dev_put(struct fuse_dev *fud);
 int fuse_send_init(struct fuse_mount *fm);
 
 /**
