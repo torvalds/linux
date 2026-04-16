@@ -1,6 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _M68K_UCONTEXT_H
 #define _M68K_UCONTEXT_H
+
+#include <asm/sigcontext.h>
+#include <asm/signal.h>
 
 typedef int greg_t;
 #define NGREG 18
