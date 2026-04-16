@@ -1152,7 +1152,7 @@ static int ext2_fill_super(struct super_block *sb, struct fs_context *fc)
 		goto failed_mount2;
 	}
 	sbi->s_gdb_count = db_count;
-	get_random_bytes(&sbi->s_next_generation, sizeof(u32));
+	sbi->s_next_generation = get_random_u32();
 	spin_lock_init(&sbi->s_next_gen_lock);
 
 	/* per filesystem reservation list head & lock */

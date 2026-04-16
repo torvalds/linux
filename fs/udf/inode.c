@@ -733,7 +733,7 @@ static int inode_getblk(struct inode *inode, struct udf_map_rq *map)
 	sector_t offset = 0;
 	int8_t etype, tmpetype;
 	struct udf_inode_info *iinfo = UDF_I(inode);
-	udf_pblk_t goal = 0, pgoal = iinfo->i_location.logicalBlockNum;
+	udf_pblk_t goal = 0, pgoal = 0;
 	int lastblock = 0;
 	bool isBeyondEOF = false;
 	int ret = 0;
@@ -892,11 +892,10 @@ static int inode_getblk(struct inode *inode, struct udf_map_rq *map)
 	else { /* otherwise, allocate a new block */
 		if (iinfo->i_next_alloc_block == map->lblk)
 			goal = iinfo->i_next_alloc_goal;
-
-		if (!goal) {
-			if (!(goal = pgoal)) /* XXX: what was intended here? */
-				goal = iinfo->i_location.logicalBlockNum + 1;
-		}
+		if (!goal)
+			goal = pgoal;
+		if (!goal)
+			goal = iinfo->i_location.logicalBlockNum + 1;
 
 		newblocknum = udf_new_block(inode->i_sb, inode,
 				iinfo->i_location.partitionReferenceNum,
