@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- *   Copyright (C) 2017, Microsoft Corporation.
- *   Copyright (C) 2018, LG Electronics.
+ *   Copyright (C) 2025 Stefan Metzmacher
  */
 
 #ifndef __FS_SMB_COMMON_SMBDIRECT_SMBDIRECT_H__
@@ -25,12 +24,15 @@ struct smbdirect_buffer_descriptor_v1 {
  * Some values are important for the upper layer.
  */
 struct smbdirect_socket_parameters {
+	__u64 flags;
+#define SMBDIRECT_FLAG_PORT_RANGE_ONLY_IB ((__u64)0x1)
+#define SMBDIRECT_FLAG_PORT_RANGE_ONLY_IW ((__u64)0x2)
 	__u32 resolve_addr_timeout_msec;
 	__u32 resolve_route_timeout_msec;
 	__u32 rdma_connect_timeout_msec;
 	__u32 negotiate_timeout_msec;
-	__u8  initiator_depth;
-	__u8  responder_resources;
+	__u16 initiator_depth;     /* limited to U8_MAX */
+	__u16 responder_resources; /* limited to U8_MAX */
 	__u16 recv_credit_max;
 	__u16 send_credit_target;
 	__u32 max_send_size;
@@ -42,5 +44,9 @@ struct smbdirect_socket_parameters {
 	__u32 keepalive_interval_msec;
 	__u32 keepalive_timeout_msec;
 } __packed;
+
+#define SMBDIRECT_FLAG_PORT_RANGE_MASK ( \
+		SMBDIRECT_FLAG_PORT_RANGE_ONLY_IB | \
+		SMBDIRECT_FLAG_PORT_RANGE_ONLY_IW)
 
 #endif /* __FS_SMB_COMMON_SMBDIRECT_SMBDIRECT_H__ */

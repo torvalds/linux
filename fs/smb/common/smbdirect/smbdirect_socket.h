@@ -6,10 +6,18 @@
 #ifndef __FS_SMB_COMMON_SMBDIRECT_SMBDIRECT_SOCKET_H__
 #define __FS_SMB_COMMON_SMBDIRECT_SMBDIRECT_SOCKET_H__
 
+#include <linux/wait.h>
+#include <linux/workqueue.h>
+#include <linux/kref.h>
+#include <linux/mempool.h>
+#include <linux/spinlock.h>
+#include <linux/mutex.h>
+#include <linux/completion.h>
 #include <rdma/rw.h>
 
 enum smbdirect_socket_status {
 	SMBDIRECT_SOCKET_CREATED,
+	SMBDIRECT_SOCKET_LISTENING,
 	SMBDIRECT_SOCKET_RESOLVE_ADDR_NEEDED,
 	SMBDIRECT_SOCKET_RESOLVE_ADDR_RUNNING,
 	SMBDIRECT_SOCKET_RESOLVE_ADDR_FAILED,
@@ -35,6 +43,8 @@ const char *smbdirect_socket_status_string(enum smbdirect_socket_status status)
 	switch (status) {
 	case SMBDIRECT_SOCKET_CREATED:
 		return "CREATED";
+	case SMBDIRECT_SOCKET_LISTENING:
+		return "LISTENING";
 	case SMBDIRECT_SOCKET_RESOLVE_ADDR_NEEDED:
 		return "RESOLVE_ADDR_NEEDED";
 	case SMBDIRECT_SOCKET_RESOLVE_ADDR_RUNNING:
@@ -99,18 +109,59 @@ struct smbdirect_socket {
 	int first_error;
 
 	/*
-	 * This points to the workqueue to
+	 * This points to the workqueues to
 	 * be used for this socket.
-	 * It can be per socket (on the client)
-	 * or point to a global workqueue (on the server)
 	 */
-	struct workqueue_struct *workqueue;
+	struct {
+		struct workqueue_struct *accept;
+		struct workqueue_struct *connect;
+		struct workqueue_struct *idle;
+		struct workqueue_struct *refill;
+		struct workqueue_struct *immediate;
+		struct workqueue_struct *cleanup;
+	} workqueues;
 
 	struct work_struct disconnect_work;
+
+	/*
+	 * The reference counts.
+	 */
+	struct {
+		/*
+		 * This holds the references by the
+		 * frontend, typically the smb layer.
+		 *
+		 * It is typically 1 and a disconnect
+		 * will happen if it reaches 0.
+		 */
+		struct kref disconnect;
+
+		/*
+		 * This holds the reference by the
+		 * backend, the code that manages
+		 * the lifetime of the whole
+		 * struct smbdirect_socket,
+		 * if this reaches 0 it can will
+		 * be freed.
+		 *
+		 * Can be REFCOUNT_MAX is part
+		 * of another structure.
+		 *
+		 * This is equal or higher than
+		 * the disconnect refcount.
+		 */
+		struct kref destroy;
+	} refs;
 
 	/* RDMA related */
 	struct {
 		struct rdma_cm_id *cm_id;
+		/*
+		 * The expected event in our current
+		 * cm_id->event_handler, all other events
+		 * are treated as an error.
+		 */
+		enum rdma_cm_event_type expected_event;
 		/*
 		 * This is for iWarp MPA v1
 		 */
@@ -120,6 +171,7 @@ struct smbdirect_socket {
 	/* IB verbs related */
 	struct {
 		struct ib_pd *pd;
+		enum ib_poll_context poll_ctx;
 		struct ib_cq *send_cq;
 		struct ib_cq *recv_cq;
 
@@ -150,6 +202,35 @@ struct smbdirect_socket {
 	} idle;
 
 	/*
+	 * The state for listen sockets
+	 */
+	struct {
+		spinlock_t lock;
+		struct list_head pending;
+		struct list_head ready;
+		wait_queue_head_t wait_queue;
+		/*
+		 * This starts as -1 and a value != -1
+		 * means this socket was in LISTENING state
+		 * before. Note the valid backlog can
+		 * only be > 0.
+		 */
+		int backlog;
+	} listen;
+
+	/*
+	 * The state for sockets waiting
+	 * for accept, either still waiting
+	 * for the negotiation to finish
+	 * or already ready with a usable
+	 * connection.
+	 */
+	struct {
+		struct smbdirect_socket *listener;
+		struct list_head list;
+	} accept;
+
+	/*
 	 * The state for posted send buffers
 	 */
 	struct {
@@ -158,8 +239,9 @@ struct smbdirect_socket {
 		 * smbdirect_send_io buffers
 		 */
 		struct {
-			struct kmem_cache	*cache;
-			mempool_t		*pool;
+			struct kmem_cache *cache;
+			mempool_t *pool;
+			gfp_t gfp_mask;
 		} mem;
 
 		/*
@@ -195,10 +277,6 @@ struct smbdirect_socket {
 		struct {
 			atomic_t count;
 			/*
-			 * woken when count is decremented
-			 */
-			wait_queue_head_t dec_wait_queue;
-			/*
 			 * woken when count reached zero
 			 */
 			wait_queue_head_t zero_wait_queue;
@@ -223,8 +301,9 @@ struct smbdirect_socket {
 		 * smbdirect_recv_io buffers
 		 */
 		struct {
-			struct kmem_cache	*cache;
-			mempool_t		*pool;
+			struct kmem_cache *cache;
+			mempool_t *pool;
+			gfp_t gfp_mask;
 		} mem;
 
 		/*
@@ -310,19 +389,20 @@ struct smbdirect_socket {
 		struct {
 			atomic_t count;
 		} used;
-
-		struct work_struct recovery_work;
-
-		/* Used by transport to wait until all MRs are returned */
-		struct {
-			wait_queue_head_t wait_queue;
-		} cleanup;
 	} mr_io;
 
 	/*
 	 * The state for RDMA read/write requests on the server
 	 */
 	struct {
+		/*
+		 * Memory hints for
+		 * smbdirect_rw_io structs
+		 */
+		struct {
+			gfp_t gfp_mask;
+		} mem;
+
 		/*
 		 * The credit state for the send side
 		 */
@@ -352,20 +432,6 @@ struct smbdirect_socket {
 	} statistics;
 
 	struct {
-#define SMBDIRECT_LOG_ERR		0x0
-#define SMBDIRECT_LOG_INFO		0x1
-
-#define SMBDIRECT_LOG_OUTGOING			0x1
-#define SMBDIRECT_LOG_INCOMING			0x2
-#define SMBDIRECT_LOG_READ			0x4
-#define SMBDIRECT_LOG_WRITE			0x8
-#define SMBDIRECT_LOG_RDMA_SEND			0x10
-#define SMBDIRECT_LOG_RDMA_RECV			0x20
-#define SMBDIRECT_LOG_KEEP_ALIVE		0x40
-#define SMBDIRECT_LOG_RDMA_EVENT		0x80
-#define SMBDIRECT_LOG_RDMA_MR			0x100
-#define SMBDIRECT_LOG_RDMA_RW			0x200
-#define SMBDIRECT_LOG_NEGOTIATE			0x400
 		void *private_ptr;
 		bool (*needed)(struct smbdirect_socket *sc,
 			       void *private_ptr,
@@ -493,8 +559,22 @@ static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
 
 	init_waitqueue_head(&sc->status_wait);
 
+	sc->workqueues.accept = smbdirect_globals.workqueues.accept;
+	sc->workqueues.connect = smbdirect_globals.workqueues.connect;
+	sc->workqueues.idle = smbdirect_globals.workqueues.idle;
+	sc->workqueues.refill = smbdirect_globals.workqueues.refill;
+	sc->workqueues.immediate = smbdirect_globals.workqueues.immediate;
+	sc->workqueues.cleanup = smbdirect_globals.workqueues.cleanup;
+
 	INIT_WORK(&sc->disconnect_work, __smbdirect_socket_disabled_work);
 	disable_work_sync(&sc->disconnect_work);
+
+	kref_init(&sc->refs.disconnect);
+	sc->refs.destroy = (struct kref) KREF_INIT(REFCOUNT_MAX);
+
+	sc->rdma.expected_event = RDMA_CM_EVENT_INTERNAL;
+
+	sc->ib.poll_ctx = IB_POLL_UNBOUND_WORKQUEUE;
 
 	spin_lock_init(&sc->connect.lock);
 	INIT_WORK(&sc->connect.work, __smbdirect_socket_disabled_work);
@@ -504,6 +584,16 @@ static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
 	disable_work_sync(&sc->idle.immediate_work);
 	INIT_DELAYED_WORK(&sc->idle.timer_work, __smbdirect_socket_disabled_work);
 	disable_delayed_work_sync(&sc->idle.timer_work);
+
+	spin_lock_init(&sc->listen.lock);
+	INIT_LIST_HEAD(&sc->listen.pending);
+	INIT_LIST_HEAD(&sc->listen.ready);
+	sc->listen.backlog = -1; /* not a listener */
+	init_waitqueue_head(&sc->listen.wait_queue);
+
+	INIT_LIST_HEAD(&sc->accept.list);
+
+	sc->send_io.mem.gfp_mask = GFP_KERNEL;
 
 	atomic_set(&sc->send_io.bcredits.count, 0);
 	init_waitqueue_head(&sc->send_io.bcredits.wait_queue);
@@ -515,8 +605,9 @@ static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
 	init_waitqueue_head(&sc->send_io.credits.wait_queue);
 
 	atomic_set(&sc->send_io.pending.count, 0);
-	init_waitqueue_head(&sc->send_io.pending.dec_wait_queue);
 	init_waitqueue_head(&sc->send_io.pending.zero_wait_queue);
+
+	sc->recv_io.mem.gfp_mask = GFP_KERNEL;
 
 	INIT_LIST_HEAD(&sc->recv_io.free.list);
 	spin_lock_init(&sc->recv_io.free.lock);
@@ -532,6 +623,7 @@ static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
 	spin_lock_init(&sc->recv_io.reassembly.lock);
 	init_waitqueue_head(&sc->recv_io.reassembly.wait_queue);
 
+	sc->rw_io.mem.gfp_mask = GFP_KERNEL;
 	atomic_set(&sc->rw_io.credits.count, 0);
 	init_waitqueue_head(&sc->rw_io.credits.wait_queue);
 
@@ -540,9 +632,6 @@ static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
 	atomic_set(&sc->mr_io.ready.count, 0);
 	init_waitqueue_head(&sc->mr_io.ready.wait_queue);
 	atomic_set(&sc->mr_io.used.count, 0);
-	INIT_WORK(&sc->mr_io.recovery_work, __smbdirect_socket_disabled_work);
-	disable_work_sync(&sc->mr_io.recovery_work);
-	init_waitqueue_head(&sc->mr_io.cleanup.wait_queue);
 
 	sc->logging.private_ptr = NULL;
 	sc->logging.needed = __smbdirect_log_needed;
@@ -601,6 +690,11 @@ static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
 
 #define SMBDIRECT_CHECK_STATUS_WARN(__sc, __expected_status) \
 	__SMBDIRECT_CHECK_STATUS_WARN(__sc, __expected_status, /* nothing */)
+
+#ifndef __SMBDIRECT_SOCKET_DISCONNECT
+#define __SMBDIRECT_SOCKET_DISCONNECT(__sc) \
+		smbdirect_socket_schedule_cleanup(__sc, -ECONNABORTED)
+#endif /* ! __SMBDIRECT_SOCKET_DISCONNECT */
 
 #define SMBDIRECT_CHECK_STATUS_DISCONNECT(__sc, __expected_status) \
 	__SMBDIRECT_CHECK_STATUS_WARN(__sc, __expected_status, \
@@ -719,5 +813,20 @@ struct smbdirect_rw_io {
 	struct sg_table sgt;
 	struct scatterlist sg_list[];
 };
+
+static inline size_t smbdirect_get_buf_page_count(const void *buf, size_t size)
+{
+	return DIV_ROUND_UP((uintptr_t)buf + size, PAGE_SIZE) -
+		(uintptr_t)buf / PAGE_SIZE;
+}
+
+/*
+ * Maximum number of retries on data transfer operations
+ */
+#define SMBDIRECT_RDMA_CM_RETRY 6
+/*
+ * No need to retry on Receiver Not Ready since SMB_DIRECT manages credits
+ */
+#define SMBDIRECT_RDMA_CM_RNR_RETRY 0
 
 #endif /* __FS_SMB_COMMON_SMBDIRECT_SMBDIRECT_SOCKET_H__ */
