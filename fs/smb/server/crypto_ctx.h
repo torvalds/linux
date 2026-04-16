@@ -20,11 +20,6 @@ enum {
 	CRYPTO_AEAD_MAX,
 };
 
-enum {
-	CRYPTO_BLK_ECBDES	= 32,
-	CRYPTO_BLK_MAX,
-};
-
 struct ksmbd_crypto_ctx {
 	struct list_head		list;
 
