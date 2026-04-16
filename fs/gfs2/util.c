@@ -123,9 +123,8 @@ static void do_withdraw(struct gfs2_sbd *sdp)
 		return;
 	}
 	clear_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
-	up_write(&sdp->sd_log_flush_lock);
-
 	gfs2_ail_drain(sdp); /* frees all transactions */
+	up_write(&sdp->sd_log_flush_lock);
 
 	wake_up(&sdp->sd_logd_waitq);
 	wake_up(&sdp->sd_quota_wait);

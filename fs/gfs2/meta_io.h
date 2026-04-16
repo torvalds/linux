@@ -59,7 +59,6 @@ enum {
 	REMOVE_META = 1,
 };
 
-void gfs2_remove_from_journal(struct buffer_head *bh, int meta);
 void gfs2_journal_wipe(struct gfs2_inode *ip, u64 bstart, u32 blen);
 int gfs2_meta_buffer(struct gfs2_inode *ip, u32 mtype, u64 num,
 		     struct buffer_head **bhp);
