@@ -116,15 +116,14 @@ static int hid_bpf_async_find_empty_key(void)
 		if (!elem)
 			return -ENOMEM; /* should never happen */
 
-		bpf_spin_lock(&elem->lock);
+		{
+			guard(bpf_spin)(&elem->lock);
 
-		if (elem->state == HID_BPF_ASYNC_STATE_UNSET) {
-			elem->state = HID_BPF_ASYNC_STATE_INITIALIZING;
-			bpf_spin_unlock(&elem->lock);
-			return i;
+			if (elem->state == HID_BPF_ASYNC_STATE_UNSET) {
+				elem->state = HID_BPF_ASYNC_STATE_INITIALIZING;
+				return i;
+			}
 		}
-
-		bpf_spin_unlock(&elem->lock);
 	}
 
 	return -EINVAL;
@@ -175,18 +174,19 @@ static int hid_bpf_async_delayed_call(struct hid_bpf_ctx *hctx, u64 milliseconds
 	if (!elem)
 		return -EINVAL;
 
-	bpf_spin_lock(&elem->lock);
-	/* The wq must be:
-	 * - HID_BPF_ASYNC_STATE_INITIALIZED -> it's been initialized and ready to be called
-	 * - HID_BPF_ASYNC_STATE_RUNNING -> possible re-entry from the wq itself
-	 */
-	if (elem->state != HID_BPF_ASYNC_STATE_INITIALIZED &&
-	    elem->state != HID_BPF_ASYNC_STATE_RUNNING) {
-		bpf_spin_unlock(&elem->lock);
-		return -EINVAL;
+	{
+		guard(bpf_spin)(&elem->lock);
+
+		/* The wq must be:
+		 * - HID_BPF_ASYNC_STATE_INITIALIZED -> it's been initialized and ready to be called
+		 * - HID_BPF_ASYNC_STATE_RUNNING -> possible re-entry from the wq itself
+		 */
+		if (elem->state != HID_BPF_ASYNC_STATE_INITIALIZED &&
+		    elem->state != HID_BPF_ASYNC_STATE_RUNNING)
+			return -EINVAL;
+
+		elem->state = HID_BPF_ASYNC_STATE_STARTING;
 	}
-	elem->state = HID_BPF_ASYNC_STATE_STARTING;
-	bpf_spin_unlock(&elem->lock);
 
 	elem->hid = hctx->hid->id;
 
