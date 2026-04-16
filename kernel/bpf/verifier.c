@@ -20155,6 +20155,14 @@ skip_full_check:
 
 	adjust_btf_func(env);
 
+	/* extension progs temporarily inherit the attach_type of their targets
+	   for verification purposes, so set it back to zero before returning
+	 */
+	if (env->prog->type == BPF_PROG_TYPE_EXT)
+		env->prog->expected_attach_type = 0;
+
+	env->prog = __bpf_prog_select_runtime(env, env->prog, &ret);
+
 err_release_maps:
 	if (ret)
 		release_insn_arrays(env);
@@ -20165,12 +20173,6 @@ err_release_maps:
 		release_maps(env);
 	if (!env->prog->aux->used_btfs)
 		release_btfs(env);
-
-	/* extension progs temporarily inherit the attach_type of their targets
-	   for verification purposes, so set it back to zero before returning
-	 */
-	if (env->prog->type == BPF_PROG_TYPE_EXT)
-		env->prog->expected_attach_type = 0;
 
 	*prog = env->prog;
 

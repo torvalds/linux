@@ -993,7 +993,7 @@ static void bpf_restore_subprog_starts(struct bpf_verifier_env *env, u32 *orig_s
 	env->subprog_info[env->subprog_cnt].start = env->prog->len;
 }
 
-static struct bpf_insn_aux_data *bpf_dup_insn_aux_data(struct bpf_verifier_env *env)
+struct bpf_insn_aux_data *bpf_dup_insn_aux_data(struct bpf_verifier_env *env)
 {
 	size_t size;
 	void *new_aux;
@@ -1005,8 +1005,8 @@ static struct bpf_insn_aux_data *bpf_dup_insn_aux_data(struct bpf_verifier_env *
 	return new_aux;
 }
 
-static void bpf_restore_insn_aux_data(struct bpf_verifier_env *env,
-				      struct bpf_insn_aux_data *orig_insn_aux)
+void bpf_restore_insn_aux_data(struct bpf_verifier_env *env,
+			       struct bpf_insn_aux_data *orig_insn_aux)
 {
 	/* the expanded elements are zero-filled, so no special handling is required */
 	vfree(env->insn_aux_data);
@@ -1150,7 +1150,7 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 		func[i]->aux->token = prog->aux->token;
 		if (!i)
 			func[i]->aux->exception_boundary = env->seen_exception;
-		func[i] = bpf_int_jit_compile(func[i]);
+		func[i] = bpf_int_jit_compile(env, func[i]);
 		if (!func[i]->jited) {
 			err = -ENOTSUPP;
 			goto out_free;
@@ -1194,7 +1194,7 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 	}
 	for (i = 0; i < env->subprog_cnt; i++) {
 		old_bpf_func = func[i]->bpf_func;
-		tmp = bpf_int_jit_compile(func[i]);
+		tmp = bpf_int_jit_compile(env, func[i]);
 		if (tmp != func[i] || func[i]->bpf_func != old_bpf_func) {
 			verbose(env, "JIT doesn't support bpf-to-bpf calls\n");
 			err = -ENOTSUPP;
