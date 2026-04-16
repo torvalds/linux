@@ -1920,45 +1920,28 @@ int arch_bpf_trampoline_size(const struct btf_func_model *m, u32 flags,
 	return ret < 0 ? ret : ret * LOONGARCH_INSN_SIZE;
 }
 
-struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
+struct bpf_prog *bpf_int_jit_compile(struct bpf_verifier_env *env, struct bpf_prog *prog)
 {
-	bool tmp_blinded = false, extra_pass = false;
+	bool extra_pass = false;
 	u8 *image_ptr, *ro_image_ptr;
 	int image_size, prog_size, extable_size;
 	struct jit_ctx ctx;
 	struct jit_data *jit_data;
 	struct bpf_binary_header *header;
 	struct bpf_binary_header *ro_header;
-	struct bpf_prog *tmp, *orig_prog = prog;
 
 	/*
 	 * If BPF JIT was not enabled then we must fall back to
 	 * the interpreter.
 	 */
 	if (!prog->jit_requested)
-		return orig_prog;
-
-	tmp = bpf_jit_blind_constants(prog);
-	/*
-	 * If blinding was requested and we failed during blinding,
-	 * we must fall back to the interpreter. Otherwise, we save
-	 * the new JITed code.
-	 */
-	if (IS_ERR(tmp))
-		return orig_prog;
-
-	if (tmp != prog) {
-		tmp_blinded = true;
-		prog = tmp;
-	}
+		return prog;
 
 	jit_data = prog->aux->jit_data;
 	if (!jit_data) {
 		jit_data = kzalloc_obj(*jit_data);
-		if (!jit_data) {
-			prog = orig_prog;
-			goto out;
-		}
+		if (!jit_data)
+			return prog;
 		prog->aux->jit_data = jit_data;
 	}
 	if (jit_data->ctx.offset) {
@@ -1978,17 +1961,13 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	ctx.user_vm_start = bpf_arena_get_user_vm_start(prog->aux->arena);
 
 	ctx.offset = kvcalloc(prog->len + 1, sizeof(u32), GFP_KERNEL);
-	if (ctx.offset == NULL) {
-		prog = orig_prog;
+	if (ctx.offset == NULL)
 		goto out_offset;
-	}
 
 	/* 1. Initial fake pass to compute ctx->idx and set ctx->flags */
 	build_prologue(&ctx);
-	if (build_body(&ctx, extra_pass)) {
-		prog = orig_prog;
+	if (build_body(&ctx, extra_pass))
 		goto out_offset;
-	}
 	ctx.epilogue_offset = ctx.idx;
 	build_epilogue(&ctx);
 
@@ -2004,10 +1983,8 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	/* Now we know the size of the structure to make */
 	ro_header = bpf_jit_binary_pack_alloc(image_size, &ro_image_ptr, sizeof(u32),
 					      &header, &image_ptr, jit_fill_hole);
-	if (!ro_header) {
-		prog = orig_prog;
+	if (!ro_header)
 		goto out_offset;
-	}
 
 	/* 2. Now, the actual pass to generate final JIT code */
 	/*
@@ -2027,17 +2004,13 @@ skip_init_ctx:
 	ctx.num_exentries = 0;
 
 	build_prologue(&ctx);
-	if (build_body(&ctx, extra_pass)) {
-		prog = orig_prog;
+	if (build_body(&ctx, extra_pass))
 		goto out_free;
-	}
 	build_epilogue(&ctx);
 
 	/* 3. Extra pass to validate JITed code */
-	if (validate_ctx(&ctx)) {
-		prog = orig_prog;
+	if (validate_ctx(&ctx))
 		goto out_free;
-	}
 
 	/* And we're done */
 	if (bpf_jit_enable > 1)
@@ -2050,9 +2023,9 @@ skip_init_ctx:
 			goto out_free;
 		}
 		if (WARN_ON(bpf_jit_binary_pack_finalize(ro_header, header))) {
-			/* ro_header has been freed */
+			/* ro_header and header have been freed */
 			ro_header = NULL;
-			prog = orig_prog;
+			header = NULL;
 			goto out_free;
 		}
 		/*
@@ -2084,13 +2057,15 @@ out_offset:
 		prog->aux->jit_data = NULL;
 	}
 
-out:
-	if (tmp_blinded)
-		bpf_jit_prog_release_other(prog, prog == orig_prog ? tmp : orig_prog);
-
 	return prog;
 
 out_free:
+	if (extra_pass) {
+		prog->bpf_func = NULL;
+		prog->jited = 0;
+		prog->jited_len = 0;
+	}
+
 	if (header) {
 		bpf_arch_text_copy(&ro_header->size, &header->size, sizeof(header->size));
 		bpf_jit_binary_pack_free(ro_header, header);
