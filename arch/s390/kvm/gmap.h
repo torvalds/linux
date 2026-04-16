@@ -185,6 +185,8 @@ static inline union pgste _gmap_ptep_xchg(struct gmap *gmap, union pte *ptep, un
 		else
 			_gmap_handle_vsie_unshadow_event(gmap, gfn);
 	}
+	if (!ptep->s.d && newpte.s.d && !newpte.s.s)
+		SetPageDirty(pfn_to_page(newpte.h.pfra));
 	return __dat_ptep_xchg(ptep, pgste, newpte, gfn, gmap->asce, uses_skeys(gmap));
 }
 
@@ -194,35 +196,42 @@ static inline union pgste gmap_ptep_xchg(struct gmap *gmap, union pte *ptep, uni
 	return _gmap_ptep_xchg(gmap, ptep, newpte, pgste, gfn, true);
 }
 
-static inline void _gmap_crstep_xchg(struct gmap *gmap, union crste *crstep, union crste ne,
-				     gfn_t gfn, bool needs_lock)
+static inline bool __must_check _gmap_crstep_xchg_atomic(struct gmap *gmap, union crste *crstep,
+							 union crste oldcrste, union crste newcrste,
+							 gfn_t gfn, bool needs_lock)
 {
-	unsigned long align = 8 + (is_pmd(*crstep) ? 0 : 11);
+	unsigned long align = is_pmd(newcrste) ? _PAGE_ENTRIES : _PAGE_ENTRIES * _CRST_ENTRIES;
+
+	if (KVM_BUG_ON(crstep->h.tt != oldcrste.h.tt || newcrste.h.tt != oldcrste.h.tt, gmap->kvm))
+		return true;
 
 	lockdep_assert_held(&gmap->kvm->mmu_lock);
 	if (!needs_lock)
 		lockdep_assert_held(&gmap->children_lock);
 
 	gfn = ALIGN_DOWN(gfn, align);
-	if (crste_prefix(*crstep) && (ne.h.p || ne.h.i || !crste_prefix(ne))) {
-		ne.s.fc1.prefix_notif = 0;
+	if (crste_prefix(oldcrste) && (newcrste.h.p || newcrste.h.i || !crste_prefix(newcrste))) {
+		newcrste.s.fc1.prefix_notif = 0;
 		gmap_unmap_prefix(gmap, gfn, gfn + align);
 	}
-	if (crste_leaf(*crstep) && crstep->s.fc1.vsie_notif &&
-	    (ne.h.p || ne.h.i || !ne.s.fc1.vsie_notif)) {
-		ne.s.fc1.vsie_notif = 0;
+	if (crste_leaf(oldcrste) && oldcrste.s.fc1.vsie_notif &&
+	    (newcrste.h.p || newcrste.h.i || !newcrste.s.fc1.vsie_notif)) {
+		newcrste.s.fc1.vsie_notif = 0;
 		if (needs_lock)
 			gmap_handle_vsie_unshadow_event(gmap, gfn);
 		else
 			_gmap_handle_vsie_unshadow_event(gmap, gfn);
 	}
-	dat_crstep_xchg(crstep, ne, gfn, gmap->asce);
+	if (!oldcrste.s.fc1.d && newcrste.s.fc1.d && !newcrste.s.fc1.s)
+		SetPageDirty(phys_to_page(crste_origin_large(newcrste)));
+	return dat_crstep_xchg_atomic(crstep, oldcrste, newcrste, gfn, gmap->asce);
 }
 
-static inline void gmap_crstep_xchg(struct gmap *gmap, union crste *crstep, union crste ne,
-				    gfn_t gfn)
+static inline bool __must_check gmap_crstep_xchg_atomic(struct gmap *gmap, union crste *crstep,
+							union crste oldcrste, union crste newcrste,
+							gfn_t gfn)
 {
-	return _gmap_crstep_xchg(gmap, crstep, ne, gfn, true);
+	return _gmap_crstep_xchg_atomic(gmap, crstep, oldcrste, newcrste, gfn, true);
 }
 
 /**

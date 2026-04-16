@@ -380,6 +380,18 @@ int xe_pxp_init(struct xe_device *xe)
 		return 0;
 	}
 
+	/*
+	 * On PTL, older GSC FWs have a bug that can cause them to crash during
+	 * PXP invalidation events, which leads to a complete loss of power
+	 * management on the media GT. Therefore, we can't use PXP on FWs that
+	 * have this bug, which was fixed in PTL GSC build 1396.
+	 */
+	if (xe->info.platform == XE_PANTHERLAKE &&
+	    gt->uc.gsc.fw.versions.found[XE_UC_FW_VER_RELEASE].build < 1396) {
+		drm_info(&xe->drm, "PXP requires PTL GSC build 1396 or newer\n");
+		return 0;
+	}
+
 	pxp = drmm_kzalloc(&xe->drm, sizeof(struct xe_pxp), GFP_KERNEL);
 	if (!pxp) {
 		err = -ENOMEM;
@@ -512,7 +524,7 @@ static int __exec_queue_add(struct xe_pxp *pxp, struct xe_exec_queue *q)
 static int pxp_start(struct xe_pxp *pxp, u8 type)
 {
 	int ret = 0;
-	bool restart = false;
+	bool restart;
 
 	if (!xe_pxp_is_enabled(pxp))
 		return -ENODEV;
@@ -540,6 +552,8 @@ wait_for_idle:
 	if (!wait_for_completion_timeout(&pxp->activation,
 					 msecs_to_jiffies(PXP_ACTIVATION_TIMEOUT_MS)))
 		return -ETIMEDOUT;
+
+	restart = false;
 
 	mutex_lock(&pxp->mutex);
 
@@ -583,6 +597,7 @@ wait_for_idle:
 			drm_err(&pxp->xe->drm, "PXP termination failed before start\n");
 			mutex_lock(&pxp->mutex);
 			pxp->status = XE_PXP_ERROR;
+			complete_all(&pxp->termination);
 
 			goto out_unlock;
 		}
@@ -870,11 +885,6 @@ wait_for_activation:
 		pxp->key_instance++;
 		needs_queue_inval = true;
 		break;
-	default:
-		drm_err(&pxp->xe->drm, "unexpected state during PXP suspend: %u",
-			pxp->status);
-		ret = -EIO;
-		goto out;
 	}
 
 	/*
@@ -899,7 +909,6 @@ wait_for_activation:
 
 	pxp->last_suspend_key_instance = pxp->key_instance;
 
-out:
 	return ret;
 }
 

@@ -17,7 +17,9 @@
 #include <linux/dma-map-ops.h>
 #include <linux/export.h>
 #include <linux/libfdt.h>
+#include <linux/minmax.h>
 #include <linux/pci_ids.h>
+#include <linux/serial_core.h>
 #include <linux/string_choices.h>
 #include <asm/bootinfo.h>
 #include <loongson.h>
@@ -106,8 +108,22 @@ static void __init lefi_fixup_fdt(struct system_loongson *system)
 
 	is_loongson64g = (read_c0_prid() & PRID_IMP_MASK) == PRID_IMP_LOONGSON_64G;
 
-	for (i = 0; i < system->nr_uarts; i++) {
+	for (i = 0; i < min(system->nr_uarts, MAX_UARTS); i++) {
 		uartdev = &system->uarts[i];
+
+		/*
+		 * Some firmware does not set nr_uarts properly and passes empty
+		 * items. Ignore them silently.
+		 */
+		if (uartdev->uart_base == 0)
+			continue;
+
+		/* Our DT only works with UPIO_MEM. */
+		if (uartdev->iotype != UPIO_MEM) {
+			pr_warn("Ignore UART 0x%llx with iotype %u passed by firmware\n",
+				uartdev->uart_base, uartdev->iotype);
+			continue;
+		}
 
 		ret = lefi_fixup_fdt_serial(fdt_buf, uartdev->uart_base,
 					    uartdev->uartclk);

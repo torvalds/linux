@@ -348,6 +348,114 @@ l0_%=:							\
 	: __clobber_all);
 }
 
+/*
+ * Test that sync_linked_regs() checks reg->id (the linked target register)
+ * for BPF_ADD_CONST32 rather than known_reg->id (the branch register).
+ */
+SEC("socket")
+__success
+__naked void scalars_alu32_zext_linked_reg(void)
+{
+	asm volatile ("						\
+	call %[bpf_get_prandom_u32];				\
+	w6 = w0;		/* r6 in [0, 0xFFFFFFFF] */	\
+	r7 = r6;		/* linked: same id as r6 */	\
+	w7 += 1;		/* alu32: r7.id |= BPF_ADD_CONST32 */ \
+	r8 = 0xFFFFffff ll;					\
+	if r6 < r8 goto l0_%=;					\
+	/* r6 in [0xFFFFFFFF, 0xFFFFFFFF] */			\
+	/* sync_linked_regs: known_reg=r6, reg=r7 */		\
+	/* CPU: w7 = (u32)(0xFFFFFFFF + 1) = 0, zext -> r7 = 0 */ \
+	/* With fix: r7 64-bit = [0, 0] (zext applied) */	\
+	/* Without fix: r7 64-bit = [0x100000000] (no zext) */	\
+	r7 >>= 32;						\
+	if r7 == 0 goto l0_%=;					\
+	r0 /= 0;		/* unreachable with fix */	\
+l0_%=:								\
+	r0 = 0;							\
+	exit;							\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+/*
+ * Test that sync_linked_regs() skips propagation when one register used
+ * alu32 (BPF_ADD_CONST32) and the other used alu64 (BPF_ADD_CONST64).
+ * The delta relationship doesn't hold across different ALU widths.
+ */
+SEC("socket")
+__failure __msg("div by zero")
+__naked void scalars_alu32_alu64_cross_type(void)
+{
+	asm volatile ("						\
+	call %[bpf_get_prandom_u32];				\
+	w6 = w0;		/* r6 in [0, 0xFFFFFFFF] */	\
+	r7 = r6;		/* linked: same id as r6 */	\
+	w7 += 1;		/* alu32: BPF_ADD_CONST32, delta = 1 */ \
+	r8 = r6;		/* linked: same id as r6 */	\
+	r8 += 2;		/* alu64: BPF_ADD_CONST64, delta = 2 */ \
+	r9 = 0xFFFFffff ll;					\
+	if r7 < r9 goto l0_%=;					\
+	/* r7 = 0xFFFFFFFF */					\
+	/* sync: known_reg=r7 (ADD_CONST32), reg=r8 (ADD_CONST64) */ \
+	/* Without fix: r8 = zext(0xFFFFFFFF + 1) = 0 */	\
+	/* With fix: r8 stays [2, 0x100000001] (r8 >= 2) */	\
+	if r8 > 0 goto l1_%=;					\
+	goto l0_%=;						\
+l1_%=:								\
+	r0 /= 0;		/* div by zero */		\
+l0_%=:								\
+	r0 = 0;						\
+	exit;							\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+/*
+ * Test that regsafe() prevents pruning when two paths reach the same program
+ * point with linked registers carrying different ADD_CONST flags (one
+ * BPF_ADD_CONST32 from alu32, another BPF_ADD_CONST64 from alu64).
+ */
+SEC("socket")
+__failure __msg("div by zero")
+__flag(BPF_F_TEST_STATE_FREQ)
+__naked void scalars_alu32_alu64_regsafe_pruning(void)
+{
+	asm volatile ("						\
+	call %[bpf_get_prandom_u32];				\
+	w6 = w0;		/* r6 in [0, 0xFFFFFFFF] */	\
+	r7 = r6;		/* linked: same id as r6 */	\
+	/* Get another random value for the path branch */	\
+	call %[bpf_get_prandom_u32];				\
+	if r0 > 0 goto l_pathb_%=;				\
+	/* Path A: alu32 */					\
+	w7 += 1;		/* BPF_ADD_CONST32, delta = 1 */\
+	goto l_merge_%=;					\
+l_pathb_%=:							\
+	/* Path B: alu64 */					\
+	r7 += 1;		/* BPF_ADD_CONST64, delta = 1 */\
+l_merge_%=:							\
+	/* Merge point: regsafe() compares path B against cached path A. */ \
+	/* Narrow r6 to trigger sync_linked_regs for r7 */	\
+	r9 = 0xFFFFffff ll;					\
+	if r6 < r9 goto l0_%=;					\
+	/* r6 = 0xFFFFFFFF */					\
+	/* sync: r7 = 0xFFFFFFFF + 1 = 0x100000000 */		\
+	/* Path A: zext -> r7 = 0 */				\
+	/* Path B: no zext -> r7 = 0x100000000 */		\
+	r7 >>= 32;						\
+	if r7 == 0 goto l0_%=;					\
+	r0 /= 0;		/* div by zero on path B */	\
+l0_%=:								\
+	r0 = 0;						\
+	exit;							\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
 SEC("socket")
 __success
 void alu32_negative_offset(void)

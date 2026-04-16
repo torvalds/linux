@@ -136,6 +136,9 @@ static int rzg2l_usbphy_ctrl_set_pwrrdy(struct regmap_field *pwrrdy,
 {
 	u32 val = power_on ? 0 : 1;
 
+	if (!pwrrdy)
+		return 0;
+
 	/* The initialization path guarantees that the mask is 1 bit long. */
 	return regmap_field_update_bits(pwrrdy, 1, val);
 }
@@ -347,4 +350,4 @@ module_platform_driver(rzg2l_usbphy_ctrl_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Renesas RZ/G2L USBPHY Control");
-MODULE_AUTHOR("biju.das.jz@bp.renesas.com>");
+MODULE_AUTHOR("Biju Das <biju.das.jz@bp.renesas.com>");

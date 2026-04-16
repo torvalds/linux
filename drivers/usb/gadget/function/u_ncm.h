@@ -15,6 +15,20 @@
 
 #include <linux/usb/composite.h>
 
+/**
+ * struct f_ncm_opts - NCM function options
+ * @func_inst: USB function instance.
+ * @net: The net_device associated with the NCM function.
+ * @bind_count: Tracks the number of configurations the NCM function is
+ *              bound to, preventing double-registration of the @net device.
+ * @ncm_interf_group: ConfigFS group for NCM interface.
+ * @ncm_os_desc: USB OS descriptor for NCM.
+ * @ncm_ext_compat_id: Extended compatibility ID.
+ * @lock: Protects the data from concurrent access by configfs read/write
+ *        and create symlink/remove symlink operations.
+ * @refcnt: Reference counter for the function instance.
+ * @max_segment_size: Maximum segment size.
+ */
 struct f_ncm_opts {
 	struct usb_function_instance	func_inst;
 	struct net_device		*net;
@@ -23,12 +37,7 @@ struct f_ncm_opts {
 	struct config_group		*ncm_interf_group;
 	struct usb_os_desc		ncm_os_desc;
 	char				ncm_ext_compat_id[16];
-	/*
-	 * Read/write access to configfs attributes is handled by configfs.
-	 *
-	 * This is to protect the data from concurrent access by read/write
-	 * and create symlink/remove symlink.
-	 */
+
 	struct mutex			lock;
 	int				refcnt;
 

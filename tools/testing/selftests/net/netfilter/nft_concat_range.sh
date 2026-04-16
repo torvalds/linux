@@ -29,7 +29,8 @@ TYPES="net_port port_net net6_port port_proto net6_port_mac net6_port_mac_proto
        net6_port_net6_port net_port_mac_proto_net"
 
 # Reported bugs, also described by TYPE_ variables below
-BUGS="flush_remove_add reload net_port_proto_match avx2_mismatch doublecreate insert_overlap"
+BUGS="flush_remove_add reload net_port_proto_match avx2_mismatch doublecreate
+      insert_overlap load_flush_load4 load_flush_load8"
 
 # List of possible paths to pktgen script from kernel tree for performance tests
 PKTGEN_SCRIPT_PATHS="
@@ -422,6 +423,30 @@ perf_duration	0
 
 TYPE_insert_overlap="
 display		reject overlapping range on add
+type_spec	ipv4_addr . ipv4_addr
+chain_spec	ip saddr . ip daddr
+dst		addr4
+proto		icmp
+
+race_repeat	0
+
+perf_duration	0
+"
+
+TYPE_load_flush_load4="
+display		reload with flush, 4bit groups
+type_spec	ipv4_addr . ipv4_addr
+chain_spec	ip saddr . ip daddr
+dst		addr4
+proto		icmp
+
+race_repeat	0
+
+perf_duration	0
+"
+
+TYPE_load_flush_load8="
+display		reload with flush, 8bit groups
 type_spec	ipv4_addr . ipv4_addr
 chain_spec	ip saddr . ip daddr
 dst		addr4
@@ -1993,6 +2018,49 @@ test_bug_insert_overlap()
 
 	elements="1.2.3.4 . 1.2.4.1-1.2.4.2"
 	add_fail "{ $elements }" || return 1
+
+	return 0
+}
+
+test_bug_load_flush_load4()
+{
+	local i
+
+	setup veth send_"${proto}" set || return ${ksft_skip}
+
+	for i in $(seq 0 255); do
+		local addelem="add element inet filter test"
+		local j
+
+		for j in $(seq 0 20); do
+			echo "$addelem { 10.$j.0.$i . 10.$j.1.$i }"
+			echo "$addelem { 10.$j.0.$i . 10.$j.2.$i }"
+		done
+	done > "$tmp"
+
+	nft -f "$tmp" || return 1
+
+	( echo "flush set inet filter test";cat "$tmp") | nft -f -
+	[ $? -eq 0 ] || return 1
+
+	return 0
+}
+
+test_bug_load_flush_load8()
+{
+	local i
+
+	setup veth send_"${proto}" set || return ${ksft_skip}
+
+	for i in $(seq 1 100); do
+		echo "add element inet filter test { 10.0.0.$i . 10.0.1.$i }"
+		echo "add element inet filter test { 10.0.0.$i . 10.0.2.$i }"
+	done > "$tmp"
+
+	nft -f "$tmp" || return 1
+
+	( echo "flush set inet filter test";cat "$tmp") | nft -f -
+	[ $? -eq 0 ] || return 1
 
 	return 0
 }

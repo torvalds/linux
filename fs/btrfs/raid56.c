@@ -2297,8 +2297,7 @@ void raid56_parity_recover(struct bio *bio, struct btrfs_io_context *bioc,
 static void fill_data_csums(struct btrfs_raid_bio *rbio)
 {
 	struct btrfs_fs_info *fs_info = rbio->bioc->fs_info;
-	struct btrfs_root *csum_root = btrfs_csum_root(fs_info,
-						       rbio->bioc->full_stripe_logical);
+	struct btrfs_root *csum_root;
 	const u64 start = rbio->bioc->full_stripe_logical;
 	const u32 len = (rbio->nr_data * rbio->stripe_nsectors) <<
 			fs_info->sectorsize_bits;
@@ -2328,6 +2327,15 @@ static void fill_data_csums(struct btrfs_raid_bio *rbio)
 					  GFP_NOFS);
 	if (!rbio->csum_buf || !rbio->csum_bitmap) {
 		ret = -ENOMEM;
+		goto error;
+	}
+
+	csum_root = btrfs_csum_root(fs_info, rbio->bioc->full_stripe_logical);
+	if (unlikely(!csum_root)) {
+		btrfs_err(fs_info,
+			  "missing csum root for extent at bytenr %llu",
+			  rbio->bioc->full_stripe_logical);
+		ret = -EUCLEAN;
 		goto error;
 	}
 

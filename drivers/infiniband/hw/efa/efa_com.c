@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 /*
- * Copyright 2018-2025 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2026 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #include <linux/log2.h>
@@ -310,22 +310,18 @@ static inline struct efa_comp_ctx *efa_com_get_comp_ctx_by_cmd_id(struct efa_com
 	return &aq->comp_ctx[ctx_id];
 }
 
-static struct efa_comp_ctx *__efa_com_submit_admin_cmd(struct efa_com_admin_queue *aq,
-						       struct efa_admin_aq_entry *cmd,
-						       size_t cmd_size_in_bytes,
-						       struct efa_admin_acq_entry *comp,
-						       size_t comp_size_in_bytes)
+static void __efa_com_submit_admin_cmd(struct efa_com_admin_queue *aq,
+				       struct efa_comp_ctx *comp_ctx,
+				       struct efa_admin_aq_entry *cmd,
+				       size_t cmd_size_in_bytes,
+				       struct efa_admin_acq_entry *comp,
+				       size_t comp_size_in_bytes)
 {
 	struct efa_admin_aq_entry *aqe;
-	struct efa_comp_ctx *comp_ctx;
 	u16 queue_size_mask;
 	u16 cmd_id;
 	u16 ctx_id;
 	u16 pi;
-
-	comp_ctx = efa_com_alloc_comp_ctx(aq);
-	if (!comp_ctx)
-		return ERR_PTR(-EINVAL);
 
 	queue_size_mask = aq->depth - 1;
 	pi = aq->sq.pc & queue_size_mask;
@@ -360,8 +356,6 @@ static struct efa_comp_ctx *__efa_com_submit_admin_cmd(struct efa_com_admin_queu
 
 	/* barrier not needed in case of writel */
 	writel(aq->sq.pc, aq->sq.db_addr);
-
-	return comp_ctx;
 }
 
 static inline int efa_com_init_comp_ctxt(struct efa_com_admin_queue *aq)
@@ -394,28 +388,25 @@ static inline int efa_com_init_comp_ctxt(struct efa_com_admin_queue *aq)
 	return 0;
 }
 
-static struct efa_comp_ctx *efa_com_submit_admin_cmd(struct efa_com_admin_queue *aq,
-						     struct efa_admin_aq_entry *cmd,
-						     size_t cmd_size_in_bytes,
-						     struct efa_admin_acq_entry *comp,
-						     size_t comp_size_in_bytes)
+static int efa_com_submit_admin_cmd(struct efa_com_admin_queue *aq,
+				    struct efa_comp_ctx *comp_ctx,
+				    struct efa_admin_aq_entry *cmd,
+				    size_t cmd_size_in_bytes,
+				    struct efa_admin_acq_entry *comp,
+				    size_t comp_size_in_bytes)
 {
-	struct efa_comp_ctx *comp_ctx;
-
 	spin_lock(&aq->sq.lock);
 	if (!test_bit(EFA_AQ_STATE_RUNNING_BIT, &aq->state)) {
 		ibdev_err_ratelimited(aq->efa_dev, "Admin queue is closed\n");
 		spin_unlock(&aq->sq.lock);
-		return ERR_PTR(-ENODEV);
+		return -ENODEV;
 	}
 
-	comp_ctx = __efa_com_submit_admin_cmd(aq, cmd, cmd_size_in_bytes, comp,
-					      comp_size_in_bytes);
+	__efa_com_submit_admin_cmd(aq, comp_ctx, cmd, cmd_size_in_bytes, comp,
+				   comp_size_in_bytes);
 	spin_unlock(&aq->sq.lock);
-	if (IS_ERR(comp_ctx))
-		clear_bit(EFA_AQ_STATE_RUNNING_BIT, &aq->state);
 
-	return comp_ctx;
+	return 0;
 }
 
 static int efa_com_handle_single_admin_completion(struct efa_com_admin_queue *aq,
@@ -512,7 +503,6 @@ static int efa_com_wait_and_process_admin_cq_polling(struct efa_comp_ctx *comp_c
 {
 	unsigned long timeout;
 	unsigned long flags;
-	int err;
 
 	timeout = jiffies + usecs_to_jiffies(aq->completion_timeout);
 
@@ -532,24 +522,20 @@ static int efa_com_wait_and_process_admin_cq_polling(struct efa_comp_ctx *comp_c
 			atomic64_inc(&aq->stats.no_completion);
 
 			clear_bit(EFA_AQ_STATE_RUNNING_BIT, &aq->state);
-			err = -ETIME;
-			goto out;
+			return -ETIME;
 		}
 
 		msleep(aq->poll_interval);
 	}
 
-	err = efa_com_comp_status_to_errno(comp_ctx->user_cqe->acq_common_descriptor.status);
-out:
-	efa_com_dealloc_comp_ctx(aq, comp_ctx);
-	return err;
+	return efa_com_comp_status_to_errno(
+		comp_ctx->user_cqe->acq_common_descriptor.status);
 }
 
 static int efa_com_wait_and_process_admin_cq_interrupts(struct efa_comp_ctx *comp_ctx,
 							struct efa_com_admin_queue *aq)
 {
 	unsigned long flags;
-	int err;
 
 	wait_for_completion_timeout(&comp_ctx->wait_event,
 				    usecs_to_jiffies(aq->completion_timeout));
@@ -585,14 +571,11 @@ static int efa_com_wait_and_process_admin_cq_interrupts(struct efa_comp_ctx *com
 				aq->cq.cc);
 
 		clear_bit(EFA_AQ_STATE_RUNNING_BIT, &aq->state);
-		err = -ETIME;
-		goto out;
+		return -ETIME;
 	}
 
-	err = efa_com_comp_status_to_errno(comp_ctx->user_cqe->acq_common_descriptor.status);
-out:
-	efa_com_dealloc_comp_ctx(aq, comp_ctx);
-	return err;
+	return efa_com_comp_status_to_errno(
+		comp_ctx->user_cqe->acq_common_descriptor.status);
 }
 
 /*
@@ -642,30 +625,39 @@ int efa_com_cmd_exec(struct efa_com_admin_queue *aq,
 	ibdev_dbg(aq->efa_dev, "%s (opcode %d)\n",
 		  efa_com_cmd_str(cmd->aq_common_descriptor.opcode),
 		  cmd->aq_common_descriptor.opcode);
-	comp_ctx = efa_com_submit_admin_cmd(aq, cmd, cmd_size, comp, comp_size);
-	if (IS_ERR(comp_ctx)) {
+
+	comp_ctx = efa_com_alloc_comp_ctx(aq);
+	if (!comp_ctx) {
+		clear_bit(EFA_AQ_STATE_RUNNING_BIT, &aq->state);
+		up(&aq->avail_cmds);
+		return -EINVAL;
+	}
+
+	err = efa_com_submit_admin_cmd(aq, comp_ctx, cmd, cmd_size, comp, comp_size);
+	if (err) {
 		ibdev_err_ratelimited(
 			aq->efa_dev,
-			"Failed to submit command %s (opcode %u) err %pe\n",
+			"Failed to submit command %s (opcode %u) err %d\n",
 			efa_com_cmd_str(cmd->aq_common_descriptor.opcode),
-			cmd->aq_common_descriptor.opcode, comp_ctx);
+			cmd->aq_common_descriptor.opcode, err);
 
+		efa_com_dealloc_comp_ctx(aq, comp_ctx);
 		up(&aq->avail_cmds);
 		atomic64_inc(&aq->stats.cmd_err);
-		return PTR_ERR(comp_ctx);
+		return err;
 	}
 
 	err = efa_com_wait_and_process_admin_cq(comp_ctx, aq);
 	if (err) {
 		ibdev_err_ratelimited(
 			aq->efa_dev,
-			"Failed to process command %s (opcode %u) comp_status %d err %d\n",
+			"Failed to process command %s (opcode %u) err %d\n",
 			efa_com_cmd_str(cmd->aq_common_descriptor.opcode),
-			cmd->aq_common_descriptor.opcode,
-			comp_ctx->user_cqe->acq_common_descriptor.status, err);
+			cmd->aq_common_descriptor.opcode, err);
 		atomic64_inc(&aq->stats.cmd_err);
 	}
 
+	efa_com_dealloc_comp_ctx(aq, comp_ctx);
 	up(&aq->avail_cmds);
 
 	return err;

@@ -336,6 +336,8 @@ command line arguments:
 - ``--list_tests_attr``: If set, lists all tests that will be run and all of their
   attributes.
 
+- ``--list_suites``: If set, lists all suites that will be run.
+
 Command-line completion
 ==============================
 

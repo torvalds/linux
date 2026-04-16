@@ -1379,9 +1379,11 @@ void *bpf_arch_text_copy(void *dst, void *src, size_t len)
 {
 	int ret;
 
+	cpus_read_lock();
 	mutex_lock(&text_mutex);
 	ret = larch_insn_text_copy(dst, src, len);
 	mutex_unlock(&text_mutex);
+	cpus_read_unlock();
 
 	return ret ? ERR_PTR(-EINVAL) : dst;
 }
@@ -1429,10 +1431,12 @@ int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type old_t,
 	if (ret)
 		return ret;
 
+	cpus_read_lock();
 	mutex_lock(&text_mutex);
 	if (memcmp(ip, new_insns, LOONGARCH_LONG_JUMP_NBYTES))
 		ret = larch_insn_text_copy(ip, new_insns, LOONGARCH_LONG_JUMP_NBYTES);
 	mutex_unlock(&text_mutex);
+	cpus_read_unlock();
 
 	return ret;
 }
@@ -1450,10 +1454,12 @@ int bpf_arch_text_invalidate(void *dst, size_t len)
 	for (i = 0; i < (len / sizeof(u32)); i++)
 		inst[i] = INSN_BREAK;
 
+	cpus_read_lock();
 	mutex_lock(&text_mutex);
 	if (larch_insn_text_copy(dst, inst, len))
 		ret = -EINVAL;
 	mutex_unlock(&text_mutex);
+	cpus_read_unlock();
 
 	kvfree(inst);
 
@@ -1566,6 +1572,11 @@ void *arch_alloc_bpf_trampoline(unsigned int size)
 void arch_free_bpf_trampoline(void *image, unsigned int size)
 {
 	bpf_prog_pack_free(image, size);
+}
+
+int arch_protect_bpf_trampoline(void *image, unsigned int size)
+{
+	return 0;
 }
 
 /*

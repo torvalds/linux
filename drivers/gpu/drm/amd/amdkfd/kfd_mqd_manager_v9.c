@@ -42,9 +42,16 @@ static uint64_t mqd_stride_v9(struct mqd_manager *mm,
 				struct queue_properties *q)
 {
 	if (mm->dev->kfd->cwsr_enabled &&
-	    q->type == KFD_QUEUE_TYPE_COMPUTE)
-		return ALIGN(q->ctl_stack_size, PAGE_SIZE) +
-			ALIGN(sizeof(struct v9_mqd), PAGE_SIZE);
+	    q->type == KFD_QUEUE_TYPE_COMPUTE) {
+
+		/* On gfxv9, the MQD resides in the first 4K page,
+		 * followed by the control stack. Align both to
+		 * AMDGPU_GPU_PAGE_SIZE to maintain the required 4K boundary.
+		 */
+
+		return ALIGN(ALIGN(q->ctl_stack_size, AMDGPU_GPU_PAGE_SIZE) +
+			ALIGN(sizeof(struct v9_mqd), AMDGPU_GPU_PAGE_SIZE), PAGE_SIZE);
+	}
 
 	return mm->mqd_size;
 }
@@ -151,8 +158,8 @@ static struct kfd_mem_obj *allocate_mqd(struct mqd_manager *mm,
 		if (!mqd_mem_obj)
 			return NULL;
 		retval = amdgpu_amdkfd_alloc_kernel_mem(node->adev,
-			(ALIGN(q->ctl_stack_size, PAGE_SIZE) +
-			ALIGN(sizeof(struct v9_mqd), PAGE_SIZE)) *
+			(ALIGN(ALIGN(q->ctl_stack_size, AMDGPU_GPU_PAGE_SIZE) +
+			ALIGN(sizeof(struct v9_mqd), AMDGPU_GPU_PAGE_SIZE), PAGE_SIZE)) *
 			NUM_XCC(node->xcc_mask),
 			mqd_on_vram(node->adev) ? AMDGPU_GEM_DOMAIN_VRAM :
 						  AMDGPU_GEM_DOMAIN_GTT,
@@ -360,7 +367,7 @@ static int get_wave_state(struct mqd_manager *mm, void *mqd,
 	struct kfd_context_save_area_header header;
 
 	/* Control stack is located one page after MQD. */
-	void *mqd_ctl_stack = (void *)((uintptr_t)mqd + PAGE_SIZE);
+	void *mqd_ctl_stack = (void *)((uintptr_t)mqd + AMDGPU_GPU_PAGE_SIZE);
 
 	m = get_mqd(mqd);
 
@@ -397,7 +404,7 @@ static void checkpoint_mqd(struct mqd_manager *mm, void *mqd, void *mqd_dst, voi
 {
 	struct v9_mqd *m;
 	/* Control stack is located one page after MQD. */
-	void *ctl_stack = (void *)((uintptr_t)mqd + PAGE_SIZE);
+	void *ctl_stack = (void *)((uintptr_t)mqd + AMDGPU_GPU_PAGE_SIZE);
 
 	m = get_mqd(mqd);
 
@@ -443,7 +450,7 @@ static void restore_mqd(struct mqd_manager *mm, void **mqd,
 		*gart_addr = addr;
 
 	/* Control stack is located one page after MQD. */
-	ctl_stack = (void *)((uintptr_t)*mqd + PAGE_SIZE);
+	ctl_stack = (void *)((uintptr_t)*mqd + AMDGPU_GPU_PAGE_SIZE);
 	memcpy(ctl_stack, ctl_stack_src, ctl_stack_size);
 
 	m->cp_hqd_pq_doorbell_control =
