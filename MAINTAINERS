@@ -11364,14 +11364,6 @@ F:	drivers/hid/hid-sensor-*
 F:	drivers/iio/*/hid-*
 F:	include/linux/hid-sensor-*
 
-HID UNIVERSAL PIDFF DRIVER
-M:	Tomasz Pakuła <tomasz.pakula.oficjalny@gmail.com>
-M:	Oleg Makarenko <oleg@makarenk.ooo>
-L:	linux-input@vger.kernel.org
-S:	Maintained
-B:	https://github.com/JacKeTUs/universal-pidff/issues
-F:	drivers/hid/hid-universal-pidff.c
-
 HID VRC-2 CAR CONTROLLER DRIVER
 M:	Marcus Folkesson <marcus.folkesson@gmail.com>
 L:	linux-input@vger.kernel.org
@@ -27278,6 +27270,15 @@ S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/hid/hid.git
 F:	Documentation/hid/hiddev.rst
 F:	drivers/hid/usbhid/
+
+USB HID PID DRIVERS (USB WHEELBASES, JOYSTICKS, RUDDERS, ...)
+M:	Tomasz Pakuła <tomasz.pakula.oficjalny@gmail.com>
+M:	Oleg Makarenko <oleg@makarenk.ooo>
+L:	linux-input@vger.kernel.org
+S:	Maintained
+B:	https://github.com/JacKeTUs/universal-pidff/issues
+F:	drivers/hid/usbhid/hid-pidff*
+F:	drivers/hid/hid-universal-pidff.c
 
 USB INTEL XHCI ROLE MUX DRIVER
 M:	Hans de Goede <hansg@kernel.org>
