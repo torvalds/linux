@@ -194,8 +194,7 @@ static ssize_t write_hw(struct file *file, struct kobject *kobj,
 	int length = min(sizeof(struct atto_ioctl), count);
 
 	if (!a->local_atto_ioctl) {
-		a->local_atto_ioctl = kmalloc(sizeof(struct atto_ioctl),
-					      GFP_KERNEL);
+		a->local_atto_ioctl = kmalloc_obj(struct atto_ioctl);
 		if (a->local_atto_ioctl == NULL) {
 			esas2r_log(ESAS2R_LOG_WARN,
 				   "write_hw kzalloc failed for %zu bytes",
@@ -1831,7 +1830,7 @@ void esas2r_queue_fw_event(struct esas2r_adapter *a,
 	struct esas2r_fw_event_work *fw_event;
 	unsigned long flags;
 
-	fw_event = kzalloc(sizeof(struct esas2r_fw_event_work), GFP_ATOMIC);
+	fw_event = kzalloc_obj(struct esas2r_fw_event_work, GFP_ATOMIC);
 	if (!fw_event) {
 		esas2r_log(ESAS2R_LOG_WARN,
 			   "esas2r_queue_fw_event failed to alloc");

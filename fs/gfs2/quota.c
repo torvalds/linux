@@ -908,7 +908,7 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda,
 	gfs2_write_calc_reserv(ip, sizeof(struct gfs2_quota),
 			      &data_blocks, &ind_blocks);
 
-	ghs = kmalloc_array(num_qd, sizeof(struct gfs2_holder), GFP_NOFS);
+	ghs = kmalloc_objs(struct gfs2_holder, num_qd, GFP_NOFS);
 	if (!ghs)
 		return -ENOMEM;
 
@@ -1318,7 +1318,7 @@ int gfs2_quota_sync(struct super_block *sb, int type)
 	if (sb_rdonly(sdp->sd_vfs))
 		return 0;
 
-	qda = kcalloc(max_qd, sizeof(struct gfs2_quota_data *), GFP_KERNEL);
+	qda = kzalloc_objs(struct gfs2_quota_data *, max_qd);
 	if (!qda)
 		return -ENOMEM;
 

@@ -185,7 +185,7 @@ struct dma_fence *drm_crtc_create_fence(struct drm_crtc *crtc)
 {
 	struct dma_fence *fence;
 
-	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
+	fence = kzalloc_obj(*fence);
 	if (!fence)
 		return NULL;
 
@@ -845,9 +845,8 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 			goto out;
 		}
 
-		connector_set = kmalloc_array(crtc_req->count_connectors,
-					      sizeof(struct drm_connector *),
-					      GFP_KERNEL);
+		connector_set = kmalloc_objs(struct drm_connector *,
+					     crtc_req->count_connectors);
 		if (!connector_set) {
 			ret = -ENOMEM;
 			goto out;

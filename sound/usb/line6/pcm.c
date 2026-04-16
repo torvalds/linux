@@ -528,7 +528,7 @@ int line6_init_pcm(struct usb_line6 *line6,
 	if (err < 0)
 		return err;
 
-	line6pcm = kzalloc(sizeof(*line6pcm), GFP_KERNEL);
+	line6pcm = kzalloc_obj(*line6pcm);
 	if (!line6pcm)
 		return -ENOMEM;
 

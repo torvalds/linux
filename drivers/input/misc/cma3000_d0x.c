@@ -285,7 +285,7 @@ struct cma3000_accl_data *cma3000_init(struct device *dev, int irq,
 		goto err_out;
 	}
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	input_dev = input_allocate_device();
 	if (!data || !input_dev) {
 		error = -ENOMEM;

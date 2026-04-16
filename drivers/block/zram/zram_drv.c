@@ -250,7 +250,7 @@ static struct zram_pp_ctl *init_pp_ctl(void)
 	struct zram_pp_ctl *ctl;
 	u32 idx;
 
-	ctl = kmalloc(sizeof(*ctl), GFP_KERNEL);
+	ctl = kmalloc_obj(*ctl);
 	if (!ctl)
 		return NULL;
 
@@ -297,7 +297,7 @@ static bool place_pp_slot(struct zram *zram, struct zram_pp_ctl *ctl,
 	struct zram_pp_slot *pps;
 	u32 bid;
 
-	pps = kmalloc(sizeof(*pps), GFP_NOIO | __GFP_NOWARN);
+	pps = kmalloc_obj(*pps, GFP_NOIO | __GFP_NOWARN);
 	if (!pps)
 		return false;
 
@@ -549,7 +549,7 @@ static ssize_t bd_stat_show(struct device *dev, struct device_attribute *attr,
 	return ret;
 }
 
-static ssize_t writeback_compressed_store(struct device *dev,
+static ssize_t compressed_writeback_store(struct device *dev,
 					  struct device_attribute *attr,
 					  const char *buf, size_t len)
 {
@@ -564,12 +564,12 @@ static ssize_t writeback_compressed_store(struct device *dev,
 		return -EBUSY;
 	}
 
-	zram->wb_compressed = val;
+	zram->compressed_wb = val;
 
 	return len;
 }
 
-static ssize_t writeback_compressed_show(struct device *dev,
+static ssize_t compressed_writeback_show(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
 {
@@ -577,7 +577,7 @@ static ssize_t writeback_compressed_show(struct device *dev,
 	struct zram *zram = dev_to_zram(dev);
 
 	guard(rwsem_read)(&zram->dev_lock);
-	val = zram->wb_compressed;
+	val = zram->compressed_wb;
 
 	return sysfs_emit(buf, "%d\n", val);
 }
@@ -855,7 +855,7 @@ static struct zram_wb_ctl *init_wb_ctl(struct zram *zram)
 	struct zram_wb_ctl *wb_ctl;
 	int i;
 
-	wb_ctl = kmalloc(sizeof(*wb_ctl), GFP_KERNEL);
+	wb_ctl = kmalloc_obj(*wb_ctl);
 	if (!wb_ctl)
 		return NULL;
 
@@ -875,7 +875,7 @@ static struct zram_wb_ctl *init_wb_ctl(struct zram *zram)
 		 * writeback can still proceed, even if there is only one
 		 * request on the idle list.
 		 */
-		req = kzalloc(sizeof(*req), GFP_KERNEL | __GFP_NOWARN);
+		req = kzalloc_obj(*req, GFP_KERNEL | __GFP_NOWARN);
 		if (!req)
 			break;
 
@@ -946,7 +946,7 @@ static int zram_writeback_complete(struct zram *zram, struct zram_wb_req *req)
 		goto out;
 	}
 
-	if (zram->wb_compressed) {
+	if (zram->compressed_wb) {
 		/*
 		 * ZRAM_WB slots get freed, we need to preserve data required
 		 * for read decompression.
@@ -960,7 +960,7 @@ static int zram_writeback_complete(struct zram *zram, struct zram_wb_req *req)
 	set_slot_flag(zram, index, ZRAM_WB);
 	set_slot_handle(zram, index, req->blk_idx);
 
-	if (zram->wb_compressed) {
+	if (zram->compressed_wb) {
 		if (huge)
 			set_slot_flag(zram, index, ZRAM_HUGE);
 		set_slot_size(zram, index, size);
@@ -1100,7 +1100,7 @@ static int zram_writeback_slots(struct zram *zram,
 		 */
 		if (!test_slot_flag(zram, index, ZRAM_PP_SLOT))
 			goto next;
-		if (zram->wb_compressed)
+		if (zram->compressed_wb)
 			err = read_from_zspool_raw(zram, req->page, index);
 		else
 			err = read_from_zspool(zram, req->page, index);
@@ -1429,7 +1429,7 @@ static void zram_async_read_endio(struct bio *bio)
 	 *
 	 * Keep the existing behavior for now.
 	 */
-	if (zram->wb_compressed == false) {
+	if (zram->compressed_wb == false) {
 		/* No decompression needed, complete the parent IO */
 		bio_endio(req->parent);
 		bio_put(bio);
@@ -1452,7 +1452,7 @@ static void read_from_bdev_async(struct zram *zram, struct page *page,
 	struct zram_rb_req *req;
 	struct bio *bio;
 
-	req = kmalloc(sizeof(*req), GFP_NOIO);
+	req = kmalloc_obj(*req, GFP_NOIO);
 	if (!req)
 		return;
 
@@ -1508,7 +1508,7 @@ static int read_from_bdev_sync(struct zram *zram, struct page *page, u32 index,
 	flush_work(&req.work);
 	destroy_work_on_stack(&req.work);
 
-	if (req.error || zram->wb_compressed == false)
+	if (req.error || zram->compressed_wb == false)
 		return req.error;
 
 	return decompress_bdev_page(zram, page, index);
@@ -3007,7 +3007,7 @@ static DEVICE_ATTR_WO(writeback);
 static DEVICE_ATTR_RW(writeback_limit);
 static DEVICE_ATTR_RW(writeback_limit_enable);
 static DEVICE_ATTR_RW(writeback_batch_size);
-static DEVICE_ATTR_RW(writeback_compressed);
+static DEVICE_ATTR_RW(compressed_writeback);
 #endif
 #ifdef CONFIG_ZRAM_MULTI_COMP
 static DEVICE_ATTR_RW(recomp_algorithm);
@@ -3031,7 +3031,7 @@ static struct attribute *zram_disk_attrs[] = {
 	&dev_attr_writeback_limit.attr,
 	&dev_attr_writeback_limit_enable.attr,
 	&dev_attr_writeback_batch_size.attr,
-	&dev_attr_writeback_compressed.attr,
+	&dev_attr_compressed_writeback.attr,
 #endif
 	&dev_attr_io_stat.attr,
 	&dev_attr_mm_stat.attr,
@@ -3079,7 +3079,7 @@ static int zram_add(void)
 	struct zram *zram;
 	int ret, device_id;
 
-	zram = kzalloc(sizeof(struct zram), GFP_KERNEL);
+	zram = kzalloc_obj(struct zram);
 	if (!zram)
 		return -ENOMEM;
 
@@ -3091,7 +3091,7 @@ static int zram_add(void)
 	init_rwsem(&zram->dev_lock);
 #ifdef CONFIG_ZRAM_WRITEBACK
 	zram->wb_batch_size = 32;
-	zram->wb_compressed = false;
+	zram->compressed_wb = false;
 #endif
 
 	/* gendisk structure */

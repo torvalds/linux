@@ -45,7 +45,7 @@ struct tape_class_device *register_tape_dev(
 	int		rc;
 	char *		s;
 
-	tcd = kzalloc(sizeof(struct tape_class_device), GFP_KERNEL);
+	tcd = kzalloc_obj(struct tape_class_device);
 	if (!tcd)
 		return ERR_PTR(-ENOMEM);
 

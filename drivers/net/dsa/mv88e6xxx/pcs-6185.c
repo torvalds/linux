@@ -131,7 +131,7 @@ static int mv88e6185_pcs_init(struct mv88e6xxx_chip *chip, int port)
 
 	dev = chip->dev;
 
-	mpcs = kzalloc(sizeof(*mpcs), GFP_KERNEL);
+	mpcs = kzalloc_obj(*mpcs);
 	if (!mpcs)
 		return -ENOMEM;
 

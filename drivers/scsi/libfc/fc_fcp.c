@@ -2298,7 +2298,7 @@ int fc_fcp_init(struct fc_lport *lport)
 	if (!lport->tt.fcp_abort_io)
 		lport->tt.fcp_abort_io = fc_fcp_abort_io;
 
-	si = kzalloc(sizeof(struct fc_fcp_internal), GFP_KERNEL);
+	si = kzalloc_obj(struct fc_fcp_internal);
 	if (!si)
 		return -ENOMEM;
 	lport->scsi_priv = si;

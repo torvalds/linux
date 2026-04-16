@@ -87,11 +87,7 @@ static int proc_show_files(struct seq_file *m, void *v)
 
 		rcu_read_lock();
 		opinfo = rcu_dereference(fp->f_opinfo);
-		rcu_read_unlock();
-
-		if (!opinfo) {
-			seq_printf(m, " %-15s", " ");
-		} else {
+		if (opinfo) {
 			const struct ksmbd_const_name *const_names;
 			int count;
 			unsigned int level;
@@ -105,8 +101,12 @@ static int proc_show_files(struct seq_file *m, void *v)
 				count = ARRAY_SIZE(ksmbd_oplock_const_names);
 				level = opinfo->level;
 			}
+			rcu_read_unlock();
 			ksmbd_proc_show_const_name(m, " %-15s",
 						   const_names, count, level);
+		} else {
+			rcu_read_unlock();
+			seq_printf(m, " %-15s", " ");
 		}
 
 		seq_printf(m, " %#010x %#010x %s\n",
@@ -303,7 +303,7 @@ static struct ksmbd_inode *ksmbd_inode_get(struct ksmbd_file *fp)
 	if (ci)
 		return ci;
 
-	ci = kmalloc(sizeof(struct ksmbd_inode), KSMBD_DEFAULT_GFP);
+	ci = kmalloc_obj(struct ksmbd_inode, KSMBD_DEFAULT_GFP);
 	if (!ci)
 		return NULL;
 
@@ -1126,7 +1126,7 @@ int ksmbd_reopen_durable_fd(struct ksmbd_work *work, struct ksmbd_file *fp)
 
 int ksmbd_init_file_table(struct ksmbd_file_table *ft)
 {
-	ft->idr = kzalloc(sizeof(struct idr), KSMBD_DEFAULT_GFP);
+	ft->idr = kzalloc_obj(struct idr, KSMBD_DEFAULT_GFP);
 	if (!ft->idr)
 		return -ENOMEM;
 

@@ -73,7 +73,7 @@ static void pvr2_ioread_done(struct pvr2_ioread *cp)
 struct pvr2_ioread *pvr2_ioread_create(void)
 {
 	struct pvr2_ioread *cp;
-	cp = kzalloc(sizeof(*cp),GFP_KERNEL);
+	cp = kzalloc_obj(*cp);
 	if (!cp) return NULL;
 	pvr2_trace(PVR2_TRACE_STRUCT,"pvr2_ioread_create id=%p",cp);
 	if (pvr2_ioread_init(cp) < 0) {

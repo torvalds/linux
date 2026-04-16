@@ -313,7 +313,7 @@ struct dvb_frontend * mt2266_attach(struct dvb_frontend *fe, struct i2c_adapter 
 	struct mt2266_priv *priv = NULL;
 	u8 id = 0;
 
-	priv = kzalloc(sizeof(struct mt2266_priv), GFP_KERNEL);
+	priv = kzalloc_obj(struct mt2266_priv);
 	if (priv == NULL)
 		return NULL;
 

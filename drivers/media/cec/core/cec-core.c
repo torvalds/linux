@@ -237,7 +237,7 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 		return ERR_PTR(-EINVAL);
 	if (WARN_ON(!available_las || available_las > CEC_MAX_LOG_ADDRS))
 		return ERR_PTR(-EINVAL);
-	adap = kzalloc(sizeof(*adap), GFP_KERNEL);
+	adap = kzalloc_obj(*adap);
 	if (!adap)
 		return ERR_PTR(-ENOMEM);
 	strscpy(adap->name, name, sizeof(adap->name));

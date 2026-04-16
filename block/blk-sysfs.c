@@ -78,8 +78,14 @@ queue_requests_store(struct gendisk *disk, const char *page, size_t count)
 	/*
 	 * Serialize updating nr_requests with concurrent queue_requests_store()
 	 * and switching elevator.
+	 *
+	 * Use trylock to avoid circular lock dependency with kernfs active
+	 * reference during concurrent disk deletion:
+	 *   update_nr_hwq_lock -> kn->active (via del_gendisk -> kobject_del)
+	 *   kn->active -> update_nr_hwq_lock (via this sysfs write path)
 	 */
-	down_write(&set->update_nr_hwq_lock);
+	if (!down_write_trylock(&set->update_nr_hwq_lock))
+		return -EBUSY;
 
 	if (nr == q->nr_requests)
 		goto unlock;
@@ -892,13 +898,13 @@ static void blk_debugfs_remove(struct gendisk *disk)
 {
 	struct request_queue *q = disk->queue;
 
-	mutex_lock(&q->debugfs_mutex);
+	blk_debugfs_lock_nomemsave(q);
 	blk_trace_shutdown(q);
 	debugfs_remove_recursive(q->debugfs_dir);
 	q->debugfs_dir = NULL;
 	q->sched_debugfs_dir = NULL;
 	q->rqos_debugfs_dir = NULL;
-	mutex_unlock(&q->debugfs_mutex);
+	blk_debugfs_unlock_nomemrestore(q);
 }
 
 /**
@@ -908,6 +914,7 @@ static void blk_debugfs_remove(struct gendisk *disk)
 int blk_register_queue(struct gendisk *disk)
 {
 	struct request_queue *q = disk->queue;
+	unsigned int memflags;
 	int ret;
 
 	ret = kobject_add(&disk->queue_kobj, &disk_to_dev(disk)->kobj, "queue");
@@ -921,11 +928,11 @@ int blk_register_queue(struct gendisk *disk)
 	}
 	mutex_lock(&q->sysfs_lock);
 
-	mutex_lock(&q->debugfs_mutex);
+	memflags = blk_debugfs_lock(q);
 	q->debugfs_dir = debugfs_create_dir(disk->disk_name, blk_debugfs_root);
 	if (queue_is_mq(q))
 		blk_mq_debugfs_register(q);
-	mutex_unlock(&q->debugfs_mutex);
+	blk_debugfs_unlock(q, memflags);
 
 	ret = disk_register_independent_access_ranges(disk);
 	if (ret)

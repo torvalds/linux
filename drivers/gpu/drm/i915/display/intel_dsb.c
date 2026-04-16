@@ -974,7 +974,7 @@ struct intel_dsb *intel_dsb_prepare(struct intel_atomic_state *state,
 	if (!display->params.enable_dsb)
 		return NULL;
 
-	dsb = kzalloc(sizeof(*dsb), GFP_KERNEL);
+	dsb = kzalloc_obj(*dsb);
 	if (!dsb)
 		goto out;
 

@@ -703,7 +703,7 @@ static int aqc111_bind(struct usbnet *dev, struct usb_interface *intf)
 		return ret;
 	}
 
-	aqc111_data = kzalloc(sizeof(*aqc111_data), GFP_KERNEL);
+	aqc111_data = kzalloc_obj(*aqc111_data);
 	if (!aqc111_data)
 		return -ENOMEM;
 

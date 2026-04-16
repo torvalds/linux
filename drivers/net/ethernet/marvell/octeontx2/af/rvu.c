@@ -2516,7 +2516,7 @@ static int rvu_mbox_init(struct rvu *rvu, struct mbox_wq_info *mw,
 	if (!pf_bmap)
 		return -ENOMEM;
 
-	ng_rvu_mbox = kzalloc(sizeof(*ng_rvu_mbox), GFP_KERNEL);
+	ng_rvu_mbox = kzalloc_obj(*ng_rvu_mbox);
 	if (!ng_rvu_mbox) {
 		err = -ENOMEM;
 		goto free_bitmap;

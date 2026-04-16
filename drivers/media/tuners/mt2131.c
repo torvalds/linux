@@ -248,7 +248,7 @@ struct dvb_frontend * mt2131_attach(struct dvb_frontend *fe,
 
 	dprintk(1, "%s()\n", __func__);
 
-	priv = kzalloc(sizeof(struct mt2131_priv), GFP_KERNEL);
+	priv = kzalloc_obj(struct mt2131_priv);
 	if (priv == NULL)
 		return NULL;
 

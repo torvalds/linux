@@ -755,7 +755,7 @@ static struct dma_async_tx_descriptor *tegra_adma_prep_dma_cyclic(
 		return NULL;
 	}
 
-	desc = kzalloc(sizeof(*desc), GFP_NOWAIT);
+	desc = kzalloc_obj(*desc, GFP_NOWAIT);
 	if (!desc)
 		return NULL;
 

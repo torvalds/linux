@@ -483,8 +483,7 @@ static int ufs_read_cylinder_structures(struct super_block *sb)
 	 * Read cylinder group (we read only first fragment from block
 	 * at this time) and prepare internal data structures for cg caching.
 	 */
-	sbi->s_ucg = kmalloc_array(uspi->s_ncg, sizeof(struct buffer_head *),
-				   GFP_NOFS);
+	sbi->s_ucg = kmalloc_objs(struct buffer_head *, uspi->s_ncg, GFP_NOFS);
 	if (!sbi->s_ucg)
 		goto failed;
 	for (i = 0; i < uspi->s_ncg; i++) 
@@ -503,7 +502,7 @@ static int ufs_read_cylinder_structures(struct super_block *sb)
 		ufs_print_cylinder_stuff(sb, (struct ufs_cylinder_group *) sbi->s_ucg[i]->b_data);
 	}
 	for (i = 0; i < UFS_MAX_GROUP_LOADED; i++) {
-		if (!(sbi->s_ucpi[i] = kmalloc (sizeof(struct ufs_cg_private_info), GFP_NOFS)))
+		if (!(sbi->s_ucpi[i] = kmalloc_obj(struct ufs_cg_private_info, GFP_NOFS)))
 			goto failed;
 		sbi->s_cgno[i] = UFS_CGNO_EMPTY;
 	}
@@ -744,7 +743,7 @@ static int ufs_fill_super(struct super_block *sb, struct fs_context *fc)
 	}
 #endif
 		
-	sbi = kzalloc(sizeof(struct ufs_sb_info), GFP_KERNEL);
+	sbi = kzalloc_obj(struct ufs_sb_info);
 	if (!sbi)
 		goto failed_nomem;
 	sb->s_fs_info = sbi;
@@ -769,7 +768,7 @@ static int ufs_fill_super(struct super_block *sb, struct fs_context *fc)
 		sbi->s_flavour = UFS_MOUNT_UFSTYPE_OLD;
 	}
 
-	uspi = kzalloc(sizeof(struct ufs_sb_private_info), GFP_KERNEL);
+	uspi = kzalloc_obj(struct ufs_sb_private_info);
 	sbi->s_uspi = uspi;
 	if (!uspi)
 		goto failed;
@@ -1438,7 +1437,7 @@ static int ufs_init_fs_context(struct fs_context *fc)
 {
 	struct ufs_fs_context *ctx;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

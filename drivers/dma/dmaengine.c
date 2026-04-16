@@ -1075,7 +1075,7 @@ static int __dma_async_device_channel_register(struct dma_device *device,
 	chan->local = alloc_percpu(typeof(*chan->local));
 	if (!chan->local)
 		return -ENOMEM;
-	chan->dev = kzalloc(sizeof(*chan->dev), GFP_KERNEL);
+	chan->dev = kzalloc_obj(*chan->dev);
 	if (!chan->dev) {
 		rc = -ENOMEM;
 		goto err_free_local;

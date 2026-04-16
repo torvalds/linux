@@ -626,8 +626,7 @@ static int persistent_read_metadata(struct dm_exception_store *store,
 	 */
 	ps->exceptions_per_area = (ps->store->chunk_size << SECTOR_SHIFT) /
 				  sizeof(struct disk_exception);
-	ps->callbacks = kvcalloc(ps->exceptions_per_area,
-				 sizeof(*ps->callbacks), GFP_KERNEL);
+	ps->callbacks = kvzalloc_objs(*ps->callbacks, ps->exceptions_per_area);
 	if (!ps->callbacks)
 		return -ENOMEM;
 
@@ -854,7 +853,7 @@ static int persistent_ctr(struct dm_exception_store *store, char *options)
 	int r;
 
 	/* allocate the pstore */
-	ps = kzalloc(sizeof(*ps), GFP_KERNEL);
+	ps = kzalloc_obj(*ps);
 	if (!ps)
 		return -ENOMEM;
 

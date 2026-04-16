@@ -86,7 +86,7 @@ static int xe_file_open(struct drm_device *dev, struct drm_file *file)
 	int ret = -ENOMEM;
 	struct task_struct *task = NULL;
 
-	xef = kzalloc(sizeof(*xef), GFP_KERNEL);
+	xef = kzalloc_obj(*xef);
 	if (!xef)
 		return ret;
 

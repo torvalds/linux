@@ -1059,7 +1059,7 @@ static int cs_dsp_create_control(struct cs_dsp *dsp,
 		}
 	}
 
-	ctl = kzalloc(sizeof(*ctl), GFP_KERNEL);
+	ctl = kzalloc_obj(*ctl);
 	if (!ctl)
 		return -ENOMEM;
 
@@ -1610,11 +1610,17 @@ static int cs_dsp_load(struct cs_dsp *dsp, const struct firmware *firmware,
 			   region_name);
 
 		if (reg) {
+			/*
+			 * Although we expect the underlying bus does not require
+			 * physically-contiguous buffers, we pessimistically use
+			 * a temporary buffer instead of trusting that the
+			 * alignment of region->data is ok.
+			 */
 			region_len = le32_to_cpu(region->len);
 			if (region_len > buf_len) {
 				buf_len = round_up(region_len, PAGE_SIZE);
-				kfree(buf);
-				buf = kmalloc(buf_len, GFP_KERNEL | GFP_DMA);
+				vfree(buf);
+				buf = vmalloc(buf_len);
 				if (!buf) {
 					ret = -ENOMEM;
 					goto out_fw;
@@ -1643,7 +1649,7 @@ static int cs_dsp_load(struct cs_dsp *dsp, const struct firmware *firmware,
 
 	ret = 0;
 out_fw:
-	kfree(buf);
+	vfree(buf);
 
 	if (ret == -EOVERFLOW)
 		cs_dsp_err(dsp, "%s: file content overflows file data\n", file);
@@ -1781,7 +1787,7 @@ static struct cs_dsp_alg_region *cs_dsp_create_region(struct cs_dsp *dsp,
 {
 	struct cs_dsp_alg_region_list_item *item;
 
-	item = kzalloc(sizeof(*item), GFP_KERNEL);
+	item = kzalloc_obj(*item);
 	if (!item)
 		return ERR_PTR(-ENOMEM);
 
@@ -2331,11 +2337,17 @@ static int cs_dsp_load_coeff(struct cs_dsp *dsp, const struct firmware *firmware
 		}
 
 		if (reg) {
+			/*
+			 * Although we expect the underlying bus does not require
+			 * physically-contiguous buffers, we pessimistically use
+			 * a temporary buffer instead of trusting that the
+			 * alignment of blk->data is ok.
+			 */
 			region_len = le32_to_cpu(blk->len);
 			if (region_len > buf_len) {
 				buf_len = round_up(region_len, PAGE_SIZE);
-				kfree(buf);
-				buf = kmalloc(buf_len, GFP_KERNEL | GFP_DMA);
+				vfree(buf);
+				buf = vmalloc(buf_len);
 				if (!buf) {
 					ret = -ENOMEM;
 					goto out_fw;
@@ -2366,7 +2378,7 @@ static int cs_dsp_load_coeff(struct cs_dsp *dsp, const struct firmware *firmware
 
 	ret = 0;
 out_fw:
-	kfree(buf);
+	vfree(buf);
 
 	if (ret == -EOVERFLOW)
 		cs_dsp_err(dsp, "%s: file content overflows file data\n", file);

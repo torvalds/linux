@@ -447,7 +447,7 @@ static struct drm_crtc_state *malidp_crtc_duplicate_state(struct drm_crtc *crtc)
 		return NULL;
 
 	old_state = to_malidp_crtc_state(crtc->state);
-	state = kmalloc(sizeof(*state), GFP_KERNEL);
+	state = kmalloc_obj(*state);
 	if (!state)
 		return NULL;
 
@@ -478,8 +478,7 @@ static void malidp_crtc_destroy_state(struct drm_crtc *crtc,
 
 static void malidp_crtc_reset(struct drm_crtc *crtc)
 {
-	struct malidp_crtc_state *state =
-		kzalloc(sizeof(*state), GFP_KERNEL);
+	struct malidp_crtc_state *state = kzalloc_obj(*state);
 
 	if (crtc->state)
 		malidp_crtc_destroy_state(crtc, crtc->state);

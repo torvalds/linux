@@ -685,7 +685,7 @@ xrep_bmap_cow(
 		return 0;
 	}
 
-	xc = kzalloc(sizeof(struct xrep_cow), XCHK_GFP_FLAGS);
+	xc = kzalloc_obj(struct xrep_cow, XCHK_GFP_FLAGS);
 	if (!xc)
 		return -ENOMEM;
 

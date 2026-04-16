@@ -133,7 +133,7 @@ static void dpaa2_io_dim_work(struct work_struct *w)
 struct dpaa2_io *dpaa2_io_create(const struct dpaa2_io_desc *desc,
 				 struct device *dev)
 {
-	struct dpaa2_io *obj = kmalloc(sizeof(*obj), GFP_KERNEL);
+	struct dpaa2_io *obj = kmalloc_obj(*obj);
 	u32 qman_256_cycles_per_ns;
 
 	if (!obj)
@@ -523,7 +523,7 @@ int dpaa2_io_service_enqueue_multiple_desc_fq(struct dpaa2_io *d,
 	struct qbman_eq_desc *ed;
 	int i, ret;
 
-	ed = kcalloc(32, sizeof(struct qbman_eq_desc), GFP_KERNEL);
+	ed = kzalloc_objs(struct qbman_eq_desc, 32);
 	if (!ed)
 		return -ENOMEM;
 
@@ -658,7 +658,7 @@ struct dpaa2_io_store *dpaa2_io_store_create(unsigned int max_frames,
 	if (!max_frames || (max_frames > 32))
 		return NULL;
 
-	ret = kmalloc(sizeof(*ret), GFP_KERNEL);
+	ret = kmalloc_obj(*ret);
 	if (!ret)
 		return NULL;
 

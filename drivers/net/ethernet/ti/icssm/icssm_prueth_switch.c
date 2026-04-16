@@ -748,7 +748,7 @@ int icssm_prueth_sw_init_fdb_table(struct prueth *prueth)
 	if (prueth->emac_configured)
 		return 0;
 
-	prueth->fdb_tbl = kmalloc(sizeof(*prueth->fdb_tbl), GFP_KERNEL);
+	prueth->fdb_tbl = kmalloc_obj(*prueth->fdb_tbl);
 	if (!prueth->fdb_tbl)
 		return -ENOMEM;
 
@@ -816,7 +816,7 @@ int icssm_prueth_sw_learn_fdb(struct prueth_emac *emac, u8 *src_mac)
 {
 	struct icssm_prueth_sw_fdb_work *fdb_work;
 
-	fdb_work = kzalloc(sizeof(*fdb_work), GFP_ATOMIC);
+	fdb_work = kzalloc_obj(*fdb_work, GFP_ATOMIC);
 	if (WARN_ON(!fdb_work))
 		return -ENOMEM;
 
@@ -835,7 +835,7 @@ int icssm_prueth_sw_purge_fdb(struct prueth_emac *emac)
 {
 	struct icssm_prueth_sw_fdb_work *fdb_work;
 
-	fdb_work = kzalloc(sizeof(*fdb_work), GFP_ATOMIC);
+	fdb_work = kzalloc_obj(*fdb_work, GFP_ATOMIC);
 	if (WARN_ON(!fdb_work))
 		return -ENOMEM;
 

@@ -107,10 +107,6 @@ static int ice_vsi_alloc_arrays(struct ice_vsi *vsi)
 	if (!vsi->rxq_map)
 		goto err_rxq_map;
 
-	/* There is no need to allocate q_vectors for a loopback VSI. */
-	if (vsi->type == ICE_VSI_LB)
-		return 0;
-
 	/* allocate memory for q_vector pointers */
 	vsi->q_vectors = devm_kcalloc(dev, vsi->num_q_vectors,
 				      sizeof(*vsi->q_vectors), GFP_KERNEL);
@@ -241,6 +237,8 @@ static void ice_vsi_set_num_qs(struct ice_vsi *vsi)
 	case ICE_VSI_LB:
 		vsi->alloc_txq = 1;
 		vsi->alloc_rxq = 1;
+		/* A dummy q_vector, no actual IRQ. */
+		vsi->num_q_vectors = 1;
 		break;
 	default:
 		dev_warn(ice_pf_to_dev(pf), "Unknown VSI type %d\n", vsi_type);
@@ -290,7 +288,7 @@ static void ice_vsi_delete_from_hw(struct ice_vsi *vsi)
 	int status;
 
 	ice_fltr_remove_all(vsi);
-	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
+	ctxt = kzalloc_obj(*ctxt);
 	if (!ctxt)
 		return;
 
@@ -396,7 +394,7 @@ static int ice_vsi_alloc_ring_stats(struct ice_vsi *vsi)
 		ring_stats = tx_ring_stats[i];
 
 		if (!ring_stats) {
-			ring_stats = kzalloc(sizeof(*ring_stats), GFP_KERNEL);
+			ring_stats = kzalloc_obj(*ring_stats);
 			if (!ring_stats)
 				goto err_out;
 
@@ -417,7 +415,7 @@ static int ice_vsi_alloc_ring_stats(struct ice_vsi *vsi)
 		ring_stats = rx_ring_stats[i];
 
 		if (!ring_stats) {
-			ring_stats = kzalloc(sizeof(*ring_stats), GFP_KERNEL);
+			ring_stats = kzalloc_obj(*ring_stats);
 			if (!ring_stats)
 				goto err_out;
 
@@ -533,19 +531,17 @@ static int ice_vsi_alloc_stat_arrays(struct ice_vsi *vsi)
 	/* realloc will happen in rebuild path */
 		return 0;
 
-	vsi_stat = kzalloc(sizeof(*vsi_stat), GFP_KERNEL);
+	vsi_stat = kzalloc_obj(*vsi_stat);
 	if (!vsi_stat)
 		return -ENOMEM;
 
 	vsi_stat->tx_ring_stats =
-		kcalloc(vsi->alloc_txq, sizeof(*vsi_stat->tx_ring_stats),
-			GFP_KERNEL);
+		kzalloc_objs(*vsi_stat->tx_ring_stats, vsi->alloc_txq);
 	if (!vsi_stat->tx_ring_stats)
 		goto err_alloc_tx;
 
 	vsi_stat->rx_ring_stats =
-		kcalloc(vsi->alloc_rxq, sizeof(*vsi_stat->rx_ring_stats),
-			GFP_KERNEL);
+		kzalloc_objs(*vsi_stat->rx_ring_stats, vsi->alloc_rxq);
 	if (!vsi_stat->rx_ring_stats)
 		goto err_alloc_rx;
 
@@ -1239,7 +1235,7 @@ static int ice_vsi_init(struct ice_vsi *vsi, u32 vsi_flags)
 	int ret = 0;
 
 	dev = ice_pf_to_dev(pf);
-	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
+	ctxt = kzalloc_obj(*ctxt);
 	if (!ctxt)
 		return -ENOMEM;
 
@@ -1403,7 +1399,7 @@ static int ice_vsi_alloc_rings(struct ice_vsi *vsi)
 		struct ice_tx_ring *ring;
 
 		/* allocate with kzalloc(), free with kfree_rcu() */
-		ring = kzalloc(sizeof(*ring), GFP_KERNEL);
+		ring = kzalloc_obj(*ring);
 
 		if (!ring)
 			goto err_out;
@@ -1427,7 +1423,7 @@ static int ice_vsi_alloc_rings(struct ice_vsi *vsi)
 		struct ice_rx_ring *ring;
 
 		/* allocate with kzalloc(), free with kfree_rcu() */
-		ring = kzalloc(sizeof(*ring), GFP_KERNEL);
+		ring = kzalloc_obj(*ring);
 		if (!ring)
 			goto err_out;
 
@@ -2428,13 +2424,20 @@ static int ice_vsi_cfg_def(struct ice_vsi *vsi)
 		}
 		break;
 	case ICE_VSI_LB:
-		ret = ice_vsi_alloc_rings(vsi);
+		ret = ice_vsi_alloc_q_vectors(vsi);
 		if (ret)
 			goto unroll_vsi_init;
+
+		ret = ice_vsi_alloc_rings(vsi);
+		if (ret)
+			goto unroll_alloc_q_vector;
 
 		ret = ice_vsi_alloc_ring_stats(vsi);
 		if (ret)
 			goto unroll_vector_base;
+
+		/* Simply map the dummy q_vector to the only rx_ring */
+		vsi->rx_rings[0]->q_vector = vsi->q_vectors[0];
 
 		break;
 	default:
@@ -3104,8 +3107,7 @@ int ice_vsi_rebuild(struct ice_vsi *vsi, u32 vsi_flags)
 	if (ret)
 		goto unlock;
 
-	coalesce = kcalloc(vsi->num_q_vectors,
-			   sizeof(struct ice_coalesce_stored), GFP_KERNEL);
+	coalesce = kzalloc_objs(struct ice_coalesce_stored, vsi->num_q_vectors);
 	if (!coalesce) {
 		ret = -ENOMEM;
 		goto decfg;
@@ -3387,7 +3389,7 @@ int ice_vsi_cfg_tc(struct ice_vsi *vsi, u8 ena_tc)
 	vsi->tc_cfg.ena_tc = ena_tc;
 	vsi->tc_cfg.numtc = num_tc;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

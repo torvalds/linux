@@ -101,8 +101,7 @@
 	SRI(DP_SEC_CNTL, DP, id), \
 	SRI(DP_VID_STREAM_CNTL, DP, id), \
 	SRI(DP_DPHY_FAST_TRAINING, DP, id), \
-	SRI(DP_SEC_CNTL1, DP, id), \
-	SR(DAC_ENABLE)
+	SRI(DP_SEC_CNTL1, DP, id)
 #endif
 
 #define LE_DCE80_REG_LIST(id)\
@@ -266,6 +265,11 @@ void dce110_link_encoder_enable_dp_mst_output(
 void dce110_link_encoder_enable_lvds_output(
 	struct link_encoder *enc,
 	enum clock_source_id clock_source,
+	uint32_t pixel_clock);
+
+/* enables analog output from the DAC */
+void dce110_link_encoder_enable_analog_output(
+	struct link_encoder *enc,
 	uint32_t pixel_clock);
 
 /* disable PHY output */

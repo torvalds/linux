@@ -485,7 +485,7 @@ void ath6kl_connect_ap_mode_sta(struct ath6kl_vif *vif, u16 aid, u8 *mac_addr,
 			   keymgmt, ucipher, auth, apsd_info);
 
 	/* send event to application */
-	sinfo = kzalloc(sizeof(*sinfo), GFP_KERNEL);
+	sinfo = kzalloc_obj(*sinfo);
 	if (!sinfo)
 		return;
 
@@ -1249,8 +1249,8 @@ static void ath6kl_set_multicast_list(struct net_device *ndev)
 		}
 
 		if (!found) {
-			mc_filter = kzalloc(sizeof(struct ath6kl_mc_filter),
-					    GFP_ATOMIC);
+			mc_filter = kzalloc_obj(struct ath6kl_mc_filter,
+						GFP_ATOMIC);
 			if (!mc_filter) {
 				WARN_ON(1);
 				goto out;

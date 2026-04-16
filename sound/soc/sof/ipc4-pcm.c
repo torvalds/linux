@@ -476,8 +476,8 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 	}
 
 	/* allocate memory for the pipeline data */
-	trigger_list = kzalloc(struct_size(trigger_list, pipeline_instance_ids,
-					   pipeline_list->count), GFP_KERNEL);
+	trigger_list = kzalloc_flex(*trigger_list, pipeline_instance_ids,
+				    pipeline_list->count);
 	if (!trigger_list)
 		return -ENOMEM;
 
@@ -931,15 +931,14 @@ static int sof_ipc4_pcm_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm
 		pipeline_list = &spcm->stream[stream].pipeline_list;
 
 		/* allocate memory for max number of pipeline IDs */
-		pipeline_list->pipelines = kcalloc(ipc4_data->max_num_pipelines,
-						   sizeof(*pipeline_list->pipelines),
-						   GFP_KERNEL);
+		pipeline_list->pipelines = kzalloc_objs(*pipeline_list->pipelines,
+							ipc4_data->max_num_pipelines);
 		if (!pipeline_list->pipelines) {
 			sof_ipc4_pcm_free(sdev, spcm);
 			return -ENOMEM;
 		}
 
-		stream_priv = kzalloc(sizeof(*stream_priv), GFP_KERNEL);
+		stream_priv = kzalloc_obj(*stream_priv);
 		if (!stream_priv) {
 			sof_ipc4_pcm_free(sdev, spcm);
 			return -ENOMEM;
@@ -951,7 +950,7 @@ static int sof_ipc4_pcm_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm
 		if (!support_info || stream == SNDRV_PCM_STREAM_CAPTURE)
 			continue;
 
-		time_info = kzalloc(sizeof(*time_info), GFP_KERNEL);
+		time_info = kzalloc_obj(*time_info);
 		if (!time_info) {
 			sof_ipc4_pcm_free(sdev, spcm);
 			return -ENOMEM;

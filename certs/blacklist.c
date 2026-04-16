@@ -328,7 +328,7 @@ static int __init blacklist_init(void)
 	if (register_key_type(&key_type_blacklist) < 0)
 		panic("Can't allocate system blacklist key type\n");
 
-	restriction = kzalloc(sizeof(*restriction), GFP_KERNEL);
+	restriction = kzalloc_obj(*restriction);
 	if (!restriction)
 		panic("Can't allocate blacklist keyring restriction\n");
 	restriction->check = restrict_link_for_blacklist;

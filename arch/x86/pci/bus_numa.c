@@ -72,7 +72,7 @@ struct pci_root_info __init *alloc_pci_root_info(int bus_min, int bus_max,
 {
 	struct pci_root_info *info;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 
 	if (!info)
 		return info;
@@ -132,7 +132,7 @@ void update_res(struct pci_root_info *info, resource_size_t start,
 addit:
 
 	/* need to add that */
-	root_res = kzalloc(sizeof(*root_res), GFP_KERNEL);
+	root_res = kzalloc_obj(*root_res);
 	if (!root_res)
 		return;
 

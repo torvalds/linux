@@ -292,7 +292,7 @@ static int hypfs_init_fs_context(struct fs_context *fc)
 {
 	struct hypfs_sb_info *sbi;
 
-	sbi = kzalloc(sizeof(struct hypfs_sb_info), GFP_KERNEL);
+	sbi = kzalloc_obj(struct hypfs_sb_info);
 	if (!sbi)
 		return -ENOMEM;
 

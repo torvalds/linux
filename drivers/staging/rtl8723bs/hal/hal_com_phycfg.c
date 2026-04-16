@@ -573,8 +573,9 @@ s8 PHY_GetTxPowerByRate(struct adapter *padapter, u8 RFPath, u8 Rate)
 	s8 value = 0;
 	u8 rateIndex = PHY_GetRateIndexOfTxPowerByRate(Rate);
 
-	if ((padapter->registrypriv.RegEnableTxPowerByRate == 2 && pHalData->EEPROMRegulatory == 2) ||
-		   padapter->registrypriv.RegEnableTxPowerByRate == 0)
+	if ((padapter->registrypriv.reg_enable_tx_power_by_rate == 2 &&
+	     pHalData->EEPROMRegulatory == 2) ||
+	   padapter->registrypriv.reg_enable_tx_power_by_rate == 0)
 		return 0;
 
 	if (RFPath >= RF_PATH_MAX)
@@ -690,12 +691,12 @@ s8 phy_get_tx_pwr_lmt(struct adapter *adapter, u32 reg_pwr_tbl_sel,
 	struct hal_com_data *hal_data = GET_HAL_DATA(adapter);
 	s8 limits[10] = {0}; u8 i = 0;
 
-	if (((adapter->registrypriv.RegEnableTxPowerLimit == 2) &&
+	if (((adapter->registrypriv.reg_enable_tx_power_limit == 2) &&
 	     (hal_data->EEPROMRegulatory != 1)) ||
-	    (adapter->registrypriv.RegEnableTxPowerLimit == 0))
+	    (adapter->registrypriv.reg_enable_tx_power_limit == 0))
 		return MAX_POWER_INDEX;
 
-	switch (adapter->registrypriv.RegPwrTblSel) {
+	switch (adapter->registrypriv.reg_pwr_tbl_sel) {
 	case 1:
 		idx_regulation = TXPWR_LMT_ETSI;
 		break;
@@ -751,6 +752,7 @@ s8 phy_get_tx_pwr_lmt(struct adapter *adapter, u32 reg_pwr_tbl_sel,
 void PHY_ConvertTxPowerLimitToPowerIndex(struct adapter *Adapter)
 {
 	struct hal_com_data	*pHalData = GET_HAL_DATA(Adapter);
+	struct registry_priv *r = &Adapter->registrypriv;
 	u8 BW40PwrBasedBm2_4G = 0x2E;
 	u8 regulation, bw, channel, rateSection;
 	s8 tempValue = 0, tempPwrLmt = 0;
@@ -771,7 +773,7 @@ void PHY_ConvertTxPowerLimitToPowerIndex(struct adapter *Adapter)
 							else if (rateSection == 0) /*  CCK */
 								BW40PwrBasedBm2_4G = PHY_GetTxPowerByRateBase(Adapter, rfPath, CCK);
 						} else
-							BW40PwrBasedBm2_4G = Adapter->registrypriv.RegPowerBase * 2;
+							BW40PwrBasedBm2_4G = r->reg_power_base * 2;
 
 						if (tempPwrLmt != MAX_POWER_INDEX) {
 							tempValue = tempPwrLmt - BW40PwrBasedBm2_4G;

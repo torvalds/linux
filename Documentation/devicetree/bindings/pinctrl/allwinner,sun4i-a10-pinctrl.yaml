@@ -106,7 +106,7 @@ patternProperties:
   #     the pin numbers then,
   #   - Finally, the name will end with either -pin or pins.
 
-  "^([rs]-)?(([a-z0-9]{3,}|[a-oq-z][a-z0-9]*?)?-)+?(p[a-ilm][0-9]*?-)??pins?$":
+  "^([rs]-)?(([a-z0-9]{3,}|[a-oq-z0-9][a-z0-9]*?)?-)+?(p[a-ilm][0-9]*?-)??pins?$":
     type: object
 
     properties:

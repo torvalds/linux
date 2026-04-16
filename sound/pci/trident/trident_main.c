@@ -2888,7 +2888,7 @@ static int snd_trident_mixer(struct snd_trident *trident, int pcm_spdif_device)
 		.read = snd_trident_codec_read,
 	};
 
-	uctl = kzalloc(sizeof(*uctl), GFP_KERNEL);
+	uctl = kzalloc_obj(*uctl);
 	if (!uctl)
 		return -ENOMEM;
 

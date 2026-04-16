@@ -508,7 +508,7 @@ config REGULATOR_FP9931
 	  This driver supports the FP9931/JD9930 voltage regulator chip
 	  which is used to provide power to Electronic Paper Displays
 	  so it is found in E-Book readers.
-	  If HWWON is enabled, it also provides temperature measurement.
+	  If HWMON is enabled, it also provides temperature measurement.
 
 config REGULATOR_LM363X
 	tristate "TI LM363X voltage regulators"

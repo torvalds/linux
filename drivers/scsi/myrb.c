@@ -1628,7 +1628,7 @@ static int myrb_ldev_sdev_init(struct scsi_device *sdev)
 
 	ldev_info = cb->ldev_info_buf + ldev_num;
 
-	sdev->hostdata = kzalloc(sizeof(*ldev_info), GFP_KERNEL);
+	sdev->hostdata = kzalloc_obj(*ldev_info);
 	if (!sdev->hostdata)
 		return -ENOMEM;
 	dev_dbg(&sdev->sdev_gendev,
@@ -1672,7 +1672,7 @@ static int myrb_pdev_sdev_init(struct scsi_device *sdev)
 	if (sdev->id > MYRB_MAX_TARGETS)
 		return -ENXIO;
 
-	pdev_info = kzalloc(sizeof(*pdev_info), GFP_KERNEL);
+	pdev_info = kzalloc_obj(*pdev_info);
 	if (!pdev_info)
 		return -ENOMEM;
 

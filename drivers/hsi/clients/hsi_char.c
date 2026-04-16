@@ -683,7 +683,7 @@ static int hsc_probe(struct device *dev)
 	int ret;
 	int i;
 
-	cl_data = kzalloc(sizeof(*cl_data), GFP_KERNEL);
+	cl_data = kzalloc_obj(*cl_data);
 	if (!cl_data)
 		return -ENOMEM;
 

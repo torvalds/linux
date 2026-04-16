@@ -412,7 +412,7 @@ static int stv6110x_probe(struct i2c_client *client)
 
 	struct stv6110x_state *stv6110x;
 
-	stv6110x = kzalloc(sizeof(*stv6110x), GFP_KERNEL);
+	stv6110x = kzalloc_obj(*stv6110x);
 	if (!stv6110x)
 		return -ENOMEM;
 
@@ -448,7 +448,7 @@ const struct stv6110x_devctl *stv6110x_attach(struct dvb_frontend *fe,
 {
 	struct stv6110x_state *stv6110x;
 
-	stv6110x = kzalloc(sizeof(*stv6110x), GFP_KERNEL);
+	stv6110x = kzalloc_obj(*stv6110x);
 	if (!stv6110x)
 		return NULL;
 

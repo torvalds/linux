@@ -849,7 +849,7 @@ SYM53C500_probe(struct pcmcia_device *link)
 	dev_dbg(&link->dev, "SYM53C500_attach()\n");
 
 	/* Create new SCSI device */
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return -ENOMEM;
 	info->p_dev = link;

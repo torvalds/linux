@@ -904,7 +904,7 @@ static void cxl_decoder_reset(struct cxl_decoder *cxld)
 	if ((cxld->flags & CXL_DECODER_F_ENABLE) == 0)
 		return;
 
-	if (test_bit(CXL_DECODER_F_LOCK, &cxld->flags))
+	if (cxld->flags & CXL_DECODER_F_LOCK)
 		return;
 
 	if (port->commit_end == id)

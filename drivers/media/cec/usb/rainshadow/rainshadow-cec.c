@@ -313,7 +313,7 @@ static int rain_connect(struct serio *serio, struct serio_driver *drv)
 	struct cec_log_addrs log_addrs = {};
 	u16 pa = CEC_PHYS_ADDR_INVALID;
 
-	rain = kzalloc(sizeof(*rain), GFP_KERNEL);
+	rain = kzalloc_obj(*rain);
 
 	if (!rain)
 		return -ENOMEM;

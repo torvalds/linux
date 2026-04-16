@@ -249,7 +249,7 @@ rzg2l_du_vsp_plane_atomic_duplicate_state(struct drm_plane *plane)
 	if (WARN_ON(!plane->state))
 		return NULL;
 
-	copy = kzalloc(sizeof(*copy), GFP_KERNEL);
+	copy = kzalloc_obj(*copy);
 	if (!copy)
 		return NULL;
 
@@ -274,7 +274,7 @@ static void rzg2l_du_vsp_plane_reset(struct drm_plane *plane)
 		plane->state = NULL;
 	}
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state)
 		return;
 

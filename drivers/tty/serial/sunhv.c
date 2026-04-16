@@ -529,7 +529,7 @@ static int hv_probe(struct platform_device *op)
 	if (op->archdata.irqs[0] == 0xffffffff)
 		return -ENODEV;
 
-	port = kzalloc(sizeof(struct uart_port), GFP_KERNEL);
+	port = kzalloc_obj(struct uart_port);
 	if (unlikely(!port))
 		return -ENOMEM;
 

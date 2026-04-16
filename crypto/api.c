@@ -105,7 +105,7 @@ struct crypto_larval *crypto_larval_alloc(const char *name, u32 type, u32 mask)
 {
 	struct crypto_larval *larval;
 
-	larval = kzalloc(sizeof(*larval), GFP_KERNEL);
+	larval = kzalloc_obj(*larval);
 	if (!larval)
 		return ERR_PTR(-ENOMEM);
 

@@ -222,7 +222,7 @@ static int h5_open(struct hci_uart *hu)
 	if (hu->serdev) {
 		h5 = serdev_device_get_drvdata(hu->serdev);
 	} else {
-		h5 = kzalloc(sizeof(*h5), GFP_KERNEL);
+		h5 = kzalloc_obj(*h5);
 		if (!h5)
 			return -ENOMEM;
 	}
@@ -1069,7 +1069,7 @@ static int h5_btrtl_resume(struct h5 *h5)
 	if (test_bit(H5_WAKEUP_DISABLE, &h5->flags)) {
 		struct h5_btrtl_reprobe *reprobe;
 
-		reprobe = kzalloc(sizeof(*reprobe), GFP_KERNEL);
+		reprobe = kzalloc_obj(*reprobe);
 		if (!reprobe)
 			return -ENOMEM;
 

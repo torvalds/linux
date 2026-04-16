@@ -293,7 +293,7 @@ static const uint16_t filter_isharp_bs_3tap_64p_s1_12[99] = {
 };
 
 /* Pre-generated 1DLUT for given setup and sharpness level */
-struct isharp_1D_lut_pregen filter_isharp_1D_lut_pregen[NUM_SHARPNESS_SETUPS] = {
+static struct isharp_1D_lut_pregen filter_isharp_1D_lut_pregen[NUM_SHARPNESS_SETUPS] = {
 	{
 		0, 0,
 		{
@@ -332,7 +332,7 @@ struct isharp_1D_lut_pregen filter_isharp_1D_lut_pregen[NUM_SHARPNESS_SETUPS] = 
 	},
 };
 
-struct scale_ratio_to_sharpness_level_adj sharpness_level_adj[NUM_SHARPNESS_ADJ_LEVELS] = {
+static struct scale_ratio_to_sharpness_level_adj sharpness_level_adj[NUM_SHARPNESS_ADJ_LEVELS] = {
 	{1125, 1000, 0},
 	{11, 10, 1},
 	{1075, 1000, 2},

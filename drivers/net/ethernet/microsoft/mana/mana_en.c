@@ -491,9 +491,8 @@ netdev_tx_t mana_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	if (pkg.wqe_req.num_sge <= ARRAY_SIZE(pkg.sgl_array)) {
 		pkg.wqe_req.sgl = pkg.sgl_array;
 	} else {
-		pkg.sgl_ptr = kmalloc_array(pkg.wqe_req.num_sge,
-					    sizeof(struct gdma_sge),
-					    GFP_ATOMIC);
+		pkg.sgl_ptr = kmalloc_objs(struct gdma_sge, pkg.wqe_req.num_sge,
+					   GFP_ATOMIC);
 		if (!pkg.sgl_ptr)
 			goto tx_drop_count;
 
@@ -804,7 +803,7 @@ int mana_pre_alloc_rxbufs(struct mana_port_context *mpc, int new_mtu, int num_qu
 	if (!mpc->rxbufs_pre)
 		goto error;
 
-	mpc->das_pre = kmalloc_array(num_rxb, sizeof(dma_addr_t), GFP_KERNEL);
+	mpc->das_pre = kmalloc_objs(dma_addr_t, num_rxb);
 	if (!mpc->das_pre)
 		goto error;
 
@@ -996,8 +995,7 @@ static void mana_cleanup_indir_table(struct mana_port_context *apc)
 
 static int mana_init_port_context(struct mana_port_context *apc)
 {
-	apc->rxqs = kcalloc(apc->num_queues, sizeof(struct mana_rxq *),
-			    GFP_KERNEL);
+	apc->rxqs = kzalloc_objs(struct mana_rxq *, apc->num_queues);
 
 	return !apc->rxqs ? -ENOMEM : 0;
 }
@@ -1634,8 +1632,7 @@ static int mana_create_eq(struct mana_context *ac)
 	int err;
 	int i;
 
-	ac->eqs = kcalloc(gc->max_num_queues, sizeof(struct mana_eq),
-			  GFP_KERNEL);
+	ac->eqs = kzalloc_objs(struct mana_eq, gc->max_num_queues);
 	if (!ac->eqs)
 		return -ENOMEM;
 
@@ -1773,8 +1770,14 @@ static void mana_poll_tx_cq(struct mana_cq *cq)
 	ndev = txq->ndev;
 	apc = netdev_priv(ndev);
 
+	/* Limit CQEs polled to 4 wraparounds of the CQ to ensure the
+	 * doorbell can be rung in time for the hardware's requirement
+	 * of at least one doorbell ring every 8 wraparounds.
+	 */
 	comp_read = mana_gd_poll_cq(cq->gdma_cq, completions,
-				    CQE_POLLING_BUFFER);
+				    min((cq->gdma_cq->queue_size /
+					  COMP_ENTRY_SIZE) * 4,
+					 CQE_POLLING_BUFFER));
 
 	if (comp_read < 1)
 		return;
@@ -2159,7 +2162,14 @@ static void mana_poll_rx_cq(struct mana_cq *cq)
 	struct mana_rxq *rxq = cq->rxq;
 	int comp_read, i;
 
-	comp_read = mana_gd_poll_cq(cq->gdma_cq, comp, CQE_POLLING_BUFFER);
+	/* Limit CQEs polled to 4 wraparounds of the CQ to ensure the
+	 * doorbell can be rung in time for the hardware's requirement
+	 * of at least one doorbell ring every 8 wraparounds.
+	 */
+	comp_read = mana_gd_poll_cq(cq->gdma_cq, comp,
+				    min((cq->gdma_cq->queue_size /
+					  COMP_ENTRY_SIZE) * 4,
+					 CQE_POLLING_BUFFER));
 	WARN_ON_ONCE(comp_read > CQE_POLLING_BUFFER);
 
 	rxq->xdp_flush = false;
@@ -2204,11 +2214,11 @@ static int mana_cq_handler(void *context, struct gdma_queue *gdma_queue)
 		mana_gd_ring_cq(gdma_queue, SET_ARM_BIT);
 		cq->work_done_since_doorbell = 0;
 		napi_complete_done(&cq->napi, w);
-	} else if (cq->work_done_since_doorbell >
-		   cq->gdma_cq->queue_size / COMP_ENTRY_SIZE * 4) {
+	} else if (cq->work_done_since_doorbell >=
+		   (cq->gdma_cq->queue_size / COMP_ENTRY_SIZE) * 4) {
 		/* MANA hardware requires at least one doorbell ring every 8
 		 * wraparounds of CQ even if there is no need to arm the CQ.
-		 * This driver rings the doorbell as soon as we have exceeded
+		 * This driver rings the doorbell as soon as it has processed
 		 * 4 wraparounds.
 		 */
 		mana_gd_ring_cq(gdma_queue, 0);
@@ -2329,8 +2339,7 @@ static int mana_create_txq(struct mana_port_context *apc,
 	int err;
 	int i;
 
-	apc->tx_qp = kcalloc(apc->num_queues, sizeof(struct mana_tx_qp),
-			     GFP_KERNEL);
+	apc->tx_qp = kzalloc_objs(struct mana_tx_qp, apc->num_queues);
 	if (!apc->tx_qp)
 		return -ENOMEM;
 
@@ -2640,8 +2649,7 @@ static struct mana_rxq *mana_create_rxq(struct mana_port_context *apc,
 
 	gc = gd->gdma_context;
 
-	rxq = kzalloc(struct_size(rxq, rx_oobs, apc->rx_queue_size),
-		      GFP_KERNEL);
+	rxq = kzalloc_flex(*rxq, rx_oobs, apc->rx_queue_size);
 	if (!rxq)
 		return NULL;
 
@@ -2856,7 +2864,7 @@ static int mana_rss_table_alloc(struct mana_port_context *apc)
 	if (!apc->indir_table)
 		return -ENOMEM;
 
-	apc->rxobj_table = kcalloc(apc->indir_table_sz, sizeof(mana_handle_t), GFP_KERNEL);
+	apc->rxobj_table = kzalloc_objs(mana_handle_t, apc->indir_table_sz);
 	if (!apc->rxobj_table) {
 		kfree(apc->indir_table);
 		return -ENOMEM;
@@ -3418,7 +3426,7 @@ static int add_adev(struct gdma_dev *gd, const char *name)
 	struct mana_adev *madev;
 	int ret;
 
-	madev = kzalloc(sizeof(*madev), GFP_KERNEL);
+	madev = kzalloc_obj(*madev);
 	if (!madev)
 		return -ENOMEM;
 
@@ -3511,7 +3519,7 @@ int mana_rdma_service_event(struct gdma_context *gc, enum gdma_service_type even
 		return 0;
 	}
 
-	serv_work = kzalloc(sizeof(*serv_work), GFP_ATOMIC);
+	serv_work = kzalloc_obj(*serv_work, GFP_ATOMIC);
 	if (!serv_work)
 		return -ENOMEM;
 
@@ -3562,7 +3570,7 @@ int mana_probe(struct gdma_dev *gd, bool resuming)
 		return err;
 
 	if (!resuming) {
-		ac = kzalloc(sizeof(*ac), GFP_KERNEL);
+		ac = kzalloc_obj(*ac);
 		if (!ac)
 			return -ENOMEM;
 
@@ -3762,7 +3770,9 @@ void mana_rdma_remove(struct gdma_dev *gd)
 	}
 
 	WRITE_ONCE(gd->rdma_teardown, true);
-	flush_workqueue(gc->service_wq);
+
+	if (gc->service_wq)
+		flush_workqueue(gc->service_wq);
 
 	if (gd->adev)
 		remove_adev(gd);

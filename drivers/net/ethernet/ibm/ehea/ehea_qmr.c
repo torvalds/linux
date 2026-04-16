@@ -114,7 +114,7 @@ struct ehea_cq *ehea_create_cq(struct ehea_adapter *adapter,
 	int ret;
 	void *vpage;
 
-	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
+	cq = kzalloc_obj(*cq);
 	if (!cq)
 		goto out_nomem;
 
@@ -235,7 +235,7 @@ struct ehea_eq *ehea_create_eq(struct ehea_adapter *adapter,
 	void *vpage;
 	struct ehea_eq *eq;
 
-	eq = kzalloc(sizeof(*eq), GFP_KERNEL);
+	eq = kzalloc_obj(*eq);
 	if (!eq)
 		return NULL;
 
@@ -404,7 +404,7 @@ struct ehea_qp *ehea_create_qp(struct ehea_adapter *adapter,
 	u32 wqe_size_in_bytes_rq2, wqe_size_in_bytes_rq3;
 
 
-	qp = kzalloc(sizeof(*qp), GFP_KERNEL);
+	qp = kzalloc_obj(*qp);
 	if (!qp)
 		return NULL;
 
@@ -542,7 +542,7 @@ static inline int ehea_init_top_bmap(struct ehea_top_bmap *ehea_top_bmap,
 {
 	if (!ehea_top_bmap->dir[dir]) {
 		ehea_top_bmap->dir[dir] =
-			kzalloc(sizeof(struct ehea_dir_bmap), GFP_KERNEL);
+			kzalloc_obj(struct ehea_dir_bmap);
 		if (!ehea_top_bmap->dir[dir])
 			return -ENOMEM;
 	}
@@ -553,7 +553,7 @@ static inline int ehea_init_bmap(struct ehea_bmap *ehea_bmap, int top, int dir)
 {
 	if (!ehea_bmap->top[top]) {
 		ehea_bmap->top[top] =
-			kzalloc(sizeof(struct ehea_top_bmap), GFP_KERNEL);
+			kzalloc_obj(struct ehea_top_bmap);
 		if (!ehea_bmap->top[top])
 			return -ENOMEM;
 	}
@@ -613,7 +613,7 @@ static int ehea_update_busmap(unsigned long pfn, unsigned long nr_pages, int add
 		return 0;
 
 	if (!ehea_bmap) {
-		ehea_bmap = kzalloc(sizeof(struct ehea_bmap), GFP_KERNEL);
+		ehea_bmap = kzalloc_obj(struct ehea_bmap);
 		if (!ehea_bmap)
 			return -ENOMEM;
 	}

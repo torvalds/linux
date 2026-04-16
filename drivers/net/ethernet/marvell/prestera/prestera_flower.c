@@ -495,7 +495,7 @@ int prestera_flower_tmplt_create(struct prestera_flow_block *block,
 	if (err)
 		return err;
 
-	template = kmalloc(sizeof(*template), GFP_KERNEL);
+	template = kmalloc_obj(*template);
 	if (!template) {
 		err = -ENOMEM;
 		goto err_malloc;

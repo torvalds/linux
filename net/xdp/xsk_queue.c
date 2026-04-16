@@ -26,7 +26,7 @@ struct xsk_queue *xskq_create(u32 nentries, bool umem_queue)
 	struct xsk_queue *q;
 	size_t size;
 
-	q = kzalloc(sizeof(*q), GFP_KERNEL);
+	q = kzalloc_obj(*q);
 	if (!q)
 		return NULL;
 

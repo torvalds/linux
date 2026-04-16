@@ -488,7 +488,7 @@ static int cm9825_probe(struct hda_codec *codec, const struct hda_device_id *id)
 	struct auto_pin_cfg *cfg;
 	int err = 0;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc_obj(*spec);
 	if (spec == NULL)
 		return -ENOMEM;
 

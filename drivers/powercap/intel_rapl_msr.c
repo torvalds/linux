@@ -110,16 +110,14 @@ static int rapl_cpu_down_prep(unsigned int cpu)
 	return 0;
 }
 
-static int rapl_msr_read_raw(int cpu, struct reg_action *ra, bool atomic)
+static int rapl_msr_read_raw(int cpu, struct reg_action *ra, bool pmu_ctx)
 {
 	/*
-	 * When called from atomic-context (eg PMU event handler)
-	 * perform MSR read directly using rdmsrq().
+	 * When called from PMU context, perform MSR read directly using
+	 * rdmsrq() without IPI overhead. Package-scoped MSRs are readable
+	 * from any CPU in the package.
 	 */
-	if (atomic) {
-		if (unlikely(smp_processor_id() != cpu))
-			return -EIO;
-
+	if (pmu_ctx) {
 		rdmsrq(ra->reg.msr, ra->value);
 		goto out;
 	}

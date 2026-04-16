@@ -420,7 +420,7 @@ static int rtw89_cam_sec_key_install(struct rtw89_dev *rtwdev,
 		return ret;
 	}
 
-	sec_cam = kzalloc(sizeof(*sec_cam), GFP_KERNEL);
+	sec_cam = kzalloc_obj(*sec_cam);
 	if (!sec_cam) {
 		ret = -ENOMEM;
 		goto err_release_cam;

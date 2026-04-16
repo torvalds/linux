@@ -2303,7 +2303,7 @@ void iwl_trans_pcie_reset(struct iwl_trans *trans, enum iwl_reset_mode mode)
 		return;
 	}
 
-	removal = kzalloc(sizeof(*removal), GFP_ATOMIC);
+	removal = kzalloc_obj(*removal, GFP_ATOMIC);
 	if (!removal) {
 		module_put(THIS_MODULE);
 		return;
@@ -2748,7 +2748,7 @@ static void *iwl_dbgfs_tx_queue_seq_start(struct seq_file *seq, loff_t *pos)
 	if (*pos >= priv->trans->mac_cfg->base->num_of_queues)
 		return NULL;
 
-	state = kmalloc(sizeof(*state), GFP_KERNEL);
+	state = kmalloc_obj(*state);
 	if (!state)
 		return NULL;
 	state->pos = *pos;

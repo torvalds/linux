@@ -30,7 +30,7 @@ int nfc_hci_hcp_message_tx(struct nfc_hci_dev *hdev, u8 pipe,
 	int hci_len, err;
 	bool firstfrag = true;
 
-	cmd = kzalloc(sizeof(struct hci_msg), GFP_KERNEL);
+	cmd = kzalloc_obj(struct hci_msg);
 	if (cmd == NULL)
 		return -ENOMEM;
 

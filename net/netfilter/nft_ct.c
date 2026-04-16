@@ -894,8 +894,7 @@ nft_ct_timeout_parse_policy(void *timeouts,
 	struct nlattr **tb;
 	int ret = 0;
 
-	tb = kcalloc(l4proto->ctnl_timeout.nlattr_max + 1, sizeof(*tb),
-		     GFP_KERNEL);
+	tb = kzalloc_objs(*tb, l4proto->ctnl_timeout.nlattr_max + 1);
 
 	if (!tb)
 		return -ENOMEM;

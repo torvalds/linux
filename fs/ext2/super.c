@@ -893,12 +893,12 @@ static int ext2_fill_super(struct super_block *sb, struct fs_context *fc)
 	__le32 features;
 	int err;
 
-	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
+	sbi = kzalloc_obj(*sbi);
 	if (!sbi)
 		return -ENOMEM;
 
 	sbi->s_blockgroup_lock =
-		kzalloc(sizeof(struct blockgroup_lock), GFP_KERNEL);
+		kzalloc_obj(struct blockgroup_lock);
 	if (!sbi->s_blockgroup_lock) {
 		kfree(sbi);
 		return -ENOMEM;
@@ -1122,9 +1122,7 @@ static int ext2_fill_super(struct super_block *sb, struct fs_context *fc)
 	}
 	db_count = (sbi->s_groups_count + EXT2_DESC_PER_BLOCK(sb) - 1) /
 		   EXT2_DESC_PER_BLOCK(sb);
-	sbi->s_group_desc = kvmalloc_array(db_count,
-					   sizeof(struct buffer_head *),
-					   GFP_KERNEL);
+	sbi->s_group_desc = kvmalloc_objs(struct buffer_head *, db_count);
 	if (sbi->s_group_desc == NULL) {
 		ret = -ENOMEM;
 		ext2_msg(sb, KERN_ERR, "error: not enough memory");
@@ -1670,7 +1668,7 @@ static int ext2_init_fs_context(struct fs_context *fc)
 {
 	struct ext2_fs_context *ctx;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

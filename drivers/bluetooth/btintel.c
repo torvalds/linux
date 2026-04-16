@@ -871,7 +871,7 @@ struct regmap *btintel_regmap_init(struct hci_dev *hdev, u16 opcode_read,
 	bt_dev_info(hdev, "regmap: Init R%x-W%x region", opcode_read,
 		    opcode_write);
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 

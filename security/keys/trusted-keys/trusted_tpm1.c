@@ -440,7 +440,7 @@ static int tpm_seal(struct tpm_buf *tb, uint16_t keytype,
 	int i;
 
 	/* alloc some work space for all the hashes */
-	td = kmalloc(sizeof *td, GFP_KERNEL);
+	td = kmalloc_obj(*td);
 	if (!td)
 		return -ENOMEM;
 
@@ -838,7 +838,7 @@ static struct trusted_key_options *trusted_options_alloc(void)
 	if (tpm2 < 0)
 		return NULL;
 
-	options = kzalloc(sizeof *options, GFP_KERNEL);
+	options = kzalloc_obj(*options);
 	if (options) {
 		/* set any non-zero defaults */
 		options->keytype = SRK_keytype;
@@ -946,8 +946,7 @@ static int __init init_digests(void)
 {
 	int i;
 
-	digests = kcalloc(chip->nr_allocated_banks, sizeof(*digests),
-			  GFP_KERNEL);
+	digests = kzalloc_objs(*digests, chip->nr_allocated_banks);
 	if (!digests)
 		return -ENOMEM;
 

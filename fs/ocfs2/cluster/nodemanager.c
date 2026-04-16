@@ -587,7 +587,7 @@ static struct config_item *o2nm_node_group_make_item(struct config_group *group,
 	if (strlen(name) > O2NM_MAX_NAME_LEN)
 		return ERR_PTR(-ENAMETOOLONG);
 
-	node = kzalloc(sizeof(struct o2nm_node), GFP_KERNEL);
+	node = kzalloc_obj(struct o2nm_node);
 	if (node == NULL)
 		return ERR_PTR(-ENOMEM);
 
@@ -695,8 +695,8 @@ static struct config_group *o2nm_cluster_group_make_group(struct config_group *g
 	if (o2nm_single_cluster)
 		return ERR_PTR(-ENOSPC);
 
-	cluster = kzalloc(sizeof(struct o2nm_cluster), GFP_KERNEL);
-	ns = kzalloc(sizeof(struct o2nm_node_group), GFP_KERNEL);
+	cluster = kzalloc_obj(struct o2nm_cluster);
+	ns = kzalloc_obj(struct o2nm_node_group);
 	o2hb_group = o2hb_alloc_hb_set();
 	if (cluster == NULL || ns == NULL || o2hb_group == NULL)
 		goto out;

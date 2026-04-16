@@ -1042,7 +1042,7 @@ static int __ppa_attach(struct parport *pb)
 	int err = -ENOMEM;
 	struct pardev_cb ppa_cb;
 
-	dev = kzalloc(sizeof(ppa_struct), GFP_KERNEL);
+	dev = kzalloc_obj(ppa_struct);
 	if (!dev)
 		return -ENOMEM;
 	dev->base = -1;

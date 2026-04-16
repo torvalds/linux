@@ -80,7 +80,7 @@ int hsr_create_self_node(struct hsr_priv *hsr,
 {
 	struct hsr_self_node *sn, *old;
 
-	sn = kmalloc(sizeof(*sn), GFP_KERNEL);
+	sn = kmalloc_obj(*sn);
 	if (!sn)
 		return -ENOMEM;
 
@@ -159,7 +159,7 @@ static struct hsr_node *hsr_add_node(struct hsr_priv *hsr,
 	size_t block_sz;
 	int i;
 
-	new_node = kzalloc(sizeof(*new_node), GFP_ATOMIC);
+	new_node = kzalloc_obj(*new_node, GFP_ATOMIC);
 	if (!new_node)
 		return NULL;
 

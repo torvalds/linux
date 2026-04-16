@@ -252,7 +252,7 @@ xe_vfio_pci_alloc_file(struct xe_vfio_pci_core_device *xe_vdev,
 	int flags;
 	int ret;
 
-	migf = kzalloc(sizeof(*migf), GFP_KERNEL_ACCOUNT);
+	migf = kzalloc_obj(*migf, GFP_KERNEL_ACCOUNT);
 	if (!migf)
 		return ERR_PTR(-ENOMEM);
 

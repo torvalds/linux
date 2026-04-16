@@ -34,6 +34,47 @@
 	link->ctx->logger
 
 #define DP_SINK_PR_ENABLE_AND_CONFIGURATION		0x37B
+#define DP_SINK_ENABLE_FRAME_SKIPPING_MODE_SHIFT	(5)
+
+static unsigned int dp_pr_calc_num_static_frames(unsigned int vsync_rate_hz)
+{
+	// at least 2 frames for static screen
+	unsigned int num_frames = 2;
+
+	// get number of frames for at least 50ms
+	if (vsync_rate_hz > 40)
+		num_frames = (vsync_rate_hz + 10) / 20;
+
+	return num_frames;
+}
+
+static void dp_pr_set_static_screen_param(struct dc_link *link)
+{
+	struct dc_static_screen_params params = {0};
+	struct dc *dc = link->ctx->dc;
+	// only support DP sst for now
+	if (!dc_is_dp_sst_signal(link->connector_signal))
+		return;
+
+	for (int i = 0; i < MAX_PIPES; i++) {
+		if (dc->current_state->res_ctx.pipe_ctx[i].stream &&
+			dc->current_state->res_ctx.pipe_ctx[i].stream->link == link) {
+			struct dc_stream_state *stream = dc->current_state->res_ctx.pipe_ctx[i].stream;
+			unsigned int vsync_rate_hz = div64_u64(div64_u64(
+											(stream->timing.pix_clk_100hz * (u64)100),
+											stream->timing.v_total),
+											stream->timing.h_total);
+
+			params.triggers.cursor_update = true;
+			params.triggers.overlay_update = true;
+			params.triggers.surface_update = true;
+			params.num_frames = dp_pr_calc_num_static_frames(vsync_rate_hz);
+
+			dc_stream_set_static_screen_params(dc, &stream, 1, &params);
+			break;
+		}
+	}
+}
 
 static bool dp_setup_panel_replay(struct dc_link *link, const struct dc_stream_state *stream)
 {
@@ -49,6 +90,7 @@ static bool dp_setup_panel_replay(struct dc_link *link, const struct dc_stream_s
 	union panel_replay_enable_and_configuration_2 pr_config_2 = { 0 };
 
 	union dpcd_alpm_configuration alpm_config;
+	uint8_t data = 0;
 
 	replay_context.controllerId = CONTROLLER_ID_UNDEFINED;
 
@@ -146,6 +188,14 @@ static bool dp_setup_panel_replay(struct dc_link *link, const struct dc_stream_s
 			DP_RECEIVER_ALPM_CONFIG,
 			&alpm_config.raw,
 			sizeof(alpm_config.raw));
+
+		//Enable frame skipping
+		if (link->replay_settings.config.frame_skip_supported)
+			data = data | (1 << DP_SINK_ENABLE_FRAME_SKIPPING_MODE_SHIFT);
+
+		dm_helpers_dp_write_dpcd(link->ctx, link,
+			DP_SINK_PR_ENABLE_AND_CONFIGURATION,
+			(uint8_t *)&(data), sizeof(uint8_t));
 	}
 
 	return true;
@@ -158,6 +208,9 @@ bool dp_pr_get_panel_inst(const struct dc *dc,
 {
 	if (!dc || !link || !inst_out)
 		return false;
+
+	if (dc->config.frame_update_cmd_version2 == false)
+		return dc_get_edp_link_panel_inst(dc, link, inst_out);
 
 	if (!dc_is_dp_sst_signal(link->connector_signal)) /* only supoprt DP sst (eDP included) for now */
 		return false;
@@ -198,6 +251,9 @@ bool dp_pr_enable(struct dc_link *link, bool enable)
 
 	if (!dp_pr_get_panel_inst(dc, link, &panel_inst))
 		return false;
+
+	if (enable && !dc_is_embedded_signal(link->connector_signal))
+		dp_pr_set_static_screen_param(link);
 
 	if (link->replay_settings.replay_allow_active != enable) {
 		//for sending PR enable commands to DMUB
@@ -275,6 +331,12 @@ bool dp_pr_copy_settings(struct dc_link *link, struct replay_context *replay_con
 		cmd.pr_copy_settings.data.dsc_slice_height = (pipe_ctx->stream->timing.v_addressable +
 			pipe_ctx->stream->timing.v_border_top + pipe_ctx->stream->timing.v_border_bottom) /
 			pipe_ctx->stream->timing.dsc_cfg.num_slices_v;
+
+	if (dc_is_embedded_signal(link->connector_signal))
+		cmd.pr_copy_settings.data.main_link_activity_option = OPTION_1C;
+	else
+		// For external DP, use option 1-A
+		cmd.pr_copy_settings.data.main_link_activity_option = OPTION_1A;
 
 	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 	return true;

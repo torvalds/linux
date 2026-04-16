@@ -283,7 +283,7 @@ static int mes_userq_mqd_create(struct amdgpu_usermode_queue *queue,
 	int r;
 
 	/* Structure to initialize MQD for userqueue using generic MQD init function */
-	userq_props = kzalloc(sizeof(struct amdgpu_mqd_prop), GFP_KERNEL);
+	userq_props = kzalloc_obj(struct amdgpu_mqd_prop);
 	if (!userq_props) {
 		DRM_ERROR("Failed to allocate memory for userq_props\n");
 		return -ENOMEM;

@@ -76,7 +76,7 @@ int amdgpu_bo_list_create(struct amdgpu_device *adev, struct drm_file *filp,
 	unsigned i;
 	int r;
 
-	list = kvzalloc(struct_size(list, entries, num_entries), GFP_KERNEL);
+	list = kvzalloc_flex(*list, entries, num_entries);
 	if (!list)
 		return -ENOMEM;
 

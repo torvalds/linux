@@ -65,7 +65,6 @@ struct rz_dmac_chan {
 	void __iomem *ch_base;
 	void __iomem *ch_cmn_base;
 	unsigned int index;
-	int irq;
 	struct rz_dmac_desc *desc;
 	int descs_allocated;
 
@@ -444,7 +443,7 @@ static int rz_dmac_alloc_chan_resources(struct dma_chan *chan)
 	while (channel->descs_allocated < RZ_DMAC_MAX_CHAN_DESCRIPTORS) {
 		struct rz_dmac_desc *desc;
 
-		desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+		desc = kzalloc_obj(*desc);
 		if (!desc)
 			break;
 
@@ -800,29 +799,27 @@ static int rz_dmac_chan_probe(struct rz_dmac *dmac,
 	struct rz_lmdesc *lmdesc;
 	char pdev_irqname[6];
 	char *irqname;
-	int ret;
+	int irq, ret;
 
 	channel->index = index;
 	channel->mid_rid = -EINVAL;
 
 	/* Request the channel interrupt. */
 	scnprintf(pdev_irqname, sizeof(pdev_irqname), "ch%u", index);
-	channel->irq = platform_get_irq_byname(pdev, pdev_irqname);
-	if (channel->irq < 0)
-		return channel->irq;
+	irq = platform_get_irq_byname(pdev, pdev_irqname);
+	if (irq < 0)
+		return irq;
 
 	irqname = devm_kasprintf(dmac->dev, GFP_KERNEL, "%s:%u",
 				 dev_name(dmac->dev), index);
 	if (!irqname)
 		return -ENOMEM;
 
-	ret = devm_request_threaded_irq(dmac->dev, channel->irq,
-					rz_dmac_irq_handler,
+	ret = devm_request_threaded_irq(dmac->dev, irq, rz_dmac_irq_handler,
 					rz_dmac_irq_handler_thread, 0,
 					irqname, channel);
 	if (ret) {
-		dev_err(dmac->dev, "failed to request IRQ %u (%d)\n",
-			channel->irq, ret);
+		dev_err(dmac->dev, "failed to request IRQ %u (%d)\n", irq, ret);
 		return ret;
 	}
 

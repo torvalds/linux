@@ -145,7 +145,7 @@ static int wilc_sdio_probe(struct sdio_func *func,
 	int ret;
 
 
-	sdio_priv = kzalloc(sizeof(*sdio_priv), GFP_KERNEL);
+	sdio_priv = kzalloc_obj(*sdio_priv);
 	if (!sdio_priv)
 		return -ENOMEM;
 

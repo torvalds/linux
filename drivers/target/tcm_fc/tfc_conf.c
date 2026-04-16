@@ -244,7 +244,7 @@ static struct se_portal_group *ft_add_tpg(struct se_wwn *wwn, const char *name)
 	}
 
 	ft_wwn = container_of(wwn, struct ft_lport_wwn, se_wwn);
-	tpg = kzalloc(sizeof(*tpg), GFP_KERNEL);
+	tpg = kzalloc_obj(*tpg);
 	if (!tpg)
 		return NULL;
 	tpg->index = index;
@@ -334,7 +334,7 @@ static struct se_wwn *ft_add_wwn(
 	pr_debug("add wwn %s\n", name);
 	if (ft_parse_wwn(name, &wwpn, 1) < 0)
 		return NULL;
-	ft_wwn = kzalloc(sizeof(*ft_wwn), GFP_KERNEL);
+	ft_wwn = kzalloc_obj(*ft_wwn);
 	if (!ft_wwn)
 		return NULL;
 	ft_wwn->wwpn = wwpn;

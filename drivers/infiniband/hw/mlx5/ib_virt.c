@@ -55,7 +55,7 @@ int mlx5_ib_get_vf_config(struct ib_device *device, int vf, u32 port,
 	struct mlx5_hca_vport_context *rep;
 	int err;
 
-	rep = kzalloc(sizeof(*rep), GFP_KERNEL);
+	rep = kzalloc_obj(*rep);
 	if (!rep)
 		return -ENOMEM;
 
@@ -98,7 +98,7 @@ int mlx5_ib_set_vf_link_state(struct ib_device *device, int vf,
 	struct mlx5_vf_context *vfs_ctx = mdev->priv.sriov.vfs_ctx;
 	int err;
 
-	in = kzalloc(sizeof(*in), GFP_KERNEL);
+	in = kzalloc_obj(*in);
 	if (!in)
 		return -ENOMEM;
 
@@ -157,7 +157,7 @@ static int set_vf_node_guid(struct ib_device *device, int vf, u32 port,
 	struct mlx5_vf_context *vfs_ctx = mdev->priv.sriov.vfs_ctx;
 	int err;
 
-	in = kzalloc(sizeof(*in), GFP_KERNEL);
+	in = kzalloc_obj(*in);
 	if (!in)
 		return -ENOMEM;
 
@@ -181,7 +181,7 @@ static int set_vf_port_guid(struct ib_device *device, int vf, u32 port,
 	struct mlx5_vf_context *vfs_ctx = mdev->priv.sriov.vfs_ctx;
 	int err;
 
-	in = kzalloc(sizeof(*in), GFP_KERNEL);
+	in = kzalloc_obj(*in);
 	if (!in)
 		return -ENOMEM;
 

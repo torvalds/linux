@@ -492,8 +492,8 @@ int aac_get_containers(struct aac_dev *dev)
 
 		fsa_dev_ptr = dev->fsa_dev;
 
-		dev->fsa_dev = kcalloc(maximum_num_containers,
-					sizeof(*fsa_dev_ptr), GFP_KERNEL);
+		dev->fsa_dev = kzalloc_objs(*fsa_dev_ptr,
+					    maximum_num_containers);
 
 		kfree(fsa_dev_ptr);
 		fsa_dev_ptr = NULL;
@@ -820,7 +820,7 @@ int aac_probe_container(struct aac_dev *dev, int cid)
 {
 	struct aac_cmd_priv *cmd_priv;
 	struct scsi_cmnd *scsicmd = kzalloc(sizeof(*scsicmd) + sizeof(*cmd_priv), GFP_KERNEL);
-	struct scsi_device *scsidev = kzalloc(sizeof(*scsidev), GFP_KERNEL);
+	struct scsi_device *scsidev = kzalloc_obj(*scsidev);
 	int status;
 
 	if (!scsicmd || !scsidev) {
@@ -4010,7 +4010,7 @@ static int aac_convert_sgraw2(struct aac_raw_io2 *rio2, int pages, int nseg, int
 	if (aac_convert_sgl == 0)
 		return 0;
 
-	sge = kmalloc_array(nseg_new, sizeof(*sge), GFP_ATOMIC);
+	sge = kmalloc_objs(*sge, nseg_new, GFP_ATOMIC);
 	if (sge == NULL)
 		return -ENOMEM;
 

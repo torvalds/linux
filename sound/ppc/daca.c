@@ -244,7 +244,7 @@ int snd_pmac_daca_init(struct snd_pmac *chip)
 
 	request_module("i2c-powermac");
 
-	mix = kzalloc(sizeof(*mix), GFP_KERNEL);
+	mix = kzalloc_obj(*mix);
 	if (! mix)
 		return -ENOMEM;
 	chip->mixer_data = mix;

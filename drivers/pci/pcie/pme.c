@@ -335,7 +335,7 @@ static int pcie_pme_probe(struct pcie_device *srv)
 	    type != PCI_EXP_TYPE_ROOT_PORT)
 		return -ENODEV;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 

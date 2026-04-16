@@ -654,7 +654,7 @@ static int keyspan_pda_port_probe(struct usb_serial_port *port)
 
 	struct keyspan_pda_private *priv;
 
-	priv = kmalloc(sizeof(struct keyspan_pda_private), GFP_KERNEL);
+	priv = kmalloc_obj(struct keyspan_pda_private);
 	if (!priv)
 		return -ENOMEM;
 

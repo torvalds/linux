@@ -51,7 +51,7 @@ int mlx5i_pkey_qpn_ht_init(struct net_device *netdev)
 	struct mlx5i_priv *ipriv = netdev_priv(netdev);
 	struct mlx5i_pkey_qpn_ht *qpn_htbl;
 
-	qpn_htbl = kzalloc(sizeof(*qpn_htbl), GFP_KERNEL);
+	qpn_htbl = kzalloc_obj(*qpn_htbl);
 	if (!qpn_htbl)
 		return -ENOMEM;
 
@@ -89,7 +89,7 @@ int mlx5i_pkey_add_qpn(struct net_device *netdev, u32 qpn)
 	u8 key = hash_32(qpn, MLX5I_MAX_LOG_PKEY_SUP);
 	struct qpn_to_netdev *new_node;
 
-	new_node = kzalloc(sizeof(*new_node), GFP_KERNEL);
+	new_node = kzalloc_obj(*new_node);
 	if (!new_node)
 		return -ENOMEM;
 

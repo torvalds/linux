@@ -212,7 +212,7 @@ static struct iso_conn *iso_conn_add(struct hci_conn *hcon)
 		return conn;
 	}
 
-	conn = kzalloc(sizeof(*conn), GFP_KERNEL);
+	conn = kzalloc_obj(*conn);
 	if (!conn)
 		return NULL;
 
@@ -746,6 +746,7 @@ static void iso_sock_destruct(struct sock *sk)
 
 	skb_queue_purge(&sk->sk_receive_queue);
 	skb_queue_purge(&sk->sk_write_queue);
+	skb_queue_purge(&sk->sk_error_queue);
 }
 
 static void iso_sock_cleanup_listen(struct sock *parent)

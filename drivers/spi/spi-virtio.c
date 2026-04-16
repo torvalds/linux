@@ -158,8 +158,7 @@ static int virtio_spi_transfer_one(struct spi_controller *ctrl,
 	unsigned int incnt = 0;
 	int ret;
 
-	struct virtio_spi_req *spi_req __free(kfree) = kzalloc(sizeof(*spi_req),
-							       GFP_KERNEL);
+	struct virtio_spi_req *spi_req __free(kfree) = kzalloc_obj(*spi_req);
 	if (!spi_req)
 		return -ENOMEM;
 

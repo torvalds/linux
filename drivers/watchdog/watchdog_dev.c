@@ -424,20 +424,22 @@ static int watchdog_set_pretimeout(struct watchdog_device *wdd,
  *
  * Get the time before a watchdog will reboot (if not pinged).
  * The caller must hold wd_data->lock.
- *
- * Return: 0 if successful, error otherwise.
  */
-static int watchdog_get_timeleft(struct watchdog_device *wdd,
-							unsigned int *timeleft)
+static void watchdog_get_timeleft(struct watchdog_device *wdd,
+				  unsigned int *timeleft)
 {
 	*timeleft = 0;
 
-	if (!wdd->ops->get_timeleft)
-		return -EOPNOTSUPP;
+	if (wdd->ops->get_timeleft) {
+		*timeleft = wdd->ops->get_timeleft(wdd);
+	} else {
+		struct watchdog_core_data *wd_data = wdd->wd_data;
+		s64 last_keepalive_ms = ktime_ms_delta(ktime_get(), wd_data->last_keepalive);
+		s64 last_keepalive = DIV_ROUND_UP_ULL(last_keepalive_ms, 1000);
 
-	*timeleft = wdd->ops->get_timeleft(wdd);
-
-	return 0;
+		if (wdd->timeout > last_keepalive)
+			*timeleft = wdd->timeout - last_keepalive;
+	}
 }
 
 #ifdef CONFIG_WATCHDOG_SYSFS
@@ -499,16 +501,13 @@ static ssize_t timeleft_show(struct device *dev, struct device_attribute *attr,
 {
 	struct watchdog_device *wdd = dev_get_drvdata(dev);
 	struct watchdog_core_data *wd_data = wdd->wd_data;
-	ssize_t status;
 	unsigned int val;
 
 	mutex_lock(&wd_data->lock);
-	status = watchdog_get_timeleft(wdd, &val);
+	watchdog_get_timeleft(wdd, &val);
 	mutex_unlock(&wd_data->lock);
-	if (!status)
-		status = sysfs_emit(buf, "%u\n", val);
 
-	return status;
+	return sysfs_emit(buf, "%u\n", val);
 }
 static DEVICE_ATTR_RO(timeleft);
 
@@ -624,9 +623,7 @@ static umode_t wdt_is_visible(struct kobject *kobj, struct attribute *attr,
 	struct watchdog_device *wdd = dev_get_drvdata(dev);
 	umode_t mode = attr->mode;
 
-	if (attr == &dev_attr_timeleft.attr && !wdd->ops->get_timeleft)
-		mode = 0;
-	else if (attr == &dev_attr_pretimeout.attr && !watchdog_have_pretimeout(wdd))
+	if (attr == &dev_attr_pretimeout.attr && !watchdog_have_pretimeout(wdd))
 		mode = 0;
 	else if ((attr == &dev_attr_pretimeout_governor.attr ||
 		  attr == &dev_attr_pretimeout_available_governors.attr) &&
@@ -825,9 +822,7 @@ static long watchdog_ioctl(struct file *file, unsigned int cmd,
 		err = put_user(wdd->timeout, p);
 		break;
 	case WDIOC_GETTIMELEFT:
-		err = watchdog_get_timeleft(wdd, &val);
-		if (err < 0)
-			break;
+		watchdog_get_timeleft(wdd, &val);
 		err = put_user(val, p);
 		break;
 	case WDIOC_SETPRETIMEOUT:
@@ -1024,7 +1019,7 @@ static int watchdog_cdev_register(struct watchdog_device *wdd)
 	struct watchdog_core_data *wd_data;
 	int err;
 
-	wd_data = kzalloc(sizeof(struct watchdog_core_data), GFP_KERNEL);
+	wd_data = kzalloc_obj(struct watchdog_core_data);
 	if (!wd_data)
 		return -ENOMEM;
 	mutex_init(&wd_data->lock);

@@ -69,7 +69,7 @@ mlx5e_int_port_create_rx_rule(struct mlx5_eswitch *esw,
 	struct mlx5_flow_spec *spec;
 	void *misc;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return ERR_PTR(-ENOMEM);
 
@@ -167,7 +167,7 @@ mlx5e_int_port_add(struct mlx5e_tc_int_port_priv *priv,
 		return ERR_PTR(-ENOSPC);
 	}
 
-	int_port = kzalloc(sizeof(*int_port), GFP_KERNEL);
+	int_port = kzalloc_obj(*int_port);
 	if (!int_port)
 		return ERR_PTR(-ENOMEM);
 
@@ -313,7 +313,7 @@ mlx5e_tc_int_port_init(struct mlx5e_priv *priv)
 	if (!mlx5e_tc_int_port_supported(esw))
 		return NULL;
 
-	int_port_priv = kzalloc(sizeof(*int_port_priv), GFP_KERNEL);
+	int_port_priv = kzalloc_obj(*int_port_priv);
 	if (!int_port_priv)
 		return NULL;
 

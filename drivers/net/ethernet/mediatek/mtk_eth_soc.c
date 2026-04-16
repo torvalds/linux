@@ -2647,8 +2647,7 @@ static int mtk_tx_alloc(struct mtk_eth *eth)
 	else
 		ring_size = soc->tx.dma_size;
 
-	ring->buf = kcalloc(ring_size, sizeof(*ring->buf),
-			       GFP_KERNEL);
+	ring->buf = kzalloc_objs(*ring->buf, ring_size);
 	if (!ring->buf)
 		goto no_tx_mem;
 
@@ -3749,11 +3748,20 @@ static int mtk_xdp_setup(struct net_device *dev, struct bpf_prog *prog,
 		mtk_stop(dev);
 
 	old_prog = rcu_replace_pointer(eth->prog, prog, lockdep_rtnl_is_held());
+
+	if (netif_running(dev) && need_update) {
+		int err;
+
+		err = mtk_open(dev);
+		if (err) {
+			rcu_assign_pointer(eth->prog, old_prog);
+
+			return err;
+		}
+	}
+
 	if (old_prog)
 		bpf_prog_put(old_prog);
-
-	if (netif_running(dev) && need_update)
-		return mtk_open(dev);
 
 	return 0;
 }

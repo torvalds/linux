@@ -404,9 +404,7 @@ static int uninorth_create_gatt_table(struct agp_bridge_data *bridge)
 	if (table == NULL)
 		return -ENOMEM;
 
-	uninorth_priv.pages_arr = kmalloc_array(1 << page_order,
-						sizeof(struct page *),
-						GFP_KERNEL);
+	uninorth_priv.pages_arr = kmalloc_objs(struct page *, 1 << page_order);
 	if (uninorth_priv.pages_arr == NULL)
 		goto enomem;
 

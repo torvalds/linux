@@ -259,10 +259,10 @@ int alloc_rt_sched_group(struct task_group *tg, struct task_group *parent)
 	if (!rt_group_sched_enabled())
 		return 1;
 
-	tg->rt_rq = kcalloc(nr_cpu_ids, sizeof(rt_rq), GFP_KERNEL);
+	tg->rt_rq = kzalloc_objs(rt_rq, nr_cpu_ids);
 	if (!tg->rt_rq)
 		goto err;
-	tg->rt_se = kcalloc(nr_cpu_ids, sizeof(rt_se), GFP_KERNEL);
+	tg->rt_se = kzalloc_objs(rt_se, nr_cpu_ids);
 	if (!tg->rt_se)
 		goto err;
 

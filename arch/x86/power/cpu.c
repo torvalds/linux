@@ -394,7 +394,7 @@ static int msr_build_context(const u32 *msr_id, const int num)
 
 	total_num = saved_msrs->num + num;
 
-	msr_array = kmalloc_array(total_num, sizeof(struct saved_msr), GFP_KERNEL);
+	msr_array = kmalloc_objs(struct saved_msr, total_num);
 	if (!msr_array) {
 		pr_err("x86/pm: Can not allocate memory to save/restore MSRs during suspend.\n");
 		return -ENOMEM;

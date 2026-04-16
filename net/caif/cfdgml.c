@@ -26,7 +26,7 @@ static int cfdgml_transmit(struct cflayer *layr, struct cfpkt *pkt);
 
 struct cflayer *cfdgml_create(u8 channel_id, struct dev_info *dev_info)
 {
-	struct cfsrvl *dgm = kzalloc(sizeof(struct cfsrvl), GFP_ATOMIC);
+	struct cfsrvl *dgm = kzalloc_obj(struct cfsrvl, GFP_ATOMIC);
 	if (!dgm)
 		return NULL;
 	caif_assert(offsetof(struct cfsrvl, layer) == 0);

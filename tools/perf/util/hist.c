@@ -251,7 +251,7 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 
 	if (h->cgroup) {
 		const char *cgrp_name = "unknown";
-		struct cgroup *cgrp = cgroup__find(maps__machine(h->ms.maps)->env,
+		struct cgroup *cgrp = cgroup__find(maps__machine(thread__maps(h->ms.thread))->env,
 						   h->cgroup);
 		if (cgrp != NULL)
 			cgrp_name = cgrp->name;
@@ -536,7 +536,7 @@ static int hist_entry__init(struct hist_entry *he,
 			memset(&he->stat, 0, sizeof(he->stat));
 	}
 
-	he->ms.maps = maps__get(he->ms.maps);
+	he->ms.thread = thread__get(he->ms.thread);
 	he->ms.map = map__get(he->ms.map);
 
 	if (he->branch_info) {
@@ -552,9 +552,9 @@ static int hist_entry__init(struct hist_entry *he,
 		memcpy(he->branch_info, template->branch_info,
 		       sizeof(*he->branch_info));
 
-		he->branch_info->from.ms.maps = maps__get(he->branch_info->from.ms.maps);
+		he->branch_info->from.ms.thread = thread__get(he->branch_info->from.ms.thread);
 		he->branch_info->from.ms.map = map__get(he->branch_info->from.ms.map);
-		he->branch_info->to.ms.maps = maps__get(he->branch_info->to.ms.maps);
+		he->branch_info->to.ms.thread = thread__get(he->branch_info->to.ms.thread);
 		he->branch_info->to.ms.map = map__get(he->branch_info->to.ms.map);
 	}
 
@@ -810,7 +810,7 @@ __hists__add_entry(struct hists *hists,
 		},
 		.cgroup = sample->cgroup,
 		.ms = {
-			.maps	= al->maps,
+			.thread	= al->thread,
 			.map	= al->map,
 			.sym	= al->sym,
 		},
@@ -890,7 +890,7 @@ struct hist_entry *hists__add_entry_block(struct hists *hists,
 		.block_info = block_info,
 		.hists = hists,
 		.ms = {
-			.maps = al->maps,
+			.thread = al->thread,
 			.map = al->map,
 			.sym = al->sym,
 		},
@@ -1020,8 +1020,8 @@ iter_next_branch_entry(struct hist_entry_iter *iter, struct addr_location *al)
 	if (iter->curr >= iter->total)
 		return 0;
 
-	maps__put(al->maps);
-	al->maps = maps__get(bi[i].to.ms.maps);
+	thread__put(al->thread);
+	al->thread = thread__get(bi[i].to.ms.thread);
 	map__put(al->map);
 	al->map = map__get(bi[i].to.ms.map);
 	al->sym = bi[i].to.ms.sym;
@@ -1232,7 +1232,7 @@ iter_add_next_cumulative_entry(struct hist_entry_iter *iter,
 		.comm = thread__comm(al->thread),
 		.ip = al->addr,
 		.ms = {
-			.maps = al->maps,
+			.thread = al->thread,
 			.map = al->map,
 			.sym = al->sym,
 		},

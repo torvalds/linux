@@ -8,19 +8,12 @@
  *
  */
 #include <linux/errno.h>
-#include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_debug.h"
 #include "smb2proto.h"
 #include "smb2glob.h"
 #include "../common/smb2status.h"
 #include "trace.h"
-
-struct status_to_posix_error {
-	__u32 smb2_status;
-	int posix_error;
-	char *status_string;
-};
 
 static const struct status_to_posix_error smb2_error_map_table[] = {
 /*
@@ -115,10 +108,22 @@ int __init smb2_init_maperror(void)
 	return 0;
 }
 
-#define SMB_CLIENT_KUNIT_AVAILABLE \
-	((IS_MODULE(CONFIG_CIFS) && IS_ENABLED(CONFIG_KUNIT)) || \
-	 (IS_BUILTIN(CONFIG_CIFS) && IS_BUILTIN(CONFIG_KUNIT)))
+#if IS_ENABLED(CONFIG_SMB_KUNIT_TESTS)
+#define EXPORT_SYMBOL_FOR_SMB_TEST(sym) \
+	EXPORT_SYMBOL_FOR_MODULES(sym, "smb2maperror_test")
 
-#if SMB_CLIENT_KUNIT_AVAILABLE && IS_ENABLED(CONFIG_SMB_KUNIT_TESTS)
-#include "smb2maperror_test.c"
-#endif /* CONFIG_SMB_KUNIT_TESTS */
+/* Previous prototype for eliminating the build warning. */
+const struct status_to_posix_error *smb2_get_err_map_test(__u32 smb2_status);
+
+const struct status_to_posix_error *smb2_get_err_map_test(__u32 smb2_status)
+{
+	return smb2_get_err_map(smb2_status);
+}
+EXPORT_SYMBOL_FOR_SMB_TEST(smb2_get_err_map_test);
+
+const struct status_to_posix_error *smb2_error_map_table_test = smb2_error_map_table;
+EXPORT_SYMBOL_FOR_SMB_TEST(smb2_error_map_table_test);
+
+unsigned int smb2_error_map_num = ARRAY_SIZE(smb2_error_map_table);
+EXPORT_SYMBOL_FOR_SMB_TEST(smb2_error_map_num);
+#endif

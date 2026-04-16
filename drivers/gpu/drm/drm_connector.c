@@ -3605,7 +3605,7 @@ struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
 	struct drm_tile_group *tg;
 	int ret;
 
-	tg = kzalloc(sizeof(*tg), GFP_KERNEL);
+	tg = kzalloc_obj(*tg);
 	if (!tg)
 		return NULL;
 

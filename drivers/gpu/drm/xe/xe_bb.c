@@ -31,7 +31,7 @@ static int bb_prefetch(struct xe_gt *gt)
 struct xe_bb *xe_bb_new(struct xe_gt *gt, u32 dwords, bool usm)
 {
 	struct xe_tile *tile = gt_to_tile(gt);
-	struct xe_bb *bb = kmalloc(sizeof(*bb), GFP_KERNEL);
+	struct xe_bb *bb = kmalloc_obj(*bb);
 	int err;
 
 	if (!bb)
@@ -62,7 +62,7 @@ err:
 struct xe_bb *xe_bb_ccs_new(struct xe_gt *gt, u32 dwords,
 			    enum xe_sriov_vf_ccs_rw_ctxs ctx_id)
 {
-	struct xe_bb *bb = kmalloc(sizeof(*bb), GFP_KERNEL);
+	struct xe_bb *bb = kmalloc_obj(*bb);
 	struct xe_device *xe = gt_to_xe(gt);
 	struct xe_sa_manager *bb_pool;
 	int err;

@@ -58,7 +58,7 @@ xchk_setup_nlinks(
 			return error;
 	}
 
-	xnc = kvzalloc(sizeof(struct xchk_nlink_ctrs), XCHK_GFP_FLAGS);
+	xnc = kvzalloc_obj(struct xchk_nlink_ctrs, XCHK_GFP_FLAGS);
 	if (!xnc)
 		return -ENOMEM;
 	xnc->xname.name = xnc->namebuf;

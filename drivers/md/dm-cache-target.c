@@ -2387,7 +2387,7 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 	struct dm_cache_metadata *cmd;
 	bool may_format = ca->features.mode == CM_WRITE;
 
-	cache = kzalloc(sizeof(*cache), GFP_KERNEL);
+	cache = kzalloc_obj(*cache);
 	if (!cache)
 		return -ENOMEM;
 
@@ -2612,7 +2612,7 @@ static int cache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	struct cache_args *ca;
 	struct cache *cache = NULL;
 
-	ca = kzalloc(sizeof(*ca), GFP_KERNEL);
+	ca = kzalloc_obj(*ca);
 	if (!ca) {
 		ti->error = "Error allocating memory for cache";
 		return -ENOMEM;

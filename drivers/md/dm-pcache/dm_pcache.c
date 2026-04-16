@@ -281,7 +281,7 @@ static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	/* Allocate memory for the cache structure */
-	pcache = kzalloc(sizeof(struct dm_pcache), GFP_KERNEL);
+	pcache = kzalloc_obj(struct dm_pcache);
 	if (!pcache)
 		return -ENOMEM;
 

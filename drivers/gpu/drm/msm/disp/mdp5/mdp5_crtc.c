@@ -1130,8 +1130,7 @@ static void mdp5_crtc_destroy_state(struct drm_crtc *crtc, struct drm_crtc_state
 
 static void mdp5_crtc_reset(struct drm_crtc *crtc)
 {
-	struct mdp5_crtc_state *mdp5_cstate =
-		kzalloc(sizeof(*mdp5_cstate), GFP_KERNEL);
+	struct mdp5_crtc_state *mdp5_cstate = kzalloc_obj(*mdp5_cstate);
 
 	if (crtc->state)
 		mdp5_crtc_destroy_state(crtc, crtc->state);

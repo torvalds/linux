@@ -4138,7 +4138,8 @@ static int merge_sched_in(struct perf_event *event, void *data)
 			if (*perf_event_fasync(event))
 				event->pending_kill = POLL_ERR;
 
-			perf_event_wakeup(event);
+			event->pending_wakeup = 1;
+			irq_work_queue(&event->pending_irq);
 		} else {
 			struct perf_cpu_pmu_context *cpc = this_cpc(event->pmu_ctx->pmu);
 
@@ -5058,7 +5059,7 @@ alloc_perf_context(struct task_struct *task)
 {
 	struct perf_event_context *ctx;
 
-	ctx = kzalloc(sizeof(struct perf_event_context), GFP_KERNEL);
+	ctx = kzalloc_obj(struct perf_event_context);
 	if (!ctx)
 		return NULL;
 
@@ -5198,7 +5199,7 @@ find_get_pmu_context(struct pmu *pmu, struct perf_event_context *ctx,
 		return epc;
 	}
 
-	new = kzalloc(sizeof(*epc), GFP_KERNEL);
+	new = kzalloc_obj(*epc);
 	if (!new)
 		return ERR_PTR(-ENOMEM);
 
@@ -5374,7 +5375,7 @@ alloc_perf_ctx_data(struct kmem_cache *ctx_cache, bool global)
 {
 	struct perf_ctx_data *cd;
 
-	cd = kzalloc(sizeof(*cd), GFP_KERNEL);
+	cd = kzalloc_obj(*cd);
 	if (!cd)
 		return NULL;
 
@@ -7464,28 +7465,28 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 			ret = perf_mmap_aux(vma, event, nr_pages);
 		if (ret)
 			return ret;
+
+		/*
+		 * Since pinned accounting is per vm we cannot allow fork() to copy our
+		 * vma.
+		 */
+		vm_flags_set(vma, VM_DONTCOPY | VM_DONTEXPAND | VM_DONTDUMP);
+		vma->vm_ops = &perf_mmap_vmops;
+
+		mapped = get_mapped(event, event_mapped);
+		if (mapped)
+			mapped(event, vma->vm_mm);
+
+		/*
+		 * Try to map it into the page table. On fail, invoke
+		 * perf_mmap_close() to undo the above, as the callsite expects
+		 * full cleanup in this case and therefore does not invoke
+		 * vmops::close().
+		 */
+		ret = map_range(event->rb, vma);
+		if (ret)
+			perf_mmap_close(vma);
 	}
-
-	/*
-	 * Since pinned accounting is per vm we cannot allow fork() to copy our
-	 * vma.
-	 */
-	vm_flags_set(vma, VM_DONTCOPY | VM_DONTEXPAND | VM_DONTDUMP);
-	vma->vm_ops = &perf_mmap_vmops;
-
-	mapped = get_mapped(event, event_mapped);
-	if (mapped)
-		mapped(event, vma->vm_mm);
-
-	/*
-	 * Try to map it into the page table. On fail, invoke
-	 * perf_mmap_close() to undo the above, as the callsite expects
-	 * full cleanup in this case and therefore does not invoke
-	 * vmops::close().
-	 */
-	ret = map_range(event->rb, vma);
-	if (ret)
-		perf_mmap_close(vma);
 
 	return ret;
 }
@@ -10776,6 +10777,13 @@ int perf_event_overflow(struct perf_event *event,
 			struct perf_sample_data *data,
 			struct pt_regs *regs)
 {
+	/*
+	 * Entry point from hardware PMI, interrupts should be disabled here.
+	 * This serializes us against perf_event_remove_from_context() in
+	 * things like perf_event_release_kernel().
+	 */
+	lockdep_assert_irqs_disabled();
+
 	return __perf_event_overflow(event, 1, data, regs);
 }
 
@@ -10852,12 +10860,35 @@ static void perf_swevent_event(struct perf_event *event, u64 nr,
 {
 	struct hw_perf_event *hwc = &event->hw;
 
+	/*
+	 * This is:
+	 *   - software		preempt
+	 *   - tracepoint	preempt
+	 *   -   tp_target_task	irq (ctx->lock)
+	 *   - uprobes		preempt/irq
+	 *   - kprobes		preempt/irq
+	 *   - hw_breakpoint	irq
+	 *
+	 * Any of these are sufficient to hold off RCU and thus ensure @event
+	 * exists.
+	 */
+	lockdep_assert_preemption_disabled();
 	local64_add(nr, &event->count);
 
 	if (!regs)
 		return;
 
 	if (!is_sampling_event(event))
+		return;
+
+	/*
+	 * Serialize against event_function_call() IPIs like normal overflow
+	 * event handling. Specifically, must not allow
+	 * perf_event_release_kernel() -> perf_remove_from_context() to make
+	 * progress and 'release' the event from under us.
+	 */
+	guard(irqsave)();
+	if (event->state != PERF_EVENT_STATE_ACTIVE)
 		return;
 
 	if ((event->attr.sample_type & PERF_SAMPLE_PERIOD) && !event->attr.freq) {
@@ -11111,7 +11142,7 @@ static int swevent_hlist_get_cpu(int cpu)
 	    cpumask_test_cpu(cpu, perf_online_mask)) {
 		struct swevent_hlist *hlist;
 
-		hlist = kzalloc(sizeof(*hlist), GFP_KERNEL);
+		hlist = kzalloc_obj(*hlist);
 		if (!hlist) {
 			err = -ENOMEM;
 			goto exit;
@@ -11357,6 +11388,11 @@ void perf_tp_event(u16 event_type, u64 count, void *record, int entry_size,
 {
 	struct perf_sample_data data;
 	struct perf_event *event;
+
+	/*
+	 * Per being a tracepoint, this runs with preemption disabled.
+	 */
+	lockdep_assert_preemption_disabled();
 
 	struct perf_raw_record raw = {
 		.frag = {
@@ -11689,6 +11725,11 @@ void perf_bp_event(struct perf_event *bp, void *data)
 {
 	struct perf_sample_data sample;
 	struct pt_regs *regs = data;
+
+	/*
+	 * Exception context, will have interrupts disabled.
+	 */
+	lockdep_assert_irqs_disabled();
 
 	perf_sample_data_init(&sample, bp->attr.bp_addr, 0);
 
@@ -12154,7 +12195,7 @@ static enum hrtimer_restart perf_swevent_hrtimer(struct hrtimer *hrtimer)
 
 	if (regs && !perf_exclude_event(event, regs)) {
 		if (!(event->attr.exclude_idle && is_idle_task(current)))
-			if (__perf_event_overflow(event, 1, &data, regs))
+			if (perf_event_overflow(event, &data, regs))
 				ret = HRTIMER_NORESTART;
 	}
 
@@ -12634,7 +12675,7 @@ static int pmu_dev_alloc(struct pmu *pmu)
 {
 	int ret = -ENOMEM;
 
-	pmu->dev = kzalloc(sizeof(struct device), GFP_KERNEL);
+	pmu->dev = kzalloc_obj(struct device);
 	if (!pmu->dev)
 		goto out;
 
@@ -15269,7 +15310,7 @@ perf_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
 {
 	struct perf_cgroup *jc;
 
-	jc = kzalloc(sizeof(*jc), GFP_KERNEL);
+	jc = kzalloc_obj(*jc);
 	if (!jc)
 		return ERR_PTR(-ENOMEM);
 

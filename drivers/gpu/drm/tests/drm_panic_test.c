@@ -127,7 +127,7 @@ static void drm_test_panic_screen_user_page(struct kunit *test)
 	fb_size = params->width * params->height * sb->format->cpp[0];
 	npages = DIV_ROUND_UP(fb_size, PAGE_SIZE);
 
-	pages = kmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
+	pages = kmalloc_objs(struct page *, npages);
 	KUNIT_ASSERT_NOT_NULL(test, pages);
 
 	for (p = 0; p < npages; p++) {

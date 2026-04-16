@@ -67,7 +67,7 @@ struct amdgpu_amdkfd_fence *amdgpu_amdkfd_fence_create(u64 context,
 {
 	struct amdgpu_amdkfd_fence *fence;
 
-	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
+	fence = kzalloc_obj(*fence);
 	if (fence == NULL)
 		return NULL;
 
@@ -107,7 +107,7 @@ static const char *amdkfd_fence_get_timeline_name(struct dma_fence *f)
 {
 	struct amdgpu_amdkfd_fence *fence = to_amdgpu_amdkfd_fence(f);
 
-	return fence->timeline_name;
+	return fence ? fence->timeline_name : NULL;
 }
 
 /**

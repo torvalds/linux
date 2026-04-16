@@ -178,7 +178,7 @@ instance_create(struct nfnl_queue_net *q, u_int16_t queue_num, u32 portid)
 	unsigned int h;
 	int err;
 
-	inst = kzalloc(sizeof(*inst), GFP_KERNEL_ACCOUNT);
+	inst = kzalloc_obj(*inst, GFP_KERNEL_ACCOUNT);
 	if (!inst)
 		return ERR_PTR(-ENOMEM);
 
@@ -1546,8 +1546,10 @@ static int nfqnl_recv_verdict(struct sk_buff *skb, const struct nfnl_info *info,
 
 	if (entry->state.pf == PF_BRIDGE) {
 		err = nfqa_parse_bridge(entry, nfqa);
-		if (err < 0)
+		if (err < 0) {
+			nfqnl_reinject(entry, NF_DROP);
 			return err;
+		}
 	}
 
 	if (nfqa[NFQA_PAYLOAD]) {

@@ -219,8 +219,7 @@ gicv5_iwb_init_bases(void __iomem *iwb_base, struct platform_device *pdev)
 	unsigned int n;
 	int ret;
 
-	struct gicv5_iwb_chip_data *iwb_node __free(kfree) = kzalloc(sizeof(*iwb_node),
-								     GFP_KERNEL);
+	struct gicv5_iwb_chip_data *iwb_node __free(kfree) = kzalloc_obj(*iwb_node);
 	if (!iwb_node)
 		return ERR_PTR(-ENOMEM);
 

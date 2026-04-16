@@ -1436,7 +1436,7 @@ sg_alloc(struct scsi_device *scsidp)
 	int error;
 	u32 k;
 
-	sdp = kzalloc(sizeof(Sg_device), GFP_KERNEL);
+	sdp = kzalloc_obj(Sg_device);
 	if (!sdp) {
 		sdev_printk(KERN_WARNING, scsidp, "%s: kmalloc Sg_device "
 			    "failure\n", __func__);
@@ -2157,7 +2157,7 @@ sg_add_sfp(Sg_device * sdp)
 	unsigned long iflags;
 	int bufflen;
 
-	sfp = kzalloc(sizeof(*sfp), GFP_ATOMIC | __GFP_NOWARN);
+	sfp = kzalloc_obj(*sfp, GFP_ATOMIC | __GFP_NOWARN);
 	if (!sfp)
 		return ERR_PTR(-ENOMEM);
 
@@ -2456,7 +2456,7 @@ struct sg_proc_deviter {
 
 static void * dev_seq_start(struct seq_file *s, loff_t *pos)
 {
-	struct sg_proc_deviter * it = kmalloc(sizeof(*it), GFP_KERNEL);
+	struct sg_proc_deviter * it = kmalloc_obj(*it);
 
 	s->private = it;
 	if (! it)

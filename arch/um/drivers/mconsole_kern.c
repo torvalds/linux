@@ -87,7 +87,7 @@ static irqreturn_t mconsole_interrupt(int irq, void *dev_id)
 		if (req.cmd->context == MCONSOLE_INTR)
 			(*req.cmd->handler)(&req);
 		else {
-			new = kmalloc(sizeof(*new), GFP_NOWAIT);
+			new = kmalloc_obj(*new, GFP_NOWAIT);
 			if (new == NULL)
 				mconsole_reply(&req, "Out of memory", 1, 0);
 			else {

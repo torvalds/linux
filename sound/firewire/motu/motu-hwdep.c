@@ -185,7 +185,7 @@ static int hwdep_ioctl(struct snd_hwdep *hwdep, struct file *file,
 		if (!(motu->spec->flags & SND_MOTU_SPEC_REGISTER_DSP))
 			return -ENXIO;
 
-		meter = kzalloc(sizeof(*meter), GFP_KERNEL);
+		meter = kzalloc_obj(*meter);
 		if (!meter)
 			return -ENOMEM;
 
@@ -207,7 +207,7 @@ static int hwdep_ioctl(struct snd_hwdep *hwdep, struct file *file,
 		if (!(motu->spec->flags & SND_MOTU_SPEC_COMMAND_DSP))
 			return -ENXIO;
 
-		meter = kzalloc(sizeof(*meter), GFP_KERNEL);
+		meter = kzalloc_obj(*meter);
 		if (!meter)
 			return -ENOMEM;
 
@@ -229,7 +229,7 @@ static int hwdep_ioctl(struct snd_hwdep *hwdep, struct file *file,
 		if (!(motu->spec->flags & SND_MOTU_SPEC_REGISTER_DSP))
 			return -ENXIO;
 
-		param = kzalloc(sizeof(*param), GFP_KERNEL);
+		param = kzalloc_obj(*param);
 		if (!param)
 			return -ENOMEM;
 

@@ -7,7 +7,6 @@ pps_gen_core-y			:= pps_gen.o sysfs.o
 obj-$(CONFIG_PPS_GENERATOR)	:= pps_gen_core.o
 
 obj-$(CONFIG_PPS_GENERATOR_DUMMY)   += pps_gen-dummy.o
-obj-$(CONFIG_PPS_GENERATOR_PARPORT) += pps_gen_parport.o
 obj-$(CONFIG_PPS_GENERATOR_TIO)     += pps_gen_tio.o
 
 ccflags-$(CONFIG_PPS_DEBUG) := -DDEBUG

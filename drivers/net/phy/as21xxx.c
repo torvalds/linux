@@ -907,7 +907,7 @@ static int as21xxx_match_phy_device(struct phy_device *phydev,
 		return phy_id == phydrv->phy_id;
 
 	/* Allocate temp priv and load the firmware */
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

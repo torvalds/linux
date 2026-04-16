@@ -1520,7 +1520,7 @@ static int __init ccio_probe(struct parisc_device *dev)
 	struct ioc *ioc, **ioc_p = &ioc_list;
 	struct pci_hba_data *hba;
 
-	ioc = kzalloc(sizeof(struct ioc), GFP_KERNEL);
+	ioc = kzalloc_obj(struct ioc);
 	if (ioc == NULL) {
 		printk(KERN_ERR MODULE_NAME ": memory allocation failure\n");
 		return -ENOMEM;
@@ -1550,7 +1550,7 @@ static int __init ccio_probe(struct parisc_device *dev)
 	}
 	hppa_dma_ops = &ccio_ops;
 
-	hba = kzalloc(sizeof(*hba), GFP_KERNEL);
+	hba = kzalloc_obj(*hba);
 	/* if this fails, no I/O cards will work, so may as well bug */
 	BUG_ON(hba == NULL);
 

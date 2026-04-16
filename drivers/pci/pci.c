@@ -2462,8 +2462,7 @@ void pci_pme_active(struct pci_dev *dev, bool enable)
 	if (dev->pme_poll) {
 		struct pci_pme_device *pme_dev;
 		if (enable) {
-			pme_dev = kmalloc(sizeof(struct pci_pme_device),
-					  GFP_KERNEL);
+			pme_dev = kmalloc_obj(struct pci_pme_device);
 			if (!pme_dev) {
 				pci_warn(dev, "can't enable PME#\n");
 				return;
@@ -3980,7 +3979,7 @@ int pci_register_io_range(const struct fwnode_handle *fwnode, phys_addr_t addr,
 	if (!size || addr + size < addr)
 		return -EINVAL;
 
-	range = kzalloc(sizeof(*range), GFP_ATOMIC);
+	range = kzalloc_obj(*range, GFP_ATOMIC);
 	if (!range)
 		return -ENOMEM;
 

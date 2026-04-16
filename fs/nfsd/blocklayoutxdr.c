@@ -164,7 +164,7 @@ nfsd4_block_decode_layoutupdate(struct xdr_stream *xdr, struct iomap **iomapp,
 	if (len != expected)
 		return nfserr_bad_xdr;
 
-	iomaps = kcalloc(nr_iomaps, sizeof(*iomaps), GFP_KERNEL);
+	iomaps = kzalloc_objs(*iomaps, nr_iomaps);
 	if (!iomaps)
 		return nfserr_delay;
 
@@ -258,7 +258,7 @@ nfsd4_scsi_decode_layoutupdate(struct xdr_stream *xdr, struct iomap **iomapp,
 	if (len != expected)
 		return nfserr_bad_xdr;
 
-	iomaps = kcalloc(nr_iomaps, sizeof(*iomaps), GFP_KERNEL);
+	iomaps = kzalloc_objs(*iomaps, nr_iomaps);
 	if (!iomaps)
 		return nfserr_delay;
 

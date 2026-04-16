@@ -71,7 +71,7 @@ static int nft_connlimit_do_init(const struct nft_ctx *ctx,
 			invert = true;
 	}
 
-	priv->list = kmalloc(sizeof(*priv->list), GFP_KERNEL_ACCOUNT);
+	priv->list = kmalloc_obj(*priv->list, GFP_KERNEL_ACCOUNT);
 	if (!priv->list)
 		return -ENOMEM;
 
@@ -220,7 +220,7 @@ static int nft_connlimit_clone(struct nft_expr *dst, const struct nft_expr *src,
 	struct nft_connlimit *priv_dst = nft_expr_priv(dst);
 	struct nft_connlimit *priv_src = nft_expr_priv(src);
 
-	priv_dst->list = kmalloc(sizeof(*priv_dst->list), gfp);
+	priv_dst->list = kmalloc_obj(*priv_dst->list, gfp);
 	if (!priv_dst->list)
 		return -ENOMEM;
 

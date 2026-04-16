@@ -304,8 +304,8 @@ int exfat_find_empty_entry(struct inode *inode,
 		struct exfat_chain *p_dir, int num_entries,
 		struct exfat_entry_set_cache *es)
 {
-	int dentry;
-	unsigned int ret, last_clu;
+	int dentry, ret;
+	unsigned int last_clu;
 	loff_t size = 0;
 	struct exfat_chain clu;
 	struct super_block *sb = inode->i_sb;

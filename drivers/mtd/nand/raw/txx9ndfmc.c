@@ -319,8 +319,7 @@ static int txx9ndfmc_probe(struct platform_device *dev)
 
 		if (!(plat->ch_mask & (1 << i)))
 			continue;
-		txx9_priv = kzalloc(sizeof(struct txx9ndfmc_priv),
-				    GFP_KERNEL);
+		txx9_priv = kzalloc_obj(struct txx9ndfmc_priv);
 		if (!txx9_priv)
 			continue;
 		chip = &txx9_priv->chip;

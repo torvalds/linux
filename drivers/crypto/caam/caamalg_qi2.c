@@ -3224,14 +3224,14 @@ static int hash_digest_key(struct caam_hash_ctx *ctx, u32 *keylen, u8 *key,
 	int ret = -ENOMEM;
 	struct dpaa2_fl_entry *in_fle, *out_fle;
 
-	req_ctx = kzalloc(sizeof(*req_ctx), GFP_KERNEL);
+	req_ctx = kzalloc_obj(*req_ctx);
 	if (!req_ctx)
 		return -ENOMEM;
 
 	in_fle = &req_ctx->fd_flt[1];
 	out_fle = &req_ctx->fd_flt[0];
 
-	flc = kzalloc(sizeof(*flc), GFP_KERNEL);
+	flc = kzalloc_obj(*flc);
 	if (!flc)
 		goto err_flc;
 
@@ -4635,7 +4635,7 @@ static struct caam_hash_alg *caam_hash_alloc(struct device *dev,
 	struct ahash_alg *halg;
 	struct crypto_alg *alg;
 
-	t_alg = kzalloc(sizeof(*t_alg), GFP_KERNEL);
+	t_alg = kzalloc_obj(*t_alg);
 	if (!t_alg)
 		return ERR_PTR(-ENOMEM);
 

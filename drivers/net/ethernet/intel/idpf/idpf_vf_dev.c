@@ -82,8 +82,7 @@ static int idpf_vf_intr_reg_init(struct idpf_vport *vport,
 	u16 total_vecs;
 
 	total_vecs = idpf_get_reserved_vecs(vport->adapter);
-	reg_vals = kcalloc(total_vecs, sizeof(struct idpf_vec_regs),
-			   GFP_KERNEL);
+	reg_vals = kzalloc_objs(struct idpf_vec_regs, total_vecs);
 	if (!reg_vals)
 		return -ENOMEM;
 

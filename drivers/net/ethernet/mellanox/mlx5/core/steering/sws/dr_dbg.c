@@ -60,7 +60,7 @@ mlx5dr_dbg_dump_data_init_new_buff(struct mlx5dr_dbg_dump_data *dump_data)
 {
 	struct mlx5dr_dbg_dump_buff *new_buff;
 
-	new_buff = kzalloc(sizeof(*new_buff), GFP_KERNEL);
+	new_buff = kzalloc_obj(*new_buff);
 	if (!new_buff)
 		return NULL;
 
@@ -81,7 +81,7 @@ mlx5dr_dbg_create_dump_data(void)
 {
 	struct mlx5dr_dbg_dump_data *dump_data;
 
-	dump_data = kzalloc(sizeof(*dump_data), GFP_KERNEL);
+	dump_data = kzalloc_obj(*dump_data);
 	if (!dump_data)
 		return NULL;
 
@@ -1051,8 +1051,8 @@ static int dr_dump_domain_all(struct seq_file *file, struct mlx5dr_domain *dmn)
 	struct mlx5dr_table *tbl;
 	int ret;
 
-	mutex_lock(&dmn->dump_info.dbg_mutex);
 	mlx5dr_domain_lock(dmn);
+	mutex_lock(&dmn->dump_info.dbg_mutex);
 
 	ret = dr_dump_domain(file, dmn);
 	if (ret < 0)
@@ -1065,8 +1065,8 @@ static int dr_dump_domain_all(struct seq_file *file, struct mlx5dr_domain *dmn)
 	}
 
 unlock_mutex:
-	mlx5dr_domain_unlock(dmn);
 	mutex_unlock(&dmn->dump_info.dbg_mutex);
+	mlx5dr_domain_unlock(dmn);
 	return ret;
 }
 

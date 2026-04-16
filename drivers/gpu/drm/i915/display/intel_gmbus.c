@@ -925,7 +925,7 @@ int intel_gmbus_setup(struct intel_display *display)
 		if (!gmbus_pin)
 			continue;
 
-		bus = kzalloc(sizeof(*bus), GFP_KERNEL);
+		bus = kzalloc_obj(*bus);
 		if (!bus) {
 			ret = -ENOMEM;
 			goto err;

@@ -545,7 +545,7 @@ static int dmz_queue_chunk_work(struct dmz_target *dmz, struct bio *bio)
 		dmz_get_chunk_work(cw);
 	} else {
 		/* Create a new chunk work */
-		cw = kmalloc(sizeof(struct dm_chunk_work), GFP_NOIO);
+		cw = kmalloc_obj(struct dm_chunk_work, GFP_NOIO);
 		if (unlikely(!cw)) {
 			ret = -ENOMEM;
 			goto out;
@@ -838,18 +838,18 @@ static int dmz_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	/* Allocate and initialize the target descriptor */
-	dmz = kzalloc(sizeof(struct dmz_target), GFP_KERNEL);
+	dmz = kzalloc_obj(struct dmz_target);
 	if (!dmz) {
 		ti->error = "Unable to allocate the zoned target descriptor";
 		return -ENOMEM;
 	}
-	dmz->dev = kcalloc(argc, sizeof(struct dmz_dev), GFP_KERNEL);
+	dmz->dev = kzalloc_objs(struct dmz_dev, argc);
 	if (!dmz->dev) {
 		ti->error = "Unable to allocate the zoned device descriptors";
 		kfree(dmz);
 		return -ENOMEM;
 	}
-	dmz->ddev = kcalloc(argc, sizeof(struct dm_dev *), GFP_KERNEL);
+	dmz->ddev = kzalloc_objs(struct dm_dev *, argc);
 	if (!dmz->ddev) {
 		ti->error = "Unable to allocate the dm device descriptors";
 		ret = -ENOMEM;

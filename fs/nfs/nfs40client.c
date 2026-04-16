@@ -65,7 +65,7 @@ int nfs40_init_client(struct nfs_client *clp)
 	struct nfs4_slot_table *tbl;
 	int ret;
 
-	tbl = kzalloc(sizeof(*tbl), GFP_NOFS);
+	tbl = kzalloc_obj(*tbl, GFP_NOFS);
 	if (tbl == NULL)
 		return -ENOMEM;
 

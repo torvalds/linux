@@ -231,7 +231,7 @@ struct clk_hw *__imx8m_clk_hw_composite(const char *name,
 	const struct clk_ops *mux_ops;
 	const struct clk_ops *gate_ops;
 
-	mux = kzalloc(sizeof(*mux), GFP_KERNEL);
+	mux = kzalloc_obj(*mux);
 	if (!mux)
 		return ERR_CAST(hw);
 
@@ -241,7 +241,7 @@ struct clk_hw *__imx8m_clk_hw_composite(const char *name,
 	mux->mask = PCG_PCS_MASK;
 	mux->lock = &imx_ccm_lock;
 
-	div = kzalloc(sizeof(*div), GFP_KERNEL);
+	div = kzalloc_obj(*div);
 	if (!div)
 		goto free_mux;
 
@@ -270,7 +270,7 @@ struct clk_hw *__imx8m_clk_hw_composite(const char *name,
 	div->flags = CLK_DIVIDER_ROUND_CLOSEST;
 
 	/* skip registering the gate ops if M4 is enabled */
-	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
+	gate = kzalloc_obj(*gate);
 	if (!gate)
 		goto free_div;
 

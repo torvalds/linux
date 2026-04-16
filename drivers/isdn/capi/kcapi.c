@@ -253,7 +253,7 @@ static void do_notify_work(struct work_struct *work)
 
 static int notify_push(unsigned int event_type, u32 controller)
 {
-	struct capictr_event *event = kmalloc(sizeof(*event), GFP_ATOMIC);
+	struct capictr_event *event = kmalloc_obj(*event, GFP_ATOMIC);
 
 	if (!event)
 		return -ENOMEM;

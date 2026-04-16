@@ -242,7 +242,7 @@ static void mipi_i3c_hci_pci_setup_cell(struct mipi_i3c_hci_pci *hci, int idx,
 	cell->resources = &data->res;
 }
 
-#define mipi_i3c_hci_pci_alloc(h, x) kcalloc((h)->info->instance_count, sizeof(*(x)), GFP_KERNEL)
+#define mipi_i3c_hci_pci_alloc(h, x) kzalloc_objs(*(x), (h)->info->instance_count)
 
 static int mipi_i3c_hci_pci_add_instances(struct mipi_i3c_hci_pci *hci)
 {

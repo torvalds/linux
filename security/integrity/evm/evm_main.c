@@ -1045,7 +1045,7 @@ int evm_inode_init_security(struct inode *inode, struct inode *dir,
 		  "%s: xattrs terminator is not the first non-filled slot\n",
 		  __func__);
 
-	xattr_data = kzalloc(sizeof(*xattr_data), GFP_NOFS);
+	xattr_data = kzalloc_obj(*xattr_data, GFP_NOFS);
 	if (!xattr_data)
 		return -ENOMEM;
 

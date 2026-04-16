@@ -2218,8 +2218,7 @@ static int tdx_get_capabilities(struct kvm_tdx_cmd *cmd)
 	if (nr_user_entries < td_conf->num_cpuid_config)
 		return -E2BIG;
 
-	caps = kzalloc(struct_size(caps, cpuid.entries,
-				   td_conf->num_cpuid_config), GFP_KERNEL);
+	caps = kzalloc_flex(*caps, cpuid.entries, td_conf->num_cpuid_config);
 	if (!caps)
 		return -ENOMEM;
 
@@ -2407,8 +2406,8 @@ static int __tdx_td_init(struct kvm *kvm, struct td_params *td_params,
 	kvm_tdx->td.tdcs_nr_pages = tdx_sysinfo->td_ctrl.tdcs_base_size / PAGE_SIZE;
 	/* TDVPS = TDVPR(4K page) + TDCX(multiple 4K pages), -1 for TDVPR. */
 	kvm_tdx->td.tdcx_nr_pages = tdx_sysinfo->td_ctrl.tdvps_base_size / PAGE_SIZE - 1;
-	tdcs_pages = kcalloc(kvm_tdx->td.tdcs_nr_pages, sizeof(*kvm_tdx->td.tdcs_pages),
-			     GFP_KERNEL);
+	tdcs_pages = kzalloc_objs(*kvm_tdx->td.tdcs_pages,
+				  kvm_tdx->td.tdcs_nr_pages);
 	if (!tdcs_pages)
 		goto free_tdr;
 
@@ -2743,7 +2742,7 @@ static int tdx_td_init(struct kvm *kvm, struct kvm_tdx_cmd *cmd)
 		goto out;
 	}
 
-	td_params = kzalloc(sizeof(struct td_params), GFP_KERNEL);
+	td_params = kzalloc_obj(struct td_params);
 	if (!td_params) {
 		ret = -ENOMEM;
 		goto out;

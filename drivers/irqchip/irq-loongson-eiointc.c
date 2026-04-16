@@ -584,7 +584,7 @@ int __init eiointc_acpi_init(struct irq_domain *parent,
 	struct eiointc_priv *priv;
 	int node;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -633,7 +633,7 @@ static int __init eiointc_of_init(struct device_node *of_node,
 	struct irq_data *irq_data;
 	int parent_irq, ret;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

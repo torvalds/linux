@@ -1967,8 +1967,7 @@ static int rxq_init(struct mv643xx_eth_private *mp, int index)
 	memset(rxq->rx_desc_area, 0, size);
 
 	rxq->rx_desc_area_size = size;
-	rxq->rx_skb = kcalloc(rxq->rx_ring_size, sizeof(*rxq->rx_skb),
-				    GFP_KERNEL);
+	rxq->rx_skb = kzalloc_objs(*rxq->rx_skb, rxq->rx_ring_size);
 	if (rxq->rx_skb == NULL)
 		goto out_free;
 

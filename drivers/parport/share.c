@@ -430,7 +430,7 @@ struct parport *parport_register_port(unsigned long base, int irq, int dma,
 	int device;
 	int ret;
 
-	tmp = kzalloc(sizeof(struct parport), GFP_KERNEL);
+	tmp = kzalloc_obj(struct parport);
 	if (!tmp)
 		return NULL;
 
@@ -709,11 +709,11 @@ parport_register_dev_model(struct parport *port, const char *name,
 
 	parport_get_port(port);
 
-	par_dev = kzalloc(sizeof(*par_dev), GFP_KERNEL);
+	par_dev = kzalloc_obj(*par_dev);
 	if (!par_dev)
 		goto err_put_port;
 
-	par_dev->state = kzalloc(sizeof(*par_dev->state), GFP_KERNEL);
+	par_dev->state = kzalloc_obj(*par_dev->state);
 	if (!par_dev->state)
 		goto err_put_par_dev;
 

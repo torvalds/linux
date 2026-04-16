@@ -638,7 +638,7 @@ static int snd_gf1_pcm_playback_open(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
-	pcmp = kzalloc(sizeof(*pcmp), GFP_KERNEL);
+	pcmp = kzalloc_obj(*pcmp);
 	if (pcmp == NULL)
 		return -ENOMEM;
 	pcmp->gus = gus;

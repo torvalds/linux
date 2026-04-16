@@ -208,7 +208,7 @@ static struct xe_exec_queue *__xe_exec_queue_alloc(struct xe_device *xe,
 	/* only kernel queues can be permanent */
 	XE_WARN_ON((flags & EXEC_QUEUE_FLAG_PERMANENT) && !(flags & EXEC_QUEUE_FLAG_KERNEL));
 
-	q = kzalloc(struct_size(q, lrc, width), GFP_KERNEL);
+	q = kzalloc_flex(*q, lrc, width);
 	if (!q)
 		return ERR_PTR(-ENOMEM);
 
@@ -266,6 +266,16 @@ static struct xe_exec_queue *__xe_exec_queue_alloc(struct xe_device *xe,
 	return q;
 }
 
+static void __xe_exec_queue_fini(struct xe_exec_queue *q)
+{
+	int i;
+
+	q->ops->fini(q);
+
+	for (i = 0; i < q->width; ++i)
+		xe_lrc_put(q->lrc[i]);
+}
+
 static int __xe_exec_queue_init(struct xe_exec_queue *q, u32 exec_queue_flags)
 {
 	int i, err;
@@ -320,19 +330,8 @@ static int __xe_exec_queue_init(struct xe_exec_queue *q, u32 exec_queue_flags)
 	return 0;
 
 err_lrc:
-	for (i = i - 1; i >= 0; --i)
-		xe_lrc_put(q->lrc[i]);
+	__xe_exec_queue_fini(q);
 	return err;
-}
-
-static void __xe_exec_queue_fini(struct xe_exec_queue *q)
-{
-	int i;
-
-	q->ops->fini(q);
-
-	for (i = 0; i < q->width; ++i)
-		xe_lrc_put(q->lrc[i]);
 }
 
 struct xe_exec_queue *xe_exec_queue_create(struct xe_device *xe, struct xe_vm *vm,
@@ -681,7 +680,7 @@ static int xe_exec_queue_group_init(struct xe_device *xe, struct xe_exec_queue *
 	struct xe_exec_queue_group *group;
 	struct xe_bo *bo;
 
-	group = kzalloc(sizeof(*group), GFP_KERNEL);
+	group = kzalloc_obj(*group);
 	if (!group)
 		return -ENOMEM;
 

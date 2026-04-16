@@ -358,7 +358,7 @@ static int fq_init(struct fq *fq, int flows_cnt)
 	fq->limit = 8192;
 	fq->memory_limit = 16 << 20; /* 16 MBytes */
 
-	fq->flows = kvcalloc(fq->flows_cnt, sizeof(fq->flows[0]), GFP_KERNEL);
+	fq->flows = kvzalloc_objs(fq->flows[0], fq->flows_cnt);
 	if (!fq->flows)
 		return -ENOMEM;
 

@@ -1740,7 +1740,7 @@ static int regulator_event_forward_notifier(struct notifier_block *nb,
 		return NOTIFY_DONE;
 	}
 
-	rew = kmalloc(sizeof(*rew), GFP_ATOMIC);
+	rew = kmalloc_obj(*rew, GFP_ATOMIC);
 	if (!rew)
 		return NOTIFY_DONE;
 
@@ -1855,7 +1855,7 @@ static int set_consumer_device_supply(struct regulator_dev *rdev,
 	else
 		has_dev = 0;
 
-	new_node = kzalloc(sizeof(struct regulator_map), GFP_KERNEL);
+	new_node = kzalloc_obj(struct regulator_map);
 	if (new_node == NULL)
 		return -ENOMEM;
 
@@ -1965,8 +1965,6 @@ static const struct file_operations constraint_flags_fops = {
 #endif
 };
 
-#define REG_STR_SIZE	64
-
 static void link_and_create_debugfs(struct regulator *regulator, struct regulator_dev *rdev,
 				    struct device *dev)
 {
@@ -2014,15 +2012,7 @@ static struct regulator *create_regulator(struct regulator_dev *rdev,
 	lockdep_assert_held_once(&rdev->mutex.base);
 
 	if (dev) {
-		char buf[REG_STR_SIZE];
-		int size;
-
-		size = snprintf(buf, REG_STR_SIZE, "%s-%s",
-				dev->kobj.name, supply_name);
-		if (size >= REG_STR_SIZE)
-			return NULL;
-
-		supply_name = kstrdup(buf, GFP_KERNEL);
+		supply_name = kasprintf(GFP_KERNEL, "%s-%s", dev->kobj.name, supply_name);
 		if (supply_name == NULL)
 			return NULL;
 	} else {
@@ -2031,7 +2021,7 @@ static struct regulator *create_regulator(struct regulator_dev *rdev,
 			return NULL;
 	}
 
-	regulator = kzalloc(sizeof(*regulator), GFP_KERNEL);
+	regulator = kzalloc_obj(*regulator);
 	if (regulator == NULL) {
 		kfree_const(supply_name);
 		return NULL;
@@ -2711,7 +2701,7 @@ int regulator_register_supply_alias(struct device *dev, const char *id,
 	struct regulator_supply_alias *map;
 	struct regulator_supply_alias *new_map;
 
-	new_map = kzalloc(sizeof(struct regulator_supply_alias), GFP_KERNEL);
+	new_map = kzalloc_obj(struct regulator_supply_alias);
 	if (!new_map)
 		return -ENOMEM;
 
@@ -2835,7 +2825,7 @@ static int regulator_ena_gpio_request(struct regulator_dev *rdev,
 	struct gpio_desc *gpiod;
 
 	gpiod = config->ena_gpiod;
-	new_pin = kzalloc(sizeof(*new_pin), GFP_KERNEL);
+	new_pin = kzalloc_obj(*new_pin);
 
 	mutex_lock(&regulator_list_mutex);
 
@@ -5923,7 +5913,7 @@ static int regulator_init_coupling(struct regulator_dev *rdev)
 	else
 		n_phandles = of_get_n_coupled(rdev);
 
-	coupled = kcalloc(n_phandles + 1, sizeof(*coupled), GFP_KERNEL);
+	coupled = kzalloc_objs(*coupled, n_phandles + 1);
 	if (!coupled)
 		return -ENOMEM;
 
@@ -6044,7 +6034,7 @@ regulator_register(struct device *dev,
 		goto rinse;
 	}
 
-	rdev = kzalloc(sizeof(struct regulator_dev), GFP_KERNEL);
+	rdev = kzalloc_obj(struct regulator_dev);
 	if (rdev == NULL) {
 		ret = -ENOMEM;
 		goto rinse;
@@ -6127,8 +6117,7 @@ regulator_register(struct device *dev,
 					    sizeof(*rdev->constraints),
 					    GFP_KERNEL);
 	else
-		rdev->constraints = kzalloc(sizeof(*rdev->constraints),
-					    GFP_KERNEL);
+		rdev->constraints = kzalloc_obj(*rdev->constraints);
 	if (!rdev->constraints) {
 		ret = -ENOMEM;
 		goto wash;

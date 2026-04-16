@@ -149,7 +149,7 @@ static int hopper_pci_probe(struct pci_dev *pdev,
 	struct mantis_hwconfig *config;
 	int err;
 
-	mantis = kzalloc(sizeof(*mantis), GFP_KERNEL);
+	mantis = kzalloc_obj(*mantis);
 	if (!mantis) {
 		err = -ENOMEM;
 		goto fail0;

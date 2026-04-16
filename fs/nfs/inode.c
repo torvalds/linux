@@ -383,7 +383,7 @@ struct nfs4_label *nfs4_label_alloc(struct nfs_server *server, gfp_t flags)
 	if (!(server->caps & NFS_CAP_SECURITY_LABEL))
 		return NULL;
 
-	label = kzalloc(sizeof(struct nfs4_label), flags);
+	label = kzalloc_obj(struct nfs4_label, flags);
 	if (label == NULL)
 		return ERR_PTR(-ENOMEM);
 
@@ -1131,7 +1131,7 @@ struct nfs_lock_context *nfs_get_lock_context(struct nfs_open_context *ctx)
 	res = __nfs_find_lock_context(ctx);
 	rcu_read_unlock();
 	if (res == NULL) {
-		new = kmalloc(sizeof(*new), GFP_KERNEL_ACCOUNT);
+		new = kmalloc_obj(*new, GFP_KERNEL_ACCOUNT);
 		if (new == NULL)
 			return ERR_PTR(-ENOMEM);
 		nfs_init_lock_context(new);
@@ -1209,7 +1209,7 @@ struct nfs_open_context *alloc_nfs_open_context(struct dentry *dentry,
 {
 	struct nfs_open_context *ctx;
 
-	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL_ACCOUNT);
+	ctx = kmalloc_obj(*ctx, GFP_KERNEL_ACCOUNT);
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 	nfs_sb_active(dentry->d_sb);
@@ -1777,7 +1777,7 @@ struct nfs_fattr *nfs_alloc_fattr(void)
 {
 	struct nfs_fattr *fattr;
 
-	fattr = kmalloc(sizeof(*fattr), GFP_KERNEL);
+	fattr = kmalloc_obj(*fattr);
 	if (fattr != NULL) {
 		nfs_fattr_init(fattr);
 		fattr->label = NULL;
@@ -1807,7 +1807,7 @@ struct nfs_fh *nfs_alloc_fhandle(void)
 {
 	struct nfs_fh *fh;
 
-	fh = kmalloc(sizeof(struct nfs_fh), GFP_KERNEL);
+	fh = kmalloc_obj(struct nfs_fh);
 	if (fh != NULL)
 		fh->size = 0;
 	return fh;
@@ -2015,7 +2015,7 @@ static void nfs_ooo_merge(struct nfs_inode *nfsi,
 		return;
 
 	if (!nfsi->ooo) {
-		nfsi->ooo = kmalloc(sizeof(*nfsi->ooo), GFP_ATOMIC);
+		nfsi->ooo = kmalloc_obj(*nfsi->ooo, GFP_ATOMIC);
 		if (!nfsi->ooo) {
 			nfsi->cache_validity |= NFS_INO_DATA_INVAL_DEFER;
 			return;

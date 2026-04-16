@@ -203,7 +203,7 @@ static struct cphy *mv88x201x_phy_create(struct net_device *dev, int phy_addr,
 					 const struct mdio_ops *mdio_ops)
 {
 	u32 val;
-	struct cphy *cphy = kzalloc(sizeof(*cphy), GFP_KERNEL);
+	struct cphy *cphy = kzalloc_obj(*cphy);
 
 	if (!cphy)
 		return NULL;

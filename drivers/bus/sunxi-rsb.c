@@ -205,7 +205,7 @@ static struct sunxi_rsb_device *sunxi_rsb_device_create(struct sunxi_rsb *rsb,
 	int err;
 	struct sunxi_rsb_device *rdev;
 
-	rdev = kzalloc(sizeof(*rdev), GFP_KERNEL);
+	rdev = kzalloc_obj(*rdev);
 	if (!rdev)
 		return ERR_PTR(-ENOMEM);
 
@@ -477,7 +477,7 @@ static struct sunxi_rsb_ctx *regmap_sunxi_rsb_init_ctx(struct sunxi_rsb_device *
 		return ERR_PTR(-EINVAL);
 	}
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 

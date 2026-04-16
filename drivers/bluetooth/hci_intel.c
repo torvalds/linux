@@ -384,7 +384,7 @@ static int intel_open(struct hci_uart *hu)
 	if (!hci_uart_has_flow_control(hu))
 		return -EOPNOTSUPP;
 
-	intel = kzalloc(sizeof(*intel), GFP_KERNEL);
+	intel = kzalloc_obj(*intel);
 	if (!intel)
 		return -ENOMEM;
 

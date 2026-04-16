@@ -185,7 +185,7 @@ static int scoop_probe(struct platform_device *pdev)
 	if (!mem)
 		return -EINVAL;
 
-	devptr = kzalloc(sizeof(struct scoop_dev), GFP_KERNEL);
+	devptr = kzalloc_obj(struct scoop_dev);
 	if (!devptr)
 		return -ENOMEM;
 

@@ -255,7 +255,7 @@ static void init_amd_l3_attrs(void)
 	if (amd_nb_has_feature(AMD_NB_L3_PARTITIONING))
 		n += 1;
 
-	amd_l3_attrs = kcalloc(n, sizeof(*amd_l3_attrs), GFP_KERNEL);
+	amd_l3_attrs = kzalloc_objs(*amd_l3_attrs, n);
 	if (!amd_l3_attrs)
 		return;
 

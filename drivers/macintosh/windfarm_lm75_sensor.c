@@ -130,7 +130,7 @@ static int wf_lm75_probe(struct i2c_client *client)
 		return -ENXIO;
  	
 
-	lm = kzalloc(sizeof(struct wf_lm75_sensor), GFP_KERNEL);
+	lm = kzalloc_obj(struct wf_lm75_sensor);
 	if (lm == NULL)
 		return -ENODEV;
 

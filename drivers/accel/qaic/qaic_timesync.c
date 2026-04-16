@@ -185,7 +185,7 @@ static int qaic_timesync_probe(struct mhi_device *mhi_dev, const struct mhi_devi
 	struct timer_list *timer;
 	int ret;
 
-	mqtsdev = kzalloc(sizeof(*mqtsdev), GFP_KERNEL);
+	mqtsdev = kzalloc_obj(*mqtsdev);
 	if (!mqtsdev) {
 		ret = -ENOMEM;
 		goto out;
@@ -196,7 +196,7 @@ static int qaic_timesync_probe(struct mhi_device *mhi_dev, const struct mhi_devi
 	mqtsdev->qdev = qdev;
 	mqtsdev->dev = &qdev->pdev->dev;
 
-	mqtsdev->sync_msg = kzalloc(sizeof(*mqtsdev->sync_msg), GFP_KERNEL);
+	mqtsdev->sync_msg = kzalloc_obj(*mqtsdev->sync_msg);
 	if (!mqtsdev->sync_msg) {
 		ret = -ENOMEM;
 		goto free_mqts_dev;
@@ -275,7 +275,7 @@ static void qaic_boot_timesync_worker(struct work_struct *work)
 
 	switch (data.hdr.msg_type) {
 	case QAIC_TS_CMD_TO_HOST:
-		req = kzalloc(sizeof(*req), GFP_KERNEL);
+		req = kzalloc_obj(*req);
 		if (!req)
 			break;
 
@@ -304,7 +304,7 @@ static int qaic_boot_timesync_queue_resp(struct mhi_device *mhi_dev, struct qaic
 	struct qts_resp *resp;
 	int ret;
 
-	resp = kzalloc(sizeof(*resp), GFP_KERNEL);
+	resp = kzalloc_obj(*resp);
 	if (!resp)
 		return -ENOMEM;
 

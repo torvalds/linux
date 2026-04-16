@@ -214,7 +214,7 @@ static int gpio_mdio_probe(struct platform_device *ofdev)
 	int err;
 
 	err = -ENOMEM;
-	priv = kzalloc(sizeof(struct gpio_priv), GFP_KERNEL);
+	priv = kzalloc_obj(struct gpio_priv);
 	if (!priv)
 		goto out;
 

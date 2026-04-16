@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 .. _pgpguide:
 
 ===========================
@@ -864,7 +866,7 @@ don't already have them)::
 If you have a kernel.org account, then you should `add the kernel.org
 UID to your key`_ to make WKD more useful to other kernel developers.
 
-.. _`add the kernel.org UID to your key`: https://korg.wiki.kernel.org/userdoc/mail#adding_a_kernelorg_uid_to_your_pgp_key
+.. _`add the kernel.org UID to your key`: https://korg.docs.kernel.org/mail.html#adding-a-kernel-org-uid-to-your-pgp-key
 
 Web of Trust (WOT) vs. Trust on First Use (TOFU)
 ------------------------------------------------

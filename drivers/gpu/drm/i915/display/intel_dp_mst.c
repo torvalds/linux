@@ -1765,7 +1765,7 @@ mst_stream_encoder_create(struct intel_digital_port *dig_port, enum pipe pipe)
 	struct intel_dp_mst_encoder *intel_mst;
 	struct intel_encoder *encoder;
 
-	intel_mst = kzalloc(sizeof(*intel_mst), GFP_KERNEL);
+	intel_mst = kzalloc_obj(*intel_mst);
 
 	if (!intel_mst)
 		return NULL;

@@ -425,7 +425,7 @@ static int uwire_setup(struct spi_device *spi)
 	int status;
 
 	if (ust == NULL) {
-		ust = kzalloc(sizeof(*ust), GFP_KERNEL);
+		ust = kzalloc_obj(*ust);
 		if (ust == NULL)
 			return -ENOMEM;
 		spi->controller_state = ust;

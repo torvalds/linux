@@ -224,14 +224,14 @@ static struct fpga_inode *append_internal(struct fpga_internal *internal)
 	struct fpga_inode *new_node = fpga_first_inode;
 
 	if (new_node == NULL) {
-		new_node = kmalloc(sizeof(struct fpga_inode), GFP_KERNEL);
+		new_node = kmalloc_obj(struct fpga_inode);
 		fpga_first_inode = new_node;
 	} else {
 		while (new_node->next_inode != NULL)
 			new_node = new_node->next_inode;
 
 		new_node->next_inode =
-				kmalloc(sizeof(struct fpga_inode), GFP_KERNEL);
+				kmalloc_obj(struct fpga_inode);
 		if (new_node->next_inode != NULL)
 			new_node = new_node->next_inode;
 		else
@@ -634,7 +634,7 @@ static int altera_hw_filt_init(struct altera_ci_config *config, int hw_filt_nr)
 	struct fpga_internal *inter = NULL;
 	int ret = 0;
 
-	pid_filt = kzalloc(sizeof(struct netup_hw_pid_filter), GFP_KERNEL);
+	pid_filt = kzalloc_obj(struct netup_hw_pid_filter);
 
 	ci_dbg_print("%s\n", __func__);
 
@@ -648,7 +648,7 @@ static int altera_hw_filt_init(struct altera_ci_config *config, int hw_filt_nr)
 		(inter->filts_used)++;
 		ci_dbg_print("%s: Find Internal Structure!\n", __func__);
 	} else {
-		inter = kzalloc(sizeof(struct fpga_internal), GFP_KERNEL);
+		inter = kzalloc_obj(struct fpga_internal);
 		if (!inter) {
 			ret = -ENOMEM;
 			goto err;
@@ -706,7 +706,7 @@ int altera_ci_init(struct altera_ci_config *config, int ci_nr)
 	int ret = 0;
 	u8 store = 0;
 
-	state = kzalloc(sizeof(struct altera_ci_state), GFP_KERNEL);
+	state = kzalloc_obj(struct altera_ci_state);
 
 	ci_dbg_print("%s\n", __func__);
 
@@ -721,7 +721,7 @@ int altera_ci_init(struct altera_ci_config *config, int ci_nr)
 		inter->fpga_rw = config->fpga_rw;
 		ci_dbg_print("%s: Find Internal Structure!\n", __func__);
 	} else {
-		inter = kzalloc(sizeof(struct fpga_internal), GFP_KERNEL);
+		inter = kzalloc_obj(struct fpga_internal);
 		if (!inter) {
 			ret = -ENOMEM;
 			goto err;

@@ -26,7 +26,7 @@ static struct nvmf_host *nvmf_host_alloc(const char *hostnqn, uuid_t *id)
 {
 	struct nvmf_host *host;
 
-	host = kmalloc(sizeof(*host), GFP_KERNEL);
+	host = kmalloc_obj(*host);
 	if (!host)
 		return NULL;
 
@@ -396,7 +396,7 @@ static struct nvmf_connect_data *nvmf_connect_data_prep(struct nvme_ctrl *ctrl,
 {
 	struct nvmf_connect_data *data;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return NULL;
 
@@ -1290,8 +1290,8 @@ void nvmf_free_options(struct nvmf_ctrl_options *opts)
 	kfree(opts->subsysnqn);
 	kfree(opts->host_traddr);
 	kfree(opts->host_iface);
-	kfree(opts->dhchap_secret);
-	kfree(opts->dhchap_ctrl_secret);
+	kfree_sensitive(opts->dhchap_secret);
+	kfree_sensitive(opts->dhchap_ctrl_secret);
 	kfree(opts);
 }
 EXPORT_SYMBOL_GPL(nvmf_free_options);
@@ -1312,7 +1312,7 @@ nvmf_create_ctrl(struct device *dev, const char *buf)
 	struct nvme_ctrl *ctrl;
 	int ret;
 
-	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
+	opts = kzalloc_obj(*opts);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
 

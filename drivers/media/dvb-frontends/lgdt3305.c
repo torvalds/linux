@@ -1103,7 +1103,7 @@ struct dvb_frontend *lgdt3305_attach(const struct lgdt3305_config *config,
 	       i2c_adap ? i2c_adapter_id(i2c_adap) : 0,
 	       config ? config->i2c_addr : 0);
 
-	state = kzalloc(sizeof(struct lgdt3305_state), GFP_KERNEL);
+	state = kzalloc_obj(struct lgdt3305_state);
 	if (state == NULL)
 		goto fail;
 

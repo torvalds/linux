@@ -359,7 +359,7 @@ static int smbus_cmi_probe(struct platform_device *device)
 	struct acpi_smbus_cmi *smbus_cmi;
 	int ret;
 
-	smbus_cmi = kzalloc(sizeof(struct acpi_smbus_cmi), GFP_KERNEL);
+	smbus_cmi = kzalloc_obj(struct acpi_smbus_cmi);
 	if (!smbus_cmi)
 		return -ENOMEM;
 

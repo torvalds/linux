@@ -174,8 +174,7 @@ int ipc_task_init(struct ipc_task *ipc_task)
 {
 	struct ipc_task_queue *ipc_queue = &ipc_task->ipc_queue;
 
-	ipc_task->ipc_tasklet = kzalloc(sizeof(*ipc_task->ipc_tasklet),
-					GFP_KERNEL);
+	ipc_task->ipc_tasklet = kzalloc_obj(*ipc_task->ipc_tasklet);
 
 	if (!ipc_task->ipc_tasklet)
 		return -ENOMEM;

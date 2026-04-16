@@ -76,7 +76,7 @@ static const char * const pdm_clk_groups[] = { "gpio18" };
 static const char * const pdm_rx_groups[] = { "gpio21", "gpio23", "gpio25" };
 static const char * const pdm_sync_groups[] = { "gpio19" };
 
-const struct lpi_pingroup sdm660_lpi_pinctrl_groups[] = {
+static const struct lpi_pingroup sdm660_lpi_pinctrl_groups[] = {
 	LPI_PINGROUP_OFFSET(0, LPI_NO_SLEW, _, _, _, _, 0x0000),
 	LPI_PINGROUP_OFFSET(1, LPI_NO_SLEW, _, _, _, _, 0x1000),
 	LPI_PINGROUP_OFFSET(2, LPI_NO_SLEW, _, _, _, _, 0x2000),
@@ -113,7 +113,7 @@ const struct lpi_pingroup sdm660_lpi_pinctrl_groups[] = {
 	LPI_PINGROUP_OFFSET(31, LPI_NO_SLEW, _, _, _, _, 0xb010),
 };
 
-const struct lpi_function sdm660_lpi_pinctrl_functions[] = {
+static const struct lpi_function sdm660_lpi_pinctrl_functions[] = {
 	LPI_FUNCTION(comp_rx),
 	LPI_FUNCTION(dmic1_clk),
 	LPI_FUNCTION(dmic1_data),

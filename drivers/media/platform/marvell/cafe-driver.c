@@ -327,7 +327,7 @@ static int cafe_smbus_setup(struct cafe_camera *cam)
 	struct i2c_adapter *adap;
 	int ret;
 
-	adap = kzalloc(sizeof(*adap), GFP_KERNEL);
+	adap = kzalloc_obj(*adap);
 	if (adap == NULL)
 		return -ENOMEM;
 	adap->owner = THIS_MODULE;
@@ -485,7 +485,7 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	 * Start putting together one of our big camera structures.
 	 */
 	ret = -ENOMEM;
-	cam = kzalloc(sizeof(struct cafe_camera), GFP_KERNEL);
+	cam = kzalloc_obj(struct cafe_camera);
 	if (cam == NULL)
 		goto out;
 	pci_set_drvdata(pdev, cam);

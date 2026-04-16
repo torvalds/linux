@@ -115,7 +115,7 @@ static inline aa_state_t match_component(struct aa_profile *profile,
  * @label: label to check access permissions for
  * @stack: whether this is a stacking request
  * @state: state to start match in
- * @subns: whether to do permission checks on components in a subns
+ * @inview: whether to match labels in view or only in scope
  * @request: permissions to request
  * @perms: perms struct to set
  *
@@ -127,7 +127,7 @@ static inline aa_state_t match_component(struct aa_profile *profile,
  */
 static int label_compound_match(struct aa_profile *profile,
 				struct aa_label *label, bool stack,
-				aa_state_t state, bool subns, u32 request,
+				aa_state_t state, bool inview, u32 request,
 				struct aa_perms *perms)
 {
 	struct aa_ruleset *rules = profile->label.rules[0];
@@ -135,9 +135,9 @@ static int label_compound_match(struct aa_profile *profile,
 	struct label_it i;
 	struct path_cond cond = { };
 
-	/* find first subcomponent that is visible */
+	/* find first subcomponent that is in view and going to be interated with */
 	label_for_each(i, label, tp) {
-		if (!aa_ns_visible(profile->ns, tp->ns, subns))
+		if (!aa_ns_visible(profile->ns, tp->ns, inview))
 			continue;
 		state = match_component(profile, tp, stack, state);
 		if (!state)
@@ -151,7 +151,7 @@ static int label_compound_match(struct aa_profile *profile,
 
 next:
 	label_for_each_cont(i, label, tp) {
-		if (!aa_ns_visible(profile->ns, tp->ns, subns))
+		if (!aa_ns_visible(profile->ns, tp->ns, inview))
 			continue;
 		state = aa_dfa_match(rules->file->dfa, state, "//&");
 		state = match_component(profile, tp, false, state);
@@ -177,7 +177,7 @@ fail:
  * @label: label to check access permissions for
  * @stack: whether this is a stacking request
  * @start: state to start match in
- * @subns: whether to do permission checks on components in a subns
+ * @inview: whether to match labels in view or only in scope
  * @request: permissions to request
  * @perms: an initialized perms struct to add accumulation to
  *
@@ -189,7 +189,7 @@ fail:
  */
 static int label_components_match(struct aa_profile *profile,
 				  struct aa_label *label, bool stack,
-				  aa_state_t start, bool subns, u32 request,
+				  aa_state_t start, bool inview, u32 request,
 				  struct aa_perms *perms)
 {
 	struct aa_ruleset *rules = profile->label.rules[0];
@@ -201,7 +201,7 @@ static int label_components_match(struct aa_profile *profile,
 
 	/* find first subcomponent to test */
 	label_for_each(i, label, tp) {
-		if (!aa_ns_visible(profile->ns, tp->ns, subns))
+		if (!aa_ns_visible(profile->ns, tp->ns, inview))
 			continue;
 		state = match_component(profile, tp, stack, start);
 		if (!state)
@@ -218,7 +218,7 @@ next:
 	aa_apply_modes_to_perms(profile, &tmp);
 	aa_perms_accum(perms, &tmp);
 	label_for_each_cont(i, label, tp) {
-		if (!aa_ns_visible(profile->ns, tp->ns, subns))
+		if (!aa_ns_visible(profile->ns, tp->ns, inview))
 			continue;
 		state = match_component(profile, tp, stack, start);
 		if (!state)
@@ -245,26 +245,26 @@ fail:
  * @label: label to match (NOT NULL)
  * @stack: whether this is a stacking request
  * @state: state to start in
- * @subns: whether to match subns components
+ * @inview: whether to match labels in view or only in scope
  * @request: permission request
  * @perms: Returns computed perms (NOT NULL)
  *
  * Returns: the state the match finished in, may be the none matching state
  */
 static int label_match(struct aa_profile *profile, struct aa_label *label,
-		       bool stack, aa_state_t state, bool subns, u32 request,
+		       bool stack, aa_state_t state, bool inview, u32 request,
 		       struct aa_perms *perms)
 {
 	int error;
 
 	*perms = nullperms;
-	error = label_compound_match(profile, label, stack, state, subns,
+	error = label_compound_match(profile, label, stack, state, inview,
 				     request, perms);
 	if (!error)
 		return error;
 
 	*perms = allperms;
-	return label_components_match(profile, label, stack, state, subns,
+	return label_components_match(profile, label, stack, state, inview,
 				      request, perms);
 }
 
@@ -529,7 +529,7 @@ struct aa_label *x_table_lookup(struct aa_profile *profile, u32 xindex,
 	/* TODO: move lookup parsing to unpack time so this is a straight
 	 *       index into the resultant label
 	 */
-	for (next = rules->file->trans.table[index]; next;
+	for (next = rules->file->trans.table[index].strs; next;
 	     next = next_name(xtype, next)) {
 		const char *lookup = (*next == '&') ? next + 1 : next;
 		*name = next;
@@ -880,14 +880,16 @@ static struct aa_label *handle_onexec(const struct cred *subj_cred,
 	AA_BUG(!bprm);
 	AA_BUG(!buffer);
 
-	/* TODO: determine how much we want to loosen this */
-	error = fn_for_each_in_ns(label, profile,
+	/* TODO: determine how much we want to loosen this
+	 * only check profiles in scope for permission to change at exec
+	 */
+	error = fn_for_each_in_scope(label, profile,
 			profile_onexec(subj_cred, profile, onexec, stack,
 				       bprm, buffer, cond, unsafe));
 	if (error)
 		return ERR_PTR(error);
 
-	new = fn_label_build_in_ns(label, profile, GFP_KERNEL,
+	new = fn_label_build_in_scope(label, profile, GFP_KERNEL,
 			stack ? aa_label_merge(&profile->label, onexec,
 					       GFP_KERNEL)
 			      : aa_get_newest_label(onexec),
@@ -897,7 +899,7 @@ static struct aa_label *handle_onexec(const struct cred *subj_cred,
 		return new;
 
 	/* TODO: get rid of GLOBAL_ROOT_UID */
-	error = fn_for_each_in_ns(label, profile,
+	error = fn_for_each_in_scope(label, profile,
 			aa_audit_file(subj_cred, profile, &nullperms,
 				      OP_CHANGE_ONEXEC,
 				      AA_MAY_ONEXEC, bprm->filename, NULL,
@@ -1123,7 +1125,7 @@ static struct aa_label *change_hat(const struct cred *subj_cred,
 	/*find first matching hat */
 	for (i = 0; i < count && !hat; i++) {
 		name = hats[i];
-		label_for_each_in_ns(it, labels_ns(label), label, profile) {
+		label_for_each_in_scope(it, labels_ns(label), label, profile) {
 			if (sibling && PROFILE_IS_HAT(profile)) {
 				root = aa_get_profile_rcu(&profile->parent);
 			} else if (!sibling && !PROFILE_IS_HAT(profile)) {
@@ -1159,7 +1161,7 @@ outer_continue:
 	 * change_hat.
 	 */
 	name = NULL;
-	label_for_each_in_ns(it, labels_ns(label), label, profile) {
+	label_for_each_in_scope(it, labels_ns(label), label, profile) {
 		if (!list_empty(&profile->base.profiles)) {
 			info = "hat not found";
 			error = -ENOENT;
@@ -1170,7 +1172,7 @@ outer_continue:
 	error = -ECHILD;
 
 fail:
-	label_for_each_in_ns(it, labels_ns(label), label, profile) {
+	label_for_each_in_scope(it, labels_ns(label), label, profile) {
 		/*
 		 * no target as it has failed to be found or built
 		 *
@@ -1188,7 +1190,7 @@ fail:
 	return ERR_PTR(error);
 
 build:
-	new = fn_label_build_in_ns(label, profile, GFP_KERNEL,
+	new = fn_label_build_in_scope(label, profile, GFP_KERNEL,
 				   build_change_hat(subj_cred, profile, name,
 						    sibling),
 				   aa_get_label(&profile->label));
@@ -1251,7 +1253,7 @@ int aa_change_hat(const char *hats[], int count, u64 token, int flags)
 		bool empty = true;
 
 		rcu_read_lock();
-		label_for_each_in_ns(i, labels_ns(label), label, profile) {
+		label_for_each_in_scope(i, labels_ns(label), label, profile) {
 			empty &= list_empty(&profile->base.profiles);
 		}
 		rcu_read_unlock();
@@ -1338,7 +1340,7 @@ kill:
 	perms.kill = AA_MAY_CHANGEHAT;
 
 fail:
-	fn_for_each_in_ns(label, profile,
+	fn_for_each_in_scope(label, profile,
 		aa_audit_file(subj_cred, profile, &perms, OP_CHANGE_HAT,
 			      AA_MAY_CHANGEHAT, NULL, NULL, target,
 			      GLOBAL_ROOT_UID, info, error));
@@ -1446,7 +1448,7 @@ int aa_change_profile(const char *fqname, int flags)
 		 */
 		stack = true;
 		perms.audit = request;
-		(void) fn_for_each_in_ns(label, profile,
+		(void) fn_for_each_in_scope(label, profile,
 				aa_audit_file(subj_cred, profile, &perms, op,
 					      request, auditname, NULL, target,
 					      GLOBAL_ROOT_UID, stack_msg, 0));
@@ -1492,7 +1494,7 @@ int aa_change_profile(const char *fqname, int flags)
 	 *
 	 * if (!stack) {
 	 */
-	error = fn_for_each_in_ns(label, profile,
+	error = fn_for_each_in_scope(label, profile,
 			change_profile_perms_wrapper(op, auditname,
 						     subj_cred,
 						     profile, target, stack,
@@ -1506,7 +1508,7 @@ int aa_change_profile(const char *fqname, int flags)
 check:
 	/* check if tracing task is allowed to trace target domain */
 	error = may_change_ptraced_domain(subj_cred, target, &info);
-	if (error && !fn_for_each_in_ns(label, profile,
+	if (error && !fn_for_each_in_scope(label, profile,
 					COMPLAIN_MODE(profile)))
 		goto audit;
 
@@ -1522,7 +1524,7 @@ check:
 
 	/* stacking is always a subset, so only check the nonstack case */
 	if (!stack) {
-		new = fn_label_build_in_ns(label, profile, GFP_KERNEL,
+		new = fn_label_build_in_scope(label, profile, GFP_KERNEL,
 					   aa_get_label(target),
 					   aa_get_label(&profile->label));
 		/*
@@ -1565,7 +1567,7 @@ check:
 	}
 
 audit:
-	error = fn_for_each_in_ns(label, profile,
+	error = fn_for_each_in_scope(label, profile,
 			aa_audit_file(subj_cred,
 				      profile, &perms, op, request, auditname,
 				      NULL, new ? new : target,

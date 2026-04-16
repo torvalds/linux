@@ -334,7 +334,7 @@ static int ocfs2_info_handle_freeinode(struct inode *inode,
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	struct inode *inode_alloc = NULL;
 
-	oifi = kzalloc(sizeof(struct ocfs2_info_freeinode), GFP_KERNEL);
+	oifi = kzalloc_obj(struct ocfs2_info_freeinode);
 	if (!oifi) {
 		status = -ENOMEM;
 		mlog_errno(status);
@@ -620,7 +620,7 @@ static int ocfs2_info_handle_freefrag(struct inode *inode,
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	struct inode *gb_inode = NULL;
 
-	oiff = kzalloc(sizeof(struct ocfs2_info_freefrag), GFP_KERNEL);
+	oiff = kzalloc_obj(struct ocfs2_info_freefrag);
 	if (!oiff) {
 		status = -ENOMEM;
 		mlog_errno(status);

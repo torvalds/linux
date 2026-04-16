@@ -65,7 +65,7 @@ static void *squashfs_decompressor_create(struct squashfs_sb_info *msblk,
 	struct decomp_stream *decomp_strm = NULL;
 	int err = -ENOMEM;
 
-	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
+	stream = kzalloc_obj(*stream);
 	if (!stream)
 		goto out;
 
@@ -80,7 +80,7 @@ static void *squashfs_decompressor_create(struct squashfs_sb_info *msblk,
 	 * we could always fall back to default decompressor and
 	 * file system works.
 	 */
-	decomp_strm = kmalloc(sizeof(*decomp_strm), GFP_KERNEL);
+	decomp_strm = kmalloc_obj(*decomp_strm);
 	if (!decomp_strm)
 		goto out;
 
@@ -148,7 +148,7 @@ static struct decomp_stream *get_decomp_stream(struct squashfs_sb_info *msblk,
 			goto wait;
 
 		/* Let's allocate new decomp */
-		decomp_strm = kmalloc(sizeof(*decomp_strm), GFP_KERNEL);
+		decomp_strm = kmalloc_obj(*decomp_strm);
 		if (!decomp_strm)
 			goto wait;
 

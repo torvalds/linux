@@ -921,7 +921,7 @@ static void _dp_ctrl_calc_tu(struct msm_dp_ctrl_private *ctrl,
 	uint EXTRA_PIXCLK_CYCLE_DELAY = 4;
 	uint HBLANK_MARGIN = 4;
 
-	tu = kzalloc(sizeof(*tu), GFP_KERNEL);
+	tu = kzalloc_obj(*tu);
 	if (!tu)
 		return;
 

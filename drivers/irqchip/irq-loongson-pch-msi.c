@@ -177,7 +177,7 @@ static int pch_msi_init(phys_addr_t msg_address, int irq_base, int irq_count,
 	int ret;
 	struct pch_msi_data *priv;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

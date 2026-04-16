@@ -336,7 +336,7 @@ static void del_cxl_resource(struct resource *res)
 static struct resource *alloc_cxl_resource(resource_size_t base,
 					   resource_size_t n, int id)
 {
-	struct resource *res __free(kfree) = kzalloc(sizeof(*res), GFP_KERNEL);
+	struct resource *res __free(kfree) = kzalloc_obj(*res);
 
 	if (!res)
 		return NULL;
@@ -825,7 +825,7 @@ static int add_cxl_resources(struct resource *cxl_res)
 	struct resource *res, *new, *next;
 
 	for (res = cxl_res->child; res; res = next) {
-		new = kzalloc(sizeof(*new), GFP_KERNEL);
+		new = kzalloc_obj(*new);
 		if (!new)
 			return -ENOMEM;
 		new->name = res->name;

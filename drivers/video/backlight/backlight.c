@@ -371,7 +371,7 @@ struct backlight_device *backlight_device_register(const char *name,
 
 	pr_debug("backlight_device_register: name=%s\n", name);
 
-	new_bd = kzalloc(sizeof(struct backlight_device), GFP_KERNEL);
+	new_bd = kzalloc_obj(struct backlight_device);
 	if (!new_bd)
 		return ERR_PTR(-ENOMEM);
 

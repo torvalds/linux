@@ -636,7 +636,7 @@ static int acpi_sbs_probe(struct platform_device *pdev)
 	int result = 0;
 	int id;
 
-	sbs = kzalloc(sizeof(struct acpi_sbs), GFP_KERNEL);
+	sbs = kzalloc_obj(struct acpi_sbs);
 	if (!sbs) {
 		result = -ENOMEM;
 		goto end;

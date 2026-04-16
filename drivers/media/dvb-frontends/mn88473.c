@@ -626,7 +626,7 @@ static int mn88473_probe(struct i2c_client *client)
 		goto err;
 	}
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (dev == NULL) {
 		ret = -ENOMEM;
 		goto err;

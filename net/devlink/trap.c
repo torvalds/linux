@@ -1271,7 +1271,7 @@ devlink_trap_register(struct devlink *devlink,
 	if (devlink_trap_item_lookup(devlink, trap->name))
 		return -EEXIST;
 
-	trap_item = kzalloc(sizeof(*trap_item), GFP_KERNEL);
+	trap_item = kzalloc_obj(*trap_item);
 	if (!trap_item)
 		return -ENOMEM;
 
@@ -1545,7 +1545,7 @@ devlink_trap_group_register(struct devlink *devlink,
 	if (devlink_trap_group_item_lookup(devlink, group->name))
 		return -EEXIST;
 
-	group_item = kzalloc(sizeof(*group_item), GFP_KERNEL);
+	group_item = kzalloc_obj(*group_item);
 	if (!group_item)
 		return -ENOMEM;
 
@@ -1751,7 +1751,7 @@ devlink_trap_policer_register(struct devlink *devlink,
 	if (devlink_trap_policer_item_lookup(devlink, policer->id))
 		return -EEXIST;
 
-	policer_item = kzalloc(sizeof(*policer_item), GFP_KERNEL);
+	policer_item = kzalloc_obj(*policer_item);
 	if (!policer_item)
 		return -ENOMEM;
 

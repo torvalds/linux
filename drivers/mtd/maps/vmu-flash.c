@@ -73,7 +73,7 @@ static struct vmu_block *ofs_to_block(unsigned long src_ofs,
 	if (num > card->parts[partition].numblocks)
 		goto failed;
 
-	vblock = kmalloc(sizeof(struct vmu_block), GFP_KERNEL);
+	vblock = kmalloc_obj(struct vmu_block);
 	if (!vblock)
 		goto failed;
 
@@ -539,7 +539,7 @@ static void vmu_queryblocks(struct mapleq *mq)
 	mtd_cur->_sync = vmu_flash_sync;
 	mtd_cur->writesize = card->blocklen;
 
-	mpart = kmalloc(sizeof(struct mdev_part), GFP_KERNEL);
+	mpart = kmalloc_obj(struct mdev_part);
 	if (!mpart)
 		goto fail_mpart;
 
@@ -548,7 +548,7 @@ static void vmu_queryblocks(struct mapleq *mq)
 	mtd_cur->priv = mpart;
 	mtd_cur->owner = THIS_MODULE;
 
-	pcache = kzalloc(sizeof(struct vmu_cache), GFP_KERNEL);
+	pcache = kzalloc_obj(struct vmu_cache);
 	if (!pcache)
 		goto fail_cache_create;
 	part_cur->pcache = pcache;
@@ -609,7 +609,7 @@ static int vmu_connect(struct maple_device *mdev)
 
 	basic_flash_data = be32_to_cpu(mdev->devinfo.function_data[c - 1]);
 
-	card = kmalloc(sizeof(struct memcard), GFP_KERNEL);
+	card = kmalloc_obj(struct memcard);
 	if (!card) {
 		error = -ENOMEM;
 		goto fail_nomem;
@@ -627,15 +627,13 @@ static int vmu_connect(struct maple_device *mdev)
 	* Not sure there are actually any multi-partition devices in the
 	* real world, but the hardware supports them, so, so will we
 	*/
-	card->parts = kmalloc_array(card->partitions, sizeof(struct vmupart),
-				    GFP_KERNEL);
+	card->parts = kmalloc_objs(struct vmupart, card->partitions);
 	if (!card->parts) {
 		error = -ENOMEM;
 		goto fail_partitions;
 	}
 
-	card->mtd = kmalloc_array(card->partitions, sizeof(struct mtd_info),
-				  GFP_KERNEL);
+	card->mtd = kmalloc_objs(struct mtd_info, card->partitions);
 	if (!card->mtd) {
 		error = -ENOMEM;
 		goto fail_mtd_info;

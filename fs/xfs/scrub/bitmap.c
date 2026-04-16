@@ -87,8 +87,8 @@ xbitmap64_clear(
 			xbitmap64_tree_insert(bn, &bitmap->xb_root);
 
 			/* add an extent */
-			new_bn = kmalloc(sizeof(struct xbitmap64_node),
-					XCHK_GFP_FLAGS);
+			new_bn = kmalloc_obj(struct xbitmap64_node,
+					     XCHK_GFP_FLAGS);
 			if (!new_bn)
 				return -ENOMEM;
 			new_bn->bn_start = last + 1;
@@ -164,7 +164,7 @@ xbitmap64_set(
 		xbitmap64_tree_insert(right, &bitmap->xb_root);
 	} else {
 		/* add an extent */
-		left = kmalloc(sizeof(struct xbitmap64_node), XCHK_GFP_FLAGS);
+		left = kmalloc_obj(struct xbitmap64_node, XCHK_GFP_FLAGS);
 		if (!left)
 			return -ENOMEM;
 		left->bn_start = start;
@@ -362,8 +362,8 @@ xbitmap32_clear(
 			xbitmap32_tree_insert(bn, &bitmap->xb_root);
 
 			/* add an extent */
-			new_bn = kmalloc(sizeof(struct xbitmap32_node),
-					XCHK_GFP_FLAGS);
+			new_bn = kmalloc_obj(struct xbitmap32_node,
+					     XCHK_GFP_FLAGS);
 			if (!new_bn)
 				return -ENOMEM;
 			new_bn->bn_start = last + 1;
@@ -439,7 +439,7 @@ xbitmap32_set(
 		xbitmap32_tree_insert(right, &bitmap->xb_root);
 	} else {
 		/* add an extent */
-		left = kmalloc(sizeof(struct xbitmap32_node), XCHK_GFP_FLAGS);
+		left = kmalloc_obj(struct xbitmap32_node, XCHK_GFP_FLAGS);
 		if (!left)
 			return -ENOMEM;
 		left->bn_start = start;

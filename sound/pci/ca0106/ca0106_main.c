@@ -543,7 +543,7 @@ static int snd_ca0106_pcm_open_playback_channel(struct snd_pcm_substream *substr
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
-	epcm = kzalloc(sizeof(*epcm), GFP_KERNEL);
+	epcm = kzalloc_obj(*epcm);
 
 	if (epcm == NULL)
 		return -ENOMEM;
@@ -638,7 +638,7 @@ static int snd_ca0106_pcm_open_capture_channel(struct snd_pcm_substream *substre
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
-	epcm = kzalloc(sizeof(*epcm), GFP_KERNEL);
+	epcm = kzalloc_obj(*epcm);
 	if (!epcm)
 		return -ENOMEM;
 

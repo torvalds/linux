@@ -1187,7 +1187,7 @@ static void igmpv3_add_delrec(struct in_device *in_dev, struct ip_mc_list *im,
 	 * for deleted items allows change reports to use common code with
 	 * non-deleted or query-response MCA's.
 	 */
-	pmc = kzalloc(sizeof(*pmc), gfp);
+	pmc = kzalloc_obj(*pmc, gfp);
 	if (!pmc)
 		return;
 	spin_lock_init(&pmc->lock);
@@ -1532,7 +1532,7 @@ static void ____ip_mc_inc_group(struct in_device *in_dev, __be32 addr,
 		goto out;
 	}
 
-	im = kzalloc(sizeof(*im), gfp);
+	im = kzalloc_obj(*im, gfp);
 	if (!im)
 		goto out;
 
@@ -2075,7 +2075,7 @@ static int ip_mc_add1_src(struct ip_mc_list *pmc, int sfmode,
 		psf_prev = psf;
 	}
 	if (!psf) {
-		psf = kzalloc(sizeof(*psf), GFP_ATOMIC);
+		psf = kzalloc_obj(*psf, GFP_ATOMIC);
 		if (!psf)
 			return -ENOBUFS;
 		psf->sf_inaddr = *psfsrc;
@@ -2150,7 +2150,7 @@ static int sf_setstate(struct ip_mc_list *pmc)
 				if (dpsf->sf_inaddr == psf->sf_inaddr)
 					break;
 			if (!dpsf) {
-				dpsf = kmalloc(sizeof(*dpsf), GFP_ATOMIC);
+				dpsf = kmalloc_obj(*dpsf, GFP_ATOMIC);
 				if (!dpsf)
 					continue;
 				*dpsf = *psf;

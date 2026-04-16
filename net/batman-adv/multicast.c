@@ -399,7 +399,7 @@ batadv_mcast_mla_meshif_get_ipv4(struct net_device *dev,
 		if (batadv_mcast_mla_is_duplicate(mcast_addr, mcast_list))
 			continue;
 
-		new = kmalloc(sizeof(*new), GFP_ATOMIC);
+		new = kmalloc_obj(*new, GFP_ATOMIC);
 		if (!new) {
 			ret = -ENOMEM;
 			break;
@@ -472,7 +472,7 @@ batadv_mcast_mla_meshif_get_ipv6(struct net_device *dev,
 		if (batadv_mcast_mla_is_duplicate(mcast_addr, mcast_list))
 			continue;
 
-		new = kmalloc(sizeof(*new), GFP_ATOMIC);
+		new = kmalloc_obj(*new, GFP_ATOMIC);
 		if (!new) {
 			ret = -ENOMEM;
 			break;
@@ -632,7 +632,7 @@ static int batadv_mcast_mla_bridge_get(struct net_device *dev,
 		if (batadv_mcast_mla_is_duplicate(mcast_addr, mcast_list))
 			continue;
 
-		new = kmalloc(sizeof(*new), GFP_ATOMIC);
+		new = kmalloc_obj(*new, GFP_ATOMIC);
 		if (!new) {
 			ret = -ENOMEM;
 			break;

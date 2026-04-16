@@ -1133,7 +1133,7 @@ static int q6pcm_routing_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
-	routing_data = kzalloc(sizeof(*routing_data), GFP_KERNEL);
+	routing_data = kzalloc_obj(*routing_data);
 	if (!routing_data)
 		return -ENOMEM;
 

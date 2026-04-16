@@ -46,7 +46,7 @@ static inline struct dfs_ref_walk *ref_walk_alloc(void)
 {
 	struct dfs_ref_walk *rw;
 
-	rw = kmalloc(sizeof(*rw), GFP_KERNEL);
+	rw = kmalloc_obj(*rw);
 	if (!rw)
 		return ERR_PTR(-ENOMEM);
 	return rw;

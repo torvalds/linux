@@ -735,7 +735,7 @@ static bool vga_arbiter_add_pci_device(struct pci_dev *pdev)
 	u16 cmd;
 
 	/* Allocate structure */
-	vgadev = kzalloc(sizeof(struct vga_device), GFP_KERNEL);
+	vgadev = kzalloc_obj(struct vga_device);
 	if (vgadev == NULL) {
 		vgaarb_err(&pdev->dev, "failed to allocate VGA arbiter data\n");
 		/*
@@ -1385,7 +1385,7 @@ static int vga_arb_open(struct inode *inode, struct file *file)
 
 	pr_debug("%s\n", __func__);
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (priv == NULL)
 		return -ENOMEM;
 	spin_lock_init(&priv->lock);

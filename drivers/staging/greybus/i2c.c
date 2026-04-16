@@ -235,7 +235,7 @@ static int gb_i2c_probe(struct gbphy_device *gbphy_dev,
 	struct i2c_adapter *adapter;
 	int ret;
 
-	gb_i2c_dev = kzalloc(sizeof(*gb_i2c_dev), GFP_KERNEL);
+	gb_i2c_dev = kzalloc_obj(*gb_i2c_dev);
 	if (!gb_i2c_dev)
 		return -ENOMEM;
 

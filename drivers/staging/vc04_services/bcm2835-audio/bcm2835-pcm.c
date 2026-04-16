@@ -108,7 +108,7 @@ static int snd_bcm2835_playback_open_generic(struct snd_pcm_substream *substream
 		goto out;
 	}
 
-	alsa_stream = kzalloc(sizeof(*alsa_stream), GFP_KERNEL);
+	alsa_stream = kzalloc_obj(*alsa_stream);
 	if (!alsa_stream) {
 		err = -ENOMEM;
 		goto out;

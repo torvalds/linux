@@ -669,8 +669,9 @@ static int __init alloc_mod_tags_mem(void)
 		return -ENOMEM;
 	}
 
-	vm_module_tags->pages = kmalloc_array(get_vm_area_size(vm_module_tags) >> PAGE_SHIFT,
-					sizeof(struct page *), GFP_KERNEL | __GFP_ZERO);
+	vm_module_tags->pages = kmalloc_objs(struct page *,
+					     get_vm_area_size(vm_module_tags) >> PAGE_SHIFT,
+					     GFP_KERNEL | __GFP_ZERO);
 	if (!vm_module_tags->pages) {
 		free_vm_area(vm_module_tags);
 		return -ENOMEM;

@@ -153,7 +153,7 @@ static struct io_sq_data *io_get_sq_data(struct io_uring_params *p,
 			return sqd;
 	}
 
-	sqd = kzalloc(sizeof(*sqd), GFP_KERNEL);
+	sqd = kzalloc_obj(*sqd);
 	if (!sqd)
 		return ERR_PTR(-ENOMEM);
 

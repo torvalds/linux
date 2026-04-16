@@ -468,7 +468,7 @@ static int ne_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct ne_pci_dev *ne_pci_dev = NULL;
 	int rc = -EINVAL;
 
-	ne_pci_dev = kzalloc(sizeof(*ne_pci_dev), GFP_KERNEL);
+	ne_pci_dev = kzalloc_obj(*ne_pci_dev);
 	if (!ne_pci_dev)
 		return -ENOMEM;
 

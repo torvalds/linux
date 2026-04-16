@@ -42,8 +42,6 @@
 
 #define XGMI_STATE_DISABLE                      0xD1
 #define XGMI_STATE_LS0                          0x81
-#define XGMI_LINK_ACTIVE			1
-#define XGMI_LINK_INACTIVE			0
 
 static DEFINE_MUTEX(xgmi_mutex);
 
@@ -365,9 +363,9 @@ int amdgpu_get_xgmi_link_status(struct amdgpu_device *adev, int global_link_num)
 		return -ENOLINK;
 
 	if ((xgmi_state_reg_val & 0xFF) == XGMI_STATE_LS0)
-		return XGMI_LINK_ACTIVE;
+		return AMDGPU_XGMI_LINK_ACTIVE;
 
-	return XGMI_LINK_INACTIVE;
+	return AMDGPU_XGMI_LINK_INACTIVE;
 }
 
 /**
@@ -692,7 +690,7 @@ struct amdgpu_hive_info *amdgpu_get_xgmi_hive(struct amdgpu_device *adev)
 			goto pro_end;
 	}
 
-	hive = kzalloc(sizeof(*hive), GFP_KERNEL);
+	hive = kzalloc_obj(*hive);
 	if (!hive) {
 		dev_err(adev->dev, "XGMI: allocation failed\n");
 		ret = -ENOMEM;
@@ -1176,7 +1174,7 @@ static int xgmi_v6_4_0_aca_bank_parser(struct aca_handle *handle, struct aca_ban
 
 	switch (type) {
 	case ACA_SMU_TYPE_UE:
-		if (ext_error_code != 0 && ext_error_code != 9)
+		if (ext_error_code != 0 && ext_error_code != 1 && ext_error_code != 9)
 			count = 0ULL;
 
 		bank->aca_err_type = ACA_ERROR_TYPE_UE;

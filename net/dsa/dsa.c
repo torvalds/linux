@@ -213,7 +213,7 @@ static struct dsa_switch_tree *dsa_tree_alloc(int index)
 {
 	struct dsa_switch_tree *dst;
 
-	dst = kzalloc(sizeof(*dst), GFP_KERNEL);
+	dst = kzalloc_obj(*dst);
 	if (!dst)
 		return NULL;
 
@@ -298,7 +298,7 @@ static struct dsa_link *dsa_link_touch(struct dsa_port *dp,
 		if (dl->dp == dp && dl->link_dp == link_dp)
 			return dl;
 
-	dl = kzalloc(sizeof(*dl), GFP_KERNEL);
+	dl = kzalloc_obj(*dl);
 	if (!dl)
 		return NULL;
 
@@ -844,7 +844,7 @@ static int dsa_tree_setup_lags(struct dsa_switch_tree *dst)
 	if (!len)
 		return 0;
 
-	dst->lags = kcalloc(len, sizeof(*dst->lags), GFP_KERNEL);
+	dst->lags = kzalloc_objs(*dst->lags, len);
 	if (!dst->lags)
 		return -ENOMEM;
 
@@ -1092,7 +1092,7 @@ static struct dsa_port *dsa_port_touch(struct dsa_switch *ds, int index)
 		if (dp->index == index)
 			return dp;
 
-	dp = kzalloc(sizeof(*dp), GFP_KERNEL);
+	dp = kzalloc_obj(*dp);
 	if (!dp)
 		return NULL;
 

@@ -41,7 +41,7 @@ struct mdio_device *mdio_device_create(struct mii_bus *bus, int addr)
 	struct mdio_device *mdiodev;
 
 	/* We allocate the device, and initialize the default values */
-	mdiodev = kzalloc(sizeof(*mdiodev), GFP_KERNEL);
+	mdiodev = kzalloc_obj(*mdiodev);
 	if (!mdiodev)
 		return ERR_PTR(-ENOMEM);
 

@@ -2555,7 +2555,7 @@ static void b43_request_firmware(struct work_struct *work)
 	int err;
 	const char *errmsg;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return;
 	ctx->dev = dev;
@@ -5494,7 +5494,7 @@ static int b43_one_core_attach(struct b43_bus_dev *dev, struct b43_wl *wl)
 	struct b43_wldev *wldev;
 	int err = -ENOMEM;
 
-	wldev = kzalloc(sizeof(*wldev), GFP_KERNEL);
+	wldev = kzalloc_obj(*wldev);
 	if (!wldev)
 		goto out;
 

@@ -740,7 +740,7 @@ struct kvm_pit *kvm_create_pit(struct kvm *kvm, u32 flags)
 	pid_t pid_nr;
 	int ret;
 
-	pit = kzalloc(sizeof(struct kvm_pit), GFP_KERNEL_ACCOUNT);
+	pit = kzalloc_obj(struct kvm_pit, GFP_KERNEL_ACCOUNT);
 	if (!pit)
 		return NULL;
 

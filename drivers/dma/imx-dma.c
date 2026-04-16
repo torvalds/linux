@@ -746,7 +746,7 @@ static int imxdma_alloc_chan_resources(struct dma_chan *chan)
 	while (imxdmac->descs_allocated < IMXDMA_MAX_CHAN_DESCRIPTORS) {
 		struct imxdma_desc *desc;
 
-		desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+		desc = kzalloc_obj(*desc);
 		if (!desc)
 			break;
 		dma_async_tx_descriptor_init(&desc->desc, chan);
@@ -865,8 +865,8 @@ static struct dma_async_tx_descriptor *imxdma_prep_dma_cyclic(
 
 	kfree(imxdmac->sg_list);
 
-	imxdmac->sg_list = kcalloc(periods + 1,
-			sizeof(struct scatterlist), GFP_ATOMIC);
+	imxdmac->sg_list = kzalloc_objs(struct scatterlist, periods + 1,
+					GFP_ATOMIC);
 	if (!imxdmac->sg_list)
 		return NULL;
 

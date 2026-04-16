@@ -110,7 +110,7 @@ static int nft_limit_init(struct nft_limit_priv *priv,
 			invert = true;
 	}
 
-	priv->limit = kmalloc(sizeof(*priv->limit), GFP_KERNEL_ACCOUNT);
+	priv->limit = kmalloc_obj(*priv->limit, GFP_KERNEL_ACCOUNT);
 	if (!priv->limit)
 		return -ENOMEM;
 
@@ -158,7 +158,7 @@ static int nft_limit_clone(struct nft_limit_priv *priv_dst,
 	priv_dst->burst = priv_src->burst;
 	priv_dst->invert = priv_src->invert;
 
-	priv_dst->limit = kmalloc(sizeof(*priv_dst->limit), gfp);
+	priv_dst->limit = kmalloc_obj(*priv_dst->limit, gfp);
 	if (!priv_dst->limit)
 		return -ENOMEM;
 

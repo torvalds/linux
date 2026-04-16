@@ -610,7 +610,7 @@ static struct macsec_flow *vsc8584_macsec_alloc_flow(struct vsc8531_private *pri
 	if (index == MSCC_MS_MAX_FLOWS)
 		return ERR_PTR(-ENOMEM);
 
-	flow = kzalloc(sizeof(*flow), GFP_KERNEL);
+	flow = kzalloc_obj(*flow);
 	if (!flow)
 		return ERR_PTR(-ENOMEM);
 

@@ -364,8 +364,7 @@ ch_readconfig(scsi_changer *ch)
 	}
 
 	/* look up the devices of the data transfer elements */
-	ch->dt = kcalloc(ch->counts[CHET_DT], sizeof(*ch->dt),
-			 GFP_KERNEL);
+	ch->dt = kzalloc_objs(*ch->dt, ch->counts[CHET_DT]);
 
 	if (!ch->dt) {
 		kfree(buffer);
@@ -904,7 +903,7 @@ static int ch_probe(struct scsi_device *sd)
 	if (sd->type != TYPE_MEDIUM_CHANGER)
 		return -ENODEV;
 
-	ch = kzalloc(sizeof(*ch), GFP_KERNEL);
+	ch = kzalloc_obj(*ch);
 	if (NULL == ch)
 		return -ENOMEM;
 

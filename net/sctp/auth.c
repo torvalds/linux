@@ -82,7 +82,7 @@ struct sctp_shared_key *sctp_auth_shkey_create(__u16 key_id, gfp_t gfp)
 	struct sctp_shared_key *new;
 
 	/* Allocate the shared key container */
-	new = kzalloc(sizeof(struct sctp_shared_key), gfp);
+	new = kzalloc_obj(struct sctp_shared_key, gfp);
 	if (!new)
 		return NULL;
 
@@ -931,8 +931,8 @@ int sctp_auth_init(struct sctp_endpoint *ep, gfp_t gfp)
 	if (!ep->auth_hmacs_list) {
 		struct sctp_hmac_algo_param *auth_hmacs;
 
-		auth_hmacs = kzalloc(struct_size(auth_hmacs, hmac_ids,
-						 SCTP_AUTH_NUM_HMACS), gfp);
+		auth_hmacs = kzalloc_flex(*auth_hmacs, hmac_ids,
+					  SCTP_AUTH_NUM_HMACS, gfp);
 		if (!auth_hmacs)
 			goto nomem;
 		/* Initialize the HMACS parameter.

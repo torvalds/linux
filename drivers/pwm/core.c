@@ -1333,7 +1333,7 @@ static int pwm_export_child(struct device *pwmchip_dev, struct pwm_device *pwm)
 	if (test_and_set_bit(PWMF_EXPORTED, &pwm->flags))
 		return -EBUSY;
 
-	export = kzalloc(sizeof(*export), GFP_KERNEL);
+	export = kzalloc_obj(*export);
 	if (!export) {
 		clear_bit(PWMF_EXPORTED, &pwm->flags);
 		return -ENOMEM;
@@ -2138,7 +2138,7 @@ static int pwm_cdev_open(struct inode *inode, struct file *file)
 	if (!chip->operational)
 		return -ENXIO;
 
-	cdata = kzalloc(struct_size(cdata, pwm, chip->npwm), GFP_KERNEL);
+	cdata = kzalloc_flex(*cdata, pwm, chip->npwm);
 	if (!cdata)
 		return -ENOMEM;
 

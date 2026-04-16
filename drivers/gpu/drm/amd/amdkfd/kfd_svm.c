@@ -168,7 +168,7 @@ svm_range_dma_map_dev(struct amdgpu_device *adev, struct svm_range *prange,
 	int i, r;
 
 	if (!addr) {
-		addr = kvcalloc(prange->npages, sizeof(*addr), GFP_KERNEL);
+		addr = kvzalloc_objs(*addr, prange->npages);
 		if (!addr)
 			return -ENOMEM;
 		prange->dma_addr[gpuidx] = addr;
@@ -329,7 +329,7 @@ svm_range *svm_range_new(struct svm_range_list *svms, uint64_t start,
 	struct svm_range *prange;
 	struct kfd_process *p;
 
-	prange = kzalloc(sizeof(*prange), GFP_KERNEL);
+	prange = kzalloc_obj(*prange);
 	if (!prange)
 		return NULL;
 
@@ -539,7 +539,7 @@ static struct svm_range_bo *svm_range_bo_new(void)
 {
 	struct svm_range_bo *svm_bo;
 
-	svm_bo = kzalloc(sizeof(*svm_bo), GFP_KERNEL);
+	svm_bo = kzalloc_obj(*svm_bo);
 	if (!svm_bo)
 		return NULL;
 
@@ -1674,7 +1674,7 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 	int32_t idx;
 	int r = 0;
 
-	ctx = kzalloc(sizeof(struct svm_validate_context), GFP_KERNEL);
+	ctx = kzalloc_obj(struct svm_validate_context);
 	if (!ctx)
 		return -ENOMEM;
 	ctx->process = container_of(prange->svms, struct kfd_process, svms);

@@ -554,7 +554,7 @@ int sof_client_register_ipc_rx_handler(struct sof_client_dev *cdev,
 		return -EINVAL;
 	}
 
-	event = kmalloc(sizeof(*event), GFP_KERNEL);
+	event = kmalloc_obj(*event);
 	if (!event)
 		return -ENOMEM;
 
@@ -608,7 +608,7 @@ int sof_client_register_fw_state_handler(struct sof_client_dev *cdev,
 	if (!callback)
 		return -EINVAL;
 
-	event = kmalloc(sizeof(*event), GFP_KERNEL);
+	event = kmalloc_obj(*event);
 	if (!event)
 		return -ENOMEM;
 

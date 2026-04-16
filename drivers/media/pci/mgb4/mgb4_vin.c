@@ -946,7 +946,7 @@ struct mgb4_vin_dev *mgb4_vin_create(struct mgb4_dev *mgbdev, int id)
 	struct device *dev = &pdev->dev;
 	int vin_irq, err_irq;
 
-	vindev = kzalloc(sizeof(*vindev), GFP_KERNEL);
+	vindev = kzalloc_obj(*vindev);
 	if (!vindev)
 		return NULL;
 

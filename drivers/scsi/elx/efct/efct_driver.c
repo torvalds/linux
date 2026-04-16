@@ -93,7 +93,7 @@ efct_efclib_config(struct efct *efct, struct libefc_function_template *tt)
 	struct sli4 *sli;
 	int rc = 0;
 
-	efc = kzalloc(sizeof(*efc), GFP_KERNEL);
+	efc = kzalloc_obj(*efc);
 	if (!efc)
 		return -ENOMEM;
 

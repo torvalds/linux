@@ -1584,8 +1584,7 @@ struct msm_gpu_state *a6xx_gpu_state_get(struct msm_gpu *gpu)
 	struct a6xx_crashdumper _dumper = { 0 }, *dumper = NULL;
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
-	struct a6xx_gpu_state *a6xx_state = kzalloc(sizeof(*a6xx_state),
-		GFP_KERNEL);
+	struct a6xx_gpu_state *a6xx_state = kzalloc_obj(*a6xx_state);
 	bool stalled;
 
 	if (!a6xx_state)

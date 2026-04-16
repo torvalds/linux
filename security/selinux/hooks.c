@@ -1030,7 +1030,7 @@ static int selinux_add_opt(int token, const char *s, void **mnt_opts)
 	}
 
 	if (!opts) {
-		opts = kzalloc(sizeof(*opts), GFP_KERNEL);
+		opts = kzalloc_obj(*opts);
 		if (!opts)
 			return -ENOMEM;
 		*mnt_opts = opts;
@@ -2822,7 +2822,7 @@ static int selinux_fs_context_submount(struct fs_context *fc,
 	if (!(sbsec->flags & (FSCONTEXT_MNT|CONTEXT_MNT|DEFCONTEXT_MNT)))
 		return 0;
 
-	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
+	opts = kzalloc_obj(*opts);
 	if (!opts)
 		return -ENOMEM;
 

@@ -4603,7 +4603,7 @@ static int dispc_bind(struct device *dev, struct device *master, void *data)
 	int r = 0;
 	struct device_node *np = pdev->dev.of_node;
 
-	dispc = kzalloc(sizeof(*dispc), GFP_KERNEL);
+	dispc = kzalloc_obj(*dispc);
 	if (!dispc)
 		return -ENOMEM;
 

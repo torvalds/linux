@@ -641,7 +641,7 @@ static int usb_pcwd_probe(struct usb_interface *interface,
 	pipe = usb_rcvintpipe(udev, endpoint->bEndpointAddress);
 
 	/* allocate memory for our device and initialize it */
-	usb_pcwd = kzalloc(sizeof(struct usb_pcwd_private), GFP_KERNEL);
+	usb_pcwd = kzalloc_obj(struct usb_pcwd_private);
 	if (usb_pcwd == NULL)
 		goto error;
 

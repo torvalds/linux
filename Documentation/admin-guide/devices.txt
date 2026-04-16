@@ -352,7 +352,7 @@
 		216 = /dev/fujitsu/apanel	Fujitsu/Siemens application panel
 		217 = /dev/ni/natmotn		National Instruments Motion
 		218 = /dev/kchuid	Inter-process chuid control
-		219 = /dev/modems/mwave	MWave modem firmware upload
+		219 =
 		220 = /dev/mptctl	Message passing technology (MPT) control
 		221 = /dev/mvista/hssdsi	Montavista PICMG hot swap system driver
 		222 = /dev/mvista/hasi		Montavista PICMG high availability

@@ -1172,7 +1172,7 @@ static int ideapad_dytc_profile_init(struct ideapad_private *priv)
 		return -ENODEV;
 	}
 
-	priv->dytc = kzalloc(sizeof(*priv->dytc), GFP_KERNEL);
+	priv->dytc = kzalloc_obj(*priv->dytc);
 	if (!priv->dytc)
 		return -ENOMEM;
 

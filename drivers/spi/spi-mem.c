@@ -713,7 +713,7 @@ spi_mem_dirmap_create(struct spi_mem *mem,
 	if (info->op_tmpl.data.dir == SPI_MEM_NO_DATA)
 		return ERR_PTR(-EINVAL);
 
-	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+	desc = kzalloc_obj(*desc);
 	if (!desc)
 		return ERR_PTR(-ENOMEM);
 

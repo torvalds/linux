@@ -244,7 +244,7 @@ nv50_fb_new_(const struct nv50_fb_func *func, struct nvkm_device *device,
 {
 	struct nv50_fb *fb;
 
-	if (!(fb = kzalloc(sizeof(*fb), GFP_KERNEL)))
+	if (!(fb = kzalloc_obj(*fb)))
 		return -ENOMEM;
 	nvkm_fb_ctor(&nv50_fb_, device, type, inst, &fb->base);
 	fb->func = func;

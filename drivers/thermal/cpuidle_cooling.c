@@ -179,7 +179,7 @@ static int __cpuidle_cooling_register(struct device_node *np,
 	char *name;
 	int ret;
 
-	idle_cdev = kzalloc(sizeof(*idle_cdev), GFP_KERNEL);
+	idle_cdev = kzalloc_obj(*idle_cdev);
 	if (!idle_cdev) {
 		ret = -ENOMEM;
 		goto out;

@@ -1304,7 +1304,7 @@ static int ite_probe(struct pnp_dev *pdev, const struct pnp_device_id
 	int model_no;
 	int io_rsrc_no;
 
-	itdev = kzalloc(sizeof(struct ite_dev), GFP_KERNEL);
+	itdev = kzalloc_obj(struct ite_dev);
 	if (!itdev)
 		return ret;
 

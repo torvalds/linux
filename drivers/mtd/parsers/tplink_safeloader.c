@@ -82,7 +82,7 @@ static int mtd_parser_tplink_safeloader_parse(struct mtd_info *mtd,
 	int idx;
 	int err;
 
-	parts = kcalloc(TPLINK_SAFELOADER_MAX_PARTS, sizeof(*parts), GFP_KERNEL);
+	parts = kzalloc_objs(*parts, TPLINK_SAFELOADER_MAX_PARTS);
 	if (!parts) {
 		err = -ENOMEM;
 		goto err_out;

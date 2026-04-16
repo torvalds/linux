@@ -182,7 +182,7 @@ static void free_resource(struct resource *res)
 
 static struct resource *alloc_resource(gfp_t flags)
 {
-	return kzalloc(sizeof(struct resource), flags);
+	return kzalloc_obj(struct resource, flags);
 }
 
 /* Return the conflict entry if you can't request it */
@@ -502,7 +502,7 @@ int walk_system_ram_res_rev(u64 start, u64 end, void *arg,
 	int ret = -1;
 
 	/* create a list */
-	rams = kvcalloc(rams_size, sizeof(struct resource), GFP_KERNEL);
+	rams = kvzalloc_objs(struct resource, rams_size);
 	if (!rams)
 		return ret;
 

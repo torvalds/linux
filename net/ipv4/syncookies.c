@@ -203,7 +203,7 @@ struct sock *tcp_get_cookie_sock(struct sock *sk, struct sk_buff *skb,
 	bool own_req;
 
 	child = icsk->icsk_af_ops->syn_recv_sock(sk, skb, req, dst,
-						 NULL, &own_req);
+						 NULL, &own_req, NULL);
 	if (child) {
 		refcount_set(&req->rsk_refcnt, 1);
 		sock_rps_save_rxhash(child, skb);
@@ -378,9 +378,14 @@ static struct request_sock *cookie_tcp_check(struct net *net, struct sock *sk,
 	tcp_parse_options(net, skb, &tcp_opt, 0, NULL);
 
 	if (tcp_opt.saw_tstamp && tcp_opt.rcv_tsecr) {
-		tsoff = secure_tcp_ts_off(net,
-					  ip_hdr(skb)->daddr,
-					  ip_hdr(skb)->saddr);
+		union tcp_seq_and_ts_off st;
+
+		st = secure_tcp_seq_and_ts_off(net,
+					       ip_hdr(skb)->daddr,
+					       ip_hdr(skb)->saddr,
+					       tcp_hdr(skb)->dest,
+					       tcp_hdr(skb)->source);
+		tsoff = st.ts_off;
 		tcp_opt.rcv_tsecr -= tsoff;
 	}
 

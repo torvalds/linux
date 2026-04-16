@@ -217,7 +217,7 @@ static struct nfs_createdata *nfs_alloc_createdata(struct inode *dir,
 {
 	struct nfs_createdata *data;
 
-	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	data = kmalloc_obj(*data);
 
 	if (data != NULL) {
 		data->arg.fh = NFS_FH(dir);

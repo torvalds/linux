@@ -320,7 +320,7 @@ int nitrox_register_interrupts(struct nitrox_device *ndev)
 	}
 	ndev->num_vecs = nr_vecs;
 
-	ndev->qvec = kcalloc(nr_vecs, sizeof(*qvec), GFP_KERNEL);
+	ndev->qvec = kzalloc_objs(*qvec, nr_vecs);
 	if (!ndev->qvec) {
 		pci_free_irq_vectors(pdev);
 		return -ENOMEM;
@@ -424,7 +424,7 @@ int nitrox_sriov_register_interupts(struct nitrox_device *ndev)
 		return ret;
 	}
 
-	qvec = kcalloc(NR_NON_RING_VECTORS, sizeof(*qvec), GFP_KERNEL);
+	qvec = kzalloc_objs(*qvec, NR_NON_RING_VECTORS);
 	if (!qvec) {
 		pci_disable_msix(pdev);
 		return -ENOMEM;

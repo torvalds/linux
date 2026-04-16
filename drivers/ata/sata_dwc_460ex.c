@@ -850,7 +850,7 @@ static int sata_dwc_port_start(struct ata_port *ap)
 	}
 
 	/* Allocate Port Struct */
-	hsdevp = kzalloc(sizeof(*hsdevp), GFP_KERNEL);
+	hsdevp = kzalloc_obj(*hsdevp);
 	if (!hsdevp) {
 		err = -ENOMEM;
 		goto CLEANUP;

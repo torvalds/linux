@@ -226,7 +226,7 @@ struct rxrpc_peer *rxrpc_alloc_peer(struct rxrpc_local *local, gfp_t gfp,
 
 	_enter("");
 
-	peer = kzalloc(sizeof(struct rxrpc_peer), gfp);
+	peer = kzalloc_obj(struct rxrpc_peer, gfp);
 	if (peer) {
 		refcount_set(&peer->ref, 1);
 		peer->local = rxrpc_get_local(local, rxrpc_local_get_peer);

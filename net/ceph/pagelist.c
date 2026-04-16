@@ -10,7 +10,7 @@ struct ceph_pagelist *ceph_pagelist_alloc(gfp_t gfp_flags)
 {
 	struct ceph_pagelist *pl;
 
-	pl = kmalloc(sizeof(*pl), gfp_flags);
+	pl = kmalloc_obj(*pl, gfp_flags);
 	if (!pl)
 		return NULL;
 

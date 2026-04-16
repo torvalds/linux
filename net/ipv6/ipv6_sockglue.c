@@ -66,7 +66,7 @@ int ip6_ra_control(struct sock *sk, int sel)
 	if (sk->sk_type != SOCK_RAW || inet_sk(sk)->inet_num != IPPROTO_RAW)
 		return -ENOPROTOOPT;
 
-	new_ra = (sel >= 0) ? kmalloc(sizeof(*new_ra), GFP_KERNEL) : NULL;
+	new_ra = (sel >= 0) ? kmalloc_obj(*new_ra) : NULL;
 	if (sel >= 0 && !new_ra)
 		return -ENOMEM;
 

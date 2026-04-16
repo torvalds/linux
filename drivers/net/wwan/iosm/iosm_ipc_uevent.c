@@ -27,7 +27,7 @@ static void ipc_uevent_work(struct work_struct *data)
 
 void ipc_uevent_send(struct device *dev, char *uevent)
 {
-	struct ipc_uevent_info *info = kzalloc(sizeof(*info), GFP_ATOMIC);
+	struct ipc_uevent_info *info = kzalloc_obj(*info, GFP_ATOMIC);
 
 	if (!info)
 		return;

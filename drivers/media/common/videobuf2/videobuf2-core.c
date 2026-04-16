@@ -841,7 +841,7 @@ static bool verify_coherency_flags(struct vb2_queue *q, bool non_coherent_mem)
 static int vb2_core_allocated_buffers_storage(struct vb2_queue *q)
 {
 	if (!q->bufs)
-		q->bufs = kcalloc(q->max_num_buffers, sizeof(*q->bufs), GFP_KERNEL);
+		q->bufs = kzalloc_objs(*q->bufs, q->max_num_buffers);
 	if (!q->bufs)
 		return -ENOMEM;
 
@@ -2861,7 +2861,7 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
 		(read) ? "read" : "write", q->min_reqbufs_allocation, q->fileio_read_once,
 		q->fileio_write_immediately);
 
-	fileio = kzalloc(sizeof(*fileio), GFP_KERNEL);
+	fileio = kzalloc_obj(*fileio);
 	if (fileio == NULL)
 		return -ENOMEM;
 
@@ -3256,7 +3256,7 @@ int vb2_thread_start(struct vb2_queue *q, vb2_thread_fnc fnc, void *priv,
 	if (WARN_ON(q->fileio))
 		return -EBUSY;
 
-	threadio = kzalloc(sizeof(*threadio), GFP_KERNEL);
+	threadio = kzalloc_obj(*threadio);
 	if (threadio == NULL)
 		return -ENOMEM;
 	threadio->fnc = fnc;

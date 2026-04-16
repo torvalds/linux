@@ -57,7 +57,7 @@ int mlxsw_linecard_bdev_add(struct mlxsw_linecard *linecard)
 	if (id < 0)
 		return id;
 
-	linecard_bdev = kzalloc(sizeof(*linecard_bdev), GFP_KERNEL);
+	linecard_bdev = kzalloc_obj(*linecard_bdev);
 	if (!linecard_bdev) {
 		mlxsw_linecard_bdev_id_free(id);
 		return -ENOMEM;

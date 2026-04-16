@@ -432,7 +432,7 @@ int hinic3_init_hwif(struct hinic3_hwdev *hwdev)
 	u32 attr1, attr4, attr5;
 	int err;
 
-	hwif = kzalloc(sizeof(*hwif), GFP_KERNEL);
+	hwif = kzalloc_obj(*hwif);
 	if (!hwif)
 		return -ENOMEM;
 

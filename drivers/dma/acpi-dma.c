@@ -189,7 +189,7 @@ int acpi_dma_controller_register(struct device *dev,
 	if (!adev)
 		return -EINVAL;
 
-	adma = kzalloc(sizeof(*adma), GFP_KERNEL);
+	adma = kzalloc_obj(*adma);
 	if (!adma)
 		return -ENOMEM;
 

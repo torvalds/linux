@@ -590,7 +590,7 @@ static void apple_rtkit_rx(struct apple_mbox *mbox, struct apple_mbox_msg msg,
 	    rtk->ops->recv_message_early(rtk->cookie, ep, msg.msg0))
 		return;
 
-	work = kzalloc(sizeof(*work), GFP_ATOMIC);
+	work = kzalloc_obj(*work, GFP_ATOMIC);
 	if (!work)
 		return;
 
@@ -667,7 +667,7 @@ struct apple_rtkit *apple_rtkit_init(struct device *dev, void *cookie,
 	if (!ops)
 		return ERR_PTR(-EINVAL);
 
-	rtk = kzalloc(sizeof(*rtk), GFP_KERNEL);
+	rtk = kzalloc_obj(*rtk);
 	if (!rtk)
 		return ERR_PTR(-ENOMEM);
 

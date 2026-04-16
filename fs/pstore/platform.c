@@ -683,7 +683,7 @@ void pstore_get_backend_records(struct pstore_info *psi,
 		struct pstore_record *record;
 		int rc;
 
-		record = kzalloc(sizeof(*record), GFP_KERNEL);
+		record = kzalloc_obj(*record);
 		if (!record) {
 			pr_err("out of memory creating record\n");
 			break;

@@ -103,7 +103,7 @@ static int posix_clock_open(struct inode *inode, struct file *fp)
 		err = -ENODEV;
 		goto out;
 	}
-	pccontext = kzalloc(sizeof(*pccontext), GFP_KERNEL);
+	pccontext = kzalloc_obj(*pccontext);
 	if (!pccontext) {
 		err = -ENOMEM;
 		goto out;

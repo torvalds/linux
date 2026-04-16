@@ -295,7 +295,7 @@ int bpf_iter_reg_target(const struct bpf_iter_reg *reg_info)
 {
 	struct bpf_iter_target_info *tinfo;
 
-	tinfo = kzalloc(sizeof(*tinfo), GFP_KERNEL);
+	tinfo = kzalloc_obj(*tinfo);
 	if (!tinfo)
 		return -ENOMEM;
 
@@ -548,7 +548,7 @@ int bpf_iter_link_attach(const union bpf_attr *attr, bpfptr_t uattr,
 	if (prog->sleepable && !bpf_iter_target_support_resched(tinfo))
 		return -EINVAL;
 
-	link = kzalloc(sizeof(*link), GFP_USER | __GFP_NOWARN);
+	link = kzalloc_obj(*link, GFP_USER | __GFP_NOWARN);
 	if (!link)
 		return -ENOMEM;
 

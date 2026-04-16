@@ -113,13 +113,11 @@ int intel_gvt_init_vgpu_types(struct intel_gvt *gvt)
 	unsigned int num_types = ARRAY_SIZE(intel_vgpu_configs);
 	unsigned int i;
 
-	gvt->types = kcalloc(num_types, sizeof(struct intel_vgpu_type),
-			     GFP_KERNEL);
+	gvt->types = kzalloc_objs(struct intel_vgpu_type, num_types);
 	if (!gvt->types)
 		return -ENOMEM;
 
-	gvt->mdev_types = kcalloc(num_types, sizeof(*gvt->mdev_types),
-			     GFP_KERNEL);
+	gvt->mdev_types = kzalloc_objs(*gvt->mdev_types, num_types);
 	if (!gvt->mdev_types)
 		goto out_free_types;
 

@@ -686,7 +686,7 @@ static struct ocfs2_path *ocfs2_new_path(struct buffer_head *root_bh,
 
 	BUG_ON(le16_to_cpu(root_el->l_tree_depth) >= OCFS2_MAX_PATH_DEPTH);
 
-	path = kzalloc(sizeof(*path), GFP_NOFS);
+	path = kzalloc_obj(*path, GFP_NOFS);
 	if (path) {
 		path->p_tree_depth = le16_to_cpu(root_el->l_tree_depth);
 		get_bh(root_bh);
@@ -1202,8 +1202,7 @@ static int ocfs2_add_branch(handle_t *handle,
 	}
 
 	/* allocate the number of new eb blocks we need */
-	new_eb_bhs = kcalloc(new_blocks, sizeof(struct buffer_head *),
-			     GFP_KERNEL);
+	new_eb_bhs = kzalloc_objs(struct buffer_head *, new_blocks);
 	if (!new_eb_bhs) {
 		status = -ENOMEM;
 		mlog_errno(status);
@@ -6493,7 +6492,7 @@ int ocfs2_cache_cluster_dealloc(struct ocfs2_cached_dealloc_ctxt *ctxt,
 	int ret = 0;
 	struct ocfs2_cached_block_free *item;
 
-	item = kzalloc(sizeof(*item), GFP_NOFS);
+	item = kzalloc_obj(*item, GFP_NOFS);
 	if (item == NULL) {
 		ret = -ENOMEM;
 		mlog_errno(ret);
@@ -6619,7 +6618,7 @@ ocfs2_find_per_slot_free_list(int type,
 		fl = fl->f_next_suballocator;
 	}
 
-	fl = kmalloc(sizeof(*fl), GFP_NOFS);
+	fl = kmalloc_obj(*fl, GFP_NOFS);
 	if (fl) {
 		fl->f_inode_type = type;
 		fl->f_slot = slot;
@@ -6794,7 +6793,7 @@ int ocfs2_cache_block_dealloc(struct ocfs2_cached_dealloc_ctxt *ctxt,
 		goto out;
 	}
 
-	item = kzalloc(sizeof(*item), GFP_NOFS);
+	item = kzalloc_obj(*item, GFP_NOFS);
 	if (item == NULL) {
 		ret = -ENOMEM;
 		mlog_errno(ret);
@@ -6984,8 +6983,8 @@ int ocfs2_zero_range_for_truncate(struct inode *inode, handle_t *handle,
 	if (range_start >= range_end)
 		return 0;
 
-	folios = kcalloc(ocfs2_pages_per_cluster(sb),
-			sizeof(struct folio *), GFP_NOFS);
+	folios = kzalloc_objs(struct folio *, ocfs2_pages_per_cluster(sb),
+			      GFP_NOFS);
 	if (folios == NULL) {
 		ret = -ENOMEM;
 		mlog_errno(ret);

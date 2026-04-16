@@ -134,7 +134,7 @@ static struct uss720_async_request *submit_async_request(struct parport_uss720_p
 	usbdev = priv->usbdev;
 	if (!usbdev)
 		return NULL;
-	rq = kzalloc(sizeof(struct uss720_async_request), mem_flags);
+	rq = kzalloc_obj(struct uss720_async_request, mem_flags);
 	if (!rq)
 		return NULL;
 	kref_init(&rq->ref_count);
@@ -147,7 +147,7 @@ static struct uss720_async_request *submit_async_request(struct parport_uss720_p
 		kref_put(&rq->ref_count, destroy_async);
 		return NULL;
 	}
-	rq->dr = kmalloc(sizeof(*rq->dr), mem_flags);
+	rq->dr = kmalloc_obj(*rq->dr, mem_flags);
 	if (!rq->dr) {
 		kref_put(&rq->ref_count, destroy_async);
 		return NULL;
@@ -701,7 +701,7 @@ static int uss720_probe(struct usb_interface *intf,
 	/*
 	 * Allocate parport interface 
 	 */
-	priv = kzalloc(sizeof(struct parport_uss720_private), GFP_KERNEL);
+	priv = kzalloc_obj(struct parport_uss720_private);
 	if (!priv) {
 		usb_put_dev(usbdev);
 		return -ENOMEM;
@@ -736,7 +736,7 @@ static int uss720_probe(struct usb_interface *intf,
 	ret = get_1284_register(pp, 0, &reg, GFP_KERNEL);
 	dev_dbg(&intf->dev, "reg: %7ph\n", priv->reg);
 	if (ret < 0)
-		return ret;
+		goto probe_abort;
 
 	ret = usb_find_last_int_in_endpoint(interface, &epd);
 	if (!ret) {

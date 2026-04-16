@@ -441,7 +441,7 @@ static int pseries_msi_ops_prepare(struct irq_domain *domain, struct device *dev
 	int ret;
 
 	struct pseries_msi_device *pseries_dev __free(kfree)
-		= kmalloc(sizeof(*pseries_dev), GFP_KERNEL);
+		= kmalloc_obj(*pseries_dev);
 	if (!pseries_dev)
 		return -ENOMEM;
 
@@ -605,7 +605,7 @@ static int pseries_irq_domain_alloc(struct irq_domain *domain, unsigned int virq
 					      &pseries_msi_irq_chip, pseries_dev);
 	}
 
-	pseries_dev->msi_used++;
+	pseries_dev->msi_used += nr_irqs;
 	return 0;
 
 out:

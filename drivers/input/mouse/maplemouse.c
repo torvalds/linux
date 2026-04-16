@@ -73,7 +73,7 @@ static int probe_maple_mouse(struct device *dev)
 	struct input_dev *input_dev;
 	struct dc_mouse *mse;
 
-	mse = kzalloc(sizeof(*mse), GFP_KERNEL);
+	mse = kzalloc_obj(*mse);
 	if (!mse) {
 		error = -ENOMEM;
 		goto fail;

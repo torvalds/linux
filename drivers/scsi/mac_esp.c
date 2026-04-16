@@ -323,7 +323,7 @@ static int esp_mac_probe(struct platform_device *dev)
 	host->this_id = esp->scsi_id;
 	esp->scsi_id_mask = 1 << esp->scsi_id;
 
-	mep = kzalloc(sizeof(struct mac_esp_priv), GFP_KERNEL);
+	mep = kzalloc_obj(struct mac_esp_priv);
 	if (!mep)
 		goto fail_free_command_block;
 	mep->esp = esp;

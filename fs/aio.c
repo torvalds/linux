@@ -394,7 +394,7 @@ static const struct vm_operations_struct aio_ring_vm_ops = {
 
 static int aio_ring_mmap_prepare(struct vm_area_desc *desc)
 {
-	desc->vm_flags |= VM_DONTEXPAND;
+	vma_desc_set_flags(desc, VMA_DONTEXPAND_BIT);
 	desc->vm_ops = &aio_ring_vm_ops;
 	return 0;
 }
@@ -510,8 +510,7 @@ static int aio_setup_ring(struct kioctx *ctx, unsigned int nr_events)
 
 	ctx->ring_folios = ctx->internal_folios;
 	if (nr_pages > AIO_RING_PAGES) {
-		ctx->ring_folios = kcalloc(nr_pages, sizeof(struct folio *),
-					   GFP_KERNEL);
+		ctx->ring_folios = kzalloc_objs(struct folio *, nr_pages);
 		if (!ctx->ring_folios) {
 			put_aio_ring_file(ctx);
 			return -ENOMEM;
@@ -693,7 +692,7 @@ static int ioctx_add_table(struct kioctx *ctx, struct mm_struct *mm)
 		new_nr = (table ? table->nr : 1) * 4;
 		spin_unlock(&mm->ioctx_lock);
 
-		table = kzalloc(struct_size(table, table, new_nr), GFP_KERNEL);
+		table = kzalloc_flex(*table, table, new_nr);
 		if (!table)
 			return -ENOMEM;
 

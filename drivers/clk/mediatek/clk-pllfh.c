@@ -10,6 +10,7 @@
 #include <linux/slab.h>
 #include <linux/clkdev.h>
 #include <linux/delay.h>
+#include <linux/device.h>
 
 #include "clk-mtk.h"
 #include "clk-pllfh.h"
@@ -149,14 +150,14 @@ static bool fhctl_is_supported_and_enabled(const struct mtk_pllfh_data *pllfh)
 }
 
 static struct clk_hw *
-mtk_clk_register_pllfh(const struct mtk_pll_data *pll_data,
+mtk_clk_register_pllfh(struct device *dev, const struct mtk_pll_data *pll_data,
 		       struct mtk_pllfh_data *pllfh_data, void __iomem *base)
 {
 	struct clk_hw *hw;
 	struct mtk_fh *fh;
 	int ret;
 
-	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
+	fh = kzalloc_obj(*fh);
 	if (!fh)
 		return ERR_PTR(-ENOMEM);
 
@@ -165,6 +166,8 @@ mtk_clk_register_pllfh(const struct mtk_pll_data *pll_data,
 		hw = ERR_PTR(ret);
 		goto out;
 	}
+
+	fh->clk_pll.dev = dev;
 
 	hw = mtk_clk_register_pll_ops(&fh->clk_pll, pll_data, base,
 				      &mtk_pllfh_ops);
@@ -194,7 +197,7 @@ static void mtk_clk_unregister_pllfh(struct clk_hw *hw)
 	kfree(fh);
 }
 
-int mtk_clk_register_pllfhs(struct device_node *node,
+int mtk_clk_register_pllfhs(struct device *dev,
 			    const struct mtk_pll_data *plls, int num_plls,
 			    struct mtk_pllfh_data *pllfhs, int num_fhs,
 			    struct clk_hw_onecell_data *clk_data)
@@ -203,7 +206,7 @@ int mtk_clk_register_pllfhs(struct device_node *node,
 	int i;
 	struct clk_hw *hw;
 
-	base = of_iomap(node, 0);
+	base = of_iomap(dev->of_node, 0);
 	if (!base) {
 		pr_err("%s(): ioremap failed\n", __func__);
 		return -EINVAL;
@@ -218,9 +221,9 @@ int mtk_clk_register_pllfhs(struct device_node *node,
 		use_fhctl = fhctl_is_supported_and_enabled(pllfh);
 
 		if (use_fhctl)
-			hw = mtk_clk_register_pllfh(pll, pllfh, base);
+			hw = mtk_clk_register_pllfh(dev, pll, pllfh, base);
 		else
-			hw = mtk_clk_register_pll(pll, base);
+			hw = mtk_clk_register_pll(dev, pll, base);
 
 		if (IS_ERR(hw)) {
 			pr_err("Failed to register %s clk %s: %ld\n",

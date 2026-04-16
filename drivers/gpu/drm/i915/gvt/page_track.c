@@ -58,7 +58,7 @@ int intel_vgpu_register_page_track(struct intel_vgpu *vgpu, unsigned long gfn,
 	if (track)
 		return -EEXIST;
 
-	track = kzalloc(sizeof(*track), GFP_KERNEL);
+	track = kzalloc_obj(*track);
 	if (!track)
 		return -ENOMEM;
 

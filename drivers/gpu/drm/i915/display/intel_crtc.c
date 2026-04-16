@@ -168,7 +168,7 @@ struct intel_crtc_state *intel_crtc_state_alloc(struct intel_crtc *crtc)
 {
 	struct intel_crtc_state *crtc_state;
 
-	crtc_state = kmalloc(sizeof(*crtc_state), GFP_KERNEL);
+	crtc_state = kmalloc_obj(*crtc_state);
 
 	if (crtc_state)
 		intel_crtc_state_reset(crtc_state, crtc);
@@ -196,7 +196,7 @@ static struct intel_crtc *intel_crtc_alloc(void)
 	struct intel_crtc_state *crtc_state;
 	struct intel_crtc *crtc;
 
-	crtc = kzalloc(sizeof(*crtc), GFP_KERNEL);
+	crtc = kzalloc_obj(*crtc);
 	if (!crtc)
 		return ERR_PTR(-ENOMEM);
 

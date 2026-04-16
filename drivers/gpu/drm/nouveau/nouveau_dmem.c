@@ -303,7 +303,7 @@ nouveau_dmem_chunk_alloc(struct nouveau_drm *drm, struct page **ppage,
 	unsigned long i, pfn_first, pfn;
 	int ret;
 
-	chunk = kzalloc(sizeof(*chunk), GFP_KERNEL);
+	chunk = kzalloc_obj(*chunk);
 	if (chunk == NULL) {
 		ret = -ENOMEM;
 		goto out;
@@ -481,7 +481,7 @@ nouveau_dmem_evict_chunk(struct nouveau_dmem_chunk *chunk)
 
 	src_pfns = kvcalloc(npages, sizeof(*src_pfns), GFP_KERNEL | __GFP_NOFAIL);
 	dst_pfns = kvcalloc(npages, sizeof(*dst_pfns), GFP_KERNEL | __GFP_NOFAIL);
-	dma_info = kvcalloc(npages, sizeof(*dma_info), GFP_KERNEL | __GFP_NOFAIL);
+	dma_info = kvzalloc_objs(*dma_info, npages, GFP_KERNEL | __GFP_NOFAIL);
 
 	migrate_device_range(src_pfns, chunk->pagemap.range.start >> PAGE_SHIFT,
 			npages);
@@ -707,7 +707,7 @@ nouveau_dmem_init(struct nouveau_drm *drm)
 	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_PASCAL)
 		return;
 
-	if (!(drm->dmem = kzalloc(sizeof(*drm->dmem), GFP_KERNEL)))
+	if (!(drm->dmem = kzalloc_obj(*drm->dmem)))
 		return;
 
 	drm->dmem->drm = drm;
@@ -855,7 +855,7 @@ nouveau_dmem_migrate_vma(struct nouveau_drm *drm,
 	if (!args.dst)
 		goto out_free_src;
 
-	dma_info = kmalloc_array(max, sizeof(*dma_info), GFP_KERNEL);
+	dma_info = kmalloc_objs(*dma_info, max);
 	if (!dma_info)
 		goto out_free_dst;
 

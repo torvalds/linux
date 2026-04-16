@@ -538,7 +538,7 @@ struct clk_hw *__clk_hw_register_divider(struct device *dev,
 	}
 
 	/* allocate the divider */
-	div = kzalloc(sizeof(*div), GFP_KERNEL);
+	div = kzalloc_obj(*div);
 	if (!div)
 		return ERR_PTR(-ENOMEM);
 

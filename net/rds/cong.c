@@ -143,7 +143,7 @@ static struct rds_cong_map *rds_cong_from_addr(const struct in6_addr *addr)
 	unsigned long i;
 	unsigned long flags;
 
-	map = kzalloc(sizeof(struct rds_cong_map), GFP_KERNEL);
+	map = kzalloc_obj(struct rds_cong_map);
 	if (!map)
 		return NULL;
 

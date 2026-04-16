@@ -169,7 +169,7 @@ static int open_getadapter_fib(struct aac_dev * dev, void __user *arg)
 	struct aac_fib_context * fibctx;
 	int status;
 
-	fibctx = kmalloc(sizeof(struct aac_fib_context), GFP_KERNEL);
+	fibctx = kmalloc_obj(struct aac_fib_context);
 	if (fibctx == NULL) {
 		status = -ENOMEM;
 	} else {

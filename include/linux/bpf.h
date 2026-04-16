@@ -124,7 +124,7 @@ struct bpf_map_ops {
 	u32 (*map_fd_sys_lookup_elem)(void *ptr);
 	void (*map_seq_show_elem)(struct bpf_map *map, void *key,
 				  struct seq_file *m);
-	int (*map_check_btf)(const struct bpf_map *map,
+	int (*map_check_btf)(struct bpf_map *map,
 			     const struct btf *btf,
 			     const struct btf_type *key_type,
 			     const struct btf_type *value_type);
@@ -656,7 +656,7 @@ static inline bool bpf_map_support_seq_show(const struct bpf_map *map)
 		map->ops->map_seq_show_elem;
 }
 
-int map_check_no_btf(const struct bpf_map *map,
+int map_check_no_btf(struct bpf_map *map,
 		     const struct btf *btf,
 		     const struct btf_type *key_type,
 		     const struct btf_type *value_type);
@@ -2299,7 +2299,7 @@ static inline bool bpf_map_flags_access_ok(u32 access_flags)
 
 static inline struct bpf_map_owner *bpf_map_owner_alloc(struct bpf_map *map)
 {
-	return kzalloc(sizeof(*map->owner), GFP_ATOMIC);
+	return kzalloc_obj(*map->owner, GFP_ATOMIC);
 }
 
 static inline void bpf_map_owner_free(struct bpf_map *map)

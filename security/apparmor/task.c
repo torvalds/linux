@@ -15,6 +15,7 @@
 #include <linux/gfp.h>
 #include <linux/ptrace.h>
 
+#include "include/path.h"
 #include "include/audit.h"
 #include "include/cred.h"
 #include "include/policy.h"
@@ -300,16 +301,47 @@ int aa_may_ptrace(const struct cred *tracer_cred, struct aa_label *tracer,
 					    xrequest, &sa));
 }
 
+static const char *get_current_exe_path(char *buffer, int buffer_size)
+{
+	struct file *exe_file;
+	struct path p;
+	const char *path_str;
+
+	exe_file = get_task_exe_file(current);
+	if (!exe_file)
+		return ERR_PTR(-ENOENT);
+	p = exe_file->f_path;
+	path_get(&p);
+
+	if (aa_path_name(&p, FLAG_VIEW_SUBNS, buffer, &path_str, NULL, NULL))
+		return ERR_PTR(-ENOMEM);
+
+	fput(exe_file);
+	path_put(&p);
+
+	return path_str;
+}
+
 /* call back to audit ptrace fields */
 static void audit_ns_cb(struct audit_buffer *ab, void *va)
 {
 	struct apparmor_audit_data *ad = aad_of_va(va);
+	char *buffer;
+	const char *path;
 
 	if (ad->request & AA_USERNS_CREATE)
 		audit_log_format(ab, " requested=\"userns_create\"");
 
 	if (ad->denied & AA_USERNS_CREATE)
 		audit_log_format(ab, " denied=\"userns_create\"");
+
+	buffer = aa_get_buffer(false);
+	if (!buffer)
+		return; // OOM
+	path = get_current_exe_path(buffer, aa_g_path_max);
+	if (!IS_ERR(path))
+		audit_log_format(ab, " execpath=\"%s\"", path);
+	aa_put_buffer(buffer);
 }
 
 int aa_profile_ns_perm(struct aa_profile *profile,

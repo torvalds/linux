@@ -454,7 +454,7 @@ requires_new_range:
 
 		/*
 		 * If existing range fits then were done.
-		 * Otherwise extend found one and fall back to range jocode.
+		 * Otherwise extend found one and fall back to range join code.
 		 */
 		if (r->vcn + r->len < vcn + len)
 			r->len += len - ((r->vcn + r->len) - vcn);
@@ -482,7 +482,8 @@ requires_new_range:
 	return true;
 }
 
-/* run_collapse_range
+/*
+ * run_collapse_range
  *
  * Helper for attr_collapse_range(),
  * which is helper for fallocate(collapse_range).
@@ -493,8 +494,9 @@ bool run_collapse_range(struct runs_tree *run, CLST vcn, CLST len, CLST sub)
 	struct ntfs_run *r, *e, *eat_start, *eat_end;
 	CLST end;
 
-	if (WARN_ON(!run_lookup(run, vcn, &index)))
-		return true; /* Should never be here. */
+	if (!run_lookup(run, vcn, &index) && index >= run->count) {
+		return true;
+	}
 
 	e = run->runs + run->count;
 	r = run->runs + index;
@@ -560,13 +562,13 @@ bool run_collapse_range(struct runs_tree *run, CLST vcn, CLST len, CLST sub)
  * Helper for attr_insert_range(),
  * which is helper for fallocate(insert_range).
  */
-bool run_insert_range(struct runs_tree *run, CLST vcn, CLST len)
+int run_insert_range(struct runs_tree *run, CLST vcn, CLST len)
 {
 	size_t index;
 	struct ntfs_run *r, *e;
 
 	if (WARN_ON(!run_lookup(run, vcn, &index)))
-		return false; /* Should never be here. */
+		return -EINVAL; /* Should never be here. */
 
 	e = run->runs + run->count;
 	r = run->runs + index;
@@ -588,13 +590,49 @@ bool run_insert_range(struct runs_tree *run, CLST vcn, CLST len)
 		r->len = len1;
 
 		if (!run_add_entry(run, vcn + len, lcn2, len2, false))
-			return false;
+			return -ENOMEM;
 	}
 
 	if (!run_add_entry(run, vcn, SPARSE_LCN, len, false))
-		return false;
+		return -ENOMEM;
 
-	return true;
+	return 0;
+}
+
+/* run_insert_range_da
+ *
+ * Helper for attr_insert_range(),
+ * which is helper for fallocate(insert_range).
+ */
+int run_insert_range_da(struct runs_tree *run, CLST vcn, CLST len)
+{
+	struct ntfs_run *r, *r0 = NULL, *e = run->runs + run->count;
+	;
+
+	for (r = run->runs; r < e; r++) {
+		CLST end = r->vcn + r->len;
+
+		if (vcn >= end)
+			continue;
+
+		if (!r0 && r->vcn < vcn) {
+			r0 = r;
+		} else {
+			r->vcn += len;
+		}
+	}
+
+	if (r0) {
+		/* split fragment. */
+		CLST len1 = vcn - r0->vcn;
+		CLST len2 = r0->len - len1;
+
+		r0->len = len1;
+		if (!run_add_entry(run, vcn + len, SPARSE_LCN, len2, false))
+			return -ENOMEM;
+	}
+
+	return 0;
 }
 
 /*
@@ -1131,11 +1169,14 @@ int run_unpack_ex(struct runs_tree *run, struct ntfs_sb_info *sbi, CLST ino,
 			struct rw_semaphore *lock =
 				is_mounted(sbi) ? &sbi->mft.ni->file.run_lock :
 						  NULL;
-			if (lock)
-				down_read(lock);
-			ntfs_refresh_zone(sbi);
-			if (lock)
-				up_read(lock);
+			if (lock) {
+				if (down_read_trylock(lock)) {
+					ntfs_refresh_zone(sbi);
+					up_read(lock);
+				}
+			} else {
+				ntfs_refresh_zone(sbi);
+			}
 		}
 		up_write(&wnd->rw_lock);
 		if (err)
@@ -1205,4 +1246,98 @@ int run_clone(const struct runs_tree *run, struct runs_tree *new_run)
 	memcpy(new_run->runs, run->runs, bytes);
 	new_run->count = run->count;
 	return 0;
+}
+
+/*
+ * run_remove_range
+ *
+ */
+bool run_remove_range(struct runs_tree *run, CLST vcn, CLST len, CLST *done)
+{
+	size_t index, eat;
+	struct ntfs_run *r, *e, *eat_start, *eat_end;
+	CLST end, d;
+
+	*done = 0;
+
+	/* Fast check. */
+	if (!run->count)
+		return true;
+
+	if (!run_lookup(run, vcn, &index) && index >= run->count) {
+		/* No entries in this run. */
+		return true;
+	}
+
+
+	e = run->runs + run->count;
+	r = run->runs + index;
+	end = vcn + len;
+
+	if (vcn > r->vcn) {
+		CLST r_end = r->vcn + r->len;
+		d = vcn - r->vcn;
+
+		if (r_end > end) {
+			/* Remove a middle part, split. */
+			*done += len;
+			r->len = d;
+			return run_add_entry(run, end, r->lcn, r_end - end,
+					     false);
+		}
+		/* Remove tail of run .*/
+		*done += r->len - d;
+		r->len = d;
+		r += 1;
+	}
+
+	eat_start = r;
+	eat_end = r;
+
+	for (; r < e; r++) {
+		if (r->vcn >= end)
+			continue;
+
+		if (r->vcn + r->len <= end) {
+			/* Eat this run. */
+			*done += r->len;
+			eat_end = r + 1;
+			continue;
+		}
+
+		d = end - r->vcn;
+		*done += d;
+		if (r->lcn != SPARSE_LCN)
+			r->lcn += d;
+		r->len -= d;
+		r->vcn = end;
+	}
+
+	eat = eat_end - eat_start;
+	memmove(eat_start, eat_end, (e - eat_end) * sizeof(*r));
+	run->count -= eat;
+
+	return true;
+}
+
+CLST run_len(const struct runs_tree *run)
+{
+	const struct ntfs_run *r, *e;
+	CLST len = 0;
+
+	for (r = run->runs, e = r + run->count; r < e; r++) {
+		len += r->len;
+	}
+
+	return len;
+}
+
+CLST run_get_max_vcn(const struct runs_tree *run)
+{
+	const struct ntfs_run *r;
+	if (!run->count)
+		return 0;
+
+	r = run->runs + run->count - 1;
+	return r->vcn + r->len;
 }

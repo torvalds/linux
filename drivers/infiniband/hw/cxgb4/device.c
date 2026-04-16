@@ -330,7 +330,7 @@ static int qp_open(struct inode *inode, struct file *file)
 	unsigned long index;
 	int count = 1;
 
-	qpd = kmalloc(sizeof(*qpd), GFP_KERNEL);
+	qpd = kmalloc_obj(*qpd);
 	if (!qpd)
 		return -ENOMEM;
 
@@ -424,7 +424,7 @@ static int stag_open(struct inode *inode, struct file *file)
 	int ret = 0;
 	int count = 1;
 
-	stagd = kmalloc(sizeof(*stagd), GFP_KERNEL);
+	stagd = kmalloc_obj(*stagd);
 	if (!stagd) {
 		ret = -ENOMEM;
 		goto out;
@@ -675,7 +675,7 @@ static int ep_open(struct inode *inode, struct file *file)
 	int ret = 0;
 	int count = 1;
 
-	epd = kmalloc(sizeof(*epd), GFP_KERNEL);
+	epd = kmalloc_obj(*epd);
 	if (!epd) {
 		ret = -ENOMEM;
 		goto out;
@@ -881,9 +881,8 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 	rdev->status_page->write_cmpl_supported = rdev->lldi.write_cmpl_support;
 
 	if (c4iw_wr_log) {
-		rdev->wr_log = kcalloc(1 << c4iw_wr_log_size_order,
-				       sizeof(*rdev->wr_log),
-				       GFP_KERNEL);
+		rdev->wr_log = kzalloc_objs(*rdev->wr_log,
+					    1 << c4iw_wr_log_size_order);
 		if (rdev->wr_log) {
 			rdev->wr_log_size = 1 << c4iw_wr_log_size_order;
 			atomic_set(&rdev->wr_log_idx, 0);
@@ -1078,7 +1077,7 @@ static void *c4iw_uld_add(const struct cxgb4_lld_info *infop)
 		pr_info("Chelsio T4/T5 RDMA Driver - version %s\n",
 			DRV_VERSION);
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx) {
 		ctx = ERR_PTR(-ENOMEM);
 		goto out;
@@ -1439,7 +1438,7 @@ static void recover_queues(struct uld_ctx *ctx)
 	xa_for_each(&ctx->dev->qps, index, qp)
 		count++;
 
-	qp_list.qps = kcalloc(count, sizeof(*qp_list.qps), GFP_ATOMIC);
+	qp_list.qps = kzalloc_objs(*qp_list.qps, count, GFP_ATOMIC);
 	if (!qp_list.qps) {
 		xa_unlock_irq(&ctx->dev->qps);
 		return;
@@ -1522,7 +1521,7 @@ struct c4iw_wr_wait *c4iw_alloc_wr_wait(gfp_t gfp)
 {
 	struct c4iw_wr_wait *wr_waitp;
 
-	wr_waitp = kzalloc(sizeof(*wr_waitp), gfp);
+	wr_waitp = kzalloc_obj(*wr_waitp, gfp);
 	if (wr_waitp) {
 		kref_init(&wr_waitp->kref);
 		pr_debug("wr_wait %p\n", wr_waitp);

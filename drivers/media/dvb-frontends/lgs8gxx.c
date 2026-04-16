@@ -1012,7 +1012,7 @@ struct dvb_frontend *lgs8gxx_attach(const struct lgs8gxx_config *config,
 	if (config == NULL || i2c == NULL)
 		return NULL;
 
-	priv = kzalloc(sizeof(struct lgs8gxx_state), GFP_KERNEL);
+	priv = kzalloc_obj(struct lgs8gxx_state);
 	if (priv == NULL)
 		goto error_out;
 

@@ -59,7 +59,7 @@ struct mlx5_st *mlx5_st_create(struct mlx5_core_dev *dev)
 	if (ret)
 		return NULL;
 
-	st = kzalloc(sizeof(*st), GFP_KERNEL);
+	st = kzalloc_obj(*st);
 	if (!st)
 		goto end;
 
@@ -124,7 +124,7 @@ int mlx5_st_alloc_index(struct mlx5_core_dev *dev, enum tph_mem_type mem_type,
 		}
 	}
 
-	idx_data = kzalloc(sizeof(*idx_data), GFP_KERNEL);
+	idx_data = kzalloc_obj(*idx_data);
 	if (!idx_data) {
 		ret = -ENOMEM;
 		goto end;

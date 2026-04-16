@@ -240,6 +240,9 @@ impl<T> Arc<T> {
         // `Arc` object.
         Ok(unsafe { Self::from_inner(inner) })
     }
+
+    /// The offset that the value is stored at.
+    pub const DATA_OFFSET: usize = core::mem::offset_of!(ArcInner<T>, data);
 }
 
 impl<T: ?Sized> Arc<T> {

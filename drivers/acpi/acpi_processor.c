@@ -428,7 +428,7 @@ static int acpi_processor_add(struct acpi_device *device,
 	if (!acpi_device_is_enabled(device))
 		return -ENODEV;
 
-	pr = kzalloc(sizeof(struct acpi_processor), GFP_KERNEL);
+	pr = kzalloc_obj(struct acpi_processor);
 	if (!pr)
 		return -ENOMEM;
 

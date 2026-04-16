@@ -172,7 +172,7 @@ static int mlxsw_sp_mr_route_evif_link(struct mlxsw_sp_mr_route *mr_route,
 {
 	struct mlxsw_sp_mr_route_vif_entry *rve;
 
-	rve = kzalloc(sizeof(*rve), GFP_KERNEL);
+	rve = kzalloc_obj(*rve);
 	if (!rve)
 		return -ENOMEM;
 	rve->mr_route = mr_route;
@@ -305,7 +305,7 @@ mlxsw_sp_mr_route_create(struct mlxsw_sp_mr_table *mr_table,
 	int i;
 
 	/* Allocate and init a new route and fill it with parameters */
-	mr_route = kzalloc(sizeof(*mr_route), GFP_KERNEL);
+	mr_route = kzalloc_obj(*mr_route);
 	if (!mr_route)
 		return ERR_PTR(-ENOMEM);
 	INIT_LIST_HEAD(&mr_route->evif_list);

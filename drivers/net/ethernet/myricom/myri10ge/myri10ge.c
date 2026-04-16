@@ -688,9 +688,9 @@ static int myri10ge_get_firmware_capabilities(struct myri10ge_priv *mgp)
 
 	/* probe for IPv6 TSO support */
 	mgp->features = NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_TSO;
-	cmd.data0 = 0,
-	cmd.data1 = 0,
-	cmd.data2 = 0,
+	cmd.data0 = 0;
+	cmd.data1 = 0;
+	cmd.data2 = 0;
 	status = myri10ge_send_cmd(mgp, MXGEFW_CMD_GET_MAX_TSO6_HDR_SIZE,
 				   &cmd, 0);
 	if (status == 0) {
@@ -821,9 +821,9 @@ static int myri10ge_change_pause(struct myri10ge_priv *mgp, int pause)
 	int status, ctl;
 
 	ctl = pause ? MXGEFW_ENABLE_FLOW_CONTROL : MXGEFW_DISABLE_FLOW_CONTROL;
-	cmd.data0 = 0,
-	cmd.data1 = 0,
-	cmd.data2 = 0,
+	cmd.data0 = 0;
+	cmd.data1 = 0;
+	cmd.data2 = 0;
 	status = myri10ge_send_cmd(mgp, ctl, &cmd, 0);
 
 	if (status) {
@@ -3703,8 +3703,7 @@ static void myri10ge_probe_slices(struct myri10ge_priv *mgp)
 	 * slices. We give up on MSI-X if we can only get a single
 	 * vector. */
 
-	mgp->msix_vectors = kcalloc(mgp->num_slices, sizeof(*mgp->msix_vectors),
-				    GFP_KERNEL);
+	mgp->msix_vectors = kzalloc_objs(*mgp->msix_vectors, mgp->num_slices);
 	if (mgp->msix_vectors == NULL)
 		goto no_msix;
 	for (i = 0; i < mgp->num_slices; i++) {

@@ -319,7 +319,7 @@ static int xilly_map_single(struct xilly_endpoint *ep,
 	dma_addr_t addr;
 	struct xilly_mapping *this;
 
-	this = kzalloc(sizeof(*this), GFP_KERNEL);
+	this = kzalloc_obj(*this);
 	if (!this)
 		return -ENOMEM;
 

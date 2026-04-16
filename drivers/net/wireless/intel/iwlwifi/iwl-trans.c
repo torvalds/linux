@@ -46,7 +46,7 @@ iwl_trans_get_restart_data(struct device *dev)
 	if (data)
 		return data;
 
-	data = kzalloc(struct_size(data, name, strlen(name) + 1), GFP_ATOMIC);
+	data = kzalloc_flex(*data, name, strlen(name) + 1, GFP_ATOMIC);
 	if (!data)
 		return NULL;
 
@@ -113,7 +113,7 @@ static void iwl_trans_schedule_reprobe(struct iwl_trans *trans,
 		return;
 	}
 
-	reprobe = kzalloc(sizeof(*reprobe), GFP_KERNEL);
+	reprobe = kzalloc_obj(*reprobe);
 	if (!reprobe) {
 		module_put(THIS_MODULE);
 		return;

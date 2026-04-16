@@ -2214,15 +2214,14 @@ static int __init blogic_init(void)
 	if (blogic_probe_options.noprobe)
 		return -ENODEV;
 	blogic_probeinfo_list =
-	    kcalloc(BLOGIC_MAX_ADAPTERS, sizeof(struct blogic_probeinfo),
-			    GFP_KERNEL);
+	    kzalloc_objs(struct blogic_probeinfo, BLOGIC_MAX_ADAPTERS);
 	if (blogic_probeinfo_list == NULL) {
 		blogic_err("BusLogic: Unable to allocate Probe Info List\n",
 				NULL);
 		return -ENOMEM;
 	}
 
-	adapter = kzalloc(sizeof(struct blogic_adapter), GFP_KERNEL);
+	adapter = kzalloc_obj(struct blogic_adapter);
 	if (adapter == NULL) {
 		kfree(blogic_probeinfo_list);
 		blogic_err("BusLogic: Unable to allocate Prototype Host Adapter\n", NULL);

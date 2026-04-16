@@ -1359,7 +1359,7 @@ void q6afe_tdm_port_prepare(struct q6afe_port *port,
 
 	pcfg->tdm_cfg.slot_width = cfg->slot_width;
 	pcfg->tdm_cfg.slot_mask = cfg->slot_mask;
-	port->scfg = kzalloc(sizeof(*port->scfg), GFP_KERNEL);
+	port->scfg = kzalloc_obj(*port->scfg);
 	if (!port->scfg)
 		return;
 

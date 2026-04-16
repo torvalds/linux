@@ -212,7 +212,7 @@ static void update_capabilities(struct hfi_instance *hfi_instance)
 	if (!cpu_count)
 		goto out;
 
-	cpu_caps = kcalloc(cpu_count, sizeof(*cpu_caps), GFP_KERNEL);
+	cpu_caps = kzalloc_objs(*cpu_caps, cpu_count);
 	if (!cpu_caps)
 		goto out;
 
@@ -690,8 +690,7 @@ void __init intel_hfi_init(void)
 	 * This allocation may fail. CPU hotplug callbacks must check
 	 * for a null pointer.
 	 */
-	hfi_instances = kcalloc(max_hfi_instances, sizeof(*hfi_instances),
-				GFP_KERNEL);
+	hfi_instances = kzalloc_objs(*hfi_instances, max_hfi_instances);
 	if (!hfi_instances)
 		return;
 

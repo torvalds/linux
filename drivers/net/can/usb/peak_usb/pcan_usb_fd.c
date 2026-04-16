@@ -939,7 +939,7 @@ static int pcan_usb_fd_init(struct peak_usb_device *dev)
 	/* do this for 1st channel only */
 	if (!dev->prev_siblings) {
 		/* allocate netdevices common structure attached to first one */
-		pdev->usb_if = kzalloc(sizeof(*pdev->usb_if), GFP_KERNEL);
+		pdev->usb_if = kzalloc_obj(*pdev->usb_if);
 		if (!pdev->usb_if)
 			goto err_out;
 

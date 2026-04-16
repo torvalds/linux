@@ -390,7 +390,7 @@ static void obex_attr_release(struct config_item *item)
 	usb_put_function_instance(&opts->func_inst);
 }
 
-static struct configfs_item_operations obex_item_ops = {
+static const struct configfs_item_operations obex_item_ops = {
 	.release	= obex_attr_release,
 };
 
@@ -426,7 +426,7 @@ static struct usb_function_instance *obex_alloc_inst(void)
 	struct f_serial_opts *opts;
 	int ret;
 
-	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
+	opts = kzalloc_obj(*opts);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
 
@@ -461,7 +461,7 @@ static struct usb_function *obex_alloc(struct usb_function_instance *fi)
 	struct f_serial_opts *opts;
 
 	/* allocate and initialize one new instance */
-	obex = kzalloc(sizeof(*obex), GFP_KERNEL);
+	obex = kzalloc_obj(*obex);
 	if (!obex)
 		return ERR_PTR(-ENOMEM);
 

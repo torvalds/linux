@@ -188,7 +188,7 @@ static int __init vf610_mscm_ir_of_init(struct device_node *node,
 		return -EINVAL;
 	}
 
-	mscm_ir_data = kzalloc(sizeof(*mscm_ir_data), GFP_KERNEL);
+	mscm_ir_data = kzalloc_obj(*mscm_ir_data);
 	if (!mscm_ir_data)
 		return -ENOMEM;
 

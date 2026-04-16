@@ -248,7 +248,7 @@ int mt76_rx_aggr_start(struct mt76_dev *dev, struct mt76_wcid *wcid, u8 tidno,
 
 	mt76_rx_aggr_stop(dev, wcid, tidno);
 
-	tid = kzalloc(struct_size(tid, reorder_buf, size), GFP_KERNEL);
+	tid = kzalloc_flex(*tid, reorder_buf, size);
 	if (!tid)
 		return -ENOMEM;
 

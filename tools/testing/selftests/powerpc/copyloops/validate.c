@@ -12,6 +12,10 @@
 #define BUFLEN (MAX_LEN+MAX_OFFSET+2*MIN_REDZONE)
 #define POISON 0xa5
 
+#ifdef VMX_TEST
+#define VMX_COPY_THRESHOLD 3328
+#endif
+
 unsigned long COPY_LOOP(void *to, const void *from, unsigned long size);
 
 static void do_one(char *src, char *dst, unsigned long src_off,
@@ -81,8 +85,12 @@ int test_copy_loop(void)
 	/* Fill with sequential bytes */
 	for (i = 0; i < BUFLEN; i++)
 		fill[i] = i & 0xff;
-
+#ifdef VMX_TEST
+	/* Force sizes above kernel VMX threshold (3328) */
+	for (len = VMX_COPY_THRESHOLD + 1; len < MAX_LEN; len++) {
+#else
 	for (len = 1; len < MAX_LEN; len++) {
+#endif
 		for (src_off = 0; src_off < MAX_OFFSET; src_off++) {
 			for (dst_off = 0; dst_off < MAX_OFFSET; dst_off++) {
 				do_one(src, dst, src_off, dst_off, len,
@@ -96,5 +104,10 @@ int test_copy_loop(void)
 
 int main(void)
 {
+#ifdef VMX_TEST
+	/* Skip if Altivec not present */
+	SKIP_IF_MSG(!have_hwcap(PPC_FEATURE_HAS_ALTIVEC), "ALTIVEC not supported");
+#endif
+
 	return test_harness(test_copy_loop, str(COPY_LOOP));
 }

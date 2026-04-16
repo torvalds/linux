@@ -274,7 +274,7 @@ struct config_group *pci_ep_cfs_add_epc_group(const char *name)
 	struct config_group *group;
 	struct pci_epc_group *epc_group;
 
-	epc_group = kzalloc(sizeof(*epc_group), GFP_KERNEL);
+	epc_group = kzalloc_obj(*epc_group);
 	if (!epc_group) {
 		ret = -ENOMEM;
 		goto err;
@@ -599,7 +599,7 @@ static struct config_group *pci_epf_make(struct config_group *group,
 	char *epf_name;
 	int index, err;
 
-	epf_group = kzalloc(sizeof(*epf_group), GFP_KERNEL);
+	epf_group = kzalloc_obj(*epf_group);
 	if (!epf_group)
 		return ERR_PTR(-ENOMEM);
 

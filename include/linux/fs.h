@@ -2872,12 +2872,22 @@ u64 vfsmount_to_propagation_flags(struct vfsmount *mnt);
 
 extern char *file_path(struct file *, char *, int);
 
+static inline bool name_is_dot(const char *name, size_t len)
+{
+	return unlikely(len == 1 && name[0] == '.');
+}
+
+static inline bool name_is_dotdot(const char *name, size_t len)
+{
+	return unlikely(len == 2 && name[0] == '.' && name[1] == '.');
+}
+
 /**
- * is_dot_dotdot - returns true only if @name is "." or ".."
+ * name_is_dot_dotdot - returns true only if @name is "." or ".."
  * @name: file name to check
  * @len: length of file name, in bytes
  */
-static inline bool is_dot_dotdot(const char *name, size_t len)
+static inline bool name_is_dot_dotdot(const char *name, size_t len)
 {
 	return len && unlikely(name[0] == '.') &&
 		(len == 1 || (len == 2 && name[1] == '.'));
@@ -3515,7 +3525,6 @@ ssize_t simple_attr_write(struct file *file, const char __user *buf,
 ssize_t simple_attr_write_signed(struct file *file, const char __user *buf,
 				 size_t len, loff_t *ppos);
 
-struct ctl_table;
 int __init list_bdev_fs_names(char *buf, size_t size);
 
 #define __FMODE_EXEC		((__force int) FMODE_EXEC)

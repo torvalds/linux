@@ -29,7 +29,7 @@ static int queue_interrupt_event(struct slot *p_slot, u32 event_type)
 {
 	struct event_info *info;
 
-	info = kmalloc(sizeof(*info), GFP_ATOMIC);
+	info = kmalloc_obj(*info, GFP_ATOMIC);
 	if (!info)
 		return -ENOMEM;
 
@@ -418,7 +418,7 @@ void shpchp_queue_pushbutton_work(struct work_struct *work)
 	struct slot *p_slot = container_of(work, struct slot, work.work);
 	struct pushbutton_work_info *info;
 
-	info = kmalloc(sizeof(*info), GFP_KERNEL);
+	info = kmalloc_obj(*info);
 	if (!info) {
 		ctrl_err(p_slot->ctrl, "%s: Cannot allocate memory\n",
 			 __func__);

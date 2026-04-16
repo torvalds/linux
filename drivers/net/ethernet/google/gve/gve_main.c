@@ -151,8 +151,8 @@ static int gve_alloc_flow_rule_caches(struct gve_priv *priv)
 		return 0;
 
 	flow_rules_cache->rules_cache =
-		kvcalloc(GVE_FLOW_RULES_CACHE_SIZE, sizeof(*flow_rules_cache->rules_cache),
-			 GFP_KERNEL);
+		kvzalloc_objs(*flow_rules_cache->rules_cache,
+			      GVE_FLOW_RULES_CACHE_SIZE);
 	if (!flow_rules_cache->rules_cache) {
 		dev_err(&priv->pdev->dev, "Cannot alloc flow rules cache\n");
 		return -ENOMEM;
@@ -485,8 +485,8 @@ static int gve_alloc_notify_blocks(struct gve_priv *priv)
 	int i, j;
 	int err;
 
-	priv->msix_vectors = kvcalloc(num_vecs_requested,
-				      sizeof(*priv->msix_vectors), GFP_KERNEL);
+	priv->msix_vectors = kvzalloc_objs(*priv->msix_vectors,
+					   num_vecs_requested);
 	if (!priv->msix_vectors)
 		return -ENOMEM;
 	for (i = 0; i < num_vecs_requested; i++)
@@ -666,8 +666,7 @@ static int gve_setup_device_resources(struct gve_priv *priv)
 	}
 
 	if (!gve_is_gqi(priv)) {
-		priv->ptype_lut_dqo = kvzalloc(sizeof(*priv->ptype_lut_dqo),
-					       GFP_KERNEL);
+		priv->ptype_lut_dqo = kvzalloc_obj(*priv->ptype_lut_dqo);
 		if (!priv->ptype_lut_dqo) {
 			err = -ENOMEM;
 			goto abort_with_stats_report;
@@ -1090,17 +1089,17 @@ struct gve_queue_page_list *gve_alloc_queue_page_list(struct gve_priv *priv,
 	int err;
 	int i;
 
-	qpl = kvzalloc(sizeof(*qpl), GFP_KERNEL);
+	qpl = kvzalloc_obj(*qpl);
 	if (!qpl)
 		return NULL;
 
 	qpl->id = id;
 	qpl->num_entries = 0;
-	qpl->pages = kvcalloc(pages, sizeof(*qpl->pages), GFP_KERNEL);
+	qpl->pages = kvzalloc_objs(*qpl->pages, pages);
 	if (!qpl->pages)
 		goto abort;
 
-	qpl->page_buses = kvcalloc(pages, sizeof(*qpl->page_buses), GFP_KERNEL);
+	qpl->page_buses = kvzalloc_objs(*qpl->page_buses, pages);
 	if (!qpl->page_buses)
 		goto abort;
 

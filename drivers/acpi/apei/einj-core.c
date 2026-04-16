@@ -1021,7 +1021,7 @@ static bool setup_einjv2_component_files(void)
 {
 	char name[32];
 
-	syndrome_data = kcalloc(max_nr_components, sizeof(syndrome_data[0]), GFP_KERNEL);
+	syndrome_data = kzalloc_objs(syndrome_data[0], max_nr_components);
 	if (!syndrome_data)
 		return false;
 

@@ -999,7 +999,7 @@ ctnetlink_alloc_filter(const struct nlattr * const cda[], u8 family)
 		return ERR_PTR(-EOPNOTSUPP);
 #endif
 
-	filter = kzalloc(sizeof(*filter), GFP_KERNEL);
+	filter = kzalloc_obj(*filter);
 	if (filter == NULL)
 		return ERR_PTR(-ENOMEM);
 

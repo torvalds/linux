@@ -1194,7 +1194,7 @@ static void atmel_hlcdc_plane_reset(struct drm_plane *p)
 		p->state = NULL;
 	}
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (state) {
 		if (atmel_hlcdc_plane_alloc_dscrs(p, state)) {
 			kfree(state);

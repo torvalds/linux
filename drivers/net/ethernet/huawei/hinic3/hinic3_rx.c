@@ -66,7 +66,7 @@ int hinic3_alloc_rxqs(struct net_device *netdev)
 	struct hinic3_rxq *rxq;
 	u16 q_id;
 
-	nic_dev->rxqs = kcalloc(num_rxqs, sizeof(*nic_dev->rxqs), GFP_KERNEL);
+	nic_dev->rxqs = kzalloc_objs(*nic_dev->rxqs, num_rxqs);
 	if (!nic_dev->rxqs)
 		return -ENOMEM;
 
@@ -419,8 +419,7 @@ int hinic3_alloc_rxqs_res(struct net_device *netdev, u16 num_rq,
 
 	for (idx = 0; idx < num_rq; idx++) {
 		rqres = &rxqs_res[idx];
-		rqres->rx_info = kcalloc(rq_depth, sizeof(*rqres->rx_info),
-					 GFP_KERNEL);
+		rqres->rx_info = kzalloc_objs(*rqres->rx_info, rq_depth);
 		if (!rqres->rx_info)
 			goto err_free_rqres;
 

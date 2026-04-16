@@ -107,7 +107,7 @@ int __init sa11xx_clk_init(void)
 
 	clk_hw_register_clkdev(hw, "OSTIMER0", NULL);
 
-	hw = kzalloc(sizeof(*hw), GFP_KERNEL);
+	hw = kzalloc_obj(*hw);
 	if (!hw)
 		return -ENOMEM;
 	hw->init = &clk_mpll_init_data;
@@ -129,7 +129,7 @@ int __init sa11xx_clk_init(void)
 				 FAlnMsk(TUCR_TSEL), 0, &tucr_lock);
 	clk_set_rate(hw->clk, 3686400);
 
-	hw = kzalloc(sizeof(*hw), GFP_KERNEL);
+	hw = kzalloc_obj(*hw);
 	if (!hw)
 		return -ENOMEM;
 	hw->init = &clk_gpio27_init_data;

@@ -510,7 +510,7 @@ cifs_ses_add_channel(struct cifs_ses *ses,
 	 * the session and server without caring about memory
 	 * management.
 	 */
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx) {
 		rc = -ENOMEM;
 		goto out_free_xid;

@@ -88,7 +88,7 @@ lasi700_probe(struct parisc_device *dev)
 	struct NCR_700_Host_Parameters *hostdata;
 	struct Scsi_Host *host;
 
-	hostdata = kzalloc(sizeof(*hostdata), GFP_KERNEL);
+	hostdata = kzalloc_obj(*hostdata);
 	if (!hostdata) {
 		dev_printk(KERN_ERR, &dev->dev, "Failed to allocate host data\n");
 		return -ENOMEM;

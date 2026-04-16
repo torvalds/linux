@@ -1171,7 +1171,7 @@ static int yenta_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		return -ENODEV;
 	}
 
-	socket = kzalloc(sizeof(struct yenta_socket), GFP_KERNEL);
+	socket = kzalloc_obj(struct yenta_socket);
 	if (!socket)
 		return -ENOMEM;
 

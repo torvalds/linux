@@ -353,7 +353,7 @@ int tipc_disc_create(struct net *net, struct tipc_bearer *b,
 	struct tipc_net *tn = tipc_net(net);
 	struct tipc_discoverer *d;
 
-	d = kmalloc(sizeof(*d), GFP_ATOMIC);
+	d = kmalloc_obj(*d, GFP_ATOMIC);
 	if (!d)
 		return -ENOMEM;
 	d->skb = tipc_buf_acquire(MAX_H_SIZE + NODE_ID_LEN, GFP_ATOMIC);

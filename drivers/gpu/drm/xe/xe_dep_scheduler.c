@@ -86,7 +86,7 @@ xe_dep_scheduler_create(struct xe_device *xe,
 	};
 	int err;
 
-	dep_scheduler = kzalloc(sizeof(*dep_scheduler), GFP_KERNEL);
+	dep_scheduler = kzalloc_obj(*dep_scheduler);
 	if (!dep_scheduler)
 		return ERR_PTR(-ENOMEM);
 

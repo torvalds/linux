@@ -62,7 +62,7 @@ static int ksz_connect(struct dsa_switch *ds)
 	struct ksz_tagger_private *priv;
 	int ret;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -258,7 +258,7 @@ static struct sk_buff *ksz_defer_xmit(struct dsa_port *dp, struct sk_buff *skb)
 	if (!xmit_work_fn || !xmit_worker)
 		return NULL;
 
-	xmit_work = kzalloc(sizeof(*xmit_work), GFP_ATOMIC);
+	xmit_work = kzalloc_obj(*xmit_work, GFP_ATOMIC);
 	if (!xmit_work)
 		return NULL;
 

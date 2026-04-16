@@ -936,7 +936,7 @@ static ssize_t tool_peer_mw_trans_write(struct file *filep,
 
 	buf[buf_size] = '\0';
 
-	n = sscanf(buf, "%lli:%zi", &addr, &wsize);
+	n = sscanf(buf, "%llu:%zu", &addr, &wsize);
 	if (n != 2)
 		return -EINVAL;
 

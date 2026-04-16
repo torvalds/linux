@@ -739,7 +739,7 @@ static struct cipher_test_sglists *alloc_cipher_test_sglists(void)
 {
 	struct cipher_test_sglists *tsgls;
 
-	tsgls = kmalloc(sizeof(*tsgls), GFP_KERNEL);
+	tsgls = kmalloc_obj(*tsgls);
 	if (!tsgls)
 		return NULL;
 
@@ -1796,7 +1796,7 @@ static int test_hash_vs_generic_impl(const char *generic_driver,
 		return err;
 	}
 
-	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
+	cfg = kzalloc_obj(*cfg);
 	if (!cfg) {
 		err = -ENOMEM;
 		goto out;
@@ -1941,7 +1941,7 @@ static int __alg_test_hash(const struct hash_testvec *vecs,
 	if (err)
 		goto out;
 
-	tsgl = kmalloc(sizeof(*tsgl), GFP_KERNEL);
+	tsgl = kmalloc_obj(*tsgl);
 	if (!tsgl || init_test_sglist(tsgl) != 0) {
 		pr_err("alg: hash: failed to allocate test buffers for %s\n",
 		       driver);
@@ -2598,7 +2598,7 @@ static int test_aead_slow(const struct alg_test_desc *test_desc,
 	if (noslowtests)
 		return 0;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 	init_rnd_state(&ctx->rng);
@@ -3106,7 +3106,7 @@ static int test_skcipher_vs_generic_impl(const char *generic_driver,
 		return err;
 	}
 
-	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
+	cfg = kzalloc_obj(*cfg);
 	if (!cfg) {
 		err = -ENOMEM;
 		goto out;
@@ -4132,7 +4132,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.fips_allowed = 1,
 	}, {
 		.alg = "authenc(hmac(sha224),cbc(aes))",
-		.generic_driver = "authenc(hmac-sha224-lib,cbc(aes-generic))",
+		.generic_driver = "authenc(hmac-sha224-lib,cbc(aes-lib))",
 		.test = alg_test_aead,
 		.suite = {
 			.aead = __VECS(hmac_sha224_aes_cbc_tv_temp)
@@ -4194,7 +4194,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.fips_allowed = 1,
 	}, {
 		.alg = "authenc(hmac(sha384),cbc(aes))",
-		.generic_driver = "authenc(hmac-sha384-lib,cbc(aes-generic))",
+		.generic_driver = "authenc(hmac-sha384-lib,cbc(aes-lib))",
 		.test = alg_test_aead,
 		.suite = {
 			.aead = __VECS(hmac_sha384_aes_cbc_tv_temp)

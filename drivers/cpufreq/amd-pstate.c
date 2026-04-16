@@ -993,7 +993,7 @@ static int amd_pstate_cpu_init(struct cpufreq_policy *policy)
 	if (!dev)
 		return -ENODEV;
 
-	cpudata = kzalloc(sizeof(*cpudata), GFP_KERNEL);
+	cpudata = kzalloc_obj(*cpudata);
 	if (!cpudata)
 		return -ENOMEM;
 
@@ -1478,7 +1478,7 @@ static int amd_pstate_epp_cpu_init(struct cpufreq_policy *policy)
 	if (!dev)
 		return -ENODEV;
 
-	cpudata = kzalloc(sizeof(*cpudata), GFP_KERNEL);
+	cpudata = kzalloc_obj(*cpudata);
 	if (!cpudata)
 		return -ENOMEM;
 

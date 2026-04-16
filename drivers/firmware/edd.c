@@ -740,7 +740,7 @@ edd_init(void)
 		return -ENOMEM;
 
 	for (i = 0; i < edd_num_devices(); i++) {
-		edev = kzalloc(sizeof (*edev), GFP_KERNEL);
+		edev = kzalloc_obj(*edev);
 		if (!edev) {
 			rc = -ENOMEM;
 			goto out;

@@ -733,7 +733,8 @@ kallsyms_process_symbol(void *data, const char *_name,
 			char type __maybe_unused, u64 start)
 {
 	char disp[KSYM_NAME_LEN];
-	char *module, *name;
+	const char *module;
+	char *name;
 	unsigned long id;
 	int err = 0;
 
@@ -787,11 +788,10 @@ int perf_event__synthesize_bpf_events(struct perf_session *session,
 				err = 0;
 				break;
 			}
-			pr_debug("%s: can't get next program: %s%s\n",
-				 __func__, strerror(errno),
-				 errno == EINVAL ? " -- kernel too old?" : "");
 			/* don't report error on old kernel or EPERM  */
 			err = (errno == EINVAL || errno == EPERM) ? 0 : -1;
+			pr_debug("%s: can\'t get next program: %m%s\n",
+				__func__, errno == EINVAL ? " -- kernel too old?" : "");
 			break;
 		}
 		fd = bpf_prog_get_fd_by_id(id);
@@ -824,10 +824,8 @@ int perf_event__synthesize_bpf_events(struct perf_session *session,
 		.tool    = session->tool,
 	};
 
-	if (kallsyms__parse(kallsyms_filename, &arg, kallsyms_process_symbol)) {
-		pr_err("%s: failed to synthesize bpf images: %s\n",
-		       __func__, strerror(errno));
-	}
+	if (kallsyms__parse(kallsyms_filename, &arg, kallsyms_process_symbol))
+		pr_err("%s: failed to synthesize bpf images: %m\n", __func__);
 
 	free(event);
 	return err;

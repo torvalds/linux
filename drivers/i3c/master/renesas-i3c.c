@@ -345,7 +345,7 @@ static struct renesas_i3c_xfer *renesas_i3c_alloc_xfer(struct renesas_i3c *i3c,
 {
 	struct renesas_i3c_xfer *xfer;
 
-	xfer = kzalloc(struct_size(xfer, cmds, ncmds), GFP_KERNEL);
+	xfer = kzalloc_flex(*xfer, cmds, ncmds);
 	if (!xfer)
 		return NULL;
 
@@ -874,7 +874,7 @@ static int renesas_i3c_attach_i3c_dev(struct i3c_dev_desc *dev)
 	if (pos < 0)
 		return pos;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 
@@ -984,7 +984,7 @@ static int renesas_i3c_attach_i2c_dev(struct i2c_dev_desc *dev)
 	if (pos < 0)
 		return pos;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 

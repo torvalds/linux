@@ -36,7 +36,7 @@ msm_disp_snapshot_state_sync(struct msm_kms *kms)
 
 	WARN_ON(!mutex_is_locked(&kms->dump_mutex));
 
-	disp_state = kzalloc(sizeof(struct msm_disp_state), GFP_KERNEL);
+	disp_state = kzalloc_obj(struct msm_disp_state);
 	if (!disp_state)
 		return ERR_PTR(-ENOMEM);
 

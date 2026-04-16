@@ -56,7 +56,7 @@ static int __io_getxattr_prep(struct io_kiocb *req,
 	if (ix->ctx.flags)
 		return -EINVAL;
 
-	ix->ctx.kname = kmalloc(sizeof(*ix->ctx.kname), GFP_KERNEL);
+	ix->ctx.kname = kmalloc_obj(*ix->ctx.kname);
 	if (!ix->ctx.kname)
 		return -ENOMEM;
 
@@ -133,7 +133,7 @@ static int __io_setxattr_prep(struct io_kiocb *req,
 	ix->ctx.size = READ_ONCE(sqe->len);
 	ix->ctx.flags = READ_ONCE(sqe->xattr_flags);
 
-	ix->ctx.kname = kmalloc(sizeof(*ix->ctx.kname), GFP_KERNEL);
+	ix->ctx.kname = kmalloc_obj(*ix->ctx.kname);
 	if (!ix->ctx.kname)
 		return -ENOMEM;
 

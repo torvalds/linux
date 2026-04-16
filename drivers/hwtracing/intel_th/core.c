@@ -891,7 +891,7 @@ intel_th_alloc(struct device *dev, const struct intel_th_drvdata *drvdata,
 	int err, r, nr_mmios = 0;
 	struct intel_th *th;
 
-	th = kzalloc(sizeof(*th), GFP_KERNEL);
+	th = kzalloc_obj(*th);
 	if (!th)
 		return ERR_PTR(-ENOMEM);
 

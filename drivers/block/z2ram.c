@@ -187,8 +187,7 @@ static int z2_open(struct gendisk *disk, blk_mode_t mode)
 			    (unsigned long)z_remap_nocache_nonser(paddr, size);
 #endif
 			z2ram_map =
-			    kmalloc_array(size / Z2RAM_CHUNKSIZE,
-					  sizeof(z2ram_map[0]), GFP_KERNEL);
+			    kmalloc_objs(z2ram_map[0], size / Z2RAM_CHUNKSIZE);
 			if (z2ram_map == NULL) {
 				printk(KERN_ERR DEVICE_NAME
 				       ": cannot get mem for z2ram_map\n");

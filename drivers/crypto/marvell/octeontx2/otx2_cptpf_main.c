@@ -340,8 +340,7 @@ static int cptpf_flr_wq_init(struct otx2_cptpf_dev *cptpf, int num_vfs)
 	if (!cptpf->flr_wq)
 		return -ENOMEM;
 
-	cptpf->flr_work = kcalloc(num_vfs, sizeof(struct cptpf_flr_work),
-				  GFP_KERNEL);
+	cptpf->flr_work = kzalloc_objs(struct cptpf_flr_work, num_vfs);
 	if (!cptpf->flr_work)
 		goto destroy_wq;
 

@@ -418,7 +418,7 @@ static struct dtpm *dtpm_setup_virtual(const struct dtpm_node *hierarchy,
 	struct dtpm *dtpm;
 	int ret;
 
-	dtpm = kzalloc(sizeof(*dtpm), GFP_KERNEL);
+	dtpm = kzalloc_obj(*dtpm);
 	if (!dtpm)
 		return ERR_PTR(-ENOMEM);
 	dtpm_init(dtpm, NULL);

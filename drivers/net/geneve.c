@@ -980,7 +980,7 @@ static struct geneve_sock *geneve_socket_create(struct net *net, __be16 port,
 	struct udp_tunnel_sock_cfg tunnel_cfg;
 	int h;
 
-	gs = kzalloc(sizeof(*gs), GFP_KERNEL);
+	gs = kzalloc_obj(*gs);
 	if (!gs)
 		return ERR_PTR(-ENOMEM);
 

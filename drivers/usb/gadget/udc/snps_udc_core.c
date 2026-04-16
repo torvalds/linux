@@ -523,7 +523,7 @@ udc_alloc_request(struct usb_ep *usbep, gfp_t gfp)
 	ep = container_of(usbep, struct udc_ep, ep);
 
 	VDBG(ep->dev, "udc_alloc_req(): ep%d\n", ep->num);
-	req = kzalloc(sizeof(struct udc_request), gfp);
+	req = kzalloc_obj(struct udc_request, gfp);
 	if (!req)
 		return NULL;
 

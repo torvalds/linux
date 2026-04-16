@@ -84,7 +84,7 @@ static DEFINE_XARRAY(bio_slabs);
 
 static struct bio_slab *create_bio_slab(unsigned int size)
 {
-	struct bio_slab *bslab = kzalloc(sizeof(*bslab), GFP_KERNEL);
+	struct bio_slab *bslab = kzalloc_obj(*bslab);
 
 	if (!bslab)
 		return NULL;
@@ -1382,8 +1382,10 @@ static int bio_iov_iter_bounce_read(struct bio *bio, struct iov_iter *iter)
 		ret = iov_iter_extract_bvecs(iter, bio->bi_io_vec + 1, len,
 				&bio->bi_vcnt, bio->bi_max_vecs - 1, 0);
 		if (ret <= 0) {
-			if (!bio->bi_vcnt)
+			if (!bio->bi_vcnt) {
+				folio_put(folio);
 				return ret;
+			}
 			break;
 		}
 		len -= ret;

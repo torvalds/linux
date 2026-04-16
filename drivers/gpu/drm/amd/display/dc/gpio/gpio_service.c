@@ -58,7 +58,7 @@ struct gpio_service *dal_gpio_service_create(
 	struct gpio_service *service;
 	int32_t index_of_id;
 
-	service = kzalloc(sizeof(struct gpio_service), GFP_KERNEL);
+	service = kzalloc_obj(struct gpio_service);
 
 	if (!service) {
 		BREAK_TO_DEBUGGER();
@@ -498,7 +498,7 @@ struct ddc *dal_gpio_create_ddc(
 	if (!service->translate.funcs->offset_to_id(offset, mask, &id, &en))
 		return NULL;
 
-	ddc = kzalloc(sizeof(struct ddc), GFP_KERNEL);
+	ddc = kzalloc_obj(struct ddc);
 
 	if (!ddc) {
 		BREAK_TO_DEBUGGER();

@@ -275,7 +275,7 @@ static int virtbt_probe(struct virtio_device *vdev)
 		return -EINVAL;
 	}
 
-	vbt = kzalloc(sizeof(*vbt), GFP_KERNEL);
+	vbt = kzalloc_obj(*vbt);
 	if (!vbt)
 		return -ENOMEM;
 

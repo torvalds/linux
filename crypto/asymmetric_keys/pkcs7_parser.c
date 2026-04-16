@@ -133,17 +133,16 @@ struct pkcs7_message *pkcs7_parse_message(const void *data, size_t datalen)
 	struct pkcs7_message *msg = ERR_PTR(-ENOMEM);
 	int ret;
 
-	ctx = kzalloc(sizeof(struct pkcs7_parse_context), GFP_KERNEL);
+	ctx = kzalloc_obj(struct pkcs7_parse_context);
 	if (!ctx)
 		goto out_no_ctx;
-	ctx->msg = kzalloc(sizeof(struct pkcs7_message), GFP_KERNEL);
+	ctx->msg = kzalloc_obj(struct pkcs7_message);
 	if (!ctx->msg)
 		goto out_no_msg;
-	ctx->sinfo = kzalloc(sizeof(struct pkcs7_signed_info), GFP_KERNEL);
+	ctx->sinfo = kzalloc_obj(struct pkcs7_signed_info);
 	if (!ctx->sinfo)
 		goto out_no_sinfo;
-	ctx->sinfo->sig = kzalloc(sizeof(struct public_key_signature),
-				  GFP_KERNEL);
+	ctx->sinfo->sig = kzalloc_obj(struct public_key_signature);
 	if (!ctx->sinfo->sig)
 		goto out_no_sig;
 
@@ -729,11 +728,10 @@ int pkcs7_note_signed_info(void *context, size_t hdrlen,
 	sinfo->index = ++ctx->sinfo_index;
 	*ctx->ppsinfo = sinfo;
 	ctx->ppsinfo = &sinfo->next;
-	ctx->sinfo = kzalloc(sizeof(struct pkcs7_signed_info), GFP_KERNEL);
+	ctx->sinfo = kzalloc_obj(struct pkcs7_signed_info);
 	if (!ctx->sinfo)
 		return -ENOMEM;
-	ctx->sinfo->sig = kzalloc(sizeof(struct public_key_signature),
-				  GFP_KERNEL);
+	ctx->sinfo->sig = kzalloc_obj(struct public_key_signature);
 	if (!ctx->sinfo->sig)
 		return -ENOMEM;
 	return 0;

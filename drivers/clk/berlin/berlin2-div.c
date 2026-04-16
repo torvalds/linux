@@ -236,7 +236,7 @@ berlin2_div_register(const struct berlin2_div_map *map,
 	const struct clk_ops *gate_ops = &berlin2_div_gate_ops;
 	struct berlin2_div *div;
 
-	div = kzalloc(sizeof(*div), GFP_KERNEL);
+	div = kzalloc_obj(*div);
 	if (!div)
 		return ERR_PTR(-ENOMEM);
 

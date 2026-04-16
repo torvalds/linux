@@ -815,7 +815,7 @@ static int spi_engine_optimize_message(struct spi_message *msg)
 	p_dry.length = 0;
 	spi_engine_compile_message(msg, true, &p_dry);
 
-	p = kzalloc(struct_size(p, instructions, p_dry.length + 1), GFP_KERNEL);
+	p = kzalloc_flex(*p, instructions, p_dry.length + 1);
 	if (!p)
 		return -ENOMEM;
 

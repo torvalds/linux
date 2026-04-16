@@ -83,7 +83,7 @@ SYSCALL_DEFINE2(s390_runtime_instr, int, command, int, signum)
 		return -EINVAL;
 
 	if (!current->thread.ri_cb) {
-		cb = kzalloc(sizeof(*cb), GFP_KERNEL);
+		cb = kzalloc_obj(*cb);
 		if (!cb)
 			return -ENOMEM;
 	} else {

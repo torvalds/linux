@@ -1,15 +1,17 @@
 include $(srctree)/tools/scripts/Makefile.include
 include $(srctree)/tools/scripts/utilities.mak
 
+perf-util-y += annotate-arch/
 perf-util-y += arm64-frame-pointer-unwind-support.o
 perf-util-y += addr2line.o
 perf-util-y += addr_location.o
 perf-util-y += annotate.o
+perf-util-y += blake2s.o
 perf-util-y += block-info.o
 perf-util-y += block-range.o
 perf-util-y += build-id.o
 perf-util-y += cacheline.o
-perf-util-y += capstone.o
+perf-util-$(CONFIG_LIBCAPSTONE) += capstone.o
 perf-util-y += config.o
 perf-util-y += copyfile.o
 perf-util-y += ctype.o
@@ -43,7 +45,6 @@ perf-util-y += rbtree.o
 perf-util-y += libstring.o
 perf-util-y += bitmap.o
 perf-util-y += hweight.o
-perf-util-y += sha1.o
 perf-util-y += smt.o
 perf-util-y += strbuf.o
 perf-util-y += string.o
@@ -127,7 +128,8 @@ perf-util-y += spark.o
 perf-util-y += topdown.o
 perf-util-y += iostat.o
 perf-util-y += stream.o
-perf-util-y += kvm-stat.o
+perf-util-$(CONFIG_LIBTRACEEVENT) += kvm-stat.o
+perf-util-y += kvm-stat-arch/
 perf-util-y += lock-contention.o
 perf-util-y += auxtrace.o
 perf-util-y += intel-pt-decoder/
@@ -219,13 +221,12 @@ endif
 perf-util-$(CONFIG_LIBDW) += probe-finder.o
 perf-util-$(CONFIG_LIBDW) += dwarf-aux.o
 perf-util-$(CONFIG_LIBDW) += dwarf-regs.o
-perf-util-$(CONFIG_LIBDW) += dwarf-regs-csky.o
-perf-util-$(CONFIG_LIBDW) += dwarf-regs-powerpc.o
-perf-util-$(CONFIG_LIBDW) += dwarf-regs-x86.o
+perf-util-$(CONFIG_LIBDW) += dwarf-regs-arch/
 perf-util-$(CONFIG_LIBDW) += debuginfo.o
 perf-util-$(CONFIG_LIBDW) += annotate-data.o
+perf-util-$(CONFIG_LIBDW) += libdw.o
+perf-util-$(CONFIG_LIBDW) += unwind-libdw.o
 
-perf-util-$(CONFIG_LIBDW_DWARF_UNWIND) += unwind-libdw.o
 perf-util-$(CONFIG_LOCAL_LIBUNWIND)    += unwind-libunwind-local.o
 perf-util-$(CONFIG_LIBUNWIND)          += unwind-libunwind.o
 perf-util-$(CONFIG_LIBUNWIND_X86)      += libunwind/x86_32.o
@@ -417,20 +418,6 @@ $(OUTPUT)util/vsprintf.o: ../lib/vsprintf.c FORCE
 $(OUTPUT)util/list_sort.o: ../lib/list_sort.c FORCE
 	$(call rule_mkdir)
 	$(call if_changed_dep,cc_o_c)
-
-ifdef SHELLCHECK
-  SHELL_TESTS := generate-cmdlist.sh
-  SHELL_TEST_LOGS := $(SHELL_TESTS:%=%.shellcheck_log)
-else
-  SHELL_TESTS :=
-  SHELL_TEST_LOGS :=
-endif
-
-$(OUTPUT)%.shellcheck_log: %
-	$(call rule_mkdir)
-	$(Q)$(call echo-cmd,test)$(SHELLCHECK) "$<" > $@ || (cat $@ && rm $@ && false)
-
-perf-util-y += $(SHELL_TEST_LOGS)
 
 PY_TESTS := setup.py
 ifdef MYPY

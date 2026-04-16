@@ -396,7 +396,7 @@ static int wm0010_firmware_load(const char *name, struct snd_soc_component *comp
 			rec->command, rec->length);
 		len = rec->length + 8;
 
-		xfer = kzalloc(sizeof(*xfer), GFP_KERNEL);
+		xfer = kzalloc_obj(*xfer);
 		if (!xfer) {
 			ret = -ENOMEM;
 			goto abort;

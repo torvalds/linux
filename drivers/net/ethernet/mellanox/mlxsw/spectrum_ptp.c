@@ -277,7 +277,7 @@ mlxsw_sp1_ptp_clock_init(struct mlxsw_sp *mlxsw_sp, struct device *dev)
 	struct mlxsw_sp1_ptp_clock *clock;
 	int err;
 
-	clock = kzalloc(sizeof(*clock), GFP_KERNEL);
+	clock = kzalloc_obj(*clock);
 	if (!clock)
 		return ERR_PTR(-ENOMEM);
 
@@ -446,7 +446,7 @@ mlxsw_sp2_ptp_clock_init(struct mlxsw_sp *mlxsw_sp, struct device *dev)
 	struct mlxsw_sp_ptp_clock *clock;
 	int err;
 
-	clock = kzalloc(sizeof(*clock), GFP_KERNEL);
+	clock = kzalloc_obj(*clock);
 	if (!clock)
 		return ERR_PTR(-ENOMEM);
 
@@ -524,7 +524,7 @@ mlxsw_sp1_ptp_unmatched_save(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp1_ptp_unmatched *unmatched;
 	int err;
 
-	unmatched = kzalloc(sizeof(*unmatched), GFP_ATOMIC);
+	unmatched = kzalloc_obj(*unmatched, GFP_ATOMIC);
 	if (!unmatched)
 		return -ENOMEM;
 
@@ -1032,7 +1032,7 @@ struct mlxsw_sp_ptp_state *mlxsw_sp1_ptp_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		return ERR_PTR(err);
 
-	ptp_state = kzalloc(sizeof(*ptp_state), GFP_KERNEL);
+	ptp_state = kzalloc_obj(*ptp_state);
 	if (!ptp_state)
 		return ERR_PTR(-ENOMEM);
 	ptp_state->common.mlxsw_sp = mlxsw_sp;
@@ -1358,7 +1358,7 @@ struct mlxsw_sp_ptp_state *mlxsw_sp2_ptp_init(struct mlxsw_sp *mlxsw_sp)
 	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, FID))
 		return ERR_PTR(-EIO);
 
-	ptp_state = kzalloc(sizeof(*ptp_state), GFP_KERNEL);
+	ptp_state = kzalloc_obj(*ptp_state);
 	if (!ptp_state)
 		return ERR_PTR(-ENOMEM);
 

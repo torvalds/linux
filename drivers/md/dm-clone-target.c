@@ -580,7 +580,7 @@ static int hash_table_init(struct clone *clone)
 
 	sz = 1 << HASH_TABLE_BITS;
 
-	clone->ht = kvmalloc_array(sz, sizeof(struct hash_table_bucket), GFP_KERNEL);
+	clone->ht = kvmalloc_objs(struct hash_table_bucket, sz);
 	if (!clone->ht)
 		return -ENOMEM;
 
@@ -1766,7 +1766,7 @@ static int clone_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	as.argc = argc;
 	as.argv = argv;
 
-	clone = kzalloc(sizeof(*clone), GFP_KERNEL);
+	clone = kzalloc_obj(*clone);
 	if (!clone) {
 		ti->error = "Failed to allocate clone structure";
 		return -ENOMEM;

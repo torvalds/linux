@@ -145,7 +145,7 @@ static int pwrseq_thead_gpu_match(struct pwrseq_device *pwrseq,
 				PWRSEQ_MATCH_OK : PWRSEQ_NO_MATCH;
 
 	ctx->num_clks = ARRAY_SIZE(clk_names);
-	ctx->clks = kcalloc(ctx->num_clks, sizeof(*ctx->clks), GFP_KERNEL);
+	ctx->clks = kzalloc_objs(*ctx->clks, ctx->num_clks);
 	if (!ctx->clks)
 		return -ENOMEM;
 

@@ -1122,7 +1122,7 @@ int amdgpu_ttm_mmio_remap_alloc_sgt(struct amdgpu_device *adev,
 	phys = adev->rmmio_remap.bus_addr + cur.start;
 
 	/* Build a single-entry sg_table mapped as I/O (no struct page backing). */
-	*sgt = kzalloc(sizeof(**sgt), GFP_KERNEL);
+	*sgt = kzalloc_obj(**sgt);
 	if (!*sgt)
 		return -ENOMEM;
 	r = sg_alloc_table(*sgt, 1, GFP_KERNEL);
@@ -1172,7 +1172,7 @@ static struct ttm_tt *amdgpu_ttm_tt_create(struct ttm_buffer_object *bo,
 	struct amdgpu_ttm_tt *gtt;
 	enum ttm_caching caching;
 
-	gtt = kzalloc(sizeof(struct amdgpu_ttm_tt), GFP_KERNEL);
+	gtt = kzalloc_obj(struct amdgpu_ttm_tt);
 	if (!gtt)
 		return NULL;
 
@@ -1213,7 +1213,7 @@ static int amdgpu_ttm_tt_populate(struct ttm_device *bdev,
 
 	/* user pages are bound by amdgpu_ttm_tt_pin_userptr() */
 	if (gtt->userptr) {
-		ttm->sg = kzalloc(sizeof(struct sg_table), GFP_KERNEL);
+		ttm->sg = kzalloc_obj(struct sg_table);
 		if (!ttm->sg)
 			return -ENOMEM;
 		return 0;
@@ -1880,9 +1880,8 @@ static int amdgpu_ttm_pools_init(struct amdgpu_device *adev)
 	if (!adev->gmc.is_app_apu || !adev->gmc.num_mem_partitions)
 		return 0;
 
-	adev->mman.ttm_pools = kcalloc(adev->gmc.num_mem_partitions,
-				       sizeof(*adev->mman.ttm_pools),
-				       GFP_KERNEL);
+	adev->mman.ttm_pools = kzalloc_objs(*adev->mman.ttm_pools,
+					    adev->gmc.num_mem_partitions);
 	if (!adev->mman.ttm_pools)
 		return -ENOMEM;
 

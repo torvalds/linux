@@ -407,9 +407,8 @@ int init_send_contexts(struct hfi1_devdata *dd)
 
 	dd->hw_to_sw = kmalloc_array(TXE_NUM_CONTEXTS, sizeof(u8),
 					GFP_KERNEL);
-	dd->send_contexts = kcalloc(dd->num_send_contexts,
-				    sizeof(struct send_context_info),
-				    GFP_KERNEL);
+	dd->send_contexts = kzalloc_objs(struct send_context_info,
+					 dd->num_send_contexts);
 	if (!dd->send_contexts || !dd->hw_to_sw) {
 		kfree(dd->hw_to_sw);
 		kfree(dd->send_contexts);
@@ -1883,8 +1882,7 @@ int pio_map_init(struct hfi1_devdata *dd, u8 port, u8 num_vls, u8 *vl_scontexts)
 			vl_scontexts[i] = sc_per_vl + (extra > 0 ? 1 : 0);
 	}
 	/* build new map */
-	newmap = kzalloc(struct_size(newmap, map, roundup_pow_of_two(num_vls)),
-			 GFP_KERNEL);
+	newmap = kzalloc_flex(*newmap, map, roundup_pow_of_two(num_vls));
 	if (!newmap)
 		goto bail;
 	newmap->actual_vls = num_vls;
@@ -1898,9 +1896,7 @@ int pio_map_init(struct hfi1_devdata *dd, u8 port, u8 num_vls, u8 *vl_scontexts)
 			int sz = roundup_pow_of_two(vl_scontexts[i]);
 
 			/* only allocate once */
-			newmap->map[i] = kzalloc(struct_size(newmap->map[i],
-							     ksc, sz),
-						 GFP_KERNEL);
+			newmap->map[i] = kzalloc_flex(*newmap->map[i], ksc, sz);
 			if (!newmap->map[i])
 				goto bail;
 			newmap->map[i]->mask = (1 << ilog2(sz)) - 1;
@@ -2054,10 +2050,8 @@ int init_credit_return(struct hfi1_devdata *dd)
 	int ret;
 	int i;
 
-	dd->cr_base = kcalloc(
-		node_affinity.num_possible_nodes,
-		sizeof(struct credit_return_base),
-		GFP_KERNEL);
+	dd->cr_base = kzalloc_objs(struct credit_return_base,
+				   node_affinity.num_possible_nodes);
 	if (!dd->cr_base) {
 		ret = -ENOMEM;
 		goto done;

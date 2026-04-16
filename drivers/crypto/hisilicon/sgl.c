@@ -83,7 +83,7 @@ struct hisi_acc_sgl_pool *hisi_acc_create_sgl_pool(struct device *dev,
 	    (remain_sgl > 0 && block_num > HISI_ACC_MEM_BLOCK_NR - 1))
 		return ERR_PTR(-EINVAL);
 
-	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+	pool = kzalloc_obj(*pool);
 	if (!pool)
 		return ERR_PTR(-ENOMEM);
 	block = pool->mem_block;

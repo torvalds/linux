@@ -47,7 +47,7 @@ void *amiga_chip_alloc(unsigned long size, const char *name)
 	struct resource *res;
 	void *p;
 
-	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+	res = kzalloc_obj(struct resource);
 	if (!res)
 		return NULL;
 

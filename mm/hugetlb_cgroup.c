@@ -139,8 +139,7 @@ hugetlb_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
 	struct hugetlb_cgroup *h_cgroup;
 	int node;
 
-	h_cgroup = kzalloc(struct_size(h_cgroup, nodeinfo, nr_node_ids),
-			   GFP_KERNEL);
+	h_cgroup = kzalloc_flex(*h_cgroup, nodeinfo, nr_node_ids);
 
 	if (!h_cgroup)
 		return ERR_PTR(-ENOMEM);
@@ -857,10 +856,10 @@ static void __init __hugetlb_cgroup_file_pre_init(void)
 	int cft_count;
 
 	cft_count = hugetlb_max_hstate * DFL_TMPL_SIZE + 1; /* add terminator */
-	dfl_files = kcalloc(cft_count, sizeof(struct cftype), GFP_KERNEL);
+	dfl_files = kzalloc_objs(struct cftype, cft_count);
 	BUG_ON(!dfl_files);
 	cft_count = hugetlb_max_hstate * LEGACY_TMPL_SIZE + 1; /* add terminator */
-	legacy_files = kcalloc(cft_count, sizeof(struct cftype), GFP_KERNEL);
+	legacy_files = kzalloc_objs(struct cftype, cft_count);
 	BUG_ON(!legacy_files);
 }
 

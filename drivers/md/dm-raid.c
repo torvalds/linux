@@ -744,7 +744,7 @@ static struct raid_set *raid_set_alloc(struct dm_target *ti, struct raid_type *r
 		return ERR_PTR(-EINVAL);
 	}
 
-	rs = kzalloc(struct_size(rs, dev, raid_devs), GFP_KERNEL);
+	rs = kzalloc_flex(*rs, dev, raid_devs);
 	if (!rs) {
 		ti->error = "Cannot allocate raid context";
 		return ERR_PTR(-ENOMEM);

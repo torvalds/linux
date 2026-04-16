@@ -308,7 +308,7 @@ mlx5_lag_create_definer(struct mlx5_lag *ldev, enum netdev_lag_hash hash,
 		return ERR_PTR(-EINVAL);
 
 	dev = ldev->pf[first_idx].dev;
-	lag_definer = kzalloc(sizeof(*lag_definer), GFP_KERNEL);
+	lag_definer = kzalloc_obj(*lag_definer);
 	if (!lag_definer)
 		return ERR_PTR(-ENOMEM);
 

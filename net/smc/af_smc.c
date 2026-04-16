@@ -124,7 +124,9 @@ static struct sock *smc_tcp_syn_recv_sock(const struct sock *sk,
 					  struct request_sock *req,
 					  struct dst_entry *dst,
 					  struct request_sock *req_unhash,
-					  bool *own_req)
+					  bool *own_req,
+					  void (*opt_child_init)(struct sock *newsk,
+								 const struct sock *sk))
 {
 	struct smc_sock *smc;
 	struct sock *child;
@@ -142,7 +144,7 @@ static struct sock *smc_tcp_syn_recv_sock(const struct sock *sk,
 
 	/* passthrough to original syn recv sock fct */
 	child = smc->ori_af_ops->syn_recv_sock(sk, skb, req, dst, req_unhash,
-					       own_req);
+					       own_req, opt_child_init);
 	/* child must not inherit smc or its ops */
 	if (child) {
 		rcu_assign_sk_user_data(child, NULL);
@@ -1195,7 +1197,7 @@ void smc_fill_gid_list(struct smc_link_group *lgr,
 	memset(gidlist, 0, sizeof(*gidlist));
 	memcpy(gidlist->list[gidlist->len++], known_gid, SMC_GID_SIZE);
 
-	alt_ini = kzalloc(sizeof(*alt_ini), GFP_KERNEL);
+	alt_ini = kzalloc_obj(*alt_ini);
 	if (!alt_ini)
 		goto out;
 
@@ -1522,7 +1524,7 @@ static int __smc_connect(struct smc_sock *smc)
 		return smc_connect_decline_fallback(smc, SMC_CLC_DECL_IPSEC,
 						    version);
 
-	ini = kzalloc(sizeof(*ini), GFP_KERNEL);
+	ini = kzalloc_obj(*ini);
 	if (!ini)
 		return smc_connect_decline_fallback(smc, SMC_CLC_DECL_MEM,
 						    version);
@@ -2470,7 +2472,7 @@ static void smc_listen_work(struct work_struct *work)
 	/* do inband token exchange -
 	 * wait for and receive SMC Proposal CLC message
 	 */
-	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
+	buf = kzalloc_obj(*buf);
 	if (!buf) {
 		rc = SMC_CLC_DECL_MEM;
 		goto out_decl;
@@ -2490,7 +2492,7 @@ static void smc_listen_work(struct work_struct *work)
 		goto out_decl;
 	}
 
-	ini = kzalloc(sizeof(*ini), GFP_KERNEL);
+	ini = kzalloc_obj(*ini);
 	if (!ini) {
 		rc = SMC_CLC_DECL_MEM;
 		goto out_decl;

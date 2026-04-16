@@ -52,7 +52,7 @@ static void inftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 
 	pr_debug("INFTL: add_mtd for %s\n", mtd->name);
 
-	inftl = kzalloc(sizeof(*inftl), GFP_KERNEL);
+	inftl = kzalloc_obj(*inftl);
 
 	if (!inftl)
 		return;

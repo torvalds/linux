@@ -1326,11 +1326,11 @@ xfs_ioc_getfsmap(
 	 */
 	count = min_t(unsigned int, head.fmh_count,
 			131072 / sizeof(struct fsmap));
-	recs = kvcalloc(count, sizeof(struct fsmap), GFP_KERNEL);
+	recs = kvzalloc_objs(struct fsmap, count);
 	if (!recs) {
 		count = min_t(unsigned int, head.fmh_count,
 				PAGE_SIZE / sizeof(struct fsmap));
-		recs = kvcalloc(count, sizeof(struct fsmap), GFP_KERNEL);
+		recs = kvzalloc_objs(struct fsmap, count);
 		if (!recs)
 			return -ENOMEM;
 	}

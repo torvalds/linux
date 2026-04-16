@@ -510,7 +510,7 @@ static int xrcd_table_insert(struct ib_uverbs_device *dev,
 	struct rb_node **p = &dev->xrcd_tree.rb_node;
 	struct rb_node *parent = NULL;
 
-	entry = kmalloc(sizeof *entry, GFP_KERNEL);
+	entry = kmalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 
@@ -1672,8 +1672,8 @@ static int ib_uverbs_query_qp(struct uverbs_attr_bundle *attrs)
 	if (ret)
 		return ret;
 
-	attr      = kmalloc(sizeof *attr, GFP_KERNEL);
-	init_attr = kmalloc(sizeof *init_attr, GFP_KERNEL);
+	attr = kmalloc_obj(*attr);
+	init_attr = kmalloc_obj(*init_attr);
 	if (!attr || !init_attr) {
 		ret = -ENOMEM;
 		goto out;
@@ -1780,7 +1780,7 @@ static int modify_qp(struct uverbs_attr_bundle *attrs,
 	struct ib_qp *qp;
 	int ret;
 
-	attr = kzalloc(sizeof(*attr), GFP_KERNEL);
+	attr = kzalloc_obj(*attr);
 	if (!attr)
 		return -ENOMEM;
 
@@ -2525,7 +2525,7 @@ static int ib_uverbs_attach_mcast(struct uverbs_attr_bundle *attrs)
 			goto out_put;
 		}
 
-	mcast = kmalloc(sizeof *mcast, GFP_KERNEL);
+	mcast = kmalloc_obj(*mcast);
 	if (!mcast) {
 		ret = -ENOMEM;
 		goto out_put;
@@ -2595,7 +2595,7 @@ struct ib_uflow_resources *flow_resources_alloc(size_t num_specs)
 {
 	struct ib_uflow_resources *resources;
 
-	resources = kzalloc(sizeof(*resources), GFP_KERNEL);
+	resources = kzalloc_obj(*resources);
 
 	if (!resources)
 		return NULL;
@@ -2604,9 +2604,9 @@ struct ib_uflow_resources *flow_resources_alloc(size_t num_specs)
 		goto out;
 
 	resources->counters =
-		kcalloc(num_specs, sizeof(*resources->counters), GFP_KERNEL);
+		kzalloc_objs(*resources->counters, num_specs);
 	resources->collection =
-		kcalloc(num_specs, sizeof(*resources->collection), GFP_KERNEL);
+		kzalloc_objs(*resources->collection, num_specs);
 
 	if (!resources->counters || !resources->collection)
 		goto err;
@@ -3116,7 +3116,7 @@ static int ib_uverbs_ex_create_rwq_ind_table(struct uverbs_attr_bundle *attrs)
 	if (err)
 		goto err_free;
 
-	wqs = kcalloc(num_wq_handles, sizeof(*wqs), GFP_KERNEL);
+	wqs = kzalloc_objs(*wqs, num_wq_handles);
 	if (!wqs) {
 		err = -ENOMEM;
 		goto  err_free;
@@ -3292,8 +3292,7 @@ static int ib_uverbs_ex_create_flow(struct uverbs_attr_bundle *attrs)
 		goto err_put;
 	}
 
-	flow_attr = kzalloc(struct_size(flow_attr, flows,
-				cmd.flow_attr.num_of_specs), GFP_KERNEL);
+	flow_attr = kzalloc_flex(*flow_attr, flows, cmd.flow_attr.num_of_specs);
 	if (!flow_attr) {
 		err = -ENOMEM;
 		goto err_put;

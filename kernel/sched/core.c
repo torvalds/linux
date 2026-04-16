@@ -4729,8 +4729,11 @@ void sched_cancel_fork(struct task_struct *p)
 	scx_cancel_fork(p);
 }
 
+static void sched_mm_cid_fork(struct task_struct *t);
+
 void sched_post_fork(struct task_struct *p)
 {
+	sched_mm_cid_fork(p);
 	uclamp_post_fork(p);
 	scx_post_fork(p);
 }
@@ -6830,6 +6833,7 @@ static void __sched notrace __schedule(int sched_mode)
 		/* SCX must consult the BPF scheduler to tell if rq is empty */
 		if (!rq->nr_running && !scx_enabled()) {
 			next = prev;
+			rq->next_class = &idle_sched_class;
 			goto picked;
 		}
 	} else if (!preempt && prev_state) {
@@ -10616,13 +10620,10 @@ static inline void mm_cid_transit_to_cpu(struct task_struct *t, struct mm_cid_pc
 	}
 }
 
-static bool mm_cid_fixup_task_to_cpu(struct task_struct *t, struct mm_struct *mm)
+static void mm_cid_fixup_task_to_cpu(struct task_struct *t, struct mm_struct *mm)
 {
 	/* Remote access to mm::mm_cid::pcpu requires rq_lock */
 	guard(task_rq_lock)(t);
-	/* If the task is not active it is not in the users count */
-	if (!t->mm_cid.active)
-		return false;
 	if (cid_on_task(t->mm_cid.cid)) {
 		/* If running on the CPU, put the CID in transit mode, otherwise drop it */
 		if (task_rq(t)->curr == t)
@@ -10630,69 +10631,43 @@ static bool mm_cid_fixup_task_to_cpu(struct task_struct *t, struct mm_struct *mm
 		else
 			mm_unset_cid_on_task(t);
 	}
-	return true;
-}
-
-static void mm_cid_do_fixup_tasks_to_cpus(struct mm_struct *mm)
-{
-	struct task_struct *p, *t;
-	unsigned int users;
-
-	/*
-	 * This can obviously race with a concurrent affinity change, which
-	 * increases the number of allowed CPUs for this mm, but that does
-	 * not affect the mode and only changes the CID constraints. A
-	 * possible switch back to per task mode happens either in the
-	 * deferred handler function or in the next fork()/exit().
-	 *
-	 * The caller has already transferred. The newly incoming task is
-	 * already accounted for, but not yet visible.
-	 */
-	users = mm->mm_cid.users - 2;
-	if (!users)
-		return;
-
-	guard(rcu)();
-	for_other_threads(current, t) {
-		if (mm_cid_fixup_task_to_cpu(t, mm))
-			users--;
-	}
-
-	if (!users)
-		return;
-
-	/* Happens only for VM_CLONE processes. */
-	for_each_process_thread(p, t) {
-		if (t == current || t->mm != mm)
-			continue;
-		if (mm_cid_fixup_task_to_cpu(t, mm)) {
-			if (--users == 0)
-				return;
-		}
-	}
 }
 
 static void mm_cid_fixup_tasks_to_cpus(void)
 {
 	struct mm_struct *mm = current->mm;
+	struct task_struct *t;
 
-	mm_cid_do_fixup_tasks_to_cpus(mm);
+	lockdep_assert_held(&mm->mm_cid.mutex);
+
+	hlist_for_each_entry(t, &mm->mm_cid.user_list, mm_cid.node) {
+		/* Current has already transferred before invoking the fixup. */
+		if (t != current)
+			mm_cid_fixup_task_to_cpu(t, mm);
+	}
+
 	mm_cid_complete_transit(mm, MM_CID_ONCPU);
 }
 
 static bool sched_mm_cid_add_user(struct task_struct *t, struct mm_struct *mm)
 {
+	lockdep_assert_held(&mm->mm_cid.lock);
+
 	t->mm_cid.active = 1;
+	hlist_add_head(&t->mm_cid.node, &mm->mm_cid.user_list);
 	mm->mm_cid.users++;
 	return mm_update_max_cids(mm);
 }
 
-void sched_mm_cid_fork(struct task_struct *t)
+static void sched_mm_cid_fork(struct task_struct *t)
 {
 	struct mm_struct *mm = t->mm;
 	bool percpu;
 
-	WARN_ON_ONCE(!mm || t->mm_cid.cid != MM_CID_UNSET);
+	if (!mm)
+		return;
+
+	WARN_ON_ONCE(t->mm_cid.cid != MM_CID_UNSET);
 
 	guard(mutex)(&mm->mm_cid.mutex);
 	scoped_guard(raw_spinlock_irq, &mm->mm_cid.lock) {
@@ -10731,12 +10706,13 @@ void sched_mm_cid_fork(struct task_struct *t)
 
 static bool sched_mm_cid_remove_user(struct task_struct *t)
 {
+	lockdep_assert_held(&t->mm->mm_cid.lock);
+
 	t->mm_cid.active = 0;
-	scoped_guard(preempt) {
-		/* Clear the transition bit */
-		t->mm_cid.cid = cid_from_transit_cid(t->mm_cid.cid);
-		mm_unset_cid_on_task(t);
-	}
+	/* Clear the transition bit */
+	t->mm_cid.cid = cid_from_transit_cid(t->mm_cid.cid);
+	mm_unset_cid_on_task(t);
+	hlist_del_init(&t->mm_cid.node);
 	t->mm->mm_cid.users--;
 	return mm_update_max_cids(t->mm);
 }
@@ -10879,11 +10855,13 @@ void mm_init_cid(struct mm_struct *mm, struct task_struct *p)
 	mutex_init(&mm->mm_cid.mutex);
 	mm->mm_cid.irq_work = IRQ_WORK_INIT_HARD(mm_cid_irq_work);
 	INIT_WORK(&mm->mm_cid.work, mm_cid_work_fn);
+	INIT_HLIST_HEAD(&mm->mm_cid.user_list);
 	cpumask_copy(mm_cpus_allowed(mm), &p->cpus_mask);
 	bitmap_zero(mm_cidmask(mm), num_possible_cpus());
 }
 #else /* CONFIG_SCHED_MM_CID */
 static inline void mm_update_cpus_allowed(struct mm_struct *mm, const struct cpumask *affmsk) { }
+static inline void sched_mm_cid_fork(struct task_struct *t) { }
 #endif /* !CONFIG_SCHED_MM_CID */
 
 static DEFINE_PER_CPU(struct sched_change_ctx, sched_change_ctx);

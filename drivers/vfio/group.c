@@ -515,7 +515,7 @@ static struct vfio_group *vfio_group_alloc(struct iommu_group *iommu_group,
 	struct vfio_group *group;
 	int minor;
 
-	group = kzalloc(sizeof(*group), GFP_KERNEL);
+	group = kzalloc_obj(*group);
 	if (!group)
 		return ERR_PTR(-ENOMEM);
 

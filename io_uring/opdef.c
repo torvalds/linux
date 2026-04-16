@@ -221,8 +221,10 @@ const struct io_issue_def io_issue_defs[] = {
 		.issue			= io_fallocate,
 	},
 	[IORING_OP_OPENAT] = {
+		.filter_pdu_size	= sizeof_field(struct io_uring_bpf_ctx, open),
 		.prep			= io_openat_prep,
 		.issue			= io_openat,
+		.filter_populate	= io_openat_bpf_populate,
 	},
 	[IORING_OP_CLOSE] = {
 		.prep			= io_close_prep,
@@ -309,8 +311,10 @@ const struct io_issue_def io_issue_defs[] = {
 #endif
 	},
 	[IORING_OP_OPENAT2] = {
+		.filter_pdu_size	= sizeof_field(struct io_uring_bpf_ctx, open),
 		.prep			= io_openat2_prep,
 		.issue			= io_openat2,
+		.filter_populate	= io_openat_bpf_populate,
 	},
 	[IORING_OP_EPOLL_CTL] = {
 		.unbound_nonreg_file	= 1,
@@ -406,8 +410,10 @@ const struct io_issue_def io_issue_defs[] = {
 	[IORING_OP_SOCKET] = {
 		.audit_skip		= 1,
 #if defined(CONFIG_NET)
+		.filter_pdu_size	= sizeof_field(struct io_uring_bpf_ctx, socket),
 		.prep			= io_socket_prep,
 		.issue			= io_socket,
+		.filter_populate	= io_socket_bpf_populate,
 #else
 		.prep			= io_eopnotsupp_prep,
 #endif

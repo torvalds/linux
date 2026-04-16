@@ -1515,7 +1515,7 @@ struct wcd_mbhc *wcd_mbhc_init(struct snd_soc_component *component,
 		return ERR_PTR(-EINVAL);
 	}
 
-	mbhc = kzalloc(sizeof(*mbhc), GFP_KERNEL);
+	mbhc = kzalloc_obj(*mbhc);
 	if (!mbhc)
 		return ERR_PTR(-ENOMEM);
 

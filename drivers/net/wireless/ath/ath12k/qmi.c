@@ -2344,11 +2344,11 @@ static int ath12k_qmi_fw_ind_register_send(struct ath12k_base *ab)
 	struct qmi_txn txn;
 	int ret;
 
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req)
 		return -ENOMEM;
 
-	resp = kzalloc(sizeof(*resp), GFP_KERNEL);
+	resp = kzalloc_obj(*resp);
 	if (!resp) {
 		ret = -ENOMEM;
 		goto resp_out;
@@ -2416,7 +2416,7 @@ int ath12k_qmi_respond_fw_mem_request(struct ath12k_base *ab)
 	int ret = 0, i;
 	bool delayed;
 
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req)
 		return -ENOMEM;
 
@@ -2968,7 +2968,7 @@ static int ath12k_qmi_load_file_target_mem(struct ath12k_base *ab,
 	int ret = 0;
 	u32 remaining = len;
 
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req)
 		return -ENOMEM;
 
@@ -3465,7 +3465,7 @@ static int ath12k_qmi_wlanfw_wlan_cfg_send(struct ath12k_base *ab)
 	ce_cfg	= (struct ce_pipe_config *)ab->qmi.ce_cfg.tgt_ce;
 	svc_cfg	= (struct service_to_pipe *)ab->qmi.ce_cfg.svc_to_ce_map;
 
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req)
 		return -ENOMEM;
 
@@ -3636,7 +3636,7 @@ ath12k_qmi_driver_event_post(struct ath12k_qmi *qmi,
 {
 	struct ath12k_qmi_driver_event *event;
 
-	event = kzalloc(sizeof(*event), GFP_ATOMIC);
+	event = kzalloc_obj(*event, GFP_ATOMIC);
 	if (!event)
 		return -ENOMEM;
 

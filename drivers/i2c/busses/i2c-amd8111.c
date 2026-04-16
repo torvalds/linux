@@ -17,7 +17,7 @@
 #include <linux/io.h>
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR ("Vojtech Pavlik <vojtech@suse.cz>");
+MODULE_AUTHOR("Vojtech Pavlik <vojtech@suse.cz>");
 MODULE_DESCRIPTION("AMD8111 SMBus 2.0 driver");
 
 struct amd_smbus {
@@ -417,7 +417,7 @@ static const struct pci_device_id amd8111_ids[] = {
 	{ 0, }
 };
 
-MODULE_DEVICE_TABLE (pci, amd8111_ids);
+MODULE_DEVICE_TABLE(pci, amd8111_ids);
 
 static int amd8111_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
@@ -427,7 +427,7 @@ static int amd8111_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (!(pci_resource_flags(dev, 0) & IORESOURCE_IO))
 		return -ENODEV;
 
-	smbus = kzalloc(sizeof(struct amd_smbus), GFP_KERNEL);
+	smbus = devm_kzalloc(&dev->dev, sizeof(struct amd_smbus), GFP_KERNEL);
 	if (!smbus)
 		return -ENOMEM;
 
@@ -436,19 +436,15 @@ static int amd8111_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	smbus->size = pci_resource_len(dev, 0);
 
 	error = acpi_check_resource_conflict(&dev->resource[0]);
-	if (error) {
-		error = -ENODEV;
-		goto out_kfree;
-	}
+	if (error)
+		return -ENODEV;
 
-	if (!request_region(smbus->base, smbus->size, amd8111_driver.name)) {
-		error = -EBUSY;
-		goto out_kfree;
-	}
+	if (!devm_request_region(&dev->dev, smbus->base, smbus->size, amd8111_driver.name))
+		return -EBUSY;
 
 	smbus->adapter.owner = THIS_MODULE;
 	snprintf(smbus->adapter.name, sizeof(smbus->adapter.name),
-		"SMBus2 AMD8111 adapter at %04x", smbus->base);
+		 "SMBus2 AMD8111 adapter at %04x", smbus->base);
 	smbus->adapter.class = I2C_CLASS_HWMON;
 	smbus->adapter.algo = &smbus_algorithm;
 	smbus->adapter.algo_data = smbus;
@@ -459,16 +455,10 @@ static int amd8111_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	pci_write_config_dword(smbus->dev, AMD_PCI_MISC, 0);
 	error = i2c_add_adapter(&smbus->adapter);
 	if (error)
-		goto out_release_region;
+		return error;
 
 	pci_set_drvdata(dev, smbus);
 	return 0;
-
- out_release_region:
-	release_region(smbus->base, smbus->size);
- out_kfree:
-	kfree(smbus);
-	return error;
 }
 
 static void amd8111_remove(struct pci_dev *dev)
@@ -476,8 +466,6 @@ static void amd8111_remove(struct pci_dev *dev)
 	struct amd_smbus *smbus = pci_get_drvdata(dev);
 
 	i2c_del_adapter(&smbus->adapter);
-	release_region(smbus->base, smbus->size);
-	kfree(smbus);
 }
 
 static struct pci_driver amd8111_driver = {

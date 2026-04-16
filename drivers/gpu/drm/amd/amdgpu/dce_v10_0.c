@@ -1775,7 +1775,7 @@ static int dce_v10_0_afmt_init(struct amdgpu_device *adev)
 
 	/* DCE10 has audio blocks tied to DIG encoders */
 	for (i = 0; i < adev->mode_info.num_dig; i++) {
-		adev->mode_info.afmt[i] = kzalloc(sizeof(struct amdgpu_afmt), GFP_KERNEL);
+		adev->mode_info.afmt[i] = kzalloc_obj(struct amdgpu_afmt);
 		if (adev->mode_info.afmt[i]) {
 			adev->mode_info.afmt[i]->offset = dig_offsets[i];
 			adev->mode_info.afmt[i]->id = i;
@@ -3516,7 +3516,7 @@ static void dce_v10_0_encoder_add(struct amdgpu_device *adev,
 	}
 
 	/* add a new one */
-	amdgpu_encoder = kzalloc(sizeof(struct amdgpu_encoder), GFP_KERNEL);
+	amdgpu_encoder = kzalloc_obj(struct amdgpu_encoder);
 	if (!amdgpu_encoder)
 		return;
 

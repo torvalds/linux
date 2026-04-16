@@ -583,6 +583,22 @@ static irqreturn_t sun6i_dma_interrupt(int irq, void *dev_id)
 	return ret;
 }
 
+static u32 find_burst_size(const u32 burst_lengths, u32 maxburst)
+{
+	if (!maxburst)
+		return 1;
+
+	if (BIT(maxburst) & burst_lengths)
+		return maxburst;
+
+	/* Hardware only does power-of-two bursts. */
+	for (u32 burst = rounddown_pow_of_two(maxburst); burst > 0; burst /= 2)
+		if (BIT(burst) & burst_lengths)
+			return burst;
+
+	return 1;
+}
+
 static int set_config(struct sun6i_dma_dev *sdev,
 			struct dma_slave_config *sconfig,
 			enum dma_transfer_direction direction,
@@ -616,15 +632,13 @@ static int set_config(struct sun6i_dma_dev *sdev,
 		return -EINVAL;
 	if (!(BIT(dst_addr_width) & sdev->slave.dst_addr_widths))
 		return -EINVAL;
-	if (!(BIT(src_maxburst) & sdev->cfg->src_burst_lengths))
-		return -EINVAL;
-	if (!(BIT(dst_maxburst) & sdev->cfg->dst_burst_lengths))
-		return -EINVAL;
 
 	src_width = convert_buswidth(src_addr_width);
 	dst_width = convert_buswidth(dst_addr_width);
-	dst_burst = convert_burst(dst_maxburst);
-	src_burst = convert_burst(src_maxburst);
+	src_burst = find_burst_size(sdev->cfg->src_burst_lengths, src_maxburst);
+	dst_burst = find_burst_size(sdev->cfg->dst_burst_lengths, dst_maxburst);
+	dst_burst = convert_burst(dst_burst);
+	src_burst = convert_burst(src_burst);
 
 	*p_cfg = DMA_CHAN_CFG_SRC_WIDTH(src_width) |
 		DMA_CHAN_CFG_DST_WIDTH(dst_width);
@@ -664,7 +678,7 @@ static struct dma_async_tx_descriptor *sun6i_dma_prep_dma_memcpy(
 	if (!len)
 		return NULL;
 
-	txd = kzalloc(sizeof(*txd), GFP_NOWAIT);
+	txd = kzalloc_obj(*txd, GFP_NOWAIT);
 	if (!txd)
 		return NULL;
 
@@ -722,7 +736,7 @@ static struct dma_async_tx_descriptor *sun6i_dma_prep_slave_sg(
 		return NULL;
 	}
 
-	txd = kzalloc(sizeof(*txd), GFP_NOWAIT);
+	txd = kzalloc_obj(*txd, GFP_NOWAIT);
 	if (!txd)
 		return NULL;
 
@@ -805,7 +819,7 @@ static struct dma_async_tx_descriptor *sun6i_dma_prep_dma_cyclic(
 		return NULL;
 	}
 
-	txd = kzalloc(sizeof(*txd), GFP_NOWAIT);
+	txd = kzalloc_obj(*txd, GFP_NOWAIT);
 	if (!txd)
 		return NULL;
 
@@ -826,6 +840,11 @@ static struct dma_async_tx_descriptor *sun6i_dma_prep_dma_cyclic(
 			v_lli->cfg = lli_cfg;
 			sdev->cfg->set_drq(&v_lli->cfg, DRQ_SDRAM, vchan->port);
 			sdev->cfg->set_mode(&v_lli->cfg, LINEAR_MODE, IO_MODE);
+			dev_dbg(chan2dev(chan),
+				"%s; chan: %d, dest: %pad, src: %pad, len: %zu. flags: 0x%08lx\n",
+				__func__, vchan->vc.chan.chan_id,
+				&sconfig->dst_addr, &buf_addr,
+				buf_len, flags);
 		} else {
 			sun6i_dma_set_addr(sdev, v_lli,
 					   sconfig->src_addr,
@@ -833,6 +852,11 @@ static struct dma_async_tx_descriptor *sun6i_dma_prep_dma_cyclic(
 			v_lli->cfg = lli_cfg;
 			sdev->cfg->set_drq(&v_lli->cfg, vchan->port, DRQ_SDRAM);
 			sdev->cfg->set_mode(&v_lli->cfg, IO_MODE, LINEAR_MODE);
+			dev_dbg(chan2dev(chan),
+				"%s; chan: %d, dest: %pad, src: %pad, len: %zu. flags: 0x%08lx\n",
+				__func__, vchan->vc.chan.chan_id,
+				&buf_addr, &sconfig->src_addr,
+				buf_len, flags);
 		}
 
 		prev = sun6i_dma_lli_add(prev, v_lli, p_lli, txd);

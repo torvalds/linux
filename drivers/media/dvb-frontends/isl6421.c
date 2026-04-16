@@ -177,7 +177,7 @@ static void isl6421_release(struct dvb_frontend *fe)
 struct dvb_frontend *isl6421_attach(struct dvb_frontend *fe, struct i2c_adapter *i2c, u8 i2c_addr,
 		   u8 override_set, u8 override_clear, bool override_tone)
 {
-	struct isl6421 *isl6421 = kmalloc(sizeof(struct isl6421), GFP_KERNEL);
+	struct isl6421 *isl6421 = kmalloc_obj(struct isl6421);
 	if (!isl6421)
 		return NULL;
 

@@ -1392,7 +1392,7 @@ static int link_show(struct seq_file *s, void *data)
 	struct station_info *sinfo;
 	int i, rc = 0;
 
-	sinfo = kzalloc(sizeof(*sinfo), GFP_KERNEL);
+	sinfo = kzalloc_obj(*sinfo);
 	if (!sinfo)
 		return -ENOMEM;
 
@@ -2441,9 +2441,8 @@ int wil6210_debugfs_init(struct wil6210_priv *wil)
 	if (IS_ERR_OR_NULL(dbg))
 		return -ENODEV;
 
-	wil->dbg_data.data_arr = kcalloc(dbg_off_count,
-					 sizeof(struct wil_debugfs_iomem_data),
-					 GFP_KERNEL);
+	wil->dbg_data.data_arr = kzalloc_objs(struct wil_debugfs_iomem_data,
+					      dbg_off_count);
 	if (!wil->dbg_data.data_arr) {
 		debugfs_remove_recursive(dbg);
 		wil->debug = NULL;

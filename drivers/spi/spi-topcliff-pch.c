@@ -982,7 +982,7 @@ static void pch_spi_handle_dma(struct pch_spi_data *data, int *bpw)
 	spin_unlock_irqrestore(&data->lock, flags);
 
 	/* RX */
-	dma->sg_rx_p = kmalloc_array(num, sizeof(*dma->sg_rx_p), GFP_ATOMIC);
+	dma->sg_rx_p = kmalloc_objs(*dma->sg_rx_p, num, GFP_ATOMIC);
 	if (!dma->sg_rx_p)
 		return;
 
@@ -1045,7 +1045,7 @@ static void pch_spi_handle_dma(struct pch_spi_data *data, int *bpw)
 		head = 0;
 	}
 
-	dma->sg_tx_p = kmalloc_array(num, sizeof(*dma->sg_tx_p), GFP_ATOMIC);
+	dma->sg_tx_p = kmalloc_objs(*dma->sg_tx_p, num, GFP_ATOMIC);
 	if (!dma->sg_tx_p)
 		return;
 
@@ -1527,11 +1527,11 @@ static int pch_spi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	int i;
 	struct pch_pd_dev_save *pd_dev_save;
 
-	pd_dev_save = kzalloc(sizeof(*pd_dev_save), GFP_KERNEL);
+	pd_dev_save = kzalloc_obj(*pd_dev_save);
 	if (!pd_dev_save)
 		return -ENOMEM;
 
-	board_dat = kzalloc(sizeof(*board_dat), GFP_KERNEL);
+	board_dat = kzalloc_obj(*board_dat);
 	if (!board_dat) {
 		retval = -ENOMEM;
 		goto err_no_mem;

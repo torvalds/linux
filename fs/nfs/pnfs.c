@@ -1143,7 +1143,7 @@ static struct page **nfs4_alloc_pages(size_t size, gfp_t gfp_flags)
 	struct page **pages;
 	int i;
 
-	pages = kmalloc_array(size, sizeof(struct page *), gfp_flags);
+	pages = kmalloc_objs(struct page *, size, gfp_flags);
 	if (!pages) {
 		dprintk("%s: can't alloc array of %zu pages\n", __func__, size);
 		return NULL;
@@ -1175,7 +1175,7 @@ pnfs_alloc_init_layoutget_args(struct inode *ino,
 
 	dprintk("--> %s\n", __func__);
 
-	lgp = kzalloc(sizeof(*lgp), gfp_flags);
+	lgp = kzalloc_obj(*lgp, gfp_flags);
 	if (lgp == NULL)
 		return NULL;
 
@@ -1357,7 +1357,7 @@ pnfs_send_layoutreturn(struct pnfs_layout_hdr *lo,
 	int status = 0;
 
 	*pcred = NULL;
-	lrp = kzalloc(sizeof(*lrp), nfs_io_gfp_mask());
+	lrp = kzalloc_obj(*lrp, nfs_io_gfp_mask());
 	if (unlikely(lrp == NULL)) {
 		status = -ENOMEM;
 		spin_lock(&ino->i_lock);
@@ -3379,7 +3379,7 @@ pnfs_layoutcommit_inode(struct inode *inode, bool sync)
 
 	status = -ENOMEM;
 	/* Note kzalloc ensures data->res.seq_res.sr_slot == NULL */
-	data = kzalloc(sizeof(*data), nfs_io_gfp_mask());
+	data = kzalloc_obj(*data, nfs_io_gfp_mask());
 	if (!data)
 		goto clear_layoutcommitting;
 
@@ -3450,7 +3450,7 @@ struct nfs4_threshold *pnfs_mdsthreshold_alloc(void)
 {
 	struct nfs4_threshold *thp;
 
-	thp = kzalloc(sizeof(*thp), nfs_io_gfp_mask());
+	thp = kzalloc_obj(*thp, nfs_io_gfp_mask());
 	if (!thp) {
 		dprintk("%s mdsthreshold allocation failed\n", __func__);
 		return NULL;
@@ -3487,7 +3487,7 @@ pnfs_report_layoutstat(struct inode *inode, gfp_t gfp_flags)
 	pnfs_get_layout_hdr(hdr);
 	spin_unlock(&inode->i_lock);
 
-	data = kzalloc(sizeof(*data), gfp_flags);
+	data = kzalloc_obj(*data, gfp_flags);
 	if (!data) {
 		status = -ENOMEM;
 		goto out_put;

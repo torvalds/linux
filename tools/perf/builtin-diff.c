@@ -178,10 +178,9 @@ static struct header_column {
 	}
 };
 
-static int setup_compute_opt_wdiff(char *opt)
+static int setup_compute_opt_wdiff(const char *opt)
 {
-	char *w1_str = opt;
-	char *w2_str;
+	const char *w1_str = opt, *w2_str;
 
 	int ret = -EINVAL;
 
@@ -192,8 +191,7 @@ static int setup_compute_opt_wdiff(char *opt)
 	if (!w2_str)
 		goto out;
 
-	*w2_str++ = 0x0;
-	if (!*w2_str)
+	if (!*++w2_str)
 		goto out;
 
 	compute_wdiff_w1 = strtol(w1_str, NULL, 10);
@@ -214,7 +212,7 @@ static int setup_compute_opt_wdiff(char *opt)
 	return ret;
 }
 
-static int setup_compute_opt(char *opt)
+static int setup_compute_opt(const char *opt)
 {
 	if (compute == COMPUTE_WEIGHTED_DIFF)
 		return setup_compute_opt_wdiff(opt);
@@ -234,7 +232,7 @@ static int setup_compute(const struct option *opt, const char *str,
 	char *cstr = (char *) str;
 	char buf[50];
 	unsigned i;
-	char *option;
+	const char *option;
 
 	if (!str) {
 		*cp = COMPUTE_DELTA;

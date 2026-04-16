@@ -622,7 +622,7 @@ static int add_new_sla_entry(struct adf_accel_dev *accel_dev,
 	struct rl_sla *sla;
 	int ret = 0;
 
-	sla = kzalloc(sizeof(*sla), GFP_KERNEL);
+	sla = kzalloc_obj(*sla);
 	if (!sla) {
 		ret = -ENOMEM;
 		goto ret_err;
@@ -1065,7 +1065,7 @@ int adf_rl_init(struct adf_accel_dev *accel_dev)
 		goto err_ret;
 	}
 
-	rl = kzalloc(sizeof(*rl), GFP_KERNEL);
+	rl = kzalloc_obj(*rl);
 	if (!rl) {
 		ret = -ENOMEM;
 		goto err_ret;

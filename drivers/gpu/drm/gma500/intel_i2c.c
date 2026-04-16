@@ -107,7 +107,7 @@ struct gma_i2c_chan *gma_i2c_create(struct drm_device *dev, const u32 reg,
 {
 	struct gma_i2c_chan *chan;
 
-	chan = kzalloc(sizeof(struct gma_i2c_chan), GFP_KERNEL);
+	chan = kzalloc_obj(struct gma_i2c_chan);
 	if (!chan)
 		goto out_free;
 

@@ -522,7 +522,7 @@ static int mgb4_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	};
 	int irqs = pci_msix_vec_count(pdev);
 
-	mgbdev = kzalloc(sizeof(*mgbdev), GFP_KERNEL);
+	mgbdev = kzalloc_obj(*mgbdev);
 	if (!mgbdev)
 		return -ENOMEM;
 

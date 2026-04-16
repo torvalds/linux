@@ -368,7 +368,7 @@ static struct amt_source_node *amt_alloc_snode(struct amt_group_node *gnode,
 {
 	struct amt_source_node *snode;
 
-	snode = kzalloc(sizeof(*snode), GFP_ATOMIC);
+	snode = kzalloc_obj(*snode, GFP_ATOMIC);
 	if (!snode)
 		return NULL;
 

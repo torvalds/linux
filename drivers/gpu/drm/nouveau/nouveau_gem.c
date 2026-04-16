@@ -168,7 +168,7 @@ nouveau_gem_object_unmap(struct nouveau_bo *nvbo, struct nouveau_vma *vma)
 		return;
 	}
 
-	if (!(work = kmalloc(sizeof(*work), GFP_KERNEL))) {
+	if (!(work = kmalloc_obj(*work))) {
 		WARN_ON(dma_fence_wait_timeout(fence, false, 2 * HZ) <= 0);
 		nouveau_gem_object_delete(vma);
 		return;

@@ -1359,9 +1359,8 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	hw->wiphy->software_iftypes |= BIT(NL80211_IFTYPE_MONITOR);
 
 
-	local->int_scan_req = kzalloc(struct_size(local->int_scan_req,
-						  channels, channels),
-				      GFP_KERNEL);
+	local->int_scan_req = kzalloc_flex(*local->int_scan_req, channels,
+					   channels);
 	if (!local->int_scan_req)
 		return -ENOMEM;
 

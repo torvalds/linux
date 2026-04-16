@@ -342,7 +342,7 @@ static int iris_create_internal_buffer(struct iris_inst *inst,
 	if (!buffers->size)
 		return 0;
 
-	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
+	buffer = kzalloc_obj(*buffer);
 	if (!buffer)
 		return -ENOMEM;
 

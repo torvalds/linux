@@ -360,7 +360,7 @@ static void *iwl_dbgfs_fw_info_seq_start(struct seq_file *seq, loff_t *pos)
 	if (*pos >= fw->ucode_capa.n_cmd_versions)
 		return NULL;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state)
 		return NULL;
 	state->pos = *pos;

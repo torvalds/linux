@@ -444,7 +444,7 @@ int brcmf_proto_bcdc_attach(struct brcmf_pub *drvr)
 {
 	struct brcmf_bcdc *bcdc;
 
-	bcdc = kzalloc(sizeof(*bcdc), GFP_ATOMIC);
+	bcdc = kzalloc_obj(*bcdc, GFP_ATOMIC);
 	if (!bcdc)
 		goto fail;
 

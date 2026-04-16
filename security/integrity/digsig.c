@@ -141,7 +141,7 @@ int __init integrity_init_keyring(const unsigned int id)
 	if (!IS_ENABLED(CONFIG_INTEGRITY_TRUSTED_KEYRING))
 		return 0;
 
-	restriction = kzalloc(sizeof(struct key_restriction), GFP_KERNEL);
+	restriction = kzalloc_obj(struct key_restriction);
 	if (!restriction)
 		return -ENOMEM;
 

@@ -183,7 +183,7 @@ panthor_kernel_bo_create(struct panthor_device *ptdev, struct panthor_vm *vm,
 	if (drm_WARN_ON(&ptdev->base, !vm))
 		return ERR_PTR(-EINVAL);
 
-	kbo = kzalloc(sizeof(*kbo), GFP_KERNEL);
+	kbo = kzalloc_obj(*kbo);
 	if (!kbo)
 		return ERR_PTR(-ENOMEM);
 
@@ -399,7 +399,7 @@ struct drm_gem_object *panthor_gem_create_object(struct drm_device *ddev, size_t
 {
 	struct panthor_gem_object *obj;
 
-	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
+	obj = kzalloc_obj(*obj);
 	if (!obj)
 		return ERR_PTR(-ENOMEM);
 

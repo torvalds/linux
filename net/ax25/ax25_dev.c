@@ -54,7 +54,7 @@ void ax25_dev_device_up(struct net_device *dev)
 {
 	ax25_dev *ax25_dev;
 
-	ax25_dev = kzalloc(sizeof(*ax25_dev), GFP_KERNEL);
+	ax25_dev = kzalloc_obj(*ax25_dev);
 	if (!ax25_dev) {
 		printk(KERN_ERR "AX.25: ax25_dev_device_up - out of memory\n");
 		return;

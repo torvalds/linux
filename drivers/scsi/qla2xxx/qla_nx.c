@@ -1183,7 +1183,7 @@ qla82xx_pinit_from_rom(scsi_qla_host_t *vha)
 	ql_log(ql_log_info, vha, 0x0072,
 	    "%d CRB init values found in ROM.\n", n);
 
-	buf = kmalloc_array(n, sizeof(struct crb_addr_pair), GFP_KERNEL);
+	buf = kmalloc_objs(struct crb_addr_pair, n);
 	if (buf == NULL) {
 		ql_log(ql_log_fatal, vha, 0x010c,
 		    "Unable to allocate memory.\n");

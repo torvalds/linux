@@ -237,7 +237,7 @@ static int g2d_open(struct file *file)
 	struct g2d_ctx *ctx = NULL;
 	int ret = 0;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 	ctx->dev = dev;

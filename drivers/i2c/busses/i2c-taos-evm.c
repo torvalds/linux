@@ -203,7 +203,7 @@ static int taos_connect(struct serio *serio, struct serio_driver *drv)
 	char *name;
 	int err;
 
-	taos = kzalloc(sizeof(struct taos_data), GFP_KERNEL);
+	taos = kzalloc_obj(struct taos_data);
 	if (!taos) {
 		err = -ENOMEM;
 		goto exit;

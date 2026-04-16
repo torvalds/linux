@@ -649,7 +649,7 @@ int fm10k_queue_vlan_request(struct fm10k_intfc *interface,
 	/* This must be atomic since we may be called while the netdev
 	 * addr_list_lock is held
 	 */
-	request = kzalloc(sizeof(*request), GFP_ATOMIC);
+	request = kzalloc_obj(*request, GFP_ATOMIC);
 	if (!request)
 		return -ENOMEM;
 
@@ -688,7 +688,7 @@ int fm10k_queue_mac_request(struct fm10k_intfc *interface, u16 glort,
 	/* This must be atomic since we may be called while the netdev
 	 * addr_list_lock is held
 	 */
-	request = kzalloc(sizeof(*request), GFP_ATOMIC);
+	request = kzalloc_obj(*request, GFP_ATOMIC);
 	if (!request)
 		return -ENOMEM;
 

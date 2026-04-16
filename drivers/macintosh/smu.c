@@ -1081,7 +1081,7 @@ static int smu_open(struct inode *inode, struct file *file)
 	struct smu_private *pp;
 	unsigned long flags;
 
-	pp = kzalloc(sizeof(struct smu_private), GFP_KERNEL);
+	pp = kzalloc_obj(struct smu_private);
 	if (!pp)
 		return -ENOMEM;
 	spin_lock_init(&pp->lock);

@@ -546,7 +546,7 @@ qed_iwarp_create_ep(struct qed_hwfn *p_hwfn, struct qed_iwarp_ep **ep_out)
 	struct qed_iwarp_ep *ep;
 	int rc;
 
-	ep = kzalloc(sizeof(*ep), GFP_KERNEL);
+	ep = kzalloc_obj(*ep);
 	if (!ep)
 		return -ENOMEM;
 
@@ -2602,7 +2602,7 @@ qed_iwarp_ll2_alloc_buffers(struct qed_hwfn *p_hwfn,
 	int i;
 
 	for (i = 0; i < num_rx_bufs; i++) {
-		buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
+		buffer = kzalloc_obj(*buffer);
 		if (!buffer) {
 			rc = -ENOMEM;
 			break;
@@ -2759,9 +2759,8 @@ qed_iwarp_ll2_start(struct qed_hwfn *p_hwfn,
 	if (rc)
 		goto err;
 
-	iwarp_info->partial_fpdus = kcalloc((u16)p_hwfn->p_rdma_info->num_qps,
-					    sizeof(*iwarp_info->partial_fpdus),
-					    GFP_KERNEL);
+	iwarp_info->partial_fpdus = kzalloc_objs(*iwarp_info->partial_fpdus,
+						 (u16)p_hwfn->p_rdma_info->num_qps);
 	if (!iwarp_info->partial_fpdus) {
 		rc = -ENOMEM;
 		goto err;
@@ -2780,9 +2779,8 @@ qed_iwarp_ll2_start(struct qed_hwfn *p_hwfn,
 	 * processing. We can't fail on allocation of such a struct therefore
 	 * we allocate enough to take care of all rx packets
 	 */
-	iwarp_info->mpa_bufs = kcalloc(data.input.rx_num_desc,
-				       sizeof(*iwarp_info->mpa_bufs),
-				       GFP_KERNEL);
+	iwarp_info->mpa_bufs = kzalloc_objs(*iwarp_info->mpa_bufs,
+					    data.input.rx_num_desc);
 	if (!iwarp_info->mpa_bufs) {
 		rc = -ENOMEM;
 		goto err;
@@ -3167,7 +3165,7 @@ qed_iwarp_create_listen(void *rdma_cxt,
 	struct qed_hwfn *p_hwfn = rdma_cxt;
 	struct qed_iwarp_listener *listener;
 
-	listener = kzalloc(sizeof(*listener), GFP_KERNEL);
+	listener = kzalloc_obj(*listener);
 	if (!listener)
 		return -ENOMEM;
 

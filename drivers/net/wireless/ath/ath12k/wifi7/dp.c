@@ -161,7 +161,7 @@ struct ath12k_dp *ath12k_wifi7_dp_device_alloc(struct ath12k_base *ab)
 	struct ath12k_dp *dp;
 
 	/* TODO: align dp later if cache alignment becomes a bottleneck */
-	dp = kzalloc(sizeof(*dp), GFP_KERNEL);
+	dp = kzalloc_obj(*dp);
 	if (!dp)
 		return NULL;
 

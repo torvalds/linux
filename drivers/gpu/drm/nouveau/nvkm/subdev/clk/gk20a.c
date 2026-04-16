@@ -649,7 +649,7 @@ gk20a_clk_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	struct gk20a_clk *clk;
 	int ret;
 
-	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
+	clk = kzalloc_obj(*clk);
 	if (!clk)
 		return -ENOMEM;
 	*pclk = &clk->base;

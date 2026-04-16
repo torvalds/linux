@@ -129,7 +129,7 @@ static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		return -EINVAL;
 	}
 
-	sc = kmalloc(struct_size(sc, stripe, stripes), GFP_KERNEL);
+	sc = kmalloc_flex(*sc, stripe, stripes);
 	if (!sc) {
 		ti->error = "Memory allocation for striped context failed";
 		return -ENOMEM;

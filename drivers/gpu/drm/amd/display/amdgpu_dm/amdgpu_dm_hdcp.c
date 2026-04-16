@@ -746,7 +746,7 @@ struct hdcp_workqueue *hdcp_create_workqueue(struct amdgpu_device *adev,
 	struct hdcp_workqueue *hdcp_work;
 	int i = 0;
 
-	hdcp_work = kcalloc(max_caps, sizeof(*hdcp_work), GFP_KERNEL);
+	hdcp_work = kzalloc_objs(*hdcp_work, max_caps);
 	if (ZERO_OR_NULL_PTR(hdcp_work))
 		return NULL;
 

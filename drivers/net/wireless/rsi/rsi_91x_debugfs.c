@@ -285,7 +285,7 @@ int rsi_init_dbgfs(struct rsi_hw *adapter)
 	int ii;
 	const struct rsi_dbg_files *files;
 
-	dev_dbgfs = kzalloc(sizeof(*dev_dbgfs), GFP_KERNEL);
+	dev_dbgfs = kzalloc_obj(*dev_dbgfs);
 	if (!dev_dbgfs)
 		return -ENOMEM;
 

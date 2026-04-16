@@ -1804,8 +1804,8 @@ static int disk_alloc_zone_resources(struct gendisk *disk,
 		min(ilog2(pool_size) + 1, BLK_ZONE_WPLUG_MAX_HASH_BITS);
 
 	disk->zone_wplugs_hash =
-		kcalloc(disk_zone_wplugs_hash_size(disk),
-			sizeof(struct hlist_head), GFP_KERNEL);
+		kzalloc_objs(struct hlist_head,
+			     disk_zone_wplugs_hash_size(disk));
 	if (!disk->zone_wplugs_hash)
 		return -ENOMEM;
 

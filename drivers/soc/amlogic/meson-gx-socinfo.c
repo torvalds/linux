@@ -188,7 +188,7 @@ static int __init meson_gx_socinfo_init(void)
 		return -EINVAL;
 	}
 
-	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
+	soc_dev_attr = kzalloc_obj(*soc_dev_attr);
 	if (!soc_dev_attr)
 		return -ENODEV;
 

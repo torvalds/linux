@@ -200,7 +200,7 @@ static inline struct extent_changeset *extent_changeset_alloc(void)
 {
 	struct extent_changeset *ret;
 
-	ret = kmalloc(sizeof(*ret), GFP_KERNEL);
+	ret = kmalloc_obj(*ret);
 	if (!ret)
 		return NULL;
 

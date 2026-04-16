@@ -160,8 +160,8 @@ int hvcs_get_partner_info(uint32_t unit_address, struct list_head *head,
 
 		/* This is a very small struct and will be freed soon in
 		 * hvcs_free_partner_info(). */
-		next_partner_info = kmalloc(sizeof(struct hvcs_partner_info),
-				GFP_ATOMIC);
+		next_partner_info = kmalloc_obj(struct hvcs_partner_info,
+						GFP_ATOMIC);
 
 		if (!next_partner_info) {
 			printk(KERN_WARNING "HVCONSOLE: kmalloc() failed to"

@@ -505,7 +505,7 @@ dpaa2_switch_cls_flower_replace_acl(struct dpaa2_switch_filter_block *block,
 		return -ENOMEM;
 	}
 
-	acl_entry = kzalloc(sizeof(*acl_entry), GFP_KERNEL);
+	acl_entry = kzalloc_obj(*acl_entry);
 	if (!acl_entry)
 		return -ENOMEM;
 
@@ -633,7 +633,7 @@ dpaa2_switch_cls_flower_replace_mirror(struct dpaa2_switch_filter_block *block,
 		}
 	}
 
-	mirror_entry = kzalloc(sizeof(*mirror_entry), GFP_KERNEL);
+	mirror_entry = kzalloc_obj(*mirror_entry);
 	if (!mirror_entry)
 		return -ENOMEM;
 
@@ -708,7 +708,7 @@ dpaa2_switch_cls_matchall_replace_acl(struct dpaa2_switch_filter_block *block,
 		return -ENOMEM;
 	}
 
-	acl_entry = kzalloc(sizeof(*acl_entry), GFP_KERNEL);
+	acl_entry = kzalloc_obj(*acl_entry);
 	if (!acl_entry)
 		return -ENOMEM;
 
@@ -780,7 +780,7 @@ dpaa2_switch_cls_matchall_replace_mirror(struct dpaa2_switch_filter_block *block
 		}
 	}
 
-	mirror_entry = kzalloc(sizeof(*mirror_entry), GFP_KERNEL);
+	mirror_entry = kzalloc_obj(*mirror_entry);
 	if (!mirror_entry)
 		return -ENOMEM;
 

@@ -140,7 +140,7 @@ struct ubi_volume_desc *ubi_open_volume(int ubi_num, int vol_id, int mode)
 		goto out_put_ubi;
 	}
 
-	desc = kmalloc(sizeof(struct ubi_volume_desc), GFP_KERNEL);
+	desc = kmalloc_obj(struct ubi_volume_desc);
 	if (!desc) {
 		err = -ENOMEM;
 		goto out_put_ubi;

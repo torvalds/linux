@@ -1663,11 +1663,11 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 	struct acpi_pci_root_ops *root_ops;
 	struct pci_host_bridge *host;
 
-	ri = kzalloc(sizeof(*ri), GFP_KERNEL);
+	ri = kzalloc_obj(*ri);
 	if (!ri)
 		return NULL;
 
-	root_ops = kzalloc(sizeof(*root_ops), GFP_KERNEL);
+	root_ops = kzalloc_obj(*root_ops);
 	if (!root_ops) {
 		kfree(ri);
 		return NULL;

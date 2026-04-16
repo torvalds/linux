@@ -44,7 +44,7 @@ static struct dca_domain *dca_allocate_domain(struct pci_bus *rc)
 {
 	struct dca_domain *domain;
 
-	domain = kzalloc(sizeof(*domain), GFP_NOWAIT);
+	domain = kzalloc_obj(*domain, GFP_NOWAIT);
 	if (!domain)
 		return NULL;
 

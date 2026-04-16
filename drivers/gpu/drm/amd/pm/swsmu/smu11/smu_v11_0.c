@@ -378,7 +378,7 @@ int smu_v11_0_init_smc_tables(struct smu_context *smu)
 	}
 
 	smu_table->max_sustainable_clocks =
-		kzalloc(sizeof(struct smu_11_0_max_sustainable_clocks), GFP_KERNEL);
+		kzalloc_obj(struct smu_11_0_max_sustainable_clocks);
 	if (!smu_table->max_sustainable_clocks) {
 		ret = -ENOMEM;
 		goto err1_out;
@@ -751,7 +751,7 @@ int smu_v11_0_set_allowed_mask(struct smu_context *smu)
 	uint32_t feature_mask[2];
 
 	if (smu_feature_list_is_empty(smu, SMU_FEATURE_LIST_ALLOWED) ||
-	    feature->feature_num < 64) {
+	    feature->feature_num < SMU_FEATURE_NUM_DEFAULT) {
 		ret = -EINVAL;
 		goto failed;
 	}

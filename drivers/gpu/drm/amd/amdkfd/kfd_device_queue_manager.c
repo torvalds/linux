@@ -1401,7 +1401,7 @@ static int register_process(struct device_queue_manager *dqm,
 	uint64_t pd_base;
 	int retval;
 
-	n = kzalloc(sizeof(*n), GFP_KERNEL);
+	n = kzalloc_obj(*n);
 	if (!n)
 		return -ENOMEM;
 
@@ -2921,7 +2921,7 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_node *dev)
 
 	pr_debug("Loading device queue manager\n");
 
-	dqm = kzalloc(sizeof(*dqm), GFP_KERNEL);
+	dqm = kzalloc_obj(*dqm);
 	if (!dqm)
 		return NULL;
 

@@ -284,15 +284,15 @@ void cdv_hdmi_init(struct drm_device *dev,
 	int ddc_reg;
 	int ret;
 
-	gma_encoder = kzalloc(sizeof(struct gma_encoder), GFP_KERNEL);
+	gma_encoder = kzalloc_obj(struct gma_encoder);
 	if (!gma_encoder)
 		return;
 
-	gma_connector = kzalloc(sizeof(struct gma_connector), GFP_KERNEL);
+	gma_connector = kzalloc_obj(struct gma_connector);
 	if (!gma_connector)
 		goto err_free_encoder;
 
-	hdmi_priv = kzalloc(sizeof(struct mid_intel_hdmi_priv), GFP_KERNEL);
+	hdmi_priv = kzalloc_obj(struct mid_intel_hdmi_priv);
 	if (!hdmi_priv)
 		goto err_free_connector;
 

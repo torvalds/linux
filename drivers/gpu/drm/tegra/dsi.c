@@ -772,7 +772,7 @@ static void tegra_dsi_soft_reset(struct tegra_dsi *dsi)
 
 static void tegra_dsi_connector_reset(struct drm_connector *connector)
 {
-	struct tegra_dsi_state *state = kzalloc(sizeof(*state), GFP_KERNEL);
+	struct tegra_dsi_state *state = kzalloc_obj(*state);
 
 	if (!state)
 		return;

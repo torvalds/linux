@@ -67,7 +67,7 @@ struct tee_init_ring_cmd *tee_alloc_cmd_buffer(struct psp_tee_device *tee)
 {
 	struct tee_init_ring_cmd *cmd;
 
-	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd)
 		return NULL;
 

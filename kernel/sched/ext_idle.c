@@ -663,9 +663,8 @@ void scx_idle_init_masks(void)
 	BUG_ON(!alloc_cpumask_var(&scx_idle_global_masks.cpu, GFP_KERNEL));
 	BUG_ON(!alloc_cpumask_var(&scx_idle_global_masks.smt, GFP_KERNEL));
 
-	/* Allocate per-node idle cpumasks */
-	scx_idle_node_masks = kcalloc(num_possible_nodes(),
-				      sizeof(*scx_idle_node_masks), GFP_KERNEL);
+	/* Allocate per-node idle cpumasks (use nr_node_ids for non-contiguous NUMA nodes) */
+	scx_idle_node_masks = kzalloc_objs(*scx_idle_node_masks, nr_node_ids);
 	BUG_ON(!scx_idle_node_masks);
 
 	for_each_node(i) {

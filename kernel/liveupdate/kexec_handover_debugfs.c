@@ -29,7 +29,7 @@ static int __kho_debugfs_fdt_add(struct list_head *list, struct dentry *dir,
 	struct fdt_debugfs *f;
 	struct dentry *file;
 
-	f = kmalloc(sizeof(*f), GFP_KERNEL);
+	f = kmalloc_obj(*f);
 	if (!f)
 		return -ENOMEM;
 

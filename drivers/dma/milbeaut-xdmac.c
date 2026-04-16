@@ -192,7 +192,7 @@ milbeaut_xdmac_prep_memcpy(struct dma_chan *chan, dma_addr_t dst,
 	struct virt_dma_chan *vc = to_virt_chan(chan);
 	struct milbeaut_xdmac_desc *md;
 
-	md = kzalloc(sizeof(*md), GFP_NOWAIT);
+	md = kzalloc_obj(*md, GFP_NOWAIT);
 	if (!md)
 		return NULL;
 

@@ -84,7 +84,7 @@ static struct gpio_shared_ref *gpio_shared_make_ref(struct fwnode_handle *fwnode
 {
 	char *con_id_cpy __free(kfree) = NULL;
 
-	struct gpio_shared_ref *ref __free(kfree) = kzalloc(sizeof(*ref), GFP_KERNEL);
+	struct gpio_shared_ref *ref __free(kfree) = kzalloc_obj(*ref);
 	if (!ref)
 		return NULL;
 
@@ -227,7 +227,7 @@ static int gpio_shared_of_traverse(struct device_node *curr)
 
 			entry = gpio_shared_find_entry(fwnode, offset);
 			if (!entry) {
-				entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+				entry = kzalloc_obj(*entry);
 				if (!entry)
 					return -ENOMEM;
 
@@ -477,7 +477,7 @@ int gpio_shared_add_proxy_lookup(struct device *consumer, const char *con_id,
 			if (!key)
 				return -ENOMEM;
 
-			lookup = kzalloc(struct_size(lookup, table, 2), GFP_KERNEL);
+			lookup = kzalloc_flex(*lookup, table, 2);
 			if (!lookup)
 				return -ENOMEM;
 
@@ -626,7 +626,7 @@ gpiod_shared_desc_create(struct gpio_shared_entry *entry)
 
 	lockdep_assert_held(&entry->lock);
 
-	shared_desc = kzalloc(sizeof(*shared_desc), GFP_KERNEL);
+	shared_desc = kzalloc_obj(*shared_desc);
 	if (!shared_desc)
 		return ERR_PTR(-ENOMEM);
 
@@ -748,14 +748,14 @@ static bool gpio_shared_entry_is_really_shared(struct gpio_shared_entry *entry)
 static void gpio_shared_free_exclusive(void)
 {
 	struct gpio_shared_entry *entry, *epos;
+	struct gpio_shared_ref *ref, *rpos;
 
 	list_for_each_entry_safe(entry, epos, &gpio_shared_list, list) {
 		if (gpio_shared_entry_is_really_shared(entry))
 			continue;
 
-		gpio_shared_drop_ref(list_first_entry(&entry->refs,
-						      struct gpio_shared_ref,
-						      list));
+		list_for_each_entry_safe(ref, rpos, &entry->refs, list)
+			gpio_shared_drop_ref(ref);
 		gpio_shared_drop_entry(entry);
 	}
 }

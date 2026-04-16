@@ -548,7 +548,7 @@ static void percpu_array_map_seq_show_elem(struct bpf_map *map, void *key,
 	rcu_read_unlock();
 }
 
-static int array_map_check_btf(const struct bpf_map *map,
+static int array_map_check_btf(struct bpf_map *map,
 			       const struct btf *btf,
 			       const struct btf_type *key_type,
 			       const struct btf_type *value_type)
@@ -1061,7 +1061,7 @@ static int prog_array_map_poke_track(struct bpf_map *map,
 			goto out;
 	}
 
-	elem = kmalloc(sizeof(*elem), GFP_KERNEL);
+	elem = kmalloc_obj(*elem);
 	if (!elem) {
 		ret = -ENOMEM;
 		goto out;
@@ -1174,7 +1174,7 @@ static struct bpf_map *prog_array_map_alloc(union bpf_attr *attr)
 	struct bpf_array_aux *aux;
 	struct bpf_map *map;
 
-	aux = kzalloc(sizeof(*aux), GFP_KERNEL_ACCOUNT);
+	aux = kzalloc_obj(*aux, GFP_KERNEL_ACCOUNT);
 	if (!aux)
 		return ERR_PTR(-ENOMEM);
 
@@ -1237,7 +1237,7 @@ static struct bpf_event_entry *bpf_event_entry_gen(struct file *perf_file,
 {
 	struct bpf_event_entry *ee;
 
-	ee = kzalloc(sizeof(*ee), GFP_KERNEL);
+	ee = kzalloc_obj(*ee);
 	if (ee) {
 		ee->event = perf_file->private_data;
 		ee->perf_file = perf_file;

@@ -258,7 +258,7 @@ struct pci_ide *pci_ide_stream_alloc(struct pci_dev *pdev)
 	if (!pdev->ide_cap)
 		return NULL;
 
-	struct pci_ide *ide __free(kfree) = kzalloc(sizeof(*ide), GFP_KERNEL);
+	struct pci_ide *ide __free(kfree) = kzalloc_obj(*ide);
 	if (!ide)
 		return NULL;
 

@@ -965,7 +965,7 @@ static struct virtqueue *vu_setup_vq(struct virtio_device *vdev,
 	int num = MAX_SUPPORTED_QUEUE_SIZE;
 	int rc;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info) {
 		rc = -ENOMEM;
 		goto error_kzalloc;
@@ -1217,7 +1217,7 @@ static int virtio_uml_probe(struct platform_device *pdev)
 			return PTR_ERR(pdata);
 	}
 
-	vu_dev = kzalloc(sizeof(*vu_dev), GFP_KERNEL);
+	vu_dev = kzalloc_obj(*vu_dev);
 	if (!vu_dev)
 		return -ENOMEM;
 

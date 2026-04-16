@@ -180,11 +180,11 @@ static struct tb_tunnel *tb_tunnel_alloc(struct tb *tb, size_t npaths,
 {
 	struct tb_tunnel *tunnel;
 
-	tunnel = kzalloc(sizeof(*tunnel), GFP_KERNEL);
+	tunnel = kzalloc_obj(*tunnel);
 	if (!tunnel)
 		return NULL;
 
-	tunnel->paths = kcalloc(npaths, sizeof(tunnel->paths[0]), GFP_KERNEL);
+	tunnel->paths = kzalloc_objs(tunnel->paths[0], npaths);
 	if (!tunnel->paths) {
 		kfree(tunnel);
 		return NULL;

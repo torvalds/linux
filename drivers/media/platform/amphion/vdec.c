@@ -1927,19 +1927,18 @@ static int vdec_open(struct file *file)
 	struct vdec_t *vdec;
 	int ret;
 
-	inst = kzalloc(sizeof(*inst), GFP_KERNEL);
+	inst = kzalloc_obj(*inst);
 	if (!inst)
 		return -ENOMEM;
 
-	vdec = kzalloc(sizeof(*vdec), GFP_KERNEL);
+	vdec = kzalloc_obj(*vdec);
 	if (!vdec) {
 		kfree(inst);
 		return -ENOMEM;
 	}
 
-	vdec->slots = kmalloc_array(VDEC_SLOT_CNT_DFT,
-				    sizeof(*vdec->slots),
-				    GFP_KERNEL | __GFP_ZERO);
+	vdec->slots = kmalloc_objs(*vdec->slots, VDEC_SLOT_CNT_DFT,
+				   GFP_KERNEL | __GFP_ZERO);
 	if (!vdec->slots) {
 		kfree(vdec);
 		kfree(inst);

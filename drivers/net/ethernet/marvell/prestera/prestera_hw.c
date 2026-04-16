@@ -2256,7 +2256,7 @@ int prestera_hw_event_handler_register(struct prestera_switch *sw,
 	if (eh)
 		return -EEXIST;
 
-	eh = kmalloc(sizeof(*eh), GFP_KERNEL);
+	eh = kmalloc_obj(*eh);
 	if (!eh)
 		return -ENOMEM;
 

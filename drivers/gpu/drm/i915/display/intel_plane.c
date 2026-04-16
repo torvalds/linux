@@ -77,11 +77,11 @@ struct intel_plane *intel_plane_alloc(void)
 	struct intel_plane_state *plane_state;
 	struct intel_plane *plane;
 
-	plane = kzalloc(sizeof(*plane), GFP_KERNEL);
+	plane = kzalloc_obj(*plane);
 	if (!plane)
 		return ERR_PTR(-ENOMEM);
 
-	plane_state = kzalloc(sizeof(*plane_state), GFP_KERNEL);
+	plane_state = kzalloc_obj(*plane_state);
 	if (!plane_state) {
 		kfree(plane);
 		return ERR_PTR(-ENOMEM);

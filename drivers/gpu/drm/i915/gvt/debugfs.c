@@ -68,7 +68,7 @@ static inline int mmio_diff_handler(struct intel_gvt *gvt,
 	vreg = vgpu_vreg(param->vgpu, offset);
 
 	if (preg != vreg) {
-		node = kmalloc(sizeof(*node), GFP_ATOMIC);
+		node = kmalloc_obj(*node, GFP_ATOMIC);
 		if (!node)
 			return -ENOMEM;
 

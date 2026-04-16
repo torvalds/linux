@@ -447,7 +447,7 @@ static int th1520_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 			nmaps += npins;
 	}
 
-	map = kcalloc(nmaps, sizeof(*map), GFP_KERNEL);
+	map = kzalloc_objs(*map, nmaps);
 	if (!map)
 		return -ENOMEM;
 

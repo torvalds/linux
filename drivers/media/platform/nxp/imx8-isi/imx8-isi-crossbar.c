@@ -189,7 +189,7 @@ static int mxc_isi_crossbar_init_state(struct v4l2_subdev *sd,
 	 * pipelines by default.
 	 */
 	routing.num_routes = min(xbar->num_sinks - 1, xbar->num_sources);
-	routes = kcalloc(routing.num_routes, sizeof(*routes), GFP_KERNEL);
+	routes = kzalloc_objs(*routes, routing.num_routes);
 	if (!routes)
 		return -ENOMEM;
 
@@ -454,12 +454,11 @@ int mxc_isi_crossbar_init(struct mxc_isi_dev *isi)
 	xbar->num_sources = isi->pdata->num_channels;
 	num_pads = xbar->num_sinks + xbar->num_sources;
 
-	xbar->pads = kcalloc(num_pads, sizeof(*xbar->pads), GFP_KERNEL);
+	xbar->pads = kzalloc_objs(*xbar->pads, num_pads);
 	if (!xbar->pads)
 		return -ENOMEM;
 
-	xbar->inputs = kcalloc(xbar->num_sinks, sizeof(*xbar->inputs),
-			       GFP_KERNEL);
+	xbar->inputs = kzalloc_objs(*xbar->inputs, xbar->num_sinks);
 	if (!xbar->inputs) {
 		ret = -ENOMEM;
 		goto err_free;

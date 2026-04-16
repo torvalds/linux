@@ -99,7 +99,7 @@ nfs4_alloc_ds_server(struct nfs_client *ds_clp, rpc_authflavor_t flavor)
 {
 	struct nfs4_ds_server *dss;
 
-	dss = kmalloc(sizeof(*dss), GFP_NOFS);
+	dss = kmalloc_obj(*dss, GFP_NOFS);
 	if (dss == NULL)
 		return ERR_PTR(-ENOMEM);
 

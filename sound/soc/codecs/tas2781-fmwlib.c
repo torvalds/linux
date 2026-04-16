@@ -32,6 +32,10 @@
 #define TAS2781_YRAM1_PAGE			42
 #define TAS2781_YRAM1_START_REG			88
 
+#define TAS2781_PG_REG		TASDEVICE_REG(0x00, 0x00, 0x7c)
+#define TAS2781_PG_1_0		0xA0
+#define TAS2781_PG_2_0		0xA8
+
 #define TAS2781_YRAM2_START_PAGE		43
 #define TAS2781_YRAM2_END_PAGE			49
 #define TAS2781_YRAM2_START_REG			8
@@ -96,6 +100,12 @@ struct tas_crc {
 struct blktyp_devidx_map {
 	unsigned char blktyp;
 	unsigned char dev_idx;
+};
+
+struct tas2781_cali_specific {
+	unsigned char sin_gni[4];
+	int sin_gni_reg;
+	bool is_sin_gn_flush;
 };
 
 static const char deviceNumber[TASDEVICE_DSP_TAS_MAX_DEVICE] = {
@@ -176,7 +186,7 @@ static struct tasdevice_config_info *tasdevice_add_config(
 	 * of audio cases, flexible configs have been introduced in the
 	 * dsp firmware.
 	 */
-	cfg_info = kzalloc(sizeof(struct tasdevice_config_info), GFP_KERNEL);
+	cfg_info = kzalloc_obj(struct tasdevice_config_info);
 	if (!cfg_info) {
 		*status = -ENOMEM;
 		goto out;
@@ -217,8 +227,8 @@ static struct tasdevice_config_info *tasdevice_add_config(
 	 * the number and size of blk are not fixed and different among
 	 * these firmwares.
 	 */
-	bk_da = cfg_info->blk_data = kcalloc(cfg_info->nblocks,
-		sizeof(struct tasdev_blk_data *), GFP_KERNEL);
+	bk_da = cfg_info->blk_data = kzalloc_objs(struct tasdev_blk_data *,
+						  cfg_info->nblocks);
 	if (!bk_da) {
 		*status = -ENOMEM;
 		goto out;
@@ -232,7 +242,7 @@ static struct tasdevice_config_info *tasdevice_add_config(
 				__func__, i, cfg_info->nblocks);
 			break;
 		}
-		bk_da[i] = kzalloc(sizeof(struct tasdev_blk_data), GFP_KERNEL);
+		bk_da[i] = kzalloc_obj(struct tasdev_blk_data);
 		if (!bk_da[i]) {
 			*status = -ENOMEM;
 			break;
@@ -379,7 +389,7 @@ int tasdevice_rca_parser(void *context, const struct firmware *fmw)
 		goto out;
 	}
 
-	cfg_info = kcalloc(fw_hdr->nconfig, sizeof(*cfg_info), GFP_KERNEL);
+	cfg_info = kzalloc_objs(*cfg_info, fw_hdr->nconfig);
 	if (!cfg_info) {
 		ret = -ENOMEM;
 		tas_priv->fw_state = TASDEVICE_DSP_FW_FAIL;
@@ -509,8 +519,7 @@ static int fw_parse_data_kernel(struct tasdevice_fw *tas_fmw,
 	img_data->nr_blk = get_unaligned_be32(&data[offset]);
 	offset += 4;
 
-	img_data->dev_blks = kcalloc(img_data->nr_blk,
-		sizeof(struct tasdev_blk), GFP_KERNEL);
+	img_data->dev_blks = kzalloc_objs(struct tasdev_blk, img_data->nr_blk);
 	if (!img_data->dev_blks) {
 		offset = -ENOMEM;
 		goto out;
@@ -805,8 +814,8 @@ static int fw_parse_variable_header_kernel(
 		goto out;
 	}
 
-	tas_fmw->programs = kcalloc(tas_fmw->nr_programs,
-		sizeof(struct tasdevice_prog), GFP_KERNEL);
+	tas_fmw->programs = kzalloc_objs(struct tasdevice_prog,
+					 tas_fmw->nr_programs);
 	if (!tas_fmw->programs) {
 		offset = -ENOMEM;
 		goto out;
@@ -844,8 +853,8 @@ static int fw_parse_variable_header_kernel(
 		goto out;
 	}
 
-	tas_fmw->configs = kcalloc(tas_fmw->nr_configurations,
-		sizeof(struct tasdevice_config), GFP_KERNEL);
+	tas_fmw->configs = kzalloc_objs(struct tasdevice_config,
+					tas_fmw->nr_configurations);
 	if (!tas_fmw->configs) {
 		offset = -ENOMEM;
 		goto out;
@@ -1239,8 +1248,7 @@ static int fw_parse_data(struct tasdevice_fw *tas_fmw,
 	img_data->nr_blk = get_unaligned_be16(&data[offset]);
 	offset += 2;
 
-	img_data->dev_blks = kcalloc(img_data->nr_blk,
-		sizeof(struct tasdev_blk), GFP_KERNEL);
+	img_data->dev_blks = kzalloc_objs(struct tasdev_blk, img_data->nr_blk);
 	if (!img_data->dev_blks) {
 		offset = -ENOMEM;
 		goto out;
@@ -1284,8 +1292,7 @@ static int fw_parse_program_data(struct tasdevice_priv *tas_priv,
 	}
 
 	tas_fmw->programs =
-		kcalloc(tas_fmw->nr_programs, sizeof(struct tasdevice_prog),
-			GFP_KERNEL);
+		kzalloc_objs(struct tasdevice_prog, tas_fmw->nr_programs);
 	if (!tas_fmw->programs) {
 		offset = -ENOMEM;
 		goto out;
@@ -1348,8 +1355,8 @@ static int fw_parse_configuration_data(
 		/*Not error for calibration Data file, return directly*/
 		goto out;
 	}
-	tas_fmw->configs = kcalloc(tas_fmw->nr_configurations,
-			sizeof(struct tasdevice_config), GFP_KERNEL);
+	tas_fmw->configs = kzalloc_objs(struct tasdevice_config,
+					tas_fmw->nr_configurations);
 	if (!tas_fmw->configs) {
 		offset = -ENOMEM;
 		goto out;
@@ -2143,8 +2150,8 @@ static int fw_parse_calibration_data(struct tasdevice_priv *tas_priv,
 		goto out;
 	}
 
-	tas_fmw->calibrations = kcalloc(tas_fmw->nr_calibrations,
-		sizeof(struct tasdevice_calibration), GFP_KERNEL);
+	tas_fmw->calibrations = kzalloc_objs(struct tasdevice_calibration,
+					     tas_fmw->nr_calibrations);
 	if (!tas_fmw->calibrations) {
 		offset = -ENOMEM;
 		goto out;
@@ -2206,8 +2213,7 @@ int tas2781_load_calibration(void *context, char *file_name,
 	fmw.size = fw_entry->size;
 	fmw.data = fw_entry->data;
 
-	tas_fmw = tasdev->cali_data_fmw = kzalloc(sizeof(struct tasdevice_fw),
-		GFP_KERNEL);
+	tas_fmw = tasdev->cali_data_fmw = kzalloc_obj(struct tasdevice_fw);
 	if (!tasdev->cali_data_fmw) {
 		ret = -ENOMEM;
 		goto out;
@@ -2267,7 +2273,7 @@ static int tasdevice_dspfw_ready(const struct firmware *fmw,
 		return -EINVAL;
 	}
 
-	tas_priv->fmw = kzalloc(sizeof(struct tasdevice_fw), GFP_KERNEL);
+	tas_priv->fmw = kzalloc_obj(struct tasdevice_fw);
 	if (!tas_priv->fmw)
 		return -ENOMEM;
 
@@ -2458,6 +2464,84 @@ static int tasdevice_load_data(struct tasdevice_priv *tas_priv,
 	return ret;
 }
 
+static int tas2781_cali_preproc(struct tasdevice_priv *priv, int i)
+{
+	struct tas2781_cali_specific *spec = priv->tasdevice[i].cali_specific;
+	struct calidata *cali_data = &priv->cali_data;
+	struct cali_reg *p = &cali_data->cali_reg_array;
+	unsigned char *data = cali_data->data;
+	int rc;
+
+	/*
+	 * On TAS2781, if the Speaker calibrated impedance is lower than
+	 * default value hard-coded inside the TAS2781, it will cuase vol
+	 * lower than normal. In order to fix this issue, the parameter of
+	 * SineGainI need updating.
+	 */
+	if (spec == NULL) {
+		int k = i * (cali_data->cali_dat_sz_per_dev + 1);
+		int re_org, re_cal, corrected_sin_gn, pg_id;
+		unsigned char r0_deflt[4];
+
+		spec = devm_kzalloc(priv->dev, sizeof(*spec), GFP_KERNEL);
+		if (spec == NULL)
+			return -ENOMEM;
+		priv->tasdevice[i].cali_specific = spec;
+		rc = tasdevice_dev_bulk_read(priv, i, p->r0_reg, r0_deflt, 4);
+		if (rc < 0) {
+			dev_err(priv->dev, "invalid RE from %d = %d\n", i, rc);
+			return rc;
+		}
+		/*
+		 * SineGainI need to be re-calculated, calculate the high 16
+		 * bits.
+		 */
+		re_org = r0_deflt[0] << 8 | r0_deflt[1];
+		re_cal = data[k + 1] << 8 | data[k + 2];
+		if (re_org > re_cal) {
+			rc = tasdevice_dev_read(priv, i, TAS2781_PG_REG,
+						 &pg_id);
+			if (rc < 0) {
+				dev_err(priv->dev, "invalid PG id %d = %d\n",
+					i, rc);
+				return rc;
+			}
+
+			spec->sin_gni_reg = (pg_id == TAS2781_PG_1_0) ?
+				TASDEVICE_REG(0, 0x1b, 0x34) :
+				TASDEVICE_REG(0, 0x18, 0x1c);
+
+			rc = tasdevice_dev_bulk_read(priv, i,
+						      spec->sin_gni_reg,
+						      spec->sin_gni, 4);
+			if (rc < 0) {
+				dev_err(priv->dev, "wrong sinegaini %d = %d\n",
+					i, rc);
+				return rc;
+			}
+			corrected_sin_gn = re_org * ((spec->sin_gni[0] << 8) +
+						       spec->sin_gni[1]);
+			corrected_sin_gn /= re_cal;
+			spec->sin_gni[0] = corrected_sin_gn >> 8;
+			spec->sin_gni[1] = corrected_sin_gn & 0xff;
+
+			spec->is_sin_gn_flush = true;
+		}
+	}
+
+	if (spec->is_sin_gn_flush) {
+		rc = tasdevice_dev_bulk_write(priv, i, spec->sin_gni_reg,
+						       spec->sin_gni, 4);
+		if (rc < 0) {
+			dev_err(priv->dev, "update failed %d = %d\n",
+				i, rc);
+			return rc;
+		}
+	}
+
+	return 0;
+}
+
 static void tasdev_load_calibrated_data(struct tasdevice_priv *priv, int i)
 {
 	struct calidata *cali_data = &priv->cali_data;
@@ -2472,6 +2556,12 @@ static void tasdev_load_calibrated_data(struct tasdevice_priv *priv, int i)
 		return;
 	}
 	k++;
+
+	if (priv->chip_id == TAS2781) {
+		rc = tas2781_cali_preproc(priv, i);
+		if (rc < 0)
+			return;
+	}
 
 	rc = tasdevice_dev_bulk_write(priv, i, p->r0_reg, &(data[k]), 4);
 	if (rc < 0) {

@@ -344,7 +344,7 @@ nfp_abm_qdisc_alloc(struct net_device *netdev, struct nfp_abm_link *alink,
 	struct nfp_qdisc *qdisc;
 	int err;
 
-	qdisc = kzalloc(sizeof(*qdisc), GFP_KERNEL);
+	qdisc = kzalloc_obj(*qdisc);
 	if (!qdisc)
 		return NULL;
 

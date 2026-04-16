@@ -313,7 +313,7 @@ static int __init c101_run(unsigned long irq, unsigned long winbase)
 		return -ENODEV;
 	}
 
-	card = kzalloc(sizeof(card_t), GFP_KERNEL);
+	card = kzalloc_obj(card_t);
 	if (!card)
 		return -ENOBUFS;
 

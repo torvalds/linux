@@ -187,7 +187,7 @@ static int sd_init(struct mlx5_core_dev *dev)
 		return 0;
 	}
 
-	sd = kzalloc(sizeof(*sd), GFP_KERNEL);
+	sd = kzalloc_obj(*sd);
 	if (!sd)
 		return -ENOMEM;
 

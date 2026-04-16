@@ -149,7 +149,7 @@ static int vchiq_ioc_create_service(struct vchiq_instance *instance,
 	if (args->is_open && !instance->connected)
 		return -ENOTCONN;
 
-	user_service = kmalloc(sizeof(*user_service), GFP_KERNEL);
+	user_service = kmalloc_obj(*user_service);
 	if (!user_service)
 		return -ENOMEM;
 
@@ -298,7 +298,7 @@ static int vchiq_irq_queue_bulk_tx_rx(struct vchiq_instance *instance,
 		return -EINVAL;
 
 	if (args->mode == VCHIQ_BULK_MODE_BLOCKING) {
-		waiter = kzalloc(sizeof(*waiter), GFP_KERNEL);
+		waiter = kzalloc_obj(*waiter);
 		if (!waiter) {
 			ret = -ENOMEM;
 			goto out;
@@ -1185,7 +1185,7 @@ static int vchiq_open(struct inode *inode, struct file *file)
 		return -ENOTCONN;
 	}
 
-	instance = kzalloc(sizeof(*instance), GFP_KERNEL);
+	instance = kzalloc_obj(*instance);
 	if (!instance)
 		return -ENOMEM;
 

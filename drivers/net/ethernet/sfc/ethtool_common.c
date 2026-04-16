@@ -133,7 +133,7 @@ void efx_ethtool_self_test(struct net_device *net_dev,
 	bool already_up;
 	int rc = -ENOMEM;
 
-	efx_tests = kzalloc(sizeof(*efx_tests), GFP_KERNEL);
+	efx_tests = kzalloc_obj(*efx_tests);
 	if (!efx_tests)
 		goto fail;
 

@@ -149,7 +149,7 @@ int tcp_fastopen_reset_cipher(struct net *net, struct sock *sk,
 	struct fastopen_queue *q;
 	int err = 0;
 
-	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kmalloc_obj(*ctx);
 	if (!ctx) {
 		err = -ENOMEM;
 		goto out;
@@ -333,7 +333,7 @@ static struct sock *tcp_fastopen_create_child(struct sock *sk,
 	bool own_req;
 
 	child = inet_csk(sk)->icsk_af_ops->syn_recv_sock(sk, skb, req, NULL,
-							 NULL, &own_req);
+							 NULL, &own_req, NULL);
 	if (!child)
 		return NULL;
 
@@ -549,8 +549,8 @@ bool tcp_fastopen_defer_connect(struct sock *sk, int *err)
 		/* Alloc fastopen_req in order for FO option to be included
 		 * in SYN
 		 */
-		tp->fastopen_req = kzalloc(sizeof(*tp->fastopen_req),
-					   sk->sk_allocation);
+		tp->fastopen_req = kzalloc_obj(*tp->fastopen_req,
+					       sk->sk_allocation);
 		if (tp->fastopen_req)
 			tp->fastopen_req->cookie = cookie;
 		else

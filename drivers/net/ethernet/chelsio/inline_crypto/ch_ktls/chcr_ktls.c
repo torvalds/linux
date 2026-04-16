@@ -442,7 +442,7 @@ static int chcr_ktls_dev_add(struct net_device *netdev, struct sock *sk,
 	if (u_ctx && u_ctx->detach)
 		goto out;
 
-	tx_info = kvzalloc(sizeof(*tx_info), GFP_KERNEL);
+	tx_info = kvzalloc_obj(*tx_info);
 	if (!tx_info)
 		goto out;
 
@@ -2117,7 +2117,7 @@ static void *chcr_ktls_uld_add(const struct cxgb4_lld_info *lldi)
 
 	pr_info_once("%s - version %s\n", CHCR_KTLS_DRV_DESC,
 		     CHCR_KTLS_DRV_VERSION);
-	u_ctx = kzalloc(sizeof(*u_ctx), GFP_KERNEL);
+	u_ctx = kzalloc_obj(*u_ctx);
 	if (!u_ctx) {
 		u_ctx = ERR_PTR(-ENOMEM);
 		goto out;

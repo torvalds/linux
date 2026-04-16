@@ -26,7 +26,7 @@ struct rtrs_iu *rtrs_iu_alloc(u32 iu_num, size_t size, gfp_t gfp_mask,
 	struct rtrs_iu *ius, *iu;
 	int i;
 
-	ius = kcalloc(iu_num, sizeof(*ius), gfp_mask);
+	ius = kzalloc_objs(*ius, iu_num, gfp_mask);
 	if (!ius)
 		return NULL;
 	for (i = 0; i < iu_num; i++) {
@@ -618,7 +618,7 @@ rtrs_ib_dev_find_or_add(struct ib_device *ib_dev,
 			goto out_unlock;
 	}
 	mutex_unlock(&pool->mutex);
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		goto out_err;
 

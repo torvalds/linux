@@ -325,7 +325,7 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 		return NULL;
 	}
 
-	vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);
+	vdev = kzalloc_obj(*vdev);
 	if (!vdev) {
 		printk(KERN_ERR "VIO: Could not allocate vio_dev\n");
 		return NULL;

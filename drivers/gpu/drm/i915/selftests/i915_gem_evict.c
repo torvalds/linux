@@ -421,7 +421,7 @@ static int igt_evict_contexts(void *arg)
 		struct reserved *r;
 
 		mutex_unlock(&ggtt->vm.mutex);
-		r = kcalloc(1, sizeof(*r), GFP_KERNEL);
+		r = kzalloc_objs(*r, 1);
 		mutex_lock(&ggtt->vm.mutex);
 		if (!r) {
 			err = -ENOMEM;

@@ -44,7 +44,7 @@ bvme6000_probe(struct platform_device *dev)
 	if (!MACH_IS_BVME6000)
 		goto out;
 
-	hostdata = kzalloc(sizeof(struct NCR_700_Host_Parameters), GFP_KERNEL);
+	hostdata = kzalloc_obj(struct NCR_700_Host_Parameters);
 	if (!hostdata) {
 		printk(KERN_ERR "bvme6000-scsi: "
 				"Failed to allocate host data\n");

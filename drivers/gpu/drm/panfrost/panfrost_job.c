@@ -95,7 +95,7 @@ static struct dma_fence *panfrost_fence_create(struct panfrost_device *pfdev, in
 	struct panfrost_fence *fence;
 	struct panfrost_job_slot *js = pfdev->js;
 
-	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
+	fence = kzalloc_obj(*fence);
 	if (!fence)
 		return ERR_PTR(-ENOMEM);
 
@@ -1053,7 +1053,7 @@ int panfrost_jm_ctx_create(struct drm_file *file,
 	struct panfrost_jm_ctx *jm_ctx;
 	int ret;
 
-	jm_ctx = kzalloc(sizeof(*jm_ctx), GFP_KERNEL);
+	jm_ctx = kzalloc_obj(*jm_ctx);
 	if (!jm_ctx)
 		return -ENOMEM;
 

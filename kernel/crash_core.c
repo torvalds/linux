@@ -368,7 +368,7 @@ static int __crash_shrink_memory(struct resource *old_res,
 {
 	struct resource *ram_res;
 
-	ram_res = kzalloc(sizeof(*ram_res), GFP_KERNEL);
+	ram_res = kzalloc_obj(*ram_res);
 	if (!ram_res)
 		return -ENOMEM;
 

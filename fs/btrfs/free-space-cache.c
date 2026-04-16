@@ -388,7 +388,7 @@ static int io_ctl_init(struct btrfs_io_ctl *io_ctl, struct inode *inode,
 
 	memset(io_ctl, 0, sizeof(struct btrfs_io_ctl));
 
-	io_ctl->pages = kcalloc(num_pages, sizeof(struct page *), GFP_NOFS);
+	io_ctl->pages = kzalloc_objs(struct page *, num_pages, GFP_NOFS);
 	if (!io_ctl->pages)
 		return -ENOMEM;
 

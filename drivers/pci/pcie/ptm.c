@@ -537,7 +537,7 @@ struct pci_ptm_debugfs *pcie_ptm_create_debugfs(struct device *dev, void *pdata,
 		return NULL;
 	}
 
-	ptm_debugfs = kzalloc(sizeof(*ptm_debugfs), GFP_KERNEL);
+	ptm_debugfs = kzalloc_obj(*ptm_debugfs);
 	if (!ptm_debugfs)
 		return NULL;
 

@@ -180,7 +180,7 @@ static struct slim_device *slim_alloc_device(struct slim_controller *ctrl,
 	struct slim_device *sbdev;
 	int ret;
 
-	sbdev = kzalloc(sizeof(*sbdev), GFP_KERNEL);
+	sbdev = kzalloc_obj(*sbdev);
 	if (!sbdev)
 		return NULL;
 

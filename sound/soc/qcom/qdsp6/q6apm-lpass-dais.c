@@ -278,6 +278,7 @@ static const struct snd_soc_component_driver q6apm_lpass_dai_component = {
 	.of_xlate_dai_name = q6dsp_audio_ports_of_xlate_dai_name,
 	.be_pcm_base = AUDIOREACH_BE_PCM_BASE,
 	.use_dai_pcm_id = true,
+	.remove_order   = SND_SOC_COMP_ORDER_FIRST,
 };
 
 static int q6apm_lpass_dai_dev_probe(struct platform_device *pdev)

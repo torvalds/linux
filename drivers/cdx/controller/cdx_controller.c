@@ -168,7 +168,7 @@ static int xlnx_cdx_probe(struct platform_device *pdev)
 	struct cdx_mcdi *cdx_mcdi;
 	int ret;
 
-	cdx_mcdi = kzalloc(sizeof(*cdx_mcdi), GFP_KERNEL);
+	cdx_mcdi = kzalloc_obj(*cdx_mcdi);
 	if (!cdx_mcdi)
 		return -ENOMEM;
 
@@ -181,7 +181,7 @@ static int xlnx_cdx_probe(struct platform_device *pdev)
 		goto mcdi_init_fail;
 	}
 
-	cdx = kzalloc(sizeof(*cdx), GFP_KERNEL);
+	cdx = kzalloc_obj(*cdx);
 	if (!cdx) {
 		ret = -ENOMEM;
 		goto cdx_alloc_fail;

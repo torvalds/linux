@@ -524,7 +524,7 @@ static int pci_npem_init(struct pci_dev *dev, const struct npem_ops *ops,
 	int led_idx = 0;
 	int ret;
 
-	npem = kzalloc(struct_size(npem, leds, supported_cnt), GFP_KERNEL);
+	npem = kzalloc_flex(*npem, leds, supported_cnt);
 	if (!npem)
 		return -ENOMEM;
 

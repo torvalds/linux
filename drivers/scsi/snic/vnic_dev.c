@@ -42,8 +42,6 @@ struct vnic_dev {
 	struct vnic_devcmd_notify *notify;
 	struct vnic_devcmd_notify notify_copy;
 	dma_addr_t notify_pa;
-	u32 *linkstatus;
-	dma_addr_t linkstatus_pa;
 	struct vnic_stats *stats;
 	dma_addr_t stats_pa;
 	struct vnic_devcmd_fw_info *fw_info;
@@ -352,7 +350,7 @@ static int svnic_dev_init_devcmd2(struct vnic_dev *vdev)
 	if (!p)
 		return -ENODEV;
 
-	dc2c = kzalloc(sizeof(*dc2c), GFP_ATOMIC);
+	dc2c = kzalloc_obj(*dc2c, GFP_ATOMIC);
 	if (!dc2c)
 		return -ENOMEM;
 
@@ -650,8 +648,6 @@ int svnic_dev_init(struct vnic_dev *vdev, int arg)
 
 int svnic_dev_link_status(struct vnic_dev *vdev)
 {
-	if (vdev->linkstatus)
-		return *vdev->linkstatus;
 
 	if (!vnic_dev_notify_ready(vdev))
 		return 0;
@@ -686,11 +682,6 @@ void svnic_dev_unregister(struct vnic_dev *vdev)
 				sizeof(struct vnic_devcmd_notify),
 				vdev->notify,
 				vdev->notify_pa);
-		if (vdev->linkstatus)
-			dma_free_coherent(&vdev->pdev->dev,
-				sizeof(u32),
-				vdev->linkstatus,
-				vdev->linkstatus_pa);
 		if (vdev->stats)
 			dma_free_coherent(&vdev->pdev->dev,
 				sizeof(struct vnic_stats),
@@ -712,7 +703,7 @@ struct vnic_dev *svnic_dev_alloc_discover(struct vnic_dev *vdev,
 					  unsigned int num_bars)
 {
 	if (!vdev) {
-		vdev = kzalloc(sizeof(struct vnic_dev), GFP_ATOMIC);
+		vdev = kzalloc_obj(struct vnic_dev, GFP_ATOMIC);
 		if (!vdev)
 			return NULL;
 	}

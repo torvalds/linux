@@ -64,4 +64,10 @@ void dcn351_clk_mgr_construct(struct dc_context *ctx,
 		struct clk_mgr_dcn35 *clk_mgr,
 		struct pp_smu_funcs *pp_smu,
 		struct dccg *dccg);
+
+void dcn35_disable_otg_wa(struct clk_mgr *clk_mgr_base,
+		struct dc_state *context,
+		bool safe_to_lower,
+		bool disable);
+
 #endif //__DCN35_CLK_MGR_H__

@@ -338,7 +338,7 @@ static __init int dev_mcelog_init_device(void)
 	int err;
 
 	mce_log_len = max(MCE_LOG_MIN_LEN, num_online_cpus());
-	mcelog = kzalloc(struct_size(mcelog, entry, mce_log_len), GFP_KERNEL);
+	mcelog = kzalloc_flex(*mcelog, entry, mce_log_len);
 	if (!mcelog)
 		return -ENOMEM;
 

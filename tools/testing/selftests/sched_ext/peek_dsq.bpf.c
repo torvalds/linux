@@ -58,14 +58,14 @@ static void record_peek_result(long pid)
 {
 	u32 slot_key;
 	long *slot_pid_ptr;
-	int ix;
+	u32 ix;
 
 	if (pid <= 0)
 		return;
 
 	/* Find an empty slot or one with the same PID */
 	bpf_for(ix, 0, 10) {
-		slot_key = (pid + ix) % MAX_SAMPLES;
+		slot_key = ((u64)pid + ix) % MAX_SAMPLES;
 		slot_pid_ptr = bpf_map_lookup_elem(&peek_results, &slot_key);
 		if (!slot_pid_ptr)
 			continue;

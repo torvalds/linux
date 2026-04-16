@@ -2651,8 +2651,7 @@ struct scsi_transport_template *
 fc_attach_transport(struct fc_function_template *ft)
 {
 	int count;
-	struct fc_internal *i = kzalloc(sizeof(struct fc_internal),
-					GFP_KERNEL);
+	struct fc_internal *i = kzalloc_obj(struct fc_internal);
 
 	if (unlikely(!i))
 		return NULL;

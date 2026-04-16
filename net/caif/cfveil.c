@@ -25,7 +25,7 @@ static int cfvei_transmit(struct cflayer *layr, struct cfpkt *pkt);
 
 struct cflayer *cfvei_create(u8 channel_id, struct dev_info *dev_info)
 {
-	struct cfsrvl *vei = kzalloc(sizeof(struct cfsrvl), GFP_ATOMIC);
+	struct cfsrvl *vei = kzalloc_obj(struct cfsrvl, GFP_ATOMIC);
 	if (!vei)
 		return NULL;
 	caif_assert(offsetof(struct cfsrvl, layer) == 0);

@@ -208,7 +208,7 @@ int btrfs_alloc_stripe_hash_table(struct btrfs_fs_info *info)
 	 * Try harder to allocate and fallback to vmalloc to lower the chance
 	 * of a failing mount.
 	 */
-	table = kvzalloc(struct_size(table, table, num_entries), GFP_KERNEL);
+	table = kvzalloc_flex(*table, table, num_entries);
 	if (!table)
 		return -ENOMEM;
 
@@ -1090,13 +1090,15 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_fs_info *fs_info,
 	ASSERT(real_stripes >= 2);
 	ASSERT(real_stripes <= U8_MAX);
 
-	rbio = kzalloc(sizeof(*rbio), GFP_NOFS);
+	rbio = kzalloc_obj(*rbio, GFP_NOFS);
 	if (!rbio)
 		return ERR_PTR(-ENOMEM);
-	rbio->stripe_pages = kcalloc(num_pages, sizeof(struct page *),
-				     GFP_NOFS);
-	rbio->bio_paddrs = kcalloc(num_sectors * sector_nsteps, sizeof(phys_addr_t), GFP_NOFS);
-	rbio->stripe_paddrs = kcalloc(num_sectors * sector_nsteps, sizeof(phys_addr_t), GFP_NOFS);
+	rbio->stripe_pages = kzalloc_objs(struct page *, num_pages, GFP_NOFS);
+	rbio->bio_paddrs = kzalloc_objs(phys_addr_t,
+					num_sectors * sector_nsteps, GFP_NOFS);
+	rbio->stripe_paddrs = kzalloc_objs(phys_addr_t,
+					   num_sectors * sector_nsteps,
+					   GFP_NOFS);
 	rbio->finish_pointers = kcalloc(real_stripes, sizeof(void *), GFP_NOFS);
 	rbio->error_bitmap = bitmap_zalloc(num_sectors, GFP_NOFS);
 	rbio->stripe_uptodate_bitmap = bitmap_zalloc(num_sectors, GFP_NOFS);

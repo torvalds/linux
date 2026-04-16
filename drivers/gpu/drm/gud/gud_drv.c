@@ -82,7 +82,7 @@ static int gud_get_display_descriptor(struct usb_interface *intf,
 	void *buf;
 	int ret;
 
-	buf = kmalloc(sizeof(*desc), GFP_KERNEL);
+	buf = kmalloc_obj(*desc);
 	if (!buf)
 		return -ENOMEM;
 
@@ -135,7 +135,7 @@ static int gud_usb_get_status(struct usb_interface *intf)
 	int ret, status = -EIO;
 	u8 *buf;
 
-	buf = kmalloc(sizeof(*buf), GFP_KERNEL);
+	buf = kmalloc_obj(*buf);
 	if (!buf)
 		return -ENOMEM;
 
@@ -255,7 +255,7 @@ static int gud_plane_add_properties(struct gud_device *gdrm)
 	unsigned int i, num_properties;
 	int ret;
 
-	properties = kcalloc(GUD_PROPERTIES_MAX_NUM, sizeof(*properties), GFP_KERNEL);
+	properties = kzalloc_objs(*properties, GUD_PROPERTIES_MAX_NUM);
 	if (!properties)
 		return -ENOMEM;
 
@@ -339,7 +339,9 @@ static int gud_stats_debugfs(struct seq_file *m, void *data)
 }
 
 static const struct drm_crtc_helper_funcs gud_crtc_helper_funcs = {
-	.atomic_check = drm_crtc_helper_atomic_check
+	.atomic_check = drm_crtc_helper_atomic_check,
+	.atomic_enable = gud_crtc_atomic_enable,
+	.atomic_disable = gud_crtc_atomic_disable,
 };
 
 static const struct drm_crtc_funcs gud_crtc_funcs = {
@@ -362,6 +364,10 @@ static const struct drm_plane_funcs gud_plane_funcs = {
 	.disable_plane = drm_atomic_helper_disable_plane,
 	.destroy = drm_plane_cleanup,
 	DRM_GEM_SHADOW_PLANE_FUNCS,
+};
+
+static const struct drm_mode_config_helper_funcs gud_mode_config_helpers = {
+	.atomic_commit_tail = drm_atomic_helper_commit_tail_rpm,
 };
 
 static const struct drm_mode_config_funcs gud_mode_config_funcs = {
@@ -401,7 +407,7 @@ static int gud_alloc_bulk_buffer(struct gud_device *gdrm)
 		return -ENOMEM;
 
 	num_pages = DIV_ROUND_UP(gdrm->bulk_len, PAGE_SIZE);
-	pages = kmalloc_array(num_pages, sizeof(struct page *), GFP_KERNEL);
+	pages = kmalloc_objs(struct page *, num_pages);
 	if (!pages)
 		return -ENOMEM;
 
@@ -499,6 +505,7 @@ static int gud_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	drm->mode_config.min_height = le32_to_cpu(desc.min_height);
 	drm->mode_config.max_height = le32_to_cpu(desc.max_height);
 	drm->mode_config.funcs = &gud_mode_config_funcs;
+	drm->mode_config.helper_private = &gud_mode_config_helpers;
 
 	/* Format init */
 	formats_dev = devm_kmalloc(dev, GUD_FORMATS_MAX_NUM, GFP_KERNEL);

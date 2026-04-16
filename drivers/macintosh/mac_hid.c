@@ -102,7 +102,7 @@ static int mac_hid_emumouse_connect(struct input_handler *handler,
 	if (dev == mac_hid_emumouse_dev)
 		return -ENODEV;
 
-	handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
+	handle = kzalloc_obj(struct input_handle);
 	if (!handle)
 		return -ENOMEM;
 

@@ -247,8 +247,7 @@ static void parse_lfp_panel_data(struct drm_psb_private *dev_priv,
 	entry = &lvds_lfp_data->data[lvds_options->panel_type];
 	dvo_timing = &entry->dvo_timing;
 
-	panel_fixed_mode = kzalloc(sizeof(*panel_fixed_mode),
-				      GFP_KERNEL);
+	panel_fixed_mode = kzalloc_obj(*panel_fixed_mode);
 	if (panel_fixed_mode == NULL) {
 		dev_err(dev_priv->dev.dev, "out of memory for fixed panel mode\n");
 		return;
@@ -286,7 +285,7 @@ static void parse_sdvo_panel_data(struct drm_psb_private *dev_priv,
 	if (!dvo_timing)
 		return;
 
-	panel_fixed_mode = kzalloc(sizeof(*panel_fixed_mode), GFP_KERNEL);
+	panel_fixed_mode = kzalloc_obj(*panel_fixed_mode);
 
 	if (!panel_fixed_mode)
 		return;
@@ -478,7 +477,7 @@ parse_device_mapping(struct drm_psb_private *dev_priv,
 		DRM_DEBUG_KMS("no child dev is parsed from VBT\n");
 		return;
 	}
-	dev_priv->child_dev = kcalloc(count, sizeof(*p_child), GFP_KERNEL);
+	dev_priv->child_dev = kzalloc_objs(*p_child, count);
 	if (!dev_priv->child_dev) {
 		DRM_DEBUG_KMS("No memory space for child devices\n");
 		return;

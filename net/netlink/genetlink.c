@@ -659,7 +659,7 @@ static int genl_sk_privs_alloc(struct genl_family *family)
 	if (!family->sock_priv_size)
 		return 0;
 
-	family->sock_privs = kzalloc(sizeof(*family->sock_privs), GFP_KERNEL);
+	family->sock_privs = kzalloc_obj(*family->sock_privs);
 	if (!family->sock_privs)
 		return -ENOMEM;
 	xa_init(family->sock_privs);
@@ -912,7 +912,7 @@ EXPORT_SYMBOL(genlmsg_put);
 
 static struct genl_dumpit_info *genl_dumpit_info_alloc(void)
 {
-	return kmalloc(sizeof(struct genl_dumpit_info), GFP_KERNEL);
+	return kmalloc_obj(struct genl_dumpit_info);
 }
 
 static void genl_dumpit_info_free(const struct genl_dumpit_info *info)
@@ -937,8 +937,7 @@ genl_family_rcv_msg_attrs_parse(const struct genl_family *family,
 	if (!ops->maxattr)
 		return NULL;
 
-	attrbuf = kmalloc_array(ops->maxattr + 1,
-				sizeof(struct nlattr *), GFP_KERNEL);
+	attrbuf = kmalloc_objs(struct nlattr *, ops->maxattr + 1);
 	if (!attrbuf)
 		return ERR_PTR(-ENOMEM);
 
@@ -1591,7 +1590,7 @@ static int ctrl_dumppolicy_start(struct netlink_callback *cb)
 		return 0;
 	}
 
-	ctx->op_iter = kmalloc(sizeof(*ctx->op_iter), GFP_KERNEL);
+	ctx->op_iter = kmalloc_obj(*ctx->op_iter);
 	if (!ctx->op_iter)
 		return -ENOMEM;
 

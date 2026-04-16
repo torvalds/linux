@@ -74,7 +74,7 @@ void b43_bus_bcma_block_write(struct b43_bus_dev *dev, const void *buffer,
 
 struct b43_bus_dev *b43_bus_dev_bcma_init(struct bcma_device *core)
 {
-	struct b43_bus_dev *dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	struct b43_bus_dev *dev = kzalloc_obj(*dev);
 	if (!dev)
 		return NULL;
 
@@ -179,7 +179,7 @@ struct b43_bus_dev *b43_bus_dev_ssb_init(struct ssb_device *sdev)
 {
 	struct b43_bus_dev *dev;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return NULL;
 

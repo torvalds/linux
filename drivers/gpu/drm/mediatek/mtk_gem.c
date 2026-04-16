@@ -50,7 +50,7 @@ static struct sg_table *mtk_gem_prime_get_sg_table(struct drm_gem_object *obj)
 	struct sg_table *sgt;
 	int ret;
 
-	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
+	sgt = kzalloc_obj(*sgt);
 	if (!sgt)
 		return ERR_PTR(-ENOMEM);
 
@@ -85,7 +85,7 @@ static struct drm_gem_dma_object *mtk_gem_init(struct drm_device *dev,
 	if (size == 0)
 		return ERR_PTR(-EINVAL);
 
-	dma_obj = kzalloc(sizeof(*dma_obj), GFP_KERNEL);
+	dma_obj = kzalloc_obj(*dma_obj);
 	if (!dma_obj)
 		return ERR_PTR(-ENOMEM);
 

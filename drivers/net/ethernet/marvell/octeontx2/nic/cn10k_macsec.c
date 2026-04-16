@@ -914,7 +914,7 @@ static struct cn10k_mcs_txsc *cn10k_mcs_create_txsc(struct otx2_nic *pfvf)
 	struct cn10k_mcs_txsc *txsc;
 	int ret;
 
-	txsc = kzalloc(sizeof(*txsc), GFP_KERNEL);
+	txsc = kzalloc_obj(*txsc);
 	if (!txsc)
 		return ERR_PTR(-ENOMEM);
 
@@ -987,7 +987,7 @@ static struct cn10k_mcs_rxsc *cn10k_mcs_create_rxsc(struct otx2_nic *pfvf)
 	struct cn10k_mcs_rxsc *rxsc;
 	int ret;
 
-	rxsc = kzalloc(sizeof(*rxsc), GFP_KERNEL);
+	rxsc = kzalloc_obj(*rxsc);
 	if (!rxsc)
 		return ERR_PTR(-ENOMEM);
 
@@ -1772,7 +1772,7 @@ int cn10k_mcs_init(struct otx2_nic *pfvf)
 	if (!test_bit(CN10K_HW_MACSEC, &pfvf->hw.cap_flag))
 		return 0;
 
-	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
+	cfg = kzalloc_obj(*cfg);
 	if (!cfg)
 		return -ENOMEM;
 

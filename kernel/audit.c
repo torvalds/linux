@@ -545,7 +545,7 @@ static int auditd_set(struct pid *pid, u32 portid, struct net *net,
 	if (!pid || !net)
 		return -EINVAL;
 
-	ac_new = kzalloc(sizeof(*ac_new), GFP_KERNEL);
+	ac_new = kzalloc_obj(*ac_new);
 	if (!ac_new)
 		return -ENOMEM;
 	ac_new->pid = get_pid(pid);
@@ -1044,7 +1044,7 @@ static void audit_send_reply(struct sk_buff *request_skb, int seq, int type, int
 	struct task_struct *tsk;
 	struct audit_reply *reply;
 
-	reply = kzalloc(sizeof(*reply), GFP_KERNEL);
+	reply = kzalloc_obj(*reply);
 	if (!reply)
 		return;
 
@@ -1517,8 +1517,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 			if (err < 0)
 				return err;
 		}
-		sig_data = kmalloc(struct_size(sig_data, ctx, lsmctx.len),
-				   GFP_KERNEL);
+		sig_data = kmalloc_flex(*sig_data, ctx, lsmctx.len);
 		if (!sig_data) {
 			if (lsmprop_is_set(&audit_sig_lsm))
 				security_release_secctx(&lsmctx);

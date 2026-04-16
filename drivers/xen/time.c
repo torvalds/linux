@@ -94,9 +94,8 @@ void xen_manage_runstate_time(int action)
 			pr_warn_once("%s: memory leak as runstate_delta is not NULL\n",
 					__func__);
 
-		runstate_delta = kmalloc_array(num_possible_cpus(),
-					sizeof(*runstate_delta),
-					GFP_ATOMIC);
+		runstate_delta = kmalloc_objs(*runstate_delta,
+					      num_possible_cpus(), GFP_ATOMIC);
 		if (unlikely(!runstate_delta)) {
 			pr_warn("%s: failed to allocate runstate_delta\n",
 					__func__);

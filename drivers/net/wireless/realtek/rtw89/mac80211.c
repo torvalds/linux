@@ -1666,7 +1666,7 @@ int rtw89_ops_change_vif_links(struct ieee80211_hw *hw,
 		return -EOPNOTSUPP;
 
 	if (removing_links) {
-		snap = kzalloc(sizeof(*snap), GFP_KERNEL);
+		snap = kzalloc_obj(*snap);
 		if (!snap)
 			return -ENOMEM;
 

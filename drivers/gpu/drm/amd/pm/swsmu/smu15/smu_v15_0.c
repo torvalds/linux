@@ -408,7 +408,7 @@ int smu_v15_0_init_smc_tables(struct smu_context *smu)
 	}
 
 	smu_table->max_sustainable_clocks =
-		kzalloc(sizeof(struct smu_15_0_max_sustainable_clocks), GFP_KERNEL);
+		kzalloc_obj(struct smu_15_0_max_sustainable_clocks);
 	if (!smu_table->max_sustainable_clocks) {
 		ret = -ENOMEM;
 		goto err1_out;
@@ -507,8 +507,7 @@ int smu_v15_0_init_power(struct smu_context *smu)
 	if (smu_power->power_context || smu_power->power_context_size != 0)
 		return -EINVAL;
 
-	smu_power->power_context = kzalloc(sizeof(struct smu_15_0_dpm_context),
-					   GFP_KERNEL);
+	smu_power->power_context = kzalloc_obj(struct smu_15_0_dpm_context);
 	if (!smu_power->power_context)
 		return -ENOMEM;
 	smu_power->power_context_size = sizeof(struct smu_15_0_dpm_context);
@@ -716,7 +715,7 @@ int smu_v15_0_set_allowed_mask(struct smu_context *smu)
 	uint32_t feature_mask[2];
 
 	if (smu_feature_list_is_empty(smu, SMU_FEATURE_LIST_ALLOWED) ||
-	    feature->feature_num < 64)
+	    feature->feature_num < SMU_FEATURE_NUM_DEFAULT)
 		return -EINVAL;
 
 	smu_feature_list_to_arr32(smu, SMU_FEATURE_LIST_ALLOWED, feature_mask);
@@ -1724,14 +1723,6 @@ int smu_v15_0_set_gfx_power_up_by_imu(struct smu_context *smu)
 	mutex_unlock(&ctl->lock);
 
 	return ret;
-}
-
-int smu_v15_0_set_default_dpm_tables(struct smu_context *smu)
-{
-	struct smu_table_context *smu_table = &smu->smu_table;
-
-	return smu_cmn_update_table(smu, SMU_TABLE_DPMCLOCKS, 0,
-				    smu_table->clocks_table, false);
 }
 
 int smu_v15_0_od_edit_dpm_table(struct smu_context *smu,

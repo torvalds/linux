@@ -19,7 +19,7 @@ void *amd_iommufd_hw_info(struct device *dev, u32 *length, enum iommu_hw_info_ty
 	    *type != IOMMU_HW_INFO_TYPE_AMD)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	hwinfo = kzalloc(sizeof(*hwinfo), GFP_KERNEL);
+	hwinfo = kzalloc_obj(*hwinfo);
 	if (!hwinfo)
 		return ERR_PTR(-ENOMEM);
 

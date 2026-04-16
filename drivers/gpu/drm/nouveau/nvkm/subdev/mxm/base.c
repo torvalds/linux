@@ -238,7 +238,7 @@ nvkm_mxm_new_(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	u8  ver, len;
 	u16 data;
 
-	if (!(mxm = *pmxm = kzalloc(sizeof(*mxm), GFP_KERNEL)))
+	if (!(mxm = *pmxm = kzalloc_obj(*mxm)))
 		return -ENOMEM;
 
 	nvkm_subdev_ctor(&nvkm_mxm, device, type, inst, &mxm->subdev);

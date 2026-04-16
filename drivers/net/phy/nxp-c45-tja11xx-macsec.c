@@ -431,7 +431,7 @@ static struct nxp_c45_sa *nxp_c45_sa_alloc(struct list_head *sa_list, void *sa,
 			return ERR_PTR(-ENOSPC);
 	}
 
-	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
+	tmp = kzalloc_obj(*tmp);
 	if (!tmp)
 		return ERR_PTR(-ENOMEM);
 
@@ -991,7 +991,7 @@ static int nxp_c45_mdo_add_secy(struct macsec_context *ctx)
 	if (idx == TX_SC_MAX)
 		return -ENOSPC;
 
-	phy_secy = kzalloc(sizeof(*phy_secy), GFP_KERNEL);
+	phy_secy = kzalloc_obj(*phy_secy);
 	if (!phy_secy)
 		return -ENOMEM;
 

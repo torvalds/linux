@@ -19,7 +19,7 @@ struct vmci_handle_arr *vmci_handle_arr_create(u32 capacity, u32 max_capacity)
 		capacity = min((u32)VMCI_HANDLE_ARRAY_DEFAULT_CAPACITY,
 			       max_capacity);
 
-	array = kmalloc(struct_size(array, entries, capacity), GFP_ATOMIC);
+	array = kmalloc_flex(*array, entries, capacity, GFP_ATOMIC);
 	if (!array)
 		return NULL;
 

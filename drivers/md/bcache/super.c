@@ -1527,8 +1527,7 @@ static CLOSURE_CALLBACK(flash_dev_flush)
 static int flash_dev_run(struct cache_set *c, struct uuid_entry *u)
 {
 	int err = -ENOMEM;
-	struct bcache_device *d = kzalloc(sizeof(struct bcache_device),
-					  GFP_KERNEL);
+	struct bcache_device *d = kzalloc_obj(struct bcache_device);
 	if (!d)
 		goto err_ret;
 
@@ -1864,7 +1863,7 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 {
 	int iter_size;
 	struct cache *ca = container_of(sb, struct cache, sb);
-	struct cache_set *c = kzalloc(sizeof(struct cache_set), GFP_KERNEL);
+	struct cache_set *c = kzalloc_obj(struct cache_set);
 
 	if (!c)
 		return NULL;
@@ -2543,8 +2542,8 @@ static void register_device_async(struct async_reg_args *args)
 static void *alloc_holder_object(struct cache_sb *sb)
 {
 	if (SB_IS_BDEV(sb))
-		return kzalloc(sizeof(struct cached_dev), GFP_KERNEL);
-	return kzalloc(sizeof(struct cache), GFP_KERNEL);
+		return kzalloc_obj(struct cached_dev);
+	return kzalloc_obj(struct cache);
 }
 
 static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
@@ -2581,7 +2580,7 @@ static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
 	if (!path)
 		goto out_module_put;
 
-	sb = kmalloc(sizeof(struct cache_sb), GFP_KERNEL);
+	sb = kmalloc_obj(struct cache_sb);
 	if (!sb)
 		goto out_free_path;
 
@@ -2633,7 +2632,7 @@ static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
 	if (async_registration) {
 		/* register in asynchronous way */
 		struct async_reg_args *args =
-			kzalloc(sizeof(struct async_reg_args), GFP_KERNEL);
+			kzalloc_obj(struct async_reg_args);
 
 		if (!args) {
 			ret = -ENOMEM;
@@ -2710,7 +2709,7 @@ static ssize_t bch_pending_bdevs_cleanup(struct kobject *k,
 
 	mutex_lock(&bch_register_lock);
 	list_for_each_entry_safe(dc, tdc, &uncached_devices, list) {
-		pdev = kmalloc(sizeof(struct pdev), GFP_KERNEL);
+		pdev = kmalloc_obj(struct pdev);
 		if (!pdev)
 			break;
 		pdev->dc = dc;

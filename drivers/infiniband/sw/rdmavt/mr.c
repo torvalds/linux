@@ -242,7 +242,7 @@ static struct rvt_mr *__rvt_alloc_mr(int count, struct ib_pd *pd)
 
 	/* Allocate struct plus pointers to first level page tables. */
 	m = (count + RVT_SEGSZ - 1) / RVT_SEGSZ;
-	mr = kzalloc(struct_size(mr, mr.map, m), GFP_KERNEL);
+	mr = kzalloc_flex(*mr, mr.map, m);
 	if (!mr)
 		goto bail;
 
@@ -292,7 +292,7 @@ struct ib_mr *rvt_get_dma_mr(struct ib_pd *pd, int acc)
 	if (ibpd_to_rvtpd(pd)->user)
 		return ERR_PTR(-EPERM);
 
-	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr) {
 		ret = ERR_PTR(-ENOMEM);
 		goto bail;

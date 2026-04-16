@@ -1088,7 +1088,7 @@ static struct drm_pending_vblank_event *create_vblank_event(
 {
 	struct drm_pending_vblank_event *e = NULL;
 
-	e = kzalloc(sizeof *e, GFP_KERNEL);
+	e = kzalloc_obj(*e);
 	if (!e)
 		return NULL;
 

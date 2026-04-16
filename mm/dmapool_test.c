@@ -67,7 +67,7 @@ static int dmapool_test_block(const struct dmapool_parms *parms)
 	struct dma_pool_pair *p;
 	int i, ret;
 
-	p = kcalloc(blocks, sizeof(*p), GFP_KERNEL);
+	p = kzalloc_objs(*p, blocks);
 	if (!p)
 		return -ENOMEM;
 

@@ -80,7 +80,7 @@ static struct nvdimm_map *alloc_nvdimm_map(struct device *dev,
 	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
 	struct nvdimm_map *nvdimm_map;
 
-	nvdimm_map = kzalloc(sizeof(*nvdimm_map), GFP_KERNEL);
+	nvdimm_map = kzalloc_obj(*nvdimm_map);
 	if (!nvdimm_map)
 		return NULL;
 

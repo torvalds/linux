@@ -2,7 +2,7 @@
 /*
  * Intel Sunrisepoint PCH pinctrl/GPIO driver
  *
- * Copyright (C) 2015, Intel Corporation
+ * Copyright (C) 2015 Intel Corporation
  * Authors: Mathias Nyman <mathias.nyman@linux.intel.com>
  *          Mika Westerberg <mika.westerberg@linux.intel.com>
  */

@@ -104,7 +104,7 @@ static void *vgic_debug_start(struct seq_file *s, loff_t *pos)
 	struct kvm *kvm = s->private;
 	struct vgic_state_iter *iter;
 
-	iter = kmalloc(sizeof(*iter), GFP_KERNEL);
+	iter = kmalloc_obj(*iter);
 	if (!iter)
 		return ERR_PTR(-ENOMEM);
 
@@ -375,7 +375,7 @@ static void *vgic_its_debug_start(struct seq_file *s, loff_t *pos)
 	if (!dev)
 		return NULL;
 
-	iter = kmalloc(sizeof(*iter), GFP_KERNEL);
+	iter = kmalloc_obj(*iter);
 	if (!iter)
 		return ERR_PTR(-ENOMEM);
 

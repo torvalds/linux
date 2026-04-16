@@ -475,8 +475,11 @@ zl3073x_dpll_input_pin_phase_adjust_get(const struct dpll_pin *dpll_pin,
 	ref_id = zl3073x_input_pin_ref_get(pin->id);
 	ref = zl3073x_ref_state_get(zldev, ref_id);
 
-	/* Perform sign extension for 48bit signed value */
-	phase_comp = sign_extend64(ref->phase_comp, 47);
+	/* Perform sign extension based on register width */
+	if (zl3073x_dev_is_ref_phase_comp_32bit(zldev))
+		phase_comp = sign_extend64(ref->phase_comp, 31);
+	else
+		phase_comp = sign_extend64(ref->phase_comp, 47);
 
 	/* Reverse two's complement negation applied during set and convert
 	 * to 32bit signed int
@@ -1372,7 +1375,7 @@ zl3073x_dpll_pin_alloc(struct zl3073x_dpll *zldpll, enum dpll_pin_direction dir,
 {
 	struct zl3073x_dpll_pin *pin;
 
-	pin = kzalloc(sizeof(*pin), GFP_KERNEL);
+	pin = kzalloc_obj(*pin);
 	if (!pin)
 		return ERR_PTR(-ENOMEM);
 
@@ -1944,7 +1947,7 @@ zl3073x_dpll_alloc(struct zl3073x_dev *zldev, u8 ch)
 {
 	struct zl3073x_dpll *zldpll;
 
-	zldpll = kzalloc(sizeof(*zldpll), GFP_KERNEL);
+	zldpll = kzalloc_obj(*zldpll);
 	if (!zldpll)
 		return ERR_PTR(-ENOMEM);
 

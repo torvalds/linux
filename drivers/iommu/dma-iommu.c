@@ -372,7 +372,7 @@ int iommu_get_dma_cookie(struct iommu_domain *domain)
 	if (domain->cookie_type != IOMMU_COOKIE_NONE)
 		return -EEXIST;
 
-	cookie = kzalloc(sizeof(*cookie), GFP_KERNEL);
+	cookie = kzalloc_obj(*cookie);
 	if (!cookie)
 		return -ENOMEM;
 
@@ -404,7 +404,7 @@ int iommu_get_msi_cookie(struct iommu_domain *domain, dma_addr_t base)
 	if (domain->cookie_type != IOMMU_COOKIE_NONE)
 		return -EEXIST;
 
-	cookie = kzalloc(sizeof(*cookie), GFP_KERNEL);
+	cookie = kzalloc_obj(*cookie);
 	if (!cookie)
 		return -ENOMEM;
 
@@ -480,7 +480,7 @@ static int cookie_init_hw_msi_region(struct iommu_dma_cookie *cookie,
 	num_pages = iova_align(iovad, end - start) >> iova_shift(iovad);
 
 	for (i = 0; i < num_pages; i++) {
-		msi_page = kmalloc(sizeof(*msi_page), GFP_KERNEL);
+		msi_page = kmalloc_obj(*msi_page);
 		if (!msi_page)
 			return -ENOMEM;
 
@@ -880,7 +880,7 @@ static struct page **__iommu_dma_alloc_pages(struct device *dev,
 	if (!order_mask)
 		return NULL;
 
-	pages = kvcalloc(count, sizeof(*pages), GFP_KERNEL);
+	pages = kvzalloc_objs(*pages, count);
 	if (!pages)
 		return NULL;
 
@@ -1045,7 +1045,7 @@ struct sg_table *iommu_dma_alloc_noncontiguous(struct device *dev, size_t size,
 {
 	struct dma_sgt_handle *sh;
 
-	sh = kmalloc(sizeof(*sh), gfp);
+	sh = kmalloc_obj(*sh, gfp);
 	if (!sh)
 		return NULL;
 
@@ -2157,7 +2157,7 @@ static struct iommu_dma_msi_page *iommu_dma_get_msi_page(struct device *dev,
 		if (msi_page->phys == msi_addr)
 			return msi_page;
 
-	msi_page = kzalloc(sizeof(*msi_page), GFP_KERNEL);
+	msi_page = kzalloc_obj(*msi_page);
 	if (!msi_page)
 		return NULL;
 

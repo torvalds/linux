@@ -64,7 +64,7 @@ static struct host1x_bo_mapping *tegra_bo_pin(struct device *dev, struct host1x_
 	struct host1x_bo_mapping *map;
 	int err;
 
-	map = kzalloc(sizeof(*map), GFP_KERNEL);
+	map = kzalloc_obj(*map);
 	if (!map)
 		return ERR_PTR(-ENOMEM);
 
@@ -103,7 +103,7 @@ static struct host1x_bo_mapping *tegra_bo_pin(struct device *dev, struct host1x_
 	 * If we don't have a mapping for this buffer yet, return an SG table
 	 * so that host1x can do the mapping for us via the DMA API.
 	 */
-	map->sgt = kzalloc(sizeof(*map->sgt), GFP_KERNEL);
+	map->sgt = kzalloc_obj(*map->sgt);
 	if (!map->sgt) {
 		err = -ENOMEM;
 		goto free;
@@ -240,7 +240,7 @@ static int tegra_bo_iommu_map(struct tegra_drm *tegra, struct tegra_bo *bo)
 	if (bo->mm)
 		return -EBUSY;
 
-	bo->mm = kzalloc(sizeof(*bo->mm), GFP_KERNEL);
+	bo->mm = kzalloc_obj(*bo->mm);
 	if (!bo->mm)
 		return -ENOMEM;
 
@@ -302,7 +302,7 @@ static struct tegra_bo *tegra_bo_alloc_object(struct drm_device *drm,
 	struct tegra_bo *bo;
 	int err;
 
-	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
+	bo = kzalloc_obj(*bo);
 	if (!bo)
 		return ERR_PTR(-ENOMEM);
 
@@ -639,7 +639,7 @@ tegra_gem_prime_map_dma_buf(struct dma_buf_attachment *attach,
 	struct tegra_bo *bo = to_tegra_bo(gem);
 	struct sg_table *sgt;
 
-	sgt = kmalloc(sizeof(*sgt), GFP_KERNEL);
+	sgt = kmalloc_obj(*sgt);
 	if (!sgt)
 		return NULL;
 

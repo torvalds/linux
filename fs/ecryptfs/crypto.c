@@ -20,6 +20,7 @@
 #include <linux/file.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/unaligned.h>
 #include <linux/kernel.h>
 #include <linux/xattr.h>
@@ -645,7 +646,7 @@ static void ecryptfs_set_default_crypt_stat_vals(
 	ecryptfs_copy_mount_wide_flags_to_inode_flags(crypt_stat,
 						      mount_crypt_stat);
 	ecryptfs_set_default_sizes(crypt_stat);
-	strcpy(crypt_stat->cipher, ECRYPTFS_DEFAULT_CIPHER);
+	strscpy(crypt_stat->cipher, ECRYPTFS_DEFAULT_CIPHER);
 	crypt_stat->key_size = ECRYPTFS_DEFAULT_KEY_BYTES;
 	crypt_stat->flags &= ~(ECRYPTFS_KEY_VALID);
 	crypt_stat->file_version = ECRYPTFS_FILE_VERSION;
@@ -678,7 +679,6 @@ int ecryptfs_new_file_context(struct inode *ecryptfs_inode)
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat =
 	    &ecryptfs_superblock_to_private(
 		    ecryptfs_inode->i_sb)->mount_crypt_stat;
-	int cipher_name_len;
 	int rc = 0;
 
 	ecryptfs_set_default_crypt_stat_vals(crypt_stat, mount_crypt_stat);
@@ -692,12 +692,8 @@ int ecryptfs_new_file_context(struct inode *ecryptfs_inode)
 		       "to the inode key sigs; rc = [%d]\n", rc);
 		goto out;
 	}
-	cipher_name_len =
-		strlen(mount_crypt_stat->global_default_cipher_name);
-	memcpy(crypt_stat->cipher,
-	       mount_crypt_stat->global_default_cipher_name,
-	       cipher_name_len);
-	crypt_stat->cipher[cipher_name_len] = '\0';
+	strscpy(crypt_stat->cipher,
+		mount_crypt_stat->global_default_cipher_name);
 	crypt_stat->key_size =
 		mount_crypt_stat->global_default_cipher_key_size;
 	ecryptfs_generate_new_key(crypt_stat);
@@ -861,11 +857,12 @@ u8 ecryptfs_code_for_cipher_string(char *cipher_name, size_t key_bytes)
 /**
  * ecryptfs_cipher_code_to_string
  * @str: Destination to write out the cipher name
+ * @size: Destination buffer size
  * @cipher_code: The code to convert to cipher name string
  *
  * Returns zero on success
  */
-int ecryptfs_cipher_code_to_string(char *str, u8 cipher_code)
+int ecryptfs_cipher_code_to_string(char *str, size_t size, u8 cipher_code)
 {
 	int rc = 0;
 	int i;
@@ -873,7 +870,8 @@ int ecryptfs_cipher_code_to_string(char *str, u8 cipher_code)
 	str[0] = '\0';
 	for (i = 0; i < ARRAY_SIZE(ecryptfs_cipher_code_str_map); i++)
 		if (cipher_code == ecryptfs_cipher_code_str_map[i].cipher_code)
-			strcpy(str, ecryptfs_cipher_code_str_map[i].cipher_str);
+			strscpy(str, ecryptfs_cipher_code_str_map[i].cipher_str,
+				size);
 	if (str[0] == '\0') {
 		ecryptfs_printk(KERN_WARNING, "Cipher code not recognized: "
 				"[%d]\n", cipher_code);
@@ -1220,7 +1218,7 @@ out:
 
 /**
  * ecryptfs_read_xattr_region
- * @page_virt: The vitual address into which to read the xattr data
+ * @page_virt: The virtual address into which to read the xattr data
  * @ecryptfs_inode: The eCryptfs inode
  *
  * Attempts to read the crypto metadata from the extended attribute
@@ -1420,21 +1418,11 @@ out:
 static int ecryptfs_copy_filename(char **copied_name, size_t *copied_name_size,
 				  const char *name, size_t name_size)
 {
-	int rc = 0;
-
-	(*copied_name) = kmalloc((name_size + 1), GFP_KERNEL);
-	if (!(*copied_name)) {
-		rc = -ENOMEM;
-		goto out;
-	}
-	memcpy((void *)(*copied_name), (void *)name, name_size);
-	(*copied_name)[(name_size)] = '\0';	/* Only for convenience
-						 * in printing out the
-						 * string in debug
-						 * messages */
+	(*copied_name) = kmemdup_nul(name, name_size, GFP_KERNEL);
+	if (!(*copied_name))
+		return -ENOMEM;
 	(*copied_name_size) = name_size;
-out:
-	return rc;
+	return 0;
 }
 
 /**
@@ -1805,7 +1793,7 @@ int ecryptfs_encrypt_and_encode_filename(
 				     & ECRYPTFS_GLOBAL_ENCRYPT_FILENAMES)) {
 		struct ecryptfs_filename *filename;
 
-		filename = kzalloc(sizeof(*filename), GFP_KERNEL);
+		filename = kzalloc_obj(*filename);
 		if (!filename) {
 			rc = -ENOMEM;
 			goto out;
@@ -1904,7 +1892,7 @@ int ecryptfs_decode_and_decrypt_filename(char **plaintext_name,
 
 	if ((mount_crypt_stat->flags & ECRYPTFS_GLOBAL_ENCRYPT_FILENAMES) &&
 	    !(mount_crypt_stat->flags & ECRYPTFS_ENCRYPTED_VIEW_ENABLED)) {
-		if (is_dot_dotdot(name, name_size)) {
+		if (name_is_dot_dotdot(name, name_size)) {
 			rc = ecryptfs_copy_filename(plaintext_name,
 						    plaintext_name_size,
 						    name, name_size);

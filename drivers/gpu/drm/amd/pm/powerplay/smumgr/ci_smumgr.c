@@ -2681,7 +2681,7 @@ static int ci_initialize_mc_reg_table(struct pp_hwmgr *hwmgr)
 	struct ci_mc_reg_table *ni_table = &smu_data->mc_reg_table;
 	uint8_t module_index = ci_get_memory_modile_index(hwmgr);
 
-	table = kzalloc(sizeof(pp_atomctrl_mc_reg_table), GFP_KERNEL);
+	table = kzalloc_obj(pp_atomctrl_mc_reg_table);
 
 	if (NULL == table)
 		return -ENOMEM;
@@ -2735,7 +2735,7 @@ static int ci_smu_init(struct pp_hwmgr *hwmgr)
 {
 	struct ci_smumgr *ci_priv;
 
-	ci_priv = kzalloc(sizeof(struct ci_smumgr), GFP_KERNEL);
+	ci_priv = kzalloc_obj(struct ci_smumgr);
 
 	if (ci_priv == NULL)
 		return -ENOMEM;

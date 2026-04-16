@@ -191,6 +191,16 @@ static bool imx_scu_clk_is_valid(u32 rsrc_id)
 	return p != NULL;
 }
 
+int __init imx_clk_scu_module_init(void)
+{
+	return platform_driver_register(&imx_clk_scu_driver);
+}
+
+void __exit imx_clk_scu_module_exit(void)
+{
+	return platform_driver_unregister(&imx_clk_scu_driver);
+}
+
 int imx_clk_scu_init(struct device_node *np,
 		     const struct imx_clk_scu_rsrc_table *data)
 {
@@ -215,7 +225,7 @@ int imx_clk_scu_init(struct device_node *np,
 		rsrc_table = data;
 	}
 
-	return platform_driver_register(&imx_clk_scu_driver);
+	return 0;
 }
 
 /*
@@ -457,7 +467,7 @@ struct clk_hw *__imx_clk_scu(struct device *dev, const char *name,
 	struct clk_hw *hw;
 	int ret;
 
-	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
+	clk = kzalloc_obj(*clk);
 	if (!clk)
 		return ERR_PTR(-ENOMEM);
 
@@ -856,7 +866,7 @@ struct clk_hw *__imx_clk_gpr_scu(const char *name, const char * const *parent_na
 	if (rsrc_id >= IMX_SC_R_LAST || gpr_id >= IMX_SC_C_LAST)
 		return ERR_PTR(-EINVAL);
 
-	clk_node = kzalloc(sizeof(*clk_node), GFP_KERNEL);
+	clk_node = kzalloc_obj(*clk_node);
 	if (!clk_node)
 		return ERR_PTR(-ENOMEM);
 
@@ -870,7 +880,7 @@ struct clk_hw *__imx_clk_gpr_scu(const char *name, const char * const *parent_na
 		return NULL;
 	}
 
-	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
+	clk = kzalloc_obj(*clk);
 	if (!clk) {
 		kfree(clk_node);
 		return ERR_PTR(-ENOMEM);

@@ -1450,8 +1450,7 @@ static int smsc75xx_bind(struct usbnet *dev, struct usb_interface *intf)
 		return ret;
 	}
 
-	dev->data[0] = (unsigned long)kzalloc(sizeof(struct smsc75xx_priv),
-					      GFP_KERNEL);
+	dev->data[0] = (unsigned long) kzalloc_obj(struct smsc75xx_priv);
 
 	pdata = (struct smsc75xx_priv *)(dev->data[0]);
 	if (!pdata)

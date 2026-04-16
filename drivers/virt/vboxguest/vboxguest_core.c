@@ -74,7 +74,7 @@ static void vbg_guest_mappings_init(struct vbg_dev *gdev)
 	/* Add 4M so that we can align the vmap to 4MiB as the host requires. */
 	size = PAGE_ALIGN(req->hypervisor_size) + SZ_4M;
 
-	pages = kmalloc_array(size >> PAGE_SHIFT, sizeof(*pages), GFP_KERNEL);
+	pages = kmalloc_objs(*pages, size >> PAGE_SHIFT);
 	if (!pages)
 		goto out;
 
@@ -275,9 +275,8 @@ static int vbg_balloon_inflate(struct vbg_dev *gdev, u32 chunk_idx)
 	struct page **pages;
 	int i, rc, ret;
 
-	pages = kmalloc_array(VMMDEV_MEMORY_BALLOON_CHUNK_PAGES,
-			      sizeof(*pages),
-			      GFP_KERNEL | __GFP_NOWARN);
+	pages = kmalloc_objs(*pages, VMMDEV_MEMORY_BALLOON_CHUNK_PAGES,
+			     GFP_KERNEL | __GFP_NOWARN);
 	if (!pages)
 		return -ENOMEM;
 
@@ -1081,7 +1080,7 @@ struct vbg_session *vbg_core_open_session(struct vbg_dev *gdev, u32 requestor)
 {
 	struct vbg_session *session;
 
-	session = kzalloc(sizeof(*session), GFP_KERNEL);
+	session = kzalloc_obj(*session);
 	if (!session)
 		return ERR_PTR(-ENOMEM);
 

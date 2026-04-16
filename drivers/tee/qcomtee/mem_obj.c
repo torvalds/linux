@@ -91,8 +91,7 @@ int qcomtee_memobj_param_to_object(struct qcomtee_object **object,
 	struct tee_shm *shm;
 	int err;
 
-	struct qcomtee_mem_object *mem_object __free(kfree) = kzalloc(sizeof(*mem_object),
-								      GFP_KERNEL);
+	struct qcomtee_mem_object *mem_object __free(kfree) = kzalloc_obj(*mem_object);
 	if (!mem_object)
 		return -ENOMEM;
 

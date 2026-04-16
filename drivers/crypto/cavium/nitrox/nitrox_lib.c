@@ -219,7 +219,7 @@ void *crypto_alloc_context(struct nitrox_device *ndev)
 	void *vaddr;
 	dma_addr_t dma;
 
-	chdr = kmalloc(sizeof(*chdr), GFP_KERNEL);
+	chdr = kmalloc_obj(*chdr);
 	if (!chdr)
 		return NULL;
 

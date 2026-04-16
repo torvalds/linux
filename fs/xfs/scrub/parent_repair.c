@@ -217,7 +217,7 @@ xrep_setup_parent(
 
 	xchk_fsgates_enable(sc, XCHK_FSGATES_DIRENTS);
 
-	rp = kvzalloc(sizeof(struct xrep_parent), XCHK_GFP_FLAGS);
+	rp = kvzalloc_obj(struct xrep_parent, XCHK_GFP_FLAGS);
 	if (!rp)
 		return -ENOMEM;
 	rp->sc = sc;

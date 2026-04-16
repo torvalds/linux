@@ -879,7 +879,7 @@ i2sbus_attach_codec(struct soundbus_dev *dev, struct snd_card *card,
 		tmp++;
 	}
 
-	cii = kzalloc(sizeof(struct codec_info_item), GFP_KERNEL);
+	cii = kzalloc_obj(struct codec_info_item);
 	if (!cii)
 		return -ENOMEM;
 

@@ -1170,7 +1170,7 @@ static int msi2500_probe(struct usb_interface *intf,
 		.max_speed_hz		= 12000000,
 	};
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev) {
 		ret = -ENOMEM;
 		goto err;

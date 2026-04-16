@@ -996,7 +996,7 @@ mlx5dr_matcher_create(struct mlx5dr_table *tbl,
 
 	refcount_inc(&tbl->refcount);
 
-	matcher = kzalloc(sizeof(*matcher), GFP_KERNEL);
+	matcher = kzalloc_obj(*matcher);
 	if (!matcher)
 		goto dec_ref;
 

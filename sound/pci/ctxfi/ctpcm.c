@@ -119,7 +119,7 @@ static int ct_pcm_playback_open(struct snd_pcm_substream *substream)
 	struct ct_atc_pcm *apcm;
 	int err;
 
-	apcm = kzalloc(sizeof(*apcm), GFP_KERNEL);
+	apcm = kzalloc_obj(*apcm);
 	if (!apcm)
 		return -ENOMEM;
 
@@ -265,7 +265,7 @@ static int ct_pcm_capture_open(struct snd_pcm_substream *substream)
 	struct ct_atc_pcm *apcm;
 	int err;
 
-	apcm = kzalloc(sizeof(*apcm), GFP_KERNEL);
+	apcm = kzalloc_obj(*apcm);
 	if (!apcm)
 		return -ENOMEM;
 

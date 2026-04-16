@@ -203,7 +203,7 @@ nogood:
 		if (!redboot_checksum(&buf[i]))
 			break;
 
-		new_fl = kmalloc(sizeof(struct fis_list), GFP_KERNEL);
+		new_fl = kmalloc_obj(struct fis_list);
 		namelen += strlen(buf[i].name) + 1;
 		if (!new_fl) {
 			ret = -ENOMEM;

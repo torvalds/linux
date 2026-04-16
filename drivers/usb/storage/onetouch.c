@@ -183,7 +183,7 @@ static int onetouch_connect_input(struct us_data *ss)
 	maxp = usb_maxpacket(udev, pipe);
 	maxp = min(maxp, ONETOUCH_PKT_LEN);
 
-	onetouch = kzalloc(sizeof(struct usb_onetouch), GFP_KERNEL);
+	onetouch = kzalloc_obj(struct usb_onetouch);
 	input_dev = input_allocate_device();
 	if (!onetouch || !input_dev)
 		goto fail1;

@@ -1621,7 +1621,7 @@ int nfc_llcp_register_device(struct nfc_dev *ndev)
 {
 	struct nfc_llcp_local *local;
 
-	local = kzalloc(sizeof(struct nfc_llcp_local), GFP_KERNEL);
+	local = kzalloc_obj(struct nfc_llcp_local);
 	if (local == NULL)
 		return -ENOMEM;
 

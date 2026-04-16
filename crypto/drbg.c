@@ -1522,7 +1522,7 @@ static int drbg_init_sym_kernel(struct drbg_state *drbg)
 	unsigned int alignmask;
 	char ctr_name[CRYPTO_MAX_ALG_NAME];
 
-	aeskey = kzalloc(sizeof(*aeskey), GFP_KERNEL);
+	aeskey = kzalloc_obj(*aeskey);
 	if (!aeskey)
 		return -ENOMEM;
 	drbg->priv_data = aeskey;
@@ -1761,7 +1761,7 @@ static inline int __init drbg_healthcheck_sanity(void)
 	drbg_convert_tfm_core("drbg_nopr_hmac_sha512", &coreref, &pr);
 #endif
 
-	drbg = kzalloc(sizeof(struct drbg_state), GFP_KERNEL);
+	drbg = kzalloc_obj(struct drbg_state);
 	if (!drbg)
 		return -ENOMEM;
 

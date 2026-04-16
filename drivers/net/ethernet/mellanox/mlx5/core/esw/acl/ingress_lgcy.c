@@ -200,7 +200,7 @@ int esw_acl_ingress_lgcy_setup(struct mlx5_eswitch *esw,
 		  "vport[%d] configure ingress rules, vlan(%d) qos(%d)\n",
 		  vport->vport, vport->info.vlan, vport->info.qos);
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec) {
 		err = -ENOMEM;
 		goto out;

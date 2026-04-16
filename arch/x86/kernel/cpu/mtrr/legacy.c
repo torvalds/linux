@@ -80,7 +80,7 @@ static struct syscore mtrr_syscore = {
 
 void mtrr_register_syscore(void)
 {
-	mtrr_value = kcalloc(num_var_ranges, sizeof(*mtrr_value), GFP_KERNEL);
+	mtrr_value = kzalloc_objs(*mtrr_value, num_var_ranges);
 
 	/*
 	 * The CPU has no MTRR and seems to not support SMP. They have

@@ -415,7 +415,7 @@ static int rockchip_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	map_num += grp->npins;
 
-	new_map = kcalloc(map_num, sizeof(*new_map), GFP_KERNEL);
+	new_map = kzalloc_objs(*new_map, map_num);
 	if (!new_map)
 		return -ENOMEM;
 
@@ -3604,7 +3604,7 @@ static int rockchip_pinconf_defer_pin(struct rockchip_pin_bank *bank,
 {
 	struct rockchip_pin_deferred *cfg;
 
-	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
+	cfg = kzalloc_obj(*cfg);
 	if (!cfg)
 		return -ENOMEM;
 
@@ -3639,17 +3639,12 @@ static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			 * The lock makes sure that either gpio-probe has completed
 			 * or the gpio driver hasn't probed yet.
 			 */
-			mutex_lock(&bank->deferred_lock);
-			if (!gpio || !gpio->direction_output) {
-				rc = rockchip_pinconf_defer_pin(bank, pin - bank->pin_base, param,
-								arg);
-				mutex_unlock(&bank->deferred_lock);
-				if (rc)
-					return rc;
-
-				break;
+			scoped_guard(mutex, &bank->deferred_lock) {
+				if (!gpio || !gpio->direction_output)
+					return rockchip_pinconf_defer_pin(bank,
+									  pin - bank->pin_base,
+									  param, arg);
 			}
-			mutex_unlock(&bank->deferred_lock);
 		}
 
 		switch (param) {

@@ -133,7 +133,7 @@ int sdw_master_device_add(struct sdw_bus *bus, struct device *parent,
 	if (!parent)
 		return -EINVAL;
 
-	md = kzalloc(sizeof(*md), GFP_KERNEL);
+	md = kzalloc_obj(*md);
 	if (!md)
 		return -ENOMEM;
 

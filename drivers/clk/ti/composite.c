@@ -211,7 +211,7 @@ static void __init of_ti_composite_clk_setup(struct device_node *node)
 		return;
 	}
 
-	cclk = kzalloc(sizeof(*cclk), GFP_KERNEL);
+	cclk = kzalloc_obj(*cclk);
 	if (!cclk)
 		return;
 
@@ -253,7 +253,7 @@ int __init ti_clk_add_component(struct device_node *node, struct clk_hw *hw,
 
 	of_clk_parent_fill(node, parent_names, num_parents);
 
-	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
+	clk = kzalloc_obj(*clk);
 	if (!clk) {
 		kfree(parent_names);
 		return -ENOMEM;

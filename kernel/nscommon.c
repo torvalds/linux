@@ -309,3 +309,9 @@ void __ns_ref_active_get(struct ns_common *ns)
 			return;
 	}
 }
+
+bool may_see_all_namespaces(void)
+{
+	return (task_active_pid_ns(current) == &init_pid_ns) &&
+	       ns_capable_noaudit(init_pid_ns.user_ns, CAP_SYS_ADMIN);
+}

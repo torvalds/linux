@@ -2271,9 +2271,9 @@ static int acpi_nfit_init_interleave_set(struct acpi_nfit_desc *acpi_desc,
 {
 	u16 nr = ndr_desc->num_mappings;
 	struct nfit_set_info2 *info2 __free(kfree) =
-		kcalloc(nr, sizeof(*info2), GFP_KERNEL);
+		kzalloc_objs(*info2, nr);
 	struct nfit_set_info *info __free(kfree) =
-		kcalloc(nr, sizeof(*info), GFP_KERNEL);
+		kzalloc_objs(*info, nr);
 	struct device *dev = acpi_desc->dev;
 	struct nd_interleave_set *nd_set;
 	int i;

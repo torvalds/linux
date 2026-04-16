@@ -322,7 +322,7 @@ static struct policy_dbs_info *od_alloc(void)
 {
 	struct od_policy_dbs_info *dbs_info;
 
-	dbs_info = kzalloc(sizeof(*dbs_info), GFP_KERNEL);
+	dbs_info = kzalloc_obj(*dbs_info);
 	return dbs_info ? &dbs_info->policy_dbs : NULL;
 }
 
@@ -335,7 +335,7 @@ static int od_init(struct dbs_data *dbs_data)
 {
 	struct od_dbs_tuners *tuners;
 
-	tuners = kzalloc(sizeof(*tuners), GFP_KERNEL);
+	tuners = kzalloc_obj(*tuners);
 	if (!tuners)
 		return -ENOMEM;
 

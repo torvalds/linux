@@ -81,7 +81,7 @@ freezer_css_alloc(struct cgroup_subsys_state *parent_css)
 {
 	struct freezer *freezer;
 
-	freezer = kzalloc(sizeof(struct freezer), GFP_KERNEL);
+	freezer = kzalloc_obj(struct freezer);
 	if (!freezer)
 		return ERR_PTR(-ENOMEM);
 

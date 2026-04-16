@@ -118,7 +118,7 @@ static int verify_ruleset(struct setid_ruleset *pol)
 			res = -EINVAL;
 
 			/* fix it up */
-			nrule = kmalloc(sizeof(struct setid_rule), GFP_KERNEL);
+			nrule = kmalloc_obj(struct setid_rule);
 			if (!nrule)
 				return -ENOMEM;
 			if (pol->type == UID){
@@ -146,7 +146,7 @@ static ssize_t handle_policy_update(struct file *file,
 	if (len >= KMALLOC_MAX_SIZE)
 		return -EINVAL;
 
-	pol = kmalloc(sizeof(struct setid_ruleset), GFP_KERNEL);
+	pol = kmalloc_obj(struct setid_ruleset);
 	if (!pol)
 		return -ENOMEM;
 	pol->policy_str = NULL;
@@ -175,7 +175,7 @@ static ssize_t handle_policy_update(struct file *file,
 		}
 		*end = '\0';
 
-		rule = kmalloc(sizeof(struct setid_rule), GFP_KERNEL);
+		rule = kmalloc_obj(struct setid_rule);
 		if (!rule) {
 			err = -ENOMEM;
 			goto out_free_buf;

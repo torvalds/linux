@@ -4920,14 +4920,14 @@ struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
 		return NULL;
 	}
 
-	vms = kcalloc(nr_vms, sizeof(vms[0]), GFP_KERNEL);
-	vas = kcalloc(nr_vms, sizeof(vas[0]), GFP_KERNEL);
+	vms = kzalloc_objs(vms[0], nr_vms);
+	vas = kzalloc_objs(vas[0], nr_vms);
 	if (!vas || !vms)
 		goto err_free2;
 
 	for (area = 0; area < nr_vms; area++) {
 		vas[area] = kmem_cache_zalloc(vmap_area_cachep, GFP_KERNEL);
-		vms[area] = kzalloc(sizeof(struct vm_struct), GFP_KERNEL);
+		vms[area] = kzalloc_obj(struct vm_struct);
 		if (!vas[area] || !vms[area])
 			goto err_free;
 	}
@@ -5366,7 +5366,7 @@ static void vmap_init_nodes(void)
 	int n = clamp_t(unsigned int, num_possible_cpus(), 1, 128);
 
 	if (n > 1) {
-		vn = kmalloc_array(n, sizeof(*vn), GFP_NOWAIT);
+		vn = kmalloc_objs(*vn, n, GFP_NOWAIT);
 		if (vn) {
 			/* Node partition is 16 pages. */
 			vmap_zone_size = (1 << 4) * PAGE_SIZE;

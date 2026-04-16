@@ -95,7 +95,7 @@ struct ovpn_peer *ovpn_peer_new(struct ovpn_priv *ovpn, u32 id)
 	int ret;
 
 	/* alloc and init peer object */
-	peer = kzalloc(sizeof(*peer), GFP_KERNEL);
+	peer = kzalloc_obj(*peer);
 	if (!peer)
 		return ERR_PTR(-ENOMEM);
 

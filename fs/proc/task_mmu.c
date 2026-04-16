@@ -1534,7 +1534,7 @@ static int smaps_rollup_open(struct inode *inode, struct file *file)
 	int ret;
 	struct proc_maps_private *priv;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL_ACCOUNT);
+	priv = kzalloc_obj(*priv, GFP_KERNEL_ACCOUNT);
 	if (!priv)
 		return -ENOMEM;
 
@@ -2981,8 +2981,7 @@ static int pagemap_scan_init_bounce_buffer(struct pagemap_scan_private *p)
 
 	p->vec_buf_len = min_t(size_t, PAGEMAP_WALK_SIZE >> PAGE_SHIFT,
 			       p->arg.vec_len);
-	p->vec_buf = kmalloc_array(p->vec_buf_len, sizeof(*p->vec_buf),
-				   GFP_KERNEL);
+	p->vec_buf = kmalloc_objs(*p->vec_buf, p->vec_buf_len);
 	if (!p->vec_buf)
 		return -ENOMEM;
 

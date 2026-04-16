@@ -158,7 +158,7 @@ static struct usbhsh_request *usbhsh_ureq_alloc(struct usbhsh_hpriv *hpriv,
 {
 	struct usbhsh_request *ureq;
 
-	ureq = kzalloc(sizeof(struct usbhsh_request), mem_flags);
+	ureq = kzalloc_obj(struct usbhsh_request, mem_flags);
 	if (!ureq)
 		return NULL;
 
@@ -374,7 +374,7 @@ static int usbhsh_endpoint_attach(struct usbhsh_hpriv *hpriv,
 	struct usb_endpoint_descriptor *desc = &ep->desc;
 	unsigned long flags;
 
-	uep = kzalloc(sizeof(struct usbhsh_ep), mem_flags);
+	uep = kzalloc_obj(struct usbhsh_ep, mem_flags);
 	if (!uep)
 		return -ENOMEM;
 

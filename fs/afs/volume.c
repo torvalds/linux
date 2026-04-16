@@ -81,7 +81,7 @@ static struct afs_volume *afs_alloc_volume(struct afs_fs_context *params,
 	struct afs_volume *volume;
 	int ret = -ENOMEM, i;
 
-	volume = kzalloc(sizeof(struct afs_volume), GFP_KERNEL);
+	volume = kzalloc_obj(struct afs_volume);
 	if (!volume)
 		goto error_0;
 

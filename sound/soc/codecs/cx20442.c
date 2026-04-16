@@ -346,7 +346,7 @@ static int cx20442_component_probe(struct snd_soc_component *component)
 {
 	struct cx20442_priv *cx20442;
 
-	cx20442 = kzalloc(sizeof(struct cx20442_priv), GFP_KERNEL);
+	cx20442 = kzalloc_obj(struct cx20442_priv);
 	if (cx20442 == NULL)
 		return -ENOMEM;
 

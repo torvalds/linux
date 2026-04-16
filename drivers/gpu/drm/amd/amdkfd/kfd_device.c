@@ -478,7 +478,7 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 		return NULL;
 	}
 
-	kfd = kzalloc(sizeof(*kfd), GFP_KERNEL);
+	kfd = kzalloc_obj(*kfd);
 	if (!kfd)
 		return NULL;
 
@@ -864,7 +864,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 	/* Allocate the KFD nodes */
 	for (i = 0, xcp_idx = 0; i < kfd->num_nodes; i++) {
-		node = kzalloc(sizeof(struct kfd_node), GFP_KERNEL);
+		node = kzalloc_obj(struct kfd_node);
 		if (!node)
 			goto node_alloc_error;
 
@@ -1328,7 +1328,7 @@ int kfd_gtt_sa_allocate(struct kfd_node *node, unsigned int size,
 	if (size > kfd->gtt_sa_num_of_chunks * kfd->gtt_sa_chunk_size)
 		return -ENOMEM;
 
-	*mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_KERNEL);
+	*mem_obj = kzalloc_obj(struct kfd_mem_obj);
 	if (!(*mem_obj))
 		return -ENOMEM;
 

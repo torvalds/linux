@@ -90,7 +90,7 @@ xlog_add_buffer_cancelled(
 		return false;
 	}
 
-	bcp = kmalloc(sizeof(struct xfs_buf_cancel), GFP_KERNEL | __GFP_NOFAIL);
+	bcp = kmalloc_obj(struct xfs_buf_cancel, GFP_KERNEL | __GFP_NOFAIL);
 	bcp->bc_blkno = blkno;
 	bcp->bc_len = len;
 	bcp->bc_refcount = 1;
@@ -1180,8 +1180,7 @@ xlog_alloc_buf_cancel_table(
 
 	ASSERT(log->l_buf_cancel_table == NULL);
 
-	p = kmalloc_array(XLOG_BC_TABLE_SIZE, sizeof(struct list_head),
-			  GFP_KERNEL);
+	p = kmalloc_objs(struct list_head, XLOG_BC_TABLE_SIZE);
 	if (!p)
 		return -ENOMEM;
 

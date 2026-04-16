@@ -927,7 +927,7 @@ static int virtballoon_probe(struct virtio_device *vdev)
 		return -EINVAL;
 	}
 
-	vdev->priv = vb = kzalloc(sizeof(*vb), GFP_KERNEL);
+	vdev->priv = vb = kzalloc_obj(*vb);
 	if (!vb) {
 		err = -ENOMEM;
 		goto out;

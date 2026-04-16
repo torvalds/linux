@@ -129,7 +129,7 @@ int snd_seq_create_port(struct snd_seq_client *client, int port,
 	}
 
 	/* create a new port */
-	new_port = kzalloc(sizeof(*new_port), GFP_KERNEL);
+	new_port = kzalloc_obj(*new_port);
 	if (!new_port)
 		return -ENOMEM;	/* failure, out of memory */
 	/* init port data */
@@ -572,7 +572,7 @@ int snd_seq_port_connect(struct snd_seq_client *connector,
 	bool exclusive;
 	int err;
 
-	subs = kzalloc(sizeof(*subs), GFP_KERNEL);
+	subs = kzalloc_obj(*subs);
 	if (!subs)
 		return -ENOMEM;
 

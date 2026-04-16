@@ -59,7 +59,7 @@ static struct mlx5_fpga_device *mlx5_fpga_device_alloc(void)
 {
 	struct mlx5_fpga_device *fdev;
 
-	fdev = kzalloc(sizeof(*fdev), GFP_KERNEL);
+	fdev = kzalloc_obj(*fdev);
 	if (!fdev)
 		return NULL;
 

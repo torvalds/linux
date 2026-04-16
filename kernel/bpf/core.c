@@ -108,7 +108,7 @@ struct bpf_prog *bpf_prog_alloc_no_stats(unsigned int size, gfp_t gfp_extra_flag
 	if (fp == NULL)
 		return NULL;
 
-	aux = kzalloc(sizeof(*aux), bpf_memcg_flags(GFP_KERNEL | gfp_extra_flags));
+	aux = kzalloc_obj(*aux, bpf_memcg_flags(GFP_KERNEL | gfp_extra_flags));
 	if (aux == NULL) {
 		vfree(fp);
 		return NULL;
@@ -180,9 +180,9 @@ int bpf_prog_alloc_jited_linfo(struct bpf_prog *prog)
 	if (!prog->aux->nr_linfo || !prog->jit_requested)
 		return 0;
 
-	prog->aux->jited_linfo = kvcalloc(prog->aux->nr_linfo,
-					  sizeof(*prog->aux->jited_linfo),
-					  bpf_memcg_flags(GFP_KERNEL | __GFP_NOWARN));
+	prog->aux->jited_linfo = kvzalloc_objs(*prog->aux->jited_linfo,
+					       prog->aux->nr_linfo,
+					       bpf_memcg_flags(GFP_KERNEL | __GFP_NOWARN));
 	if (!prog->aux->jited_linfo)
 		return -ENOMEM;
 
@@ -910,8 +910,7 @@ static struct bpf_prog_pack *alloc_new_pack(bpf_jit_fill_hole_t bpf_fill_ill_ins
 	struct bpf_prog_pack *pack;
 	int err;
 
-	pack = kzalloc(struct_size(pack, bitmap, BITS_TO_LONGS(BPF_PROG_CHUNK_COUNT)),
-		       GFP_KERNEL);
+	pack = kzalloc_flex(*pack, bitmap, BITS_TO_LONGS(BPF_PROG_CHUNK_COUNT));
 	if (!pack)
 		return NULL;
 	pack->ptr = bpf_jit_alloc_exec(BPF_PROG_PACK_SIZE);
@@ -2597,7 +2596,7 @@ struct bpf_prog_array *bpf_prog_array_alloc(u32 prog_cnt, gfp_t flags)
 	struct bpf_prog_array *p;
 
 	if (prog_cnt)
-		p = kzalloc(struct_size(p, items, prog_cnt + 1), flags);
+		p = kzalloc_flex(*p, items, prog_cnt + 1, flags);
 	else
 		p = &bpf_empty_prog_array.hdr;
 

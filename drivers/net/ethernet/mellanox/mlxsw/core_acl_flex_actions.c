@@ -201,7 +201,7 @@ struct mlxsw_afa *mlxsw_afa_create(unsigned int max_acts_per_set,
 	struct mlxsw_afa *mlxsw_afa;
 	int err;
 
-	mlxsw_afa = kzalloc(sizeof(*mlxsw_afa), GFP_KERNEL);
+	mlxsw_afa = kzalloc_obj(*mlxsw_afa);
 	if (!mlxsw_afa)
 		return ERR_PTR(-ENOMEM);
 	err = rhashtable_init(&mlxsw_afa->set_ht, &mlxsw_afa_set_ht_params);
@@ -276,7 +276,7 @@ static struct mlxsw_afa_set *mlxsw_afa_set_create(bool is_first)
 {
 	struct mlxsw_afa_set *set;
 
-	set = kzalloc(sizeof(*set), GFP_KERNEL);
+	set = kzalloc_obj(*set);
 	if (!set)
 		return NULL;
 	/* Need to initialize the set to pass by default */
@@ -406,7 +406,7 @@ struct mlxsw_afa_block *mlxsw_afa_block_create(struct mlxsw_afa *mlxsw_afa)
 {
 	struct mlxsw_afa_block *block;
 
-	block = kzalloc(sizeof(*block), GFP_KERNEL);
+	block = kzalloc_obj(*block);
 	if (!block)
 		return ERR_PTR(-ENOMEM);
 	INIT_LIST_HEAD(&block->resource_list);
@@ -560,7 +560,7 @@ mlxsw_afa_fwd_entry_create(struct mlxsw_afa *mlxsw_afa, u16 local_port)
 	struct mlxsw_afa_fwd_entry *fwd_entry;
 	int err;
 
-	fwd_entry = kzalloc(sizeof(*fwd_entry), GFP_KERNEL);
+	fwd_entry = kzalloc_obj(*fwd_entry);
 	if (!fwd_entry)
 		return ERR_PTR(-ENOMEM);
 	fwd_entry->ht_key.local_port = local_port;
@@ -653,7 +653,7 @@ mlxsw_afa_fwd_entry_ref_create(struct mlxsw_afa_block *block, u16 local_port)
 	struct mlxsw_afa_fwd_entry *fwd_entry;
 	int err;
 
-	fwd_entry_ref = kzalloc(sizeof(*fwd_entry_ref), GFP_KERNEL);
+	fwd_entry_ref = kzalloc_obj(*fwd_entry_ref);
 	if (!fwd_entry_ref)
 		return ERR_PTR(-ENOMEM);
 	fwd_entry = mlxsw_afa_fwd_entry_get(block->afa, local_port);
@@ -702,7 +702,7 @@ mlxsw_afa_counter_create(struct mlxsw_afa_block *block)
 	struct mlxsw_afa_counter *counter;
 	int err;
 
-	counter = kzalloc(sizeof(*counter), GFP_KERNEL);
+	counter = kzalloc_obj(*counter);
 	if (!counter)
 		return ERR_PTR(-ENOMEM);
 
@@ -847,7 +847,7 @@ mlxsw_afa_cookie_ref_create(struct mlxsw_afa_block *block,
 	struct mlxsw_afa_cookie *cookie;
 	int err;
 
-	cookie_ref = kzalloc(sizeof(*cookie_ref), GFP_KERNEL);
+	cookie_ref = kzalloc_obj(*cookie_ref);
 	if (!cookie_ref)
 		return ERR_PTR(-ENOMEM);
 	cookie = mlxsw_afa_cookie_get(block->afa, fa_cookie);
@@ -873,7 +873,7 @@ mlxsw_afa_policer_create(struct mlxsw_afa *mlxsw_afa, u32 fa_index,
 	struct mlxsw_afa_policer *policer;
 	int err;
 
-	policer = kzalloc(sizeof(*policer), GFP_KERNEL);
+	policer = kzalloc_obj(*policer);
 	if (!policer)
 		return ERR_PTR(-ENOMEM);
 
@@ -974,7 +974,7 @@ mlxsw_afa_policer_ref_create(struct mlxsw_afa_block *block, u32 fa_index,
 	struct mlxsw_afa_policer *policer;
 	int err;
 
-	policer_ref = kzalloc(sizeof(*policer_ref), GFP_KERNEL);
+	policer_ref = kzalloc_obj(*policer_ref);
 	if (!policer_ref)
 		return ERR_PTR(-ENOMEM);
 
@@ -1386,7 +1386,7 @@ mlxsw_afa_mirror_create(struct mlxsw_afa_block *block, u16 local_in_port,
 	struct mlxsw_afa_mirror *mirror;
 	int err;
 
-	mirror = kzalloc(sizeof(*mirror), GFP_KERNEL);
+	mirror = kzalloc_obj(*mirror);
 	if (!mirror)
 		return ERR_PTR(-ENOMEM);
 
@@ -2187,7 +2187,7 @@ mlxsw_afa_sampler_create(struct mlxsw_afa_block *block, u16 local_port,
 	struct mlxsw_afa_sampler *sampler;
 	int err;
 
-	sampler = kzalloc(sizeof(*sampler), GFP_KERNEL);
+	sampler = kzalloc_obj(*sampler);
 	if (!sampler)
 		return ERR_PTR(-ENOMEM);
 

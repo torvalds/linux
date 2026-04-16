@@ -32,7 +32,7 @@ cgrp_css_alloc(struct cgroup_subsys_state *parent_css)
 {
 	struct cgroup_cls_state *cs;
 
-	cs = kzalloc(sizeof(*cs), GFP_KERNEL);
+	cs = kzalloc_obj(*cs);
 	if (!cs)
 		return ERR_PTR(-ENOMEM);
 

@@ -149,7 +149,7 @@ void mtk_vcodec_dbgfs_create(struct mtk_vcodec_dec_ctx *ctx)
 	struct mtk_vcodec_dbgfs_inst *dbgfs_inst;
 	struct mtk_vcodec_dec_dev *vcodec_dev = ctx->dev;
 
-	dbgfs_inst = kzalloc(sizeof(*dbgfs_inst), GFP_KERNEL);
+	dbgfs_inst = kzalloc_obj(*dbgfs_inst);
 	if (!dbgfs_inst)
 		return;
 

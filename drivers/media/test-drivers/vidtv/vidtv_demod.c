@@ -418,7 +418,7 @@ static int vidtv_demod_i2c_probe(struct i2c_client *client)
 	struct vidtv_demod_state *state;
 
 	/* allocate memory for the internal state */
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state)
 		return -ENOMEM;
 

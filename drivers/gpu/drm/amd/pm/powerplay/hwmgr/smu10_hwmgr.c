@@ -133,8 +133,7 @@ static int smu10_init_dynamic_state_adjustment_rule_settings(
 	int count = 8;
 	struct phm_clock_voltage_dependency_table *table_clk_vlt;
 
-	table_clk_vlt = kzalloc(struct_size(table_clk_vlt, entries, count),
-				GFP_KERNEL);
+	table_clk_vlt = kzalloc_flex(*table_clk_vlt, entries, count);
 
 	if (NULL == table_clk_vlt) {
 		pr_err("Can not allocate memory!\n");
@@ -473,7 +472,7 @@ static int smu10_get_clock_voltage_dependency_table(struct pp_hwmgr *hwmgr,
 	uint32_t i;
 	struct smu10_voltage_dependency_table *ptable;
 
-	ptable = kzalloc(struct_size(ptable, entries, num_entry), GFP_KERNEL);
+	ptable = kzalloc_flex(*ptable, entries, num_entry);
 	if (NULL == ptable)
 		return -ENOMEM;
 
@@ -551,7 +550,7 @@ static int smu10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	int result = 0;
 	struct smu10_hwmgr *data;
 
-	data = kzalloc(sizeof(struct smu10_hwmgr), GFP_KERNEL);
+	data = kzalloc_obj(struct smu10_hwmgr);
 	if (data == NULL)
 		return -ENOMEM;
 

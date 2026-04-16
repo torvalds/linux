@@ -1585,7 +1585,7 @@ struct dwc2_qh *dwc2_hcd_qh_create(struct dwc2_hsotg *hsotg,
 		return NULL;
 
 	/* Allocate memory */
-	qh = kzalloc(sizeof(*qh), mem_flags);
+	qh = kzalloc_obj(*qh, mem_flags);
 	if (!qh)
 		return NULL;
 

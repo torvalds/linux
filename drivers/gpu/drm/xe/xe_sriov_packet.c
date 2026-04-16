@@ -89,7 +89,7 @@ struct xe_sriov_packet *xe_sriov_packet_alloc(struct xe_device *xe)
 {
 	struct xe_sriov_packet *data;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return NULL;
 

@@ -184,7 +184,7 @@ struct atm_mpoa_qos *atm_mpoa_add_qos(__be32 dst_ip, struct atm_qos *qos)
 		return entry;
 	}
 
-	entry = kmalloc(sizeof(struct atm_mpoa_qos), GFP_KERNEL);
+	entry = kmalloc_obj(struct atm_mpoa_qos);
 	if (entry == NULL) {
 		pr_info("mpoa: out of memory\n");
 		return entry;
@@ -282,7 +282,7 @@ static struct mpoa_client *alloc_mpc(void)
 {
 	struct mpoa_client *mpc;
 
-	mpc = kzalloc(sizeof(struct mpoa_client), GFP_KERNEL);
+	mpc = kzalloc_obj(struct mpoa_client);
 	if (mpc == NULL)
 		return NULL;
 	rwlock_init(&mpc->ingress_lock);

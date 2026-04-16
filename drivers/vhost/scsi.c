@@ -382,9 +382,7 @@ static int vhost_scsi_copy_cmd_log(struct vhost_virtqueue *vq,
 				   unsigned int log_num)
 {
 	if (!cmd->tvc_log)
-		cmd->tvc_log = kmalloc_array(vq->dev->iov_limit,
-					     sizeof(*cmd->tvc_log),
-					     GFP_KERNEL);
+		cmd->tvc_log = kmalloc_objs(*cmd->tvc_log, vq->dev->iov_limit);
 
 	if (unlikely(!cmd->tvc_log)) {
 		vq_err(vq, "Failed to alloc tvc_log\n");
@@ -549,7 +547,7 @@ vhost_scsi_allocate_evt(struct vhost_scsi *vs,
 		return NULL;
 	}
 
-	evt = kzalloc(sizeof(*evt), GFP_KERNEL);
+	evt = kzalloc_obj(*evt);
 	if (!evt) {
 		vq_err(vq, "Failed to allocate vhost_scsi_evt\n");
 		vs->vs_events_missed = true;
@@ -897,7 +895,7 @@ vhost_scsi_copy_iov_to_sgl(struct vhost_scsi_cmd *cmd, struct iov_iter *iter,
 	int i, ret;
 
 	if (data_dir == DMA_FROM_DEVICE) {
-		cmd->read_iter = kzalloc(sizeof(*cmd->read_iter), GFP_KERNEL);
+		cmd->read_iter = kzalloc_obj(*cmd->read_iter);
 		if (!cmd->read_iter)
 			return -ENOMEM;
 
@@ -1264,8 +1262,7 @@ vhost_scsi_setup_resp_iovs(struct vhost_scsi_cmd *cmd, struct iovec *in_iovs,
 		 * iov per byte.
 		 */
 		cnt = min(VHOST_SCSI_MAX_RESP_IOVS, in_iovs_cnt);
-		cmd->tvc_resp_iovs = kcalloc(cnt, sizeof(struct iovec),
-					     GFP_KERNEL);
+		cmd->tvc_resp_iovs = kzalloc_objs(struct iovec, cnt);
 		if (!cmd->tvc_resp_iovs)
 			return -ENOMEM;
 
@@ -1603,7 +1600,7 @@ vhost_scsi_handle_tmf(struct vhost_scsi *vs, struct vhost_scsi_tpg *tpg,
 		goto send_reject;
 	}
 
-	tmf = kzalloc(sizeof(*tmf), GFP_KERNEL);
+	tmf = kzalloc_obj(*tmf);
 	if (!tmf)
 		goto send_reject;
 
@@ -1617,8 +1614,7 @@ vhost_scsi_handle_tmf(struct vhost_scsi *vs, struct vhost_scsi_tpg *tpg,
 	tmf->inflight = vhost_scsi_get_inflight(vq);
 
 	if (unlikely(log && log_num)) {
-		tmf->tmf_log = kmalloc_array(log_num, sizeof(*tmf->tmf_log),
-					     GFP_KERNEL);
+		tmf->tmf_log = kmalloc_objs(*tmf->tmf_log, log_num);
 		if (tmf->tmf_log) {
 			memcpy(tmf->tmf_log, log, sizeof(*tmf->tmf_log) * log_num);
 			tmf->tmf_log_num = log_num;
@@ -1936,14 +1932,13 @@ static int vhost_scsi_setup_vq_cmds(struct vhost_virtqueue *vq, int max_cmds)
 		return -ENOMEM;
 	svq->max_cmds = max_cmds;
 
-	svq->scsi_cmds = kcalloc(max_cmds, sizeof(*tv_cmd), GFP_KERNEL);
+	svq->scsi_cmds = kzalloc_objs(*tv_cmd, max_cmds);
 	if (!svq->scsi_cmds) {
 		sbitmap_free(&svq->scsi_tags);
 		return -ENOMEM;
 	}
 
-	svq->upages = kcalloc(VHOST_SCSI_PREALLOC_UPAGES, sizeof(struct page *),
-			      GFP_KERNEL);
+	svq->upages = kzalloc_objs(struct page *, VHOST_SCSI_PREALLOC_UPAGES);
 	if (!svq->upages)
 		goto out;
 
@@ -1951,9 +1946,8 @@ static int vhost_scsi_setup_vq_cmds(struct vhost_virtqueue *vq, int max_cmds)
 		tv_cmd = &svq->scsi_cmds[i];
 
 		if (vs->inline_sg_cnt) {
-			tv_cmd->sgl = kcalloc(vs->inline_sg_cnt,
-					      sizeof(struct scatterlist),
-					      GFP_KERNEL);
+			tv_cmd->sgl = kzalloc_objs(struct scatterlist,
+						   vs->inline_sg_cnt);
 			if (!tv_cmd->sgl) {
 				pr_err("Unable to allocate tv_cmd->sgl\n");
 				goto out;
@@ -1962,9 +1956,8 @@ static int vhost_scsi_setup_vq_cmds(struct vhost_virtqueue *vq, int max_cmds)
 
 		if (vhost_has_feature(vq, VIRTIO_SCSI_F_T10_PI) &&
 		    vs->inline_sg_cnt) {
-			tv_cmd->prot_sgl = kcalloc(vs->inline_sg_cnt,
-						   sizeof(struct scatterlist),
-						   GFP_KERNEL);
+			tv_cmd->prot_sgl = kzalloc_objs(struct scatterlist,
+							vs->inline_sg_cnt);
 			if (!tv_cmd->prot_sgl) {
 				pr_err("Unable to allocate tv_cmd->prot_sgl\n");
 				goto out;
@@ -2282,7 +2275,7 @@ static int vhost_scsi_open(struct inode *inode, struct file *f)
 	struct vhost_virtqueue **vqs;
 	int r = -ENOMEM, i, nvqs = vhost_scsi_max_io_vqs;
 
-	vs = kvzalloc(sizeof(*vs), GFP_KERNEL);
+	vs = kvzalloc_obj(*vs);
 	if (!vs)
 		goto err_vs;
 	vs->inline_sg_cnt = vhost_scsi_inline_sg_cnt;
@@ -2297,17 +2290,16 @@ static int vhost_scsi_open(struct inode *inode, struct file *f)
 	}
 	nvqs += VHOST_SCSI_VQ_IO;
 
-	vs->old_inflight = kmalloc_array(nvqs, sizeof(*vs->old_inflight),
-					 GFP_KERNEL | __GFP_ZERO);
+	vs->old_inflight = kmalloc_objs(*vs->old_inflight, nvqs,
+					GFP_KERNEL | __GFP_ZERO);
 	if (!vs->old_inflight)
 		goto err_inflight;
 
-	vs->vqs = kmalloc_array(nvqs, sizeof(*vs->vqs),
-				GFP_KERNEL | __GFP_ZERO);
+	vs->vqs = kmalloc_objs(*vs->vqs, nvqs, GFP_KERNEL | __GFP_ZERO);
 	if (!vs->vqs)
 		goto err_vqs;
 
-	vqs = kmalloc_array(nvqs, sizeof(*vqs), GFP_KERNEL);
+	vqs = kmalloc_objs(*vqs, nvqs);
 	if (!vqs)
 		goto err_local_vqs;
 
@@ -2603,7 +2595,7 @@ static int vhost_scsi_make_nexus(struct vhost_scsi_tpg *tpg,
 		return -EEXIST;
 	}
 
-	tv_nexus = kzalloc(sizeof(*tv_nexus), GFP_KERNEL);
+	tv_nexus = kzalloc_obj(*tv_nexus);
 	if (!tv_nexus) {
 		mutex_unlock(&tpg->tv_tpg_mutex);
 		pr_err("Unable to allocate struct vhost_scsi_nexus\n");
@@ -2798,7 +2790,7 @@ vhost_scsi_make_tpg(struct se_wwn *wwn, const char *name)
 	if (kstrtou16(name + 5, 10, &tpgt) || tpgt >= VHOST_SCSI_MAX_TARGET)
 		return ERR_PTR(-EINVAL);
 
-	tpg = kzalloc(sizeof(*tpg), GFP_KERNEL);
+	tpg = kzalloc_obj(*tpg);
 	if (!tpg) {
 		pr_err("Unable to allocate struct vhost_scsi_tpg");
 		return ERR_PTR(-ENOMEM);
@@ -2852,7 +2844,7 @@ vhost_scsi_make_tport(struct target_fabric_configfs *tf,
 	/* if (vhost_scsi_parse_wwn(name, &wwpn, 1) < 0)
 		return ERR_PTR(-EINVAL); */
 
-	tport = kzalloc(sizeof(*tport), GFP_KERNEL);
+	tport = kzalloc_obj(*tport);
 	if (!tport) {
 		pr_err("Unable to allocate struct vhost_scsi_tport");
 		return ERR_PTR(-ENOMEM);

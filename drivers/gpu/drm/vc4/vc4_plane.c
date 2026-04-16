@@ -374,7 +374,7 @@ static void vc4_plane_reset(struct drm_plane *plane)
 
 	kfree(plane->state);
 
-	vc4_state = kzalloc(sizeof(*vc4_state), GFP_KERNEL);
+	vc4_state = kzalloc_obj(*vc4_state);
 	if (!vc4_state)
 		return;
 

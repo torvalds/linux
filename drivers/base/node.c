@@ -158,7 +158,7 @@ static struct node_access_nodes *node_init_node_access(struct node *node,
 		if (access_node->access == access)
 			return access_node;
 
-	access_node = kzalloc(sizeof(*access_node), GFP_KERNEL);
+	access_node = kzalloc_obj(*access_node);
 	if (!access_node)
 		return NULL;
 
@@ -340,7 +340,7 @@ static void node_init_cache_dev(struct node *node)
 {
 	struct device *dev;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return;
 
@@ -389,7 +389,7 @@ void node_add_cache(unsigned int nid, struct node_cache_attrs *cache_attrs)
 	if (!node->cache_dev)
 		return;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return;
 
@@ -875,7 +875,7 @@ int register_node(int nid)
 	int cpu;
 	struct node *node;
 
-	node = kzalloc(sizeof(struct node), GFP_KERNEL);
+	node = kzalloc_obj(struct node);
 	if (!node)
 		return -ENOMEM;
 

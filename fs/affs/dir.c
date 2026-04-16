@@ -36,7 +36,7 @@ static int affs_dir_open(struct inode *inode, struct file *file)
 {
 	struct affs_dir_data	*data;
 
-	data = kzalloc(sizeof(struct affs_dir_data), GFP_KERNEL);
+	data = kzalloc_obj(struct affs_dir_data);
 	if (!data)
 		return -ENOMEM;
 	file->private_data = data;

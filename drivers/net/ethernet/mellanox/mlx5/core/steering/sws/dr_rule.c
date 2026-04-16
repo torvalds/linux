@@ -593,7 +593,7 @@ static int dr_rule_add_action_members(struct mlx5dr_rule *rule,
 	int i;
 
 	for (i = 0; i < num_actions; i++) {
-		action_mem = kvzalloc(sizeof(*action_mem), GFP_KERNEL);
+		action_mem = kvzalloc_obj(*action_mem);
 		if (!action_mem)
 			goto free_action_members;
 
@@ -1298,7 +1298,7 @@ dr_rule_create_rule(struct mlx5dr_matcher *matcher,
 	if (!dr_rule_verify(matcher, value, &param))
 		return NULL;
 
-	rule = kzalloc(sizeof(*rule), GFP_KERNEL);
+	rule = kzalloc_obj(*rule);
 	if (!rule)
 		return NULL;
 

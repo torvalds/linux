@@ -891,7 +891,7 @@ int amdgpu_ras_feature_enable(struct amdgpu_device *adev,
 	if (head->block == AMDGPU_RAS_BLOCK__GFX &&
 	    !amdgpu_sriov_vf(adev) &&
 	    !amdgpu_ras_intr_triggered()) {
-		info = kzalloc(sizeof(union ta_ras_cmd_input), GFP_KERNEL);
+		info = kzalloc_obj(union ta_ras_cmd_input);
 		if (!info)
 			return -ENOMEM;
 
@@ -1904,7 +1904,7 @@ static ssize_t amdgpu_ras_sysfs_badpages_read(struct file *f,
 	memset(buf, 0, count);
 
 	bps_count = end - start;
-	bps = kmalloc_array(bps_count, sizeof(*bps), GFP_KERNEL);
+	bps = kmalloc_objs(*bps, bps_count);
 	if (!bps)
 		return 0;
 
@@ -2811,7 +2811,7 @@ static int amdgpu_uniras_badpages_read(struct amdgpu_device *adev,
 	if (!bps || !count)
 		return -EINVAL;
 
-	output = kmalloc(sizeof(*output), GFP_KERNEL);
+	output = kmalloc_obj(*output);
 	if (!output)
 		return -ENOMEM;
 
@@ -2991,7 +2991,7 @@ static int amdgpu_ras_realloc_eh_data_space(struct amdgpu_device *adev,
 	unsigned int old_space = data->count + data->space_left;
 	unsigned int new_space = old_space + pages;
 	unsigned int align_space = ALIGN(new_space, 512);
-	void *bps = kmalloc_array(align_space, sizeof(*data->bps), GFP_KERNEL);
+	void *bps = kmalloc_objs(*data->bps, align_space);
 
 	if (!bps) {
 		return -ENOMEM;
@@ -3238,8 +3238,8 @@ int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
 
 	if (from_rom) {
 		err_data.err_addr =
-			kcalloc(adev->umc.retire_unit,
-				sizeof(struct eeprom_table_record), GFP_KERNEL);
+			kzalloc_objs(struct eeprom_table_record,
+				     adev->umc.retire_unit);
 		if (!err_data.err_addr) {
 			dev_warn(adev->dev, "Failed to alloc UMC error address record in mca2pa conversion!\n");
 			return -ENOMEM;
@@ -3375,7 +3375,7 @@ static int amdgpu_ras_load_bad_pages(struct amdgpu_device *adev)
 	if (control->ras_num_recs == 0 || amdgpu_bad_page_threshold == 0)
 		return 0;
 
-	bps = kcalloc(control->ras_num_recs, sizeof(*bps), GFP_KERNEL);
+	bps = kzalloc_objs(*bps, control->ras_num_recs);
 	if (!bps)
 		return -ENOMEM;
 
@@ -3863,7 +3863,7 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev, bool init_bp_info)
 		return 0;
 
 	data = &con->eh_data;
-	*data = kzalloc(sizeof(**data), GFP_KERNEL);
+	*data = kzalloc_obj(**data);
 	if (!*data) {
 		ret = -ENOMEM;
 		goto out;
@@ -4352,7 +4352,7 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 	 * to handle fatal error */
 	r = amdgpu_nbio_ras_sw_init(adev);
 	if (r)
-		return r;
+		goto release_con;
 
 	if (adev->nbio.ras &&
 	    adev->nbio.ras->init_ras_controller_interrupt) {
@@ -4499,7 +4499,7 @@ int amdgpu_ras_block_late_init(struct amdgpu_device *adev,
 
 		/* Those are the cached values at init.
 		 */
-		query_info = kzalloc(sizeof(*query_info), GFP_KERNEL);
+		query_info = kzalloc_obj(*query_info);
 		if (!query_info)
 			return -ENOMEM;
 		memcpy(&query_info->head, ras_block, sizeof(struct ras_common_if));
@@ -4649,6 +4649,8 @@ int amdgpu_ras_late_init(struct amdgpu_device *adev)
 		} else
 			amdgpu_ras_block_late_init_default(adev, &obj->ras_comm);
 	}
+
+	amdgpu_ras_check_bad_page_status(adev);
 
 	return 0;
 }
@@ -5186,7 +5188,7 @@ int amdgpu_ras_register_ras_block(struct amdgpu_device *adev,
 	if (!adev || !ras_block_obj)
 		return -EINVAL;
 
-	ras_node = kzalloc(sizeof(*ras_node), GFP_KERNEL);
+	ras_node = kzalloc_obj(*ras_node);
 	if (!ras_node)
 		return -ENOMEM;
 
@@ -5387,7 +5389,7 @@ static struct ras_err_node *amdgpu_ras_error_node_new(void)
 {
 	struct ras_err_node *err_node;
 
-	err_node = kvzalloc(sizeof(*err_node), GFP_KERNEL);
+	err_node = kvzalloc_obj(*err_node);
 	if (!err_node)
 		return NULL;
 
@@ -5680,7 +5682,7 @@ int amdgpu_ras_add_critical_region(struct amdgpu_device *adev,
 
 	/* Record new critical amdgpu bo */
 	list_for_each_entry(block, &vres->blocks, link) {
-		region = kzalloc(sizeof(*region), GFP_KERNEL);
+		region = kzalloc_obj(*region);
 		if (!region) {
 			ret = -ENOMEM;
 			goto out;

@@ -70,6 +70,7 @@ static int mctp_fill_addrinfo(struct sk_buff *skb,
 		return -EMSGSIZE;
 
 	hdr = nlmsg_data(nlh);
+	memset(hdr, 0, sizeof(*hdr));
 	hdr->ifa_family = AF_MCTP;
 	hdr->ifa_prefixlen = 0;
 	hdr->ifa_flags = 0;
@@ -335,7 +336,7 @@ static struct mctp_dev *mctp_add_dev(struct net_device *dev)
 
 	ASSERT_RTNL();
 
-	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
+	mdev = kzalloc_obj(*mdev);
 	if (!mdev)
 		return ERR_PTR(-ENOMEM);
 

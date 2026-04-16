@@ -615,22 +615,8 @@ struct cxl_port *parent_port_of(struct cxl_port *port)
 static void unregister_port(void *_port)
 {
 	struct cxl_port *port = _port;
-	struct cxl_port *parent = parent_port_of(port);
-	struct device *lock_dev;
 
-	/*
-	 * CXL root port's and the first level of ports are unregistered
-	 * under the platform firmware device lock, all other ports are
-	 * unregistered while holding their parent port lock.
-	 */
-	if (!parent)
-		lock_dev = port->uport_dev;
-	else if (is_cxl_root(parent))
-		lock_dev = parent->uport_dev;
-	else
-		lock_dev = &parent->dev;
-
-	device_lock_assert(lock_dev);
+	device_lock_assert(port_to_host(port));
 	port->dead = true;
 	device_unregister(&port->dev);
 }
@@ -688,11 +674,11 @@ static struct cxl_port *cxl_port_alloc(struct device *uport_dev,
 
 	/* No parent_dport, root cxl_port */
 	if (!parent_dport) {
-		cxl_root = kzalloc(sizeof(*cxl_root), GFP_KERNEL);
+		cxl_root = kzalloc_obj(*cxl_root);
 		if (!cxl_root)
 			return ERR_PTR(-ENOMEM);
 	} else {
-		_port = kzalloc(sizeof(*port), GFP_KERNEL);
+		_port = kzalloc_obj(*port);
 		if (!_port)
 			return ERR_PTR(-ENOMEM);
 	}
@@ -1184,7 +1170,7 @@ __devm_cxl_add_dport(struct cxl_port *port, struct device *dport_dev,
 	    CXL_TARGET_STRLEN)
 		return ERR_PTR(-EINVAL);
 
-	dport = kzalloc(sizeof(*dport), GFP_KERNEL);
+	dport = kzalloc_obj(*dport);
 	if (!dport)
 		return ERR_PTR(-ENOMEM);
 
@@ -1350,7 +1336,7 @@ static int cxl_add_ep(struct cxl_dport *dport, struct device *ep_dev)
 	struct cxl_ep *ep;
 	int rc;
 
-	ep = kzalloc(sizeof(*ep), GFP_KERNEL);
+	ep = kzalloc_obj(*ep);
 	if (!ep)
 		return -ENOMEM;
 
@@ -1427,20 +1413,11 @@ static struct device *grandparent(struct device *dev)
 	return NULL;
 }
 
-static struct device *endpoint_host(struct cxl_port *endpoint)
-{
-	struct cxl_port *port = to_cxl_port(endpoint->dev.parent);
-
-	if (is_cxl_root(port))
-		return port->uport_dev;
-	return &port->dev;
-}
-
 static void delete_endpoint(void *data)
 {
 	struct cxl_memdev *cxlmd = data;
 	struct cxl_port *endpoint = cxlmd->endpoint;
-	struct device *host = endpoint_host(endpoint);
+	struct device *host = port_to_host(endpoint);
 
 	scoped_guard(device, host) {
 		if (host->driver && !endpoint->dead) {
@@ -1456,7 +1433,7 @@ static void delete_endpoint(void *data)
 
 int cxl_endpoint_autoremove(struct cxl_memdev *cxlmd, struct cxl_port *endpoint)
 {
-	struct device *host = endpoint_host(endpoint);
+	struct device *host = port_to_host(endpoint);
 	struct device *dev = &cxlmd->dev;
 
 	get_device(host);
@@ -1790,7 +1767,16 @@ static struct cxl_dport *find_or_add_dport(struct cxl_port *port,
 {
 	struct cxl_dport *dport;
 
-	device_lock_assert(&port->dev);
+	/*
+	 * The port is already visible in CXL hierarchy, but it may still
+	 * be in the process of binding to the CXL port driver at this point.
+	 *
+	 * port creation and driver binding are protected by the port's host
+	 * lock, so acquire the host lock here to ensure the port has completed
+	 * driver binding before proceeding with dport addition.
+	 */
+	guard(device)(port_to_host(port));
+	guard(device)(&port->dev);
 	dport = cxl_find_dport_by_dev(port, dport_dev);
 	if (!dport) {
 		dport = probe_dport(port, dport_dev);
@@ -1857,13 +1843,11 @@ retry:
 			 * RP port enumerated by cxl_acpi without dport will
 			 * have the dport added here.
 			 */
-			scoped_guard(device, &port->dev) {
-				dport = find_or_add_dport(port, dport_dev);
-				if (IS_ERR(dport)) {
-					if (PTR_ERR(dport) == -EAGAIN)
-						goto retry;
-					return PTR_ERR(dport);
-				}
+			dport = find_or_add_dport(port, dport_dev);
+			if (IS_ERR(dport)) {
+				if (PTR_ERR(dport) == -EAGAIN)
+					goto retry;
+				return PTR_ERR(dport);
 			}
 
 			rc = cxl_add_ep(dport, &cxlmd->dev);
@@ -2017,8 +2001,7 @@ struct cxl_root_decoder *cxl_root_decoder_alloc(struct cxl_port *port,
 	if (!is_cxl_root(port))
 		return ERR_PTR(-EINVAL);
 
-	cxlrd = kzalloc(struct_size(cxlrd, cxlsd.target, nr_targets),
-			GFP_KERNEL);
+	cxlrd = kzalloc_flex(*cxlrd, cxlsd.target, nr_targets);
 	if (!cxlrd)
 		return ERR_PTR(-ENOMEM);
 
@@ -2071,7 +2054,7 @@ struct cxl_switch_decoder *cxl_switch_decoder_alloc(struct cxl_port *port,
 	if (is_cxl_root(port) || is_cxl_endpoint(port))
 		return ERR_PTR(-EINVAL);
 
-	cxlsd = kzalloc(struct_size(cxlsd, target, nr_targets), GFP_KERNEL);
+	cxlsd = kzalloc_flex(*cxlsd, target, nr_targets);
 	if (!cxlsd)
 		return ERR_PTR(-ENOMEM);
 
@@ -2102,7 +2085,7 @@ struct cxl_endpoint_decoder *cxl_endpoint_decoder_alloc(struct cxl_port *port)
 	if (!is_cxl_endpoint(port))
 		return ERR_PTR(-EINVAL);
 
-	cxled = kzalloc(sizeof(*cxled), GFP_KERNEL);
+	cxled = kzalloc_obj(*cxled);
 	if (!cxled)
 		return ERR_PTR(-ENOMEM);
 

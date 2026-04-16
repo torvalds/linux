@@ -799,7 +799,7 @@ static int gmux_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 		return -ENODEV;
 	}
 
-	gmux_data = kzalloc(sizeof(*gmux_data), GFP_KERNEL);
+	gmux_data = kzalloc_obj(*gmux_data);
 	if (!gmux_data)
 		return -ENOMEM;
 	pnp_set_drvdata(pnp, gmux_data);

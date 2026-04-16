@@ -2327,9 +2327,8 @@ static int initialize_hdcp_port_data(struct intel_connector *connector,
 	data->protocol = (u8)shim->protocol;
 
 	if (!data->streams)
-		data->streams = kcalloc(INTEL_NUM_PIPES(display),
-					sizeof(struct hdcp2_streamid_type),
-					GFP_KERNEL);
+		data->streams = kzalloc_objs(struct hdcp2_streamid_type,
+					     INTEL_NUM_PIPES(display));
 	if (!data->streams) {
 		drm_err(display->drm, "Out of Memory\n");
 		return -ENOMEM;

@@ -523,7 +523,7 @@ static int rxe_ib_advise_mr_prefetch(struct ib_pd *ibpd,
 					       num_sge);
 
 	/* Asynchronous call is "best-effort" and allowed to fail */
-	work = kvzalloc(struct_size(work, frags, num_sge), GFP_KERNEL);
+	work = kvzalloc_flex(*work, frags, num_sge);
 	if (!work)
 		return -ENOMEM;
 

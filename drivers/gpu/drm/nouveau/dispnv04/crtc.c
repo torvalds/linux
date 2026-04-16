@@ -1158,7 +1158,7 @@ nv04_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	cli = chan->cli;
 	push = &chan->chan.push;
 
-	s = kzalloc(sizeof(*s), GFP_KERNEL);
+	s = kzalloc_obj(*s);
 	if (!s)
 		return -ENOMEM;
 
@@ -1291,7 +1291,7 @@ nv04_crtc_create(struct drm_device *dev, int crtc_num)
 	struct drm_plane *primary;
 	int ret;
 
-	nv_crtc = kzalloc(sizeof(*nv_crtc), GFP_KERNEL);
+	nv_crtc = kzalloc_obj(*nv_crtc);
 	if (!nv_crtc)
 		return -ENOMEM;
 

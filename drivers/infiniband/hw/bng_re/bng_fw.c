@@ -98,8 +98,7 @@ int bng_re_alloc_fw_channel(struct bng_re_res *res,
 		goto fail;
 	}
 
-	rcfw->crsqe_tbl = kcalloc(cmdq->hwq.max_elements,
-				  sizeof(*rcfw->crsqe_tbl), GFP_KERNEL);
+	rcfw->crsqe_tbl = kzalloc_objs(*rcfw->crsqe_tbl, cmdq->hwq.max_elements);
 	if (!rcfw->crsqe_tbl)
 		goto fail;
 

@@ -86,7 +86,7 @@ static u16 nvmet_passthru_override_id_ctrl(struct nvmet_req *req)
 	unsigned int max_hw_sectors;
 	int page_shift;
 
-	id = kzalloc(sizeof(*id), GFP_KERNEL);
+	id = kzalloc_obj(*id);
 	if (!id)
 		return NVME_SC_INTERNAL;
 
@@ -178,7 +178,7 @@ static u16 nvmet_passthru_override_id_ns(struct nvmet_req *req)
 	struct nvme_id_ns *id;
 	int i;
 
-	id = kzalloc(sizeof(*id), GFP_KERNEL);
+	id = kzalloc_obj(*id);
 	if (!id)
 		return NVME_SC_INTERNAL;
 

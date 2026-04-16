@@ -167,7 +167,7 @@ int ubifs_add_bud_to_log(struct ubifs_info *c, int jhead, int lnum, int offs)
 	struct ubifs_bud *bud;
 	struct ubifs_ref_node *ref;
 
-	bud = kmalloc(sizeof(struct ubifs_bud), GFP_NOFS);
+	bud = kmalloc_obj(struct ubifs_bud, GFP_NOFS);
 	if (!bud)
 		return -ENOMEM;
 	ref = kzalloc(c->ref_node_alsz, GFP_NOFS);
@@ -574,7 +574,7 @@ static int done_already(struct rb_root *done_tree, int lnum)
 			return 1;
 	}
 
-	dr = kzalloc(sizeof(struct done_ref), GFP_NOFS);
+	dr = kzalloc_obj(struct done_ref, GFP_NOFS);
 	if (!dr)
 		return -ENOMEM;
 

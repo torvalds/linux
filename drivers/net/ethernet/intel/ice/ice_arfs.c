@@ -534,13 +534,11 @@ static int ice_init_arfs_cntrs(struct ice_vsi *vsi)
 	if (!vsi || vsi->type != ICE_VSI_PF)
 		return -EINVAL;
 
-	vsi->arfs_fltr_cntrs = kzalloc(sizeof(*vsi->arfs_fltr_cntrs),
-				       GFP_KERNEL);
+	vsi->arfs_fltr_cntrs = kzalloc_obj(*vsi->arfs_fltr_cntrs);
 	if (!vsi->arfs_fltr_cntrs)
 		return -ENOMEM;
 
-	vsi->arfs_last_fltr_id = kzalloc(sizeof(*vsi->arfs_last_fltr_id),
-					 GFP_KERNEL);
+	vsi->arfs_last_fltr_id = kzalloc_obj(*vsi->arfs_last_fltr_id);
 	if (!vsi->arfs_last_fltr_id) {
 		kfree(vsi->arfs_fltr_cntrs);
 		vsi->arfs_fltr_cntrs = NULL;
@@ -562,8 +560,7 @@ void ice_init_arfs(struct ice_vsi *vsi)
 	if (!vsi || vsi->type != ICE_VSI_PF || ice_is_arfs_active(vsi))
 		return;
 
-	arfs_fltr_list = kcalloc(ICE_MAX_ARFS_LIST, sizeof(*arfs_fltr_list),
-				 GFP_KERNEL);
+	arfs_fltr_list = kzalloc_objs(*arfs_fltr_list, ICE_MAX_ARFS_LIST);
 	if (!arfs_fltr_list)
 		return;
 

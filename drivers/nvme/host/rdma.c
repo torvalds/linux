@@ -215,7 +215,7 @@ static struct nvme_rdma_qe *nvme_rdma_alloc_ring(struct ib_device *ibdev,
 	struct nvme_rdma_qe *ring;
 	int i;
 
-	ring = kcalloc(ib_queue_size, sizeof(struct nvme_rdma_qe), GFP_KERNEL);
+	ring = kzalloc_objs(struct nvme_rdma_qe, ib_queue_size);
 	if (!ring)
 		return NULL;
 
@@ -300,7 +300,7 @@ static int nvme_rdma_init_request(struct blk_mq_tag_set *set,
 	struct nvme_rdma_queue *queue = &ctrl->queues[queue_idx];
 
 	nvme_req(rq)->ctrl = &ctrl->ctrl;
-	req->sqe.data = kzalloc(sizeof(struct nvme_command), GFP_KERNEL);
+	req->sqe.data = kzalloc_obj(struct nvme_command);
 	if (!req->sqe.data)
 		return -ENOMEM;
 
@@ -375,7 +375,7 @@ nvme_rdma_find_get_device(struct rdma_cm_id *cm_id)
 			goto out_unlock;
 	}
 
-	ndev = kzalloc(sizeof(*ndev), GFP_KERNEL);
+	ndev = kzalloc_obj(*ndev);
 	if (!ndev)
 		goto out_err;
 
@@ -2240,7 +2240,7 @@ static struct nvme_rdma_ctrl *nvme_rdma_alloc_ctrl(struct device *dev,
 	struct nvme_rdma_ctrl *ctrl;
 	int ret;
 
-	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
+	ctrl = kzalloc_obj(*ctrl);
 	if (!ctrl)
 		return ERR_PTR(-ENOMEM);
 	ctrl->ctrl.opts = opts;
@@ -2290,8 +2290,7 @@ static struct nvme_rdma_ctrl *nvme_rdma_alloc_ctrl(struct device *dev,
 	ctrl->ctrl.kato = opts->kato;
 
 	ret = -ENOMEM;
-	ctrl->queues = kcalloc(ctrl->ctrl.queue_count, sizeof(*ctrl->queues),
-				GFP_KERNEL);
+	ctrl->queues = kzalloc_objs(*ctrl->queues, ctrl->ctrl.queue_count);
 	if (!ctrl->queues)
 		goto out_free_ctrl;
 

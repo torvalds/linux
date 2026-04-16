@@ -448,7 +448,7 @@ static int bcm_open(struct hci_uart *hu)
 	if (!hci_uart_has_flow_control(hu))
 		return -EOPNOTSUPP;
 
-	bcm = kzalloc(sizeof(*bcm), GFP_KERNEL);
+	bcm = kzalloc_obj(*bcm);
 	if (!bcm)
 		return -ENOMEM;
 

@@ -39,7 +39,7 @@ static void __init sr_set_nvalues(struct omap_volt_data *volt_data,
 	while (volt_data[count].volt_nominal)
 		count++;
 
-	nvalue_table = kcalloc(count, sizeof(*nvalue_table), GFP_KERNEL);
+	nvalue_table = kzalloc_objs(*nvalue_table, count);
 	if (!nvalue_table)
 		return;
 

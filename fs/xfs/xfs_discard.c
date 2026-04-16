@@ -349,7 +349,7 @@ xfs_trim_perag_extents(
 	do {
 		struct xfs_busy_extents	*extents;
 
-		extents = kzalloc(sizeof(*extents), GFP_KERNEL);
+		extents = kzalloc_obj(*extents);
 		if (!extents) {
 			error = -ENOMEM;
 			break;
@@ -537,7 +537,7 @@ xfs_trim_gather_rtextent(
 		return 0;
 	}
 
-	busyp = kzalloc(sizeof(struct xfs_rtx_busy), GFP_KERNEL);
+	busyp = kzalloc_obj(struct xfs_rtx_busy);
 	if (!busyp)
 		return -ENOMEM;
 
@@ -689,7 +689,7 @@ xfs_trim_rtgroup_extents(
 	 * trims the extents returned.
 	 */
 	do {
-		tr.extents = kzalloc(sizeof(*tr.extents), GFP_KERNEL);
+		tr.extents = kzalloc_obj(*tr.extents);
 		if (!tr.extents) {
 			error = -ENOMEM;
 			break;

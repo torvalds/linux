@@ -1018,7 +1018,7 @@ static int ds_probe(struct usb_interface *intf,
 	struct ds_device *dev;
 	int i, err, alt;
 
-	dev = kzalloc(sizeof(struct ds_device), GFP_KERNEL);
+	dev = kzalloc_obj(struct ds_device);
 	if (!dev)
 		return -ENOMEM;
 

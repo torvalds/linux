@@ -116,7 +116,7 @@ struct clk *mxs_clk_frac(const char *name, const char *parent_name,
 	struct clk *clk;
 	struct clk_init_data init;
 
-	frac = kzalloc(sizeof(*frac), GFP_KERNEL);
+	frac = kzalloc_obj(*frac);
 	if (!frac)
 		return ERR_PTR(-ENOMEM);
 

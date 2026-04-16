@@ -371,7 +371,7 @@ __hwrm_acquire_token(struct bnxt *bp, enum bnxt_hwrm_chnl dst)
 {
 	struct bnxt_hwrm_wait_token *token;
 
-	token = kzalloc(sizeof(*token), GFP_KERNEL);
+	token = kzalloc_obj(*token);
 	if (!token)
 		return NULL;
 

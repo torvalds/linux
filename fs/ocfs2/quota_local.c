@@ -298,7 +298,7 @@ static int ocfs2_add_recovery_chunk(struct super_block *sb,
 {
 	struct ocfs2_recovery_chunk *rc;
 
-	rc = kmalloc(sizeof(struct ocfs2_recovery_chunk), GFP_NOFS);
+	rc = kmalloc_obj(struct ocfs2_recovery_chunk, GFP_NOFS);
 	if (!rc)
 		return -ENOMEM;
 	rc->rc_chunk = chunk;
@@ -372,7 +372,7 @@ static struct ocfs2_quota_recovery *ocfs2_alloc_quota_recovery(void)
 	int type;
 	struct ocfs2_quota_recovery *rec;
 
-	rec = kmalloc(sizeof(struct ocfs2_quota_recovery), GFP_NOFS);
+	rec = kmalloc_obj(struct ocfs2_quota_recovery, GFP_NOFS);
 	if (!rec)
 		return NULL;
 	for (type = 0; type < OCFS2_MAXQUOTAS; type++)
@@ -692,7 +692,7 @@ static int ocfs2_local_read_info(struct super_block *sb, int type)
 
 	info->dqi_max_spc_limit = 0x7fffffffffffffffLL;
 	info->dqi_max_ino_limit = 0x7fffffffffffffffLL;
-	oinfo = kmalloc(sizeof(struct ocfs2_mem_dqinfo), GFP_NOFS);
+	oinfo = kmalloc_obj(struct ocfs2_mem_dqinfo, GFP_NOFS);
 	if (!oinfo) {
 		mlog(ML_ERROR, "failed to allocate memory for ocfs2 quota"
 			       " info.");

@@ -86,7 +86,7 @@ static int intel_connector_init(struct intel_connector *connector)
 	 * need it we'll free the state and allocate a smaller one on the first
 	 * successful commit anyway.
 	 */
-	conn_state = kzalloc(sizeof(*conn_state), GFP_KERNEL);
+	conn_state = kzalloc_obj(*conn_state);
 	if (!conn_state)
 		return -ENOMEM;
 
@@ -105,7 +105,7 @@ struct intel_connector *intel_connector_alloc(void)
 {
 	struct intel_connector *connector;
 
-	connector = kzalloc(sizeof(*connector), GFP_KERNEL);
+	connector = kzalloc_obj(*connector);
 	if (!connector)
 		return NULL;
 

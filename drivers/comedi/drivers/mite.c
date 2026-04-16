@@ -749,7 +749,7 @@ struct mite_ring *mite_alloc_ring(struct mite *mite)
 {
 	struct mite_ring *ring;
 
-	ring = kmalloc(sizeof(*ring), GFP_KERNEL);
+	ring = kmalloc_obj(*ring);
 	if (!ring)
 		return NULL;
 	ring->hw_dev = get_device(&mite->pcidev->dev);
@@ -879,7 +879,7 @@ struct mite *mite_attach(struct comedi_device *dev, bool use_win1)
 	unsigned int i;
 	int ret;
 
-	mite = kzalloc(sizeof(*mite), GFP_KERNEL);
+	mite = kzalloc_obj(*mite);
 	if (!mite)
 		return NULL;
 

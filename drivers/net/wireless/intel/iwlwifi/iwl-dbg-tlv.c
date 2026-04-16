@@ -71,7 +71,7 @@ static struct iwl_ucode_tlv *iwl_dbg_tlv_add(const struct iwl_ucode_tlv *tlv,
 	u32 len = le32_to_cpu(tlv->length);
 	struct iwl_dbg_tlv_node *node;
 
-	node = kzalloc(struct_size(node, tlv.data, len), GFP_KERNEL);
+	node = kzalloc_flex(*node, tlv.data, len);
 	if (!node)
 		return NULL;
 
@@ -618,7 +618,7 @@ static int iwl_dbg_tlv_alloc_fragments(struct iwl_fw_runtime *fwrt,
 	num_frags = min_t(u32, num_frags, remain_pages);
 	frag_pages = DIV_ROUND_UP(remain_pages, num_frags);
 
-	fw_mon->frags = kcalloc(num_frags, sizeof(*fw_mon->frags), GFP_KERNEL);
+	fw_mon->frags = kzalloc_objs(*fw_mon->frags, num_frags);
 	if (!fw_mon->frags)
 		return -ENOMEM;
 
@@ -1001,7 +1001,7 @@ static void iwl_dbg_tlv_set_periodic_trigs(struct iwl_fw_runtime *fwrt)
 
 		collect_interval = le32_to_cpu(trig->data[0]);
 
-		timer_node = kzalloc(sizeof(*timer_node), GFP_KERNEL);
+		timer_node = kzalloc_obj(*timer_node);
 		if (!timer_node) {
 			IWL_ERR(fwrt,
 				"WRT: Failed to allocate periodic trigger\n");

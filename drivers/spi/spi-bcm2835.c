@@ -1313,7 +1313,7 @@ static int bcm2835_spi_setup(struct spi_device *spi)
 	 * More on the problem that it addresses:
 	 *   https://www.spinics.net/lists/linux-gpio/msg36218.html
 	 */
-	lookup = kzalloc(struct_size(lookup, table, 2), GFP_KERNEL);
+	lookup = kzalloc_flex(*lookup, table, 2);
 	if (!lookup) {
 		ret = -ENOMEM;
 		goto err_cleanup;

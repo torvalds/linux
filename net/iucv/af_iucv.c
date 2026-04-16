@@ -1719,7 +1719,7 @@ static void iucv_callback_rx(struct iucv_path *path, struct iucv_message *msg)
 	goto out_unlock;
 
 save_message:
-	save_msg = kzalloc(sizeof(struct sock_msg_q), GFP_ATOMIC | GFP_DMA);
+	save_msg = kzalloc_obj(struct sock_msg_q, GFP_ATOMIC | GFP_DMA);
 	if (!save_msg)
 		goto out_unlock;
 	save_msg->path = path;

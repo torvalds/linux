@@ -1395,7 +1395,7 @@ static int igc_ethtool_add_nfc_rule(struct igc_adapter *adapter,
 		return -EINVAL;
 	}
 
-	rule = kzalloc(sizeof(*rule), GFP_KERNEL);
+	rule = kzalloc_obj(*rule);
 	if (!rule)
 		return -ENOMEM;
 

@@ -128,7 +128,7 @@ static int io_err_get_args(struct dm_target *tt, unsigned int argc, char **args)
 	char dummy;
 	int ret;
 
-	ioec = kmalloc(sizeof(*ioec), GFP_KERNEL);
+	ioec = kmalloc_obj(*ioec);
 	if (!ioec) {
 		tt->error = "Cannot allocate io_err context";
 		return -ENOMEM;

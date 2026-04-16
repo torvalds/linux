@@ -287,7 +287,7 @@ pldm_parse_desc_tlvs(struct pldmfw_priv *data, struct pldmfw_record *record, u8 
 		if (err)
 			return err;
 
-		desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+		desc = kzalloc_obj(*desc);
 		if (!desc)
 			return -ENOMEM;
 
@@ -328,7 +328,7 @@ pldm_parse_one_record(struct pldmfw_priv *data,
 	int i;
 
 	/* Make a copy and insert it into the record list */
-	record = kzalloc(sizeof(*record), GFP_KERNEL);
+	record = kzalloc_obj(*record);
 	if (!record)
 		return -ENOMEM;
 
@@ -465,7 +465,7 @@ static int pldm_parse_components(struct pldmfw_priv *data)
 		if (err)
 			return err;
 
-		component = kzalloc(sizeof(*component), GFP_KERNEL);
+		component = kzalloc_obj(*component);
 		if (!component)
 			return -ENOMEM;
 
@@ -848,7 +848,7 @@ int pldmfw_flash_image(struct pldmfw *context, const struct firmware *fw)
 	struct pldmfw_priv *data;
 	int err;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 

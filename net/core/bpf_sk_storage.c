@@ -500,7 +500,7 @@ bpf_sk_storage_diag_alloc(const struct nlattr *nla_stgs)
 		nr_maps++;
 	}
 
-	diag = kzalloc(struct_size(diag, maps, nr_maps), GFP_KERNEL);
+	diag = kzalloc_flex(*diag, maps, nr_maps);
 	if (!diag)
 		return ERR_PTR(-ENOMEM);
 

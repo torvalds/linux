@@ -347,7 +347,7 @@ static struct usb_request *gr_alloc_request(struct usb_ep *_ep, gfp_t gfp_flags)
 {
 	struct gr_request *req;
 
-	req = kzalloc(sizeof(*req), gfp_flags);
+	req = kzalloc_obj(*req, gfp_flags);
 	if (!req)
 		return NULL;
 

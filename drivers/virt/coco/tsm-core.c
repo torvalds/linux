@@ -35,7 +35,7 @@ static struct tsm_dev *alloc_tsm_dev(struct device *parent)
 	int id;
 
 	struct tsm_dev *tsm_dev __free(kfree) =
-		kzalloc(sizeof(*tsm_dev), GFP_KERNEL);
+		kzalloc_obj(*tsm_dev);
 	if (!tsm_dev)
 		return ERR_PTR(-ENOMEM);
 

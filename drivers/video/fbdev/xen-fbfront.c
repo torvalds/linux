@@ -348,7 +348,7 @@ static int xenfb_probe(struct xenbus_device *dev,
 	int val;
 	int ret = 0;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (info == NULL) {
 		xenbus_dev_fatal(dev, -ENOMEM, "allocating info structure");
 		return -ENOMEM;

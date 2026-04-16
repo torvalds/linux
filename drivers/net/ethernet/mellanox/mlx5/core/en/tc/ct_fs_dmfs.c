@@ -34,7 +34,7 @@ mlx5_ct_fs_dmfs_ct_rule_add(struct mlx5_ct_fs *fs, struct mlx5_flow_spec *spec,
 	struct mlx5_ct_fs_dmfs_rule *dmfs_rule;
 	int err;
 
-	dmfs_rule = kzalloc(sizeof(*dmfs_rule), GFP_KERNEL);
+	dmfs_rule = kzalloc_obj(*dmfs_rule);
 	if (!dmfs_rule)
 		return ERR_PTR(-ENOMEM);
 

@@ -80,12 +80,20 @@ void amdgpu_dm_set_psr_caps(struct dc_link *link)
 		link->psr_settings.psr_feature_enabled = false;
 
 	} else {
+		unsigned int panel_inst = 0;
+
 		if (link_supports_psrsu(link))
 			link->psr_settings.psr_version = DC_PSR_VERSION_SU_1;
 		else
 			link->psr_settings.psr_version = DC_PSR_VERSION_1;
 
 		link->psr_settings.psr_feature_enabled = true;
+
+		/*disable allow psr/psrsu/replay on eDP1*/
+		if (dc_get_edp_link_panel_inst(link->ctx->dc, link, &panel_inst) && panel_inst == 1) {
+			link->psr_settings.psr_version = DC_PSR_VERSION_UNSUPPORTED;
+			link->psr_settings.psr_feature_enabled = false;
+		}
 	}
 }
 

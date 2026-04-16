@@ -790,7 +790,7 @@ befs_fill_super(struct super_block *sb, struct fs_context *fc)
 	struct befs_mount_options *parsed_opts = fc->fs_private;
 	int silent = fc->sb_flags & SB_SILENT;
 
-	sb->s_fs_info = kzalloc(sizeof(*befs_sb), GFP_KERNEL);
+	sb->s_fs_info = kzalloc_obj(*befs_sb);
 	if (sb->s_fs_info == NULL)
 		goto unacquire_none;
 
@@ -956,7 +956,7 @@ static int befs_init_fs_context(struct fs_context *fc)
 {
 	struct befs_mount_options *opts;
 
-	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
+	opts = kzalloc_obj(*opts);
 	if (!opts)
 		return -ENOMEM;
 

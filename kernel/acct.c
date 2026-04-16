@@ -255,7 +255,7 @@ static int acct_on(const char __user *name)
 	if (!(file->f_mode & FMODE_CAN_WRITE))
 		return -EIO;
 
-	acct = kzalloc(sizeof(struct bsd_acct_struct), GFP_KERNEL);
+	acct = kzalloc_obj(struct bsd_acct_struct);
 	if (!acct)
 		return -ENOMEM;
 

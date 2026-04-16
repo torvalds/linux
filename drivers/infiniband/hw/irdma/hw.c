@@ -1029,7 +1029,7 @@ static int irdma_create_cqp(struct irdma_pci_f *rf)
 	u16 maj_err, min_err;
 	int i, status;
 
-	cqp->cqp_requests = kcalloc(sqsize, sizeof(*cqp->cqp_requests), GFP_KERNEL);
+	cqp->cqp_requests = kzalloc_objs(*cqp->cqp_requests, sqsize);
 	if (!cqp->cqp_requests)
 		return -ENOMEM;
 
@@ -1039,8 +1039,7 @@ static int irdma_create_cqp(struct irdma_pci_f *rf)
 		goto err_scratch;
 	}
 
-	cqp->oop_op_array = kcalloc(sqsize, sizeof(*cqp->oop_op_array),
-				    GFP_KERNEL);
+	cqp->oop_op_array = kzalloc_objs(*cqp->oop_op_array, sqsize);
 	if (!cqp->oop_op_array) {
 		status = -ENOMEM;
 		goto err_oop;
@@ -1366,7 +1365,7 @@ static int irdma_setup_ceq_0(struct irdma_pci_f *rf)
 	u32 num_ceqs;
 
 	num_ceqs = min(rf->msix_count, rf->sc_dev.hmc_fpm_misc.max_ceqs);
-	rf->ceqlist = kcalloc(num_ceqs, sizeof(*rf->ceqlist), GFP_KERNEL);
+	rf->ceqlist = kzalloc_objs(*rf->ceqlist, num_ceqs);
 	if (!rf->ceqlist) {
 		status = -ENOMEM;
 		goto exit;
@@ -2466,7 +2465,7 @@ struct irdma_apbvt_entry *irdma_add_apbvt(struct irdma_device *iwdev, u16 port)
 		return entry;
 	}
 
-	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
+	entry = kzalloc_obj(*entry, GFP_ATOMIC);
 	if (!entry) {
 		spin_unlock_irqrestore(&cm_core->apbvt_lock, flags);
 		return NULL;

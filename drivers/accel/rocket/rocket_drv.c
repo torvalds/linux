@@ -38,7 +38,7 @@ rocket_iommu_domain_destroy(struct kref *kref)
 static struct rocket_iommu_domain*
 rocket_iommu_domain_create(struct device *dev)
 {
-	struct rocket_iommu_domain *domain = kmalloc(sizeof(*domain), GFP_KERNEL);
+	struct rocket_iommu_domain *domain = kmalloc_obj(*domain);
 	void *err;
 
 	if (!domain)
@@ -79,7 +79,7 @@ rocket_open(struct drm_device *dev, struct drm_file *file)
 	if (!try_module_get(THIS_MODULE))
 		return -EINVAL;
 
-	rocket_priv = kzalloc(sizeof(*rocket_priv), GFP_KERNEL);
+	rocket_priv = kzalloc_obj(*rocket_priv);
 	if (!rocket_priv) {
 		ret = -ENOMEM;
 		goto err_put_mod;

@@ -1062,7 +1062,7 @@ static int cnic_alloc_uio_rings(struct cnic_dev *dev, int pages)
 		}
 	}
 
-	udev = kzalloc(sizeof(struct cnic_uio_dev), GFP_ATOMIC);
+	udev = kzalloc_obj(struct cnic_uio_dev, GFP_ATOMIC);
 	if (!udev)
 		return -ENOMEM;
 
@@ -1208,7 +1208,7 @@ static int cnic_alloc_bnx2x_context(struct cnic_dev *dev)
 	if (blks > cp->ethdev->ctx_tbl_len)
 		return -ENOMEM;
 
-	cp->ctx_arr = kcalloc(blks, sizeof(struct cnic_ctx), GFP_KERNEL);
+	cp->ctx_arr = kzalloc_objs(struct cnic_ctx, blks);
 	if (cp->ctx_arr == NULL)
 		return -ENOMEM;
 
@@ -1261,13 +1261,11 @@ static int cnic_alloc_bnx2x_resc(struct cnic_dev *dev)
 			cp->fcoe_init_cid = 0x10;
 	}
 
-	cp->iscsi_tbl = kcalloc(MAX_ISCSI_TBL_SZ, sizeof(struct cnic_iscsi),
-				GFP_KERNEL);
+	cp->iscsi_tbl = kzalloc_objs(struct cnic_iscsi, MAX_ISCSI_TBL_SZ);
 	if (!cp->iscsi_tbl)
 		goto error;
 
-	cp->ctx_tbl = kcalloc(cp->max_cid_space, sizeof(struct cnic_context),
-			      GFP_KERNEL);
+	cp->ctx_tbl = kzalloc_objs(struct cnic_context, cp->max_cid_space);
 	if (!cp->ctx_tbl)
 		goto error;
 
@@ -4105,8 +4103,7 @@ static int cnic_cm_alloc_mem(struct cnic_dev *dev)
 	u32 port_id;
 	int i;
 
-	cp->csk_tbl = kvcalloc(MAX_CM_SK_TBL_SZ, sizeof(struct cnic_sock),
-			       GFP_KERNEL);
+	cp->csk_tbl = kvzalloc_objs(struct cnic_sock, MAX_CM_SK_TBL_SZ);
 	if (!cp->csk_tbl)
 		return -ENOMEM;
 

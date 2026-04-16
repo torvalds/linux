@@ -1282,7 +1282,7 @@ static int rkvdec_open(struct file *filp)
 	struct rkvdec_ctx *ctx;
 	int ret;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

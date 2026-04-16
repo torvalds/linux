@@ -845,7 +845,7 @@ static int __cgroup_bpf_attach(struct cgroup *cgrp,
 	if (pl) {
 		old_prog = pl->prog;
 	} else {
-		pl = kmalloc(sizeof(*pl), GFP_KERNEL);
+		pl = kmalloc_obj(*pl);
 		if (!pl) {
 			bpf_cgroup_storages_free(new_storage);
 			return -ENOMEM;
@@ -1488,7 +1488,7 @@ int cgroup_bpf_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 	if (IS_ERR(cgrp))
 		return PTR_ERR(cgrp);
 
-	link = kzalloc(sizeof(*link), GFP_USER);
+	link = kzalloc_obj(*link, GFP_USER);
 	if (!link) {
 		err = -ENOMEM;
 		goto out_put_cgroup;

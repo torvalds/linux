@@ -725,7 +725,7 @@ sess_auth_rawntlmssp_negotiate(struct sess_data *sess_data)
 	 * if memory allocation is successful, caller of this function
 	 * frees it.
 	 */
-	ses->ntlmssp = kmalloc(sizeof(struct ntlmssp_auth), GFP_KERNEL);
+	ses->ntlmssp = kmalloc_obj(struct ntlmssp_auth);
 	if (!ses->ntlmssp) {
 		rc = -ENOMEM;
 		goto out;
@@ -969,7 +969,7 @@ int CIFS_SessSetup(const unsigned int xid, struct cifs_ses *ses,
 		return -EINVAL;
 	}
 
-	sess_data = kzalloc(sizeof(struct sess_data), GFP_KERNEL);
+	sess_data = kzalloc_obj(struct sess_data);
 	if (!sess_data)
 		return -ENOMEM;
 

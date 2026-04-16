@@ -80,7 +80,7 @@ static void drm_gem_shmem_test_obj_create_private(struct kunit *test)
 	buf = kunit_kzalloc(test, TEST_SIZE, GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, buf);
 
-	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
+	sgt = kzalloc_obj(*sgt);
 	KUNIT_ASSERT_NOT_NULL(test, sgt);
 
 	ret = kunit_add_action_or_reset(test, kfree_wrapper, sgt);

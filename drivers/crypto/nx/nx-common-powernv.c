@@ -810,7 +810,7 @@ static int __init vas_cfg_coproc_info(struct device_node *dn, int chip_id,
 		return ret;
 	}
 
-	coproc = kzalloc(sizeof(*coproc), GFP_KERNEL);
+	coproc = kzalloc_obj(*coproc);
 	if (!coproc)
 		return -ENOMEM;
 
@@ -968,7 +968,7 @@ static int __init nx842_powernv_probe(struct device_node *dn)
 		return -EINVAL;
 	}
 
-	coproc = kzalloc(sizeof(*coproc), GFP_KERNEL);
+	coproc = kzalloc_obj(*coproc);
 	if (!coproc)
 		return -ENOMEM;
 

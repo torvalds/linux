@@ -349,7 +349,7 @@ static struct btrfs_delayed_item *btrfs_alloc_delayed_item(u16 data_len,
 {
 	struct btrfs_delayed_item *item;
 
-	item = kmalloc(struct_size(item, data, data_len), GFP_NOFS);
+	item = kmalloc_flex(*item, data, data_len, GFP_NOFS);
 	if (item) {
 		item->data_len = data_len;
 		item->type = type;
@@ -1384,7 +1384,7 @@ static int btrfs_wq_run_delayed_node(struct btrfs_delayed_root *delayed_root,
 {
 	struct btrfs_async_delayed_work *async_work;
 
-	async_work = kmalloc(sizeof(*async_work), GFP_NOFS);
+	async_work = kmalloc_obj(*async_work, GFP_NOFS);
 	if (!async_work)
 		return -ENOMEM;
 
@@ -1657,7 +1657,7 @@ int btrfs_delete_delayed_dir_index(struct btrfs_trans_handle *trans,
 	if (unlikely(ret)) {
 		btrfs_err(trans->fs_info,
 "failed to add delayed dir index item, root: %llu, inode: %llu, index: %llu, error: %d",
-			  index, btrfs_root_id(node->root), node->inode_id, ret);
+			  btrfs_root_id(node->root), node->inode_id, index, ret);
 		btrfs_delayed_item_release_metadata(dir->root, item);
 		btrfs_release_delayed_item(item);
 	}

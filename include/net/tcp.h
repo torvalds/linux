@@ -43,6 +43,7 @@
 #include <net/dst.h>
 #include <net/mptcp.h>
 #include <net/xfrm.h>
+#include <net/secure_seq.h>
 
 #include <linux/seq_file.h>
 #include <linux/memcontrol.h>
@@ -544,7 +545,9 @@ struct sock *tcp_v4_syn_recv_sock(const struct sock *sk, struct sk_buff *skb,
 				  struct request_sock *req,
 				  struct dst_entry *dst,
 				  struct request_sock *req_unhash,
-				  bool *own_req);
+				  bool *own_req,
+				  void (*opt_child_init)(struct sock *newsk,
+							 const struct sock *sk));
 int tcp_v4_do_rcv(struct sock *sk, struct sk_buff *skb);
 int tcp_v4_connect(struct sock *sk, struct sockaddr_unsized *uaddr, int addr_len);
 int tcp_connect(struct sock *sk);
@@ -2462,8 +2465,9 @@ struct tcp_request_sock_ops {
 				       struct flowi *fl,
 				       struct request_sock *req,
 				       u32 tw_isn);
-	u32 (*init_seq)(const struct sk_buff *skb);
-	u32 (*init_ts_off)(const struct net *net, const struct sk_buff *skb);
+	union tcp_seq_and_ts_off (*init_seq_and_ts_off)(
+					const struct net *net,
+					const struct sk_buff *skb);
 	int (*send_synack)(const struct sock *sk, struct dst_entry *dst,
 			   struct flowi *fl, struct request_sock *req,
 			   struct tcp_fastopen_cookie *foc,

@@ -161,17 +161,17 @@ static int smc_rx_splice(struct pipe_inode_info *pipe, char *src, size_t len,
 	nr_pages = !lgr->is_smcd && smc->conn.rmb_desc->is_vm ?
 		   PAGE_ALIGN(len + offset) / PAGE_SIZE : 1;
 
-	pages = kcalloc(nr_pages, sizeof(*pages), GFP_KERNEL);
+	pages = kzalloc_objs(*pages, nr_pages);
 	if (!pages)
 		goto out;
-	partial = kcalloc(nr_pages, sizeof(*partial), GFP_KERNEL);
+	partial = kzalloc_objs(*partial, nr_pages);
 	if (!partial)
 		goto out_page;
-	priv = kcalloc(nr_pages, sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_objs(*priv, nr_pages);
 	if (!priv)
 		goto out_part;
 	for (i = 0; i < nr_pages; i++) {
-		priv[i] = kzalloc(sizeof(**priv), GFP_KERNEL);
+		priv[i] = kzalloc_obj(**priv);
 		if (!priv[i])
 			goto out_priv;
 	}

@@ -831,7 +831,7 @@ static int vega10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	struct pp_atomfwctrl_voltage_table vol_table;
 	struct amdgpu_device *adev = hwmgr->adev;
 
-	data = kzalloc(sizeof(struct vega10_hwmgr), GFP_KERNEL);
+	data = kzalloc_obj(struct vega10_hwmgr);
 	if (data == NULL)
 		return -ENOMEM;
 
@@ -1029,8 +1029,7 @@ static int vega10_trim_voltage_table(struct pp_hwmgr *hwmgr,
 
 	PP_ASSERT_WITH_CODE(vol_table,
 			"Voltage Table empty.", return -EINVAL);
-	table = kzalloc(sizeof(struct pp_atomfwctrl_voltage_table),
-			GFP_KERNEL);
+	table = kzalloc_obj(struct pp_atomfwctrl_voltage_table);
 
 	if (!table)
 		return -ENOMEM;

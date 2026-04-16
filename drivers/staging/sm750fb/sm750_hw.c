@@ -36,16 +36,11 @@ int hw_sm750_map(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 
 	pr_info("mmio phyAddr = %lx\n", sm750_dev->vidreg_start);
 
-	/*
-	 * reserve the vidreg space of smi adaptor
-	 * if you do this, you need to add release region code
-	 * in lynxfb_remove, or memory will not be mapped again
-	 * successfully
-	 */
+	/* reserve the vidreg space of smi adaptor */
 	ret = pci_request_region(pdev, 1, "sm750fb");
 	if (ret) {
 		pr_err("Can not request PCI regions.\n");
-		goto exit;
+		return ret;
 	}
 
 	/* now map mmio and vidmem */
@@ -54,7 +49,7 @@ int hw_sm750_map(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 	if (!sm750_dev->pvReg) {
 		pr_err("mmio failed\n");
 		ret = -EFAULT;
-		goto exit;
+		goto err_release_region;
 	}
 	pr_info("mmio virtual addr = %p\n", sm750_dev->pvReg);
 
@@ -79,13 +74,18 @@ int hw_sm750_map(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 	sm750_dev->pvMem =
 		ioremap_wc(sm750_dev->vidmem_start, sm750_dev->vidmem_size);
 	if (!sm750_dev->pvMem) {
-		iounmap(sm750_dev->pvReg);
 		pr_err("Map video memory failed\n");
 		ret = -EFAULT;
-		goto exit;
+		goto err_unmap_reg;
 	}
 	pr_info("video memory vaddr = %p\n", sm750_dev->pvMem);
-exit:
+
+	return 0;
+
+err_unmap_reg:
+	iounmap(sm750_dev->pvReg);
+err_release_region:
+	pci_release_region(pdev, 1);
 	return ret;
 }
 
@@ -93,7 +93,7 @@ int hw_sm750_inithw(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 {
 	struct init_status *parm;
 
-	parm = &sm750_dev->initParm;
+	parm = &sm750_dev->init_parm;
 	if (parm->chip_clk == 0)
 		parm->chip_clk = (sm750_get_chip_type() == SM750LE) ?
 					       DEFAULT_SM750LE_CHIP_CLOCK :
@@ -104,7 +104,7 @@ int hw_sm750_inithw(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 	if (parm->master_clk == 0)
 		parm->master_clk = parm->chip_clk / 3;
 
-	ddk750_init_hw((struct initchip_param *)&sm750_dev->initParm);
+	ddk750_init_hw((struct initchip_param *)&sm750_dev->init_parm);
 	/* for sm718, open pci burst */
 	if (sm750_dev->devid == 0x718) {
 		poke32(SYSTEM_CTRL,

@@ -4993,7 +4993,7 @@ hisi_sas_v3_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	shost->transportt = hisi_sas_stt;
 	shost->max_id = HISI_SAS_MAX_DEVICES;
 	shost->max_lun = ~0;
-	shost->max_channel = 1;
+	shost->max_channel = 0;
 	shost->max_cmd_len = HISI_SAS_MAX_CDB_LEN;
 	shost->can_queue = HISI_SAS_UNRESERVED_IPTT;
 	shost->cmd_per_lun = HISI_SAS_UNRESERVED_IPTT;

@@ -152,7 +152,7 @@ hl_mmap_mem_buf_alloc(struct hl_mem_mgr *mmg,
 	struct hl_mmap_mem_buf *buf;
 	int rc;
 
-	buf = kzalloc(sizeof(*buf), gfp);
+	buf = kzalloc_obj(*buf, gfp);
 	if (!buf)
 		return NULL;
 

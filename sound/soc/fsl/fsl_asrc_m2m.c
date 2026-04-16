@@ -155,7 +155,7 @@ static int asrc_dmaconfig(struct fsl_asrc_pair *pair,
 	if (buf_len % max_period_size)
 		sg_len += 1;
 
-	sg = kmalloc_array(sg_len, sizeof(*sg), GFP_KERNEL);
+	sg = kmalloc_objs(*sg, sg_len);
 	if (!sg)
 		return -ENOMEM;
 
@@ -420,7 +420,7 @@ static struct sg_table *fsl_asrc_m2m_map_dma_buf(struct dma_buf_attachment *atta
 	struct snd_dma_buffer *dmab = attachment->dmabuf->priv;
 	struct sg_table *sgt;
 
-	sgt = kmalloc(sizeof(*sgt), GFP_KERNEL);
+	sgt = kmalloc_obj(*sgt);
 	if (!sgt)
 		return NULL;
 

@@ -47,7 +47,7 @@ static int iio_dummy_evgen_create(void)
 {
 	int ret;
 
-	iio_evgen = kzalloc(sizeof(*iio_evgen), GFP_KERNEL);
+	iio_evgen = kzalloc_obj(*iio_evgen);
 	if (!iio_evgen)
 		return -ENOMEM;
 

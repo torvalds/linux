@@ -148,7 +148,7 @@ struct drm_i915_private *mock_gem_device(void)
 	struct pci_dev *pdev;
 	int ret;
 
-	pdev = kzalloc(sizeof(*pdev), GFP_KERNEL);
+	pdev = kzalloc_obj(*pdev);
 	if (!pdev)
 		return NULL;
 	device_initialize(&pdev->dev);

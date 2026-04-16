@@ -374,7 +374,7 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args,
 		goto out_err;
 
 	err = -ENOMEM;
-	clnt = kzalloc(sizeof(*clnt), GFP_KERNEL);
+	clnt = kzalloc_obj(*clnt);
 	if (!clnt)
 		goto out_err;
 	clnt->cl_parent = parent ? : clnt;
@@ -2976,7 +2976,7 @@ int rpc_clnt_test_and_add_xprt(struct rpc_clnt *clnt,
 		return -EINVAL;
 	}
 
-	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	data = kmalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 	data->xps = xprt_switch_get(xps);

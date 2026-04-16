@@ -96,6 +96,12 @@
 #define   ENABLE_SEMAPHORE_POLL_BIT		REG_BIT(13)
 
 #define RING_CMD_CCTL(base)			XE_REG((base) + 0xc4, XE_REG_OPTION_MASKED)
+
+#define CS_MMIO_GROUP_INSTANCE_SELECT(base)	XE_REG((base) + 0xcc)
+#define   SELECTIVE_READ_ADDRESSING		REG_BIT(30)
+#define   SELECTIVE_READ_GROUP			REG_GENMASK(29, 23)
+#define   SELECTIVE_READ_INSTANCE		REG_GENMASK(22, 16)
+
 /*
  * CMD_CCTL read/write fields take a MOCS value and _not_ a table index.
  * The lsb of each can be considered a separate enabling bit for encryption.

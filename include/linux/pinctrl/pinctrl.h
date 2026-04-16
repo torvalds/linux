@@ -187,9 +187,6 @@ extern struct pinctrl_dev *devm_pinctrl_register(struct device *dev,
 				const struct pinctrl_desc *pctldesc,
 				void *driver_data);
 
-extern void devm_pinctrl_unregister(struct device *dev,
-				struct pinctrl_dev *pctldev);
-
 extern void pinctrl_add_gpio_range(struct pinctrl_dev *pctldev,
 				struct pinctrl_gpio_range *range);
 extern void pinctrl_add_gpio_ranges(struct pinctrl_dev *pctldev,

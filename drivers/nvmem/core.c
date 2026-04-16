@@ -650,7 +650,7 @@ int nvmem_add_one_cell(struct nvmem_device *nvmem,
 	struct nvmem_cell_entry *cell;
 	int rval;
 
-	cell = kzalloc(sizeof(*cell), GFP_KERNEL);
+	cell = kzalloc_obj(*cell);
 	if (!cell)
 		return -ENOMEM;
 
@@ -789,11 +789,10 @@ static int nvmem_validate_keepouts(struct nvmem_device *nvmem)
 static int nvmem_add_cells_from_dt(struct nvmem_device *nvmem, struct device_node *np)
 {
 	struct device *dev = &nvmem->dev;
-	struct device_node *child;
 	const __be32 *addr;
 	int len, ret;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_node_scoped(np, child) {
 		struct nvmem_cell_info info = {0};
 
 		addr = of_get_property(child, "reg", &len);
@@ -801,7 +800,6 @@ static int nvmem_add_cells_from_dt(struct nvmem_device *nvmem, struct device_nod
 			continue;
 		if (len < 2 * sizeof(u32)) {
 			dev_err(dev, "nvmem: invalid reg on %pOF\n", child);
-			of_node_put(child);
 			return -EINVAL;
 		}
 
@@ -817,7 +815,6 @@ static int nvmem_add_cells_from_dt(struct nvmem_device *nvmem, struct device_nod
 			    info.nbits < 1 ||
 			    info.bit_offset + info.nbits > BITS_PER_BYTE * info.bytes) {
 				dev_err(dev, "nvmem: invalid bits on %pOF\n", child);
-				of_node_put(child);
 				return -EINVAL;
 			}
 		}
@@ -830,7 +827,7 @@ static int nvmem_add_cells_from_dt(struct nvmem_device *nvmem, struct device_nod
 		ret = nvmem_add_one_cell(nvmem, &info);
 		kfree(info.name);
 		if (ret) {
-			of_node_put(child);
+			of_node_put(info.np);
 			return ret;
 		}
 	}
@@ -911,7 +908,7 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 	if (!config->reg_read && !config->reg_write)
 		return ERR_PTR(-EINVAL);
 
-	nvmem = kzalloc(sizeof(*nvmem), GFP_KERNEL);
+	nvmem = kzalloc_obj(*nvmem);
 	if (!nvmem)
 		return ERR_PTR(-ENOMEM);
 
@@ -1298,7 +1295,7 @@ static struct nvmem_cell *nvmem_create_cell(struct nvmem_cell_entry *entry,
 	struct nvmem_cell *cell;
 	const char *name = NULL;
 
-	cell = kzalloc(sizeof(*cell), GFP_KERNEL);
+	cell = kzalloc_obj(*cell);
 	if (!cell)
 		return ERR_PTR(-ENOMEM);
 

@@ -132,7 +132,7 @@ static int __init appldata_net_init(void)
 {
 	int ret;
 
-	ops.data = kzalloc(sizeof(struct appldata_net_sum_data), GFP_KERNEL);
+	ops.data = kzalloc_obj(struct appldata_net_sum_data);
 	if (!ops.data)
 		return -ENOMEM;
 

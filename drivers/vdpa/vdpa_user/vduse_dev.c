@@ -1232,7 +1232,7 @@ static int vduse_dev_reg_umem(struct vduse_dev *dev,
 	npages = size >> PAGE_SHIFT;
 	page_list = __vmalloc(array_size(npages, sizeof(struct page *)),
 			      GFP_KERNEL_ACCOUNT);
-	umem = kzalloc(sizeof(*umem), GFP_KERNEL);
+	umem = kzalloc_obj(*umem);
 	if (!page_list || !umem)
 		goto unlock;
 
@@ -1800,12 +1800,12 @@ static int vduse_dev_init_vqs(struct vduse_dev *dev, u32 vq_align, u32 vq_num)
 
 	dev->vq_align = vq_align;
 	dev->vq_num = vq_num;
-	dev->vqs = kcalloc(dev->vq_num, sizeof(*dev->vqs), GFP_KERNEL);
+	dev->vqs = kzalloc_objs(*dev->vqs, dev->vq_num);
 	if (!dev->vqs)
 		return -ENOMEM;
 
 	for (i = 0; i < vq_num; i++) {
-		dev->vqs[i] = kzalloc(sizeof(*dev->vqs[i]), GFP_KERNEL);
+		dev->vqs[i] = kzalloc_obj(*dev->vqs[i]);
 		if (!dev->vqs[i]) {
 			ret = -ENOMEM;
 			goto err;
@@ -1839,7 +1839,7 @@ err:
 
 static struct vduse_dev *vduse_dev_create(void)
 {
-	struct vduse_dev *dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	struct vduse_dev *dev = kzalloc_obj(*dev);
 
 	if (!dev)
 		return NULL;
@@ -2076,7 +2076,7 @@ static int vduse_create_dev(struct vduse_dev_config *config,
 	dev->vendor_id = config->vendor_id;
 
 	dev->nas = (dev->api_version < VDUSE_API_VERSION_1) ? 1 : config->nas;
-	dev->as = kcalloc(dev->nas, sizeof(dev->as[0]), GFP_KERNEL);
+	dev->as = kzalloc_objs(dev->as[0], dev->nas);
 	if (!dev->as)
 		goto err_as;
 	for (int i = 0; i < dev->nas; i++)
@@ -2085,8 +2085,7 @@ static int vduse_create_dev(struct vduse_dev_config *config,
 	dev->ngroups = (dev->api_version < VDUSE_API_VERSION_1)
 		       ? 1
 		       : config->ngroups;
-	dev->groups = kcalloc(dev->ngroups, sizeof(dev->groups[0]),
-			      GFP_KERNEL);
+	dev->groups = kzalloc_objs(dev->groups[0], dev->ngroups);
 	if (!dev->groups)
 		goto err_vq_groups;
 	for (u32 i = 0; i < dev->ngroups; ++i) {
@@ -2227,7 +2226,7 @@ static int vduse_open(struct inode *inode, struct file *file)
 {
 	struct vduse_control *control;
 
-	control = kmalloc(sizeof(struct vduse_control), GFP_KERNEL);
+	control = kmalloc_obj(struct vduse_control);
 	if (!control)
 		return -ENOMEM;
 
@@ -2357,7 +2356,7 @@ static int vduse_mgmtdev_init(void)
 {
 	int ret;
 
-	vduse_mgmt = kzalloc(sizeof(*vduse_mgmt), GFP_KERNEL);
+	vduse_mgmt = kzalloc_obj(*vduse_mgmt);
 	if (!vduse_mgmt)
 		return -ENOMEM;
 

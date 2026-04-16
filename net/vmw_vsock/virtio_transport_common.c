@@ -920,7 +920,7 @@ int virtio_transport_do_socket_init(struct vsock_sock *vsk,
 {
 	struct virtio_vsock_sock *vvs;
 
-	vvs = kzalloc(sizeof(*vvs), GFP_KERNEL);
+	vvs = kzalloc_obj(*vvs);
 	if (!vvs)
 		return -ENOMEM;
 

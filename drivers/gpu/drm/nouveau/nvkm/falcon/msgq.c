@@ -203,7 +203,7 @@ nvkm_falcon_msgq_new(struct nvkm_falcon_qmgr *qmgr, const char *name,
 {
 	struct nvkm_falcon_msgq *msgq = *pmsgq;
 
-	if (!(msgq = *pmsgq = kzalloc(sizeof(*msgq), GFP_KERNEL)))
+	if (!(msgq = *pmsgq = kzalloc_obj(*msgq)))
 		return -ENOMEM;
 
 	msgq->qmgr = qmgr;

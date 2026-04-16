@@ -307,7 +307,7 @@ static int cytherm_probe(struct usb_interface *interface,
 	struct usb_cytherm *dev;
 	int retval = -ENOMEM;
 
-	dev = kzalloc(sizeof(struct usb_cytherm), GFP_KERNEL);
+	dev = kzalloc_obj(struct usb_cytherm);
 	if (!dev)
 		goto error_mem;
 

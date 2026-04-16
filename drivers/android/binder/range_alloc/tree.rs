@@ -164,15 +164,6 @@ impl<T> TreeRangeAllocator<T> {
             self.free_oneway_space
         };
 
-        // Start detecting spammers once we have less than 20%
-        // of async space left (which is less than 10% of total
-        // buffer size).
-        //
-        // (This will short-circut, so `low_oneway_space` is
-        // only called when necessary.)
-        let oneway_spam_detected =
-            is_oneway && new_oneway_space < self.size / 10 && self.low_oneway_space(pid);
-
         let (found_size, found_off, tree_node, free_tree_node) = match self.find_best_match(size) {
             None => {
                 pr_warn!("ENOSPC from range_alloc.reserve_new - size: {}", size);
@@ -202,6 +193,15 @@ impl<T> TreeRangeAllocator<T> {
             self.tree.insert(tree_node);
             self.free_tree.insert(free_tree_node);
         }
+
+        // Start detecting spammers once we have less than 20%
+        // of async space left (which is less than 10% of total
+        // buffer size).
+        //
+        // (This will short-circuit, so `low_oneway_space` is
+        // only called when necessary.)
+        let oneway_spam_detected =
+            is_oneway && new_oneway_space < self.size / 10 && self.low_oneway_space(pid);
 
         Ok((found_off, oneway_spam_detected))
     }

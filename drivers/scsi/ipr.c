@@ -3776,7 +3776,7 @@ static struct ipr_sglist *ipr_alloc_ucode_buffer(int buf_len)
 	order = get_order(sg_size);
 
 	/* Allocate a scatter/gather list for the DMA */
-	sglist = kzalloc(sizeof(struct ipr_sglist), GFP_KERNEL);
+	sglist = kzalloc_obj(struct ipr_sglist);
 	if (sglist == NULL) {
 		ipr_trace;
 		return NULL;
@@ -4273,7 +4273,7 @@ static int ipr_alloc_dump(struct ipr_ioa_cfg *ioa_cfg)
 	__be32 **ioa_data;
 	unsigned long lock_flags = 0;
 
-	dump = kzalloc(sizeof(struct ipr_dump), GFP_KERNEL);
+	dump = kzalloc_obj(struct ipr_dump);
 
 	if (!dump) {
 		ipr_err("Dump memory allocation failed\n");
@@ -8859,8 +8859,9 @@ static int ipr_alloc_cmd_blks(struct ipr_ioa_cfg *ioa_cfg)
 	if (!ioa_cfg->ipr_cmd_pool)
 		return -ENOMEM;
 
-	ioa_cfg->ipr_cmnd_list = kcalloc(IPR_NUM_CMD_BLKS, sizeof(struct ipr_cmnd *), GFP_KERNEL);
-	ioa_cfg->ipr_cmnd_list_dma = kcalloc(IPR_NUM_CMD_BLKS, sizeof(dma_addr_t), GFP_KERNEL);
+	ioa_cfg->ipr_cmnd_list = kzalloc_objs(struct ipr_cmnd *,
+					      IPR_NUM_CMD_BLKS);
+	ioa_cfg->ipr_cmnd_list_dma = kzalloc_objs(dma_addr_t, IPR_NUM_CMD_BLKS);
 
 	if (!ioa_cfg->ipr_cmnd_list || !ioa_cfg->ipr_cmnd_list_dma) {
 		ipr_free_cmd_blks(ioa_cfg);
@@ -8963,9 +8964,8 @@ static int ipr_alloc_mem(struct ipr_ioa_cfg *ioa_cfg)
 	int i, rc = -ENOMEM;
 
 	ENTER;
-	ioa_cfg->res_entries = kcalloc(ioa_cfg->max_devs_supported,
-				       sizeof(struct ipr_resource_entry),
-				       GFP_KERNEL);
+	ioa_cfg->res_entries = kzalloc_objs(struct ipr_resource_entry,
+					    ioa_cfg->max_devs_supported);
 
 	if (!ioa_cfg->res_entries)
 		goto out;
@@ -9026,9 +9026,8 @@ static int ipr_alloc_mem(struct ipr_ioa_cfg *ioa_cfg)
 		list_add_tail(&ioa_cfg->hostrcb[i]->queue, &ioa_cfg->hostrcb_free_q);
 	}
 
-	ioa_cfg->trace = kcalloc(IPR_NUM_TRACE_ENTRIES,
-				 sizeof(struct ipr_trace_entry),
-				 GFP_KERNEL);
+	ioa_cfg->trace = kzalloc_objs(struct ipr_trace_entry,
+				      IPR_NUM_TRACE_ENTRIES);
 
 	if (!ioa_cfg->trace)
 		goto out_free_hostrcb_dma;

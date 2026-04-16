@@ -317,7 +317,7 @@ static void destroy_unused_super(struct super_block *s)
 static struct super_block *alloc_super(struct file_system_type *type, int flags,
 				       struct user_namespace *user_ns)
 {
-	struct super_block *s = kzalloc(sizeof(struct super_block), GFP_KERNEL);
+	struct super_block *s = kzalloc_obj(struct super_block);
 	static const struct super_operations default_op;
 	int i;
 
@@ -1135,7 +1135,7 @@ void emergency_remount(void)
 {
 	struct work_struct *work;
 
-	work = kmalloc(sizeof(*work), GFP_ATOMIC);
+	work = kmalloc_obj(*work, GFP_ATOMIC);
 	if (work) {
 		INIT_WORK(work, do_emergency_remount);
 		schedule_work(work);
@@ -1167,7 +1167,7 @@ void emergency_thaw_all(void)
 {
 	struct work_struct *work;
 
-	work = kmalloc(sizeof(*work), GFP_ATOMIC);
+	work = kmalloc_obj(*work, GFP_ATOMIC);
 	if (work) {
 		INIT_WORK(work, do_thaw_all);
 		schedule_work(work);

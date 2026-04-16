@@ -944,7 +944,7 @@ static int smc_ib_add_dev(struct ib_device *ibdev)
 	if (ibdev->node_type != RDMA_NODE_IB_CA)
 		return -EOPNOTSUPP;
 
-	smcibdev = kzalloc(sizeof(*smcibdev), GFP_KERNEL);
+	smcibdev = kzalloc_obj(*smcibdev);
 	if (!smcibdev)
 		return -ENOMEM;
 

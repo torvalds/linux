@@ -261,9 +261,9 @@ pvr_vm_bind_op_map_init(struct pvr_vm_bind_op *bind_op,
 	if (IS_ERR(bind_op->gpuvm_bo))
 		return PTR_ERR(bind_op->gpuvm_bo);
 
-	bind_op->new_va = kzalloc(sizeof(*bind_op->new_va), GFP_KERNEL);
-	bind_op->prev_va = kzalloc(sizeof(*bind_op->prev_va), GFP_KERNEL);
-	bind_op->next_va = kzalloc(sizeof(*bind_op->next_va), GFP_KERNEL);
+	bind_op->new_va = kzalloc_obj(*bind_op->new_va);
+	bind_op->prev_va = kzalloc_obj(*bind_op->prev_va);
+	bind_op->next_va = kzalloc_obj(*bind_op->next_va);
 	if (!bind_op->new_va || !bind_op->prev_va || !bind_op->next_va) {
 		err = -ENOMEM;
 		goto err_bind_op_fini;
@@ -310,8 +310,8 @@ pvr_vm_bind_op_unmap_init(struct pvr_vm_bind_op *bind_op,
 
 	bind_op->type = PVR_VM_BIND_TYPE_UNMAP;
 
-	bind_op->prev_va = kzalloc(sizeof(*bind_op->prev_va), GFP_KERNEL);
-	bind_op->next_va = kzalloc(sizeof(*bind_op->next_va), GFP_KERNEL);
+	bind_op->prev_va = kzalloc_obj(*bind_op->prev_va);
+	bind_op->next_va = kzalloc_obj(*bind_op->next_va);
 	if (!bind_op->prev_va || !bind_op->next_va) {
 		err = -ENOMEM;
 		goto err_bind_op_fini;
@@ -565,7 +565,7 @@ pvr_vm_create_context(struct pvr_device *pvr_dev, bool is_userspace_context)
 		return ERR_PTR(-EINVAL);
 	}
 
-	vm_ctx = kzalloc(sizeof(*vm_ctx), GFP_KERNEL);
+	vm_ctx = kzalloc_obj(*vm_ctx);
 	if (!vm_ctx)
 		return ERR_PTR(-ENOMEM);
 

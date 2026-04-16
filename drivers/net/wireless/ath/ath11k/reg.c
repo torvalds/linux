@@ -146,8 +146,7 @@ int ath11k_reg_update_chan_list(struct ath11k *ar, bool wait)
 	if (WARN_ON(!num_channels))
 		return -EINVAL;
 
-	params = kzalloc(struct_size(params, ch_param, num_channels),
-			 GFP_KERNEL);
+	params = kzalloc_flex(*params, ch_param, num_channels);
 	if (!params)
 		return -ENOMEM;
 

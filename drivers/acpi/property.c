@@ -89,7 +89,7 @@ static bool acpi_nondev_subnode_extract(union acpi_object *desc,
 	if (acpi_graph_ignore_port(handle))
 		return false;
 
-	dn = kzalloc(sizeof(*dn), GFP_KERNEL);
+	dn = kzalloc_obj(*dn);
 	if (!dn)
 		return false;
 
@@ -383,7 +383,7 @@ acpi_data_add_props(struct acpi_device_data *data, const guid_t *guid,
 {
 	struct acpi_device_properties *props;
 
-	props = kzalloc(sizeof(*props), GFP_KERNEL);
+	props = kzalloc_obj(*props);
 	if (props) {
 		INIT_LIST_HEAD(&props->list);
 		props->guid = guid;

@@ -1329,7 +1329,7 @@ struct iris_inst *iris_hfi_gen2_get_instance(void)
 	struct iris_inst_hfi_gen2 *out;
 
 	/* The allocation is intentionally larger than struct iris_inst. */
-	out = kzalloc(sizeof(*out), GFP_KERNEL);
+	out = kzalloc_obj(*out);
 
 	return &out->inst;
 }

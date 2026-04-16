@@ -104,7 +104,7 @@ static void *ch_ipsec_uld_add(const struct cxgb4_lld_info *infop)
 
 	pr_info_once("%s - version %s\n", CHIPSEC_DRV_DESC,
 		     CHIPSEC_DRV_VERSION);
-	u_ctx = kzalloc(sizeof(*u_ctx), GFP_KERNEL);
+	u_ctx = kzalloc_obj(*u_ctx);
 	if (!u_ctx) {
 		u_ctx = ERR_PTR(-ENOMEM);
 		goto out;
@@ -295,7 +295,7 @@ static int ch_ipsec_xfrm_add_state(struct net_device *dev,
 		return -ENODEV;
 	}
 
-	sa_entry = kzalloc(sizeof(*sa_entry), GFP_KERNEL);
+	sa_entry = kzalloc_obj(*sa_entry);
 	if (!sa_entry) {
 		res = -ENOMEM;
 		module_put(THIS_MODULE);

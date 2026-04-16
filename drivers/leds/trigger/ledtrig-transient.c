@@ -164,7 +164,7 @@ static int transient_trig_activate(struct led_classdev *led_cdev)
 {
 	struct transient_trig_data *tdata;
 
-	tdata = kzalloc(sizeof(struct transient_trig_data), GFP_KERNEL);
+	tdata = kzalloc_obj(struct transient_trig_data);
 	if (!tdata)
 		return -ENOMEM;
 

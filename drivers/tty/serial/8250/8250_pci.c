@@ -1205,60 +1205,49 @@ static unsigned int pci_oxsemi_tornado_get_divisor(struct uart_port *port,
 	u8 tcr;
 	int i;
 
-	/* Old custom speed handling.  */
-	if (baud == 38400 && (port->flags & UPF_SPD_MASK) == UPF_SPD_CUST) {
-		unsigned int cust_div = port->custom_divisor;
+	best_squot = quot_scale;
+	for (i = 0; i < ARRAY_SIZE(p); i++) {
+		unsigned int spre;
+		unsigned int srem;
+		u8 cp;
+		u8 tc;
 
-		quot = cust_div & UART_DIV_MAX;
-		tcr = (cust_div >> 16) & OXSEMI_TORNADO_TCR_MASK;
-		cpr = (cust_div >> 20) & OXSEMI_TORNADO_CPR_MASK;
-		if (cpr < OXSEMI_TORNADO_CPR_MIN)
-			cpr = OXSEMI_TORNADO_CPR_DEF;
-	} else {
-		best_squot = quot_scale;
-		for (i = 0; i < ARRAY_SIZE(p); i++) {
-			unsigned int spre;
-			unsigned int srem;
-			u8 cp;
-			u8 tc;
+		tc = p[i][0];
+		cp = p[i][1];
+		spre = tc * cp;
 
-			tc = p[i][0];
-			cp = p[i][1];
-			spre = tc * cp;
+		srem = sdiv % spre;
+		if (srem > spre / 2)
+			srem = spre - srem;
+		squot = DIV_ROUND_CLOSEST(srem * quot_scale, spre);
 
-			srem = sdiv % spre;
-			if (srem > spre / 2)
-				srem = spre - srem;
-			squot = DIV_ROUND_CLOSEST(srem * quot_scale, spre);
-
-			if (srem == 0) {
-				tcr = tc;
-				cpr = cp;
-				quot = sdiv / spre;
-				break;
-			} else if (squot < best_squot) {
-				best_squot = squot;
-				tcr = tc;
-				cpr = cp;
-				quot = DIV_ROUND_CLOSEST(sdiv, spre);
-			}
+		if (srem == 0) {
+			tcr = tc;
+			cpr = cp;
+			quot = sdiv / spre;
+			break;
+		} else if (squot < best_squot) {
+			best_squot = squot;
+			tcr = tc;
+			cpr = cp;
+			quot = DIV_ROUND_CLOSEST(sdiv, spre);
 		}
-		while (tcr <= (OXSEMI_TORNADO_TCR_MASK + 1) >> 1 &&
-		       quot % 2 == 0) {
+	}
+	while (tcr <= (OXSEMI_TORNADO_TCR_MASK + 1) >> 1 &&
+	       quot % 2 == 0) {
+		quot >>= 1;
+		tcr <<= 1;
+	}
+	while (quot > UART_DIV_MAX) {
+		if (tcr <= (OXSEMI_TORNADO_TCR_MASK + 1) >> 1) {
 			quot >>= 1;
 			tcr <<= 1;
-		}
-		while (quot > UART_DIV_MAX) {
-			if (tcr <= (OXSEMI_TORNADO_TCR_MASK + 1) >> 1) {
-				quot >>= 1;
-				tcr <<= 1;
-			} else if (cpr <= OXSEMI_TORNADO_CPR_MASK >> 1) {
-				quot >>= 1;
-				cpr <<= 1;
-			} else {
-				quot = quot * cpr / OXSEMI_TORNADO_CPR_MASK;
-				cpr = OXSEMI_TORNADO_CPR_MASK;
-			}
+		} else if (cpr <= OXSEMI_TORNADO_CPR_MASK >> 1) {
+			quot >>= 1;
+			cpr <<= 1;
+		} else {
+			quot = quot * cpr / OXSEMI_TORNADO_CPR_MASK;
+			cpr = OXSEMI_TORNADO_CPR_MASK;
 		}
 	}
 
@@ -4159,7 +4148,7 @@ pciserial_init_ports(struct pci_dev *dev, const struct pciserial_board *board)
 			nr_ports = rc;
 	}
 
-	priv = kzalloc(struct_size(priv, line, nr_ports), GFP_KERNEL);
+	priv = kzalloc_flex(*priv, line, nr_ports);
 	if (!priv) {
 		priv = ERR_PTR(-ENOMEM);
 		goto err_deinit;

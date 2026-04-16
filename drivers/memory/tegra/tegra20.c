@@ -401,7 +401,7 @@ tegra20_mc_of_icc_xlate_extended(const struct of_phandle_args *spec, void *data)
 		if (node->id != idx)
 			continue;
 
-		ndata = kzalloc(sizeof(*ndata), GFP_KERNEL);
+		ndata = kzalloc_obj(*ndata);
 		if (!ndata)
 			return ERR_PTR(-ENOMEM);
 
@@ -615,7 +615,7 @@ static int tegra20_mc_stats_show(struct seq_file *s, void *unused)
 	struct tegra20_mc_client_stat *stats;
 	unsigned int i;
 
-	stats = kcalloc(mc->soc->num_clients + 1, sizeof(*stats), GFP_KERNEL);
+	stats = kzalloc_objs(*stats, mc->soc->num_clients + 1);
 	if (!stats)
 		return -ENOMEM;
 

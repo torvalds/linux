@@ -29,7 +29,7 @@ MODULE_PARM_DESC(use_lut_mws,
 		 "Enable the use of the LUT based memory windows");
 
 #define SWITCHTEC_NTB_MAGIC 0x45CC0001
-#define MAX_MWS     128
+#define MAX_MWS     256
 
 struct shared_mw {
 	u32 magic;
@@ -1202,7 +1202,8 @@ static void switchtec_ntb_init_mw(struct switchtec_ntb *sndev)
 				       sndev->mmio_self_ctrl);
 
 	sndev->nr_lut_mw = ioread16(&sndev->mmio_self_ctrl->lut_table_entries);
-	sndev->nr_lut_mw = rounddown_pow_of_two(sndev->nr_lut_mw);
+	if (sndev->nr_lut_mw)
+		sndev->nr_lut_mw = rounddown_pow_of_two(sndev->nr_lut_mw);
 
 	dev_dbg(&sndev->stdev->dev, "MWs: %d direct, %d lut\n",
 		sndev->nr_direct_mw, sndev->nr_lut_mw);
@@ -1212,7 +1213,8 @@ static void switchtec_ntb_init_mw(struct switchtec_ntb *sndev)
 
 	sndev->peer_nr_lut_mw =
 		ioread16(&sndev->mmio_peer_ctrl->lut_table_entries);
-	sndev->peer_nr_lut_mw = rounddown_pow_of_two(sndev->peer_nr_lut_mw);
+	if (sndev->peer_nr_lut_mw)
+		sndev->peer_nr_lut_mw = rounddown_pow_of_two(sndev->peer_nr_lut_mw);
 
 	dev_dbg(&sndev->stdev->dev, "Peer MWs: %d direct, %d lut\n",
 		sndev->peer_nr_direct_mw, sndev->peer_nr_lut_mw);
@@ -1313,6 +1315,12 @@ static void switchtec_ntb_init_shared(struct switchtec_ntb *sndev)
 
 	for (i = 0; i < sndev->nr_lut_mw; i++) {
 		int idx = sndev->nr_direct_mw + i;
+
+		if (idx >= MAX_MWS) {
+			dev_err(&sndev->stdev->dev,
+				"Total number of MW cannot be bigger than %d", MAX_MWS);
+			break;
+		}
 
 		sndev->self_shared->mw_sizes[idx] = LUT_SIZE;
 	}

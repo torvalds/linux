@@ -1290,7 +1290,7 @@ static int dspi_setup(struct spi_device *spi)
 	/* Only alloc on first setup */
 	chip = spi_get_ctldata(spi);
 	if (chip == NULL) {
-		chip = kzalloc(sizeof(struct chip_data), GFP_KERNEL);
+		chip = kzalloc_obj(struct chip_data);
 		if (!chip)
 			return -ENOMEM;
 	}

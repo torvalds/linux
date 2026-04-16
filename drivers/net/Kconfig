@@ -333,6 +333,7 @@ config MACSEC
 
 config NETCONSOLE
 	tristate "Network console logging support"
+	depends on PRINTK
 	help
 	  If you want to log kernel messages over the network, enable this.
 	  See <file:Documentation/networking/netconsole.rst> for details.

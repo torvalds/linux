@@ -350,7 +350,7 @@ static int __init mchp_pit64b_init_clksrc(struct mchp_pit64b_timer *timer,
 	struct mchp_pit64b_clksrc *cs;
 	int ret;
 
-	cs = kzalloc(sizeof(*cs), GFP_KERNEL);
+	cs = kzalloc_obj(*cs);
 	if (!cs)
 		return -ENOMEM;
 
@@ -397,7 +397,7 @@ static int __init mchp_pit64b_init_clkevt(struct mchp_pit64b_timer *timer,
 	struct mchp_pit64b_clkevt *ce;
 	int ret;
 
-	ce = kzalloc(sizeof(*ce), GFP_KERNEL);
+	ce = kzalloc_obj(*ce);
 	if (!ce)
 		return -ENOMEM;
 

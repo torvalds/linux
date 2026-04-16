@@ -633,13 +633,12 @@ static __init_or_module int add_sysfs_param(struct module_kobject *mk,
 
 	if (!mk->mp) {
 		/* First allocation. */
-		mk->mp = kzalloc(sizeof(*mk->mp), GFP_KERNEL);
+		mk->mp = kzalloc_obj(*mk->mp);
 		if (!mk->mp)
 			return -ENOMEM;
 		mk->mp->grp.name = "parameters";
 		/* NULL-terminated attribute array. */
-		mk->mp->grp.attrs = kzalloc(sizeof(mk->mp->grp.attrs[0]),
-					    GFP_KERNEL);
+		mk->mp->grp.attrs = kzalloc_obj(mk->mp->grp.attrs[0]);
 		/* Caller will cleanup via free_module_param_attrs */
 		if (!mk->mp->grp.attrs)
 			return -ENOMEM;
@@ -766,7 +765,7 @@ lookup_or_create_module_kobject(const char *name)
 	if (kobj)
 		return to_module_kobject(kobj);
 
-	mk = kzalloc(sizeof(struct module_kobject), GFP_KERNEL);
+	mk = kzalloc_obj(struct module_kobject);
 	if (!mk)
 		return NULL;
 

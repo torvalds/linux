@@ -276,7 +276,7 @@ static int avecintc_domain_alloc(struct irq_domain *domain, unsigned int virq,
 {
 	for (unsigned int i = 0; i < nr_irqs; i++) {
 		struct irq_data *irqd = irq_domain_get_irq_data(domain, virq + i);
-		struct avecintc_data *adata = kzalloc(sizeof(*adata), GFP_KERNEL);
+		struct avecintc_data *adata = kzalloc_obj(*adata);
 		int ret;
 
 		if (!adata)

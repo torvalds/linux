@@ -280,7 +280,7 @@ int oaktrail_hdmi_i2c_init(struct pci_dev *dev)
 
 	hdmi_dev = pci_get_drvdata(dev);
 
-	i2c_dev = kzalloc(sizeof(struct hdmi_i2c_dev), GFP_KERNEL);
+	i2c_dev = kzalloc_obj(struct hdmi_i2c_dev);
 	if (!i2c_dev)
 		return -ENOMEM;
 

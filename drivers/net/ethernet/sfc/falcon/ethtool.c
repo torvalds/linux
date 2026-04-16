@@ -493,7 +493,7 @@ static void ef4_ethtool_self_test(struct net_device *net_dev,
 	bool already_up;
 	int rc = -ENOMEM;
 
-	ef4_tests = kzalloc(sizeof(*ef4_tests), GFP_KERNEL);
+	ef4_tests = kzalloc_obj(*ef4_tests);
 	if (!ef4_tests)
 		goto fail;
 

@@ -346,7 +346,7 @@ nv50_vmm_join(struct nvkm_vmm *vmm, struct nvkm_memory *inst)
 	u64 data;
 	u32 pdei;
 
-	if (!(join = kmalloc(sizeof(*join), GFP_KERNEL)))
+	if (!(join = kmalloc_obj(*join)))
 		return -ENOMEM;
 	join->inst = inst;
 	list_add_tail(&join->head, &vmm->join);

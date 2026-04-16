@@ -2424,7 +2424,7 @@ static int av7110_attach(struct saa7146_dev *dev,
 	}
 
 	/* prepare the av7110 device struct */
-	av7110 = kzalloc(sizeof(*av7110), GFP_KERNEL);
+	av7110 = kzalloc_obj(*av7110);
 	if (!av7110) {
 		dprintk(1, "out of memory\n");
 		return -ENOMEM;

@@ -321,7 +321,7 @@ static struct ceph_inode_frag *__get_or_create_frag(struct ceph_inode_info *ci,
 			return frag;
 	}
 
-	frag = kmalloc(sizeof(*frag), GFP_NOFS);
+	frag = kmalloc_obj(*frag, GFP_NOFS);
 	if (!frag)
 		return ERR_PTR(-ENOMEM);
 
@@ -2551,7 +2551,7 @@ int __ceph_setattr(struct mnt_idmap *idmap, struct inode *inode,
 	if (!dentry) {
 		do_sync = true;
 	} else {
-		struct ceph_path_info path_info;
+		struct ceph_path_info path_info = {0};
 		path = ceph_mdsc_build_path(mdsc, dentry, &path_info, 0);
 		if (IS_ERR(path)) {
 			do_sync = true;

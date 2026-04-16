@@ -1334,7 +1334,7 @@ xlog_alloc_log(
 	int			error = -ENOMEM;
 	uint			log2_size = 0;
 
-	log = kzalloc(sizeof(struct xlog), GFP_KERNEL | __GFP_RETRY_MAYFAIL);
+	log = kzalloc_obj(struct xlog, GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 	if (!log) {
 		xfs_warn(mp, "Log allocation failed: No memory!");
 		goto out;
@@ -1357,6 +1357,8 @@ xlog_alloc_log(
 
 	if (xfs_has_logv2(mp) && mp->m_sb.sb_logsunit > 1)
 		log->l_iclog_roundoff = mp->m_sb.sb_logsunit;
+	else if (mp->m_sb.sb_logsectsize > 0)
+		log->l_iclog_roundoff = mp->m_sb.sb_logsectsize;
 	else
 		log->l_iclog_roundoff = BBSIZE;
 

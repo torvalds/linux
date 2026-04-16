@@ -332,7 +332,7 @@ at91_clk_register_generated(struct regmap *regmap, spinlock_t *lock,
 	if (!(parent_names || parent_hws))
 		return ERR_PTR(-ENOMEM);
 
-	gck = kzalloc(sizeof(*gck), GFP_KERNEL);
+	gck = kzalloc_obj(*gck);
 	if (!gck)
 		return ERR_PTR(-ENOMEM);
 

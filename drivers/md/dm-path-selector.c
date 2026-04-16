@@ -87,7 +87,7 @@ out:
 
 static struct ps_internal *_alloc_path_selector(struct path_selector_type *pst)
 {
-	struct ps_internal *psi = kzalloc(sizeof(*psi), GFP_KERNEL);
+	struct ps_internal *psi = kzalloc_obj(*psi);
 
 	if (psi)
 		psi->pst = *pst;

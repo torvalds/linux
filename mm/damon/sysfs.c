@@ -22,7 +22,7 @@ struct damon_sysfs_region {
 
 static struct damon_sysfs_region *damon_sysfs_region_alloc(void)
 {
-	return kzalloc(sizeof(struct damon_sysfs_region), GFP_KERNEL);
+	return kzalloc_obj(struct damon_sysfs_region);
 }
 
 static ssize_t start_show(struct kobject *kobj, struct kobj_attribute *attr,
@@ -99,7 +99,7 @@ struct damon_sysfs_regions {
 
 static struct damon_sysfs_regions *damon_sysfs_regions_alloc(void)
 {
-	return kzalloc(sizeof(struct damon_sysfs_regions), GFP_KERNEL);
+	return kzalloc_obj(struct damon_sysfs_regions);
 }
 
 static void damon_sysfs_regions_rm_dirs(struct damon_sysfs_regions *regions)
@@ -124,8 +124,8 @@ static int damon_sysfs_regions_add_dirs(struct damon_sysfs_regions *regions,
 	if (!nr_regions)
 		return 0;
 
-	regions_arr = kmalloc_array(nr_regions, sizeof(*regions_arr),
-			GFP_KERNEL | __GFP_NOWARN);
+	regions_arr = kmalloc_objs(*regions_arr, nr_regions,
+				   GFP_KERNEL | __GFP_NOWARN);
 	if (!regions_arr)
 		return -ENOMEM;
 	regions->regions_arr = regions_arr;
@@ -217,7 +217,7 @@ struct damon_sysfs_target {
 
 static struct damon_sysfs_target *damon_sysfs_target_alloc(void)
 {
-	return kzalloc(sizeof(struct damon_sysfs_target), GFP_KERNEL);
+	return kzalloc_obj(struct damon_sysfs_target);
 }
 
 static int damon_sysfs_target_add_dirs(struct damon_sysfs_target *target)
@@ -323,7 +323,7 @@ struct damon_sysfs_targets {
 
 static struct damon_sysfs_targets *damon_sysfs_targets_alloc(void)
 {
-	return kzalloc(sizeof(struct damon_sysfs_targets), GFP_KERNEL);
+	return kzalloc_obj(struct damon_sysfs_targets);
 }
 
 static void damon_sysfs_targets_rm_dirs(struct damon_sysfs_targets *targets)
@@ -350,8 +350,8 @@ static int damon_sysfs_targets_add_dirs(struct damon_sysfs_targets *targets,
 	if (!nr_targets)
 		return 0;
 
-	targets_arr = kmalloc_array(nr_targets, sizeof(*targets_arr),
-			GFP_KERNEL | __GFP_NOWARN);
+	targets_arr = kmalloc_objs(*targets_arr, nr_targets,
+				   GFP_KERNEL | __GFP_NOWARN);
 	if (!targets_arr)
 		return -ENOMEM;
 	targets->targets_arr = targets_arr;
@@ -452,8 +452,7 @@ static struct damon_sysfs_intervals_goal *damon_sysfs_intervals_goal_alloc(
 		unsigned long access_bp, unsigned long aggrs,
 		unsigned long min_sample_us, unsigned long max_sample_us)
 {
-	struct damon_sysfs_intervals_goal *goal = kmalloc(sizeof(*goal),
-			GFP_KERNEL);
+	struct damon_sysfs_intervals_goal *goal = kmalloc_obj(*goal);
 
 	if (!goal)
 		return NULL;
@@ -610,8 +609,7 @@ static struct damon_sysfs_intervals *damon_sysfs_intervals_alloc(
 		unsigned long sample_us, unsigned long aggr_us,
 		unsigned long update_us)
 {
-	struct damon_sysfs_intervals *intervals = kmalloc(sizeof(*intervals),
-			GFP_KERNEL);
+	struct damon_sysfs_intervals *intervals = kmalloc_obj(*intervals);
 
 	if (!intervals)
 		return NULL;
@@ -761,7 +759,7 @@ struct damon_sysfs_attrs {
 
 static struct damon_sysfs_attrs *damon_sysfs_attrs_alloc(void)
 {
-	struct damon_sysfs_attrs *attrs = kmalloc(sizeof(*attrs), GFP_KERNEL);
+	struct damon_sysfs_attrs *attrs = kmalloc_obj(*attrs);
 
 	if (!attrs)
 		return NULL;
@@ -873,8 +871,7 @@ struct damon_sysfs_context {
 static struct damon_sysfs_context *damon_sysfs_context_alloc(
 		enum damon_ops_id ops_id)
 {
-	struct damon_sysfs_context *context = kmalloc(sizeof(*context),
-				GFP_KERNEL);
+	struct damon_sysfs_context *context = kmalloc_obj(*context);
 
 	if (!context)
 		return NULL;
@@ -1096,7 +1093,7 @@ struct damon_sysfs_contexts {
 
 static struct damon_sysfs_contexts *damon_sysfs_contexts_alloc(void)
 {
-	return kzalloc(sizeof(struct damon_sysfs_contexts), GFP_KERNEL);
+	return kzalloc_obj(struct damon_sysfs_contexts);
 }
 
 static void damon_sysfs_contexts_rm_dirs(struct damon_sysfs_contexts *contexts)
@@ -1123,8 +1120,8 @@ static int damon_sysfs_contexts_add_dirs(struct damon_sysfs_contexts *contexts,
 	if (!nr_contexts)
 		return 0;
 
-	contexts_arr = kmalloc_array(nr_contexts, sizeof(*contexts_arr),
-			GFP_KERNEL | __GFP_NOWARN);
+	contexts_arr = kmalloc_objs(*contexts_arr, nr_contexts,
+				    GFP_KERNEL | __GFP_NOWARN);
 	if (!contexts_arr)
 		return -ENOMEM;
 	contexts->contexts_arr = contexts_arr;
@@ -1223,7 +1220,7 @@ struct damon_sysfs_kdamond {
 
 static struct damon_sysfs_kdamond *damon_sysfs_kdamond_alloc(void)
 {
-	return kzalloc(sizeof(struct damon_sysfs_kdamond), GFP_KERNEL);
+	return kzalloc_obj(struct damon_sysfs_kdamond);
 }
 
 static int damon_sysfs_kdamond_add_dirs(struct damon_sysfs_kdamond *kdamond)
@@ -1367,8 +1364,9 @@ static int damon_sysfs_set_regions(struct damon_target *t,
 		struct damon_sysfs_regions *sysfs_regions,
 		unsigned long min_region_sz)
 {
-	struct damon_addr_range *ranges = kmalloc_array(sysfs_regions->nr,
-			sizeof(*ranges), GFP_KERNEL | __GFP_NOWARN);
+	struct damon_addr_range *ranges = kmalloc_objs(*ranges,
+						       sysfs_regions->nr,
+						       GFP_KERNEL | __GFP_NOWARN);
 	int i, err = -EINVAL;
 
 	if (!ranges)
@@ -1643,8 +1641,7 @@ static int damon_sysfs_turn_damon_on(struct damon_sysfs_kdamond *kdamond)
 		damon_destroy_ctx(kdamond->damon_ctx);
 	kdamond->damon_ctx = NULL;
 
-	repeat_call_control = kmalloc(sizeof(*repeat_call_control),
-			GFP_KERNEL);
+	repeat_call_control = kmalloc_obj(*repeat_call_control);
 	if (!repeat_call_control)
 		return -ENOMEM;
 
@@ -1897,7 +1894,7 @@ struct damon_sysfs_kdamonds {
 
 static struct damon_sysfs_kdamonds *damon_sysfs_kdamonds_alloc(void)
 {
-	return kzalloc(sizeof(struct damon_sysfs_kdamonds), GFP_KERNEL);
+	return kzalloc_obj(struct damon_sysfs_kdamonds);
 }
 
 static void damon_sysfs_kdamonds_rm_dirs(struct damon_sysfs_kdamonds *kdamonds)
@@ -1940,8 +1937,8 @@ static int damon_sysfs_kdamonds_add_dirs(struct damon_sysfs_kdamonds *kdamonds,
 	if (!nr_kdamonds)
 		return 0;
 
-	kdamonds_arr = kmalloc_array(nr_kdamonds, sizeof(*kdamonds_arr),
-			GFP_KERNEL | __GFP_NOWARN);
+	kdamonds_arr = kmalloc_objs(*kdamonds_arr, nr_kdamonds,
+				    GFP_KERNEL | __GFP_NOWARN);
 	if (!kdamonds_arr)
 		return -ENOMEM;
 	kdamonds->kdamonds_arr = kdamonds_arr;
@@ -2038,7 +2035,7 @@ struct damon_sysfs_ui_dir {
 
 static struct damon_sysfs_ui_dir *damon_sysfs_ui_dir_alloc(void)
 {
-	return kzalloc(sizeof(struct damon_sysfs_ui_dir), GFP_KERNEL);
+	return kzalloc_obj(struct damon_sysfs_ui_dir);
 }
 
 static int damon_sysfs_ui_dir_add_dirs(struct damon_sysfs_ui_dir *ui_dir)

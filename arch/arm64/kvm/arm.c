@@ -358,7 +358,6 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		break;
 	case KVM_CAP_IOEVENTFD:
 	case KVM_CAP_USER_MEMORY:
-	case KVM_CAP_SYNC_MMU:
 	case KVM_CAP_DESTROY_MEMORY_REGION_WORKS:
 	case KVM_CAP_ONE_REG:
 	case KVM_CAP_ARM_PSCI:
@@ -854,8 +853,8 @@ static void kvm_init_mpidr_data(struct kvm *kvm)
 	 * iterative method. Single vcpu VMs do not need this either.
 	 */
 	if (struct_size(data, cmpidr_to_idx, nr_entries) <= PAGE_SIZE)
-		data = kzalloc(struct_size(data, cmpidr_to_idx, nr_entries),
-			       GFP_KERNEL_ACCOUNT);
+		data = kzalloc_flex(*data, cmpidr_to_idx, nr_entries,
+				    GFP_KERNEL_ACCOUNT);
 
 	if (!data)
 		goto out;

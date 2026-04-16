@@ -243,7 +243,7 @@ static int __init n64joy_probe(struct platform_device *pdev)
 	int err = 0;
 	u32 i, j, found = 0;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 	mutex_init(&priv->n64joy_mutex);

@@ -185,7 +185,7 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 	struct netxen_cmd_buffer *cmd_buf_arr;
 	struct net_device *netdev = adapter->netdev;
 
-	tx_ring = kzalloc(sizeof(struct nx_host_tx_ring), GFP_KERNEL);
+	tx_ring = kzalloc_obj(struct nx_host_tx_ring);
 	if (tx_ring == NULL)
 		return -ENOMEM;
 
@@ -202,8 +202,7 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 
 	recv_ctx = &adapter->recv_ctx;
 
-	rds_ring = kcalloc(adapter->max_rds_rings,
-			   sizeof(struct nx_host_rds_ring), GFP_KERNEL);
+	rds_ring = kzalloc_objs(struct nx_host_rds_ring, adapter->max_rds_rings);
 	if (rds_ring == NULL)
 		goto err_out;
 
@@ -451,7 +450,7 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter)
 		return -EIO;
 	}
 
-	buf = kcalloc(n, sizeof(struct crb_addr_pair), GFP_KERNEL);
+	buf = kzalloc_objs(struct crb_addr_pair, n);
 	if (buf == NULL)
 		return -ENOMEM;
 

@@ -87,7 +87,7 @@ static struct xhci_regset *xhci_debugfs_alloc_regset(struct xhci_hcd *xhci)
 {
 	struct xhci_regset	*regset;
 
-	regset = kzalloc(sizeof(*regset), GFP_KERNEL);
+	regset = kzalloc_obj(*regset);
 	if (!regset)
 		return NULL;
 
@@ -386,10 +386,18 @@ static const struct file_operations port_fops = {
 static int xhci_portli_show(struct seq_file *s, void *unused)
 {
 	struct xhci_port	*port = s->private;
-	struct xhci_hcd		*xhci = hcd_to_xhci(port->rhub->hcd);
+	struct xhci_hcd		*xhci;
 	u32			portli;
 
 	portli = readl(&port->port_reg->portli);
+
+	/* port without protocol capability isn't added to a roothub */
+	if (!port->rhub) {
+		seq_printf(s, "0x%08x\n", portli);
+		return 0;
+	}
+
+	xhci = hcd_to_xhci(port->rhub->hcd);
 
 	/* PORTLI fields are valid if port is a USB3 or eUSB2V2 port */
 	if (port->rhub == &xhci->usb3_rhub)
@@ -468,7 +476,7 @@ void xhci_debugfs_create_endpoint(struct xhci_hcd *xhci,
 	if (spriv->eps[ep_index])
 		return;
 
-	epriv = kzalloc(sizeof(*epriv), GFP_KERNEL);
+	epriv = kzalloc_obj(*epriv);
 	if (!epriv)
 		return;
 
@@ -608,7 +616,7 @@ void xhci_debugfs_create_slot(struct xhci_hcd *xhci, int slot_id)
 	struct xhci_slot_priv	*priv;
 	struct xhci_virt_device	*dev = xhci->devs[slot_id];
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return;
 

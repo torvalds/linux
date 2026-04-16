@@ -276,7 +276,7 @@ static int msft_le_monitor_advertisement_cb(struct hci_dev *hdev, u16 opcode,
 	if (status)
 		goto unlock;
 
-	handle_data = kmalloc(sizeof(*handle_data), GFP_KERNEL);
+	handle_data = kmalloc_obj(*handle_data);
 	if (!handle_data) {
 		status = HCI_ERROR_UNSPECIFIED;
 		goto unlock;
@@ -756,7 +756,7 @@ void msft_register(struct hci_dev *hdev)
 
 	bt_dev_dbg(hdev, "Register MSFT extension");
 
-	msft = kzalloc(sizeof(*msft), GFP_KERNEL);
+	msft = kzalloc_obj(*msft);
 	if (!msft) {
 		bt_dev_err(hdev, "Failed to register MSFT extension");
 		return;
@@ -790,7 +790,7 @@ static void msft_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr,
 {
 	struct monitored_device *dev;
 
-	dev = kmalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kmalloc_obj(*dev);
 	if (!dev) {
 		bt_dev_err(hdev, "MSFT vendor event %u: no memory",
 			   MSFT_EV_LE_MONITOR_DEVICE);
@@ -932,7 +932,7 @@ static struct msft_monitor_addr_filter_data *msft_add_address_filter
 	struct msft_data *msft = hdev->msft_data;
 	int err;
 
-	address_filter = kzalloc(sizeof(*address_filter), GFP_KERNEL);
+	address_filter = kzalloc_obj(*address_filter);
 	if (!address_filter)
 		return NULL;
 

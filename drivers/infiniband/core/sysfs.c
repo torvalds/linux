@@ -515,8 +515,8 @@ static int get_perf_mad(struct ib_device *dev, int port_num, __be16 attr,
 	if (!dev->ops.process_mad)
 		return -ENOSYS;
 
-	in_mad = kzalloc(sizeof(*in_mad), GFP_KERNEL);
-	out_mad = kzalloc(sizeof(*out_mad), GFP_KERNEL);
+	in_mad = kzalloc_obj(*in_mad);
+	out_mad = kzalloc_obj(*out_mad);
 	if (!in_mad || !out_mad) {
 		ret = -ENOMEM;
 		goto out;
@@ -855,12 +855,11 @@ alloc_hw_stats_device(struct ib_device *ibdev)
 	 * Two extra attribue elements here, one for the lifespan entry and
 	 * one to NULL terminate the list for the sysfs core code
 	 */
-	data = kzalloc(struct_size(data, attrs, size_add(stats->num_counters, 1)),
-		       GFP_KERNEL);
+	data = kzalloc_flex(*data, attrs, size_add(stats->num_counters, 1));
 	if (!data)
 		goto err_free_stats;
-	data->group.attrs = kcalloc(stats->num_counters + 2,
-				    sizeof(*data->group.attrs), GFP_KERNEL);
+	data->group.attrs = kzalloc_objs(*data->group.attrs,
+					 stats->num_counters + 2);
 	if (!data->group.attrs)
 		goto err_free_data;
 
@@ -962,12 +961,10 @@ alloc_hw_stats_port(struct ib_port *port, struct attribute_group *group)
 	 * Two extra attribue elements here, one for the lifespan entry and
 	 * one to NULL terminate the list for the sysfs core code
 	 */
-	data = kzalloc(struct_size(data, attrs, size_add(stats->num_counters, 1)),
-		       GFP_KERNEL);
+	data = kzalloc_flex(*data, attrs, size_add(stats->num_counters, 1));
 	if (!data)
 		goto err_free_stats;
-	group->attrs = kcalloc(stats->num_counters + 2,
-				    sizeof(*group->attrs), GFP_KERNEL);
+	group->attrs = kzalloc_objs(*group->attrs, stats->num_counters + 2);
 	if (!group->attrs)
 		goto err_free_data;
 
@@ -1054,7 +1051,7 @@ alloc_port_table_group(const char *name, struct attribute_group *group,
 	struct attribute **attr_list;
 	int i;
 
-	attr_list = kcalloc(num + 1, sizeof(*attr_list), GFP_KERNEL);
+	attr_list = kzalloc_objs(*attr_list, num + 1);
 	if (!attr_list)
 		return -ENOMEM;
 
@@ -1092,9 +1089,8 @@ static int setup_gid_attrs(struct ib_port *port,
 	struct gid_attr_group *gid_attr_group;
 	int ret;
 
-	gid_attr_group = kzalloc(struct_size(gid_attr_group, attrs_list,
-					     size_mul(attr->gid_tbl_len, 2)),
-				 GFP_KERNEL);
+	gid_attr_group = kzalloc_flex(*gid_attr_group, attrs_list,
+				      size_mul(attr->gid_tbl_len, 2));
 	if (!gid_attr_group)
 		return -ENOMEM;
 	gid_attr_group->port = port;
@@ -1157,9 +1153,8 @@ static struct ib_port *setup_port(struct ib_core_device *coredev, int port_num,
 	struct ib_port *p;
 	int ret;
 
-	p = kvzalloc(struct_size(p, attrs_list,
-				size_add(attr->gid_tbl_len, attr->pkey_tbl_len)),
-		     GFP_KERNEL);
+	p = kvzalloc_flex(*p, attrs_list,
+			  size_add(attr->gid_tbl_len, attr->pkey_tbl_len));
 	if (!p)
 		return ERR_PTR(-ENOMEM);
 	p->ibdev = device;

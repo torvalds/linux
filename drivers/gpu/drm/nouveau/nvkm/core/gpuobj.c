@@ -232,7 +232,7 @@ nvkm_gpuobj_new(struct nvkm_device *device, u32 size, int align, bool zero,
 	struct nvkm_gpuobj *gpuobj;
 	int ret;
 
-	if (!(gpuobj = *pgpuobj = kzalloc(sizeof(*gpuobj), GFP_KERNEL)))
+	if (!(gpuobj = *pgpuobj = kzalloc_obj(*gpuobj)))
 		return -ENOMEM;
 
 	ret = nvkm_gpuobj_ctor(device, size, align, zero, parent, gpuobj);
@@ -249,7 +249,7 @@ nvkm_gpuobj_new(struct nvkm_device *device, u32 size, int align, bool zero,
 int
 nvkm_gpuobj_wrap(struct nvkm_memory *memory, struct nvkm_gpuobj **pgpuobj)
 {
-	if (!(*pgpuobj = kzalloc(sizeof(**pgpuobj), GFP_KERNEL)))
+	if (!(*pgpuobj = kzalloc_obj(**pgpuobj)))
 		return -ENOMEM;
 
 	(*pgpuobj)->addr = nvkm_memory_addr(memory);

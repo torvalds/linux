@@ -324,4 +324,10 @@ extern unsigned long _loongson_addrwincfg_base;
 
 #endif	/* ! CONFIG_CPU_SUPPORTS_ADDRWINCFG */
 
+#ifdef CONFIG_PCI
+void loongson2ef_pcibios_init(void);
+#else
+static inline void loongson2ef_pcibios_init(void) { }
+#endif
+
 #endif /* __ASM_MACH_LOONGSON2EF_LOONGSON_H */

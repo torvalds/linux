@@ -489,7 +489,7 @@ static struct pmac_i2c_host_kw *__init kw_i2c_host_init(struct device_node *np)
 	const u32		*psteps, *prate, *addrp;
 	u32			steps;
 
-	host = kzalloc(sizeof(*host), GFP_KERNEL);
+	host = kzalloc_obj(*host);
 	if (host == NULL) {
 		printk(KERN_ERR "low_i2c: Can't allocate host for %pOF\n",
 		       np);
@@ -569,7 +569,7 @@ static void __init kw_i2c_add(struct pmac_i2c_host_kw *host,
 {
 	struct pmac_i2c_bus *bus;
 
-	bus = kzalloc(sizeof(struct pmac_i2c_bus), GFP_KERNEL);
+	bus = kzalloc_obj(struct pmac_i2c_bus);
 	if (bus == NULL)
 		return;
 
@@ -1254,7 +1254,7 @@ static void* pmac_i2c_do_begin(struct pmf_function *func, struct pmf_args *args)
 	 * near OOM that need to be resolved, the allocator itself should
 	 * probably make GFP_NOIO implicit during suspend
 	 */
-	inst = kzalloc(sizeof(struct pmac_i2c_pf_inst), GFP_KERNEL);
+	inst = kzalloc_obj(struct pmac_i2c_pf_inst);
 	if (inst == NULL) {
 		pmac_i2c_close(bus);
 		return NULL;

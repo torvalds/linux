@@ -410,7 +410,7 @@ static int __init amx3_idle_init(struct device_node *cpu_node, int cpu)
 		state_count++;
 	}
 
-	idle_states = kcalloc(state_count, sizeof(*idle_states), GFP_KERNEL);
+	idle_states = kzalloc_objs(*idle_states, state_count);
 	if (!idle_states)
 		return -ENOMEM;
 

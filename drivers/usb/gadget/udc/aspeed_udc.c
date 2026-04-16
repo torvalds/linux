@@ -452,7 +452,7 @@ static struct usb_request *ast_udc_ep_alloc_request(struct usb_ep *_ep,
 	struct ast_udc_ep *ep = to_ast_ep(_ep);
 	struct ast_udc_request *req;
 
-	req = kzalloc(sizeof(struct ast_udc_request), gfp_flags);
+	req = kzalloc_obj(struct ast_udc_request, gfp_flags);
 	if (!req) {
 		EP_DBG(ep, "request allocation failed\n");
 		return NULL;

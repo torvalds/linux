@@ -579,7 +579,7 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 	if (!local->emulate_chanctx && !local->ops->remain_on_channel)
 		return -EOPNOTSUPP;
 
-	roc = kzalloc(sizeof(*roc), GFP_KERNEL);
+	roc = kzalloc_obj(*roc);
 	if (!roc)
 		return -ENOMEM;
 

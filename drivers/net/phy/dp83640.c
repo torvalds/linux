@@ -1027,13 +1027,12 @@ static struct dp83640_clock *dp83640_clock_get_bus(struct mii_bus *bus)
 	if (clock)
 		goto out;
 
-	clock = kzalloc(sizeof(struct dp83640_clock), GFP_KERNEL);
+	clock = kzalloc_obj(struct dp83640_clock);
 	if (!clock)
 		goto out;
 
-	clock->caps.pin_config = kcalloc(DP83640_N_PINS,
-					 sizeof(struct ptp_pin_desc),
-					 GFP_KERNEL);
+	clock->caps.pin_config = kzalloc_objs(struct ptp_pin_desc,
+					      DP83640_N_PINS);
 	if (!clock->caps.pin_config) {
 		kfree(clock);
 		clock = NULL;
@@ -1412,7 +1411,7 @@ static int dp83640_probe(struct phy_device *phydev)
 	if (!clock)
 		goto no_clock;
 
-	dp83640 = kzalloc(sizeof(struct dp83640_private), GFP_KERNEL);
+	dp83640 = kzalloc_obj(struct dp83640_private);
 	if (!dp83640)
 		goto no_memory;
 

@@ -45,7 +45,7 @@ bnad_debugfs_open_fwtrc(struct inode *inode, struct file *file)
 	unsigned long flags;
 	int rc;
 
-	fw_debug = kzalloc(sizeof(struct bnad_debug_info), GFP_KERNEL);
+	fw_debug = kzalloc_obj(struct bnad_debug_info);
 	if (!fw_debug)
 		return -ENOMEM;
 
@@ -85,7 +85,7 @@ bnad_debugfs_open_fwsave(struct inode *inode, struct file *file)
 	unsigned long flags;
 	int rc;
 
-	fw_debug = kzalloc(sizeof(struct bnad_debug_info), GFP_KERNEL);
+	fw_debug = kzalloc_obj(struct bnad_debug_info);
 	if (!fw_debug)
 		return -ENOMEM;
 
@@ -122,7 +122,7 @@ bnad_debugfs_open_reg(struct inode *inode, struct file *file)
 {
 	struct bnad_debug_info *reg_debug;
 
-	reg_debug = kzalloc(sizeof(struct bnad_debug_info), GFP_KERNEL);
+	reg_debug = kzalloc_obj(struct bnad_debug_info);
 	if (!reg_debug)
 		return -ENOMEM;
 
@@ -185,7 +185,7 @@ bnad_debugfs_open_drvinfo(struct inode *inode, struct file *file)
 	struct bnad_debug_info *drv_info;
 	int rc;
 
-	drv_info = kzalloc(sizeof(struct bnad_debug_info), GFP_KERNEL);
+	drv_info = kzalloc_obj(struct bnad_debug_info);
 	if (!drv_info)
 		return -ENOMEM;
 

@@ -148,7 +148,7 @@ static struct vidtv_access_unit *vidtv_s302m_access_unit_init(struct vidtv_acces
 {
 	struct vidtv_access_unit *au;
 
-	au = kzalloc(sizeof(*au), GFP_KERNEL);
+	au = kzalloc_obj(*au);
 	if (!au)
 		return NULL;
 
@@ -445,7 +445,7 @@ struct vidtv_encoder
 	struct vidtv_s302m_ctx *ctx;
 	struct vidtv_encoder *e;
 
-	e = kzalloc(sizeof(*e), GFP_KERNEL);
+	e = kzalloc_obj(*e);
 	if (!e)
 		return NULL;
 

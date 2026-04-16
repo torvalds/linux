@@ -525,7 +525,7 @@ static int pci_epf_mhi_edma_read_async(struct mhi_ep_cntrl *mhi_cntrl,
 		goto err_unmap;
 	}
 
-	transfer = kzalloc(sizeof(*transfer), GFP_KERNEL);
+	transfer = kzalloc_obj(*transfer);
 	if (!transfer) {
 		ret = -ENOMEM;
 		goto err_unmap;
@@ -604,7 +604,7 @@ static int pci_epf_mhi_edma_write_async(struct mhi_ep_cntrl *mhi_cntrl,
 		goto err_unmap;
 	}
 
-	transfer = kzalloc(sizeof(*transfer), GFP_KERNEL);
+	transfer = kzalloc_obj(*transfer);
 	if (!transfer) {
 		ret = -ENOMEM;
 		goto err_unmap;

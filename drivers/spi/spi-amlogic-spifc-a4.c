@@ -411,7 +411,7 @@ static int aml_sfc_dma_buffer_setup(struct aml_sfc *sfc, void *databuf,
 	ret = dma_mapping_error(sfc->dev, sfc->daddr);
 	if (ret) {
 		dev_err(sfc->dev, "DMA mapping error\n");
-		goto out_map_data;
+		return ret;
 	}
 
 	cmd = CMD_DATA_ADDRL(sfc->daddr);
@@ -429,7 +429,6 @@ static int aml_sfc_dma_buffer_setup(struct aml_sfc *sfc, void *databuf,
 		ret = dma_mapping_error(sfc->dev, sfc->iaddr);
 		if (ret) {
 			dev_err(sfc->dev, "DMA mapping error\n");
-			dma_unmap_single(sfc->dev, sfc->daddr, datalen, dir);
 			goto out_map_data;
 		}
 
@@ -448,7 +447,7 @@ static int aml_sfc_dma_buffer_setup(struct aml_sfc *sfc, void *databuf,
 	return 0;
 
 out_map_info:
-	dma_unmap_single(sfc->dev, sfc->iaddr, datalen, dir);
+	dma_unmap_single(sfc->dev, sfc->iaddr, infolen, dir);
 out_map_data:
 	dma_unmap_single(sfc->dev, sfc->daddr, datalen, dir);
 
@@ -986,7 +985,7 @@ static int aml_sfc_ecc_init_ctx(struct nand_device *nand)
 
 	nand->ecc.ctx.conf.engine_type = NAND_ECC_ENGINE_TYPE_ON_HOST;
 
-	ecc_cfg = kzalloc(sizeof(*ecc_cfg), GFP_KERNEL);
+	ecc_cfg = kzalloc_obj(*ecc_cfg);
 	if (!ecc_cfg)
 		return -ENOMEM;
 

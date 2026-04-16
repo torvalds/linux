@@ -86,7 +86,7 @@ static int configure_memory(const unsigned char *buf,
 	for (i=0;i<HPEE_MEMORY_MAX_ENT;i++) {
 		c = get_8(buf+len);
 		
-		if (NULL != (res = kzalloc(sizeof(struct resource), GFP_KERNEL))) {
+		if (NULL != (res = kzalloc_obj(struct resource))) {
 			int result;
 			
 			res->name = name;
@@ -178,7 +178,7 @@ static int configure_port(const unsigned char *buf, struct resource *io_parent,
 	for (i=0;i<HPEE_PORT_MAX_ENT;i++) {
 		c = get_8(buf+len);
 		
-		if (NULL != (res = kzalloc(sizeof(struct resource), GFP_KERNEL))) {
+		if (NULL != (res = kzalloc_obj(struct resource))) {
 			res->name = board;
 			res->start = get_16(buf+len+1);
 			res->end = get_16(buf+len+1)+(c&HPEE_PORT_SIZE_MASK)+1;

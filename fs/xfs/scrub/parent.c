@@ -757,7 +757,7 @@ xchk_parent_pptr(
 	struct xchk_pptrs	*pp;
 	int			error;
 
-	pp = kvzalloc(sizeof(struct xchk_pptrs), XCHK_GFP_FLAGS);
+	pp = kvzalloc_obj(struct xchk_pptrs, XCHK_GFP_FLAGS);
 	if (!pp)
 		return -ENOMEM;
 	pp->sc = sc;

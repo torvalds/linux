@@ -59,14 +59,16 @@
 
 #define to_amdgpu_device(x) (container_of(x, struct amdgpu_device, pm.smu_i2c))
 
-#define FEATURE_MASK(feature) (1ULL << feature)
-#define SMC_DPM_FEATURE ( \
-	FEATURE_MASK(FEATURE_DPM_GFXCLK_BIT)     | \
-	FEATURE_MASK(FEATURE_DPM_UCLK_BIT)	 | \
-	FEATURE_MASK(FEATURE_DPM_LINK_BIT)       | \
-	FEATURE_MASK(FEATURE_DPM_SOCCLK_BIT)     | \
-	FEATURE_MASK(FEATURE_DPM_FCLK_BIT)	 | \
-	FEATURE_MASK(FEATURE_DPM_MP0CLK_BIT))
+static const struct smu_feature_bits smu_v13_0_0_dpm_features = {
+	.bits = {
+		SMU_FEATURE_BIT_INIT(FEATURE_DPM_GFXCLK_BIT),
+		SMU_FEATURE_BIT_INIT(FEATURE_DPM_UCLK_BIT),
+		SMU_FEATURE_BIT_INIT(FEATURE_DPM_LINK_BIT),
+		SMU_FEATURE_BIT_INIT(FEATURE_DPM_SOCCLK_BIT),
+		SMU_FEATURE_BIT_INIT(FEATURE_DPM_FCLK_BIT),
+		SMU_FEATURE_BIT_INIT(FEATURE_DPM_MP0CLK_BIT)
+	}
+};
 
 #define MP0_MP1_DATA_REGION_SIZE_COMBOPPTABLE	0x4000
 
@@ -493,7 +495,7 @@ static int smu_v13_0_0_tables_init(struct smu_context *smu)
 		       sizeof(WifiBandEntryTable_t), PAGE_SIZE,
 		       AMDGPU_GEM_DOMAIN_VRAM);
 
-	smu_table->metrics_table = kzalloc(sizeof(SmuMetricsExternal_t), GFP_KERNEL);
+	smu_table->metrics_table = kzalloc_obj(SmuMetricsExternal_t);
 	if (!smu_table->metrics_table)
 		goto err0_out;
 	smu_table->metrics_time = 0;
@@ -504,7 +506,7 @@ static int smu_v13_0_0_tables_init(struct smu_context *smu)
 	if (ret)
 		goto err1_out;
 
-	smu_table->watermarks_table = kzalloc(sizeof(Watermarks_t), GFP_KERNEL);
+	smu_table->watermarks_table = kzalloc_obj(Watermarks_t);
 	if (!smu_table->watermarks_table)
 		goto err2_out;
 
@@ -528,8 +530,7 @@ static int smu_v13_0_0_allocate_dpm_context(struct smu_context *smu)
 {
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 
-	smu_dpm->dpm_context = kzalloc(sizeof(struct smu_13_0_dpm_context),
-				       GFP_KERNEL);
+	smu_dpm->dpm_context = kzalloc_obj(struct smu_13_0_dpm_context);
 	if (!smu_dpm->dpm_context)
 		return -ENOMEM;
 
@@ -689,13 +690,14 @@ static int smu_v13_0_0_set_default_dpm_table(struct smu_context *smu)
 static bool smu_v13_0_0_is_dpm_running(struct smu_context *smu)
 {
 	int ret = 0;
-	uint64_t feature_enabled;
+	struct smu_feature_bits feature_enabled;
 
 	ret = smu_cmn_get_enabled_mask(smu, &feature_enabled);
 	if (ret)
 		return false;
 
-	return !!(feature_enabled & SMC_DPM_FEATURE);
+	return smu_feature_bits_test_mask(&feature_enabled,
+					  smu_v13_0_0_dpm_features.bits);
 }
 
 static int smu_v13_0_0_system_features_control(struct smu_context *smu,
@@ -2032,6 +2034,7 @@ static ssize_t smu_v13_0_0_get_gpu_metrics(struct smu_context *smu,
 			smu, SMU_DRIVER_TABLE_GPU_METRICS);
 	SmuMetricsExternal_t metrics_ext;
 	SmuMetrics_t *metrics = &metrics_ext.SmuMetrics;
+	uint32_t mp1_ver = amdgpu_ip_version(smu->adev, MP1_HWIP, 0);
 	int ret = 0;
 
 	ret = smu_cmn_get_metrics_table(smu,
@@ -2056,7 +2059,12 @@ static ssize_t smu_v13_0_0_get_gpu_metrics(struct smu_context *smu,
 					       metrics->Vcn1ActivityPercentage);
 
 	gpu_metrics->average_socket_power = metrics->AverageSocketPower;
-	gpu_metrics->energy_accumulator = metrics->EnergyAccumulator;
+
+	if ((mp1_ver == IP_VERSION(13, 0, 0) && smu->smc_fw_version <= 0x004e1e00) ||
+	    (mp1_ver == IP_VERSION(13, 0, 10) && smu->smc_fw_version <= 0x00500800))
+		gpu_metrics->energy_accumulator = metrics->EnergyAccumulator;
+	else
+		gpu_metrics->energy_accumulator = UINT_MAX;
 
 	if (metrics->AverageGfxActivity <= SMU_13_0_0_BUSY_THRESHOLD)
 		gpu_metrics->average_gfxclk_frequency = metrics->AverageGfxclkFrequencyPostDs;
@@ -2214,7 +2222,8 @@ static int smu_v13_0_0_restore_user_od_settings(struct smu_context *smu)
 	user_od_table->OverDriveTable.FeatureCtrlMask = BIT(PP_OD_FEATURE_GFXCLK_BIT) |
 							BIT(PP_OD_FEATURE_UCLK_BIT) |
 							BIT(PP_OD_FEATURE_GFX_VF_CURVE_BIT) |
-							BIT(PP_OD_FEATURE_FAN_CURVE_BIT);
+							BIT(PP_OD_FEATURE_FAN_CURVE_BIT) |
+							BIT(PP_OD_FEATURE_ZERO_FAN_BIT);
 	res = smu_v13_0_0_upload_overdrive_table(smu, user_od_table);
 	user_od_table->OverDriveTable.FeatureCtrlMask = 0;
 	if (res == 0)
@@ -2612,19 +2621,9 @@ static int smu_v13_0_0_set_power_profile_mode(struct smu_context *smu,
 static bool smu_v13_0_0_is_mode1_reset_supported(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
-	u32 smu_version;
-	int ret;
 
 	/* SRIOV does not support SMU mode1 reset */
 	if (amdgpu_sriov_vf(adev))
-		return false;
-
-	/* PMFW support is available since 78.41 */
-	ret = smu_cmn_get_smc_version(smu, NULL, &smu_version);
-	if (ret)
-		return false;
-
-	if (smu_version < 0x004e2900)
 		return false;
 
 	return true;
@@ -2645,7 +2644,7 @@ static int smu_v13_0_0_i2c_xfer(struct i2c_adapter *i2c_adap,
 	if (!adev->pm.dpm_enabled)
 		return -EBUSY;
 
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req)
 		return -ENOMEM;
 
@@ -2775,13 +2774,7 @@ static int smu_v13_0_0_set_mp1_state(struct smu_context *smu,
 
 	switch (mp1_state) {
 	case PP_MP1_STATE_UNLOAD:
-		ret = smu_cmn_send_smc_msg_with_param(smu,
-											  SMU_MSG_PrepareMp1ForUnload,
-											  0x55, NULL);
-
-		if (!ret && smu->smu_baco.state == SMU_BACO_STATE_EXIT)
-			ret = smu_v13_0_disable_pmfw_state(smu);
-
+		ret = smu_cmn_set_mp1_state(smu, mp1_state);
 		break;
 	default:
 		/* Ignore others */
@@ -2825,8 +2818,9 @@ static int smu_v13_0_0_mode1_reset(struct smu_context *smu)
 		/* SMU 13_0_0 PMFW supports RAS fatal error reset from 78.77 */
 		smu_v13_0_0_set_mode1_reset_param(smu, 0x004e4d00, &param);
 
-		ret = smu_cmn_send_smc_msg_with_param(smu,
-						SMU_MSG_Mode1Reset, param, NULL);
+		ret = smu_cmn_send_debug_smc_msg_with_param(smu,
+					DEBUGSMC_MSG_Mode1Reset, param);
+
 		break;
 
 	case IP_VERSION(13, 0, 10):

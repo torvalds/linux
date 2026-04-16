@@ -696,7 +696,7 @@ static struct uprobe_trampoline *create_uprobe_trampoline(unsigned long vaddr)
 	if (IS_ERR_VALUE(vaddr))
 		return NULL;
 
-	tramp = kzalloc(sizeof(*tramp), GFP_KERNEL);
+	tramp = kzalloc_obj(*tramp);
 	if (unlikely(!tramp))
 		return NULL;
 

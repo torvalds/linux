@@ -244,7 +244,7 @@ static int __init ic_open_devs(void)
 				       dev->name);
 				continue;
 			}
-			if (!(d = kmalloc(sizeof(struct ic_device), GFP_KERNEL))) {
+			if (!(d = kmalloc_obj(struct ic_device))) {
 				rtnl_unlock();
 				return -ENOMEM;
 			}

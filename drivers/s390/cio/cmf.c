@@ -483,11 +483,11 @@ static int alloc_cmb(struct ccw_device *cdev)
 	struct cmb_data *cmb_data;
 
 	/* Allocate private cmb_data. */
-	cmb_data = kzalloc(sizeof(struct cmb_data), GFP_KERNEL);
+	cmb_data = kzalloc_obj(struct cmb_data);
 	if (!cmb_data)
 		return -ENOMEM;
 
-	cmb_data->last_block = kzalloc(sizeof(struct cmb), GFP_KERNEL);
+	cmb_data->last_block = kzalloc_obj(struct cmb);
 	if (!cmb_data->last_block) {
 		kfree(cmb_data);
 		return -ENOMEM;
@@ -766,11 +766,11 @@ static int alloc_cmbe(struct ccw_device *cdev)
 	if (!cmbe)
 		return ret;
 
-	cmb_data = kzalloc(sizeof(*cmb_data), GFP_KERNEL);
+	cmb_data = kzalloc_obj(*cmb_data);
 	if (!cmb_data)
 		goto out_free;
 
-	cmb_data->last_block = kzalloc(sizeof(struct cmbe), GFP_KERNEL);
+	cmb_data->last_block = kzalloc_obj(struct cmbe);
 	if (!cmb_data->last_block)
 		goto out_free;
 

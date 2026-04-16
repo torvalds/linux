@@ -646,9 +646,8 @@ pd692x0_pi_get_pw_limit_ranges(struct pse_controller_dev *pcdev, int id,
 	int i;
 
 	pw_table = pd692x0_class_pw_table;
-	c33_pw_limit_ranges = kcalloc(PD692X0_CLASS_PW_TABLE_SIZE,
-				      sizeof(*c33_pw_limit_ranges),
-				      GFP_KERNEL);
+	c33_pw_limit_ranges = kzalloc_objs(*c33_pw_limit_ranges,
+					   PD692X0_CLASS_PW_TABLE_SIZE);
 	if (!c33_pw_limit_ranges)
 		return -ENOMEM;
 
@@ -1259,7 +1258,7 @@ static int pd692x0_setup_pi_matrix(struct pse_controller_dev *pcdev)
 	struct pd692x0_manager *manager;
 	int ret;
 
-	manager = kcalloc(PD692X0_MAX_MANAGERS, sizeof(*manager), GFP_KERNEL);
+	manager = kzalloc_objs(*manager, PD692X0_MAX_MANAGERS);
 	if (!manager)
 		return -ENOMEM;
 

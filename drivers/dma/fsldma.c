@@ -1111,7 +1111,7 @@ static int fsl_dma_chan_probe(struct fsldma_device *fdev,
 	int err;
 
 	/* alloc channel */
-	chan = kzalloc(sizeof(*chan), GFP_KERNEL);
+	chan = kzalloc_obj(*chan);
 	if (!chan) {
 		err = -ENOMEM;
 		goto out_return;
@@ -1218,7 +1218,7 @@ static int fsldma_of_probe(struct platform_device *op)
 	unsigned int i;
 	int err;
 
-	fdev = kzalloc(sizeof(*fdev), GFP_KERNEL);
+	fdev = kzalloc_obj(*fdev);
 	if (!fdev) {
 		err = -ENOMEM;
 		goto out_return;

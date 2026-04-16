@@ -375,7 +375,7 @@ lgs8gl5_attach(const struct lgs8gl5_config *config, struct i2c_adapter *i2c)
 	dprintk("%s\n", __func__);
 
 	/* Allocate memory for the internal state */
-	state = kzalloc(sizeof(struct lgs8gl5_state), GFP_KERNEL);
+	state = kzalloc_obj(struct lgs8gl5_state);
 	if (state == NULL)
 		goto error;
 

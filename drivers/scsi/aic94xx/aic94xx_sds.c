@@ -207,7 +207,7 @@ static int asd_get_bios_chim(struct asd_ha_struct *asd_ha,
 		goto out;
 	}
 	err = -ENOMEM;
-	bc_struct = kmalloc(sizeof(*bc_struct), GFP_KERNEL);
+	bc_struct = kmalloc_obj(*bc_struct);
 	if (!bc_struct) {
 		asd_printk("no memory for bios_chim struct\n");
 		goto out;
@@ -341,7 +341,7 @@ int asd_read_ocm(struct asd_ha_struct *asd_ha)
 	if (asd_hwi_check_ocm_access(asd_ha))
 		return -1;
 
-	dir = kmalloc(sizeof(*dir), GFP_KERNEL);
+	dir = kmalloc_obj(*dir);
 	if (!dir) {
 		asd_printk("no memory for ocm dir\n");
 		return -ENOMEM;
@@ -1040,7 +1040,7 @@ int asd_read_flash(struct asd_ha_struct *asd_ha)
 	if (err)
 		return err;
 
-	flash_dir = kmalloc(sizeof(*flash_dir), GFP_KERNEL);
+	flash_dir = kmalloc_obj(*flash_dir);
 	if (!flash_dir)
 		return -ENOMEM;
 

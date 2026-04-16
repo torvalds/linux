@@ -461,7 +461,7 @@ void pcibios_scan_root(int busnum)
 	struct pci_sysdata *sd;
 	LIST_HEAD(resources);
 
-	sd = kzalloc(sizeof(*sd), GFP_KERNEL);
+	sd = kzalloc_obj(*sd);
 	if (!sd) {
 		printk(KERN_ERR "PCI: OOM, skipping PCI bus %02x\n", busnum);
 		return;

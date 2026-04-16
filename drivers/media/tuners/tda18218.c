@@ -292,7 +292,7 @@ struct dvb_frontend *tda18218_attach(struct dvb_frontend *fe,
 		0x8a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf6, 0xf6
 	};
 
-	priv = kzalloc(sizeof(struct tda18218_priv), GFP_KERNEL);
+	priv = kzalloc_obj(struct tda18218_priv);
 	if (priv == NULL)
 		return NULL;
 

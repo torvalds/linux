@@ -1396,7 +1396,7 @@ union perf_mem_data_src {
 #define PERF_MEM_LVLNUM_L4			0x0004 /* L4 */
 #define PERF_MEM_LVLNUM_L2_MHB			0x0005 /* L2 Miss Handling Buffer */
 #define PERF_MEM_LVLNUM_MSC			0x0006 /* Memory-side Cache */
-#define PERF_MEM_LVLNUM_L0			0x0007   /* L0 */
+#define PERF_MEM_LVLNUM_L0			0x0007 /* L0 */
 #define PERF_MEM_LVLNUM_UNC			0x0008 /* Uncached */
 #define PERF_MEM_LVLNUM_CXL			0x0009 /* CXL */
 #define PERF_MEM_LVLNUM_IO			0x000a /* I/O */

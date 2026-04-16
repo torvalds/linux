@@ -1602,7 +1602,7 @@ static int ssif_add_infos(struct i2c_client *client)
 {
 	struct ssif_addr_info *info;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return -ENOMEM;
 	info->addr_src = SI_ACPI;
@@ -1667,7 +1667,7 @@ static int ssif_probe(struct i2c_client *client)
 		return -ENOMEM;
 	}
 
-	ssif_info = kzalloc(sizeof(*ssif_info), GFP_KERNEL);
+	ssif_info = kzalloc_obj(*ssif_info);
 	if (!ssif_info) {
 		kfree(resp);
 		mutex_unlock(&ssif_infos_mutex);
@@ -1948,7 +1948,7 @@ static int new_ssif_client(int addr, char *adapter_name,
 		goto out_unlock;
 	}
 
-	addr_info = kzalloc(sizeof(*addr_info), GFP_KERNEL);
+	addr_info = kzalloc_obj(*addr_info);
 	if (!addr_info) {
 		rv = -ENOMEM;
 		goto out_unlock;

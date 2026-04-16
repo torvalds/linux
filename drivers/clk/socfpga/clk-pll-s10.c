@@ -196,7 +196,7 @@ struct clk_hw *s10_register_pll(const struct stratix10_pll_clock *clks,
 	const char *name = clks->name;
 	int ret;
 
-	pll_clk = kzalloc(sizeof(*pll_clk), GFP_KERNEL);
+	pll_clk = kzalloc_obj(*pll_clk);
 	if (WARN_ON(!pll_clk))
 		return NULL;
 
@@ -236,7 +236,7 @@ struct clk_hw *agilex_register_pll(const struct stratix10_pll_clock *clks,
 	const char *name = clks->name;
 	int ret;
 
-	pll_clk = kzalloc(sizeof(*pll_clk), GFP_KERNEL);
+	pll_clk = kzalloc_obj(*pll_clk);
 	if (WARN_ON(!pll_clk))
 		return NULL;
 
@@ -275,7 +275,7 @@ struct clk_hw *n5x_register_pll(const struct stratix10_pll_clock *clks,
 	const char *name = clks->name;
 	int ret;
 
-	pll_clk = kzalloc(sizeof(*pll_clk), GFP_KERNEL);
+	pll_clk = kzalloc_obj(*pll_clk);
 	if (WARN_ON(!pll_clk))
 		return NULL;
 
@@ -314,7 +314,7 @@ struct clk_hw *agilex5_register_pll(const struct agilex5_pll_clock *clks,
 	const char *name = clks->name;
 	int ret;
 
-	pll_clk = kzalloc(sizeof(*pll_clk), GFP_KERNEL);
+	pll_clk = kzalloc_obj(*pll_clk);
 	if (WARN_ON(!pll_clk))
 		return NULL;
 

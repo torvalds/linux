@@ -350,7 +350,7 @@ int ip_ra_control(struct sock *sk, unsigned char on,
 	if (sk->sk_type != SOCK_RAW || inet_sk(sk)->inet_num == IPPROTO_RAW)
 		return -EINVAL;
 
-	new_ra = on ? kmalloc(sizeof(*new_ra), GFP_KERNEL) : NULL;
+	new_ra = on ? kmalloc_obj(*new_ra) : NULL;
 	if (on && !new_ra)
 		return -ENOMEM;
 

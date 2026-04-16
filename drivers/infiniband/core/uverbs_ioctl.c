@@ -120,7 +120,7 @@ __malloc void *_uverbs_alloc(struct uverbs_attr_bundle *bundle, size_t size,
 	if (new_used > pbundle->internal_avail) {
 		struct bundle_alloc_head *buf;
 
-		buf = kvmalloc(struct_size(buf, data, size), flags);
+		buf = kvmalloc_flex(*buf, data, size, flags);
 		if (!buf)
 			return ERR_PTR(-ENOMEM);
 		buf->next = pbundle->allocated_mem;

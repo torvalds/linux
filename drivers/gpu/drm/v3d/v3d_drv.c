@@ -133,7 +133,7 @@ v3d_open(struct drm_device *dev, struct drm_file *file)
 	struct drm_gpu_scheduler *sched;
 	int i;
 
-	v3d_priv = kzalloc(sizeof(*v3d_priv), GFP_KERNEL);
+	v3d_priv = kzalloc_obj(*v3d_priv);
 	if (!v3d_priv)
 		return -ENOMEM;
 

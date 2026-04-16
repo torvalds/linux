@@ -90,7 +90,7 @@ mlx5e_ktls_rx_resync_create_resp_list(void)
 {
 	struct mlx5e_ktls_resync_resp *resp_list;
 
-	resp_list = kvzalloc(sizeof(*resp_list), GFP_KERNEL);
+	resp_list = kvzalloc_obj(*resp_list);
 	if (!resp_list)
 		return ERR_PTR(-ENOMEM);
 
@@ -261,7 +261,7 @@ resync_post_get_progress_params(struct mlx5e_icosq *sq,
 	int err;
 	u16 pi;
 
-	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
+	buf = kzalloc_obj(*buf);
 	if (unlikely(!buf)) {
 		err = -ENOMEM;
 		goto err_out;
@@ -643,7 +643,7 @@ int mlx5e_ktls_add_rx(struct net_device *netdev, struct sock *sk,
 
 	tls_ctx = tls_get_ctx(sk);
 	priv = netdev_priv(netdev);
-	priv_rx = kzalloc(sizeof(*priv_rx), GFP_KERNEL);
+	priv_rx = kzalloc_obj(*priv_rx);
 	if (unlikely(!priv_rx))
 		return -ENOMEM;
 

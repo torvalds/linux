@@ -166,7 +166,7 @@ static int dmirror_fops_open(struct inode *inode, struct file *filp)
 	int ret;
 
 	/* Mirror this process address space */
-	dmirror = kzalloc(sizeof(*dmirror), GFP_KERNEL);
+	dmirror = kzalloc_obj(*dmirror);
 	if (dmirror == NULL)
 		return -ENOMEM;
 
@@ -504,7 +504,7 @@ static int dmirror_allocate_chunk(struct dmirror_device *mdevice,
 	void *ptr;
 	int ret = -ENOMEM;
 
-	devmem = kzalloc(sizeof(*devmem), GFP_KERNEL);
+	devmem = kzalloc_obj(*devmem);
 	if (!devmem)
 		return ret;
 

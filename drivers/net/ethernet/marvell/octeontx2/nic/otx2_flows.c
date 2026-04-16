@@ -1063,7 +1063,7 @@ static int otx2_add_flow_with_pfmac(struct otx2_nic *pfvf,
 	struct otx2_flow *pf_mac;
 	struct ethhdr *eth_hdr;
 
-	pf_mac = kzalloc(sizeof(*pf_mac), GFP_KERNEL);
+	pf_mac = kzalloc_obj(*pf_mac);
 	if (!pf_mac)
 		return -ENOMEM;
 
@@ -1131,7 +1131,7 @@ int otx2_add_flow(struct otx2_nic *pfvf, struct ethtool_rxnfc *nfc)
 
 	flow = otx2_find_flow(pfvf, fsp->location);
 	if (!flow) {
-		flow = kzalloc(sizeof(*flow), GFP_KERNEL);
+		flow = kzalloc_obj(*flow);
 		if (!flow)
 			return -ENOMEM;
 		flow->location = fsp->location;

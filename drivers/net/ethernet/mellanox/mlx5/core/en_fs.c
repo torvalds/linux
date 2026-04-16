@@ -128,7 +128,7 @@ static void mlx5e_add_l2_to_hash(struct hlist_head *hash, const u8 *addr)
 		return;
 	}
 
-	hn = kzalloc(sizeof(*hn), GFP_ATOMIC);
+	hn = kzalloc_obj(*hn, GFP_ATOMIC);
 	if (!hn)
 		return;
 
@@ -295,7 +295,7 @@ static int mlx5e_add_vlan_rule(struct mlx5e_flow_steering *fs,
 	struct mlx5_flow_spec *spec;
 	int err = 0;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 
@@ -372,7 +372,7 @@ mlx5e_add_trap_rule(struct mlx5_flow_table *ft, int trap_id, int tir_num)
 	struct mlx5_flow_handle *rule;
 	struct mlx5_flow_spec *spec;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return ERR_PTR(-ENOMEM);
 	spec->flow_context.flags |= FLOW_CONTEXT_HAS_TAG;
@@ -754,7 +754,7 @@ static int mlx5e_add_promisc_rule(struct mlx5e_flow_steering *fs)
 	struct mlx5_flow_spec *spec;
 	int err = 0;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
@@ -984,7 +984,7 @@ static int mlx5e_add_l2_flow_rule(struct mlx5e_flow_steering *fs,
 	u8 *mc_dmac;
 	u8 *mv_dmac;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 
@@ -1039,7 +1039,7 @@ static int mlx5e_create_l2_table_groups(struct mlx5e_l2_table *l2_table)
 	int err;
 	u8 *mc;
 
-	ft->g = kcalloc(MLX5E_NUM_L2_GROUPS, sizeof(*ft->g), GFP_KERNEL);
+	ft->g = kzalloc_objs(*ft->g, MLX5E_NUM_L2_GROUPS);
 	if (!ft->g)
 		return -ENOMEM;
 	in = kvzalloc(inlen, GFP_KERNEL);
@@ -1251,7 +1251,7 @@ static int mlx5e_fs_create_vlan_table(struct mlx5e_flow_steering *fs)
 	if (IS_ERR(ft->t))
 		return PTR_ERR(ft->t);
 
-	ft->g = kcalloc(MLX5E_NUM_VLAN_GROUPS, sizeof(*ft->g), GFP_KERNEL);
+	ft->g = kzalloc_objs(*ft->g, MLX5E_NUM_VLAN_GROUPS);
 	if (!ft->g) {
 		err = -ENOMEM;
 		goto err_destroy_vlan_table;
@@ -1394,7 +1394,7 @@ void mlx5e_destroy_flow_steering(struct mlx5e_flow_steering *fs, bool ntuple,
 
 static int mlx5e_fs_vlan_alloc(struct mlx5e_flow_steering *fs)
 {
-	fs->vlan = kvzalloc(sizeof(*fs->vlan), GFP_KERNEL);
+	fs->vlan = kvzalloc_obj(*fs->vlan);
 	if (!fs->vlan)
 		return -ENOMEM;
 	return 0;
@@ -1466,7 +1466,7 @@ struct mlx5e_flow_steering *mlx5e_fs_init(const struct mlx5e_profile *profile,
 	struct mlx5e_flow_steering *fs;
 	int err;
 
-	fs = kvzalloc(sizeof(*fs), GFP_KERNEL);
+	fs = kvzalloc_obj(*fs);
 	if (!fs)
 		goto err;
 

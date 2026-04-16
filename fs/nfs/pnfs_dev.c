@@ -114,11 +114,11 @@ nfs4_get_device_info(struct nfs_server *server,
 	dprintk("%s: server %p max_resp_sz %u max_pages %d\n",
 		__func__, server, max_resp_sz, max_pages);
 
-	pdev = kzalloc(sizeof(*pdev), gfp_flags);
+	pdev = kzalloc_obj(*pdev, gfp_flags);
 	if (!pdev)
 		return NULL;
 
-	pages = kcalloc(max_pages, sizeof(struct page *), gfp_flags);
+	pages = kzalloc_objs(struct page *, max_pages, gfp_flags);
 	if (!pages)
 		goto out_free_pdev;
 

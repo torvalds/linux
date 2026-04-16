@@ -57,7 +57,7 @@ ssize_t usb_store_new_id(struct usb_dynids *dynids,
 	if (fields < 2)
 		return -EINVAL;
 
-	dynid = kzalloc(sizeof(*dynid), GFP_KERNEL);
+	dynid = kzalloc_obj(*dynid);
 	if (!dynid)
 		return -ENOMEM;
 

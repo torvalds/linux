@@ -123,7 +123,7 @@ void wl1251_set_partition(struct wl1251 *wl,
 {
 	struct wl1251_partition_set *partition;
 
-	partition = kmalloc(sizeof(*partition), GFP_KERNEL);
+	partition = kmalloc_obj(*partition);
 	if (!partition) {
 		wl1251_error("can not allocate partition buffer");
 		return;

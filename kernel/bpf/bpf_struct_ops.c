@@ -218,7 +218,7 @@ static int prepare_arg_info(struct btf *btf,
 	args = btf_params(func_proto);
 	stub_args = btf_params(stub_func_proto);
 
-	info_buf = kcalloc(nargs, sizeof(*info_buf), GFP_KERNEL);
+	info_buf = kzalloc_objs(*info_buf, nargs);
 	if (!info_buf)
 		return -ENOMEM;
 
@@ -378,8 +378,7 @@ int bpf_struct_ops_desc_init(struct bpf_struct_ops_desc *st_ops_desc,
 	if (!is_valid_value_type(btf, value_id, t, value_name))
 		return -EINVAL;
 
-	arg_info = kcalloc(btf_type_vlen(t), sizeof(*arg_info),
-			   GFP_KERNEL);
+	arg_info = kzalloc_objs(*arg_info, btf_type_vlen(t));
 	if (!arg_info)
 		return -ENOMEM;
 
@@ -721,7 +720,7 @@ static long bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 	if (uvalue->common.state || refcount_read(&uvalue->common.refcnt))
 		return -EINVAL;
 
-	tlinks = kcalloc(BPF_TRAMP_MAX, sizeof(*tlinks), GFP_KERNEL);
+	tlinks = kzalloc_objs(*tlinks, BPF_TRAMP_MAX);
 	if (!tlinks)
 		return -ENOMEM;
 
@@ -815,7 +814,7 @@ static long bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 		/* Poison pointer on error instead of return for backward compatibility */
 		bpf_prog_assoc_struct_ops(prog, &st_map->map);
 
-		link = kzalloc(sizeof(*link), GFP_USER);
+		link = kzalloc_obj(*link, GFP_USER);
 		if (!link) {
 			bpf_prog_put(prog);
 			err = -ENOMEM;
@@ -825,7 +824,7 @@ static long bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 			      &bpf_struct_ops_link_lops, prog, prog->expected_attach_type);
 		*plink++ = &link->link;
 
-		ksym = kzalloc(sizeof(*ksym), GFP_USER);
+		ksym = kzalloc_obj(*ksym, GFP_USER);
 		if (!ksym) {
 			err = -ENOMEM;
 			goto reset_unlock;
@@ -1376,7 +1375,7 @@ int bpf_struct_ops_link_create(union bpf_attr *attr)
 		goto err_out;
 	}
 
-	link = kzalloc(sizeof(*link), GFP_USER);
+	link = kzalloc_obj(*link, GFP_USER);
 	if (!link) {
 		err = -ENOMEM;
 		goto err_out;

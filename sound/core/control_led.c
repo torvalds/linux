@@ -653,7 +653,7 @@ static void snd_ctl_led_sysfs_add(struct snd_card *card)
 
 	for (group = 0; group < MAX_LED; group++) {
 		led = &snd_ctl_leds[group];
-		led_card = kzalloc(sizeof(*led_card), GFP_KERNEL);
+		led_card = kzalloc_obj(*led_card);
 		if (!led_card)
 			goto cerr2;
 		led_card->number = card->number;

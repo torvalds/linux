@@ -1739,7 +1739,7 @@ static const struct drm_edid *zynqmp_dp_bridge_edid_read(struct drm_bridge *brid
 
 static u32 *zynqmp_dp_bridge_default_bus_fmts(unsigned int *num_input_fmts)
 {
-	u32 *formats = kzalloc(sizeof(*formats), GFP_KERNEL);
+	u32 *formats = kzalloc_obj(*formats);
 
 	if (formats)
 		*formats = MEDIA_BUS_FMT_FIXED;

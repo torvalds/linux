@@ -262,7 +262,7 @@ vmci_transport_alloc_send_control_pkt(struct sockaddr_vm *src,
 	struct vmci_transport_packet *pkt;
 	int err;
 
-	pkt = kmalloc(sizeof(*pkt), GFP_KERNEL);
+	pkt = kmalloc_obj(*pkt);
 	if (!pkt)
 		return -ENOMEM;
 
@@ -779,7 +779,7 @@ static int vmci_transport_recv_stream_cb(void *data, struct vmci_datagram *dg)
 	if (!bh_process_pkt) {
 		struct vmci_transport_recv_pkt_info *recv_pkt_info;
 
-		recv_pkt_info = kmalloc(sizeof(*recv_pkt_info), GFP_ATOMIC);
+		recv_pkt_info = kmalloc_obj(*recv_pkt_info, GFP_ATOMIC);
 		if (!recv_pkt_info) {
 			if (vmci_transport_send_reset_bh(&dst, &src, pkt) < 0)
 				pr_err("unable to send reset\n");
@@ -1583,7 +1583,7 @@ static int vmci_transport_recv_connected(struct sock *sk,
 static int vmci_transport_socket_init(struct vsock_sock *vsk,
 				      struct vsock_sock *psk)
 {
-	vsk->trans = kmalloc(sizeof(struct vmci_transport), GFP_KERNEL);
+	vsk->trans = kmalloc_obj(struct vmci_transport);
 	if (!vsk->trans)
 		return -ENOMEM;
 

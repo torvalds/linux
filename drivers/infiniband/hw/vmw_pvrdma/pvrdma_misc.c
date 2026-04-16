@@ -81,8 +81,7 @@ int pvrdma_page_dir_init(struct pvrdma_dev *dev, struct pvrdma_page_dir *pdir,
 	pdir->npages = npages;
 
 	if (alloc_pages) {
-		pdir->pages = kcalloc(npages, sizeof(*pdir->pages),
-				      GFP_KERNEL);
+		pdir->pages = kzalloc_objs(*pdir->pages, npages);
 		if (!pdir->pages)
 			goto err;
 

@@ -299,11 +299,11 @@ static int intel_vsec_add_dev(struct pci_dev *pdev, struct intel_vsec_header *he
 		return -EINVAL;
 	}
 
-	intel_vsec_dev = kzalloc(sizeof(*intel_vsec_dev), GFP_KERNEL);
+	intel_vsec_dev = kzalloc_obj(*intel_vsec_dev);
 	if (!intel_vsec_dev)
 		return -ENOMEM;
 
-	res = kcalloc(header->num_entries, sizeof(*res), GFP_KERNEL);
+	res = kzalloc_objs(*res, header->num_entries);
 	if (!res)
 		return -ENOMEM;
 

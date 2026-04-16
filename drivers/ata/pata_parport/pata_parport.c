@@ -511,7 +511,7 @@ static struct pi_adapter *pi_init_one(struct parport *parport,
 	if (id < 0)
 		return NULL;
 
-	pi = kzalloc(sizeof(struct pi_adapter), GFP_KERNEL);
+	pi = kzalloc_obj(struct pi_adapter);
 	if (!pi) {
 		ida_free(&pata_parport_bus_dev_ids, id);
 		return NULL;

@@ -221,7 +221,7 @@ add_symbol (struct snd_cs46xx * chip, char * symbol_name, u32 address, int type)
 
 struct dsp_spos_instance *cs46xx_dsp_spos_create (struct snd_cs46xx * chip)
 {
-	struct dsp_spos_instance * ins = kzalloc(sizeof(struct dsp_spos_instance), GFP_KERNEL);
+	struct dsp_spos_instance * ins = kzalloc_obj(struct dsp_spos_instance);
 
 	if (ins == NULL)
 		return NULL;
@@ -231,9 +231,7 @@ struct dsp_spos_instance *cs46xx_dsp_spos_create (struct snd_cs46xx * chip)
 		vmalloc(array_size(DSP_MAX_SYMBOLS,
 				   sizeof(struct dsp_symbol_entry)));
 	ins->code.data = kmalloc(DSP_CODE_BYTE_SIZE, GFP_KERNEL);
-	ins->modules = kmalloc_array(DSP_MAX_MODULES,
-				     sizeof(struct dsp_module_desc),
-				     GFP_KERNEL);
+	ins->modules = kmalloc_objs(struct dsp_module_desc, DSP_MAX_MODULES);
 	if (!ins->symbol_table.symbols || !ins->code.data || !ins->modules) {
 		cs46xx_dsp_spos_destroy(chip);
 		goto error;

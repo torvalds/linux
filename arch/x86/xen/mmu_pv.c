@@ -105,6 +105,9 @@ pte_t xen_make_pte_init(pteval_t pte);
 static pud_t level3_user_vsyscall[PTRS_PER_PUD] __page_aligned_bss;
 #endif
 
+static pud_t level3_ident_pgt[PTRS_PER_PUD] __page_aligned_bss;
+static pmd_t level2_ident_pgt[PTRS_PER_PMD] __page_aligned_bss;
+
 /*
  * Protects atomic reservation decrease/increase against concurrent increases.
  * Also protects non-atomic updates of current_pages and balloon lists.
@@ -508,6 +511,9 @@ static pgd_t *xen_get_user_pgd(pgd_t *pgd)
 	pgd_t *pgd_page = (pgd_t *)(((unsigned long)pgd) & PAGE_MASK);
 	unsigned offset = pgd - pgd_page;
 	pgd_t *user_ptr = NULL;
+
+	if (!static_branch_likely(&xen_struct_pages_ready))
+		return NULL;
 
 	if (offset < pgd_index(USER_LIMIT)) {
 		struct page *page = virt_to_page(pgd_page);
@@ -1098,7 +1104,8 @@ static void __init xen_cleanmfnmap_free_pgtbl(void *pgtbl, bool unpin)
 
 	if (unpin)
 		pin_pagetable_pfn(MMUEXT_UNPIN_TABLE, PFN_DOWN(pa));
-	ClearPagePinned(virt_to_page(__va(pa)));
+	if (static_branch_likely(&xen_struct_pages_ready))
+		ClearPagePinned(virt_to_page(__va(pa)));
 	xen_free_ro_pages(pa, PAGE_SIZE);
 }
 
@@ -1772,6 +1779,12 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
 
 	/* Zap identity mapping */
 	init_top_pgt[0] = __pgd(0);
+
+	init_top_pgt[pgd_index(__PAGE_OFFSET_BASE_L4)].pgd =
+		__pa_symbol(level3_ident_pgt) + _KERNPG_TABLE_NOENC;
+	init_top_pgt[pgd_index(__START_KERNEL_map)].pgd =
+		__pa_symbol(level3_kernel_pgt) + _PAGE_TABLE_NOENC;
+	level3_ident_pgt[0].pud = __pa_symbol(level2_ident_pgt) + _KERNPG_TABLE_NOENC;
 
 	/* Pre-constructed entries are in pfn, so convert to mfn */
 	/* L4[273] -> level3_ident_pgt  */

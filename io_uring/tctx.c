@@ -23,7 +23,7 @@ static struct io_wq *io_init_wq_offload(struct io_ring_ctx *ctx,
 	mutex_lock(&ctx->uring_lock);
 	hash = ctx->hash_map;
 	if (!hash) {
-		hash = kzalloc(sizeof(*hash), GFP_KERNEL);
+		hash = kzalloc_obj(*hash);
 		if (!hash) {
 			mutex_unlock(&ctx->uring_lock);
 			return ERR_PTR(-ENOMEM);
@@ -80,7 +80,7 @@ __cold int io_uring_alloc_task_context(struct task_struct *task,
 	struct io_uring_task *tctx;
 	int ret;
 
-	tctx = kzalloc(sizeof(*tctx), GFP_KERNEL);
+	tctx = kzalloc_obj(*tctx);
 	if (unlikely(!tctx))
 		return -ENOMEM;
 
@@ -139,7 +139,7 @@ int __io_uring_add_tctx_node(struct io_ring_ctx *ctx)
 	if (tctx->io_wq)
 		io_wq_set_exit_on_idle(tctx->io_wq, false);
 	if (!xa_load(&tctx->xa, (unsigned long)ctx)) {
-		node = kmalloc(sizeof(*node), GFP_KERNEL);
+		node = kmalloc_obj(*node);
 		if (!node)
 			return -ENOMEM;
 		node->ctx = ctx;
@@ -240,14 +240,14 @@ void io_uring_unreg_ringfd(void)
 int io_ring_add_registered_file(struct io_uring_task *tctx, struct file *file,
 				     int start, int end)
 {
-	int offset;
+	int offset, idx;
 	for (offset = start; offset < end; offset++) {
-		offset = array_index_nospec(offset, IO_RINGFD_REG_MAX);
-		if (tctx->registered_rings[offset])
+		idx = array_index_nospec(offset, IO_RINGFD_REG_MAX);
+		if (tctx->registered_rings[idx])
 			continue;
 
-		tctx->registered_rings[offset] = file;
-		return offset;
+		tctx->registered_rings[idx] = file;
+		return idx;
 	}
 	return -EBUSY;
 }
@@ -378,7 +378,7 @@ int __io_uring_fork(struct task_struct *tsk)
 	/* Don't leave it dangling on error */
 	tsk->io_uring_restrict = NULL;
 
-	res = kzalloc(sizeof(*res), GFP_KERNEL_ACCOUNT);
+	res = kzalloc_obj(*res, GFP_KERNEL_ACCOUNT);
 	if (!res)
 		return -ENOMEM;
 

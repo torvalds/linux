@@ -58,6 +58,19 @@ void iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
 	struct iphdr *iph;
 	int err;
 
+	if (unlikely(dev_recursion_level() > IP_TUNNEL_RECURSION_LIMIT)) {
+		if (dev) {
+			net_crit_ratelimited("Dead loop on virtual device %s, fix it urgently!\n",
+					     dev->name);
+			DEV_STATS_INC(dev, tx_errors);
+		}
+		ip_rt_put(rt);
+		kfree_skb(skb);
+		return;
+	}
+
+	dev_xmit_recursion_inc();
+
 	skb_scrub_packet(skb, xnet);
 
 	skb_clear_hash_if_not_l4(skb);
@@ -88,6 +101,8 @@ void iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
 			pkt_len = 0;
 		iptunnel_xmit_stats(dev, pkt_len);
 	}
+
+	dev_xmit_recursion_dec();
 }
 EXPORT_SYMBOL_GPL(iptunnel_xmit);
 

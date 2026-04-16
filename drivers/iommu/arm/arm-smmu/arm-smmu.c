@@ -927,7 +927,7 @@ static struct iommu_domain *arm_smmu_domain_alloc_paging(struct device *dev)
 	 * We can't really do anything meaningful until we've added a
 	 * master.
 	 */
-	smmu_domain = kzalloc(sizeof(*smmu_domain), GFP_KERNEL);
+	smmu_domain = kzalloc_obj(*smmu_domain);
 	if (!smmu_domain)
 		return NULL;
 

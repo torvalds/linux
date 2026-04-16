@@ -335,7 +335,7 @@ static int eqc_auxdev_create(struct device *dev, void __iomem *base,
 	struct auxiliary_device *adev;
 	int ret;
 
-	adev = kzalloc(sizeof(*adev), GFP_KERNEL);
+	adev = kzalloc_obj(*adev);
 	if (!adev)
 		return -ENOMEM;
 
@@ -400,7 +400,7 @@ static int eqc_probe(struct platform_device *pdev)
 
 	clk_count = data->pll_count + data->div_count +
 		    data->fixed_factor_count + data->early_clk_count;
-	cells = kzalloc(struct_size(cells, hws, clk_count), GFP_KERNEL);
+	cells = kzalloc_flex(*cells, hws, clk_count);
 	if (!cells)
 		return -ENOMEM;
 
@@ -738,7 +738,7 @@ static void __init eqc_early_init(struct device_node *np,
 
 	clk_count = early_data->early_pll_count + early_data->early_fixed_factor_count +
 		    early_data->late_clk_count;
-	cells = kzalloc(struct_size(cells, hws, clk_count), GFP_KERNEL);
+	cells = kzalloc_flex(*cells, hws, clk_count);
 	if (!cells) {
 		ret = -ENOMEM;
 		goto err;

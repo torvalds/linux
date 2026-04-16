@@ -1769,7 +1769,7 @@ static void __init rk3576_clk_init(struct device_node *np)
 		goto err_unmap;
 	}
 
-	pmu0_grf_e = kzalloc(sizeof(*pmu0_grf_e), GFP_KERNEL);
+	pmu0_grf_e = kzalloc_obj(*pmu0_grf_e);
 	if (!pmu0_grf_e)
 		goto err_unmap;
 
@@ -1777,7 +1777,7 @@ static void __init rk3576_clk_init(struct device_node *np)
 	pmu0_grf_e->type = grf_type_pmu0;
 	hash_add(ctx->aux_grf_table, &pmu0_grf_e->node, grf_type_pmu0);
 
-	ioc_grf_e = kzalloc(sizeof(*ioc_grf_e), GFP_KERNEL);
+	ioc_grf_e = kzalloc_obj(*ioc_grf_e);
 	if (!ioc_grf_e)
 		goto err_free_pmu0;
 

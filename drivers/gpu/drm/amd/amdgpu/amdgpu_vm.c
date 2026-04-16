@@ -1118,7 +1118,7 @@ int amdgpu_vm_update_range(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	if (!drm_dev_enter(adev_to_drm(adev), &idx))
 		return -ENODEV;
 
-	tlb_cb = kmalloc(sizeof(*tlb_cb), GFP_KERNEL);
+	tlb_cb = kmalloc_obj(*tlb_cb);
 	if (!tlb_cb) {
 		drm_dev_exit(idx);
 		return -ENOMEM;
@@ -1471,7 +1471,7 @@ static void amdgpu_vm_add_prt_cb(struct amdgpu_device *adev,
 	if (!adev->gmc.gmc_funcs->set_prt)
 		return;
 
-	cb = kmalloc(sizeof(struct amdgpu_prt_cb), GFP_KERNEL);
+	cb = kmalloc_obj(struct amdgpu_prt_cb);
 	if (!cb) {
 		/* Last resort when we are OOM */
 		if (fence)
@@ -1735,7 +1735,9 @@ struct amdgpu_bo_va *amdgpu_vm_bo_add(struct amdgpu_device *adev,
 {
 	struct amdgpu_bo_va *bo_va;
 
-	bo_va = kzalloc(sizeof(struct amdgpu_bo_va), GFP_KERNEL);
+	amdgpu_vm_assert_locked(vm);
+
+	bo_va = kzalloc_obj(struct amdgpu_bo_va);
 	if (bo_va == NULL) {
 		return NULL;
 	}
@@ -1864,7 +1866,7 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 		return -EINVAL;
 	}
 
-	mapping = kmalloc(sizeof(*mapping), GFP_KERNEL);
+	mapping = kmalloc_obj(*mapping);
 	if (!mapping)
 		return -ENOMEM;
 
@@ -1911,7 +1913,7 @@ int amdgpu_vm_bo_replace_map(struct amdgpu_device *adev,
 		return r;
 
 	/* Allocate all the needed memory */
-	mapping = kmalloc(sizeof(*mapping), GFP_KERNEL);
+	mapping = kmalloc_obj(*mapping);
 	if (!mapping)
 		return -ENOMEM;
 
@@ -2031,12 +2033,12 @@ int amdgpu_vm_bo_clear_mappings(struct amdgpu_device *adev,
 	eaddr = saddr + (size - 1) / AMDGPU_GPU_PAGE_SIZE;
 
 	/* Allocate all the needed memory */
-	before = kzalloc(sizeof(*before), GFP_KERNEL);
+	before = kzalloc_obj(*before);
 	if (!before)
 		return -ENOMEM;
 	INIT_LIST_HEAD(&before->list);
 
-	after = kzalloc(sizeof(*after), GFP_KERNEL);
+	after = kzalloc_obj(*after);
 	if (!after) {
 		kfree(before);
 		return -ENOMEM;
@@ -2360,25 +2362,8 @@ void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint32_t min_vm_size,
 			   unsigned max_bits)
 {
 	unsigned int max_size = 1 << (max_bits - 30);
-	bool sys_5level_pgtable = false;
 	unsigned int vm_size;
 	uint64_t tmp;
-
-#ifdef CONFIG_X86_64
-	/*
-	 * Refer to function configure_5level_paging() for details.
-	 */
-	sys_5level_pgtable = (native_read_cr4() & X86_CR4_LA57);
-#endif
-
-	/*
-	 * If GPU supports 5-level page table, but system uses 4-level page table,
-	 * then use 4-level page table on GPU
-	 */
-	if (max_level == 4 && !sys_5level_pgtable) {
-		min_vm_size = 256 * 1024;
-		max_level = 3;
-	}
 
 	/* adjust vm size first */
 	if (amdgpu_vm_size != -1) {
@@ -2415,6 +2400,7 @@ void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint32_t min_vm_size,
 	}
 
 	adev->vm_manager.max_pfn = (uint64_t)vm_size << 18;
+	adev->vm_manager.max_level = max_level;
 
 	tmp = roundup_pow_of_two(adev->vm_manager.max_pfn);
 	if (amdgpu_vm_block_size != -1)
@@ -2547,7 +2533,7 @@ amdgpu_vm_get_task_info_pasid(struct amdgpu_device *adev, u32 pasid)
 
 static int amdgpu_vm_create_task_info(struct amdgpu_vm *vm)
 {
-	vm->task_info = kzalloc(sizeof(struct amdgpu_task_info), GFP_KERNEL);
+	vm->task_info = kzalloc_obj(struct amdgpu_task_info);
 	if (!vm->task_info)
 		return -ENOMEM;
 

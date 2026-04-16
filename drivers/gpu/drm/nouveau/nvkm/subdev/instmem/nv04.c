@@ -125,7 +125,7 @@ nv04_instobj_new(struct nvkm_instmem *base, u32 size, u32 align, bool zero,
 	struct nv04_instobj *iobj;
 	int ret;
 
-	if (!(iobj = kzalloc(sizeof(*iobj), GFP_KERNEL)))
+	if (!(iobj = kzalloc_obj(*iobj)))
 		return -ENOMEM;
 	*pmemory = &iobj->base.memory;
 
@@ -267,7 +267,7 @@ nv04_instmem_new(struct nvkm_device *device, enum nvkm_subdev_type type, int ins
 {
 	struct nv04_instmem *imem;
 
-	if (!(imem = kzalloc(sizeof(*imem), GFP_KERNEL)))
+	if (!(imem = kzalloc_obj(*imem)))
 		return -ENOMEM;
 	nvkm_instmem_ctor(&nv04_instmem, device, type, inst, &imem->base);
 	*pimem = &imem->base;

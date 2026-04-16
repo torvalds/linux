@@ -735,7 +735,7 @@ static struct media_request *fops_media_request_alloc(struct media_device *mdev)
 {
 	struct mtk_vcodec_dec_request *req;
 
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc_obj(*req);
 
 	return &req->req;
 }

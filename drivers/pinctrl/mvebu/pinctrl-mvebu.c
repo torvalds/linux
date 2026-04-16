@@ -430,7 +430,7 @@ static int mvebu_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 		return 0;
 	}
 
-	*map = kmalloc_array(nmaps, sizeof(**map), GFP_KERNEL);
+	*map = kmalloc_objs(**map, nmaps);
 	if (!*map)
 		return -ENOMEM;
 

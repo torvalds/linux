@@ -457,7 +457,7 @@ pvr_hwrt_dataset_create(struct pvr_file *pvr_file,
 	int err, i = 0;
 
 	/* Create and fill out the kernel structure */
-	hwrt = kzalloc(sizeof(*hwrt), GFP_KERNEL);
+	hwrt = kzalloc_obj(*hwrt);
 
 	if (!hwrt)
 		return ERR_PTR(-ENOMEM);

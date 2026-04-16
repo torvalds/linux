@@ -12,11 +12,18 @@ maintainers:
 
 properties:
   compatible:
-    enum:
-      - qcom,pm8941-pwrkey
-      - qcom,pm8941-resin
-      - qcom,pmk8350-pwrkey
-      - qcom,pmk8350-resin
+    oneOf:
+      - enum:
+          - qcom,pm8941-pwrkey
+          - qcom,pm8941-resin
+          - qcom,pmk8350-pwrkey
+          - qcom,pmk8350-resin
+      - items:
+          - const: qcom,pmm8654au-pwrkey
+          - const: qcom,pmk8350-pwrkey
+      - items:
+          - const: qcom,pmm8654au-resin
+          - const: qcom,pmk8350-resin
 
   interrupts:
     maxItems: 1

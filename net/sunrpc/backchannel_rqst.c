@@ -94,7 +94,7 @@ static struct rpc_rqst *xprt_alloc_bc_req(struct rpc_xprt *xprt)
 	struct rpc_rqst *req;
 
 	/* Pre-allocate one backchannel rpc_rqst */
-	req = kzalloc(sizeof(*req), gfp_flags);
+	req = kzalloc_obj(*req, gfp_flags);
 	if (req == NULL)
 		return NULL;
 

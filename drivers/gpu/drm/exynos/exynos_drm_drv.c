@@ -50,7 +50,7 @@ static int exynos_drm_open(struct drm_device *dev, struct drm_file *file)
 	struct drm_exynos_file_private *file_priv;
 	int ret;
 
-	file_priv = kzalloc(sizeof(*file_priv), GFP_KERNEL);
+	file_priv = kzalloc_obj(*file_priv);
 	if (!file_priv)
 		return -ENOMEM;
 
@@ -245,7 +245,7 @@ static int exynos_drm_bind(struct device *dev)
 	if (IS_ERR(drm))
 		return PTR_ERR(drm);
 
-	private = kzalloc(sizeof(struct exynos_drm_private), GFP_KERNEL);
+	private = kzalloc_obj(struct exynos_drm_private);
 	if (!private) {
 		ret = -ENOMEM;
 		goto err_free_drm;

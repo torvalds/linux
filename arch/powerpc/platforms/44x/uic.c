@@ -233,7 +233,7 @@ static struct uic * __init uic_init_one(struct device_node *node)
 
 	BUG_ON(! of_device_is_compatible(node, "ibm,uic"));
 
-	uic = kzalloc(sizeof(*uic), GFP_KERNEL);
+	uic = kzalloc_obj(*uic);
 	if (! uic)
 		return NULL; /* FIXME: panic? */
 

@@ -830,7 +830,7 @@ static int ipa_probe(struct platform_device *pdev)
 	}
 
 	/* No more EPROBE_DEFER.  Allocate and initialize the IPA structure */
-	ipa = kzalloc(sizeof(*ipa), GFP_KERNEL);
+	ipa = kzalloc_obj(*ipa);
 	if (!ipa) {
 		ret = -ENOMEM;
 		goto err_power_exit;

@@ -137,7 +137,7 @@ struct ib_mr *mana_ib_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 length,
 	if (access_flags & ~VALID_MR_FLAGS)
 		return ERR_PTR(-EINVAL);
 
-	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
@@ -221,7 +221,7 @@ struct ib_mr *mana_ib_reg_user_mr_dmabuf(struct ib_pd *ibpd, u64 start, u64 leng
 	if (access_flags & ~VALID_MR_FLAGS)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
@@ -286,7 +286,7 @@ struct ib_mr *mana_ib_get_dma_mr(struct ib_pd *ibpd, int access_flags)
 	if (access_flags & ~VALID_DMA_MR_FLAGS)
 		return ERR_PTR(-EINVAL);
 
-	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
@@ -360,7 +360,7 @@ struct ib_dm *mana_ib_alloc_dm(struct ib_device *ibdev,
 	struct mana_ib_dm *dm;
 	int err;
 
-	dm = kzalloc(sizeof(*dm), GFP_KERNEL);
+	dm = kzalloc_obj(*dm);
 	if (!dm)
 		return ERR_PTR(-ENOMEM);
 
@@ -425,7 +425,7 @@ struct ib_mr *mana_ib_reg_dm_mr(struct ib_pd *ibpd, struct ib_dm *ibdm,
 	if (attr->access_flags & ~VALID_MR_FLAGS)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 

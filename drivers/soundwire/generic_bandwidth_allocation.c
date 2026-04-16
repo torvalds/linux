@@ -402,7 +402,7 @@ static int sdw_compute_port_params(struct sdw_bus *bus, struct sdw_stream_runtim
 	if (group.count == 0)
 		goto out;
 
-	params = kcalloc(group.count, sizeof(*params), GFP_KERNEL);
+	params = kzalloc_objs(*params, group.count);
 	if (!params) {
 		ret = -ENOMEM;
 		goto out;

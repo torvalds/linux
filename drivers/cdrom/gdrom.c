@@ -227,7 +227,7 @@ static char gdrom_execute_diagnostic(void)
 static int gdrom_preparedisk_cmd(void)
 {
 	struct packet_command *spin_command;
-	spin_command = kzalloc(sizeof(struct packet_command), GFP_KERNEL);
+	spin_command = kzalloc_obj(struct packet_command);
 	if (!spin_command)
 		return -ENOMEM;
 	spin_command->cmd[0] = 0x70;
@@ -261,7 +261,7 @@ static int gdrom_readtoc_cmd(struct gdromtoc *toc, int session)
 	struct packet_command *toc_command;
 	int err = 0;
 
-	toc_command = kzalloc(sizeof(struct packet_command), GFP_KERNEL);
+	toc_command = kzalloc_obj(struct packet_command);
 	if (!toc_command)
 		return -ENOMEM;
 	tocsize = sizeof(struct gdromtoc);
@@ -415,7 +415,7 @@ static int gdrom_getsense(short *bufstring)
 	int sense_key;
 	int err = -EIO;
 
-	sense_command = kzalloc(sizeof(struct packet_command), GFP_KERNEL);
+	sense_command = kzalloc_obj(struct packet_command);
 	if (!sense_command)
 		return -ENOMEM;
 	sense_command->cmd[0] = 0x13;
@@ -574,7 +574,7 @@ static blk_status_t gdrom_readdisk_dma(struct request *req)
 	struct packet_command *read_command;
 	unsigned long timeout;
 
-	read_command = kzalloc(sizeof(struct packet_command), GFP_KERNEL);
+	read_command = kzalloc_obj(struct packet_command);
 	if (!read_command)
 		return BLK_STS_RESOURCE;
 
@@ -656,7 +656,7 @@ static int gdrom_outputversion(void)
 	int err = -ENOMEM;
 
 	/* query device ID */
-	id = kzalloc(sizeof(struct gdrom_id), GFP_KERNEL);
+	id = kzalloc_obj(struct gdrom_id);
 	if (!id)
 		return err;
 	gdrom_identifydevice(id);
@@ -769,7 +769,7 @@ static int probe_gdrom(struct platform_device *devptr)
 	pr_info("Registered with major number %d\n",
 		gdrom_major);
 	/* Specify basic properties of drive */
-	gd.cd_info = kzalloc(sizeof(struct cdrom_device_info), GFP_KERNEL);
+	gd.cd_info = kzalloc_obj(struct cdrom_device_info);
 	if (!gd.cd_info) {
 		err = -ENOMEM;
 		goto probe_fail_no_mem;
@@ -803,7 +803,7 @@ static int probe_gdrom(struct platform_device *devptr)
 	if (err)
 		goto probe_fail_free_irqs;
 
-	gd.toc = kzalloc(sizeof(struct gdromtoc), GFP_KERNEL);
+	gd.toc = kzalloc_obj(struct gdromtoc);
 	if (!gd.toc) {
 		err = -ENOMEM;
 		goto probe_fail_free_irqs;

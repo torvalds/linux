@@ -467,7 +467,7 @@ static void bnxt_re_init_cq_coal_debugfs(struct bnxt_re_dev *rdev)
 	if (!_is_cq_coalescing_supported(rdev->dev_attr->dev_cap_flags2))
 		return;
 
-	dbg_cq_coal_params = kzalloc(sizeof(*dbg_cq_coal_params), GFP_KERNEL);
+	dbg_cq_coal_params = kzalloc_obj(*dbg_cq_coal_params);
 	if (!dbg_cq_coal_params)
 		return;
 
@@ -497,7 +497,7 @@ void bnxt_re_debugfs_add_pdev(struct bnxt_re_dev *rdev)
 
 	bnxt_re_debugfs_add_info(rdev);
 
-	rdev->cc_config_params = kzalloc(sizeof(*cc_params), GFP_KERNEL);
+	rdev->cc_config_params = kzalloc_obj(*cc_params);
 
 	for (i = 0; i < BNXT_RE_CC_PARAM_GEN0; i++) {
 		struct bnxt_re_cc_param *tmp_params = &rdev->cc_config_params->gen0_parms[i];

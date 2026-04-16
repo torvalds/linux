@@ -101,6 +101,28 @@ static void __perf_evlist__propagate_maps(struct perf_evlist *evlist,
 		evsel->cpus = perf_cpu_map__get(evlist->user_requested_cpus);
 	}
 
+	/*
+	 * Tool events may only read on the first CPU index to avoid double
+	 * counting things like duration_time. Make the evsel->cpus contain just
+	 * that single entry otherwise we may spend time changing affinity to
+	 * CPUs that just have tool events, etc.
+	 */
+	if (evsel->reads_only_on_cpu_idx0 && perf_cpu_map__nr(evsel->cpus) > 0) {
+		struct perf_cpu_map *srcs[3] = {
+			evlist->all_cpus,
+			evlist->user_requested_cpus,
+			evsel->pmu_cpus,
+		};
+		for (size_t i = 0; i < ARRAY_SIZE(srcs); i++) {
+			if (!srcs[i])
+				continue;
+
+			perf_cpu_map__put(evsel->cpus);
+			evsel->cpus = perf_cpu_map__new_int(perf_cpu_map__cpu(srcs[i], 0).cpu);
+			break;
+		}
+	}
+
 	/* Sanity check assert before the evsel is potentially removed. */
 	assert(!evsel->requires_cpu || !perf_cpu_map__has_any_cpu(evsel->cpus));
 
@@ -133,16 +155,22 @@ static void __perf_evlist__propagate_maps(struct perf_evlist *evlist,
 
 static void perf_evlist__propagate_maps(struct perf_evlist *evlist)
 {
-	struct perf_evsel *evsel, *n;
-
 	evlist->needs_map_propagation = true;
 
 	/* Clear the all_cpus set which will be merged into during propagation. */
 	perf_cpu_map__put(evlist->all_cpus);
 	evlist->all_cpus = NULL;
 
-	list_for_each_entry_safe(evsel, n, &evlist->entries, node)
-		__perf_evlist__propagate_maps(evlist, evsel);
+	/* 2 rounds so that reads_only_on_cpu_idx0 benefit from knowing the other CPU maps. */
+	for (int round = 0; round < 2; round++) {
+		struct perf_evsel *evsel, *n;
+
+		list_for_each_entry_safe(evsel, n, &evlist->entries, node) {
+			if ((!evsel->reads_only_on_cpu_idx0 && round == 0) ||
+			    (evsel->reads_only_on_cpu_idx0 && round == 1))
+				__perf_evlist__propagate_maps(evlist, evsel);
+		}
+	}
 }
 
 void perf_evlist__add(struct perf_evlist *evlist,

@@ -354,7 +354,7 @@ int ccp_register_aes_cmac_algs(struct list_head *head)
 	struct crypto_alg *base;
 	int ret;
 
-	ccp_alg = kzalloc(sizeof(*ccp_alg), GFP_KERNEL);
+	ccp_alg = kzalloc_obj(*ccp_alg);
 	if (!ccp_alg)
 		return -ENOMEM;
 

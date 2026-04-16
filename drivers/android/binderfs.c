@@ -145,7 +145,7 @@ static int binderfs_binder_device_create(struct inode *ref_inode,
 	mutex_unlock(&binderfs_minors_mutex);
 
 	ret = -ENOMEM;
-	device = kzalloc(sizeof(*device), GFP_KERNEL);
+	device = kzalloc_obj(*device);
 	if (!device)
 		goto err;
 
@@ -396,7 +396,7 @@ static int binderfs_binder_ctl_create(struct super_block *sb)
 	bool use_reserve = true;
 #endif
 
-	device = kzalloc(sizeof(*device), GFP_KERNEL);
+	device = kzalloc_obj(*device);
 	if (!device)
 		return -ENOMEM;
 
@@ -638,7 +638,7 @@ static int binderfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_op = &binderfs_super_ops;
 	sb->s_time_gran = 1;
 
-	sb->s_fs_info = kzalloc(sizeof(struct binderfs_info), GFP_KERNEL);
+	sb->s_fs_info = kzalloc_obj(struct binderfs_info);
 	if (!sb->s_fs_info)
 		return -ENOMEM;
 	info = sb->s_fs_info;
@@ -717,7 +717,7 @@ static int binderfs_init_fs_context(struct fs_context *fc)
 {
 	struct binderfs_mount_opts *ctx;
 
-	ctx = kzalloc(sizeof(struct binderfs_mount_opts), GFP_KERNEL);
+	ctx = kzalloc_obj(struct binderfs_mount_opts);
 	if (!ctx)
 		return -ENOMEM;
 

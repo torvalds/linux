@@ -1179,8 +1179,7 @@ static int gmc_v8_0_sw_init(struct amdgpu_ip_block *ip_block)
 		adev->vm_manager.vram_base_offset = 0;
 	}
 
-	adev->gmc.vm_fault_info = kmalloc(sizeof(struct kfd_vm_fault_info),
-					GFP_KERNEL);
+	adev->gmc.vm_fault_info = kmalloc_obj(struct kfd_vm_fault_info);
 	if (!adev->gmc.vm_fault_info)
 		return -ENOMEM;
 	atomic_set_release(&adev->gmc.vm_fault_info_updated, 0);

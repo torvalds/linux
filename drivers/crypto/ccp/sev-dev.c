@@ -1105,14 +1105,11 @@ struct page *snp_alloc_hv_fixed_pages(unsigned int num_2mb_pages)
 {
 	struct psp_device *psp_master = psp_get_master_device();
 	struct snp_hv_fixed_pages_entry *entry;
-	struct sev_device *sev;
 	unsigned int order;
 	struct page *page;
 
-	if (!psp_master || !psp_master->sev_data)
+	if (!psp_master)
 		return NULL;
-
-	sev = psp_master->sev_data;
 
 	order = get_order(PMD_SIZE * num_2mb_pages);
 
@@ -1126,7 +1123,8 @@ struct page *snp_alloc_hv_fixed_pages(unsigned int num_2mb_pages)
 	 * This API uses SNP_INIT_EX to transition allocated pages to HV_Fixed
 	 * page state, fail if SNP is already initialized.
 	 */
-	if (sev->snp_initialized)
+	if (psp_master->sev_data &&
+	    ((struct sev_device *)psp_master->sev_data)->snp_initialized)
 		return NULL;
 
 	/* Re-use freed pages that match the request */
@@ -1144,7 +1142,7 @@ struct page *snp_alloc_hv_fixed_pages(unsigned int num_2mb_pages)
 	if (!page)
 		return NULL;
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry) {
 		__free_pages(page, order);
 		return NULL;
@@ -1162,7 +1160,7 @@ void snp_free_hv_fixed_pages(struct page *page)
 	struct psp_device *psp_master = psp_get_master_device();
 	struct snp_hv_fixed_pages_entry *entry, *nentry;
 
-	if (!psp_master || !psp_master->sev_data)
+	if (!psp_master)
 		return;
 
 	/*
@@ -2658,7 +2656,7 @@ static int sev_misc_init(struct sev_device *sev)
 	if (!misc_dev) {
 		struct miscdevice *misc;
 
-		misc_dev = kzalloc(sizeof(*misc_dev), GFP_KERNEL);
+		misc_dev = kzalloc_obj(*misc_dev);
 		if (!misc_dev)
 			return -ENOMEM;
 

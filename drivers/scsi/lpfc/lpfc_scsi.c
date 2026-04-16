@@ -265,7 +265,7 @@ lpfc_new_scsi_buf_s3(struct lpfc_vport *vport, int num_to_alloc)
 			 (int)sizeof(struct fcp_rsp), bpl_size);
 
 	for (bcnt = 0; bcnt < num_to_alloc; bcnt++) {
-		psb = kzalloc(sizeof(struct lpfc_io_buf), GFP_KERNEL);
+		psb = kzalloc_obj(struct lpfc_io_buf);
 		if (!psb)
 			break;
 

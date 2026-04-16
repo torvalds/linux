@@ -1717,7 +1717,7 @@ static struct usb_request *pch_udc_alloc_request(struct usb_ep *usbep,
 	if (!usbep)
 		return NULL;
 	ep = container_of(usbep, struct pch_udc_ep, ep);
-	req = kzalloc(sizeof *req, gfp);
+	req = kzalloc_obj(*req, gfp);
 	if (!req)
 		return NULL;
 	req->req.dma = DMA_ADDR_INVALID;

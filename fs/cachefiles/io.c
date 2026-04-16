@@ -132,7 +132,7 @@ static int cachefiles_read(struct netfs_cache_resources *cres,
 	}
 
 	ret = -ENOMEM;
-	ki = kzalloc(sizeof(struct cachefiles_kiocb), GFP_KERNEL);
+	ki = kzalloc_obj(struct cachefiles_kiocb);
 	if (!ki)
 		goto presubmission_error;
 
@@ -298,7 +298,7 @@ int __cachefiles_write(struct cachefiles_object *object,
 	       file, file_inode(file)->i_ino, start_pos, len,
 	       i_size_read(file_inode(file)));
 
-	ki = kzalloc(sizeof(struct cachefiles_kiocb), GFP_KERNEL);
+	ki = kzalloc_obj(struct cachefiles_kiocb);
 	if (!ki) {
 		if (term_func)
 			term_func(term_func_priv, -ENOMEM);

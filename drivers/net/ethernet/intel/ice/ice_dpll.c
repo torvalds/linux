@@ -3276,7 +3276,7 @@ static int ice_dpll_pin_notify(struct notifier_block *nb, unsigned long action,
 	if (pin->fwnode != info->fwnode)
 		return NOTIFY_DONE; /* Not this pin */
 
-	work = kzalloc(sizeof(*work), GFP_KERNEL);
+	work = kzalloc_obj(*work);
 	if (!work)
 		return NOTIFY_DONE;
 
@@ -4145,7 +4145,7 @@ static int ice_dpll_init_info_e825c(struct ice_pf *pf)
 	d->clock_id = ice_generate_clock_id(pf);
 	d->num_inputs = ICE_SYNCE_CLK_NUM;
 
-	d->inputs = kcalloc(d->num_inputs, sizeof(*d->inputs), GFP_KERNEL);
+	d->inputs = kzalloc_objs(*d->inputs, d->num_inputs);
 	if (!d->inputs)
 		return -ENOMEM;
 

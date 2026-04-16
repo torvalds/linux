@@ -85,7 +85,7 @@ struct btrfs_workqueue *btrfs_alloc_workqueue(struct btrfs_fs_info *fs_info,
 					      const char *name, unsigned int flags,
 					      int limit_active, int thresh)
 {
-	struct btrfs_workqueue *ret = kzalloc(sizeof(*ret), GFP_KERNEL);
+	struct btrfs_workqueue *ret = kzalloc_obj(*ret);
 
 	if (!ret)
 		return NULL;
@@ -126,7 +126,7 @@ struct btrfs_workqueue *btrfs_alloc_ordered_workqueue(
 {
 	struct btrfs_workqueue *ret;
 
-	ret = kzalloc(sizeof(*ret), GFP_KERNEL);
+	ret = kzalloc_obj(*ret);
 	if (!ret)
 		return NULL;
 

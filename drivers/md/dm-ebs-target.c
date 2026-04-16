@@ -257,7 +257,7 @@ static int ebs_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		return -EINVAL;
 	}
 
-	ec = ti->private = kzalloc(sizeof(*ec), GFP_KERNEL);
+	ec = ti->private = kzalloc_obj(*ec);
 	if (!ec) {
 		ti->error = "Cannot allocate ebs context";
 		return -ENOMEM;

@@ -317,8 +317,7 @@ int amdgpu_amdkfd_post_reset(struct amdgpu_device *adev)
 void amdgpu_amdkfd_gpu_reset(struct amdgpu_device *adev)
 {
 	if (amdgpu_device_should_recover_gpu(adev))
-		amdgpu_reset_domain_schedule(adev->reset_domain,
-					     &adev->kfd.reset_work);
+		(void)amdgpu_reset_domain_schedule(adev->reset_domain, &adev->kfd.reset_work);
 }
 
 int amdgpu_amdkfd_alloc_kernel_mem(struct amdgpu_device *adev, size_t size,
@@ -720,9 +719,8 @@ void amdgpu_amdkfd_set_compute_idle(struct amdgpu_device *adev, bool idle)
 		if (gfx_block != NULL)
 			gfx_block->version->funcs->set_powergating_state((void *)gfx_block, state);
 	}
-	amdgpu_dpm_switch_power_profile(adev,
-					PP_SMC_POWER_PROFILE_COMPUTE,
-					!idle);
+	(void)amdgpu_dpm_switch_power_profile(adev, PP_SMC_POWER_PROFILE_COMPUTE, !idle);
+
 }
 
 bool amdgpu_amdkfd_is_kfd_vmid(struct amdgpu_device *adev, u32 vmid)
@@ -831,11 +829,11 @@ int amdgpu_amdkfd_unmap_hiq(struct amdgpu_device *adev, u32 doorbell_off,
 	if (!kiq_ring->sched.ready || amdgpu_in_reset(adev))
 		return 0;
 
-	ring_funcs = kzalloc(sizeof(*ring_funcs), GFP_KERNEL);
+	ring_funcs = kzalloc_obj(*ring_funcs);
 	if (!ring_funcs)
 		return -ENOMEM;
 
-	ring = kzalloc(sizeof(*ring), GFP_KERNEL);
+	ring = kzalloc_obj(*ring);
 	if (!ring) {
 		r = -ENOMEM;
 		goto free_ring_funcs;

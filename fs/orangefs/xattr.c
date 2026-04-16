@@ -171,7 +171,7 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
 				     " does not exist!\n",
 				     get_khandle_from_ino(inode),
 				     (char *)new_op->upcall.req.getxattr.key);
-			cx = kmalloc(sizeof *cx, GFP_KERNEL);
+			cx = kmalloc_obj(*cx);
 			if (cx) {
 				strscpy(cx->key, name);
 				cx->length = -1;
@@ -225,7 +225,7 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
 		cx->length = length;
 		cx->timeout = jiffies + HZ;
 	} else {
-		cx = kmalloc(sizeof *cx, GFP_KERNEL);
+		cx = kmalloc_obj(*cx);
 		if (cx) {
 			strscpy(cx->key, name);
 			memcpy(cx->val, buffer, length);

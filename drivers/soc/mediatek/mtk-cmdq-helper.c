@@ -114,7 +114,7 @@ struct cmdq_client *cmdq_mbox_create(struct device *dev, int index)
 {
 	struct cmdq_client *client;
 
-	client = kzalloc(sizeof(*client), GFP_KERNEL);
+	client = kzalloc_obj(*client);
 	if (!client)
 		return (struct cmdq_client *)-ENOMEM;
 

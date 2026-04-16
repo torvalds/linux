@@ -349,8 +349,8 @@ static int rtsn_chain_init(struct rtsn_private *priv, int tx_size, int rx_size)
 	priv->num_tx_ring = tx_size;
 	priv->num_rx_ring = rx_size;
 
-	priv->tx_skb = kcalloc(tx_size, sizeof(*priv->tx_skb), GFP_KERNEL);
-	priv->rx_skb = kcalloc(rx_size, sizeof(*priv->rx_skb), GFP_KERNEL);
+	priv->tx_skb = kzalloc_objs(*priv->tx_skb, tx_size);
+	priv->rx_skb = kzalloc_objs(*priv->rx_skb, rx_size);
 
 	if (!priv->rx_skb || !priv->tx_skb)
 		goto error;

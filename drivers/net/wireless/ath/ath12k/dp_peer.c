@@ -165,7 +165,7 @@ void ath12k_dp_link_peer_map_event(struct ath12k_base *ab, u8 vdev_id, u16 peer_
 	spin_lock_bh(&dp->dp_lock);
 	peer = ath12k_dp_link_peer_find_by_vdev_and_addr(dp, vdev_id, mac_addr);
 	if (!peer) {
-		peer = kzalloc(sizeof(*peer), GFP_ATOMIC);
+		peer = kzalloc_obj(*peer, GFP_ATOMIC);
 		if (!peer)
 			goto exit;
 
@@ -179,8 +179,8 @@ void ath12k_dp_link_peer_map_event(struct ath12k_base *ab, u8 vdev_id, u16 peer_
 		ar = ath12k_mac_get_ar_by_vdev_id(ab, vdev_id);
 		if (ar && ath12k_debugfs_is_extd_rx_stats_enabled(ar) &&
 		    !peer->peer_stats.rx_stats) {
-			peer->peer_stats.rx_stats =
-				kzalloc(sizeof(*peer->peer_stats.rx_stats), GFP_ATOMIC);
+			peer->peer_stats.rx_stats = kzalloc_obj(*peer->peer_stats.rx_stats,
+								GFP_ATOMIC);
 		}
 		rcu_read_unlock();
 
@@ -233,7 +233,7 @@ static int ath12k_dp_link_peer_rhash_addr_tbl_init(struct ath12k_dp *dp)
 
 	lockdep_assert_held(&dp->link_peer_rhash_tbl_lock);
 
-	rhash_addr_tbl = kzalloc(sizeof(*dp->rhead_peer_addr), GFP_KERNEL);
+	rhash_addr_tbl = kzalloc_obj(*dp->rhead_peer_addr);
 	if (!rhash_addr_tbl)
 		return -ENOMEM;
 
@@ -463,7 +463,7 @@ int ath12k_dp_peer_create(struct ath12k_dp_hw *dp_hw, u8 *addr,
 	}
 	spin_unlock_bh(&dp_hw->peer_lock);
 
-	dp_peer = kzalloc(sizeof(*dp_peer), GFP_ATOMIC);
+	dp_peer = kzalloc_obj(*dp_peer, GFP_ATOMIC);
 	if (!dp_peer)
 		return -ENOMEM;
 

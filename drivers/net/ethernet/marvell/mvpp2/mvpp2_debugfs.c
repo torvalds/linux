@@ -706,7 +706,7 @@ void mvpp2_dbgfs_init(struct mvpp2 *priv, const char *name)
 	mvpp2_dir = debugfs_create_dir(name, mvpp2_root);
 
 	priv->dbgfs_dir = mvpp2_dir;
-	priv->dbgfs_entries = kzalloc(sizeof(*priv->dbgfs_entries), GFP_KERNEL);
+	priv->dbgfs_entries = kzalloc_obj(*priv->dbgfs_entries);
 	if (!priv->dbgfs_entries)
 		goto err;
 

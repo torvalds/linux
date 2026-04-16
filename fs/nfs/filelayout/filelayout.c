@@ -694,15 +694,15 @@ filelayout_decode_layout(struct pnfs_layout_hdr *flo,
 		goto out_err;
 
 	if (fl->num_fh > 0) {
-		fl->fh_array = kcalloc(fl->num_fh, sizeof(fl->fh_array[0]),
-				       gfp_flags);
+		fl->fh_array = kzalloc_objs(fl->fh_array[0], fl->num_fh,
+					    gfp_flags);
 		if (!fl->fh_array)
 			goto out_err;
 	}
 
 	for (i = 0; i < fl->num_fh; i++) {
 		/* Do we want to use a mempool here? */
-		fl->fh_array[i] = kmalloc(sizeof(struct nfs_fh), gfp_flags);
+		fl->fh_array[i] = kmalloc_obj(struct nfs_fh, gfp_flags);
 		if (!fl->fh_array[i])
 			goto out_err;
 
@@ -763,7 +763,7 @@ filelayout_alloc_lseg(struct pnfs_layout_hdr *layoutid,
 	int rc;
 
 	dprintk("--> %s\n", __func__);
-	fl = kzalloc(sizeof(*fl), gfp_flags);
+	fl = kzalloc_obj(*fl, gfp_flags);
 	if (!fl)
 		return NULL;
 
@@ -1049,7 +1049,7 @@ filelayout_alloc_layout_hdr(struct inode *inode, gfp_t gfp_flags)
 {
 	struct nfs4_filelayout *flo;
 
-	flo = kzalloc(sizeof(*flo), gfp_flags);
+	flo = kzalloc_obj(*flo, gfp_flags);
 	if (flo == NULL)
 		return NULL;
 	pnfs_init_ds_commit_info(&flo->commit_info);

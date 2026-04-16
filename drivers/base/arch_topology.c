@@ -892,7 +892,7 @@ __weak int __init parse_acpi_topology(void)
 			hetero_id = find_acpi_cpu_topology_hetero_id(cpu);
 			entry = xa_load(&hetero_cpu, hetero_id);
 			if (!entry) {
-				entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+				entry = kzalloc_obj(*entry);
 				WARN_ON_ONCE(!entry);
 
 				if (entry) {

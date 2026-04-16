@@ -47,7 +47,7 @@ int amd_sfh_get_report(struct hid_device *hid, int report_id, int report_type)
 	guard(mutex)(&mp2->lock);
 	for (i = 0; i < cli_data->num_hid_devices; i++) {
 		if (cli_data->hid_sensor_hubs[i] == hid) {
-			struct request_list *new = kzalloc(sizeof(*new), GFP_KERNEL);
+			struct request_list *new = kzalloc_obj(*new);
 
 			if (!new)
 				return -ENOMEM;

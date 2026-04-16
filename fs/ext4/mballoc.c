@@ -3754,8 +3754,7 @@ int ext4_mb_init(struct super_block *sb)
 	} while (i < MB_NUM_ORDERS(sb));
 
 	sbi->s_mb_avg_fragment_size =
-		kmalloc_array(MB_NUM_ORDERS(sb), sizeof(struct xarray),
-			GFP_KERNEL);
+		kmalloc_objs(struct xarray, MB_NUM_ORDERS(sb));
 	if (!sbi->s_mb_avg_fragment_size) {
 		ret = -ENOMEM;
 		goto out;
@@ -3764,8 +3763,7 @@ int ext4_mb_init(struct super_block *sb)
 		xa_init(&sbi->s_mb_avg_fragment_size[i]);
 
 	sbi->s_mb_largest_free_orders =
-		kmalloc_array(MB_NUM_ORDERS(sb), sizeof(struct xarray),
-			GFP_KERNEL);
+		kmalloc_objs(struct xarray, MB_NUM_ORDERS(sb));
 	if (!sbi->s_mb_largest_free_orders) {
 		ret = -ENOMEM;
 		goto out;
@@ -3817,8 +3815,8 @@ int ext4_mb_init(struct super_block *sb)
 
 	sbi->s_mb_nr_global_goals = umin(num_possible_cpus(),
 					 DIV_ROUND_UP(sbi->s_groups_count, 4));
-	sbi->s_mb_last_groups = kcalloc(sbi->s_mb_nr_global_goals,
-					sizeof(ext4_group_t), GFP_KERNEL);
+	sbi->s_mb_last_groups = kzalloc_objs(ext4_group_t,
+					     sbi->s_mb_nr_global_goals);
 	if (sbi->s_mb_last_groups == NULL) {
 		ret = -ENOMEM;
 		goto out;

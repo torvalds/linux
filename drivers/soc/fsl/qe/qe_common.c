@@ -118,7 +118,7 @@ static s32 cpm_muram_alloc_common(unsigned long size,
 	struct muram_block *entry;
 	s32 start;
 
-	entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
+	entry = kmalloc_obj(*entry, GFP_ATOMIC);
 	if (!entry)
 		return -ENOMEM;
 	start = gen_pool_alloc_algo(muram_pool, size, algo, data);

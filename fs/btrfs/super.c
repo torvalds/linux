@@ -2054,7 +2054,7 @@ static int btrfs_get_tree_subvol(struct fs_context *fc)
 	 * of the fs_info (locks and such) to make cleanup easier if we find a
 	 * superblock with our given fs_devices later on at sget() time.
 	 */
-	fs_info = kvzalloc(sizeof(struct btrfs_fs_info), GFP_KERNEL);
+	fs_info = kvzalloc_obj(struct btrfs_fs_info);
 	if (!fs_info)
 		return -ENOMEM;
 
@@ -2173,7 +2173,7 @@ static int btrfs_init_fs_context(struct fs_context *fc)
 {
 	struct btrfs_fs_context *ctx;
 
-	ctx = kzalloc(sizeof(struct btrfs_fs_context), GFP_KERNEL);
+	ctx = kzalloc_obj(struct btrfs_fs_context);
 	if (!ctx)
 		return -ENOMEM;
 

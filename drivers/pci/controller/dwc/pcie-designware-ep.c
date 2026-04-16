@@ -165,6 +165,7 @@ static void dw_pcie_ep_clear_ib_maps(struct dw_pcie_ep *ep, u8 func_no, enum pci
 		dw_pcie_disable_atu(pci, PCIE_ATU_REGION_DIR_IB, atu_index);
 		clear_bit(atu_index, ep->ib_window_map);
 		ep_func->bar_to_atu[bar] = 0;
+		return;
 	}
 
 	/* Tear down all Address Match Mode mappings, if any. */
@@ -518,6 +519,12 @@ static int dw_pcie_ep_set_bar(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 		/*
 		 * We can only dynamically change a BAR if the new BAR size and
 		 * BAR flags do not differ from the existing configuration.
+		 *
+		 * Note: this safety check only works when the caller uses
+		 * a new struct pci_epf_bar in the second set_bar() call.
+		 * If the same instance is updated in place and passed in,
+		 * we cannot reliably detect invalid barno/size/flags
+		 * changes here.
 		 */
 		if (ep_func->epf_bar[bar]->barno != bar ||
 		    ep_func->epf_bar[bar]->size != size ||
@@ -526,10 +533,12 @@ static int dw_pcie_ep_set_bar(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 
 		/*
 		 * When dynamically changing a BAR, tear down any existing
-		 * mappings before re-programming.
+		 * mappings before re-programming. This is redundant when
+		 * both the old and new mappings are BAR Match Mode, but
+		 * required to handle in-place updates and match-mode
+		 * changes reliably.
 		 */
-		if (ep_func->epf_bar[bar]->num_submap || epf_bar->num_submap)
-			dw_pcie_ep_clear_ib_maps(ep, func_no, bar);
+		dw_pcie_ep_clear_ib_maps(ep, func_no, bar);
 
 		/*
 		 * When dynamically changing a BAR, skip writing the BAR reg, as
@@ -896,6 +905,19 @@ int dw_pcie_ep_raise_msi_irq(struct dw_pcie_ep *ep, u8 func_no,
 	 * supported, so we avoid reprogramming the region on every MSI,
 	 * specifically unmapping immediately after writel().
 	 */
+	if (ep->msi_iatu_mapped && (ep->msi_msg_addr != msg_addr ||
+				    ep->msi_map_size != map_size)) {
+		/*
+		 * The host changed the MSI target address or the required
+		 * mapping size changed. Reprogramming the iATU when there are
+		 * operations in flight is unsafe on this controller. However,
+		 * there is no unified way to check if we have operations in
+		 * flight, thus we don't know if we should WARN() or not.
+		 */
+		dw_pcie_ep_unmap_addr(epc, func_no, 0, ep->msi_mem_phys);
+		ep->msi_iatu_mapped = false;
+	}
+
 	if (!ep->msi_iatu_mapped) {
 		ret = dw_pcie_ep_map_addr(epc, func_no, 0,
 					  ep->msi_mem_phys, msg_addr,
@@ -906,15 +928,6 @@ int dw_pcie_ep_raise_msi_irq(struct dw_pcie_ep *ep, u8 func_no,
 		ep->msi_iatu_mapped = true;
 		ep->msi_msg_addr = msg_addr;
 		ep->msi_map_size = map_size;
-	} else if (WARN_ON_ONCE(ep->msi_msg_addr != msg_addr ||
-				ep->msi_map_size != map_size)) {
-		/*
-		 * The host changed the MSI target address or the required
-		 * mapping size changed. Reprogramming the iATU at runtime is
-		 * unsafe on this controller, so bail out instead of trying to
-		 * update the existing region.
-		 */
-		return -EINVAL;
 	}
 
 	writel(msg_data | (interrupt_num - 1), ep->msi_mem + offset);
@@ -1000,6 +1013,9 @@ int dw_pcie_ep_raise_msix_irq(struct dw_pcie_ep *ep, u8 func_no,
 		return ret;
 
 	writel(msg_data, ep->msi_mem + offset);
+
+	/* flush posted write before unmap */
+	readl(ep->msi_mem + offset);
 
 	dw_pcie_ep_unmap_addr(epc, func_no, 0, ep->msi_mem_phys);
 

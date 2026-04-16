@@ -35,7 +35,7 @@ static void mtk_plane_reset(struct drm_plane *plane)
 		state = to_mtk_plane_state(plane->state);
 		memset(state, 0, sizeof(*state));
 	} else {
-		state = kzalloc(sizeof(*state), GFP_KERNEL);
+		state = kzalloc_obj(*state);
 		if (!state)
 			return;
 	}
@@ -52,7 +52,7 @@ static struct drm_plane_state *mtk_plane_duplicate_state(struct drm_plane *plane
 	struct mtk_plane_state *old_state = to_mtk_plane_state(plane->state);
 	struct mtk_plane_state *state;
 
-	state = kmalloc(sizeof(*state), GFP_KERNEL);
+	state = kmalloc_obj(*state);
 	if (!state)
 		return NULL;
 

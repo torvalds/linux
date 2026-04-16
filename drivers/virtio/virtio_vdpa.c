@@ -287,7 +287,7 @@ create_affinity_masks(unsigned int nvecs, struct irq_affinity *affd)
 	if (!affvecs)
 		return NULL;
 
-	masks = kcalloc(nvecs, sizeof(*masks), GFP_KERNEL);
+	masks = kzalloc_objs(*masks, nvecs);
 	if (!masks)
 		return NULL;
 
@@ -462,7 +462,7 @@ static int virtio_vdpa_probe(struct vdpa_device *vdpa)
 	struct virtio_vdpa_device *vd_dev, *reg_dev = NULL;
 	int ret = -EINVAL;
 
-	vd_dev = kzalloc(sizeof(*vd_dev), GFP_KERNEL);
+	vd_dev = kzalloc_obj(*vd_dev);
 	if (!vd_dev)
 		return -ENOMEM;
 

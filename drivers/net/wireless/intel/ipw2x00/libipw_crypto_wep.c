@@ -37,7 +37,7 @@ static void *libipw_wep_init(int keyidx)
 	if (fips_enabled)
 		return NULL;
 
-	priv = kzalloc(sizeof(*priv), GFP_ATOMIC);
+	priv = kzalloc_obj(*priv, GFP_ATOMIC);
 	if (priv == NULL)
 		return NULL;
 	priv->key_idx = keyidx;

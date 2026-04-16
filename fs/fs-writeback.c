@@ -198,10 +198,11 @@ static void wb_queue_work(struct bdi_writeback *wb,
 
 static bool wb_wait_for_completion_cb(struct wb_completion *done)
 {
+	unsigned long timeout = sysctl_hung_task_timeout_secs;
 	unsigned long waited_secs = (jiffies - done->wait_start) / HZ;
 
 	done->progress_stamp = jiffies;
-	if (waited_secs > sysctl_hung_task_timeout_secs)
+	if (timeout && (waited_secs > timeout))
 		pr_info("INFO: The task %s:%d has been waiting for writeback "
 			"completion for more than %lu seconds.",
 			current->comm, current->pid, waited_secs);
@@ -653,7 +654,7 @@ static void inode_switch_wbs(struct inode *inode, int new_wb_id)
 	if (atomic_read(&isw_nr_in_flight) > WB_FRN_MAX_IN_FLIGHT)
 		return;
 
-	isw = kzalloc(struct_size(isw, inodes, 2), GFP_ATOMIC);
+	isw = kzalloc_flex(*isw, inodes, 2, GFP_ATOMIC);
 	if (!isw)
 		return;
 
@@ -724,8 +725,7 @@ bool cleanup_offline_cgwb(struct bdi_writeback *wb)
 	int nr;
 	bool restart = false;
 
-	isw = kzalloc(struct_size(isw, inodes, WB_MAX_INODES_PER_ISW),
-		      GFP_KERNEL);
+	isw = kzalloc_flex(*isw, inodes, WB_MAX_INODES_PER_ISW);
 	if (!isw)
 		return restart;
 
@@ -1075,7 +1075,7 @@ restart:
 
 		nr_pages = wb_split_bdi_pages(wb, base_work->nr_pages);
 
-		work = kmalloc(sizeof(*work), GFP_ATOMIC);
+		work = kmalloc_obj(*work, GFP_ATOMIC);
 		if (work) {
 			*work = *base_work;
 			work->nr_pages = nr_pages;
@@ -1173,7 +1173,7 @@ int cgroup_writeback_by_id(u64 bdi_id, int memcg_id,
 	dirty = dirty * 10 / 8;
 
 	/* issue the writeback work */
-	work = kzalloc(sizeof(*work), GFP_NOWAIT);
+	work = kzalloc_obj(*work, GFP_NOWAIT);
 	if (work) {
 		work->nr_pages = dirty;
 		work->sync_mode = WB_SYNC_NONE;
@@ -1955,6 +1955,7 @@ static long writeback_sb_inodes(struct super_block *sb,
 		.range_end		= LLONG_MAX,
 	};
 	unsigned long start_time = jiffies;
+	unsigned long timeout = sysctl_hung_task_timeout_secs;
 	long write_chunk;
 	long total_wrote = 0;  /* count both pages and inodes */
 	unsigned long dirtied_before = jiffies;
@@ -2041,9 +2042,8 @@ static long writeback_sb_inodes(struct super_block *sb,
 		__writeback_single_inode(inode, &wbc);
 
 		/* Report progress to inform the hung task detector of the progress. */
-		if (work->done && work->done->progress_stamp &&
-		   (jiffies - work->done->progress_stamp) > HZ *
-		   sysctl_hung_task_timeout_secs / 2)
+		if (work->done && work->done->progress_stamp && timeout &&
+		   (jiffies - work->done->progress_stamp) > HZ * timeout / 2)
 			wake_up_all(work->done->waitq);
 
 		wbc_detach_inode(&wbc);

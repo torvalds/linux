@@ -147,7 +147,7 @@ int mana_ib_install_cq_cb(struct mana_ib_dev *mdev, struct mana_ib_cq *cq)
 	if (cq->queue.kmem)
 		gdma_cq = cq->queue.kmem;
 	else
-		gdma_cq = kzalloc(sizeof(*gdma_cq), GFP_KERNEL);
+		gdma_cq = kzalloc_obj(*gdma_cq);
 	if (!gdma_cq)
 		return -ENOMEM;
 

@@ -82,7 +82,7 @@ static void aztech_set_pins(void *handle, u8 pins)
 
 static struct radio_isa_card *aztech_alloc(void)
 {
-	struct aztech *az = kzalloc(sizeof(*az), GFP_KERNEL);
+	struct aztech *az = kzalloc_obj(*az);
 
 	return az ? &az->isa : NULL;
 }

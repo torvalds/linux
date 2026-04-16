@@ -30,14 +30,6 @@
  * The libdwfl code in this file is based on code from elfutils
  * (libdwfl/argp-std.c, libdwfl/tests/addrcfi.c, etc).
  */
-static char *debuginfo_path;
-
-static const Dwfl_Callbacks offline_callbacks = {
-	.debuginfo_path = &debuginfo_path,
-	.find_debuginfo = dwfl_standard_find_debuginfo,
-	.section_address = dwfl_offline_section_address,
-};
-
 
 /*
  * Use the DWARF expression for the Call-frame-address and determine
@@ -149,44 +141,22 @@ static Dwarf_Frame *get_dwarf_frame(Dwfl_Module *mod, Dwarf_Addr pc)
  *		yet used)
  *	-1 in case of errors
  */
-static int check_return_addr(struct dso *dso, u64 map_start, Dwarf_Addr pc)
+static int check_return_addr(struct dso *dso, Dwarf_Addr mapped_pc)
 {
 	int		rc = -1;
 	Dwfl		*dwfl;
 	Dwfl_Module	*mod;
 	Dwarf_Frame	*frame;
 	int		ra_regno;
-	Dwarf_Addr	start = pc;
-	Dwarf_Addr	end = pc;
+	Dwarf_Addr	start = mapped_pc;
+	Dwarf_Addr	end = mapped_pc;
 	bool		signalp;
-	const char	*exec_file = dso__long_name(dso);
 
-	dwfl = RC_CHK_ACCESS(dso)->dwfl;
+	dwfl = dso__libdw_dwfl(dso);
+	if (!dwfl)
+		return -1;
 
-	if (!dwfl) {
-		dwfl = dwfl_begin(&offline_callbacks);
-		if (!dwfl) {
-			pr_debug("dwfl_begin() failed: %s\n", dwarf_errmsg(-1));
-			return -1;
-		}
-
-		mod = dwfl_report_elf(dwfl, exec_file, exec_file, -1,
-						map_start, false);
-		if (!mod) {
-			pr_debug("dwfl_report_elf() failed %s\n",
-						dwarf_errmsg(-1));
-			/*
-			 * We normally cache the DWARF debug info and never
-			 * call dwfl_end(). But to prevent fd leak, free in
-			 * case of error.
-			 */
-			dwfl_end(dwfl);
-			goto out;
-		}
-		RC_CHK_ACCESS(dso)->dwfl = dwfl;
-	}
-
-	mod = dwfl_addrmodule(dwfl, pc);
+	mod = dwfl_addrmodule(dwfl, mapped_pc);
 	if (!mod) {
 		pr_debug("dwfl_addrmodule() failed, %s\n", dwarf_errmsg(-1));
 		goto out;
@@ -196,9 +166,9 @@ static int check_return_addr(struct dso *dso, u64 map_start, Dwarf_Addr pc)
 	 * To work with split debug info files (eg: glibc), check both
 	 * .eh_frame and .debug_frame sections of the ELF header.
 	 */
-	frame = get_eh_frame(mod, pc);
+	frame = get_eh_frame(mod, mapped_pc);
 	if (!frame) {
-		frame = get_dwarf_frame(mod, pc);
+		frame = get_dwarf_frame(mod, mapped_pc);
 		if (!frame)
 			goto out;
 	}
@@ -264,7 +234,7 @@ int arch_skip_callchain_idx(struct thread *thread, struct ip_callchain *chain)
 		return skip_slot;
 	}
 
-	rc = check_return_addr(dso, map__start(al.map), ip);
+	rc = check_return_addr(dso, map__map_ip(al.map, ip));
 
 	pr_debug("[DSO %s, sym %s, ip 0x%" PRIx64 "] rc %d\n",
 		dso__long_name(dso), al.sym->name, ip, rc);

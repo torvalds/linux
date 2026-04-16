@@ -1287,7 +1287,7 @@ static int ax88179_bind(struct usbnet *dev, struct usb_interface *intf)
 	if (ret < 0)
 		return ret;
 
-	ax179_data = kzalloc(sizeof(*ax179_data), GFP_KERNEL);
+	ax179_data = kzalloc_obj(*ax179_data);
 	if (!ax179_data)
 		return -ENOMEM;
 

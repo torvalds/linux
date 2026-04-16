@@ -107,7 +107,7 @@ int ocxl_afu_irq_alloc(struct ocxl_context *ctx, int *irq_id)
 	struct afu_irq *irq;
 	int rc;
 
-	irq = kzalloc(sizeof(struct afu_irq), GFP_KERNEL);
+	irq = kzalloc_obj(struct afu_irq);
 	if (!irq)
 		return -ENOMEM;
 

@@ -203,7 +203,7 @@ static const struct qmi_elem_info ssctl_shutdown_resp_ei[] = {
 };
 
 struct ssctl_subsys_event_req {
-	u8 subsys_name_len;
+	u32 subsys_name_len;
 	char subsys_name[SSCTL_SUBSYS_NAME_LENGTH];
 	u32 event;
 	u8 evt_driven_valid;
@@ -628,7 +628,7 @@ struct qcom_sysmon *qcom_add_sysmon_subdev(struct rproc *rproc,
 	struct qcom_sysmon *sysmon;
 	int ret;
 
-	sysmon = kzalloc(sizeof(*sysmon), GFP_KERNEL);
+	sysmon = kzalloc_obj(*sysmon);
 	if (!sysmon)
 		return ERR_PTR(-ENOMEM);
 

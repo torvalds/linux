@@ -1266,7 +1266,7 @@ static int cx25821_initdev(struct pci_dev *pci_dev,
 	struct cx25821_dev *dev;
 	int err = 0;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (NULL == dev)
 		return -ENOMEM;
 

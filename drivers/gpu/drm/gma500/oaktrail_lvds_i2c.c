@@ -135,7 +135,7 @@ struct gma_i2c_chan *oaktrail_lvds_i2c_init(struct drm_device *dev)
 	struct gma_i2c_chan *chan;
 	int ret;
 
-	chan = kzalloc(sizeof(struct gma_i2c_chan), GFP_KERNEL);
+	chan = kzalloc_obj(struct gma_i2c_chan);
 	if (!chan)
 		return ERR_PTR(-ENOMEM);
 

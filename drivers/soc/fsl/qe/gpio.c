@@ -161,7 +161,7 @@ struct qe_pin *qe_pin_request(struct device *dev, int index)
 	int gpio_num;
 	int err;
 
-	qe_pin = kzalloc(sizeof(*qe_pin), GFP_KERNEL);
+	qe_pin = kzalloc_obj(*qe_pin);
 	if (!qe_pin) {
 		dev_dbg(dev, "%s: can't allocate memory\n", __func__);
 		return ERR_PTR(-ENOMEM);

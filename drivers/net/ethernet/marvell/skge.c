@@ -918,7 +918,7 @@ static int skge_ring_alloc(struct skge_ring *ring, void *vaddr, u32 base)
 	struct skge_element *e;
 	int i;
 
-	ring->start = kcalloc(ring->count, sizeof(*e), GFP_KERNEL);
+	ring->start = kzalloc_objs(*e, ring->count);
 	if (!ring->start)
 		return -ENOMEM;
 

@@ -396,7 +396,7 @@ static int vidtv_tuner_i2c_probe(struct i2c_client *client)
 	struct dvb_frontend *fe           = config->fe;
 	struct vidtv_tuner_dev *tuner_dev = NULL;
 
-	tuner_dev = kzalloc(sizeof(*tuner_dev), GFP_KERNEL);
+	tuner_dev = kzalloc_obj(*tuner_dev);
 	if (!tuner_dev)
 		return -ENOMEM;
 

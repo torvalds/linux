@@ -528,9 +528,8 @@ struct efd {
 };
 
 static int ses_enclosure_find_by_addr(struct enclosure_device *edev,
-				      void *data)
+				      struct efd *efd)
 {
-	struct efd *efd = data;
 	int i;
 	struct ses_component *scomp;
 
@@ -683,7 +682,7 @@ static void ses_match_to_enclosure(struct enclosure_device *edev,
 	if (efd.addr) {
 		efd.dev = &sdev->sdev_gendev;
 
-		enclosure_for_each_device(ses_enclosure_find_by_addr, &efd);
+		ses_enclosure_find_by_addr(edev, &efd);
 	}
 }
 
@@ -715,7 +714,7 @@ static int ses_intf_add(struct device *cdev)
 	if (sdev->type != TYPE_ENCLOSURE)
 		sdev_printk(KERN_NOTICE, sdev, "Embedded Enclosure Device\n");
 
-	ses_dev = kzalloc(sizeof(*ses_dev), GFP_KERNEL);
+	ses_dev = kzalloc_obj(*ses_dev);
 	hdr_buf = kzalloc(INIT_ALLOC_SIZE, GFP_KERNEL);
 	if (!hdr_buf || !ses_dev)
 		goto err_init_free;
@@ -799,7 +798,7 @@ static int ses_intf_add(struct device *cdev)
 	}
 page2_not_supported:
 	if (components > 0) {
-		scomp = kcalloc(components, sizeof(struct ses_component), GFP_KERNEL);
+		scomp = kzalloc_objs(struct ses_component, components);
 		if (!scomp)
 			goto err_free;
 	}

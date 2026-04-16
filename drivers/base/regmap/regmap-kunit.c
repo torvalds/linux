@@ -211,7 +211,7 @@ static struct regmap *gen_regmap(struct kunit *test,
 
 	get_random_bytes(buf, size);
 
-	*data = kzalloc(sizeof(**data), GFP_KERNEL);
+	*data = kzalloc_obj(**data);
 	if (!(*data))
 		goto out_free;
 	(*data)->vals = buf;
@@ -1759,7 +1759,7 @@ static struct regmap *gen_raw_regmap(struct kunit *test,
 
 	get_random_bytes(buf, size);
 
-	*data = kzalloc(sizeof(**data), GFP_KERNEL);
+	*data = kzalloc_obj(**data);
 	if (!(*data))
 		goto out_free;
 	(*data)->vals = (void *)buf;

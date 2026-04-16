@@ -107,7 +107,7 @@ static void ip_vs_dest_set_insert(struct ip_vs_dest_set *set,
 		}
 	}
 
-	e = kmalloc(sizeof(*e), GFP_ATOMIC);
+	e = kmalloc_obj(*e, GFP_ATOMIC);
 	if (e == NULL)
 		return;
 
@@ -363,7 +363,7 @@ ip_vs_lblcr_new(struct ip_vs_lblcr_table *tbl, const union nf_inet_addr *daddr,
 
 	en = ip_vs_lblcr_get(af, tbl, daddr);
 	if (!en) {
-		en = kmalloc(sizeof(*en), GFP_ATOMIC);
+		en = kmalloc_obj(*en, GFP_ATOMIC);
 		if (!en)
 			return NULL;
 
@@ -510,7 +510,7 @@ static int ip_vs_lblcr_init_svc(struct ip_vs_service *svc)
 	/*
 	 *    Allocate the ip_vs_lblcr_table for this service
 	 */
-	tbl = kmalloc(sizeof(*tbl), GFP_KERNEL);
+	tbl = kmalloc_obj(*tbl);
 	if (tbl == NULL)
 		return -ENOMEM;
 

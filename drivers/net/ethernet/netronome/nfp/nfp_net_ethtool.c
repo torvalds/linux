@@ -713,7 +713,7 @@ static int nfp_test_nsp(struct net_device *netdev)
 		goto exit_close_nsp;
 	}
 
-	nspi = kzalloc(sizeof(*nspi), GFP_KERNEL);
+	nspi = kzalloc_obj(*nspi);
 	if (!nspi) {
 		err = -ENOMEM;
 		goto exit_close_nsp;
@@ -1676,7 +1676,7 @@ static int nfp_net_fs_add(struct nfp_net *nn, struct ethtool_rxnfc *cmd)
 	if (unsupp_mask)
 		return -EOPNOTSUPP;
 
-	new = kzalloc(sizeof(*new), GFP_KERNEL);
+	new = kzalloc_obj(*new);
 	if (!new)
 		return -ENOMEM;
 

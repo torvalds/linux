@@ -425,7 +425,7 @@ static int eql_enslave(struct net_device *master_dev, slaving_request_t __user *
 	if ((master_dev->flags & IFF_UP) == IFF_UP) {
 		/* slave is not a master & not already a slave: */
 		if (!eql_is_master(slave_dev) && !eql_is_slave(slave_dev)) {
-			slave_t *s = kzalloc(sizeof(*s), GFP_KERNEL);
+			slave_t *s = kzalloc_obj(*s);
 			equalizer_t *eql = netdev_priv(master_dev);
 			int ret;
 

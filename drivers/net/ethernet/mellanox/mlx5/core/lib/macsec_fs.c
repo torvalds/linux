@@ -267,7 +267,7 @@ static int macsec_fs_tx_create_crypto_table_groups(struct mlx5_macsec_flow_table
 	int err;
 	u8 *mc;
 
-	ft->g = kcalloc(TX_CRYPTO_TABLE_NUM_GROUPS, sizeof(*ft->g), GFP_KERNEL);
+	ft->g = kzalloc_objs(*ft->g, TX_CRYPTO_TABLE_NUM_GROUPS);
 	if (!ft->g)
 		return -ENOMEM;
 	in = kvzalloc(inlen, GFP_KERNEL);
@@ -404,7 +404,7 @@ static int macsec_fs_tx_create(struct mlx5_macsec_fs *macsec_fs)
 	if (!ns)
 		return -ENOMEM;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 
@@ -713,7 +713,7 @@ static int macsec_fs_id_add(struct list_head *macsec_devices_list, u32 fs_id,
 		rcu_read_unlock();
 	}
 
-	fs_id_iter = kzalloc(sizeof(*fs_id_iter), GFP_KERNEL);
+	fs_id_iter = kzalloc_obj(*fs_id_iter);
 	if (!fs_id_iter)
 		return -ENOMEM;
 
@@ -725,7 +725,7 @@ static int macsec_fs_id_add(struct list_head *macsec_devices_list, u32 fs_id,
 	}
 
 	if (!macsec_device) { /* first time adding a SA to that device */
-		macsec_device = kzalloc(sizeof(*macsec_device), GFP_KERNEL);
+		macsec_device = kzalloc_obj(*macsec_device);
 		if (!macsec_device) {
 			err = -ENOMEM;
 			goto err_alloc_dev;
@@ -813,7 +813,7 @@ macsec_fs_tx_add_rule(struct mlx5_macsec_fs *macsec_fs,
 
 	tx_tables = &tx_fs->tables;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return NULL;
 
@@ -821,7 +821,7 @@ macsec_fs_tx_add_rule(struct mlx5_macsec_fs *macsec_fs,
 	if (err)
 		goto out_spec;
 
-	macsec_rule = kzalloc(sizeof(*macsec_rule), GFP_KERNEL);
+	macsec_rule = kzalloc_obj(*macsec_rule);
 	if (!macsec_rule) {
 		macsec_fs_tx_ft_put(macsec_fs);
 		goto out_spec;
@@ -931,7 +931,7 @@ static int macsec_fs_tx_init(struct mlx5_macsec_fs *macsec_fs)
 	struct mlx5_fc *flow_counter;
 	int err;
 
-	tx_fs = kzalloc(sizeof(*tx_fs), GFP_KERNEL);
+	tx_fs = kzalloc_obj(*tx_fs);
 	if (!tx_fs)
 		return -ENOMEM;
 
@@ -1055,7 +1055,7 @@ static int macsec_fs_rx_create_crypto_table_groups(struct mlx5_macsec_flow_table
 	int err;
 	u8 *mc;
 
-	ft->g = kcalloc(RX_CRYPTO_TABLE_NUM_GROUPS, sizeof(*ft->g), GFP_KERNEL);
+	ft->g = kzalloc_objs(*ft->g, RX_CRYPTO_TABLE_NUM_GROUPS);
 	if (!ft->g)
 		return -ENOMEM;
 
@@ -1327,7 +1327,7 @@ static int macsec_fs_rx_roce_jump_to_rdma_rules_create(struct mlx5_macsec_fs *ma
 	struct mlx5_flow_spec *spec;
 	int err;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 
@@ -1510,7 +1510,7 @@ static int macsec_fs_rx_create(struct mlx5_macsec_fs *macsec_fs)
 	if (!ns)
 		return -ENOMEM;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 
@@ -1739,7 +1739,7 @@ macsec_fs_rx_add_rule(struct mlx5_macsec_fs *macsec_fs,
 	struct mlx5_flow_spec *spec;
 	int err = 0;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return NULL;
 
@@ -1747,7 +1747,7 @@ macsec_fs_rx_add_rule(struct mlx5_macsec_fs *macsec_fs,
 	if (err)
 		goto out_spec;
 
-	macsec_rule = kzalloc(sizeof(*macsec_rule), GFP_KERNEL);
+	macsec_rule = kzalloc_obj(*macsec_rule);
 	if (!macsec_rule) {
 		macsec_fs_rx_ft_put(macsec_fs);
 		goto out_spec;
@@ -1847,7 +1847,7 @@ static int macsec_fs_rx_init(struct mlx5_macsec_fs *macsec_fs)
 	struct mlx5_fc *flow_counter;
 	int err;
 
-	rx_fs =	kzalloc(sizeof(*rx_fs), GFP_KERNEL);
+	rx_fs = kzalloc_obj(*rx_fs);
 	if (!rx_fs)
 		return -ENOMEM;
 
@@ -2132,11 +2132,11 @@ static int mlx5_macsec_fs_add_roce_rule_rx(struct mlx5_macsec_fs *macsec_fs, u32
 	struct mlx5_flow_spec *spec;
 	int err = 0;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 
-	rx_rule = kzalloc(sizeof(*rx_rule), GFP_KERNEL);
+	rx_rule = kzalloc_obj(*rx_rule);
 	if (!rx_rule) {
 		err = -ENOMEM;
 		goto out;
@@ -2201,11 +2201,11 @@ static int mlx5_macsec_fs_add_roce_rule_tx(struct mlx5_macsec_fs *macsec_fs, u32
 	struct mlx5_flow_spec *spec;
 	int err = 0;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 
-	tx_rule = kzalloc(sizeof(*tx_rule), GFP_KERNEL);
+	tx_rule = kzalloc_obj(*tx_rule);
 	if (!tx_rule) {
 		err = -ENOMEM;
 		goto out;
@@ -2361,7 +2361,7 @@ mlx5_macsec_fs_init(struct mlx5_core_dev *mdev)
 	struct mlx5_macsec_fs *macsec_fs;
 	int err;
 
-	macsec_fs = kzalloc(sizeof(*macsec_fs), GFP_KERNEL);
+	macsec_fs = kzalloc_obj(*macsec_fs);
 	if (!macsec_fs)
 		return NULL;
 

@@ -155,6 +155,7 @@ extern unsigned int __max_logical_packages;
 extern unsigned int __max_threads_per_core;
 extern unsigned int __num_threads_per_package;
 extern unsigned int __num_cores_per_package;
+extern unsigned int __num_nodes_per_package;
 
 const char *get_topology_cpu_type_name(struct cpuinfo_x86 *c);
 enum x86_topology_cpu_type get_topology_cpu_type(struct cpuinfo_x86 *c);
@@ -177,6 +178,11 @@ static inline unsigned int topology_num_cores_per_package(void)
 static inline unsigned int topology_num_threads_per_package(void)
 {
 	return __num_threads_per_package;
+}
+
+static inline unsigned int topology_num_nodes_per_package(void)
+{
+	return __num_nodes_per_package;
 }
 
 #ifdef CONFIG_X86_LOCAL_APIC

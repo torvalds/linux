@@ -866,7 +866,7 @@ static int dma_buf_wrap_sg_table(struct sg_table **sg_table)
 	 * sg_table without copying the page_link and give only the copy back to
 	 * the importer.
 	 */
-	to = kzalloc(sizeof(*to), GFP_KERNEL);
+	to = kzalloc_obj(*to);
 	if (!to)
 		return -ENOMEM;
 
@@ -1020,7 +1020,7 @@ dma_buf_dynamic_attach(struct dma_buf *dmabuf, struct device *dev,
 	if (WARN_ON(importer_ops && !importer_ops->move_notify))
 		return ERR_PTR(-EINVAL);
 
-	attach = kzalloc(sizeof(*attach), GFP_KERNEL);
+	attach = kzalloc_obj(*attach);
 	if (!attach)
 		return ERR_PTR(-ENOMEM);
 

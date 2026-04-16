@@ -837,7 +837,7 @@ found:
 	pgsz &= ~(pgsz - 1);
 	pci_write_config_dword(dev, pos + PCI_SRIOV_SYS_PGSIZE, pgsz);
 
-	iov = kzalloc(sizeof(*iov), GFP_KERNEL);
+	iov = kzalloc_obj(*iov);
 	if (!iov)
 		return -ENOMEM;
 

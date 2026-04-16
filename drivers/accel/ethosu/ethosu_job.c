@@ -143,16 +143,9 @@ out:
 	return ret;
 }
 
-static void ethosu_job_cleanup(struct kref *ref)
+static void ethosu_job_err_cleanup(struct ethosu_job *job)
 {
-	struct ethosu_job *job = container_of(ref, struct ethosu_job,
-						refcount);
 	unsigned int i;
-
-	pm_runtime_put_autosuspend(job->dev->base.dev);
-
-	dma_fence_put(job->done_fence);
-	dma_fence_put(job->inference_done_fence);
 
 	for (i = 0; i < job->region_cnt; i++)
 		drm_gem_object_put(job->region_bo[i]);
@@ -160,6 +153,19 @@ static void ethosu_job_cleanup(struct kref *ref)
 	drm_gem_object_put(job->cmd_bo);
 
 	kfree(job);
+}
+
+static void ethosu_job_cleanup(struct kref *ref)
+{
+	struct ethosu_job *job = container_of(ref, struct ethosu_job,
+						refcount);
+
+	pm_runtime_put_autosuspend(job->dev->base.dev);
+
+	dma_fence_put(job->done_fence);
+	dma_fence_put(job->inference_done_fence);
+
+	ethosu_job_err_cleanup(job);
 }
 
 static void ethosu_job_put(struct ethosu_job *job)
@@ -375,7 +381,7 @@ static int ethosu_ioctl_submit_job(struct drm_device *dev, struct drm_file *file
 	if (edev->npu_info.sram_size < job->sram_size)
 		return -EINVAL;
 
-	ejob = kzalloc(sizeof(*ejob), GFP_KERNEL);
+	ejob = kzalloc_obj(*ejob);
 	if (!ejob)
 		return -ENOMEM;
 
@@ -384,7 +390,7 @@ static int ethosu_ioctl_submit_job(struct drm_device *dev, struct drm_file *file
 	ejob->dev = edev;
 	ejob->sram_size = job->sram_size;
 
-	ejob->done_fence = kzalloc(sizeof(*ejob->done_fence), GFP_KERNEL);
+	ejob->done_fence = kzalloc_obj(*ejob->done_fence);
 	if (!ejob->done_fence) {
 		ret = -ENOMEM;
 		goto out_cleanup_job;
@@ -454,12 +460,16 @@ static int ethosu_ioctl_submit_job(struct drm_device *dev, struct drm_file *file
 		}
 	}
 	ret = ethosu_job_push(ejob);
+	if (!ret) {
+		ethosu_job_put(ejob);
+		return 0;
+	}
 
 out_cleanup_job:
 	if (ret)
 		drm_sched_job_cleanup(&ejob->base);
 out_put_job:
-	ethosu_job_put(ejob);
+	ethosu_job_err_cleanup(ejob);
 
 	return ret;
 }
@@ -476,7 +486,7 @@ int ethosu_ioctl_submit(struct drm_device *dev, void *data, struct drm_file *fil
 	}
 
 	struct drm_ethosu_job __free(kvfree) *jobs =
-		kvmalloc_array(args->job_count, sizeof(*jobs), GFP_KERNEL);
+		kvmalloc_objs(*jobs, args->job_count);
 	if (!jobs)
 		return -ENOMEM;
 

@@ -2334,9 +2334,8 @@ static int crypt_alloc_tfms_skcipher(struct crypt_config *cc, char *ciphermode)
 	unsigned int i;
 	int err;
 
-	cc->cipher_tfm.tfms = kcalloc(cc->tfms_count,
-				      sizeof(struct crypto_skcipher *),
-				      GFP_KERNEL);
+	cc->cipher_tfm.tfms = kzalloc_objs(struct crypto_skcipher *,
+					   cc->tfms_count);
 	if (!cc->cipher_tfm.tfms)
 		return -ENOMEM;
 
@@ -2364,7 +2363,7 @@ static int crypt_alloc_tfms_aead(struct crypt_config *cc, char *ciphermode)
 {
 	int err;
 
-	cc->cipher_tfm.tfms = kmalloc(sizeof(struct crypto_aead *), GFP_KERNEL);
+	cc->cipher_tfm.tfms = kmalloc_obj(struct crypto_skcipher *);
 	if (!cc->cipher_tfm.tfms)
 		return -ENOMEM;
 
@@ -3238,7 +3237,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		return -EINVAL;
 	}
 
-	cc = kzalloc(struct_size(cc, key, key_size), GFP_KERNEL);
+	cc = kzalloc_flex(*cc, key, key_size);
 	if (!cc) {
 		ti->error = "Cannot allocate encryption context";
 		return -ENOMEM;

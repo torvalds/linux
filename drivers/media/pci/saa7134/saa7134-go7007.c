@@ -414,7 +414,7 @@ static int saa7134_go7007_init(struct saa7134_dev *dev)
 	if (go == NULL)
 		return -ENOMEM;
 
-	saa = kzalloc(sizeof(struct saa7134_go7007), GFP_KERNEL);
+	saa = kzalloc_obj(struct saa7134_go7007);
 	if (saa == NULL) {
 		kfree(go);
 		return -ENOMEM;

@@ -767,7 +767,7 @@ static int __init mpc83xx_pcie_setup(struct pci_controller *hose,
 	u32 cfg_bar;
 	int ret = -ENOMEM;
 
-	pcie = kzalloc(sizeof(*pcie), GFP_KERNEL);
+	pcie = kzalloc_obj(*pcie);
 	if (!pcie)
 		return ret;
 

@@ -4114,7 +4114,7 @@ static void lan8814_get_rx_ts(struct kszphy_ptp_priv *ptp_priv)
 	u32 reg;
 
 	do {
-		rx_ts = kzalloc(sizeof(*rx_ts), GFP_KERNEL);
+		rx_ts = kzalloc_obj(*rx_ts);
 		if (!rx_ts)
 			return;
 

@@ -492,7 +492,7 @@ static struct net *net_alloc(void)
 		goto out_free;
 
 #ifdef CONFIG_KEYS
-	net->key_domain = kzalloc(sizeof(struct key_tag), GFP_KERNEL);
+	net->key_domain = kzalloc_obj(struct key_tag);
 	if (!net->key_domain)
 		goto out_free_2;
 	refcount_set(&net->key_domain->usage, 1);

@@ -728,7 +728,7 @@ static int pontis_init(struct snd_ice1712 *ice)
 	ice->num_total_adcs = 2;
 
 	/* to remember the register values */
-	ice->akm = kzalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
+	ice->akm = kzalloc_obj(struct snd_akm4xxx);
 	if (! ice->akm)
 		return -ENOMEM;
 	ice->akm_codecs = 1;

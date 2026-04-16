@@ -227,7 +227,7 @@ static struct mctp_sk_key *mctp_key_alloc(struct mctp_sock *msk,
 {
 	struct mctp_sk_key *key;
 
-	key = kzalloc(sizeof(*key), gfp);
+	key = kzalloc_obj(*key, gfp);
 	if (!key)
 		return NULL;
 
@@ -359,6 +359,7 @@ static void mctp_flow_prepare_output(struct sk_buff *skb, struct mctp_dev *dev)
 {
 	struct mctp_sk_key *key;
 	struct mctp_flow *flow;
+	unsigned long flags;
 
 	flow = skb_ext_find(skb, SKB_EXT_MCTP);
 	if (!flow)
@@ -366,12 +367,14 @@ static void mctp_flow_prepare_output(struct sk_buff *skb, struct mctp_dev *dev)
 
 	key = flow->key;
 
-	if (key->dev) {
-		WARN_ON(key->dev != dev);
-		return;
-	}
+	spin_lock_irqsave(&key->lock, flags);
 
-	mctp_dev_set_key(dev, key);
+	if (!key->dev)
+		mctp_dev_set_key(dev, key);
+	else
+		WARN_ON(key->dev != dev);
+
+	spin_unlock_irqrestore(&key->lock, flags);
 }
 #else
 static void mctp_skb_set_flow(struct sk_buff *skb, struct mctp_sk_key *key) {}
@@ -675,7 +678,7 @@ static struct mctp_route *mctp_route_alloc(void)
 {
 	struct mctp_route *rt;
 
-	rt = kzalloc(sizeof(*rt), GFP_KERNEL);
+	rt = kzalloc_obj(*rt);
 	if (!rt)
 		return NULL;
 
@@ -1643,6 +1646,7 @@ static int mctp_fill_rtinfo(struct sk_buff *skb, struct mctp_route *rt,
 		return -EMSGSIZE;
 
 	hdr = nlmsg_data(nlh);
+	memset(hdr, 0, sizeof(*hdr));
 	hdr->rtm_family = AF_MCTP;
 
 	/* we use the _len fields as a number of EIDs, rather than

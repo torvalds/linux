@@ -102,7 +102,7 @@ static int bl_trig_activate(struct led_classdev *led)
 {
 	struct bl_trig_notifier *n;
 
-	n = kzalloc(sizeof(struct bl_trig_notifier), GFP_KERNEL);
+	n = kzalloc_obj(struct bl_trig_notifier);
 	if (!n)
 		return -ENOMEM;
 	led_set_trigger_data(led, n);

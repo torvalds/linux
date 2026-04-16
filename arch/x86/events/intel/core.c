@@ -7378,9 +7378,8 @@ static __always_inline int intel_pmu_init_hybrid(enum hybrid_pmu_type pmus)
 	int idx = 0, bit;
 
 	x86_pmu.num_hybrid_pmus = hweight_long(pmus_mask);
-	x86_pmu.hybrid_pmu = kcalloc(x86_pmu.num_hybrid_pmus,
-				     sizeof(struct x86_hybrid_pmu),
-				     GFP_KERNEL);
+	x86_pmu.hybrid_pmu = kzalloc_objs(struct x86_hybrid_pmu,
+					  x86_pmu.num_hybrid_pmus);
 	if (!x86_pmu.hybrid_pmu)
 		return -ENOMEM;
 

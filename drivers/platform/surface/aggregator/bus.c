@@ -83,7 +83,7 @@ struct ssam_device *ssam_device_alloc(struct ssam_controller *ctrl,
 {
 	struct ssam_device *sdev;
 
-	sdev = kzalloc(sizeof(*sdev), GFP_KERNEL);
+	sdev = kzalloc_obj(*sdev);
 	if (!sdev)
 		return NULL;
 

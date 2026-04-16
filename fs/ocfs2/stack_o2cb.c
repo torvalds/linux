@@ -334,7 +334,7 @@ static int o2cb_cluster_connect(struct ocfs2_cluster_connection *conn)
 		goto out;
 	}
 
-	priv = kzalloc(sizeof(struct o2dlm_private), GFP_KERNEL);
+	priv = kzalloc_obj(struct o2dlm_private);
 	if (!priv) {
 		rc = -ENOMEM;
 		goto out_free;

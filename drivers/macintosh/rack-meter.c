@@ -396,7 +396,7 @@ static int rackmeter_probe(struct macio_dev* mdev,
 	}
 
 	/* Create and initialize our instance data */
-	rm = kzalloc(sizeof(*rm), GFP_KERNEL);
+	rm = kzalloc_obj(*rm);
 	if (rm == NULL) {
 		printk(KERN_ERR "rackmeter: failed to allocate memory !\n");
 		rc = -ENOMEM;

@@ -81,7 +81,7 @@ static int ngbe_set_ringparam(struct net_device *netdev,
 
 	/* allocate temporary buffer to store rings in */
 	i = max_t(int, wx->num_tx_queues, wx->num_rx_queues);
-	temp_ring = kvmalloc_array(i, sizeof(struct wx_ring), GFP_KERNEL);
+	temp_ring = kvmalloc_objs(struct wx_ring, i);
 	if (!temp_ring) {
 		err = -ENOMEM;
 		goto clear_reset;

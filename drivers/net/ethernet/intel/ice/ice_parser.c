@@ -1895,7 +1895,7 @@ static struct ice_xlt_kb *ice_xlt_kb_get(struct ice_hw *hw, u32 sect_type)
 	if (!seg)
 		return ERR_PTR(-EINVAL);
 
-	kb = kzalloc(sizeof(*kb), GFP_KERNEL);
+	kb = kzalloc_obj(*kb);
 	if (!kb)
 		return ERR_PTR(-ENOMEM);
 
@@ -2000,7 +2000,7 @@ struct ice_parser *ice_parser_create(struct ice_hw *hw)
 	struct ice_parser *p;
 	void *err;
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (!p)
 		return ERR_PTR(-ENOMEM);
 

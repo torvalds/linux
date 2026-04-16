@@ -243,7 +243,7 @@ static int snd_pcm_ioctl_hw_params_compat(struct snd_pcm_substream *substream,
 		return -ENOTTY;
 
 	struct snd_pcm_hw_params *data __free(kfree) =
-		kmalloc(sizeof(*data), GFP_KERNEL);
+		kmalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 

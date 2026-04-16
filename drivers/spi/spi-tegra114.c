@@ -920,7 +920,7 @@ static struct tegra_spi_client_data
 		return NULL;
 	}
 
-	cdata = kzalloc(sizeof(*cdata), GFP_KERNEL);
+	cdata = kzalloc_obj(*cdata);
 	if (!cdata)
 		return NULL;
 

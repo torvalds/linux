@@ -125,7 +125,7 @@ bool kmod_dup_request_exists_wait(char *module_name, bool wait, int *dup_ret)
 	 * Pre-allocate the entry in case we have to use it later
 	 * to avoid contention with the mutex.
 	 */
-	new_kmod_req = kzalloc(sizeof(*new_kmod_req), GFP_KERNEL);
+	new_kmod_req = kzalloc_obj(*new_kmod_req);
 	if (!new_kmod_req)
 		return false;
 

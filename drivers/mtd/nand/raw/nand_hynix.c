@@ -705,7 +705,7 @@ static int hynix_nand_init(struct nand_chip *chip)
 	else
 		chip->options |= NAND_BBM_FIRSTPAGE | NAND_BBM_SECONDPAGE;
 
-	hynix = kzalloc(sizeof(*hynix), GFP_KERNEL);
+	hynix = kzalloc_obj(*hynix);
 	if (!hynix)
 		return -ENOMEM;
 

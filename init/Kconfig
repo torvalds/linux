@@ -150,6 +150,11 @@ config CC_HAS_COUNTED_BY_PTR
 	# supported since gcc 16.0.0
 	default y if CC_IS_GCC && GCC_VERSION >= 160000
 
+config CC_HAS_BROKEN_COUNTED_BY_REF
+	bool
+	# https://github.com/llvm/llvm-project/issues/182575
+	default y if CC_IS_CLANG && CLANG_VERSION < 220100
+
 config CC_HAS_MULTIDIMENSIONAL_NONSTRING
 	def_bool $(success,echo 'char tag[][4] __attribute__((__nonstring__)) = { };' | $(CC) $(CLANG_FLAGS) -x c - -c -o /dev/null -Werror)
 
@@ -1897,7 +1902,7 @@ config IO_URING_MOCK_FILE
 	default n
 	depends on IO_URING
 	help
-	  Enable mock files for io_uring subststem testing. The ABI might
+	  Enable mock files for io_uring subsystem testing. The ABI might
 	  still change, so it's still experimental and should only be enabled
 	  for specific test purposes.
 

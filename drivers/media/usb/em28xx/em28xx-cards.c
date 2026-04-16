@@ -3488,7 +3488,7 @@ static int em28xx_media_device_init(struct em28xx *dev,
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_device *mdev;
 
-	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
+	mdev = kzalloc_obj(*mdev);
 	if (!mdev)
 		return -ENOMEM;
 
@@ -3905,7 +3905,7 @@ static int em28xx_usb_probe(struct usb_interface *intf,
 	}
 
 	/* allocate memory for our device state and initialize it */
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev) {
 		retval = -ENOMEM;
 		goto err;

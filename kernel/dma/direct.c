@@ -654,7 +654,7 @@ int dma_direct_set_offset(struct device *dev, phys_addr_t cpu_start,
 	if (!offset)
 		return 0;
 
-	map = kcalloc(2, sizeof(*map), GFP_KERNEL);
+	map = kzalloc_objs(*map, 2);
 	if (!map)
 		return -ENOMEM;
 	map[0].cpu_start = cpu_start;

@@ -993,8 +993,7 @@ static int do_sys_poll(struct pollfd __user *ufds, unsigned int nfds,
 		todo -= walk->len;
 
 		len = min(todo, POLLFD_PER_PAGE);
-		walk = walk->next = kmalloc(struct_size(walk, entries, len),
-					    GFP_KERNEL);
+		walk = walk->next = kmalloc_flex(*walk, entries, len);
 		if (!walk) {
 			err = -ENOMEM;
 			goto out_fds;

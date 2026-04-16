@@ -57,7 +57,7 @@ Supported chips:
 	- https://ww1.microchip.com/downloads/en/DeviceDoc/EMC1438%20DS%20Rev.%201.0%20(04-29-10).pdf
 
 Author:
-    Kalhan Trisal <kalhan.trisal@intel.com
+    Kalhan Trisal <kalhan.trisal@intel.com>
 
 
 Description

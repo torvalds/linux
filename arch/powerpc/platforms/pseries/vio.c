@@ -744,8 +744,7 @@ static int vio_cmo_bus_probe(struct vio_dev *viodev)
 			viodev->cmo.desired = VIO_CMO_MIN_ENT;
 		size = VIO_CMO_MIN_ENT;
 
-		dev_ent = kmalloc(sizeof(struct vio_cmo_dev_entry),
-		                  GFP_KERNEL);
+		dev_ent = kmalloc_obj(struct vio_cmo_dev_entry);
 		if (!dev_ent)
 			return -ENOMEM;
 
@@ -1165,7 +1164,7 @@ static struct iommu_table *vio_build_iommu_table(struct vio_dev *dev)
 	if (!dma_window)
 		return NULL;
 
-	tbl = kzalloc(sizeof(*tbl), GFP_KERNEL);
+	tbl = kzalloc_obj(*tbl);
 	if (tbl == NULL)
 		return NULL;
 
@@ -1376,7 +1375,7 @@ struct vio_dev *vio_register_device_node(struct device_node *of_node)
 	}
 
 	/* allocate a vio_dev for this node */
-	viodev = kzalloc(sizeof(struct vio_dev), GFP_KERNEL);
+	viodev = kzalloc_obj(struct vio_dev);
 	if (viodev == NULL) {
 		pr_warn("%s: allocation failure for VIO device.\n", __func__);
 		return NULL;

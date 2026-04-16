@@ -684,14 +684,14 @@ static void rt6_probe(struct fib6_nh *fib6_nh)
 		    time_after(jiffies,
 			       neigh->updated +
 			       READ_ONCE(idev->cnf.rtr_probe_interval))) {
-			work = kmalloc(sizeof(*work), GFP_ATOMIC);
+			work = kmalloc_obj(*work, GFP_ATOMIC);
 			if (work)
 				__neigh_set_probe_once(neigh);
 		}
 		write_unlock_bh(&neigh->lock);
 	} else if (time_after(jiffies, last_probe +
 				       READ_ONCE(idev->cnf.rtr_probe_interval))) {
-		work = kmalloc(sizeof(*work), GFP_ATOMIC);
+		work = kmalloc_obj(*work, GFP_ATOMIC);
 	}
 
 	if (!work || cmpxchg(&fib6_nh->last_probe,
@@ -1063,7 +1063,8 @@ static struct net_device *ip6_rt_get_dev_rcu(const struct fib6_result *res)
 		 */
 		if (netif_is_l3_slave(dev) &&
 		    !rt6_need_strict(&res->f6i->fib6_dst.addr))
-			dev = l3mdev_master_dev_rcu(dev);
+			dev = l3mdev_master_dev_rcu(dev) ? :
+			      dev_net(dev)->loopback_dev;
 		else if (!netif_is_l3_master(dev))
 			dev = dev_net(dev)->loopback_dev;
 		/* last case is netif_is_l3_master(dev) is true in which
@@ -1723,8 +1724,8 @@ static int rt6_insert_exception(struct rt6_info *nrt,
 	bucket = rcu_dereference_protected(nh->rt6i_exception_bucket,
 					  lockdep_is_held(&rt6_exception_lock));
 	if (!bucket) {
-		bucket = kcalloc(FIB6_EXCEPTION_BUCKET_SIZE, sizeof(*bucket),
-				 GFP_ATOMIC);
+		bucket = kzalloc_objs(*bucket, FIB6_EXCEPTION_BUCKET_SIZE,
+				      GFP_ATOMIC);
 		if (!bucket) {
 			err = -ENOMEM;
 			goto out;
@@ -1759,7 +1760,7 @@ static int rt6_insert_exception(struct rt6_info *nrt,
 	if (rt6_ex)
 		rt6_remove_exception(bucket, rt6_ex);
 
-	rt6_ex = kzalloc(sizeof(*rt6_ex), GFP_ATOMIC);
+	rt6_ex = kzalloc_obj(*rt6_ex, GFP_ATOMIC);
 	if (!rt6_ex) {
 		err = -ENOMEM;
 		goto out;
@@ -3582,7 +3583,6 @@ int fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,
 	netdevice_tracker *dev_tracker = &fib6_nh->fib_nh_dev_tracker;
 	struct net_device *dev = NULL;
 	struct inet6_dev *idev = NULL;
-	int addr_type;
 	int err;
 
 	fib6_nh->fib_nh_family = AF_INET6;
@@ -3624,11 +3624,10 @@ int fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,
 
 	fib6_nh->fib_nh_weight = 1;
 
-	/* We cannot add true routes via loopback here,
-	 * they would result in kernel looping; promote them to reject routes
+	/* Reset the nexthop device to the loopback device in case of reject
+	 * routes.
 	 */
-	addr_type = ipv6_addr_type(&cfg->fc_dst);
-	if (fib6_is_reject(cfg->fc_flags, dev, addr_type)) {
+	if (cfg->fc_flags & RTF_REJECT) {
 		/* hold loopback dev/idev if we haven't done so. */
 		if (dev != net->loopback_dev) {
 			if (dev) {
@@ -5331,7 +5330,7 @@ static int ip6_route_info_append(struct list_head *rt6_nh_list,
 			return -EEXIST;
 	}
 
-	nh = kzalloc(sizeof(*nh), GFP_KERNEL);
+	nh = kzalloc_obj(*nh);
 	if (!nh)
 		return -ENOMEM;
 
@@ -6778,7 +6777,7 @@ static struct pernet_operations ip6_route_net_ops = {
 
 static int __net_init ipv6_inetpeer_init(struct net *net)
 {
-	struct inet_peer_base *bp = kmalloc(sizeof(*bp), GFP_KERNEL);
+	struct inet_peer_base *bp = kmalloc_obj(*bp);
 
 	if (!bp)
 		return -ENOMEM;

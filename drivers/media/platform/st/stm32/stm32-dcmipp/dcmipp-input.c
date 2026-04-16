@@ -527,7 +527,7 @@ struct dcmipp_ent_device *dcmipp_inp_ent_init(struct device *dev,
 	int ret;
 
 	/* Allocate the inp struct */
-	inp = kzalloc(sizeof(*inp), GFP_KERNEL);
+	inp = kzalloc_obj(*inp);
 	if (!inp)
 		return ERR_PTR(-ENOMEM);
 

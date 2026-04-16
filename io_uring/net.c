@@ -375,6 +375,8 @@ static int io_send_setup(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		kmsg->msg.msg_namelen = addr_len;
 	}
 	if (sr->flags & IORING_RECVSEND_FIXED_BUF) {
+		if (sr->flags & IORING_SEND_VECTORIZED)
+			return -EINVAL;
 		req->flags |= REQ_F_IMPORT_BUFFER;
 		return 0;
 	}
@@ -1493,8 +1495,6 @@ int io_send_zc(struct io_kiocb *req, unsigned int issue_flags)
 			return -EAGAIN;
 
 		if (ret > 0 && io_net_retry(sock, kmsg->msg.msg_flags)) {
-			zc->len -= ret;
-			zc->buf += ret;
 			zc->done_io += ret;
 			return -EAGAIN;
 		}

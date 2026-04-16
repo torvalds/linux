@@ -358,7 +358,7 @@ static int kvm_loongarch_env_init(void)
 		return -ENOMEM;
 	}
 
-	kvm_loongarch_ops = kzalloc(sizeof(*kvm_loongarch_ops), GFP_KERNEL);
+	kvm_loongarch_ops = kzalloc_obj(*kvm_loongarch_ops);
 	if (!kvm_loongarch_ops) {
 		free_percpu(vmcs);
 		vmcs = NULL;

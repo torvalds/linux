@@ -244,7 +244,7 @@ static int aq_pci_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_ioremap;
 
-	self->aq_hw = kzalloc(sizeof(*self->aq_hw), GFP_KERNEL);
+	self->aq_hw = kzalloc_obj(*self->aq_hw);
 	if (!self->aq_hw) {
 		err = -ENOMEM;
 		goto err_ioremap;

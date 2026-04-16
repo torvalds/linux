@@ -638,7 +638,7 @@ static struct sugov_policy *sugov_policy_alloc(struct cpufreq_policy *policy)
 {
 	struct sugov_policy *sg_policy;
 
-	sg_policy = kzalloc(sizeof(*sg_policy), GFP_KERNEL);
+	sg_policy = kzalloc_obj(*sg_policy);
 	if (!sg_policy)
 		return NULL;
 
@@ -722,7 +722,7 @@ static struct sugov_tunables *sugov_tunables_alloc(struct sugov_policy *sg_polic
 {
 	struct sugov_tunables *tunables;
 
-	tunables = kzalloc(sizeof(*tunables), GFP_KERNEL);
+	tunables = kzalloc_obj(*tunables);
 	if (tunables) {
 		gov_attr_set_init(&tunables->attr_set, &sg_policy->tunables_hook);
 		if (!have_governor_per_policy())

@@ -23,6 +23,9 @@ MODULE_FIRMWARE("amdnpu/1502_00/npu.sbin");
 MODULE_FIRMWARE("amdnpu/17f0_10/npu.sbin");
 MODULE_FIRMWARE("amdnpu/17f0_11/npu.sbin");
 MODULE_FIRMWARE("amdnpu/17f0_20/npu.sbin");
+MODULE_FIRMWARE("amdnpu/1502_00/npu_7.sbin");
+MODULE_FIRMWARE("amdnpu/17f0_10/npu_7.sbin");
+MODULE_FIRMWARE("amdnpu/17f0_11/npu_7.sbin");
 
 /*
  * 0.0: Initial version
@@ -63,7 +66,7 @@ static int amdxdna_drm_open(struct drm_device *ddev, struct drm_file *filp)
 	struct amdxdna_client *client;
 	int ret;
 
-	client = kzalloc(sizeof(*client), GFP_KERNEL);
+	client = kzalloc_obj(*client);
 	if (!client)
 		return -ENOMEM;
 

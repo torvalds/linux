@@ -153,8 +153,12 @@ int shmem_sg_alloc_table(struct drm_i915_private *i915, struct sg_table *st,
 			}
 		} while (1);
 
-		nr_pages = min_t(unsigned long,
-				folio_nr_pages(folio), page_count - i);
+		nr_pages = min_array(((unsigned long[]) {
+					folio_nr_pages(folio),
+					page_count - i,
+					max_segment / PAGE_SIZE,
+				      }), 3);
+
 		if (!i ||
 		    sg->length >= max_segment ||
 		    folio_pfn(folio) != next_pfn) {
@@ -164,7 +168,9 @@ int shmem_sg_alloc_table(struct drm_i915_private *i915, struct sg_table *st,
 			st->nents++;
 			sg_set_folio(sg, folio, nr_pages * PAGE_SIZE, 0);
 		} else {
-			/* XXX: could overflow? */
+			nr_pages = min_t(unsigned long, nr_pages,
+					 (max_segment - sg->length) / PAGE_SIZE);
+
 			sg->length += nr_pages * PAGE_SIZE;
 		}
 		next_pfn = folio_pfn(folio) + nr_pages;
@@ -222,7 +228,7 @@ static int shmem_get_pages(struct drm_i915_gem_object *obj)
 	GEM_BUG_ON(obj->write_domain & I915_GEM_GPU_DOMAINS);
 
 rebuild_st:
-	st = kmalloc(sizeof(*st), GFP_KERNEL | __GFP_NOWARN);
+	st = kmalloc_obj(*st, GFP_KERNEL | __GFP_NOWARN);
 	if (!st)
 		return -ENOMEM;
 
@@ -499,7 +505,7 @@ static int __create_shmem(struct drm_i915_private *i915,
 			  resource_size_t size,
 			  unsigned int flags)
 {
-	unsigned long shmem_flags = VM_NORESERVE;
+	const vma_flags_t shmem_flags = mk_vma_flags(VMA_NORESERVE_BIT);
 	struct vfsmount *huge_mnt;
 	struct file *filp;
 

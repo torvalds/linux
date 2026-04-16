@@ -761,7 +761,7 @@ struct mgb4_vout_dev *mgb4_vout_create(struct mgb4_dev *mgbdev, int id)
 	struct pci_dev *pdev = mgbdev->pdev;
 	struct device *dev = &pdev->dev;
 
-	voutdev = kzalloc(sizeof(*voutdev), GFP_KERNEL);
+	voutdev = kzalloc_obj(*voutdev);
 	if (!voutdev)
 		return NULL;
 

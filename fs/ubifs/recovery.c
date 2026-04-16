@@ -508,7 +508,7 @@ static int fix_unclean_leb(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 
 		dbg_rcvry("need to fix LEB %d start %d endpt %d",
 			  lnum, start, sleb->endpt);
-		ucleb = kzalloc(sizeof(struct ubifs_unclean_leb), GFP_NOFS);
+		ucleb = kzalloc_obj(struct ubifs_unclean_leb, GFP_NOFS);
 		if (!ucleb)
 			return -ENOMEM;
 		ucleb->lnum = lnum;
@@ -1258,7 +1258,7 @@ static int add_ino(struct ubifs_info *c, ino_t inum, loff_t i_size,
 			p = &(*p)->rb_right;
 	}
 
-	e = kzalloc(sizeof(struct size_entry), GFP_KERNEL);
+	e = kzalloc_obj(struct size_entry);
 	if (!e)
 		return -ENOMEM;
 

@@ -175,6 +175,7 @@ function_xforms  = [
     (KernRe(r"^__FORTIFY_INLINE +"), ""),
     (KernRe(r"__init +"), ""),
     (KernRe(r"__init_or_module +"), ""),
+    (KernRe(r"__exit +"), ""),
     (KernRe(r"__deprecated +"), ""),
     (KernRe(r"__flatten +"), ""),
     (KernRe(r"__meminit +"), ""),

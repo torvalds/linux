@@ -109,7 +109,7 @@ nvkm_client_new(const char *name, u64 device, const char *cfg, const char *dbg,
 	struct nvkm_oclass oclass = { .base = nvkm_uclient_sclass };
 	struct nvkm_client *client;
 
-	if (!(client = *pclient = kzalloc(sizeof(*client), GFP_KERNEL)))
+	if (!(client = *pclient = kzalloc_obj(*client)))
 		return -ENOMEM;
 	oclass.client = client;
 

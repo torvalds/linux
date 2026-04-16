@@ -269,7 +269,7 @@ il3945_get_free_frame(struct il_priv *il)
 	struct il3945_frame *frame;
 	struct list_head *element;
 	if (list_empty(&il->free_frames)) {
-		frame = kzalloc(sizeof(*frame), GFP_KERNEL);
+		frame = kzalloc_obj(*frame);
 		if (!frame) {
 			IL_ERR("Could not allocate frame!\n");
 			return NULL;

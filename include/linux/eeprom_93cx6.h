@@ -31,10 +31,10 @@
  * struct eeprom_93cx6 - control structure for setting the commands
  * for reading the eeprom data.
  * @data: private pointer for the driver.
- * @register_read(struct eeprom_93cx6 *eeprom): handler to
- * read the eeprom register, this function should set all reg_* fields.
- * @register_write(struct eeprom_93cx6 *eeprom): handler to
- * write to the eeprom register by using all reg_* fields.
+ * @register_read: handler to read the eeprom register;
+ * this function should set all reg_* fields.
+ * @register_write: handler to write to the eeprom register by using
+ * all reg_* fields.
  * @width: eeprom width, should be one of the PCI_EEPROM_WIDTH_* defines
  * @quirks: eeprom or controller quirks
  * @drive_data: Set if we're driving the data line.

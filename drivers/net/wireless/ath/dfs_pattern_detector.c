@@ -199,7 +199,7 @@ channel_detector_create(struct dfs_pattern_detector *dpd, u16 freq)
 	u32 i;
 	struct channel_detector *cd;
 
-	cd = kzalloc(struct_size(cd, detectors, dpd->num_radar_types), GFP_ATOMIC);
+	cd = kzalloc_flex(*cd, detectors, dpd->num_radar_types, GFP_ATOMIC);
 	if (cd == NULL)
 		goto fail;
 
@@ -354,7 +354,7 @@ dfs_pattern_detector_init(struct ath_common *common,
 	if (!IS_ENABLED(CONFIG_CFG80211_CERTIFICATION_ONUS))
 		return NULL;
 
-	dpd = kmalloc(sizeof(*dpd), GFP_KERNEL);
+	dpd = kmalloc_obj(*dpd);
 	if (dpd == NULL)
 		return NULL;
 

@@ -1957,7 +1957,7 @@ int snd_ac97_bus(struct snd_card *card, int num,
 
 	if (snd_BUG_ON(!card))
 		return -EINVAL;
-	bus = kzalloc(sizeof(*bus), GFP_KERNEL);
+	bus = kzalloc_obj(*bus);
 	if (bus == NULL)
 		return -ENOMEM;
 	bus->card = card;
@@ -2069,7 +2069,7 @@ int snd_ac97_mixer(struct snd_ac97_bus *bus, struct snd_ac97_template *template,
 		return -EBUSY;
 
 	card = bus->card;
-	ac97 = kzalloc(sizeof(*ac97), GFP_KERNEL);
+	ac97 = kzalloc_obj(*ac97);
 	if (ac97 == NULL)
 		return -ENOMEM;
 	ac97->private_data = template->private_data;

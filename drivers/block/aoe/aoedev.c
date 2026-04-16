@@ -471,10 +471,10 @@ aoedev_by_aoeaddr(ulong maj, int min, int do_alloc)
 		}
 	if (d || !do_alloc || minor_get(&sysminor, maj, min) < 0)
 		goto out;
-	d = kcalloc(1, sizeof *d, GFP_ATOMIC);
+	d = kzalloc_objs(*d, 1, GFP_ATOMIC);
 	if (!d)
 		goto out;
-	d->targets = kcalloc(NTARGETS, sizeof(*d->targets), GFP_ATOMIC);
+	d->targets = kzalloc_objs(*d->targets, NTARGETS, GFP_ATOMIC);
 	if (!d->targets) {
 		kfree(d);
 		d = NULL;

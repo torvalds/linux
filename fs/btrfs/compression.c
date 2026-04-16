@@ -662,7 +662,7 @@ static struct list_head *alloc_heuristic_ws(struct btrfs_fs_info *fs_info)
 {
 	struct heuristic_ws *ws;
 
-	ws = kzalloc(sizeof(*ws), GFP_KERNEL);
+	ws = kzalloc_obj(*ws);
 	if (!ws)
 		return ERR_PTR(-ENOMEM);
 
@@ -670,11 +670,11 @@ static struct list_head *alloc_heuristic_ws(struct btrfs_fs_info *fs_info)
 	if (!ws->sample)
 		goto fail;
 
-	ws->bucket = kcalloc(BUCKET_SIZE, sizeof(*ws->bucket), GFP_KERNEL);
+	ws->bucket = kzalloc_objs(*ws->bucket, BUCKET_SIZE);
 	if (!ws->bucket)
 		goto fail;
 
-	ws->bucket_b = kcalloc(BUCKET_SIZE, sizeof(*ws->bucket_b), GFP_KERNEL);
+	ws->bucket_b = kzalloc_objs(*ws->bucket_b, BUCKET_SIZE);
 	if (!ws->bucket_b)
 		goto fail;
 
@@ -734,7 +734,7 @@ static int alloc_workspace_manager(struct btrfs_fs_info *fs_info,
 	struct list_head *workspace;
 
 	ASSERT(fs_info->compr_wsm[type] == NULL);
-	gwsm = kzalloc(sizeof(*gwsm), GFP_KERNEL);
+	gwsm = kzalloc_obj(*gwsm);
 	if (!gwsm)
 		return -ENOMEM;
 

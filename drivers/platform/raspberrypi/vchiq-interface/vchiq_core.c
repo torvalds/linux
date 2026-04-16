@@ -2723,7 +2723,7 @@ vchiq_add_service_internal(struct vchiq_state *state,
 	if (ret)
 		return NULL;
 
-	service = kzalloc(sizeof(*service), GFP_KERNEL);
+	service = kzalloc_obj(*service);
 	if (!service)
 		return service;
 

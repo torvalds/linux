@@ -3198,7 +3198,7 @@ netxen_list_config_ip(struct netxen_adapter *adapter,
 				goto out;
 		}
 
-		cur = kzalloc(sizeof(struct nx_ip_list), GFP_ATOMIC);
+		cur = kzalloc_obj(struct nx_ip_list, GFP_ATOMIC);
 		if (cur == NULL)
 			goto out;
 		if (is_vlan_dev(dev))

@@ -91,7 +91,7 @@
 
 /* Macro for allocating structures */
 #define kfd_alloc_struct(ptr_to_struct)	\
-	((typeof(ptr_to_struct)) kzalloc(sizeof(*ptr_to_struct), GFP_KERNEL))
+	((typeof(ptr_to_struct)) kzalloc_obj(*ptr_to_struct))
 
 #define KFD_MAX_NUM_OF_PROCESSES 512
 #define KFD_MAX_NUM_OF_QUEUES_PER_PROCESS 1024

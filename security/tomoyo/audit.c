@@ -376,7 +376,7 @@ void tomoyo_write_log2(struct tomoyo_request_info *r, int len, const char *fmt,
 	buf = tomoyo_init_log(r, len, fmt, args);
 	if (!buf)
 		goto out;
-	entry = kzalloc(sizeof(*entry), GFP_NOFS);
+	entry = kzalloc_obj(*entry, GFP_NOFS);
 	if (!entry) {
 		kfree(buf);
 		goto out;

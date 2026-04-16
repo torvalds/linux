@@ -290,7 +290,7 @@ static struct fsl_re_desc *fsl_re_chan_alloc_desc(struct fsl_re_chan *re_chan,
 	spin_unlock_irqrestore(&re_chan->desc_lock, lock_flag);
 
 	if (!desc) {
-		desc = kzalloc(sizeof(*desc), GFP_NOWAIT);
+		desc = kzalloc_obj(*desc, GFP_NOWAIT);
 		if (!desc)
 			return NULL;
 
@@ -579,7 +579,7 @@ static int fsl_re_alloc_chan_resources(struct dma_chan *chan)
 
 	re_chan = container_of(chan, struct fsl_re_chan, chan);
 	for (i = 0; i < FSL_RE_MIN_DESCS; i++) {
-		desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+		desc = kzalloc_obj(*desc);
 		if (!desc)
 			break;
 

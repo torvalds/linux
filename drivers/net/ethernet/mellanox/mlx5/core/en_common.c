@@ -179,7 +179,7 @@ int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev, bool create_tises)
 
 	num_doorbells = min(mlx5e_get_devlink_param_num_doorbells(mdev),
 			    mlx5e_get_max_num_channels(mdev));
-	res->bfregs = kcalloc(num_doorbells, sizeof(*res->bfregs), GFP_KERNEL);
+	res->bfregs = kzalloc_objs(*res->bfregs, num_doorbells);
 	if (!res->bfregs) {
 		err = -ENOMEM;
 		goto err_destroy_mkey;

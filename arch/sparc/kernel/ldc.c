@@ -1171,7 +1171,7 @@ struct ldc_channel *ldc_alloc(unsigned long id,
 
 	mssbuf = NULL;
 
-	lp = kzalloc(sizeof(*lp), GFP_KERNEL);
+	lp = kzalloc_obj(*lp);
 	err = -ENOMEM;
 	if (!lp)
 		goto out_err;

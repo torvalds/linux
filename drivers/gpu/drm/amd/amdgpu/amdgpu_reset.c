@@ -276,7 +276,7 @@ struct amdgpu_reset_domain *amdgpu_reset_create_reset_domain(enum amdgpu_reset_d
 {
 	struct amdgpu_reset_domain *reset_domain;
 
-	reset_domain = kvzalloc(sizeof(struct amdgpu_reset_domain), GFP_KERNEL);
+	reset_domain = kvzalloc_obj(struct amdgpu_reset_domain);
 	if (!reset_domain) {
 		DRM_ERROR("Failed to allocate amdgpu_reset_domain!");
 		return NULL;

@@ -50,8 +50,8 @@ struct psp_assoc *psp_assoc_create(struct psp_dev *psd)
 
 	lockdep_assert_held(&psd->lock);
 
-	pas = kzalloc(struct_size(pas, drv_data, psd->caps->assoc_drv_spc),
-		      GFP_KERNEL_ACCOUNT);
+	pas = kzalloc_flex(*pas, drv_data, psd->caps->assoc_drv_spc,
+			   GFP_KERNEL_ACCOUNT);
 	if (!pas)
 		return NULL;
 

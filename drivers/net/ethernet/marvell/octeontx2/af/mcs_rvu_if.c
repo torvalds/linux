@@ -105,7 +105,7 @@ int mcs_add_intr_wq_entry(struct mcs *mcs, struct mcs_intr_event *event)
 	if (!(pfvf->intr_mask && event->intr_mask))
 		return 0;
 
-	qentry = kmalloc(sizeof(*qentry), GFP_ATOMIC);
+	qentry = kmalloc_obj(*qentry, GFP_ATOMIC);
 	if (!qentry)
 		return -ENOMEM;
 

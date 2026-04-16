@@ -156,7 +156,7 @@ struct dma_fence *dma_fence_allocate_private_stub(ktime_t timestamp)
 {
 	struct dma_fence *fence;
 
-	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
+	fence = kzalloc_obj(*fence);
 	if (fence == NULL)
 		return NULL;
 
@@ -905,7 +905,7 @@ dma_fence_wait_any_timeout(struct dma_fence **fences, uint32_t count,
 		return 0;
 	}
 
-	cb = kcalloc(count, sizeof(struct default_wait_cb), GFP_KERNEL);
+	cb = kzalloc_objs(struct default_wait_cb, count);
 	if (cb == NULL) {
 		ret = -ENOMEM;
 		goto err_free_cb;

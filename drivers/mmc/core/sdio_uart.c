@@ -1021,7 +1021,7 @@ static int sdio_uart_probe(struct sdio_func *func,
 	struct sdio_uart_port *port;
 	int ret;
 
-	port = kzalloc(sizeof(struct sdio_uart_port), GFP_KERNEL);
+	port = kzalloc_obj(struct sdio_uart_port);
 	if (!port)
 		return -ENOMEM;
 

@@ -51,7 +51,7 @@ static struct syscon *of_syscon_register(struct device_node *np, bool check_res)
 
 	WARN_ON(!mutex_is_locked(&syscon_list_lock));
 
-	struct syscon *syscon __free(kfree) = kzalloc(sizeof(*syscon), GFP_KERNEL);
+	struct syscon *syscon __free(kfree) = kzalloc_obj(*syscon);
 	if (!syscon)
 		return ERR_PTR(-ENOMEM);
 
@@ -212,7 +212,7 @@ int of_syscon_register_regmap(struct device_node *np, struct regmap *regmap)
 	if (!np || !regmap)
 		return -EINVAL;
 
-	syscon = kzalloc(sizeof(*syscon), GFP_KERNEL);
+	syscon = kzalloc_obj(*syscon);
 	if (!syscon)
 		return -ENOMEM;
 

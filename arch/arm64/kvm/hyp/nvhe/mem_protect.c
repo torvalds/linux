@@ -518,7 +518,7 @@ static int host_stage2_adjust_range(u64 addr, struct kvm_mem_range *range)
 		granule = kvm_granule_size(level);
 		cur.start = ALIGN_DOWN(addr, granule);
 		cur.end = cur.start + granule;
-		if (!range_included(&cur, range))
+		if (!range_included(&cur, range) && level < KVM_PGTABLE_LAST_LEVEL)
 			continue;
 		*range = cur;
 		return 0;

@@ -239,7 +239,7 @@ nvkm_cstate_new(struct nvkm_clk *clk, int idx, struct nvkm_pstate *pstate)
 	if (volt && nvkm_volt_map_min(volt, cstepX.voltage) > volt->max_uv)
 		return -EINVAL;
 
-	cstate = kzalloc(sizeof(*cstate), GFP_KERNEL);
+	cstate = kzalloc_obj(*cstate);
 	if (!cstate)
 		return -ENOMEM;
 
@@ -416,7 +416,7 @@ nvkm_pstate_new(struct nvkm_clk *clk, int idx)
 	if (perfE.pstate == 0xff)
 		return 0;
 
-	pstate = kzalloc(sizeof(*pstate), GFP_KERNEL);
+	pstate = kzalloc_obj(*pstate);
 	if (!pstate)
 		return -ENOMEM;
 
@@ -710,7 +710,7 @@ int
 nvkm_clk_new_(const struct nvkm_clk_func *func, struct nvkm_device *device,
 	      enum nvkm_subdev_type type, int inst, bool allow_reclock, struct nvkm_clk **pclk)
 {
-	if (!(*pclk = kzalloc(sizeof(**pclk), GFP_KERNEL)))
+	if (!(*pclk = kzalloc_obj(**pclk)))
 		return -ENOMEM;
 	return nvkm_clk_ctor(func, device, type, inst, allow_reclock, *pclk);
 }

@@ -72,8 +72,8 @@ static struct ceph_monmap *ceph_monmap_decode(void **p, void *end, bool msgr2)
 	struct ceph_monmap *monmap = NULL;
 	struct ceph_fsid fsid;
 	u32 struct_len;
-	int blob_len;
-	int num_mon;
+	u32 blob_len;
+	u32 num_mon;
 	u8 struct_v;
 	u32 epoch;
 	int ret;
@@ -112,12 +112,12 @@ static struct ceph_monmap *ceph_monmap_decode(void **p, void *end, bool msgr2)
 	}
 	ceph_decode_32_safe(p, end, num_mon, e_inval);
 
-	dout("%s fsid %pU epoch %u num_mon %d\n", __func__, &fsid, epoch,
+	dout("%s fsid %pU epoch %u num_mon %u\n", __func__, &fsid, epoch,
 	     num_mon);
 	if (num_mon > CEPH_MAX_MON)
 		goto e_inval;
 
-	monmap = kmalloc(struct_size(monmap, mon_inst, num_mon), GFP_NOIO);
+	monmap = kmalloc_flex(*monmap, mon_inst, num_mon, GFP_NOIO);
 	if (!monmap) {
 		ret = -ENOMEM;
 		goto fail;
@@ -611,7 +611,7 @@ alloc_generic_request(struct ceph_mon_client *monc, gfp_t gfp)
 {
 	struct ceph_mon_generic_request *req;
 
-	req = kzalloc(sizeof(*req), gfp);
+	req = kzalloc_obj(*req, gfp);
 	if (!req)
 		return NULL;
 
@@ -1140,8 +1140,7 @@ static int build_initial_monmap(struct ceph_mon_client *monc)
 	int i;
 
 	/* build initial monmap */
-	monc->monmap = kzalloc(struct_size(monc->monmap, mon_inst, num_mon),
-			       GFP_KERNEL);
+	monc->monmap = kzalloc_flex(*monc->monmap, mon_inst, num_mon);
 	if (!monc->monmap)
 		return -ENOMEM;
 	monc->monmap->num_mon = num_mon;

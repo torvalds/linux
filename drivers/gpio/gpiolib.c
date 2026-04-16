@@ -147,8 +147,7 @@ static int desc_set_label(struct gpio_desc *desc, const char *label)
 	struct gpio_desc_label *new = NULL, *old;
 
 	if (label) {
-		new = kzalloc(struct_size(new, str, strlen(label) + 1),
-			      GFP_KERNEL);
+		new = kzalloc_flex(*new, str, strlen(label) + 1);
 		if (!new)
 			return -ENOMEM;
 
@@ -2333,7 +2332,7 @@ int gpiochip_add_pingroup_range(struct gpio_chip *gc,
 	struct gpio_device *gdev = gc->gpiodev;
 	int ret;
 
-	pin_range = kzalloc(sizeof(*pin_range), GFP_KERNEL);
+	pin_range = kzalloc_obj(*pin_range);
 	if (!pin_range)
 		return -ENOMEM;
 
@@ -2394,7 +2393,7 @@ int gpiochip_add_pin_range_with_pins(struct gpio_chip *gc,
 	struct gpio_device *gdev = gc->gpiodev;
 	int ret;
 
-	pin_range = kzalloc(sizeof(*pin_range), GFP_KERNEL);
+	pin_range = kzalloc_obj(*pin_range);
 	if (!pin_range)
 		return -ENOMEM;
 
@@ -3268,8 +3267,12 @@ static int gpiochip_get(struct gpio_chip *gc, unsigned int offset)
 
 	/* Make sure this is called after checking for gc->get(). */
 	ret = gc->get(gc, offset);
-	if (ret > 1)
-		ret = -EBADE;
+	if (ret > 1) {
+		gpiochip_warn(gc,
+			"invalid return value from gc->get(): %d, consider fixing the driver\n",
+			ret);
+		ret = !!ret;
+	}
 
 	return ret;
 }
@@ -5370,7 +5373,7 @@ static void *gpiolib_seq_start(struct seq_file *s, loff_t *pos)
 
 	s->private = NULL;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return NULL;
 

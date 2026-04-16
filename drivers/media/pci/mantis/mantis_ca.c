@@ -137,7 +137,7 @@ int mantis_ca_init(struct mantis_pci *mantis)
 	int ca_flags = 0, result;
 
 	dprintk(MANTIS_DEBUG, 1, "Initializing Mantis CA");
-	ca = kzalloc(sizeof(struct mantis_ca), GFP_KERNEL);
+	ca = kzalloc_obj(struct mantis_ca);
 	if (!ca) {
 		dprintk(MANTIS_ERROR, 1, "Out of memory!, exiting ..");
 		result = -ENOMEM;

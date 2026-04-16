@@ -83,7 +83,7 @@ static int virtinput_send_status(struct virtio_input *vi,
 	if (vi->idev->mt && type == EV_MSC && code == MSC_TIMESTAMP)
 		return 0;
 
-	stsbuf = kzalloc(sizeof(*stsbuf), GFP_ATOMIC);
+	stsbuf = kzalloc_obj(*stsbuf, GFP_ATOMIC);
 	if (!stsbuf)
 		return -ENOMEM;
 
@@ -229,7 +229,7 @@ static int virtinput_probe(struct virtio_device *vdev)
 	if (!virtio_has_feature(vdev, VIRTIO_F_VERSION_1))
 		return -ENODEV;
 
-	vi = kzalloc(sizeof(*vi), GFP_KERNEL);
+	vi = kzalloc_obj(*vi);
 	if (!vi)
 		return -ENOMEM;
 

@@ -59,15 +59,14 @@ static struct se_device *iblock_alloc_device(struct se_hba *hba, const char *nam
 {
 	struct iblock_dev *ib_dev = NULL;
 
-	ib_dev = kzalloc(sizeof(struct iblock_dev), GFP_KERNEL);
+	ib_dev = kzalloc_obj(struct iblock_dev);
 	if (!ib_dev) {
 		pr_err("Unable to allocate struct iblock_dev\n");
 		return NULL;
 	}
 	ib_dev->ibd_exclusive = true;
 
-	ib_dev->ibd_plug = kcalloc(nr_cpu_ids, sizeof(*ib_dev->ibd_plug),
-				   GFP_KERNEL);
+	ib_dev->ibd_plug = kzalloc_objs(*ib_dev->ibd_plug, nr_cpu_ids);
 	if (!ib_dev->ibd_plug)
 		goto free_dev;
 
@@ -523,7 +522,7 @@ iblock_execute_write_same(struct se_cmd *cmd)
 			return 0;
 	}
 
-	ibr = kzalloc(sizeof(struct iblock_req), GFP_KERNEL);
+	ibr = kzalloc_obj(struct iblock_req);
 	if (!ibr)
 		goto fail;
 	cmd->priv = ibr;
@@ -783,7 +782,7 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 		miter_dir = SG_MITER_FROM_SG;
 	}
 
-	ibr = kzalloc(sizeof(struct iblock_req), GFP_KERNEL);
+	ibr = kzalloc_obj(struct iblock_req);
 	if (!ibr)
 		goto fail;
 	cmd->priv = ibr;

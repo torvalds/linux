@@ -132,10 +132,10 @@ static void rtl_btc_alloc_variable(struct rtl_priv *rtlpriv, bool wifi_only)
 {
 	if (wifi_only)
 		rtlpriv->btcoexist.wifi_only_context =
-			kzalloc(sizeof(struct wifi_only_cfg), GFP_KERNEL);
+			kzalloc_obj(struct wifi_only_cfg);
 	else
 		rtlpriv->btcoexist.btc_context =
-			kzalloc(sizeof(struct btc_coexist), GFP_KERNEL);
+			kzalloc_obj(struct btc_coexist);
 }
 
 static void rtl_btc_free_variable(struct rtl_priv *rtlpriv)

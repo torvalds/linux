@@ -2538,7 +2538,7 @@ static int tda1997x_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	state = kzalloc(sizeof(struct tda1997x_state), GFP_KERNEL);
+	state = kzalloc_obj(struct tda1997x_state);
 	if (!state)
 		return -ENOMEM;
 

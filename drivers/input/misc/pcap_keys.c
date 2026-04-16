@@ -49,7 +49,7 @@ static int pcap_keys_probe(struct platform_device *pdev)
 	struct pcap_keys *pcap_keys;
 	struct input_dev *input_dev;
 
-	pcap_keys = kmalloc(sizeof(*pcap_keys), GFP_KERNEL);
+	pcap_keys = kmalloc_obj(*pcap_keys);
 	if (!pcap_keys)
 		return err;
 

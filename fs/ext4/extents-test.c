@@ -229,7 +229,7 @@ static int extents_kunit_init(struct kunit *test)
 	sb->s_blocksize = 4096;
 	sb->s_blocksize_bits = 12;
 
-	sbi = kzalloc(sizeof(struct ext4_sb_info), GFP_KERNEL);
+	sbi = kzalloc_obj(struct ext4_sb_info);
 	if (sbi == NULL)
 		return -ENOMEM;
 
@@ -240,7 +240,7 @@ static int extents_kunit_init(struct kunit *test)
 		sbi->s_extent_max_zeroout_kb = 32;
 
 	/* setup the mock inode */
-	k_ctx.k_ei = kzalloc(sizeof(struct ext4_inode_info), GFP_KERNEL);
+	k_ctx.k_ei = kzalloc_obj(struct ext4_inode_info);
 	if (k_ctx.k_ei == NULL)
 		return -ENOMEM;
 	ei = k_ctx.k_ei;

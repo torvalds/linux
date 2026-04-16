@@ -1087,5 +1087,5 @@ void iris_hfi_gen1_command_ops_init(struct iris_core *core)
 
 struct iris_inst *iris_hfi_gen1_get_instance(void)
 {
-	return kzalloc(sizeof(struct iris_inst), GFP_KERNEL);
+	return kzalloc_obj(struct iris_inst);
 }

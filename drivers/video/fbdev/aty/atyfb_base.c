@@ -2976,7 +2976,7 @@ static int atyfb_setup_sparc(struct pci_dev *pdev, struct fb_info *info,
 		/* nothing */ ;
 	j = i + 4;
 
-	par->mmap_map = kcalloc(j, sizeof(*par->mmap_map), GFP_ATOMIC);
+	par->mmap_map = kzalloc_objs(*par->mmap_map, j, GFP_ATOMIC);
 	if (!par->mmap_map) {
 		PRINTKE("atyfb_setup_sparc() can't alloc mmap_map\n");
 		return -ENOMEM;

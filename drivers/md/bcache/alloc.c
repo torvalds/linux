@@ -697,7 +697,7 @@ int bch_open_buckets_alloc(struct cache_set *c)
 	spin_lock_init(&c->data_bucket_lock);
 
 	for (i = 0; i < MAX_OPEN_BUCKETS; i++) {
-		struct open_bucket *b = kzalloc(sizeof(*b), GFP_KERNEL);
+		struct open_bucket *b = kzalloc_obj(*b);
 
 		if (!b)
 			return -ENOMEM;

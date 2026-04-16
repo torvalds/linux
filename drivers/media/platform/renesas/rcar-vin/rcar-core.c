@@ -128,7 +128,7 @@ static int rvin_group_get(struct rvin_dev *vin,
 		group = rvin_group_data;
 		kref_get(&group->refcount);
 	} else {
-		group = kzalloc(sizeof(*group), GFP_KERNEL);
+		group = kzalloc_obj(*group);
 		if (!group) {
 			ret = -ENOMEM;
 			goto err_group;

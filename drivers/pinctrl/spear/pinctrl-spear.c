@@ -173,7 +173,7 @@ static int spear_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 		return -ENODEV;
 	}
 
-	*map = kcalloc(count, sizeof(**map), GFP_KERNEL);
+	*map = kzalloc_objs(**map, count);
 	if (!*map)
 		return -ENOMEM;
 

@@ -261,7 +261,7 @@ hix5hd2_clk_register_complex(struct hix5hd2_complex_clock *clks, int nums,
 		struct clk *clk;
 		struct clk_init_data init;
 
-		p_clk = kzalloc(sizeof(*p_clk), GFP_KERNEL);
+		p_clk = kzalloc_obj(*p_clk);
 		if (!p_clk)
 			return;
 

@@ -195,8 +195,7 @@ static int usb6fire_fw_ezusb_upload(
 	u8 data;
 	struct usb_device *device = interface_to_usbdev(intf);
 	const struct firmware *fw = NULL;
-	struct ihex_record *rec = kmalloc(sizeof(struct ihex_record),
-			GFP_KERNEL);
+	struct ihex_record *rec = kmalloc_obj(struct ihex_record);
 
 	if (!rec)
 		return -ENOMEM;

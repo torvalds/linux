@@ -76,6 +76,11 @@ struct cqspi_flash_pdata {
 	u8		cs;
 };
 
+static const struct clk_bulk_data cqspi_clks[CLK_QSPI_NUM] = {
+	[CLK_QSPI_APB] = { .id = "apb" },
+	[CLK_QSPI_AHB] = { .id = "ahb" },
+};
+
 struct cqspi_st {
 	struct platform_device	*pdev;
 	struct spi_controller	*host;
@@ -1823,6 +1828,7 @@ static int cqspi_probe(struct platform_device *pdev)
 	}
 
 	/* Obtain QSPI clocks. */
+	memcpy(&cqspi->clks, &cqspi_clks, sizeof(cqspi->clks));
 	ret = devm_clk_bulk_get_optional(dev, CLK_QSPI_NUM, cqspi->clks);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to get clocks\n");

@@ -982,7 +982,7 @@ __pci_epc_create(struct device *dev, const struct pci_epc_ops *ops,
 		goto err_ret;
 	}
 
-	epc = kzalloc(sizeof(*epc), GFP_KERNEL);
+	epc = kzalloc_obj(*epc);
 	if (!epc) {
 		ret = -ENOMEM;
 		goto err_ret;

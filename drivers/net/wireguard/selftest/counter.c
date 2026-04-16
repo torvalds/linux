@@ -10,7 +10,7 @@ bool __init wg_packet_counter_selftest(void)
 	unsigned int test_num = 0, i;
 	bool success = true;
 
-	counter = kmalloc(sizeof(*counter), GFP_KERNEL);
+	counter = kmalloc_obj(*counter);
 	if (unlikely(!counter)) {
 		pr_err("nonce counter self-test malloc: FAIL\n");
 		return false;

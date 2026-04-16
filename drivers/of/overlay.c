@@ -248,7 +248,7 @@ static struct property *dup_and_fixup_symbol_prop(
 		return NULL;
 	target_path_len = strlen(target_path);
 
-	new_prop = kzalloc(sizeof(*new_prop), GFP_KERNEL);
+	new_prop = kzalloc_obj(*new_prop);
 	if (!new_prop)
 		goto err_free_target_path;
 
@@ -784,7 +784,7 @@ static int init_overlay_changeset(struct overlay_changeset *ovcs,
 		of_node_put(node);
 	}
 
-	fragments = kcalloc(cnt, sizeof(*fragments), GFP_KERNEL);
+	fragments = kzalloc_objs(*fragments, cnt);
 	if (!fragments) {
 		ret = -ENOMEM;
 		goto err_out;
@@ -1009,7 +1009,7 @@ int of_overlay_fdt_apply(const void *overlay_fdt, u32 overlay_fdt_size,
 	if (overlay_fdt_size < size)
 		return -EINVAL;
 
-	ovcs = kzalloc(sizeof(*ovcs), GFP_KERNEL);
+	ovcs = kzalloc_obj(*ovcs);
 	if (!ovcs)
 		return -ENOMEM;
 

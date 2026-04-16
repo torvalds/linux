@@ -53,7 +53,7 @@ static void *rzn1_dmamux_route_allocate(struct of_phandle_args *dma_spec,
 		goto put_device;
 	}
 
-	map = kzalloc(sizeof(*map), GFP_KERNEL);
+	map = kzalloc_obj(*map);
 	if (!map) {
 		ret = -ENOMEM;
 		goto put_device;

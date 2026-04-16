@@ -651,6 +651,8 @@ static int inv_icm42600_accel_write_odr(struct iio_dev *indio_dev,
 		return -EINVAL;
 
 	conf.odr = inv_icm42600_accel_odr_conv[idx / 2];
+	if (conf.odr == st->conf.accel.odr)
+		return 0;
 
 	pm_runtime_get_sync(dev);
 	mutex_lock(&st->lock);

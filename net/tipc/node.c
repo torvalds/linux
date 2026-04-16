@@ -535,7 +535,7 @@ update:
 
 		goto exit;
 	}
-	n = kzalloc(sizeof(*n), GFP_ATOMIC);
+	n = kzalloc_obj(*n, GFP_ATOMIC);
 	if (!n) {
 		pr_warn("Node creation failed, no memory\n");
 		goto exit;
@@ -703,7 +703,7 @@ int tipc_node_add_conn(struct net *net, u32 dnode, u32 port, u32 peer_port)
 		pr_warn("Connecting sock to node 0x%x failed\n", dnode);
 		return -EHOSTUNREACH;
 	}
-	conn = kmalloc(sizeof(*conn), GFP_ATOMIC);
+	conn = kmalloc_obj(*conn, GFP_ATOMIC);
 	if (!conn) {
 		err = -EHOSTUNREACH;
 		goto exit;

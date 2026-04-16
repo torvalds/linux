@@ -68,13 +68,13 @@ nvkm_mmu_ptp_get(struct nvkm_mmu *mmu, u32 size, bool zero)
 	struct nvkm_mmu_ptp *ptp;
 	int slot;
 
-	if (!(pt = kzalloc(sizeof(*pt), GFP_KERNEL)))
+	if (!(pt = kzalloc_obj(*pt)))
 		return NULL;
 
 	ptp = list_first_entry_or_null(&mmu->ptp.list, typeof(*ptp), head);
 	if (!ptp) {
 		/* Need to allocate a new parent to sub-allocate from. */
-		if (!(ptp = kmalloc(sizeof(*ptp), GFP_KERNEL))) {
+		if (!(ptp = kmalloc_obj(*ptp))) {
 			kfree(pt);
 			return NULL;
 		}
@@ -126,7 +126,7 @@ nvkm_mmu_ptc_find(struct nvkm_mmu *mmu, u32 size)
 			return ptc;
 	}
 
-	ptc = kmalloc(sizeof(*ptc), GFP_KERNEL);
+	ptc = kmalloc_obj(*ptc);
 	if (ptc) {
 		INIT_LIST_HEAD(&ptc->item);
 		ptc->size = size;
@@ -199,7 +199,7 @@ nvkm_mmu_ptc_get(struct nvkm_mmu *mmu, u32 size, u32 align, bool zero)
 	mutex_unlock(&mmu->ptc.mutex);
 
 	/* No such luck, we need to allocate. */
-	if (!(pt = kmalloc(sizeof(*pt), GFP_KERNEL)))
+	if (!(pt = kmalloc_obj(*pt)))
 		return NULL;
 	pt->ptc = ptc;
 	pt->sub = false;
@@ -434,7 +434,7 @@ int
 nvkm_mmu_new_(const struct nvkm_mmu_func *func, struct nvkm_device *device,
 	      enum nvkm_subdev_type type, int inst, struct nvkm_mmu **pmmu)
 {
-	if (!(*pmmu = kzalloc(sizeof(**pmmu), GFP_KERNEL)))
+	if (!(*pmmu = kzalloc_obj(**pmmu)))
 		return -ENOMEM;
 	nvkm_mmu_ctor(func, device, type, inst, *pmmu);
 	return 0;

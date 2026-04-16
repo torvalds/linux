@@ -797,7 +797,7 @@ static int dw_spi_setup(struct spi_device *spi)
 		struct dw_spi *dws = spi_controller_get_devdata(spi->controller);
 		u32 rx_sample_dly_ns;
 
-		chip = kzalloc(sizeof(*chip), GFP_KERNEL);
+		chip = kzalloc_obj(*chip);
 		if (!chip)
 			return -ENOMEM;
 		spi_set_ctldata(spi, chip);

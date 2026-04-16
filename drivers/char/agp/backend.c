@@ -238,7 +238,7 @@ struct agp_bridge_data *agp_alloc_bridge(void)
 {
 	struct agp_bridge_data *bridge;
 
-	bridge = kzalloc(sizeof(*bridge), GFP_KERNEL);
+	bridge = kzalloc_obj(*bridge);
 	if (!bridge)
 		return NULL;
 

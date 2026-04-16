@@ -344,7 +344,7 @@ mwifiex_11n_create_rx_reorder_tbl(struct mwifiex_private *priv, u8 *ta,
 		return;
 	}
 	/* if !tbl then create one */
-	new_node = kzalloc(sizeof(struct mwifiex_rx_reorder_tbl), GFP_KERNEL);
+	new_node = kzalloc_obj(struct mwifiex_rx_reorder_tbl);
 	if (!new_node)
 		return;
 

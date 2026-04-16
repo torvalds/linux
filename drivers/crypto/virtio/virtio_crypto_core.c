@@ -115,10 +115,10 @@ static int virtcrypto_find_vqs(struct virtio_crypto *vi)
 	total_vqs = vi->max_data_queues + 1;
 
 	/* Allocate space for find_vqs parameters */
-	vqs = kcalloc(total_vqs, sizeof(*vqs), GFP_KERNEL);
+	vqs = kzalloc_objs(*vqs, total_vqs);
 	if (!vqs)
 		goto err_vq;
-	vqs_info = kcalloc(total_vqs, sizeof(*vqs_info), GFP_KERNEL);
+	vqs_info = kzalloc_objs(*vqs_info, total_vqs);
 	if (!vqs_info)
 		goto err_vqs_info;
 
@@ -170,8 +170,7 @@ err_vq:
 
 static int virtcrypto_alloc_queues(struct virtio_crypto *vi)
 {
-	vi->data_vq = kcalloc(vi->max_data_queues, sizeof(*vi->data_vq),
-				GFP_KERNEL);
+	vi->data_vq = kzalloc_objs(*vi->data_vq, vi->max_data_queues);
 	if (!vi->data_vq)
 		return -ENOMEM;
 

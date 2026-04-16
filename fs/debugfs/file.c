@@ -82,7 +82,7 @@ static int __debugfs_file_get(struct dentry *dentry, enum dbgfs_get_mode mode)
 		if (WARN_ON(mode == DBGFS_GET_ALREADY))
 			return -EINVAL;
 
-		fsd = kmalloc(sizeof(*fsd), GFP_KERNEL);
+		fsd = kmalloc_obj(*fsd);
 		if (!fsd)
 			return -ENOMEM;
 

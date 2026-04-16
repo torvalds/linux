@@ -65,7 +65,7 @@ void pci_bus_add_resource(struct pci_bus *bus, struct resource *res)
 {
 	struct pci_bus_resource *bus_res;
 
-	bus_res = kzalloc(sizeof(struct pci_bus_resource), GFP_KERNEL);
+	bus_res = kzalloc_obj(struct pci_bus_resource);
 	if (!bus_res) {
 		dev_err(&bus->dev, "can't add %pR resource\n", res);
 		return;

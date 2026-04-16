@@ -665,8 +665,7 @@ static int aw_dev_load_cfg_by_hdr(struct aw_device *aw_dev,
 {
 	int ret;
 
-	struct aw_all_prof_info *all_prof_info __free(kfree) = kzalloc(sizeof(*all_prof_info),
-								       GFP_KERNEL);
+	struct aw_all_prof_info *all_prof_info __free(kfree) = kzalloc_obj(*all_prof_info);
 	if (!all_prof_info)
 		return -ENOMEM;
 

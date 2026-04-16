@@ -138,7 +138,8 @@ static int cache_init(struct dm_pcache *pcache)
 	struct pcache_cache_dev *cache_dev = &pcache->cache_dev;
 	int ret;
 
-	cache->segments = kvcalloc(cache_dev->seg_num, sizeof(struct pcache_cache_segment), GFP_KERNEL);
+	cache->segments = kvzalloc_objs(struct pcache_cache_segment,
+					cache_dev->seg_num);
 	if (!cache->segments) {
 		ret = -ENOMEM;
 		goto err;

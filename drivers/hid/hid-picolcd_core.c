@@ -78,7 +78,7 @@ struct picolcd_pending *picolcd_send_and_wait(struct hid_device *hdev,
 		return NULL;
 	if (data->status & PICOLCD_FAILED)
 		return NULL;
-	work = kzalloc(sizeof(*work), GFP_KERNEL);
+	work = kzalloc_obj(*work);
 	if (!work)
 		return NULL;
 
@@ -528,7 +528,7 @@ static int picolcd_probe(struct hid_device *hdev,
 	 * Let's allocate the picolcd data structure, set some reasonable
 	 * defaults, and associate it with the device
 	 */
-	data = kzalloc(sizeof(struct picolcd_data), GFP_KERNEL);
+	data = kzalloc_obj(struct picolcd_data);
 	if (data == NULL) {
 		hid_err(hdev, "can't allocate space for Minibox PicoLCD device data\n");
 		return -ENOMEM;

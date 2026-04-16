@@ -1508,7 +1508,7 @@ static struct j1939_session *j1939_session_new(struct j1939_priv *priv,
 	struct j1939_session *session;
 	struct j1939_sk_buff_cb *skcb;
 
-	session = kzalloc(sizeof(*session), gfp_any());
+	session = kzalloc_obj(*session, gfp_any());
 	if (!session)
 		return NULL;
 

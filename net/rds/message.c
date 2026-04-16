@@ -415,7 +415,7 @@ static int rds_message_zcopy_from_user(struct rds_message *rm, struct iov_iter *
 	 */
 	sg = rm->data.op_sg;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return -ENOMEM;
 	INIT_LIST_HEAD(&info->rs_zcookie_next);

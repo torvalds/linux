@@ -226,7 +226,7 @@ static int erofs_scan_devices(struct super_block *sb,
 		}
 	} else {
 		for (id = 0; id < ondisk_extradevs; id++) {
-			dif = kzalloc(sizeof(*dif), GFP_KERNEL);
+			dif = kzalloc_obj(*dif);
 			if (!dif) {
 				err = -ENOMEM;
 				break;
@@ -424,26 +424,23 @@ static const struct fs_parameter_spec erofs_fs_parameters[] = {
 
 static bool erofs_fc_set_dax_mode(struct fs_context *fc, unsigned int mode)
 {
-#ifdef CONFIG_FS_DAX
-	struct erofs_sb_info *sbi = fc->s_fs_info;
+	if (IS_ENABLED(CONFIG_FS_DAX)) {
+		struct erofs_sb_info *sbi = fc->s_fs_info;
 
-	switch (mode) {
-	case EROFS_MOUNT_DAX_ALWAYS:
-		set_opt(&sbi->opt, DAX_ALWAYS);
-		clear_opt(&sbi->opt, DAX_NEVER);
-		return true;
-	case EROFS_MOUNT_DAX_NEVER:
-		set_opt(&sbi->opt, DAX_NEVER);
-		clear_opt(&sbi->opt, DAX_ALWAYS);
-		return true;
-	default:
+		if (mode == EROFS_MOUNT_DAX_ALWAYS) {
+			set_opt(&sbi->opt, DAX_ALWAYS);
+			clear_opt(&sbi->opt, DAX_NEVER);
+			return true;
+		} else if (mode == EROFS_MOUNT_DAX_NEVER) {
+			set_opt(&sbi->opt, DAX_NEVER);
+			clear_opt(&sbi->opt, DAX_ALWAYS);
+			return true;
+		}
 		DBG_BUGON(1);
 		return false;
 	}
-#else
 	errorfc(fc, "dax options not supported");
 	return false;
-#endif
 }
 
 static int erofs_fc_parse_param(struct fs_context *fc,
@@ -460,31 +457,26 @@ static int erofs_fc_parse_param(struct fs_context *fc,
 
 	switch (opt) {
 	case Opt_user_xattr:
-#ifdef CONFIG_EROFS_FS_XATTR
-		if (result.boolean)
+		if (!IS_ENABLED(CONFIG_EROFS_FS_XATTR))
+			errorfc(fc, "{,no}user_xattr options not supported");
+		else if (result.boolean)
 			set_opt(&sbi->opt, XATTR_USER);
 		else
 			clear_opt(&sbi->opt, XATTR_USER);
-#else
-		errorfc(fc, "{,no}user_xattr options not supported");
-#endif
 		break;
 	case Opt_acl:
-#ifdef CONFIG_EROFS_FS_POSIX_ACL
-		if (result.boolean)
+		if (!IS_ENABLED(CONFIG_EROFS_FS_POSIX_ACL))
+			errorfc(fc, "{,no}acl options not supported");
+		else if (result.boolean)
 			set_opt(&sbi->opt, POSIX_ACL);
 		else
 			clear_opt(&sbi->opt, POSIX_ACL);
-#else
-		errorfc(fc, "{,no}acl options not supported");
-#endif
 		break;
 	case Opt_cache_strategy:
-#ifdef CONFIG_EROFS_FS_ZIP
-		sbi->opt.cache_strategy = result.uint_32;
-#else
-		errorfc(fc, "compression not supported, cache_strategy ignored");
-#endif
+		if (!IS_ENABLED(CONFIG_EROFS_FS_ZIP))
+			errorfc(fc, "compression not supported, cache_strategy ignored");
+		else
+			sbi->opt.cache_strategy = result.uint_32;
 		break;
 	case Opt_dax:
 		if (!erofs_fc_set_dax_mode(fc, EROFS_MOUNT_DAX_ALWAYS))
@@ -495,7 +487,7 @@ static int erofs_fc_parse_param(struct fs_context *fc,
 			return -EINVAL;
 		break;
 	case Opt_device:
-		dif = kzalloc(sizeof(*dif), GFP_KERNEL);
+		dif = kzalloc_obj(*dif);
 		if (!dif)
 			return -ENOMEM;
 		dif->path = kstrdup(param->string, GFP_KERNEL);
@@ -533,24 +525,21 @@ static int erofs_fc_parse_param(struct fs_context *fc,
 		break;
 #endif
 	case Opt_directio:
-#ifdef CONFIG_EROFS_FS_BACKED_BY_FILE
-		if (result.boolean)
+		if (!IS_ENABLED(CONFIG_EROFS_FS_BACKED_BY_FILE))
+			errorfc(fc, "%s option not supported", erofs_fs_parameters[opt].name);
+		else if (result.boolean)
 			set_opt(&sbi->opt, DIRECT_IO);
 		else
 			clear_opt(&sbi->opt, DIRECT_IO);
-#else
-		errorfc(fc, "%s option not supported", erofs_fs_parameters[opt].name);
-#endif
 		break;
 	case Opt_fsoffset:
 		sbi->dif0.fsoff = result.uint_64;
 		break;
 	case Opt_inode_share:
-#ifdef CONFIG_EROFS_FS_PAGE_CACHE_SHARE
-		set_opt(&sbi->opt, INODE_SHARE);
-#else
-		errorfc(fc, "%s option not supported", erofs_fs_parameters[opt].name);
-#endif
+		if (!IS_ENABLED(CONFIG_EROFS_FS_PAGE_CACHE_SHARE))
+			errorfc(fc, "%s option not supported", erofs_fs_parameters[opt].name);
+		else
+			set_opt(&sbi->opt, INODE_SHARE);
 		break;
 	}
 	return 0;
@@ -809,8 +798,7 @@ static int erofs_fc_get_tree(struct fs_context *fc)
 	ret = get_tree_bdev_flags(fc, erofs_fc_fill_super,
 		IS_ENABLED(CONFIG_EROFS_FS_BACKED_BY_FILE) ?
 			GET_TREE_BDEV_QUIET_LOOKUP : 0);
-#ifdef CONFIG_EROFS_FS_BACKED_BY_FILE
-	if (ret == -ENOTBLK) {
+	if (IS_ENABLED(CONFIG_EROFS_FS_BACKED_BY_FILE) && ret == -ENOTBLK) {
 		struct file *file;
 
 		if (!fc->source)
@@ -824,7 +812,6 @@ static int erofs_fc_get_tree(struct fs_context *fc)
 		    sbi->dif0.file->f_mapping->a_ops->read_folio)
 			return get_tree_nodev(fc, erofs_fc_fill_super);
 	}
-#endif
 	return ret;
 }
 
@@ -903,11 +890,11 @@ static int erofs_init_fs_context(struct fs_context *fc)
 {
 	struct erofs_sb_info *sbi;
 
-	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
+	sbi = kzalloc_obj(*sbi);
 	if (!sbi)
 		return -ENOMEM;
 
-	sbi->devs = kzalloc(sizeof(struct erofs_dev_context), GFP_KERNEL);
+	sbi->devs = kzalloc_obj(struct erofs_dev_context);
 	if (!sbi->devs) {
 		kfree(sbi);
 		return -ENOMEM;
@@ -1108,12 +1095,12 @@ static int erofs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",dax=never");
 	if (erofs_is_fileio_mode(sbi) && test_opt(opt, DIRECT_IO))
 		seq_puts(seq, ",directio");
-#ifdef CONFIG_EROFS_FS_ONDEMAND
-	if (sbi->fsid)
-		seq_printf(seq, ",fsid=%s", sbi->fsid);
-	if (sbi->domain_id)
-		seq_printf(seq, ",domain_id=%s", sbi->domain_id);
-#endif
+	if (IS_ENABLED(CONFIG_EROFS_FS_ONDEMAND)) {
+		if (sbi->fsid)
+			seq_printf(seq, ",fsid=%s", sbi->fsid);
+		if (sbi->domain_id)
+			seq_printf(seq, ",domain_id=%s", sbi->domain_id);
+	}
 	if (sbi->dif0.fsoff)
 		seq_printf(seq, ",fsoffset=%llu", sbi->dif0.fsoff);
 	if (test_opt(opt, INODE_SHARE))

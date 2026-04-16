@@ -33,7 +33,7 @@ static int snd_seq_call_port_info_ioctl(struct snd_seq_client *client, unsigned 
 {
 	int err;
 	struct snd_seq_port_info *data __free(kfree) =
-		kmalloc(sizeof(*data), GFP_KERNEL);
+		kmalloc_obj(*data);
 
 	if (!data)
 		return -ENOMEM;

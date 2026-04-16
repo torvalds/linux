@@ -903,7 +903,7 @@ static int want_pages_array(struct page ***res, size_t size,
 		count = maxpages;
 	WARN_ON(!count);	// caller should've prevented that
 	if (!*res) {
-		*res = kvmalloc_array(count, sizeof(struct page *), GFP_KERNEL);
+		*res = kvmalloc_objs(struct page *, count);
 		if (!*res)
 			return 0;
 	}
@@ -1318,7 +1318,7 @@ struct iovec *iovec_from_user(const struct iovec __user *uvec,
 	if (nr_segs > UIO_MAXIOV)
 		return ERR_PTR(-EINVAL);
 	if (nr_segs > fast_segs) {
-		iov = kmalloc_array(nr_segs, sizeof(struct iovec), GFP_KERNEL);
+		iov = kmalloc_objs(struct iovec, nr_segs);
 		if (!iov)
 			return ERR_PTR(-ENOMEM);
 	}

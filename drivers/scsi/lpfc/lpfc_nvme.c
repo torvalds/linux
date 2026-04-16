@@ -98,7 +98,7 @@ lpfc_nvme_create_queue(struct nvme_fc_local_port *pnvme_lport,
 	    test_bit(HBA_IOQ_FLUSH, &vport->phba->hba_flag))
 		return -ENODEV;
 
-	qhandle = kzalloc(sizeof(struct lpfc_nvme_qhandle), GFP_KERNEL);
+	qhandle = kzalloc_obj(struct lpfc_nvme_qhandle);
 	if (qhandle == NULL)
 		return -ENOMEM;
 
@@ -587,7 +587,7 @@ __lpfc_nvme_ls_req(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	 * in the nvme-fc layer.
 	 */
 
-	bmp = kmalloc(sizeof(*bmp), GFP_KERNEL);
+	bmp = kmalloc_obj(*bmp);
 	if (!bmp) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "6044 NVMEx LS REQ: Could not alloc LS buf "

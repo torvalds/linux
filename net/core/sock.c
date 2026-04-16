@@ -1097,7 +1097,7 @@ sock_devmem_dontneed(struct sock *sk, sockptr_t optval, unsigned int optlen)
 		return -EINVAL;
 
 	num_tokens = optlen / sizeof(*tokens);
-	tokens = kvmalloc_array(num_tokens, sizeof(*tokens), GFP_KERNEL);
+	tokens = kvmalloc_objs(*tokens, num_tokens);
 	if (!tokens)
 		return -ENOMEM;
 

@@ -683,7 +683,7 @@ i2c_acpi_space_handler(u32 function, acpi_physical_address command,
 	if (ACPI_FAILURE(ret))
 		return ret;
 
-	client = kzalloc(sizeof(*client), GFP_KERNEL);
+	client = kzalloc_obj(*client);
 	if (!client) {
 		ret = AE_NO_MEMORY;
 		goto err;
@@ -793,8 +793,7 @@ int i2c_acpi_install_space_handler(struct i2c_adapter *adapter)
 	if (!handle)
 		return -ENODEV;
 
-	data = kzalloc(sizeof(struct i2c_acpi_handler_data),
-			    GFP_KERNEL);
+	data = kzalloc_obj(struct i2c_acpi_handler_data);
 	if (!data)
 		return -ENOMEM;
 

@@ -4033,9 +4033,7 @@ qla2x00_alloc_outstanding_cmds(struct qla_hw_data *ha, struct req_que *req)
 			req->num_outstanding_cmds = ha->cur_fw_iocb_count;
 	}
 
-	req->outstanding_cmds = kcalloc(req->num_outstanding_cmds,
-					sizeof(srb_t *),
-					GFP_KERNEL);
+	req->outstanding_cmds = kzalloc_objs(srb_t *, req->num_outstanding_cmds);
 
 	if (!req->outstanding_cmds) {
 		/*
@@ -4043,9 +4041,8 @@ qla2x00_alloc_outstanding_cmds(struct qla_hw_data *ha, struct req_que *req)
 		 * initialization.
 		 */
 		req->num_outstanding_cmds = MIN_OUTSTANDING_COMMANDS;
-		req->outstanding_cmds = kcalloc(req->num_outstanding_cmds,
-						sizeof(srb_t *),
-						GFP_KERNEL);
+		req->outstanding_cmds = kzalloc_objs(srb_t *,
+						     req->num_outstanding_cmds);
 
 		if (!req->outstanding_cmds) {
 			ql_log(ql_log_fatal, NULL, 0x0126,
@@ -5574,7 +5571,7 @@ qla2x00_alloc_fcport(scsi_qla_host_t *vha, gfp_t flags)
 {
 	fc_port_t *fcport;
 
-	fcport = kzalloc(sizeof(fc_port_t), flags);
+	fcport = kzalloc_obj(fc_port_t, flags);
 	if (!fcport)
 		return NULL;
 
@@ -6494,8 +6491,7 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha)
 
 	/* Try GID_PT to get device list, else GAN. */
 	if (!ha->swl)
-		ha->swl = kcalloc(ha->max_fibre_devices, sizeof(sw_info_t),
-		    GFP_KERNEL);
+		ha->swl = kzalloc_objs(sw_info_t, ha->max_fibre_devices);
 	swl = ha->swl;
 	if (!swl) {
 		/*EMPTY*/
@@ -9231,7 +9227,7 @@ qla84xx_get_chip(struct scsi_qla_host *vha)
 		}
 	}
 
-	cs84xx = kzalloc(sizeof(*cs84xx), GFP_KERNEL);
+	cs84xx = kzalloc_obj(*cs84xx);
 	if (!cs84xx)
 		goto done;
 
@@ -9885,7 +9881,7 @@ struct qla_qpair *qla2xxx_create_qpair(struct scsi_qla_host *vha, int qos,
 	}
 
 	if (ql2xmqsupport || ql2xnvmeenable) {
-		qpair = kzalloc(sizeof(struct qla_qpair), GFP_KERNEL);
+		qpair = kzalloc_obj(struct qla_qpair);
 		if (qpair == NULL) {
 			ql_log(ql_log_warn, vha, 0x0182,
 			    "Failed to allocate memory for queue pair.\n");

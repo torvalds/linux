@@ -899,7 +899,7 @@ target_fabric_setup_tpg_base_cit(struct target_fabric_configfs *tf)
 	nr_attrs++;
 
 	/* + 1 for final NULL in the array */
-	attrs = kcalloc(nr_attrs + 1, sizeof(*attrs), GFP_KERNEL);
+	attrs = kzalloc_objs(*attrs, nr_attrs + 1);
 	if (!attrs)
 		return -ENOMEM;
 

@@ -151,7 +151,7 @@ static int probe_maple_kbd(struct device *dev)
 	mdev = to_maple_dev(dev);
 	mdrv = to_maple_driver(dev->driver);
 
-	kbd = kzalloc(sizeof(*kbd), GFP_KERNEL);
+	kbd = kzalloc_obj(*kbd);
 	if (!kbd) {
 		error = -ENOMEM;
 		goto fail;

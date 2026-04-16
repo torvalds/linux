@@ -1143,7 +1143,7 @@ static bool typesafe_init(void)
 	else if (si == 0)
 		si = nr_cpu_ids;
 	rtsarray_size = si;
-	rtsarray = kcalloc(si, sizeof(*rtsarray), GFP_KERNEL);
+	rtsarray = kzalloc_objs(*rtsarray, si);
 	if (!rtsarray)
 		return false;
 	for (idx = 0; idx < rtsarray_size; idx++) {
@@ -1575,8 +1575,7 @@ ref_scale_init(void)
 		      "%s: nreaders * loops will overflow, adjusted loops to %d",
 		      __func__, INT_MAX / nreaders))
 		loops = INT_MAX / nreaders;
-	reader_tasks = kcalloc(nreaders, sizeof(reader_tasks[0]),
-			       GFP_KERNEL);
+	reader_tasks = kzalloc_objs(reader_tasks[0], nreaders);
 	if (!reader_tasks) {
 		SCALEOUT_ERRSTRING("out of memory");
 		firsterr = -ENOMEM;

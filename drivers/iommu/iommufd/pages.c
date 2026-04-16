@@ -1372,7 +1372,7 @@ static struct iopt_pages *iopt_alloc_pages(unsigned long start_byte,
 	if (length > SIZE_MAX - PAGE_SIZE || length == 0)
 		return ERR_PTR(-EINVAL);
 
-	pages = kzalloc(sizeof(*pages), GFP_KERNEL_ACCOUNT);
+	pages = kzalloc_obj(*pages, GFP_KERNEL_ACCOUNT);
 	if (!pages)
 		return ERR_PTR(-ENOMEM);
 
@@ -1575,7 +1575,7 @@ int iopt_dmabuf_track_domain(struct iopt_pages *pages, struct iopt_area *area,
 		if (WARN_ON(track->domain == domain && track->area == area))
 			return -EINVAL;
 
-	track = kzalloc(sizeof(*track), GFP_KERNEL);
+	track = kzalloc_obj(*track);
 	if (!track)
 		return -ENOMEM;
 	track->domain = domain;
@@ -2455,7 +2455,7 @@ int iopt_area_add_access(struct iopt_area *area, unsigned long start_index,
 		return 0;
 	}
 
-	access = kzalloc(sizeof(*access), GFP_KERNEL_ACCOUNT);
+	access = kzalloc_obj(*access, GFP_KERNEL_ACCOUNT);
 	if (!access) {
 		rc = -ENOMEM;
 		goto err_unlock;

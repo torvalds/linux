@@ -836,7 +836,7 @@ xilinx_dma_alloc_tx_descriptor(struct xilinx_dma_chan *chan)
 {
 	struct xilinx_dma_tx_descriptor *desc;
 
-	desc = kzalloc(sizeof(*desc), GFP_NOWAIT);
+	desc = kzalloc_obj(*desc, GFP_NOWAIT);
 	if (!desc)
 		return NULL;
 
@@ -1020,6 +1020,24 @@ static u32 xilinx_dma_get_residue(struct xilinx_dma_chan *chan,
 	}
 
 	return residue;
+}
+
+static u32
+xilinx_dma_get_residue_axidma_direct_s2mm(struct xilinx_dma_chan *chan,
+					  struct xilinx_dma_tx_descriptor *desc)
+{
+	struct xilinx_axidma_tx_segment *seg;
+	struct xilinx_axidma_desc_hw *hw;
+	u32 finished_len;
+
+	finished_len = dma_ctrl_read(chan, XILINX_DMA_REG_BTT);
+
+	seg = list_first_entry(&desc->segments, struct xilinx_axidma_tx_segment,
+			       node);
+
+	hw = &seg->hw;
+
+	return hw->control - finished_len;
 }
 
 /**
@@ -1733,6 +1751,9 @@ static void xilinx_dma_complete_descriptor(struct xilinx_dma_chan *chan)
 		if (chan->has_sg && chan->xdev->dma_config->dmatype !=
 		    XDMA_TYPE_VDMA)
 			desc->residue = xilinx_dma_get_residue(chan, desc);
+		else if (chan->xdev->dma_config->dmatype == XDMA_TYPE_AXIDMA &&
+			 chan->direction == DMA_DEV_TO_MEM && !chan->has_sg)
+			desc->residue = xilinx_dma_get_residue_axidma_direct_s2mm(chan, desc);
 		else
 			desc->residue = 0;
 		desc->err = chan->err;

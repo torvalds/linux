@@ -92,7 +92,7 @@ struct fwnode_handle *__irq_domain_alloc_fwnode(unsigned int type, int id,
 	struct irqchip_fwid *fwid;
 	char *n;
 
-	fwid = kzalloc(sizeof(*fwid), GFP_KERNEL);
+	fwid = kzalloc_obj(*fwid);
 
 	switch (type) {
 	case IRQCHIP_FWNODE_NAMED:

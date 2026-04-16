@@ -712,7 +712,7 @@ void netvsc_linkstatus_callback(struct net_device *net,
 	if (net->reg_state != NETREG_REGISTERED)
 		return;
 
-	event = kzalloc(sizeof(*event), GFP_ATOMIC);
+	event = kzalloc_obj(*event, GFP_ATOMIC);
 	if (!event)
 		return;
 	event->event = indicate->status;
@@ -931,7 +931,7 @@ struct netvsc_device_info *netvsc_devinfo_get(struct netvsc_device *nvdev)
 	struct netvsc_device_info *dev_info;
 	struct bpf_prog *prog;
 
-	dev_info = kzalloc(sizeof(*dev_info), GFP_ATOMIC);
+	dev_info = kzalloc_obj(*dev_info, GFP_ATOMIC);
 
 	if (!dev_info)
 		return NULL;
@@ -1524,9 +1524,7 @@ static void netvsc_get_ethtool_stats(struct net_device *dev,
 		data[i++] = xdp_tx;
 	}
 
-	pcpu_sum = kvmalloc_array(nr_cpu_ids,
-				  sizeof(struct netvsc_ethtool_pcpu_stats),
-				  GFP_KERNEL);
+	pcpu_sum = kvmalloc_objs(struct netvsc_ethtool_pcpu_stats, nr_cpu_ids);
 	if (!pcpu_sum)
 		return;
 

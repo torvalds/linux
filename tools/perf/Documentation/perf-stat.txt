@@ -382,6 +382,11 @@ color the metric's computed value.
 Don't print output, warnings or messages. This is useful with perf stat
 record below to only write data to the perf.data file.
 
+--no-affinity::
+Don't change scheduler CPU affinities when iterating over
+CPUs. Disables an optimization aimed at minimizing interprocessor
+interrupts.
+
 STAT RECORD
 -----------
 Stores stat data into perf data file.

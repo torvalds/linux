@@ -706,7 +706,7 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 		}
 	}
 
-	d = kzalloc(sizeof(*d), GFP_KERNEL);
+	d = kzalloc_obj(*d);
 	if (!d)
 		return -ENOMEM;
 

@@ -969,7 +969,7 @@ static int camera_sensor_csi_alloc(struct v4l2_subdev *sd, u32 port, u32 lanes,
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct camera_mipi_info *csi;
 
-	csi = kzalloc(sizeof(*csi), GFP_KERNEL);
+	csi = kzalloc_obj(*csi);
 	if (!csi)
 		return -ENOMEM;
 

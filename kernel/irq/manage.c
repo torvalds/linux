@@ -1332,7 +1332,7 @@ static int irq_setup_forced_threading(struct irqaction *new)
 	 */
 	if (new->handler && new->thread_fn) {
 		/* Allocate the secondary action */
-		new->secondary = kzalloc(sizeof(struct irqaction), GFP_KERNEL);
+		new->secondary = kzalloc_obj(struct irqaction);
 		if (!new->secondary)
 			return -ENOMEM;
 		new->secondary->handler = irq_forced_secondary_handler;
@@ -2156,7 +2156,7 @@ int request_threaded_irq(unsigned int irq, irq_handler_t handler,
 		handler = irq_default_primary_handler;
 	}
 
-	action = kzalloc(sizeof(struct irqaction), GFP_KERNEL);
+	action = kzalloc_obj(struct irqaction);
 	if (!action)
 		return -ENOMEM;
 
@@ -2486,7 +2486,7 @@ struct irqaction *create_percpu_irqaction(irq_handler_t handler, unsigned long f
 	if (!affinity)
 		affinity = cpu_possible_mask;
 
-	action = kzalloc(sizeof(struct irqaction), GFP_KERNEL);
+	action = kzalloc_obj(struct irqaction);
 	if (!action)
 		return NULL;
 

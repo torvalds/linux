@@ -216,7 +216,7 @@ lpfc_prep_els_iocb(struct lpfc_vport *vport, u8 expect_rsp,
 
 	/* fill in BDEs for command */
 	/* Allocate buffer for command payload */
-	pcmd = kmalloc(sizeof(*pcmd), GFP_KERNEL);
+	pcmd = kmalloc_obj(*pcmd);
 	if (pcmd)
 		pcmd->virt = lpfc_mbuf_alloc(phba, MEM_PRI, &pcmd->phys);
 	if (!pcmd || !pcmd->virt)
@@ -226,7 +226,7 @@ lpfc_prep_els_iocb(struct lpfc_vport *vport, u8 expect_rsp,
 
 	/* Allocate buffer for response payload */
 	if (expect_rsp) {
-		prsp = kmalloc(sizeof(*prsp), GFP_KERNEL);
+		prsp = kmalloc_obj(*prsp);
 		if (prsp)
 			prsp->virt = lpfc_mbuf_alloc(phba, MEM_PRI,
 						     &prsp->phys);
@@ -238,7 +238,7 @@ lpfc_prep_els_iocb(struct lpfc_vport *vport, u8 expect_rsp,
 	}
 
 	/* Allocate buffer for Buffer ptr list */
-	pbuflist = kmalloc(sizeof(*pbuflist), GFP_KERNEL);
+	pbuflist = kmalloc_obj(*pbuflist);
 	if (pbuflist)
 		pbuflist->virt = lpfc_mbuf_alloc(phba, MEM_PRI,
 						 &pbuflist->phys);
@@ -7537,7 +7537,7 @@ lpfc_els_rcv_rdp(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	if (RDP_NPORT_ID_SIZE !=
 			be32_to_cpu(rdp_req->nport_id_desc.length))
 		goto rjt_logerr;
-	rdp_context = kzalloc(sizeof(struct lpfc_rdp_context), GFP_KERNEL);
+	rdp_context = kzalloc_obj(struct lpfc_rdp_context);
 	if (!rdp_context) {
 		rjt_err = LSRJT_UNABLE_TPC;
 		goto error;
@@ -7842,7 +7842,7 @@ lpfc_els_rcv_lcb(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		goto rjt;
 	}
 
-	lcb_context = kmalloc(sizeof(*lcb_context), GFP_KERNEL);
+	lcb_context = kmalloc_obj(*lcb_context);
 	if (!lcb_context) {
 		rjt_err = LSRJT_UNABLE_TPC;
 		goto rjt;
@@ -9965,7 +9965,7 @@ lpfc_send_els_event(struct lpfc_vport *vport,
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
 	if (*payload == ELS_CMD_LOGO) {
-		logo_data = kmalloc(sizeof(struct lpfc_logo_event), GFP_KERNEL);
+		logo_data = kmalloc_obj(struct lpfc_logo_event);
 		if (!logo_data) {
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				"0148 Failed to allocate memory "
@@ -9974,8 +9974,7 @@ lpfc_send_els_event(struct lpfc_vport *vport,
 		}
 		els_data = &logo_data->header;
 	} else {
-		els_data = kmalloc(sizeof(struct lpfc_els_event_header),
-			GFP_KERNEL);
+		els_data = kmalloc_obj(struct lpfc_els_event_header);
 		if (!els_data) {
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				"0149 Failed to allocate memory "
@@ -12325,8 +12324,7 @@ lpfc_cmpl_els_qfpa(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	if (!vport->qfpa_res) {
 		max_desc = FCELSSIZE / sizeof(*vport->qfpa_res);
-		vport->qfpa_res = kcalloc(max_desc, sizeof(*vport->qfpa_res),
-					  GFP_KERNEL);
+		vport->qfpa_res = kzalloc_objs(*vport->qfpa_res, max_desc);
 		if (!vport->qfpa_res)
 			goto out;
 	}
@@ -12339,8 +12337,7 @@ lpfc_cmpl_els_qfpa(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	desc = (struct priority_range_desc *)(pcmd + 8);
 	vmid_range = vport->vmid_priority.vmid_range;
 	if (!vmid_range) {
-		vmid_range = kcalloc(MAX_PRIORITY_DESC, sizeof(*vmid_range),
-				     GFP_KERNEL);
+		vmid_range = kzalloc_objs(*vmid_range, MAX_PRIORITY_DESC);
 		if (!vmid_range) {
 			kfree(vport->qfpa_res);
 			goto out;
@@ -12438,7 +12435,7 @@ lpfc_vmid_uvem(struct lpfc_vport *vport,
 	if (!ndlp || ndlp->nlp_state != NLP_STE_UNMAPPED_NODE)
 		return -ENXIO;
 
-	vmid_context = kmalloc(sizeof(*vmid_context), GFP_KERNEL);
+	vmid_context = kmalloc_obj(*vmid_context);
 	if (!vmid_context)
 		return -ENOMEM;
 	elsiocb = lpfc_prep_els_iocb(vport, 1, LPFC_UVEM_SIZE, 2,

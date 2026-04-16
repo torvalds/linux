@@ -55,9 +55,7 @@ static void __init __vdso_init(struct __vdso_info *vdso_info)
 		vdso_info->vdso_code_start) >>
 		PAGE_SHIFT;
 
-	vdso_pagelist = kcalloc(vdso_info->vdso_pages,
-				sizeof(struct page *),
-				GFP_KERNEL);
+	vdso_pagelist = kzalloc_objs(struct page *, vdso_info->vdso_pages);
 	if (vdso_pagelist == NULL)
 		panic("vDSO kcalloc failed!\n");
 

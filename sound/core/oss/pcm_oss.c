@@ -398,7 +398,7 @@ static int snd_pcm_hw_param_near(struct snd_pcm_substream *pcm,
 	}
 
 	struct snd_pcm_hw_params *save __free(kfree) =
-		kmalloc(sizeof(*save), GFP_KERNEL);
+		kmalloc_obj(*save);
 	if (save == NULL)
 		return -ENOMEM;
 	*save = *params;
@@ -411,7 +411,7 @@ static int snd_pcm_hw_param_near(struct snd_pcm_substream *pcm,
 			goto _end;
 
 		struct snd_pcm_hw_params *params1 __free(kfree) =
-			kmalloc(sizeof(*params1), GFP_KERNEL);
+			kmalloc_obj(*params1);
 		if (params1 == NULL)
 			return -ENOMEM;
 		*params1 = *save;
@@ -786,7 +786,7 @@ static int choose_rate(struct snd_pcm_substream *substream,
 	unsigned int rate, prev;
 
 	struct snd_pcm_hw_params *save __free(kfree) =
-		kmalloc(sizeof(*save), GFP_KERNEL);
+		kmalloc_obj(*save);
 	if (save == NULL)
 		return -ENOMEM;
 	*save = *params;
@@ -861,9 +861,9 @@ static int snd_pcm_oss_change_params_locked(struct snd_pcm_substream *substream)
 
 	if (!runtime->oss.params)
 		return 0;
-	sw_params = kzalloc(sizeof(*sw_params), GFP_KERNEL);
-	params = kmalloc(sizeof(*params), GFP_KERNEL);
-	sparams = kmalloc(sizeof(*sparams), GFP_KERNEL);
+	sw_params = kzalloc_obj(*sw_params);
+	params = kmalloc_obj(*params);
+	sparams = kmalloc_obj(*sparams);
 	if (!sw_params || !params || !sparams) {
 		err = -ENOMEM;
 		goto failure;
@@ -1859,7 +1859,7 @@ static int snd_pcm_oss_get_formats(struct snd_pcm_oss_file *pcm_oss_file)
 			AFMT_S24_PACKED;
 
 	struct snd_pcm_hw_params *params __free(kfree) =
-		kmalloc(sizeof(*params), GFP_KERNEL);
+		kmalloc_obj(*params);
 	if (!params)
 		return -ENOMEM;
 	_snd_pcm_hw_params_any(params);
@@ -2418,7 +2418,7 @@ static int snd_pcm_oss_open_file(struct file *file,
 	if (rpcm_oss_file)
 		*rpcm_oss_file = NULL;
 
-	pcm_oss_file = kzalloc(sizeof(*pcm_oss_file), GFP_KERNEL);
+	pcm_oss_file = kzalloc_obj(*pcm_oss_file);
 	if (pcm_oss_file == NULL)
 		return -ENOMEM;
 
@@ -3032,7 +3032,7 @@ static void snd_pcm_oss_proc_write(struct snd_info_entry *entry,
 			}
 		} while (*str);
 		if (setup == NULL) {
-			setup = kmalloc(sizeof(*setup), GFP_KERNEL);
+			setup = kmalloc_obj(*setup);
 			if (! setup) {
 				buffer->error = -ENOMEM;
 				return;

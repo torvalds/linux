@@ -65,16 +65,16 @@ struct x509_certificate *x509_cert_parse(const void *data, size_t datalen)
 	struct asymmetric_key_id *kid;
 	long ret;
 
-	cert = kzalloc(sizeof(struct x509_certificate), GFP_KERNEL);
+	cert = kzalloc_obj(struct x509_certificate);
 	if (!cert)
 		return ERR_PTR(-ENOMEM);
-	cert->pub = kzalloc(sizeof(struct public_key), GFP_KERNEL);
+	cert->pub = kzalloc_obj(struct public_key);
 	if (!cert->pub)
 		return ERR_PTR(-ENOMEM);
-	cert->sig = kzalloc(sizeof(struct public_key_signature), GFP_KERNEL);
+	cert->sig = kzalloc_obj(struct public_key_signature);
 	if (!cert->sig)
 		return ERR_PTR(-ENOMEM);
-	ctx = kzalloc(sizeof(struct x509_parse_context), GFP_KERNEL);
+	ctx = kzalloc_obj(struct x509_parse_context);
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 

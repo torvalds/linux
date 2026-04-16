@@ -263,11 +263,11 @@ struct ras_core_context *ras_core_create(struct ras_core_config *init_config)
 	struct ras_core_context *ras_core;
 	struct ras_core_config *config;
 
-	ras_core = kzalloc(sizeof(*ras_core), GFP_KERNEL);
+	ras_core = kzalloc_obj(*ras_core);
 	if (!ras_core)
 		return NULL;
 
-	config = kzalloc(sizeof(*config), GFP_KERNEL);
+	config = kzalloc_obj(*config);
 	if (!config) {
 		kfree(ras_core);
 		return NULL;

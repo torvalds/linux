@@ -291,7 +291,7 @@ mlx5_lag_init_fib_work(struct mlx5_lag *ldev, unsigned long event)
 {
 	struct mlx5_fib_event_work *fib_work;
 
-	fib_work = kzalloc(sizeof(*fib_work), GFP_ATOMIC);
+	fib_work = kzalloc_obj(*fib_work, GFP_ATOMIC);
 	if (WARN_ON(!fib_work))
 		return NULL;
 

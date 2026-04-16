@@ -699,7 +699,7 @@ static int __init gicv5_irs_init(struct gicv5_irs_chip_data *irs_data)
 	 */
 	if (list_empty(&irs_nodes)) {
 		idr = irs_readl_relaxed(irs_data, GICV5_IRS_IDR0);
-		gicv5_global_data.virt_capable = !FIELD_GET(GICV5_IRS_IDR0_VIRT, idr);
+		gicv5_global_data.virt_capable = !!FIELD_GET(GICV5_IRS_IDR0_VIRT, idr);
 
 		idr = irs_readl_relaxed(irs_data, GICV5_IRS_IDR1);
 		irs_setup_pri_bits(idr);
@@ -727,7 +727,7 @@ static int __init gicv5_irs_of_init(struct device_node *node)
 	u32 idr;
 	int ret;
 
-	irs_data = kzalloc(sizeof(*irs_data), GFP_KERNEL);
+	irs_data = kzalloc_obj(*irs_data);
 	if (!irs_data)
 		return -ENOMEM;
 
@@ -913,7 +913,7 @@ static int __init gic_acpi_parse_madt_irs(union acpi_subtable_headers *header,
 	int ret;
 
 	/* Per-IRS data structure */
-	irs_data = kzalloc(sizeof(*irs_data), GFP_KERNEL);
+	irs_data = kzalloc_obj(*irs_data);
 	if (!irs_data)
 		return -ENOMEM;
 

@@ -260,7 +260,7 @@ default_ret:
 static int ipc_pcie_probe(struct pci_dev *pci,
 			  const struct pci_device_id *pci_id)
 {
-	struct iosm_pcie *ipc_pcie = kzalloc(sizeof(*ipc_pcie), GFP_KERNEL);
+	struct iosm_pcie *ipc_pcie = kzalloc_obj(*ipc_pcie);
 	int ret;
 
 	pr_debug("Probing device 0x%X from the vendor 0x%X", pci_id->device,

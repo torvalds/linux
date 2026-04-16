@@ -615,7 +615,7 @@ int ir_raw_event_prepare(struct rc_dev *dev)
 	if (!dev)
 		return -EINVAL;
 
-	dev->raw = kzalloc(sizeof(*dev->raw), GFP_KERNEL);
+	dev->raw = kzalloc_obj(*dev->raw);
 	if (!dev->raw)
 		return -ENOMEM;
 

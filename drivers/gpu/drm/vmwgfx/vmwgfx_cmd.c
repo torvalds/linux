@@ -103,7 +103,7 @@ struct vmw_fifo_state *vmw_fifo_create(struct vmw_private *dev_priv)
 	if (!dev_priv->fifo_mem)
 		return NULL;
 
-	fifo = kzalloc(sizeof(*fifo), GFP_KERNEL);
+	fifo = kzalloc_obj(*fifo);
 	if (!fifo)
 		return ERR_PTR(-ENOMEM);
 	fifo->static_buffer_size = VMWGFX_FIFO_STATIC_SIZE;

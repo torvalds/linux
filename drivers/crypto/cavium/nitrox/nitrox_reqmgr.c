@@ -390,7 +390,7 @@ int nitrox_process_se_request(struct nitrox_device *ndev,
 	if (!nitrox_ready(ndev))
 		return -ENODEV;
 
-	sr = kzalloc(sizeof(*sr), req->gfp);
+	sr = kzalloc_obj(*sr, req->gfp);
 	if (!sr)
 		return -ENOMEM;
 

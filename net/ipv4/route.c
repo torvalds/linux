@@ -315,7 +315,7 @@ static int rt_acct_proc_show(struct seq_file *m, void *v)
 	struct ip_rt_acct *dst, *src;
 	unsigned int i, j;
 
-	dst = kcalloc(256, sizeof(struct ip_rt_acct), GFP_KERNEL);
+	dst = kzalloc_objs(struct ip_rt_acct, 256);
 	if (!dst)
 		return -ENOMEM;
 
@@ -659,7 +659,7 @@ static void update_or_create_fnhe(struct fib_nh_common *nhc, __be32 daddr,
 
 	hash = rcu_dereference(nhc->nhc_exceptions);
 	if (!hash) {
-		hash = kcalloc(FNHE_HASH_SIZE, sizeof(*hash), GFP_ATOMIC);
+		hash = kzalloc_objs(*hash, FNHE_HASH_SIZE, GFP_ATOMIC);
 		if (!hash)
 			goto out_unlock;
 		rcu_assign_pointer(nhc->nhc_exceptions, hash);
@@ -702,7 +702,7 @@ static void update_or_create_fnhe(struct fib_nh_common *nhc, __be32 daddr,
 			depth--;
 		}
 
-		fnhe = kzalloc(sizeof(*fnhe), GFP_ATOMIC);
+		fnhe = kzalloc_obj(*fnhe, GFP_ATOMIC);
 		if (!fnhe)
 			goto out_unlock;
 
@@ -3687,7 +3687,7 @@ static __net_initdata struct pernet_operations rt_genid_ops = {
 
 static int __net_init ipv4_inetpeer_init(struct net *net)
 {
-	struct inet_peer_base *bp = kmalloc(sizeof(*bp), GFP_KERNEL);
+	struct inet_peer_base *bp = kmalloc_obj(*bp);
 
 	if (!bp)
 		return -ENOMEM;

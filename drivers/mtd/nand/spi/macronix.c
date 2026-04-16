@@ -499,7 +499,7 @@ static int macronix_spinand_init(struct spinand_device *spinand)
 {
 	struct macronix_priv *priv;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

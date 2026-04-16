@@ -107,7 +107,7 @@ EXPORT_SYMBOL(rio_query_mport);
  */
 struct rio_net *rio_alloc_net(struct rio_mport *mport)
 {
-	struct rio_net *net = kzalloc(sizeof(*net), GFP_KERNEL);
+	struct rio_net *net = kzalloc_obj(*net);
 
 	if (net) {
 		INIT_LIST_HEAD(&net->node);
@@ -242,7 +242,7 @@ int rio_request_inb_mbox(struct rio_mport *mport,
 	if (!mport->ops->open_inb_mbox)
 		goto out;
 
-	res = kzalloc(sizeof(*res), GFP_KERNEL);
+	res = kzalloc_obj(*res);
 	if (res) {
 		rio_init_mbox_res(res, mbox, mbox);
 
@@ -326,7 +326,7 @@ int rio_request_outb_mbox(struct rio_mport *mport,
 	if (!mport->ops->open_outb_mbox)
 		goto out;
 
-	res = kzalloc(sizeof(*res), GFP_KERNEL);
+	res = kzalloc_obj(*res);
 	if (res) {
 		rio_init_mbox_res(res, mbox, mbox);
 
@@ -403,7 +403,7 @@ rio_setup_inb_dbell(struct rio_mport *mport, void *dev_id, struct resource *res,
 		    void (*dinb) (struct rio_mport * mport, void *dev_id, u16 src, u16 dst,
 				  u16 info))
 {
-	struct rio_dbell *dbell = kmalloc(sizeof(*dbell), GFP_KERNEL);
+	struct rio_dbell *dbell = kmalloc_obj(*dbell);
 
 	if (!dbell)
 		return -ENOMEM;
@@ -438,7 +438,7 @@ int rio_request_inb_dbell(struct rio_mport *mport,
 					u16 dst, u16 info))
 {
 	int rc;
-	struct resource *res = kzalloc(sizeof(*res), GFP_KERNEL);
+	struct resource *res = kzalloc_obj(*res);
 
 	if (res) {
 		rio_init_dbell_res(res, start, end);
@@ -515,7 +515,7 @@ EXPORT_SYMBOL_GPL(rio_release_inb_dbell);
 struct resource *rio_request_outb_dbell(struct rio_dev *rdev, u16 start,
 					u16 end)
 {
-	struct resource *res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+	struct resource *res = kzalloc_obj(struct resource);
 
 	if (res) {
 		rio_init_dbell_res(res, start, end);
@@ -563,7 +563,7 @@ int rio_add_mport_pw_handler(struct rio_mport *mport, void *context,
 			     int (*pwcback)(struct rio_mport *mport,
 			     void *context, union rio_pw_msg *msg, int step))
 {
-	struct rio_pwrite *pwrite = kzalloc(sizeof(*pwrite), GFP_KERNEL);
+	struct rio_pwrite *pwrite = kzalloc_obj(*pwrite);
 
 	if (!pwrite)
 		return -ENOMEM;
@@ -1865,7 +1865,7 @@ int rio_register_scan(int mport_id, struct rio_scan *scan_ops)
 	/*
 	 * Allocate and initialize new scan registration node.
 	 */
-	scan = kzalloc(sizeof(*scan), GFP_KERNEL);
+	scan = kzalloc_obj(*scan);
 	if (!scan) {
 		rc = -ENOMEM;
 		goto err_out;
@@ -2000,7 +2000,7 @@ int rio_init_mports(void)
 		goto no_disc;
 	}
 
-	work = kcalloc(n, sizeof *work, GFP_KERNEL);
+	work = kzalloc_objs(*work, n);
 	if (!work) {
 		destroy_workqueue(rio_wq);
 		goto no_disc;

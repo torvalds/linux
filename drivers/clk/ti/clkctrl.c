@@ -297,7 +297,7 @@ _ti_clkctrl_clk_register(struct omap_clkctrl_provider *provider,
 					   ti_clk_get_features()->flags &
 					   TI_CLK_CLKCTRL_COMPAT);
 
-	clkctrl_clk = kzalloc(sizeof(*clkctrl_clk), GFP_KERNEL);
+	clkctrl_clk = kzalloc_obj(*clkctrl_clk);
 	if (!init.name || !clkctrl_clk) {
 		ret = -ENOMEM;
 		goto cleanup;
@@ -337,7 +337,7 @@ _ti_clkctrl_setup_gate(struct omap_clkctrl_provider *provider,
 {
 	struct clk_hw_omap *clk_hw;
 
-	clk_hw = kzalloc(sizeof(*clk_hw), GFP_KERNEL);
+	clk_hw = kzalloc_obj(*clk_hw);
 	if (!clk_hw)
 		return;
 
@@ -360,7 +360,7 @@ _ti_clkctrl_setup_mux(struct omap_clkctrl_provider *provider,
 	int num_parents = 0;
 	const char * const *pname;
 
-	mux = kzalloc(sizeof(*mux), GFP_KERNEL);
+	mux = kzalloc_obj(*mux);
 	if (!mux)
 		return;
 
@@ -395,7 +395,7 @@ _ti_clkctrl_setup_div(struct omap_clkctrl_provider *provider,
 	const struct omap_clkctrl_div_data *div_data = data->data;
 	u8 div_flags = 0;
 
-	div = kzalloc(sizeof(*div), GFP_KERNEL);
+	div = kzalloc_obj(*div);
 	if (!div)
 		return;
 
@@ -579,7 +579,7 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 		return;
 	}
 
-	provider = kzalloc(sizeof(*provider), GFP_KERNEL);
+	provider = kzalloc_obj(*provider);
 	if (!provider)
 		return;
 
@@ -650,7 +650,7 @@ clkdm_found:
 			continue;
 		}
 
-		hw = kzalloc(sizeof(*hw), GFP_KERNEL);
+		hw = kzalloc_obj(*hw);
 		if (!hw)
 			return;
 
@@ -683,7 +683,7 @@ clkdm_found:
 		if (!init.name)
 			goto cleanup;
 
-		clkctrl_clk = kzalloc(sizeof(*clkctrl_clk), GFP_KERNEL);
+		clkctrl_clk = kzalloc_obj(*clkctrl_clk);
 		if (!clkctrl_clk)
 			goto cleanup;
 

@@ -768,9 +768,7 @@ static int ixgbe_acquire_msix_vectors(struct ixgbe_adapter *adapter)
 	 */
 	vector_threshold = MIN_MSIX_COUNT;
 
-	adapter->msix_entries = kcalloc(vectors,
-					sizeof(struct msix_entry),
-					GFP_KERNEL);
+	adapter->msix_entries = kzalloc_objs(struct msix_entry, vectors);
 	if (!adapter->msix_entries)
 		return -ENOMEM;
 
@@ -859,8 +857,7 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter,
 	q_vector = kzalloc_node(struct_size(q_vector, ring, ring_count),
 				GFP_KERNEL, node);
 	if (!q_vector)
-		q_vector = kzalloc(struct_size(q_vector, ring, ring_count),
-				   GFP_KERNEL);
+		q_vector = kzalloc_flex(*q_vector, ring, ring_count);
 	if (!q_vector)
 		return -ENOMEM;
 

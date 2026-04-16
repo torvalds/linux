@@ -89,7 +89,7 @@ static struct time_namespace *clone_time_ns(struct user_namespace *user_ns,
 		goto fail;
 
 	err = -ENOMEM;
-	ns = kzalloc(sizeof(*ns), GFP_KERNEL_ACCOUNT);
+	ns = kzalloc_obj(*ns, GFP_KERNEL_ACCOUNT);
 	if (!ns)
 		goto fail_dec;
 

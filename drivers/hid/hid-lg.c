@@ -768,7 +768,7 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		return -ENODEV;
 	}
 
-	drv_data = kzalloc(sizeof(struct lg_drv_data), GFP_KERNEL);
+	drv_data = kzalloc_obj(struct lg_drv_data);
 	if (!drv_data) {
 		hid_err(hdev, "Insufficient memory, cannot allocate driver data\n");
 		return -ENOMEM;

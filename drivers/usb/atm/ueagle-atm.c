@@ -2516,7 +2516,7 @@ static int uea_bind(struct usbatm_data *usbatm, struct usb_interface *intf,
 			return ret;
 	}
 
-	sc = kzalloc(sizeof(struct uea_softc), GFP_KERNEL);
+	sc = kzalloc_obj(struct uea_softc);
 	if (!sc)
 		return -ENOMEM;
 

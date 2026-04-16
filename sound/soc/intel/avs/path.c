@@ -880,7 +880,7 @@ avs_path_module_create(struct avs_dev *adev,
 	if (module_id < 0)
 		return ERR_PTR(module_id);
 
-	mod = kzalloc(sizeof(*mod), GFP_KERNEL);
+	mod = kzalloc_obj(*mod);
 	if (!mod)
 		return ERR_PTR(-ENOMEM);
 
@@ -968,7 +968,7 @@ static struct avs_path_binding *avs_path_binding_create(struct avs_dev *adev,
 {
 	struct avs_path_binding *binding;
 
-	binding = kzalloc(sizeof(*binding), GFP_KERNEL);
+	binding = kzalloc_obj(*binding);
 	if (!binding)
 		return ERR_PTR(-ENOMEM);
 
@@ -1043,7 +1043,7 @@ avs_path_pipeline_create(struct avs_dev *adev, struct avs_path *owner,
 	struct avs_tplg_module *tmod;
 	int ret, i;
 
-	ppl = kzalloc(sizeof(*ppl), GFP_KERNEL);
+	ppl = kzalloc_obj(*ppl);
 	if (!ppl)
 		return ERR_PTR(-ENOMEM);
 
@@ -1173,7 +1173,7 @@ static struct avs_path *avs_path_create_unlocked(struct avs_dev *adev, u32 dma_i
 	struct avs_path *path;
 	int ret;
 
-	path = kzalloc(sizeof(*path), GFP_KERNEL);
+	path = kzalloc_obj(*path);
 	if (!path)
 		return ERR_PTR(-ENOMEM);
 

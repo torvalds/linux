@@ -109,7 +109,7 @@ at91_clk_register_peripheral(struct regmap *regmap, const char *name,
 	if (!name || !(parent_name || parent_hw) || id > PERIPHERAL_ID_MAX)
 		return ERR_PTR(-EINVAL);
 
-	periph = kzalloc(sizeof(*periph), GFP_KERNEL);
+	periph = kzalloc_obj(*periph);
 	if (!periph)
 		return ERR_PTR(-ENOMEM);
 
@@ -471,7 +471,7 @@ at91_clk_register_sam9x5_peripheral(struct regmap *regmap, spinlock_t *lock,
 	if (!name || !(parent_name || parent_hw))
 		return ERR_PTR(-EINVAL);
 
-	periph = kzalloc(sizeof(*periph), GFP_KERNEL);
+	periph = kzalloc_obj(*periph);
 	if (!periph)
 		return ERR_PTR(-ENOMEM);
 

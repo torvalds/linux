@@ -2082,7 +2082,7 @@ static struct fc_host_statistics *qedf_fc_get_host_stats(struct Scsi_Host
 	if (lport->vport)
 		goto out;
 
-	fw_fcoe_stats = kmalloc(sizeof(struct qed_fcoe_stats), GFP_KERNEL);
+	fw_fcoe_stats = kmalloc_obj(struct qed_fcoe_stats);
 	if (!fw_fcoe_stats) {
 		QEDF_ERR(&(qedf->dbg_ctx), "Could not allocate memory for "
 		    "fw_fcoe_stats.\n");
@@ -2674,7 +2674,7 @@ static int qedf_ll2_rx(void *cookie, struct sk_buff *skb,
 		return 0;
 	}
 
-	skb_work = kzalloc(sizeof(struct qedf_skb_work), GFP_ATOMIC);
+	skb_work = kzalloc_obj(struct qedf_skb_work, GFP_ATOMIC);
 	if (!skb_work) {
 		QEDF_WARN(&(qedf->dbg_ctx), "Could not allocate skb_work so "
 			   "dropping frame.\n");
@@ -2778,8 +2778,7 @@ static int qedf_prepare_sb(struct qedf_ctx *qedf)
 	int ret;
 
 	qedf->fp_array =
-	    kcalloc(qedf->num_queues, sizeof(struct qedf_fastpath),
-		GFP_KERNEL);
+	    kzalloc_objs(struct qedf_fastpath, qedf->num_queues);
 
 	if (!qedf->fp_array) {
 		QEDF_ERR(&(qedf->dbg_ctx), "fastpath array allocation "
@@ -2790,7 +2789,7 @@ static int qedf_prepare_sb(struct qedf_ctx *qedf)
 	for (id = 0; id < qedf->num_queues; id++) {
 		fp = &(qedf->fp_array[id]);
 		fp->sb_id = QEDF_SB_ID_NULL;
-		fp->sb_info = kcalloc(1, sizeof(*fp->sb_info), GFP_KERNEL);
+		fp->sb_info = kzalloc_objs(*fp->sb_info, 1);
 		if (!fp->sb_info) {
 			QEDF_ERR(&(qedf->dbg_ctx), "SB info struct "
 				  "allocation failed.\n");
@@ -3083,8 +3082,7 @@ static int qedf_alloc_global_queues(struct qedf_ctx *qedf)
 
 	/* Allocate a CQ and an associated PBL for each MSI-X vector */
 	for (i = 0; i < qedf->num_queues; i++) {
-		qedf->global_queues[i] = kzalloc(sizeof(struct global_queue),
-		    GFP_KERNEL);
+		qedf->global_queues[i] = kzalloc_obj(struct global_queue);
 		if (!qedf->global_queues[i]) {
 			QEDF_WARN(&(qedf->dbg_ctx), "Unable to allocate "
 				   "global queue %d.\n", i);

@@ -516,7 +516,7 @@ cxd2880_spi_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	dvb_spi = kzalloc(sizeof(struct cxd2880_dvb_spi), GFP_KERNEL);
+	dvb_spi = kzalloc_obj(struct cxd2880_dvb_spi);
 	if (!dvb_spi)
 		return -ENOMEM;
 

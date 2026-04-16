@@ -346,7 +346,7 @@ static int __init intel_rng_mod_init(void)
 		goto fwh_done;
 	}
 
-	intel_rng_hw = kmalloc(sizeof(*intel_rng_hw), GFP_KERNEL);
+	intel_rng_hw = kmalloc_obj(*intel_rng_hw);
 	if (!intel_rng_hw) {
 		pci_dev_put(dev);
 		goto out;

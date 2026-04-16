@@ -148,7 +148,7 @@ static int sst_fill_memcpy_list(struct list_head *memcpy_list,
 {
 	struct sst_memcpy_list *listnode;
 
-	listnode = kzalloc(sizeof(*listnode), GFP_KERNEL);
+	listnode = kzalloc_obj(*listnode);
 	if (listnode == NULL)
 		return -ENOMEM;
 	listnode->dstn = destn;

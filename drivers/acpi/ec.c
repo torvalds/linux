@@ -1100,7 +1100,7 @@ int acpi_ec_add_query_handler(struct acpi_ec *ec, u8 query_bit,
 	if (!handle && !func)
 		return -EINVAL;
 
-	handler = kzalloc(sizeof(*handler), GFP_KERNEL);
+	handler = kzalloc_obj(*handler);
 	if (!handler)
 		return -ENOMEM;
 
@@ -1177,7 +1177,7 @@ static struct acpi_ec_query *acpi_ec_create_query(struct acpi_ec *ec, u8 *pval)
 	struct acpi_ec_query *q;
 	struct transaction *t;
 
-	q = kzalloc(sizeof (struct acpi_ec_query), GFP_KERNEL);
+	q = kzalloc_obj(struct acpi_ec_query);
 	if (!q)
 		return NULL;
 
@@ -1422,7 +1422,7 @@ static void acpi_ec_free(struct acpi_ec *ec)
 
 static struct acpi_ec *acpi_ec_alloc(void)
 {
-	struct acpi_ec *ec = kzalloc(sizeof(struct acpi_ec), GFP_KERNEL);
+	struct acpi_ec *ec = kzalloc_obj(struct acpi_ec);
 
 	if (!ec)
 		return NULL;
@@ -1754,12 +1754,10 @@ err:
 
 static void acpi_ec_remove(struct platform_device *pdev)
 {
-	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
 	struct acpi_ec *ec = platform_get_drvdata(pdev);
 
 	release_region(ec->data_addr, 1);
 	release_region(ec->command_addr, 1);
-	device->driver_data = NULL;
 	if (ec != boot_ec) {
 		ec_remove_handlers(ec);
 		acpi_ec_free(ec);

@@ -936,7 +936,7 @@ int idpf_ptp_init(struct idpf_adapter *adapter)
 		return -EOPNOTSUPP;
 	}
 
-	adapter->ptp = kzalloc(sizeof(*adapter->ptp), GFP_KERNEL);
+	adapter->ptp = kzalloc_obj(*adapter->ptp);
 	if (!adapter->ptp)
 		return -ENOMEM;
 

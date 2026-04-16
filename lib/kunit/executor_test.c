@@ -272,7 +272,7 @@ static void free_suite_set_at_end(struct kunit *test, const void *to_free)
 	if (!((struct kunit_suite_set *)to_free)->start)
 		return;
 
-	free = kzalloc(sizeof(struct kunit_suite_set), GFP_KERNEL);
+	free = kzalloc_obj(struct kunit_suite_set);
 	*free = *(struct kunit_suite_set *)to_free;
 
 	kunit_add_action(test, free_suite_set, (void *)free);

@@ -522,7 +522,7 @@ static int tracefs_init_fs_context(struct fs_context *fc)
 {
 	struct tracefs_fs_info *fsi;
 
-	fsi = kzalloc(sizeof(struct tracefs_fs_info), GFP_KERNEL);
+	fsi = kzalloc_obj(struct tracefs_fs_info);
 	if (!fsi)
 		return -ENOMEM;
 

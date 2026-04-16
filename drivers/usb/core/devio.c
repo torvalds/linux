@@ -245,7 +245,7 @@ static int usbdev_mmap(struct file *file, struct vm_area_struct *vma)
 	if (ret)
 		goto error;
 
-	usbm = kzalloc(sizeof(struct usb_memory), GFP_KERNEL);
+	usbm = kzalloc_obj(struct usb_memory);
 	if (!usbm) {
 		ret = -ENOMEM;
 		goto error_decrease_mem;
@@ -402,7 +402,7 @@ static struct async *alloc_async(unsigned int numisoframes)
 {
 	struct async *as;
 
-	as = kzalloc(sizeof(struct async), GFP_KERNEL);
+	as = kzalloc_obj(struct async);
 	if (!as)
 		return NULL;
 	as->urb = usb_alloc_urb(numisoframes, GFP_KERNEL);
@@ -970,7 +970,7 @@ static int parse_usbdevfs_streams(struct usb_dev_state *ps,
 	if (num_streams_ret && (num_streams < 2 || num_streams > 65536))
 		return -EINVAL;
 
-	eps = kmalloc_array(num_eps, sizeof(*eps), GFP_KERNEL);
+	eps = kmalloc_objs(*eps, num_eps);
 	if (!eps)
 		return -ENOMEM;
 
@@ -1039,7 +1039,7 @@ static int usbdev_open(struct inode *inode, struct file *file)
 	int ret;
 
 	ret = -ENOMEM;
-	ps = kzalloc(sizeof(struct usb_dev_state), GFP_KERNEL);
+	ps = kzalloc_obj(struct usb_dev_state);
 	if (!ps)
 		goto out_free_ps;
 
@@ -1196,7 +1196,7 @@ static int do_proc_control(struct usb_dev_state *ps,
 	urb = usb_alloc_urb(0, GFP_NOIO);
 	if (!urb)
 		goto done;
-	dr = kmalloc(sizeof(struct usb_ctrlrequest), GFP_NOIO);
+	dr = kmalloc_obj(struct usb_ctrlrequest, GFP_NOIO);
 	if (!dr)
 		goto done;
 
@@ -1670,7 +1670,7 @@ static int proc_do_submiturb(struct usb_dev_state *ps, struct usbdevfs_urb *uurb
 		/* min 8 byte setup packet */
 		if (uurb->buffer_length < 8)
 			return -EINVAL;
-		dr = kmalloc(sizeof(struct usb_ctrlrequest), GFP_KERNEL);
+		dr = kmalloc_obj(struct usb_ctrlrequest);
 		if (!dr)
 			return -ENOMEM;
 		if (copy_from_user(dr, uurb->buffer, 8)) {
@@ -1805,9 +1805,8 @@ static int proc_do_submiturb(struct usb_dev_state *ps, struct usbdevfs_urb *uurb
 	as->mem_usage = u;
 
 	if (num_sgs) {
-		as->urb->sg = kmalloc_array(num_sgs,
-					    sizeof(struct scatterlist),
-					    GFP_KERNEL | __GFP_NOWARN);
+		as->urb->sg = kmalloc_objs(struct scatterlist, num_sgs,
+					   GFP_KERNEL | __GFP_NOWARN);
 		if (!as->urb->sg) {
 			ret = -ENOMEM;
 			goto error;

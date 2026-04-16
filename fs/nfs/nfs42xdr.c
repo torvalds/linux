@@ -1159,7 +1159,7 @@ static int decode_read_plus(struct xdr_stream *xdr, struct nfs_pgio_res *res)
 	if (segments == 0)
 		return 0;
 
-	segs = kmalloc_array(segments, sizeof(*segs), GFP_KERNEL);
+	segs = kmalloc_objs(*segs, segments);
 	if (!segs)
 		return -ENOMEM;
 

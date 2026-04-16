@@ -990,7 +990,7 @@ static int __init dino_probe(struct parisc_device *dev)
 */
 	}
 
-	dino_dev = kzalloc(sizeof(struct dino_device), GFP_KERNEL);
+	dino_dev = kzalloc_obj(struct dino_device);
 	if (!dino_dev) {
 		printk("dino_init_chip - couldn't alloc dino_device\n");
 		return 1;

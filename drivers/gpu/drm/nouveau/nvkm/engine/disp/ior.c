@@ -58,7 +58,7 @@ nvkm_ior_new_(const struct nvkm_ior_func *func, struct nvkm_disp *disp,
 	      enum nvkm_ior_type type, int id, bool hda)
 {
 	struct nvkm_ior *ior;
-	if (!(ior = kzalloc(sizeof(*ior), GFP_KERNEL)))
+	if (!(ior = kzalloc_obj(*ior)))
 		return -ENOMEM;
 	ior->func = func;
 	ior->disp = disp;

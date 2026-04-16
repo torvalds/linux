@@ -1168,7 +1168,7 @@ static int allocate_cgrp_cset_links(int count, struct list_head *tmp_links)
 	INIT_LIST_HEAD(tmp_links);
 
 	for (i = 0; i < count; i++) {
-		link = kzalloc(sizeof(*link), GFP_KERNEL);
+		link = kzalloc_obj(*link);
 		if (!link) {
 			free_cgrp_cset_links(tmp_links);
 			return -ENOMEM;
@@ -1241,7 +1241,7 @@ static struct css_set *find_css_set(struct css_set *old_cset,
 	if (cset)
 		return cset;
 
-	cset = kzalloc(sizeof(*cset), GFP_KERNEL);
+	cset = kzalloc_obj(*cset);
 	if (!cset)
 		return NULL;
 
@@ -2350,7 +2350,7 @@ static int cgroup_init_fs_context(struct fs_context *fc)
 {
 	struct cgroup_fs_context *ctx;
 
-	ctx = kzalloc(sizeof(struct cgroup_fs_context), GFP_KERNEL);
+	ctx = kzalloc_obj(struct cgroup_fs_context);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -2608,6 +2608,7 @@ static void cgroup_migrate_add_task(struct task_struct *task,
 
 	mgctx->tset.nr_tasks++;
 
+	css_set_skip_task_iters(cset, task);
 	list_move_tail(&task->cg_list, &cset->mg_tasks);
 	if (list_empty(&cset->mg_node))
 		list_add_tail(&cset->mg_node,
@@ -4251,7 +4252,7 @@ static int cgroup_file_open(struct kernfs_open_file *of)
 	struct cgroup_file_ctx *ctx;
 	int ret;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -5108,6 +5109,12 @@ repeat:
 		return;
 
 	task = list_entry(it->task_pos, struct task_struct, cg_list);
+	/*
+	 * Hide tasks that are exiting but not yet removed. Keep zombie
+	 * leaders with live threads visible.
+	 */
+	if ((task->flags & PF_EXITING) && !atomic_read(&task->signal->live))
+		goto repeat;
 
 	if (it->flags & CSS_TASK_ITER_PROCS) {
 		/* if PROCS, skip over tasks which aren't group leaders */
@@ -5844,7 +5851,7 @@ static struct cgroup *cgroup_create(struct cgroup *parent, const char *name,
 	int ret;
 
 	/* allocate the cgroup and its ID, 0 is reserved for the root */
-	cgrp = kzalloc(struct_size(cgrp, _low_ancestors, level), GFP_KERNEL);
+	cgrp = kzalloc_flex(*cgrp, _low_ancestors, level);
 	if (!cgrp)
 		return ERR_PTR(-ENOMEM);
 

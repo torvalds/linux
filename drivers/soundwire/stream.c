@@ -748,11 +748,11 @@ static int sdw_bank_switch(struct sdw_bus *bus, int m_rt_count)
 	int ret;
 	u16 addr;
 
-	wr_msg = kzalloc(sizeof(*wr_msg), GFP_KERNEL);
+	wr_msg = kzalloc_obj(*wr_msg);
 	if (!wr_msg)
 		return -ENOMEM;
 
-	wbuf = kzalloc(sizeof(*wbuf), GFP_KERNEL);
+	wbuf = kzalloc_obj(*wbuf);
 	if (!wbuf) {
 		ret = -ENOMEM;
 		goto error_1;
@@ -956,7 +956,7 @@ static struct sdw_port_runtime *sdw_port_alloc(struct list_head *port_list)
 {
 	struct sdw_port_runtime *p_rt;
 
-	p_rt = kzalloc(sizeof(*p_rt), GFP_KERNEL);
+	p_rt = kzalloc_obj(*p_rt);
 	if (!p_rt)
 		return NULL;
 
@@ -1131,7 +1131,7 @@ static struct sdw_slave_runtime
 {
 	struct sdw_slave_runtime *s_rt;
 
-	s_rt = kzalloc(sizeof(*s_rt), GFP_KERNEL);
+	s_rt = kzalloc_obj(*s_rt);
 	if (!s_rt)
 		return NULL;
 
@@ -1241,7 +1241,7 @@ static struct sdw_master_runtime
 		}
 	}
 
-	m_rt = kzalloc(sizeof(*m_rt), GFP_KERNEL);
+	m_rt = kzalloc_obj(*m_rt);
 	if (!m_rt)
 		return NULL;
 
@@ -1875,7 +1875,7 @@ struct sdw_stream_runtime *sdw_alloc_stream(const char *stream_name, enum sdw_st
 {
 	struct sdw_stream_runtime *stream;
 
-	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
+	stream = kzalloc_obj(*stream);
 	if (!stream)
 		return NULL;
 

@@ -205,7 +205,7 @@ static int io_import_umem(struct io_zcrx_ifq *ifq,
 		return PTR_ERR(pages);
 
 	ret = sg_alloc_table_from_pages(&mem->page_sg_table, pages, nr_pages,
-					0, nr_pages << PAGE_SHIFT,
+					0, (unsigned long)nr_pages << PAGE_SHIFT,
 					GFP_KERNEL_ACCOUNT);
 	if (ret) {
 		unpin_user_pages(pages, nr_pages);
@@ -300,6 +300,9 @@ static int io_zcrx_map_area(struct io_zcrx_ifq *ifq, struct io_zcrx_area *area)
 	}
 
 	ret = io_populate_area_dma(ifq, area);
+	if (ret && !area->mem.is_dmabuf)
+		dma_unmap_sgtable(ifq->dev, &area->mem.page_sg_table,
+				  DMA_FROM_DEVICE, IO_DMA_ATTR);
 	if (ret == 0)
 		area->is_mapped = true;
 	return ret;
@@ -346,10 +349,14 @@ static inline atomic_t *io_get_user_counter(struct net_iov *niov)
 static bool io_zcrx_put_niov_uref(struct net_iov *niov)
 {
 	atomic_t *uref = io_get_user_counter(niov);
+	int old;
 
-	if (unlikely(!atomic_read(uref)))
-		return false;
-	atomic_dec(uref);
+	old = atomic_read(uref);
+	do {
+		if (unlikely(old == 0))
+			return false;
+	} while (!atomic_try_cmpxchg(uref, &old, old - 1));
+
 	return true;
 }
 
@@ -445,7 +452,7 @@ static int io_zcrx_create_area(struct io_zcrx_ifq *ifq,
 	}
 
 	ret = -ENOMEM;
-	area = kzalloc(sizeof(*area), GFP_KERNEL);
+	area = kzalloc_obj(*area);
 	if (!area)
 		goto err;
 	area->ifq = ifq;
@@ -464,8 +471,8 @@ static int io_zcrx_create_area(struct io_zcrx_ifq *ifq,
 	area->nia.num_niovs = nr_iovs;
 
 	ret = -ENOMEM;
-	area->nia.niovs = kvmalloc_array(nr_iovs, sizeof(area->nia.niovs[0]),
-					 GFP_KERNEL_ACCOUNT | __GFP_ZERO);
+	area->nia.niovs = kvmalloc_objs(area->nia.niovs[0], nr_iovs,
+					GFP_KERNEL_ACCOUNT | __GFP_ZERO);
 	if (!area->nia.niovs)
 		goto err;
 
@@ -474,7 +481,7 @@ static int io_zcrx_create_area(struct io_zcrx_ifq *ifq,
 	if (!area->freelist)
 		goto err;
 
-	area->user_refs = kvmalloc_array(nr_iovs, sizeof(area->user_refs[0]),
+	area->user_refs = kvmalloc_objs(area->user_refs[0], nr_iovs,
 					GFP_KERNEL_ACCOUNT | __GFP_ZERO);
 	if (!area->user_refs)
 		goto err;
@@ -507,7 +514,7 @@ static struct io_zcrx_ifq *io_zcrx_ifq_alloc(struct io_ring_ctx *ctx)
 {
 	struct io_zcrx_ifq *ifq;
 
-	ifq = kzalloc(sizeof(*ifq), GFP_KERNEL);
+	ifq = kzalloc_obj(*ifq);
 	if (!ifq)
 		return NULL;
 
@@ -538,9 +545,6 @@ static void io_close_queue(struct io_zcrx_ifq *ifq)
 		.mp_priv = ifq,
 	};
 
-	if (ifq->if_rxq == -1)
-		return;
-
 	scoped_guard(mutex, &ifq->pp_lock) {
 		netdev = ifq->netdev;
 		netdev_tracker = ifq->netdev_tracker;
@@ -548,7 +552,8 @@ static void io_close_queue(struct io_zcrx_ifq *ifq)
 	}
 
 	if (netdev) {
-		net_mp_close_rxq(netdev, ifq->if_rxq, &p);
+		if (ifq->if_rxq != -1)
+			net_mp_close_rxq(netdev, ifq->if_rxq, &p);
 		netdev_put(netdev, &netdev_tracker);
 	}
 	ifq->if_rxq = -1;
@@ -702,6 +707,8 @@ static int import_zcrx(struct io_ring_ctx *ctx,
 		return -EINVAL;
 	if (reg->if_rxq || reg->rq_entries || reg->area_ptr || reg->region_ptr)
 		return -EINVAL;
+	if (reg->flags & ~ZCRX_REG_IMPORT)
+		return -EINVAL;
 
 	fd = reg->if_idx;
 	CLASS(fd, f)(fd);
@@ -830,7 +837,8 @@ int io_register_zcrx_ifq(struct io_ring_ctx *ctx,
 	if (ret)
 		goto netdev_put_unlock;
 
-	mp_param.rx_page_size = 1U << ifq->niov_shift;
+	if (reg.rx_buf_len)
+		mp_param.rx_page_size = 1U << ifq->niov_shift;
 	mp_param.mp_ops = &io_uring_pp_zc_ops;
 	mp_param.mp_priv = ifq;
 	ret = __net_mp_open_rxq(ifq->netdev, reg.if_rxq, &mp_param, NULL);
@@ -858,13 +866,12 @@ int io_register_zcrx_ifq(struct io_ring_ctx *ctx,
 	}
 	return 0;
 netdev_put_unlock:
-	netdev_put(ifq->netdev, &ifq->netdev_tracker);
 	netdev_unlock(ifq->netdev);
 err:
 	scoped_guard(mutex, &ctx->mmap_lock)
 		xa_erase(&ctx->zcrx_ctxs, id);
 ifq_free:
-	io_zcrx_ifq_free(ifq);
+	zcrx_unregister(ifq);
 	return ret;
 }
 
@@ -920,11 +927,12 @@ static inline bool io_parse_rqe(struct io_uring_zcrx_rqe *rqe,
 				struct io_zcrx_ifq *ifq,
 				struct net_iov **ret_niov)
 {
+	__u64 off = READ_ONCE(rqe->off);
 	unsigned niov_idx, area_idx;
 	struct io_zcrx_area *area;
 
-	area_idx = rqe->off >> IORING_ZCRX_AREA_SHIFT;
-	niov_idx = (rqe->off & ~IORING_ZCRX_AREA_MASK) >> ifq->niov_shift;
+	area_idx = off >> IORING_ZCRX_AREA_SHIFT;
+	niov_idx = (off & ~IORING_ZCRX_AREA_MASK) >> ifq->niov_shift;
 
 	if (unlikely(rqe->__pad || area_idx))
 		return false;

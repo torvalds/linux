@@ -264,7 +264,7 @@ out:
  */
 static int ramfs_nommu_mmap_prepare(struct vm_area_desc *desc)
 {
-	if (!is_nommu_shared_mapping(desc->vm_flags))
+	if (!is_nommu_shared_vma_flags(&desc->vma_flags))
 		return -ENOSYS;
 
 	file_accessed(desc->file);

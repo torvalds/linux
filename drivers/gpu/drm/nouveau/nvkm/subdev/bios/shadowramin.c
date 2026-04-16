@@ -102,7 +102,7 @@ pramin_init(struct nvkm_bios *bios, const char *name)
 	}
 
 	/* modify bar0 PRAMIN window to cover the bios image */
-	if (!(priv = kmalloc(sizeof(*priv), GFP_KERNEL))) {
+	if (!(priv = kmalloc_obj(*priv))) {
 		nvkm_error(subdev, "... out of memory\n");
 		return ERR_PTR(-ENOMEM);
 	}

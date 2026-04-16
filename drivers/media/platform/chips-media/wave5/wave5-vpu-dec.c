@@ -1822,7 +1822,7 @@ static int wave5_vpu_open_dec(struct file *filp)
 	struct v4l2_m2m_ctx *m2m_ctx;
 	int ret = 0;
 
-	inst = kzalloc(sizeof(*inst), GFP_KERNEL);
+	inst = kzalloc_obj(*inst);
 	if (!inst)
 		return -ENOMEM;
 
@@ -1834,7 +1834,7 @@ static int wave5_vpu_open_dec(struct file *filp)
 	mutex_init(&inst->feed_lock);
 	INIT_LIST_HEAD(&inst->avail_src_bufs);
 
-	inst->codec_info = kzalloc(sizeof(*inst->codec_info), GFP_KERNEL);
+	inst->codec_info = kzalloc_obj(*inst->codec_info);
 	if (!inst->codec_info) {
 		kfree(inst);
 		return -ENOMEM;

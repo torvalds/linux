@@ -13,7 +13,7 @@
 #include <linux/kvm_host.h>
 #include <asm/kvm_mmu.h>
 
-const struct _kvm_stats_desc kvm_vm_stats_desc[] = {
+const struct kvm_stats_desc kvm_vm_stats_desc[] = {
 	KVM_GENERIC_VM_STATS()
 };
 static_assert(ARRAY_SIZE(kvm_vm_stats_desc) ==
@@ -95,7 +95,7 @@ int kvm_riscv_setup_default_irq_routing(struct kvm *kvm, u32 lines)
 	struct kvm_irq_routing_entry *ents;
 	int i, rc;
 
-	ents = kcalloc(lines, sizeof(*ents), GFP_KERNEL);
+	ents = kzalloc_objs(*ents, lines);
 	if (!ents)
 		return -ENOMEM;
 
@@ -181,7 +181,6 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		break;
 	case KVM_CAP_IOEVENTFD:
 	case KVM_CAP_USER_MEMORY:
-	case KVM_CAP_SYNC_MMU:
 	case KVM_CAP_DESTROY_MEMORY_REGION_WORKS:
 	case KVM_CAP_ONE_REG:
 	case KVM_CAP_READONLY_MEM:

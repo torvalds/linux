@@ -89,8 +89,6 @@
 #define DWARF_REG_FB  0xd3affb /* random number */
 
 #ifdef HAVE_LIBDW_SUPPORT
-const char *get_csky_regstr(unsigned int n, unsigned int flags);
-
 /**
  * get_dwarf_regstr() - Returns ftrace register string from DWARF regnum.
  * @n: DWARF register number.
@@ -99,11 +97,23 @@ const char *get_csky_regstr(unsigned int n, unsigned int flags);
  */
 const char *get_dwarf_regstr(unsigned int n, unsigned int machine, unsigned int flags);
 
-int get_x86_regnum(const char *name);
+const char *__get_csky_regstr(unsigned int n, unsigned int flags);
+int __get_csky_regnum(const char *name, unsigned int flags);
 
-#if !defined(__x86_64__) && !defined(__i386__)
-int get_arch_regnum(const char *name);
-#endif
+int __get_dwarf_regnum_i386(const char *name);
+int __get_dwarf_regnum_x86_64(const char *name);
+int __get_dwarf_regnum_for_perf_regnum_i386(int perf_regnum);
+int __get_dwarf_regnum_for_perf_regnum_x86_64(int perf_regnum);
+
+int __get_dwarf_regnum_for_perf_regnum_arm(int perf_regnum);
+int __get_dwarf_regnum_for_perf_regnum_arm64(int perf_regnum);
+
+int __get_dwarf_regnum_for_perf_regnum_csky(int perf_regnum, unsigned int flags);
+int __get_dwarf_regnum_for_perf_regnum_loongarch(int perf_regnum);
+int __get_dwarf_regnum_for_perf_regnum_powerpc(int perf_regnum);
+int __get_dwarf_regnum_for_perf_regnum_riscv(int perf_regnum);
+int __get_dwarf_regnum_for_perf_regnum_s390(int perf_regnum);
+int __get_dwarf_regnum_for_perf_regnum_mips(int perf_regnum);
 
 /*
  * get_dwarf_regnum - Returns DWARF regnum from register name
@@ -111,6 +121,12 @@ int get_arch_regnum(const char *name);
  * machine: ELF machine signature (EM_*)
  */
 int get_dwarf_regnum(const char *name, unsigned int machine, unsigned int flags);
+
+/*
+ * get_dwarf_regnum - Returns DWARF regnum from perf register number.
+ */
+int get_dwarf_regnum_for_perf_regnum(int perf_regnum, unsigned int machine, unsigned int flags,
+				     bool only_libdw_supported);
 
 void get_powerpc_regs(u32 raw_insn, int is_source, struct annotated_op_loc *op_loc);
 

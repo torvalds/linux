@@ -820,7 +820,7 @@ struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe, int pll_addr,
 			     fe->ops.i2c_gate_ctrl(fe, 0);
 	}
 
-	priv = kzalloc(sizeof(struct dvb_pll_priv), GFP_KERNEL);
+	priv = kzalloc_obj(struct dvb_pll_priv);
 	if (!priv)
 		goto out;
 

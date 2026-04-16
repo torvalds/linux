@@ -1658,7 +1658,7 @@ static int dualsense_reset_leds(struct dualsense *ds)
 	struct dualsense_output_report report;
 	struct dualsense_output_report_bt *buf;
 
-	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
+	buf = kzalloc_obj(*buf);
 	if (!buf)
 		return -ENOMEM;
 

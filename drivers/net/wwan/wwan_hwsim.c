@@ -317,7 +317,7 @@ static struct wwan_hwsim_port *wwan_hwsim_port_new(struct wwan_hwsim_dev *dev,
 	else
 		return ERR_PTR(-EINVAL);
 
-	port = kzalloc(sizeof(*port), GFP_KERNEL);
+	port = kzalloc_obj(*port);
 	if (!port)
 		return ERR_PTR(-ENOMEM);
 
@@ -390,7 +390,7 @@ static struct wwan_hwsim_dev *wwan_hwsim_dev_new(void)
 	struct wwan_hwsim_dev *dev;
 	int err;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 

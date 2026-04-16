@@ -431,7 +431,7 @@ static int dsa_port_bridge_create(struct dsa_port *dp,
 		return 0;
 	}
 
-	bridge = kzalloc(sizeof(*bridge), GFP_KERNEL);
+	bridge = kzalloc_obj(*bridge);
 	if (!bridge)
 		return -ENOMEM;
 
@@ -617,7 +617,7 @@ static int dsa_port_lag_create(struct dsa_port *dp,
 		return 0;
 	}
 
-	lag = kzalloc(sizeof(*lag), GFP_KERNEL);
+	lag = kzalloc_obj(*lag);
 	if (!lag)
 		return -ENOMEM;
 

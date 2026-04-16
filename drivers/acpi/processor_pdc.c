@@ -32,11 +32,11 @@ static struct acpi_object_list *acpi_processor_alloc_pdc(void)
 	u32 *buf;
 
 	/* allocate and initialize pdc. It will be used later. */
-	obj_list = kmalloc(sizeof(struct acpi_object_list), GFP_KERNEL);
+	obj_list = kmalloc_obj(struct acpi_object_list);
 	if (!obj_list)
 		goto out;
 
-	obj = kmalloc(sizeof(union acpi_object), GFP_KERNEL);
+	obj = kmalloc_obj(union acpi_object);
 	if (!obj) {
 		kfree(obj_list);
 		goto out;

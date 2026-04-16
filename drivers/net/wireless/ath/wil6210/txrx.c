@@ -119,7 +119,7 @@ static int wil_vring_alloc(struct wil6210_priv *wil, struct wil_ring *vring)
 
 	vring->swhead = 0;
 	vring->swtail = 0;
-	vring->ctx = kcalloc(vring->size, sizeof(vring->ctx[0]), GFP_KERNEL);
+	vring->ctx = kzalloc_objs(vring->ctx[0], vring->size);
 	if (!vring->ctx) {
 		vring->va = NULL;
 		return -ENOMEM;

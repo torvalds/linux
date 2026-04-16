@@ -56,13 +56,13 @@
 
 #define to_amdgpu_device(x) (container_of(x, struct amdgpu_device, pm.smu_i2c))
 
-#define FEATURE_MASK(feature) (1ULL << feature)
-#define SMC_DPM_FEATURE ( \
-	FEATURE_MASK(FEATURE_DPM_GFXCLK_BIT)     | \
-	FEATURE_MASK(FEATURE_DPM_UCLK_BIT)	 | \
-	FEATURE_MASK(FEATURE_DPM_LINK_BIT)       | \
-	FEATURE_MASK(FEATURE_DPM_SOCCLK_BIT)     | \
-	FEATURE_MASK(FEATURE_DPM_FCLK_BIT))
+static const struct smu_feature_bits smu_v14_0_2_dpm_features = {
+	.bits = { SMU_FEATURE_BIT_INIT(FEATURE_DPM_GFXCLK_BIT),
+		  SMU_FEATURE_BIT_INIT(FEATURE_DPM_UCLK_BIT),
+		  SMU_FEATURE_BIT_INIT(FEATURE_DPM_LINK_BIT),
+		  SMU_FEATURE_BIT_INIT(FEATURE_DPM_SOCCLK_BIT),
+		  SMU_FEATURE_BIT_INIT(FEATURE_DPM_FCLK_BIT) }
+};
 
 #define MP0_MP1_DATA_REGION_SIZE_COMBOPPTABLE	0x4000
 #define DEBUGSMC_MSG_Mode1Reset        2
@@ -393,7 +393,7 @@ static int smu_v14_0_2_tables_init(struct smu_context *smu)
 	SMU_TABLE_INIT(tables, SMU_TABLE_ECCINFO, sizeof(EccInfoTable_t),
 			PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 
-	smu_table->metrics_table = kzalloc(sizeof(SmuMetricsExternal_t), GFP_KERNEL);
+	smu_table->metrics_table = kzalloc_obj(SmuMetricsExternal_t);
 	if (!smu_table->metrics_table)
 		goto err0_out;
 	smu_table->metrics_time = 0;
@@ -404,7 +404,7 @@ static int smu_v14_0_2_tables_init(struct smu_context *smu)
 	if (ret)
 		goto err1_out;
 
-	smu_table->watermarks_table = kzalloc(sizeof(Watermarks_t), GFP_KERNEL);
+	smu_table->watermarks_table = kzalloc_obj(Watermarks_t);
 	if (!smu_table->watermarks_table)
 		goto err2_out;
 
@@ -428,8 +428,7 @@ static int smu_v14_0_2_allocate_dpm_context(struct smu_context *smu)
 {
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 
-	smu_dpm->dpm_context = kzalloc(sizeof(struct smu_14_0_dpm_context),
-				       GFP_KERNEL);
+	smu_dpm->dpm_context = kzalloc_obj(struct smu_14_0_dpm_context);
 	if (!smu_dpm->dpm_context)
 		return -ENOMEM;
 
@@ -589,13 +588,14 @@ static int smu_v14_0_2_set_default_dpm_table(struct smu_context *smu)
 static bool smu_v14_0_2_is_dpm_running(struct smu_context *smu)
 {
 	int ret = 0;
-	uint64_t feature_enabled;
+	struct smu_feature_bits feature_enabled;
 
 	ret = smu_cmn_get_enabled_mask(smu, &feature_enabled);
 	if (ret)
 		return false;
 
-	return !!(feature_enabled & SMC_DPM_FEATURE);
+	return smu_feature_bits_test_mask(&feature_enabled,
+					  smu_v14_0_2_dpm_features.bits);
 }
 
 static uint32_t smu_v14_0_2_get_throttler_status(SmuMetrics_t *metrics)
@@ -1875,7 +1875,7 @@ static int smu_v14_0_2_i2c_xfer(struct i2c_adapter *i2c_adap,
 	if (!adev->pm.dpm_enabled)
 		return -EBUSY;
 
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req)
 		return -ENOMEM;
 
@@ -2311,7 +2311,8 @@ static int smu_v14_0_2_restore_user_od_settings(struct smu_context *smu)
 	user_od_table->OverDriveTable.FeatureCtrlMask = BIT(PP_OD_FEATURE_GFXCLK_BIT) |
 							BIT(PP_OD_FEATURE_UCLK_BIT) |
 							BIT(PP_OD_FEATURE_GFX_VF_CURVE_BIT) |
-							BIT(PP_OD_FEATURE_FAN_CURVE_BIT);
+							BIT(PP_OD_FEATURE_FAN_CURVE_BIT) |
+							BIT(PP_OD_FEATURE_ZERO_FAN_BIT);
 	res = smu_v14_0_2_upload_overdrive_table(smu, user_od_table);
 	user_od_table->OverDriveTable.FeatureCtrlMask = 0;
 	if (res == 0)

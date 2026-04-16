@@ -337,7 +337,7 @@ struct sdio_func *sdio_alloc_func(struct mmc_card *card)
 {
 	struct sdio_func *func;
 
-	func = kzalloc(sizeof(struct sdio_func), GFP_KERNEL);
+	func = kzalloc_obj(struct sdio_func);
 	if (!func)
 		return ERR_PTR(-ENOMEM);
 

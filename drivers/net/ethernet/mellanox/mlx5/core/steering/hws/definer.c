@@ -1688,7 +1688,7 @@ hws_definer_alloc_compressed_fc(struct mlx5hws_definer_fc *fc)
 	u32 fc_sz = 0;
 	int i;
 
-	compressed_fc = kcalloc(definer_size, sizeof(*compressed_fc), GFP_KERNEL);
+	compressed_fc = kzalloc_objs(*compressed_fc, definer_size);
 	if (!compressed_fc)
 		return NULL;
 
@@ -1731,7 +1731,7 @@ hws_definer_alloc_fc(struct mlx5hws_context *ctx,
 	struct mlx5hws_definer_fc *fc;
 	int i;
 
-	fc = kcalloc(len, sizeof(*fc), GFP_KERNEL);
+	fc = kzalloc_objs(*fc, len);
 	if (!fc)
 		return NULL;
 
@@ -2139,7 +2139,7 @@ int mlx5hws_definer_init_cache(struct mlx5hws_definer_cache **cache)
 {
 	struct mlx5hws_definer_cache *new_cache;
 
-	new_cache = kzalloc(sizeof(*new_cache), GFP_KERNEL);
+	new_cache = kzalloc_obj(*new_cache);
 	if (!new_cache)
 		return -ENOMEM;
 
@@ -2183,7 +2183,7 @@ int mlx5hws_definer_get_obj(struct mlx5hws_context *ctx,
 	if (ret)
 		return -1;
 
-	cached_definer = kzalloc(sizeof(*cached_definer), GFP_KERNEL);
+	cached_definer = kzalloc_obj(*cached_definer);
 	if (!cached_definer)
 		goto free_definer_obj;
 

@@ -789,7 +789,7 @@ int cdx_device_add(struct cdx_dev_params *dev_params)
 	struct cdx_device *cdx_dev;
 	int ret, i;
 
-	cdx_dev = kzalloc(sizeof(*cdx_dev), GFP_KERNEL);
+	cdx_dev = kzalloc_obj(*cdx_dev);
 	if (!cdx_dev)
 		return -ENOMEM;
 
@@ -876,7 +876,7 @@ struct device *cdx_bus_add(struct cdx_controller *cdx, u8 bus_num)
 	struct cdx_device *cdx_dev;
 	int ret;
 
-	cdx_dev = kzalloc(sizeof(*cdx_dev), GFP_KERNEL);
+	cdx_dev = kzalloc_obj(*cdx_dev);
 	if (!cdx_dev)
 		return NULL;
 

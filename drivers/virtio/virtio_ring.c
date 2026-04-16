@@ -1209,7 +1209,7 @@ static int vring_alloc_state_extra_split(struct vring_virtqueue_split *vring_spl
 	struct vring_desc_extra *extra;
 	u32 num = vring_split->vring.num;
 
-	state = kmalloc_array(num, sizeof(struct vring_desc_state_split), GFP_KERNEL);
+	state = kmalloc_objs(struct vring_desc_state_split, num);
 	if (!state)
 		goto err_state;
 
@@ -1308,7 +1308,7 @@ static struct virtqueue *__vring_new_virtqueue_split(unsigned int index,
 	struct vring_virtqueue *vq;
 	int err;
 
-	vq = kmalloc(sizeof(*vq), GFP_KERNEL);
+	vq = kmalloc_obj(*vq);
 	if (!vq)
 		return NULL;
 
@@ -2349,8 +2349,7 @@ static struct vring_desc_extra *vring_alloc_desc_extra(unsigned int num)
 	struct vring_desc_extra *desc_extra;
 	unsigned int i;
 
-	desc_extra = kmalloc_array(num, sizeof(struct vring_desc_extra),
-				   GFP_KERNEL);
+	desc_extra = kmalloc_objs(struct vring_desc_extra, num);
 	if (!desc_extra)
 		return NULL;
 
@@ -2450,7 +2449,7 @@ static int vring_alloc_state_extra_packed(struct vring_virtqueue_packed *vring_p
 	struct vring_desc_extra *extra;
 	u32 num = vring_packed->vring.num;
 
-	state = kmalloc_array(num, sizeof(struct vring_desc_state_packed), GFP_KERNEL);
+	state = kmalloc_objs(struct vring_desc_state_packed, num);
 	if (!state)
 		goto err_desc_state;
 
@@ -2529,7 +2528,7 @@ static struct virtqueue *__vring_new_virtqueue_packed(unsigned int index,
 	struct vring_virtqueue *vq;
 	int err;
 
-	vq = kmalloc(sizeof(*vq), GFP_KERNEL);
+	vq = kmalloc_obj(*vq);
 	if (!vq)
 		return NULL;
 

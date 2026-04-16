@@ -731,7 +731,7 @@ struct pseudo_fs_context *init_pseudo(struct fs_context *fc,
 {
 	struct pseudo_fs_context *ctx;
 
-	ctx = kzalloc(sizeof(struct pseudo_fs_context), GFP_KERNEL);
+	ctx = kzalloc_obj(struct pseudo_fs_context);
 	if (likely(ctx)) {
 		ctx->magic = magic;
 		fc->fs_private = ctx;
@@ -1320,7 +1320,7 @@ int simple_attr_open(struct inode *inode, struct file *file,
 {
 	struct simple_attr *attr;
 
-	attr = kzalloc(sizeof(*attr), GFP_KERNEL);
+	attr = kzalloc_obj(*attr);
 	if (!attr)
 		return -ENOMEM;
 

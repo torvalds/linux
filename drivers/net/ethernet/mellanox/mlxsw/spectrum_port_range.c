@@ -52,7 +52,7 @@ mlxsw_sp_port_range_reg_create(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_port_range_reg *prr;
 	int err;
 
-	prr = kzalloc(sizeof(*prr), GFP_KERNEL);
+	prr = kzalloc_obj(*prr);
 	if (!prr)
 		return ERR_PTR(-ENOMEM);
 
@@ -172,7 +172,7 @@ int mlxsw_sp_port_range_init(struct mlxsw_sp *mlxsw_sp)
 	 */
 	WARN_ON(max > BITS_PER_BYTE * sizeof(u16));
 
-	pr_core = kzalloc(sizeof(*mlxsw_sp->pr_core), GFP_KERNEL);
+	pr_core = kzalloc_obj(*mlxsw_sp->pr_core);
 	if (!pr_core)
 		return -ENOMEM;
 	mlxsw_sp->pr_core = pr_core;

@@ -249,7 +249,7 @@ static int tle62x0_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	st = kzalloc(sizeof(struct tle62x0_state), GFP_KERNEL);
+	st = kzalloc_obj(struct tle62x0_state);
 	if (st == NULL)
 		return -ENOMEM;
 

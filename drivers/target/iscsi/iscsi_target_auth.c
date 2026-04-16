@@ -152,7 +152,7 @@ static struct iscsi_chap *chap_server_open(
 		return NULL;
 	}
 
-	conn->auth_protocol = kzalloc(sizeof(struct iscsi_chap), GFP_KERNEL);
+	conn->auth_protocol = kzalloc_obj(struct iscsi_chap);
 	if (!conn->auth_protocol)
 		return NULL;
 

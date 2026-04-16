@@ -213,7 +213,7 @@ static int clone_range_of_sgt_for_slice(struct qaic_device *qdev, struct sg_tabl
 		goto out;
 	}
 
-	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
+	sgt = kzalloc_obj(*sgt);
 	if (!sgt) {
 		ret = -ENOMEM;
 		goto out;
@@ -399,13 +399,13 @@ static int qaic_map_one_slice(struct qaic_device *qdev, struct qaic_bo *bo,
 	if (ret)
 		goto out;
 
-	slice = kmalloc(sizeof(*slice), GFP_KERNEL);
+	slice = kmalloc_obj(*slice);
 	if (!slice) {
 		ret = -ENOMEM;
 		goto free_sgt;
 	}
 
-	slice->reqs = kvcalloc(sgt->nents, sizeof(*slice->reqs), GFP_KERNEL);
+	slice->reqs = kvzalloc_objs(*slice->reqs, sgt->nents);
 	if (!slice->reqs) {
 		ret = -ENOMEM;
 		goto free_slice;
@@ -507,7 +507,7 @@ static int create_sgt(struct qaic_device *qdev, struct sg_table **sgt_out, u64 s
 		i++;
 	}
 
-	sgt = kmalloc(sizeof(*sgt), GFP_KERNEL);
+	sgt = kmalloc_obj(*sgt);
 	if (!sgt) {
 		ret = -ENOMEM;
 		goto free_partial_alloc;
@@ -653,7 +653,7 @@ static struct sg_table *qaic_get_sg_table(struct drm_gem_object *obj)
 
 	sgt_in = bo->sgt;
 
-	sgt = kmalloc(sizeof(*sgt), GFP_KERNEL);
+	sgt = kmalloc_obj(*sgt);
 	if (!sgt)
 		return ERR_PTR(-ENOMEM);
 
@@ -697,7 +697,7 @@ static struct qaic_bo *qaic_alloc_init_bo(void)
 {
 	struct qaic_bo *bo;
 
-	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
+	bo = kzalloc_obj(*bo);
 	if (!bo)
 		return ERR_PTR(-ENOMEM);
 

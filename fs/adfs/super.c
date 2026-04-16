@@ -437,7 +437,7 @@ static int adfs_init_fs_context(struct fs_context *fc)
 {
 	struct adfs_sb_info *asb;
 
-	asb = kzalloc(sizeof(struct adfs_sb_info), GFP_KERNEL);
+	asb = kzalloc_obj(struct adfs_sb_info);
 	if (!asb)
 		return -ENOMEM;
 

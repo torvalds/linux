@@ -417,7 +417,7 @@ static void parse_dacl(struct mnt_idmap *idmap,
 		return;
 	}
 
-	ppace = kmalloc_array(num_aces, sizeof(struct smb_ace *), KSMBD_DEFAULT_GFP);
+	ppace = kmalloc_objs(struct smb_ace *, num_aces, KSMBD_DEFAULT_GFP);
 	if (!ppace) {
 		free_acl_state(&default_acl_state);
 		free_acl_state(&acl_state);
@@ -603,7 +603,7 @@ static void set_posix_acl_entries_dacl(struct mnt_idmap *idmap,
 	for (i = 0; i < fattr->cf_acls->a_count; i++, pace++) {
 		int flags = 0;
 
-		sid = kmalloc(sizeof(struct smb_sid), KSMBD_DEFAULT_GFP);
+		sid = kmalloc_obj(struct smb_sid, KSMBD_DEFAULT_GFP);
 		if (!sid)
 			break;
 
@@ -670,7 +670,7 @@ posix_default_acl:
 
 	pace = fattr->cf_dacls->a_entries;
 	for (i = 0; i < fattr->cf_dacls->a_count; i++, pace++) {
-		sid = kmalloc(sizeof(struct smb_sid), KSMBD_DEFAULT_GFP);
+		sid = kmalloc_obj(struct smb_sid, KSMBD_DEFAULT_GFP);
 		if (!sid)
 			break;
 
@@ -930,7 +930,7 @@ int build_sec_desc(struct mnt_idmap *idmap,
 	gid_t gid;
 	unsigned int sid_type = SIDOWNER;
 
-	nowner_sid_ptr = kmalloc(sizeof(struct smb_sid), KSMBD_DEFAULT_GFP);
+	nowner_sid_ptr = kmalloc_obj(struct smb_sid, KSMBD_DEFAULT_GFP);
 	if (!nowner_sid_ptr)
 		return -ENOMEM;
 
@@ -939,7 +939,7 @@ int build_sec_desc(struct mnt_idmap *idmap,
 		sid_type = SIDUNIX_USER;
 	id_to_sid(uid, sid_type, nowner_sid_ptr);
 
-	ngroup_sid_ptr = kmalloc(sizeof(struct smb_sid), KSMBD_DEFAULT_GFP);
+	ngroup_sid_ptr = kmalloc_obj(struct smb_sid, KSMBD_DEFAULT_GFP);
 	if (!ngroup_sid_ptr) {
 		kfree(nowner_sid_ptr);
 		return -ENOMEM;

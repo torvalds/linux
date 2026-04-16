@@ -257,7 +257,7 @@ int btrfs_find_orphan_roots(struct btrfs_fs_info *fs_info)
 		root = btrfs_get_fs_root(fs_info, root_objectid, false);
 		ret = PTR_ERR_OR_ZERO(root);
 		if (ret && ret != -ENOENT) {
-			break;
+			return ret;
 		} else if (ret == -ENOENT) {
 			struct btrfs_trans_handle *trans;
 

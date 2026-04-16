@@ -192,7 +192,7 @@ static struct obj_cgroup *obj_cgroup_alloc(void)
 	struct obj_cgroup *objcg;
 	int ret;
 
-	objcg = kzalloc(sizeof(struct obj_cgroup), GFP_KERNEL);
+	objcg = kzalloc_obj(struct obj_cgroup);
 	if (!objcg)
 		return NULL;
 
@@ -3086,7 +3086,7 @@ static void refill_obj_stock(struct obj_cgroup *objcg, unsigned int nr_bytes,
 
 	if (!local_trylock(&obj_stock.lock)) {
 		if (pgdat)
-			mod_objcg_mlstate(objcg, pgdat, idx, nr_bytes);
+			mod_objcg_mlstate(objcg, pgdat, idx, nr_acct);
 		nr_pages = nr_bytes >> PAGE_SHIFT;
 		nr_bytes = nr_bytes & (PAGE_SIZE - 1);
 		atomic_add(nr_bytes, &objcg->nr_charged_bytes);
@@ -3761,8 +3761,7 @@ static struct mem_cgroup *mem_cgroup_alloc(struct mem_cgroup *parent)
 		goto fail;
 	error = -ENOMEM;
 
-	memcg->vmstats = kzalloc(sizeof(struct memcg_vmstats),
-				 GFP_KERNEL_ACCOUNT);
+	memcg->vmstats = kzalloc_obj(struct memcg_vmstats, GFP_KERNEL_ACCOUNT);
 	if (!memcg->vmstats)
 		goto fail;
 
@@ -5649,9 +5648,21 @@ subsys_initcall(mem_cgroup_swap_init);
 
 #endif /* CONFIG_SWAP */
 
-bool mem_cgroup_node_allowed(struct mem_cgroup *memcg, int nid)
+void mem_cgroup_node_filter_allowed(struct mem_cgroup *memcg, nodemask_t *mask)
 {
-	return memcg ? cpuset_node_allowed(memcg->css.cgroup, nid) : true;
+	nodemask_t allowed;
+
+	if (!memcg)
+		return;
+
+	/*
+	 * Since this interface is intended for use by migration paths, and
+	 * reclaim and migration are subject to race conditions such as changes
+	 * in effective_mems and hot-unpluging of nodes, inaccurate allowed
+	 * mask is acceptable.
+	 */
+	cpuset_nodes_allowed(memcg->css.cgroup, &allowed);
+	nodes_and(*mask, *mask, allowed);
 }
 
 void mem_cgroup_show_protected_memory(struct mem_cgroup *memcg)

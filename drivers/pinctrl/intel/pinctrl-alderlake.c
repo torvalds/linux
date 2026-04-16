@@ -2,7 +2,7 @@
 /*
  * Intel Alder Lake PCH pinctrl/GPIO driver
  *
- * Copyright (C) 2020, 2022 Intel Corporation
+ * Copyright (C) 2020-2022 Intel Corporation
  * Author: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
  */
 

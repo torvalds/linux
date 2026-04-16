@@ -457,7 +457,7 @@ static struct clk *pll_register(const char *name, const char *parent_name,
 	struct clk_init_data init;
 	struct clk *clk;
 
-	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
+	pll = kzalloc_obj(*pll);
 	if (!pll)
 		return ERR_PTR(-ENOMEM);
 

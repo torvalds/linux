@@ -365,7 +365,7 @@ struct dvb_frontend *itd1000_attach(struct dvb_frontend *fe, struct i2c_adapter 
 	struct itd1000_state *state = NULL;
 	u8 i = 0;
 
-	state = kzalloc(sizeof(struct itd1000_state), GFP_KERNEL);
+	state = kzalloc_obj(struct itd1000_state);
 	if (state == NULL)
 		return NULL;
 

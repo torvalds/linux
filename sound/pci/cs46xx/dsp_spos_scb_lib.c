@@ -234,7 +234,7 @@ void cs46xx_dsp_proc_register_scb_desc (struct snd_cs46xx *chip,
 		entry = snd_info_create_card_entry(ins->snd_card, scb->scb_name,
 						   ins->proc_dsp_dir);
 		if (entry) {
-			scb_info = kmalloc(sizeof(struct proc_scb_info), GFP_KERNEL);
+			scb_info = kmalloc_obj(struct proc_scb_info);
 			if (!scb_info) {
 				snd_info_free_entry(entry);
 				entry = NULL;

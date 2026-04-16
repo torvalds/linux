@@ -66,7 +66,7 @@ exynos_drm_framebuffer_init(struct drm_device *dev,
 	int i;
 	int ret;
 
-	fb = kzalloc(sizeof(*fb), GFP_KERNEL);
+	fb = kzalloc_obj(*fb);
 	if (!fb)
 		return ERR_PTR(-ENOMEM);
 

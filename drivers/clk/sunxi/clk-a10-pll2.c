@@ -50,11 +50,11 @@ static void __init sun4i_pll2_setup(struct device_node *node,
 	if (IS_ERR(reg))
 		return;
 
-	clk_data = kzalloc(sizeof(*clk_data), GFP_KERNEL);
+	clk_data = kzalloc_obj(*clk_data);
 	if (!clk_data)
 		goto err_unmap;
 
-	clks = kcalloc(SUN4I_PLL2_OUTPUTS, sizeof(struct clk *), GFP_KERNEL);
+	clks = kzalloc_objs(struct clk *, SUN4I_PLL2_OUTPUTS);
 	if (!clks)
 		goto err_free_data;
 
@@ -71,7 +71,7 @@ static void __init sun4i_pll2_setup(struct device_node *node,
 	}
 
 	/* Setup the gate part of the PLL2 */
-	gate = kzalloc(sizeof(struct clk_gate), GFP_KERNEL);
+	gate = kzalloc_obj(struct clk_gate);
 	if (!gate)
 		goto err_unregister_prediv;
 
@@ -80,7 +80,7 @@ static void __init sun4i_pll2_setup(struct device_node *node,
 	gate->lock = &sun4i_a10_pll2_lock;
 
 	/* Setup the multiplier part of the PLL2 */
-	mult = kzalloc(sizeof(struct clk_multiplier), GFP_KERNEL);
+	mult = kzalloc_obj(struct clk_multiplier);
 	if (!mult)
 		goto err_free_gate;
 

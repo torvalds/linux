@@ -1831,7 +1831,7 @@ static int asus_acpi_add(struct acpi_device *device)
 
 	pr_notice("Asus Laptop Support version %s\n",
 		  ASUS_LAPTOP_VERSION);
-	asus = kzalloc(sizeof(struct asus_laptop), GFP_KERNEL);
+	asus = kzalloc_obj(struct asus_laptop);
 	if (!asus)
 		return -ENOMEM;
 	asus->handle = device->handle;

@@ -43,7 +43,7 @@ int nfs_sysfs_init(void)
 {
 	int ret;
 
-	nfs_kset = kzalloc(sizeof(*nfs_kset), GFP_KERNEL);
+	nfs_kset = kzalloc_obj(*nfs_kset);
 	if (!nfs_kset)
 		return -ENOMEM;
 
@@ -172,7 +172,7 @@ static struct nfs_netns_client *nfs_netns_client_alloc(struct kobject *parent,
 {
 	struct nfs_netns_client *p;
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (p) {
 		p->net = net;
 		p->kobject.kset = nfs_kset;

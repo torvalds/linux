@@ -263,7 +263,7 @@ next:
 	}
 	rd = file->private_data;
 	if (!rd) {
-		rd = kmalloc(sizeof(struct hfsplus_readdir_data), GFP_KERNEL);
+		rd = kmalloc_obj(struct hfsplus_readdir_data);
 		if (!rd) {
 			err = -ENOMEM;
 			goto out;

@@ -39,7 +39,7 @@ static int linear_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		return -EINVAL;
 	}
 
-	lc = kmalloc(sizeof(*lc), GFP_KERNEL);
+	lc = kmalloc_obj(*lc);
 	if (lc == NULL) {
 		ti->error = "Cannot allocate linear context";
 		return -ENOMEM;

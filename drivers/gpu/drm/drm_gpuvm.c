@@ -1060,7 +1060,7 @@ drm_gpuvm_resv_object_alloc(struct drm_device *drm)
 {
 	struct drm_gem_object *obj;
 
-	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
+	obj = kzalloc_obj(*obj);
 	if (!obj)
 		return NULL;
 
@@ -1581,7 +1581,7 @@ drm_gpuvm_bo_create(struct drm_gpuvm *gpuvm,
 	if (ops && ops->vm_bo_alloc)
 		vm_bo = ops->vm_bo_alloc();
 	else
-		vm_bo = kzalloc(sizeof(*vm_bo), GFP_KERNEL);
+		vm_bo = kzalloc_obj(*vm_bo);
 
 	if (unlikely(!vm_bo))
 		return NULL;
@@ -2852,7 +2852,7 @@ gpuva_op_alloc(struct drm_gpuvm *gpuvm)
 	if (fn && fn->op_alloc)
 		op = fn->op_alloc();
 	else
-		op = kzalloc(sizeof(*op), GFP_KERNEL);
+		op = kzalloc_obj(*op);
 
 	if (unlikely(!op))
 		return NULL;
@@ -2946,7 +2946,7 @@ __drm_gpuvm_sm_map_ops_create(struct drm_gpuvm *gpuvm,
 	} args;
 	int ret;
 
-	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
+	ops = kzalloc_obj(*ops);
 	if (unlikely(!ops))
 		return ERR_PTR(-ENOMEM);
 
@@ -3080,7 +3080,7 @@ drm_gpuvm_sm_unmap_ops_create(struct drm_gpuvm *gpuvm,
 	} args;
 	int ret;
 
-	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
+	ops = kzalloc_obj(*ops);
 	if (unlikely(!ops))
 		return ERR_PTR(-ENOMEM);
 
@@ -3130,7 +3130,7 @@ drm_gpuvm_prefetch_ops_create(struct drm_gpuvm *gpuvm,
 	u64 end = addr + range;
 	int ret;
 
-	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
+	ops = kzalloc_obj(*ops);
 	if (!ops)
 		return ERR_PTR(-ENOMEM);
 
@@ -3184,7 +3184,7 @@ drm_gpuvm_bo_unmap_ops_create(struct drm_gpuvm_bo *vm_bo)
 
 	drm_gem_gpuva_assert_lock_held(vm_bo->vm, vm_bo->obj);
 
-	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
+	ops = kzalloc_obj(*ops);
 	if (!ops)
 		return ERR_PTR(-ENOMEM);
 

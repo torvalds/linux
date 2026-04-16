@@ -112,7 +112,7 @@ static int virtio_crypto_alg_akcipher_init_session(struct virtio_crypto_akcipher
 	if (!pkey)
 		return -ENOMEM;
 
-	vc_ctrl_req = kzalloc(sizeof(*vc_ctrl_req), GFP_KERNEL);
+	vc_ctrl_req = kzalloc_obj(*vc_ctrl_req);
 	if (!vc_ctrl_req) {
 		err = -ENOMEM;
 		goto out;
@@ -169,7 +169,7 @@ static int virtio_crypto_alg_akcipher_close_session(struct virtio_crypto_akciphe
 	if (!ctx->session_valid)
 		return 0;
 
-	vc_ctrl_req = kzalloc(sizeof(*vc_ctrl_req), GFP_KERNEL);
+	vc_ctrl_req = kzalloc_obj(*vc_ctrl_req);
 	if (!vc_ctrl_req)
 		return -ENOMEM;
 

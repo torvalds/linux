@@ -50,7 +50,7 @@ static int ceph_crypt_set_context(struct inode *inode, const void *ctx,
 	if (len > FSCRYPT_SET_CONTEXT_MAX_SIZE)
 		return -EINVAL;
 
-	cfa = kzalloc(sizeof(*cfa), GFP_KERNEL);
+	cfa = kzalloc_obj(*cfa);
 	if (!cfa)
 		return -ENOMEM;
 
@@ -112,7 +112,7 @@ int ceph_fscrypt_prepare_context(struct inode *dir, struct inode *inode,
 	if (!encrypted)
 		return 0;
 
-	as->fscrypt_auth = kzalloc(sizeof(*as->fscrypt_auth), GFP_KERNEL);
+	as->fscrypt_auth = kzalloc_obj(*as->fscrypt_auth);
 	if (!as->fscrypt_auth)
 		return -ENOMEM;
 

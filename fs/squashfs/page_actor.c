@@ -43,7 +43,7 @@ static void cache_finish_page(struct squashfs_page_actor *actor)
 struct squashfs_page_actor *squashfs_page_actor_init(void **buffer,
 	int pages, int length)
 {
-	struct squashfs_page_actor *actor = kmalloc(sizeof(*actor), GFP_KERNEL);
+	struct squashfs_page_actor *actor = kmalloc_obj(*actor);
 
 	if (actor == NULL)
 		return NULL;
@@ -110,7 +110,7 @@ static void direct_finish_page(struct squashfs_page_actor *actor)
 struct squashfs_page_actor *squashfs_page_actor_init_special(struct squashfs_sb_info *msblk,
 	struct page **page, int pages, int length, loff_t start_index)
 {
-	struct squashfs_page_actor *actor = kmalloc(sizeof(*actor), GFP_KERNEL);
+	struct squashfs_page_actor *actor = kmalloc_obj(*actor);
 
 	if (actor == NULL)
 		return NULL;

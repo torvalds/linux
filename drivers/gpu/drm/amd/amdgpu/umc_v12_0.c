@@ -567,7 +567,7 @@ static int umc_v12_0_update_ecc_status(struct amdgpu_device *adev,
 	if (ret)
 		return ret;
 
-	ecc_err = kzalloc(sizeof(*ecc_err), GFP_KERNEL);
+	ecc_err = kzalloc_obj(*ecc_err);
 	if (!ecc_err)
 		return -ENOMEM;
 

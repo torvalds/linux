@@ -128,7 +128,7 @@ static int sys_t_output_open(void *priv, struct stm_output *output)
 	struct sys_t_policy_node *pn = priv;
 	struct sys_t_output *opriv;
 
-	opriv = kzalloc(sizeof(*opriv), GFP_ATOMIC);
+	opriv = kzalloc_obj(*opriv, GFP_ATOMIC);
 	if (!opriv)
 		return -ENOMEM;
 

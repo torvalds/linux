@@ -226,7 +226,7 @@ static int minix_fill_super(struct super_block *s, struct fs_context *fc)
 	int ret = -EINVAL;
 	int silent = fc->sb_flags & SB_SILENT;
 
-	sbi = kzalloc(sizeof(struct minix_sb_info), GFP_KERNEL);
+	sbi = kzalloc_obj(struct minix_sb_info);
 	if (!sbi)
 		return -ENOMEM;
 	s->s_fs_info = sbi;

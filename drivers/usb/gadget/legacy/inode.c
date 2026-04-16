@@ -173,7 +173,7 @@ static struct dev_data *dev_new (void)
 {
 	struct dev_data		*dev;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return NULL;
 	dev->state = STATE_DEV_DISABLED;
@@ -614,7 +614,7 @@ ep_read_iter(struct kiocb *iocb, struct iov_iter *to)
 		if (value >= 0 && (copy_to_iter(buf, value, to) != value))
 			value = -EFAULT;
 	} else {
-		struct kiocb_priv *priv = kzalloc(sizeof *priv, GFP_KERNEL);
+		struct kiocb_priv *priv = kzalloc_obj(*priv);
 		value = -ENOMEM;
 		if (!priv)
 			goto fail;
@@ -682,7 +682,7 @@ ep_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	} else if (is_sync_kiocb(iocb)) {
 		value = ep_io(epdata, buf, len);
 	} else {
-		struct kiocb_priv *priv = kzalloc(sizeof *priv, GFP_KERNEL);
+		struct kiocb_priv *priv = kzalloc_obj(*priv);
 		value = -ENOMEM;
 		if (priv) {
 			value = ep_aio(iocb, priv, epdata, buf, len);
@@ -1598,7 +1598,7 @@ static int activate_ep_files (struct dev_data *dev)
 
 	gadget_for_each_ep (ep, dev->gadget) {
 
-		data = kzalloc(sizeof(*data), GFP_KERNEL);
+		data = kzalloc_obj(*data);
 		if (!data)
 			goto enomem0;
 		data->state = STATE_EP_DISABLED;

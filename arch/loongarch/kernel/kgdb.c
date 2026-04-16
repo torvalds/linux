@@ -697,7 +697,7 @@ void kgdb_arch_late(void)
 			continue;
 
 		breakinfo[i].pev = register_wide_hw_breakpoint(&attr, NULL, NULL);
-		if (IS_ERR((void * __force)breakinfo[i].pev)) {
+		if (IS_ERR_PCPU(breakinfo[i].pev)) {
 			pr_err("kgdb: Could not allocate hw breakpoints.\n");
 			breakinfo[i].pev = NULL;
 			return;

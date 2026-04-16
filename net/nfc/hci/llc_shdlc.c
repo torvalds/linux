@@ -728,7 +728,7 @@ static void *llc_shdlc_init(struct nfc_hci_dev *hdev, xmit_to_drv_t xmit_to_drv,
 	*rx_headroom = SHDLC_LLC_HEAD_ROOM;
 	*rx_tailroom = 0;
 
-	shdlc = kzalloc(sizeof(struct llc_shdlc), GFP_KERNEL);
+	shdlc = kzalloc_obj(struct llc_shdlc);
 	if (shdlc == NULL)
 		return NULL;
 

@@ -203,7 +203,7 @@ static int if_usb_probe(struct usb_interface *intf,
 
 	udev = interface_to_usbdev(intf);
 
-	cardp = kzalloc(sizeof(struct if_usb_card), GFP_KERNEL);
+	cardp = kzalloc_obj(struct if_usb_card);
 	if (!cardp)
 		goto error;
 

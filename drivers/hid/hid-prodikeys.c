@@ -797,7 +797,7 @@ static int pk_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	intf = to_usb_interface(hdev->dev.parent);
 	ifnum = intf->cur_altsetting->desc.bInterfaceNumber;
 
-	pm = kzalloc(sizeof(*pm), GFP_KERNEL);
+	pm = kzalloc_obj(*pm);
 	if (pm == NULL) {
 		hid_err(hdev, "can't alloc descriptor\n");
 		return -ENOMEM;

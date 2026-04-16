@@ -226,7 +226,7 @@ static struct btf_id *btf_id__find(struct rb_root *root, const char *name)
 }
 
 static struct btf_id *__btf_id__add(struct rb_root *root,
-				    char *name,
+				    const char *name,
 				    enum btf_id_kind kind,
 				    bool unique)
 {
@@ -250,7 +250,11 @@ static struct btf_id *__btf_id__add(struct rb_root *root,
 	id = zalloc(sizeof(*id));
 	if (id) {
 		pr_debug("adding symbol %s\n", name);
-		id->name = name;
+		id->name = strdup(name);
+		if (!id->name) {
+			free(id);
+			return NULL;
+		}
 		id->kind = kind;
 		rb_link_node(&id->rb_node, parent, p);
 		rb_insert_color(&id->rb_node, root);
@@ -258,17 +262,21 @@ static struct btf_id *__btf_id__add(struct rb_root *root,
 	return id;
 }
 
-static inline struct btf_id *btf_id__add(struct rb_root *root, char *name, enum btf_id_kind kind)
+static inline struct btf_id *btf_id__add(struct rb_root *root,
+					 const char *name,
+					 enum btf_id_kind kind)
 {
 	return __btf_id__add(root, name, kind, false);
 }
 
-static inline struct btf_id *btf_id__add_unique(struct rb_root *root, char *name, enum btf_id_kind kind)
+static inline struct btf_id *btf_id__add_unique(struct rb_root *root,
+						const char *name,
+						enum btf_id_kind kind)
 {
 	return __btf_id__add(root, name, kind, true);
 }
 
-static char *get_id(const char *prefix_end)
+static int get_id(const char *prefix_end, char *buf, size_t buf_sz)
 {
 	/*
 	 * __BTF_ID__func__vfs_truncate__0
@@ -277,28 +285,28 @@ static char *get_id(const char *prefix_end)
 	 */
 	int len = strlen(prefix_end);
 	int pos = sizeof("__") - 1;
-	char *p, *id;
+	char *p;
 
 	if (pos >= len)
-		return NULL;
+		return -1;
 
-	id = strdup(prefix_end + pos);
-	if (id) {
-		/*
-		 * __BTF_ID__func__vfs_truncate__0
-		 * id =            ^
-		 *
-		 * cut the unique id part
-		 */
-		p = strrchr(id, '_');
-		p--;
-		if (*p != '_') {
-			free(id);
-			return NULL;
-		}
-		*p = '\0';
-	}
-	return id;
+	if (len - pos >= buf_sz)
+		return -1;
+
+	strcpy(buf, prefix_end + pos);
+	/*
+	 * __BTF_ID__func__vfs_truncate__0
+	 * buf =           ^
+	 *
+	 * cut the unique id part
+	 */
+	p = strrchr(buf, '_');
+	p--;
+	if (*p != '_')
+		return -1;
+	*p = '\0';
+
+	return 0;
 }
 
 static struct btf_id *add_set(struct object *obj, char *name, enum btf_id_kind kind)
@@ -335,15 +343,29 @@ static struct btf_id *add_set(struct object *obj, char *name, enum btf_id_kind k
 
 static struct btf_id *add_symbol(struct rb_root *root, char *name, size_t size)
 {
-	char *id;
+	char id[KSYM_NAME_LEN];
 
-	id = get_id(name + size);
-	if (!id) {
+	if (get_id(name + size, id, sizeof(id))) {
 		pr_err("FAILED to parse symbol name: %s\n", name);
 		return NULL;
 	}
 
 	return btf_id__add(root, id, BTF_ID_KIND_SYM);
+}
+
+static void btf_id__free_all(struct rb_root *root)
+{
+	struct rb_node *next;
+	struct btf_id *id;
+
+	next = rb_first(root);
+	while (next) {
+		id = rb_entry(next, struct btf_id, rb_node);
+		next = rb_next(&id->rb_node);
+		rb_erase(&id->rb_node, root);
+		free(id->name);
+		free(id);
+	}
 }
 
 static void bswap_32_data(void *data, u32 nr_bytes)
@@ -1547,6 +1569,11 @@ dump_btf:
 out:
 	btf__free(obj.base_btf);
 	btf__free(obj.btf);
+	btf_id__free_all(&obj.structs);
+	btf_id__free_all(&obj.unions);
+	btf_id__free_all(&obj.typedefs);
+	btf_id__free_all(&obj.funcs);
+	btf_id__free_all(&obj.sets);
 	if (obj.efile.elf) {
 		elf_end(obj.efile.elf);
 		close(obj.efile.fd);

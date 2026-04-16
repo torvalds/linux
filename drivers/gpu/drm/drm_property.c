@@ -107,7 +107,7 @@ struct drm_property *drm_property_create(struct drm_device *dev,
 	if (WARN_ON(strlen(name) >= DRM_PROP_NAME_LEN))
 		return NULL;
 
-	property = kzalloc(sizeof(struct drm_property), GFP_KERNEL);
+	property = kzalloc_obj(struct drm_property);
 	if (!property)
 		return NULL;
 
@@ -417,7 +417,7 @@ int drm_property_add_enum(struct drm_property *property,
 	if (WARN_ON(index >= property->num_values))
 		return -EINVAL;
 
-	prop_enum = kzalloc(sizeof(struct drm_property_enum), GFP_KERNEL);
+	prop_enum = kzalloc_obj(struct drm_property_enum);
 	if (!prop_enum)
 		return -ENOMEM;
 

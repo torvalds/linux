@@ -659,9 +659,8 @@ static inline void free_dev_table(struct amd_iommu_pci_seg *pci_seg)
 /* Allocate per PCI segment IOMMU rlookup table. */
 static inline int __init alloc_rlookup_table(struct amd_iommu_pci_seg *pci_seg)
 {
-	pci_seg->rlookup_table = kvcalloc(pci_seg->last_bdf + 1,
-					  sizeof(*pci_seg->rlookup_table),
-					  GFP_KERNEL);
+	pci_seg->rlookup_table = kvzalloc_objs(*pci_seg->rlookup_table,
+					       pci_seg->last_bdf + 1);
 	if (pci_seg->rlookup_table == NULL)
 		return -ENOMEM;
 
@@ -676,9 +675,8 @@ static inline void free_rlookup_table(struct amd_iommu_pci_seg *pci_seg)
 
 static inline int __init alloc_irq_lookup_table(struct amd_iommu_pci_seg *pci_seg)
 {
-	pci_seg->irq_lookup_table = kvcalloc(pci_seg->last_bdf + 1,
-					     sizeof(*pci_seg->irq_lookup_table),
-					     GFP_KERNEL);
+	pci_seg->irq_lookup_table = kvzalloc_objs(*pci_seg->irq_lookup_table,
+						  pci_seg->last_bdf + 1);
 	if (pci_seg->irq_lookup_table == NULL)
 		return -ENOMEM;
 
@@ -695,9 +693,8 @@ static int __init alloc_alias_table(struct amd_iommu_pci_seg *pci_seg)
 {
 	int i;
 
-	pci_seg->alias_table = kvmalloc_array(pci_seg->last_bdf + 1,
-					      sizeof(*pci_seg->alias_table),
-					      GFP_KERNEL);
+	pci_seg->alias_table = kvmalloc_objs(*pci_seg->alias_table,
+					     pci_seg->last_bdf + 1);
 	if (!pci_seg->alias_table)
 		return -ENOMEM;
 
@@ -1285,7 +1282,7 @@ set_dev_entry_from_acpi_range(struct amd_iommu *iommu, u16 first, u16 last,
 		if (search_ivhd_dte_flags(iommu->pci_seg->id, first, last))
 			return;
 
-		d = kzalloc(sizeof(struct ivhd_dte_flags), GFP_KERNEL);
+		d = kzalloc_obj(struct ivhd_dte_flags);
 		if (!d)
 			return;
 
@@ -1357,7 +1354,7 @@ int __init add_special_device(u8 type, u8 id, u32 *devid, bool cmd_line)
 		return 0;
 	}
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 
@@ -1388,7 +1385,7 @@ static int __init add_acpi_hid_device(u8 *hid, u8 *uid, u32 *devid,
 		return 0;
 	}
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 
@@ -1721,7 +1718,7 @@ static struct amd_iommu_pci_seg *__init alloc_pci_segment(u16 id,
 	if (last_bdf < 0)
 		return NULL;
 
-	pci_seg = kzalloc(sizeof(struct amd_iommu_pci_seg), GFP_KERNEL);
+	pci_seg = kzalloc_obj(struct amd_iommu_pci_seg);
 	if (pci_seg == NULL)
 		return NULL;
 
@@ -2041,7 +2038,7 @@ static int __init init_iommu_all(struct acpi_table_header *table)
 			DUMP_printk("       mmio-addr: %016llx\n",
 				    h->mmio_phys);
 
-			iommu = kzalloc(sizeof(struct amd_iommu), GFP_KERNEL);
+			iommu = kzalloc_obj(struct amd_iommu);
 			if (iommu == NULL)
 				return -ENOMEM;
 
@@ -2642,7 +2639,7 @@ static int __init init_unity_map_range(struct ivmd_header *m,
 	if (pci_seg == NULL)
 		return -ENOMEM;
 
-	e = kzalloc(sizeof(*e), GFP_KERNEL);
+	e = kzalloc_obj(*e);
 	if (e == NULL)
 		return -ENOMEM;
 

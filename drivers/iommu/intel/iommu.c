@@ -1030,7 +1030,7 @@ int domain_attach_iommu(struct dmar_domain *domain, struct intel_iommu *iommu)
 	if (domain->domain.type == IOMMU_DOMAIN_SVA)
 		return 0;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return -ENOMEM;
 
@@ -1926,7 +1926,7 @@ int __init dmar_parse_one_rmrr(struct acpi_dmar_header *header, void *arg)
 		add_taint(TAINT_FIRMWARE_WORKAROUND, LOCKDEP_STILL_OK);
 	}
 
-	rmrru = kzalloc(sizeof(*rmrru), GFP_KERNEL);
+	rmrru = kzalloc_obj(*rmrru);
 	if (!rmrru)
 		goto out;
 
@@ -2779,7 +2779,7 @@ static struct dmar_domain *paging_domain_alloc(void)
 {
 	struct dmar_domain *domain;
 
-	domain = kzalloc(sizeof(*domain), GFP_KERNEL);
+	domain = kzalloc_obj(*domain);
 	if (!domain)
 		return ERR_PTR(-ENOMEM);
 
@@ -3237,7 +3237,7 @@ static struct iommu_device *intel_iommu_probe_device(struct device *dev)
 	if (!iommu || !iommu->iommu.ops)
 		return ERR_PTR(-ENODEV);
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return ERR_PTR(-ENOMEM);
 
@@ -3576,7 +3576,7 @@ domain_add_dev_pasid(struct iommu_domain *domain,
 	unsigned long flags;
 	int ret;
 
-	dev_pasid = kzalloc(sizeof(*dev_pasid), GFP_KERNEL);
+	dev_pasid = kzalloc_obj(*dev_pasid);
 	if (!dev_pasid)
 		return ERR_PTR(-ENOMEM);
 
@@ -3672,7 +3672,7 @@ static void *intel_iommu_hw_info(struct device *dev, u32 *length,
 	    *type != IOMMU_HW_INFO_TYPE_INTEL_VTD)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	vtd = kzalloc(sizeof(*vtd), GFP_KERNEL);
+	vtd = kzalloc_obj(*vtd);
 	if (!vtd)
 		return ERR_PTR(-ENOMEM);
 

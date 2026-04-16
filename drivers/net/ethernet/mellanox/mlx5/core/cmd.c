@@ -123,7 +123,7 @@ cmd_alloc_ent(struct mlx5_cmd *cmd, struct mlx5_cmd_msg *in,
 	gfp_t alloc_flags = cbk ? GFP_ATOMIC : GFP_KERNEL;
 	struct mlx5_cmd_work_ent *ent;
 
-	ent = kzalloc(sizeof(*ent), alloc_flags);
+	ent = kzalloc_obj(*ent, alloc_flags);
 	if (!ent)
 		return ERR_PTR(-ENOMEM);
 
@@ -1436,7 +1436,7 @@ static struct mlx5_cmd_mailbox *alloc_cmd_box(struct mlx5_core_dev *dev,
 {
 	struct mlx5_cmd_mailbox *mailbox;
 
-	mailbox = kmalloc(sizeof(*mailbox), flags);
+	mailbox = kmalloc_obj(*mailbox, flags);
 	if (!mailbox)
 		return ERR_PTR(-ENOMEM);
 
@@ -1470,7 +1470,7 @@ static struct mlx5_cmd_msg *mlx5_alloc_cmd_msg(struct mlx5_core_dev *dev,
 	int n;
 	int i;
 
-	msg = kzalloc(sizeof(*msg), flags);
+	msg = kzalloc_obj(*msg, flags);
 	if (!msg)
 		return ERR_PTR(-ENOMEM);
 

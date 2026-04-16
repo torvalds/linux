@@ -66,7 +66,7 @@ int lg2ff_init(struct hid_device *hid)
 	if (!report)
 		return -ENODEV;
 
-	lg2ff = kmalloc(sizeof(struct lg2ff_device), GFP_KERNEL);
+	lg2ff = kmalloc_obj(struct lg2ff_device);
 	if (!lg2ff)
 		return -ENOMEM;
 

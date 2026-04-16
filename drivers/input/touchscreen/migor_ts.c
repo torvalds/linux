@@ -122,7 +122,7 @@ static int migor_ts_probe(struct i2c_client *client)
 	struct input_dev *input;
 	int error;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	input = input_allocate_device();
 	if (!priv || !input) {
 		dev_err(&client->dev, "failed to allocate memory\n");

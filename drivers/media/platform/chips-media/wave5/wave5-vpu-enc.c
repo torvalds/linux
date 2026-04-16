@@ -1571,7 +1571,7 @@ static int wave5_vpu_open_enc(struct file *filp)
 	struct v4l2_ctrl_handler *v4l2_ctrl_hdl;
 	int ret = 0;
 
-	inst = kzalloc(sizeof(*inst), GFP_KERNEL);
+	inst = kzalloc_obj(*inst);
 	if (!inst)
 		return -ENOMEM;
 	v4l2_ctrl_hdl = &inst->v4l2_ctrl_hdl;
@@ -1580,7 +1580,7 @@ static int wave5_vpu_open_enc(struct file *filp)
 	inst->type = VPU_INST_TYPE_ENC;
 	inst->ops = &wave5_vpu_enc_inst_ops;
 
-	inst->codec_info = kzalloc(sizeof(*inst->codec_info), GFP_KERNEL);
+	inst->codec_info = kzalloc_obj(*inst->codec_info);
 	if (!inst->codec_info) {
 		kfree(inst);
 		return -ENOMEM;

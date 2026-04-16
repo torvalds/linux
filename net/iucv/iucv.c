@@ -90,7 +90,7 @@ struct device *iucv_alloc_device(const struct attribute_group **attrs,
 	char buf[20];
 	int rc;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		goto out_error;
 	va_start(vargs, fmt);
@@ -378,7 +378,7 @@ static int iucv_query_maxconn(void)
 	void *param;
 	int ccode;
 
-	param = kzalloc(sizeof(union iucv_param), GFP_KERNEL | GFP_DMA);
+	param = kzalloc_obj(union iucv_param, GFP_KERNEL | GFP_DMA);
 	if (!param)
 		return -ENOMEM;
 	ccode = __iucv_query_maxconn(param, &max_pathid);
@@ -1808,7 +1808,7 @@ static void iucv_external_interrupt(struct ext_code ext_code,
 		return;
 	}
 	BUG_ON(p->iptype  < 0x01 || p->iptype > 0x09);
-	work = kmalloc(sizeof(struct iucv_irq_list), GFP_ATOMIC);
+	work = kmalloc_obj(struct iucv_irq_list, GFP_ATOMIC);
 	if (!work) {
 		pr_warn("iucv_external_interrupt: out of memory\n");
 		return;

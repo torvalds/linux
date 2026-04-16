@@ -1357,7 +1357,7 @@ static struct clk_hw *bcm2835_register_pll(struct bcm2835_cprman *cprman,
 	init.ops = &bcm2835_pll_clk_ops;
 	init.flags = pll_data->flags | CLK_IGNORE_UNUSED;
 
-	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
+	pll = kzalloc_obj(*pll);
 	if (!pll)
 		return NULL;
 

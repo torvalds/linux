@@ -173,5 +173,5 @@ module_platform_driver(xlnx_pr_decoupler_driver);
 
 MODULE_DESCRIPTION("Xilinx Partial Reconfiguration Decoupler");
 MODULE_AUTHOR("Moritz Fischer <mdf@kernel.org>");
-MODULE_AUTHOR("Michal Simek <michal.simek@xilinx.com>");
+MODULE_AUTHOR("Michal Simek <michal.simek@amd.com>");
 MODULE_LICENSE("GPL v2");

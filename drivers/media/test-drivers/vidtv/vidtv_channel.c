@@ -67,7 +67,7 @@ struct vidtv_channel
 	const u16 s302m_beethoven_event_id  = 1;
 	struct vidtv_channel *s302m;
 
-	s302m = kzalloc(sizeof(*s302m), GFP_KERNEL);
+	s302m = kzalloc_obj(*s302m);
 	if (!s302m)
 		return NULL;
 
@@ -389,7 +389,7 @@ static struct vidtv_psi_desc_service_list_entry
 
 			s_desc = (struct vidtv_psi_desc_service *)desc;
 
-			curr_e = kzalloc(sizeof(*curr_e), GFP_KERNEL);
+			curr_e = kzalloc_obj(*curr_e);
 			if (!curr_e) {
 				vidtv_channel_destroy_service_list(head_e);
 				return NULL;

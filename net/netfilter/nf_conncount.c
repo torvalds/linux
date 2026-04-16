@@ -632,7 +632,7 @@ struct nf_conncount_data *nf_conncount_init(struct net *net, unsigned int keylen
 
 	net_get_random_once(&conncount_rnd, sizeof(conncount_rnd));
 
-	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	data = kmalloc_obj(*data);
 	if (!data)
 		return ERR_PTR(-ENOMEM);
 

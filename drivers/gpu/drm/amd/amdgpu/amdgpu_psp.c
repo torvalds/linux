@@ -148,6 +148,7 @@ static int psp_init_sriov_microcode(struct psp_context *psp)
 		break;
 	case IP_VERSION(13, 0, 6):
 	case IP_VERSION(13, 0, 14):
+	case IP_VERSION(13, 0, 15):
 		ret = psp_init_cap_microcode(psp, ucode_prefix);
 		ret &= psp_init_ta_microcode(psp, ucode_prefix);
 		break;
@@ -219,6 +220,7 @@ static int psp_early_init(struct amdgpu_ip_block *ip_block)
 		psp->autoload_supported = false;
 		break;
 	case IP_VERSION(13, 0, 12):
+	case IP_VERSION(13, 0, 15):
 		psp_v13_0_set_psp_funcs(psp);
 		psp->autoload_supported = false;
 		adev->psp.sup_ifwi_up = !amdgpu_sriov_vf(adev);
@@ -383,7 +385,8 @@ static bool psp_get_runtime_db_entry(struct amdgpu_device *adev,
 
 	if (amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 6) ||
 	    amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 12) ||
-	    amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 14))
+	    amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 14) ||
+		amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 15))
 		return false;
 
 	db_header_pos = adev->gmc.mc_vram_size - PSP_RUNTIME_DB_OFFSET;
@@ -454,7 +457,7 @@ static int psp_sw_init(struct amdgpu_ip_block *ip_block)
 	struct psp_memory_training_context *mem_training_ctx = &psp->mem_train_ctx;
 	struct psp_runtime_scpm_entry scpm_entry;
 
-	psp->cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
+	psp->cmd = kzalloc_obj(struct psp_gfx_cmd_resp);
 	if (!psp->cmd) {
 		dev_err(adev->dev, "Failed to allocate memory to command buffer!\n");
 		return -ENOMEM;
@@ -735,7 +738,7 @@ psp_cmd_submit_buf(struct psp_context *psp,
 		ras_intr = amdgpu_ras_intr_triggered();
 		if (ras_intr)
 			break;
-		usleep_range(10, 100);
+		usleep_range(60, 100);
 		amdgpu_device_invalidate_hdp(psp->adev, NULL);
 	}
 
@@ -4381,7 +4384,7 @@ static int psp_read_spirom_debugfs_open(struct inode *inode, struct file *filp)
 		return -EBUSY;
 	}
 
-	bo_triplet = kzalloc(sizeof(struct spirom_bo), GFP_KERNEL);
+	bo_triplet = kzalloc_obj(struct spirom_bo);
 	if (!bo_triplet) {
 		mutex_unlock(&adev->psp.mutex);
 		return -ENOMEM;

@@ -706,7 +706,7 @@ ice_ptp_alloc_tx_tracker(struct ice_ptp_tx *tx)
 	unsigned long *in_use, *stale;
 	struct ice_tx_tstamp *tstamps;
 
-	tstamps = kcalloc(tx->len, sizeof(*tstamps), GFP_KERNEL);
+	tstamps = kzalloc_objs(*tstamps, tx->len);
 	in_use = bitmap_zalloc(tx->len, GFP_KERNEL);
 	stale = bitmap_zalloc(tx->len, GFP_KERNEL);
 

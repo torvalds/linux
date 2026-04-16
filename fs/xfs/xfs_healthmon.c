@@ -69,7 +69,7 @@ xfs_healthmon_get(
 	struct xfs_healthmon		*hm;
 
 	rcu_read_lock();
-	hm = mp->m_healthmon;
+	hm = rcu_dereference(mp->m_healthmon);
 	if (hm && !refcount_inc_not_zero(&hm->ref))
 		hm = NULL;
 	rcu_read_unlock();
@@ -110,13 +110,13 @@ xfs_healthmon_attach(
 	struct xfs_healthmon	*hm)
 {
 	spin_lock(&xfs_healthmon_lock);
-	if (mp->m_healthmon != NULL) {
+	if (rcu_access_pointer(mp->m_healthmon) != NULL) {
 		spin_unlock(&xfs_healthmon_lock);
 		return -EEXIST;
 	}
 
 	refcount_inc(&hm->ref);
-	mp->m_healthmon = hm;
+	rcu_assign_pointer(mp->m_healthmon, hm);
 	hm->mount_cookie = (uintptr_t)mp->m_super;
 	spin_unlock(&xfs_healthmon_lock);
 
@@ -128,15 +128,28 @@ STATIC void
 xfs_healthmon_detach(
 	struct xfs_healthmon	*hm)
 {
+	struct xfs_mount	*mp;
+
 	spin_lock(&xfs_healthmon_lock);
 	if (hm->mount_cookie == DETACHED_MOUNT_COOKIE) {
 		spin_unlock(&xfs_healthmon_lock);
 		return;
 	}
 
-	XFS_M((struct super_block *)hm->mount_cookie)->m_healthmon = NULL;
+	mp = XFS_M((struct super_block *)hm->mount_cookie);
+	rcu_assign_pointer(mp->m_healthmon, NULL);
 	hm->mount_cookie = DETACHED_MOUNT_COOKIE;
 	spin_unlock(&xfs_healthmon_lock);
+
+	/*
+	 * Wake up any readers that might remain.  This can happen if unmount
+	 * races with the healthmon fd owner entering ->read_iter, having
+	 * already emptied the event queue.
+	 *
+	 * In the ->release case there shouldn't be any readers because the
+	 * only users of the waiter are read and poll.
+	 */
+	wake_up_all(&hm->wait);
 
 	trace_xfs_healthmon_detach(hm);
 	xfs_healthmon_put(hm);
@@ -1024,13 +1037,6 @@ xfs_healthmon_release(
 	 * process can create another health monitor file.
 	 */
 	xfs_healthmon_detach(hm);
-
-	/*
-	 * Wake up any readers that might be left.  There shouldn't be any
-	 * because the only users of the waiter are read and poll.
-	 */
-	wake_up_all(&hm->wait);
-
 	xfs_healthmon_put(hm);
 	return 0;
 }
@@ -1187,7 +1193,7 @@ xfs_ioc_health_monitor(
 	if (!xfs_healthmon_validate(&hmo))
 		return -EINVAL;
 
-	hm = kzalloc(sizeof(*hm), GFP_KERNEL);
+	hm = kzalloc_obj(*hm);
 	if (!hm)
 		return -ENOMEM;
 	hm->dev = mp->m_super->s_dev;
@@ -1200,7 +1206,7 @@ xfs_ioc_health_monitor(
 		hm->verbose = true;
 
 	/* Queue up the first event that lets the client know we're running. */
-	running_event = kzalloc(sizeof(struct xfs_healthmon_event), GFP_NOFS);
+	running_event = kzalloc_obj(struct xfs_healthmon_event, GFP_NOFS);
 	if (!running_event) {
 		ret = -ENOMEM;
 		goto out_hm;
@@ -1214,8 +1220,7 @@ xfs_ioc_health_monitor(
 	 * filesystem later.  This is key for triggering fast exit of the
 	 * xfs_healer daemon.
 	 */
-	hm->unmount_event = kzalloc(sizeof(struct xfs_healthmon_event),
-			GFP_NOFS);
+	hm->unmount_event = kzalloc_obj(struct xfs_healthmon_event, GFP_NOFS);
 	if (!hm->unmount_event) {
 		ret = -ENOMEM;
 		goto out_hm;

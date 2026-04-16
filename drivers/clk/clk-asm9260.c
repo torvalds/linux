@@ -262,7 +262,7 @@ static void __init asm9260_acc_init(struct device_node *np)
 	u32 rate;
 	int n;
 
-	clk_data = kzalloc(struct_size(clk_data, hws, MAX_CLKS), GFP_KERNEL);
+	clk_data = kzalloc_flex(*clk_data, hws, MAX_CLKS);
 	if (!clk_data)
 		return;
 	clk_data->num = MAX_CLKS;

@@ -230,7 +230,7 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 	if (cpumask_test_and_set_cpu(cpu, xen_cpu_initialized_map))
 		return 0;
 
-	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
+	ctxt = kzalloc_obj(*ctxt);
 	if (ctxt == NULL) {
 		cpumask_clear_cpu(cpu, xen_cpu_initialized_map);
 		return -ENOMEM;

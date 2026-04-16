@@ -931,7 +931,7 @@ ice_eswitch_add_tc_fltr(struct ice_vsi *vsi, struct ice_tc_flower_fltr *fltr)
 		return ice_pass_vf_tx_lldp(vsi, false);
 
 	lkups_cnt = ice_tc_count_lkups(flags, fltr);
-	list = kcalloc(lkups_cnt, sizeof(*list), GFP_ATOMIC);
+	list = kzalloc_objs(*list, lkups_cnt, GFP_ATOMIC);
 	if (!list)
 		return -ENOMEM;
 
@@ -1177,7 +1177,7 @@ ice_add_tc_flower_adv_fltr(struct ice_vsi *vsi,
 	}
 
 	lkups_cnt = ice_tc_count_lkups(flags, tc_fltr);
-	list = kcalloc(lkups_cnt, sizeof(*list), GFP_ATOMIC);
+	list = kzalloc_objs(*list, lkups_cnt, GFP_ATOMIC);
 	if (!list)
 		return -ENOMEM;
 
@@ -2191,7 +2191,7 @@ ice_add_tc_fltr(struct net_device *netdev, struct ice_vsi *vsi,
 	/* by default, set output to be INVALID */
 	*__fltr = NULL;
 
-	fltr = kzalloc(sizeof(*fltr), GFP_KERNEL);
+	fltr = kzalloc_obj(*fltr);
 	if (!fltr)
 		return -ENOMEM;
 

@@ -442,7 +442,7 @@ int nfs_inode_set_delegation(struct inode *inode, const struct cred *cred,
 	struct nfs_delegation *freeme = NULL;
 	int status = 0;
 
-	delegation = kmalloc(sizeof(*delegation), GFP_KERNEL_ACCOUNT);
+	delegation = kmalloc_obj(*delegation, GFP_KERNEL_ACCOUNT);
 	if (delegation == NULL)
 		return -ENOMEM;
 	nfs4_stateid_copy(&delegation->stateid, stateid);
@@ -1602,8 +1602,8 @@ int nfs4_delegation_hash_alloc(struct nfs_server *server)
 
 	delegation_buckets = roundup_pow_of_two(nfs_delegation_watermark / 16);
 	server->delegation_hash_mask = delegation_buckets - 1;
-	server->delegation_hash_table = kmalloc_array(delegation_buckets,
-			sizeof(*server->delegation_hash_table), GFP_KERNEL);
+	server->delegation_hash_table = kmalloc_objs(*server->delegation_hash_table,
+						     delegation_buckets);
 	if (!server->delegation_hash_table)
 		return -ENOMEM;
 	for (i = 0; i < delegation_buckets; i++)

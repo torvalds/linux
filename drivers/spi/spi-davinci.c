@@ -443,7 +443,7 @@ static int davinci_spi_of_setup(struct spi_device *spi)
 	u32 prop;
 
 	if (spicfg == NULL && np) {
-		spicfg = kzalloc(sizeof(*spicfg), GFP_KERNEL);
+		spicfg = kzalloc_obj(*spicfg);
 		if (!spicfg)
 			return -ENOMEM;
 		*spicfg = davinci_spi_default_cfg;

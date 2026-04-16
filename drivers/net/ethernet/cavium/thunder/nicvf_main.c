@@ -1465,7 +1465,7 @@ int nicvf_open(struct net_device *netdev)
 
 	/* Register NAPI handler for processing CQEs */
 	for (qidx = 0; qidx < qs->cq_cnt; qidx++) {
-		cq_poll = kzalloc(sizeof(*cq_poll), GFP_KERNEL);
+		cq_poll = kzalloc_obj(*cq_poll);
 		if (!cq_poll) {
 			err = -ENOMEM;
 			goto napi_del;
@@ -2052,9 +2052,9 @@ static void nicvf_set_rx_mode(struct net_device *netdev)
 			mode |= BGX_XCAST_MCAST_FILTER;
 			/* here we need to copy mc addrs */
 			if (netdev_mc_count(netdev)) {
-				mc_list = kmalloc(struct_size(mc_list, mc,
-							      netdev_mc_count(netdev)),
-						  GFP_ATOMIC);
+				mc_list = kmalloc_flex(*mc_list, mc,
+						       netdev_mc_count(netdev),
+						       GFP_ATOMIC);
 				if (unlikely(!mc_list))
 					return;
 				mc_list->count = 0;

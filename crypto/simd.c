@@ -145,7 +145,7 @@ struct simd_skcipher_alg *simd_skcipher_create_compat(struct skcipher_alg *ialg,
 	struct skcipher_alg *alg;
 	int err;
 
-	salg = kzalloc(sizeof(*salg), GFP_KERNEL);
+	salg = kzalloc_obj(*salg);
 	if (!salg) {
 		salg = ERR_PTR(-ENOMEM);
 		goto out;
@@ -370,7 +370,7 @@ static struct simd_aead_alg *simd_aead_create_compat(struct aead_alg *ialg,
 	struct aead_alg *alg;
 	int err;
 
-	salg = kzalloc(sizeof(*salg), GFP_KERNEL);
+	salg = kzalloc_obj(*salg);
 	if (!salg) {
 		salg = ERR_PTR(-ENOMEM);
 		goto out;

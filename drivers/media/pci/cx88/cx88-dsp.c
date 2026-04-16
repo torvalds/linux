@@ -252,7 +252,7 @@ static s16 *read_rds_samples(struct cx88_core *core, u32 *N)
 		current_address,
 		current_address - srch->fifo_start, sample_count,
 		cx_read(MO_AUD_INTSTAT));
-	samples = kmalloc_array(sample_count, sizeof(*samples), GFP_KERNEL);
+	samples = kmalloc_objs(*samples, sample_count);
 	if (!samples)
 		return NULL;
 

@@ -124,7 +124,7 @@ svcxdr_tmpalloc(struct nfsd4_compoundargs *argp, size_t len)
 {
 	struct svcxdr_tmpbuf *tb;
 
-	tb = kmalloc(struct_size(tb, buf, len), GFP_KERNEL);
+	tb = kmalloc_flex(*tb, buf, len);
 	if (!tb)
 		return NULL;
 	tb->next = argp->to_free;
@@ -2184,7 +2184,7 @@ nfsd4_decode_copy(struct nfsd4_compoundargs *argp, union nfsd4_op_u *u)
 	if (status)
 		return status;
 
-	ns_dummy = kmalloc(sizeof(struct nl4_server), GFP_KERNEL);
+	ns_dummy = kmalloc_obj(struct nl4_server);
 	if (ns_dummy == NULL)
 		return nfserr_jukebox;
 	for (i = 0; i < count - 1; i++) {
@@ -3956,7 +3956,7 @@ nfsd4_encode_fattr4(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 	}
 	if ((attrmask[0] & (FATTR4_WORD0_FILEHANDLE | FATTR4_WORD0_FSID)) &&
 	    !fhp) {
-		tempfh = kmalloc(sizeof(struct svc_fh), GFP_KERNEL);
+		tempfh = kmalloc_obj(struct svc_fh);
 		status = nfserr_jukebox;
 		if (!tempfh)
 			goto out;

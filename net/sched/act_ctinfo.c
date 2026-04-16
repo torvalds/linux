@@ -236,7 +236,7 @@ static int tcf_ctinfo_init(struct net *net, struct nlattr *nla,
 
 	ci = to_ctinfo(*a);
 
-	cp_new = kzalloc(sizeof(*cp_new), GFP_KERNEL);
+	cp_new = kzalloc_obj(*cp_new);
 	if (unlikely(!cp_new)) {
 		err = -ENOMEM;
 		goto put_chain;

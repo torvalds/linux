@@ -476,7 +476,7 @@ create_tunnel(struct drm_dp_tunnel_mgr *mgr,
 	u8 drv_group_id = tunnel_reg_drv_group_id(regs);
 	struct drm_dp_tunnel *tunnel;
 
-	tunnel = kzalloc(sizeof(*tunnel), GFP_KERNEL);
+	tunnel = kzalloc_obj(*tunnel);
 	if (!tunnel)
 		return NULL;
 
@@ -1387,7 +1387,7 @@ add_tunnel_state(struct drm_dp_tunnel_group_state *group_state,
 		       "Adding state for tunnel %p to group state %p\n",
 		       tunnel, group_state);
 
-	tunnel_state = kzalloc(sizeof(*tunnel_state), GFP_KERNEL);
+	tunnel_state = kzalloc_obj(*tunnel_state);
 	if (!tunnel_state)
 		return NULL;
 
@@ -1458,7 +1458,7 @@ tunnel_group_duplicate_state(struct drm_private_obj *obj)
 	struct drm_dp_tunnel_group_state *group_state;
 	struct drm_dp_tunnel_state *tunnel_state;
 
-	group_state = kzalloc(sizeof(*group_state), GFP_KERNEL);
+	group_state = kzalloc_obj(*group_state);
 	if (!group_state)
 		return NULL;
 
@@ -1583,7 +1583,7 @@ static bool init_group(struct drm_dp_tunnel_mgr *mgr, struct drm_dp_tunnel_group
 {
 	struct drm_dp_tunnel_group_state *group_state;
 
-	group_state = kzalloc(sizeof(*group_state), GFP_KERNEL);
+	group_state = kzalloc_obj(*group_state);
 	if (!group_state)
 		return false;
 
@@ -1644,7 +1644,7 @@ static int resize_bw_array(struct drm_dp_tunnel_state *tunnel_state,
 	if (old_mask == new_mask)
 		return 0;
 
-	new_bws = kcalloc(hweight32(new_mask), sizeof(*new_bws), GFP_KERNEL);
+	new_bws = kzalloc_objs(*new_bws, hweight32(new_mask));
 	if (!new_bws)
 		return -ENOMEM;
 
@@ -1906,14 +1906,14 @@ drm_dp_tunnel_mgr_create(struct drm_device *dev, int max_group_count)
 	struct drm_dp_tunnel_mgr *mgr;
 	int i;
 
-	mgr = kzalloc(sizeof(*mgr), GFP_KERNEL);
+	mgr = kzalloc_obj(*mgr);
 	if (!mgr)
 		return ERR_PTR(-ENOMEM);
 
 	mgr->dev = dev;
 	init_waitqueue_head(&mgr->bw_req_queue);
 
-	mgr->groups = kcalloc(max_group_count, sizeof(*mgr->groups), GFP_KERNEL);
+	mgr->groups = kzalloc_objs(*mgr->groups, max_group_count);
 	if (!mgr->groups) {
 		kfree(mgr);
 

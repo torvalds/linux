@@ -128,7 +128,7 @@ static int scpi_cpufreq_init(struct cpufreq_policy *policy)
 		goto out_free_opp;
 	}
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv) {
 		ret = -ENOMEM;
 		goto out_free_opp;

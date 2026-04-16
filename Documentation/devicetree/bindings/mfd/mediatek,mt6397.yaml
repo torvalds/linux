@@ -90,6 +90,7 @@ properties:
           - enum:
               - mediatek,mt6323-regulator
               - mediatek,mt6328-regulator
+              - mediatek,mt6331-regulator
               - mediatek,mt6358-regulator
               - mediatek,mt6359-regulator
               - mediatek,mt6397-regulator

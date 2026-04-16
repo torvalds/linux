@@ -1684,7 +1684,7 @@ static void __build_feature_ctl(struct usb_mixer_interface *mixer,
 	if (check_ignored_ctl(map))
 		return;
 
-	cval = kzalloc(sizeof(*cval), GFP_KERNEL);
+	cval = kzalloc_obj(*cval);
 	if (!cval)
 		return;
 	snd_usb_mixer_elem_init_std(&cval->head, mixer, unitid);
@@ -1894,7 +1894,7 @@ static void build_connector_control(struct usb_mixer_interface *mixer,
 	if (check_ignored_ctl(map))
 		return;
 
-	cval = kzalloc(sizeof(*cval), GFP_KERNEL);
+	cval = kzalloc_obj(*cval);
 	if (!cval)
 		return;
 	snd_usb_mixer_elem_init_std(&cval->head, mixer, term->id);
@@ -1956,7 +1956,7 @@ static int parse_clock_source_unit(struct mixer_build *state, int unitid,
 				      UAC2_CS_CONTROL_CLOCK_VALID))
 		return 0;
 
-	cval = kzalloc(sizeof(*cval), GFP_KERNEL);
+	cval = kzalloc_obj(*cval);
 	if (!cval)
 		return -ENOMEM;
 
@@ -2177,7 +2177,7 @@ static void build_mixer_unit_ctl(struct mixer_build *state,
 	if (check_ignored_ctl(map))
 		return;
 
-	cval = kzalloc(sizeof(*cval), GFP_KERNEL);
+	cval = kzalloc_obj(*cval);
 	if (!cval)
 		return;
 
@@ -2525,7 +2525,7 @@ static int build_audio_procunit(struct mixer_build *state, int unitid,
 		map = find_map(state->map, unitid, valinfo->control);
 		if (check_ignored_ctl(map))
 			continue;
-		cval = kzalloc(sizeof(*cval), GFP_KERNEL);
+		cval = kzalloc_obj(*cval);
 		if (!cval)
 			return -ENOMEM;
 		snd_usb_mixer_elem_init_std(&cval->head, state->mixer, unitid);
@@ -2771,7 +2771,7 @@ static int parse_audio_selector_unit(struct mixer_build *state, int unitid,
 	if (check_ignored_ctl(map))
 		return 0;
 
-	cval = kzalloc(sizeof(*cval), GFP_KERNEL);
+	cval = kzalloc_obj(*cval);
 	if (!cval)
 		return -ENOMEM;
 	snd_usb_mixer_elem_init_std(&cval->head, state->mixer, unitid);
@@ -3598,13 +3598,12 @@ int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif)
 
 	strscpy(chip->card->mixername, "USB Mixer");
 
-	mixer = kzalloc(sizeof(*mixer), GFP_KERNEL);
+	mixer = kzalloc_obj(*mixer);
 	if (!mixer)
 		return -ENOMEM;
 	mixer->chip = chip;
 	mixer->ignore_ctl_error = !!(chip->quirk_flags & QUIRK_FLAG_IGNORE_CTL_ERROR);
-	mixer->id_elems = kcalloc(MAX_ID_ELEMS, sizeof(*mixer->id_elems),
-				  GFP_KERNEL);
+	mixer->id_elems = kzalloc_objs(*mixer->id_elems, MAX_ID_ELEMS);
 	if (!mixer->id_elems) {
 		kfree(mixer);
 		return -ENOMEM;

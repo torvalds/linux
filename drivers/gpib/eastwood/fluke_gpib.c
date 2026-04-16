@@ -853,11 +853,10 @@ static int fluke_allocate_private(struct gpib_board *board)
 {
 	struct fluke_priv *priv;
 
-	board->private_data = kmalloc(sizeof(struct fluke_priv), GFP_KERNEL);
+	board->private_data = kzalloc_obj(struct fluke_priv);
 	if (!board->private_data)
 		return -ENOMEM;
 	priv = board->private_data;
-	memset(priv, 0, sizeof(struct fluke_priv));
 	init_nec7210_private(&priv->nec7210_priv);
 	priv->dma_buffer_size = 0x7ff;
 	priv->dma_buffer = kmalloc(priv->dma_buffer_size, GFP_KERNEL);
@@ -887,7 +886,7 @@ static int fluke_generic_attach(struct gpib_board *board)
 	board->status = 0;
 
 	retval = fluke_allocate_private(board);
-	if (retval < 0)
+	if (retval)
 		return retval;
 	e_priv = board->private_data;
 	nec_priv = &e_priv->nec7210_priv;

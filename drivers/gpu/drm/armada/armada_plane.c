@@ -262,7 +262,7 @@ void armada_plane_reset(struct drm_plane *plane)
 	if (plane->state)
 		__drm_atomic_helper_plane_destroy_state(plane->state);
 	kfree(plane->state);
-	st = kzalloc(sizeof(*st), GFP_KERNEL);
+	st = kzalloc_obj(*st);
 	if (st)
 		__drm_atomic_helper_plane_reset(plane, &st->base);
 }

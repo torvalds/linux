@@ -265,7 +265,7 @@ static int pcm_open(struct snd_pcm_substream *substream,
 	chip = snd_pcm_substream_chip(substream);
 	runtime = substream->runtime;
 
-	pipe = kzalloc(sizeof(struct audiopipe), GFP_KERNEL);
+	pipe = kzalloc_obj(struct audiopipe);
 	if (!pipe)
 		return -ENOMEM;
 	pipe->index = -1;		/* Not configured yet */

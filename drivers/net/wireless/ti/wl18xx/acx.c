@@ -23,7 +23,7 @@ int wl18xx_acx_host_if_cfg_bitmap(struct wl1271 *wl, u32 host_cfg_bitmap,
 		     host_cfg_bitmap, sdio_blk_size, extra_mem_blks,
 		     len_field_size);
 
-	bitmap_conf = kzalloc(sizeof(*bitmap_conf), GFP_KERNEL);
+	bitmap_conf = kzalloc_obj(*bitmap_conf);
 	if (!bitmap_conf) {
 		ret = -ENOMEM;
 		goto out;
@@ -54,7 +54,7 @@ int wl18xx_acx_set_checksum_state(struct wl1271 *wl)
 
 	wl1271_debug(DEBUG_ACX, "acx checksum state");
 
-	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	acx = kzalloc_obj(*acx);
 	if (!acx) {
 		ret = -ENOMEM;
 		goto out;
@@ -80,7 +80,7 @@ int wl18xx_acx_clear_statistics(struct wl1271 *wl)
 
 	wl1271_debug(DEBUG_ACX, "acx clear statistics");
 
-	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	acx = kzalloc_obj(*acx);
 	if (!acx) {
 		ret = -ENOMEM;
 		goto out;
@@ -105,7 +105,7 @@ int wl18xx_acx_peer_ht_operation_mode(struct wl1271 *wl, u8 hlid, bool wide)
 	wl1271_debug(DEBUG_ACX, "acx peer ht operation mode hlid %d bw %d",
 		     hlid, wide);
 
-	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	acx = kzalloc_obj(*acx);
 	if (!acx) {
 		ret = -ENOMEM;
 		goto out;
@@ -146,7 +146,7 @@ int wl18xx_acx_set_peer_cap(struct wl1271 *wl,
 		     "acx set cap ht_supp: %d ht_cap: %d rates: 0x%x",
 		     ht_cap->ht_supported, ht_cap->cap, rate_set);
 
-	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	acx = kzalloc_obj(*acx);
 	if (!acx) {
 		ret = -ENOMEM;
 		goto out;
@@ -192,7 +192,7 @@ int wl18xx_acx_interrupt_notify_config(struct wl1271 *wl,
 	struct wl18xx_acx_interrupt_notify *acx;
 	int ret = 0;
 
-	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	acx = kzalloc_obj(*acx);
 	if (!acx) {
 		ret = -ENOMEM;
 		goto out;
@@ -219,7 +219,7 @@ int wl18xx_acx_rx_ba_filter(struct wl1271 *wl, bool action)
 	struct wl18xx_acx_rx_ba_filter *acx;
 	int ret = 0;
 
-	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	acx = kzalloc_obj(*acx);
 	if (!acx) {
 		ret = -ENOMEM;
 		goto out;
@@ -247,7 +247,7 @@ int wl18xx_acx_ap_sleep(struct wl1271 *wl)
 
 	wl1271_debug(DEBUG_ACX, "acx config ap sleep");
 
-	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	acx = kzalloc_obj(*acx);
 	if (!acx) {
 		ret = -ENOMEM;
 		goto out;
@@ -277,7 +277,7 @@ int wl18xx_acx_dynamic_fw_traces(struct wl1271 *wl)
 	wl1271_debug(DEBUG_ACX, "acx dynamic fw traces config %d",
 		     wl->dynamic_fw_traces);
 
-	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	acx = kzalloc_obj(*acx);
 	if (!acx) {
 		ret = -ENOMEM;
 		goto out;
@@ -305,7 +305,7 @@ int wl18xx_acx_time_sync_cfg(struct wl1271 *wl)
 		     wl->conf.sg.params[WL18XX_CONF_SG_TIME_SYNC],
 		     wl->zone_master_mac_addr);
 
-	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	acx = kzalloc_obj(*acx);
 	if (!acx) {
 		ret = -ENOMEM;
 		goto out;

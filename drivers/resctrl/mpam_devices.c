@@ -295,7 +295,7 @@ mpam_class_alloc(u8 level_idx, enum mpam_class_types type)
 
 	lockdep_assert_held(&mpam_list_lock);
 
-	class = kzalloc(sizeof(*class), GFP_KERNEL);
+	class = kzalloc_obj(*class);
 	if (!class)
 		return ERR_PTR(-ENOMEM);
 	init_garbage(&class->garbage);
@@ -343,7 +343,7 @@ mpam_component_alloc(struct mpam_class *class, int id)
 
 	lockdep_assert_held(&mpam_list_lock);
 
-	comp = kzalloc(sizeof(*comp), GFP_KERNEL);
+	comp = kzalloc_obj(*comp);
 	if (!comp)
 		return ERR_PTR(-ENOMEM);
 	init_garbage(&comp->garbage);
@@ -398,7 +398,7 @@ mpam_vmsc_alloc(struct mpam_component *comp, struct mpam_msc *msc)
 
 	lockdep_assert_held(&mpam_list_lock);
 
-	vmsc = kzalloc(sizeof(*vmsc), GFP_KERNEL);
+	vmsc = kzalloc_obj(*vmsc);
 	if (!vmsc)
 		return ERR_PTR(-ENOMEM);
 	init_garbage(&vmsc->garbage);
@@ -2419,7 +2419,7 @@ static int __allocate_component_cfg(struct mpam_component *comp)
 	if (comp->cfg)
 		return 0;
 
-	comp->cfg = kcalloc(mpam_partid_max + 1, sizeof(*comp->cfg), GFP_KERNEL);
+	comp->cfg = kzalloc_objs(*comp->cfg, mpam_partid_max + 1);
 	if (!comp->cfg)
 		return -ENOMEM;
 
@@ -2444,9 +2444,8 @@ static int __allocate_component_cfg(struct mpam_component *comp)
 			if (!ris->props.num_mbwu_mon)
 				continue;
 
-			mbwu_state = kcalloc(ris->props.num_mbwu_mon,
-					     sizeof(*ris->mbwu_state),
-					     GFP_KERNEL);
+			mbwu_state = kzalloc_objs(*ris->mbwu_state,
+						  ris->props.num_mbwu_mon);
 			if (!mbwu_state) {
 				__destroy_component_cfg(comp);
 				return -ENOMEM;

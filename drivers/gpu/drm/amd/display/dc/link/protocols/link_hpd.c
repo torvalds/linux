@@ -136,8 +136,13 @@ enum hpd_source_id get_hpd_line(struct dc_link *link)
 
 		hpd_id = HPD_SOURCEID_UNKNOWN;
 
-	hpd = link_get_hpd_gpio(link->ctx->dc_bios, link->link_id,
-			   link->ctx->gpio_service);
+	/* Use GPIO path where supported, otherwise use hardware encoder path */
+	if (link->ctx && link->ctx->dce_version <= DCN_VERSION_4_01) {
+		hpd = link_get_hpd_gpio(link->ctx->dc_bios, link->link_id,
+				   link->ctx->gpio_service);
+	} else {
+		hpd = NULL;
+	}
 
 	if (hpd) {
 		switch (dal_irq_get_source(hpd)) {

@@ -86,7 +86,7 @@ static inline struct autogroup *autogroup_task_get(struct task_struct *p)
 
 static inline struct autogroup *autogroup_create(void)
 {
-	struct autogroup *ag = kzalloc(sizeof(*ag), GFP_KERNEL);
+	struct autogroup *ag = kzalloc_obj(*ag);
 	struct task_group *tg;
 
 	if (!ag)

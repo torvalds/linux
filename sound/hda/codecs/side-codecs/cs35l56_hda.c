@@ -249,7 +249,7 @@ static int cs35l56_hda_posture_put(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
 	struct cs35l56_hda *cs35l56 = snd_kcontrol_chip(kcontrol);
-	unsigned long pos = ucontrol->value.integer.value[0];
+	long pos = ucontrol->value.integer.value[0];
 	bool changed;
 	int ret;
 
@@ -402,10 +402,6 @@ static void cs35l56_hda_remove_controls(struct cs35l56_hda *cs35l56)
 	snd_ctl_remove(cs35l56->codec->card, cs35l56->posture_ctl);
 	snd_ctl_remove(cs35l56->codec->card, cs35l56->volume_ctl);
 }
-
-static const struct cs_dsp_client_ops cs35l56_hda_client_ops = {
-	/* cs_dsp requires the client to provide this even if it is empty */
-};
 
 static int cs35l56_hda_request_firmware_file(struct cs35l56_hda *cs35l56,
 					     const struct firmware **firmware, char **filename,
@@ -1149,7 +1145,6 @@ int cs35l56_hda_common_probe(struct cs35l56_hda *cs35l56, int hid, int id)
 	cs35l56->base.cal_index = cs35l56->index;
 
 	cs35l56_init_cs_dsp(&cs35l56->base, &cs35l56->cs_dsp);
-	cs35l56->cs_dsp.client_ops = &cs35l56_hda_client_ops;
 
 	if (cs35l56->base.reset_gpio) {
 		dev_dbg(cs35l56->base.dev, "Hard reset\n");

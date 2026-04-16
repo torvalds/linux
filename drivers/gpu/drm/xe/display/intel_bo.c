@@ -57,7 +57,7 @@ struct intel_frontbuffer *intel_bo_frontbuffer_get(struct drm_gem_object *obj)
 {
 	struct xe_frontbuffer *front;
 
-	front = kmalloc(sizeof(*front), GFP_KERNEL);
+	front = kmalloc_obj(*front);
 	if (!front)
 		return NULL;
 

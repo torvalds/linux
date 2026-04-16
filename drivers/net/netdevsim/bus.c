@@ -451,7 +451,7 @@ nsim_bus_dev_new(unsigned int id, unsigned int port_count, unsigned int num_queu
 	struct nsim_bus_dev *nsim_bus_dev;
 	int err;
 
-	nsim_bus_dev = kzalloc(sizeof(*nsim_bus_dev), GFP_KERNEL);
+	nsim_bus_dev = kzalloc_obj(*nsim_bus_dev);
 	if (!nsim_bus_dev)
 		return ERR_PTR(-ENOMEM);
 

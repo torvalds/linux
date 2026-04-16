@@ -310,7 +310,7 @@ static void armada_overlay_reset(struct drm_plane *plane)
 	kfree(plane->state);
 	plane->state = NULL;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (state) {
 		state->colorkey_yr = 0xfefefe00;
 		state->colorkey_ug = 0x01010100;
@@ -550,7 +550,7 @@ int armada_overlay_plane_create(struct drm_device *dev, unsigned long crtcs)
 	if (ret)
 		return ret;
 
-	overlay = kzalloc(sizeof(*overlay), GFP_KERNEL);
+	overlay = kzalloc_obj(*overlay);
 	if (!overlay)
 		return -ENOMEM;
 

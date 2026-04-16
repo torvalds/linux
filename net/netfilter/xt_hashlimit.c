@@ -293,7 +293,7 @@ static int htable_create(struct net *net, struct hashlimit_cfg3 *cfg,
 		if (size < 16)
 			size = 16;
 	}
-	hinfo = kvmalloc(struct_size(hinfo, hash, size), GFP_KERNEL);
+	hinfo = kvmalloc_flex(*hinfo, hash, size);
 	if (hinfo == NULL)
 		return -ENOMEM;
 	*out_hinfo = hinfo;

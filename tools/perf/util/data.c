@@ -213,17 +213,15 @@ static int check_backup(struct perf_data *data)
 
 		ret = rm_rf_perf_data(oldname);
 		if (ret) {
-			pr_err("Can't remove old data: %s (%s)\n",
-			       ret == -2 ?
-			       "Unknown file found" : strerror(errno),
-			       oldname);
+			if (ret == -2)
+				pr_err("Can't remove old data: Unknown file found (%s)\n", oldname);
+			else
+				pr_err("Can't remove old data: %m (%s)\n", oldname);
 			return -1;
 		}
 
 		if (rename(data->path, oldname)) {
-			pr_err("Can't move data: %s (%s to %s)\n",
-			       strerror(errno),
-			       data->path, oldname);
+			pr_err("Can't move data: %m (%s to %s)\n", data->path, oldname);
 			return -1;
 		}
 	}
@@ -246,14 +244,12 @@ static int open_file_read(struct perf_data *data)
 	int flags = data->in_place_update ? O_RDWR : O_RDONLY;
 	struct stat st;
 	int fd;
-	char sbuf[STRERR_BUFSIZE];
 
 	fd = open(data->file.path, flags);
 	if (fd < 0) {
 		int err = errno;
 
-		pr_err("failed to open %s: %s", data->file.path,
-			str_error_r(err, sbuf, sizeof(sbuf)));
+		pr_err("failed to open %s: %m", data->file.path);
 		if (err == ENOENT && !strcmp(data->file.path, "perf.data"))
 			pr_err("  (try 'perf record' first)");
 		pr_err("\n");
@@ -285,15 +281,10 @@ static int open_file_read(struct perf_data *data)
 
 static int open_file_write(struct perf_data *data)
 {
-	int fd;
-	char sbuf[STRERR_BUFSIZE];
-
-	fd = open(data->file.path, O_CREAT|O_RDWR|O_TRUNC|O_CLOEXEC,
-		  S_IRUSR|S_IWUSR);
+	int fd = open(data->file.path, O_CREAT|O_RDWR|O_TRUNC|O_CLOEXEC, S_IRUSR|S_IWUSR);
 
 	if (fd < 0)
-		pr_err("failed to open %s : %s\n", data->file.path,
-			str_error_r(errno, sbuf, sizeof(sbuf)));
+		pr_err("failed to open %s : %m\n", data->file.path);
 
 	return fd;
 }
@@ -436,8 +427,8 @@ int perf_data__switch(struct perf_data *data,
 
 		if (lseek(data->file.fd, pos, SEEK_SET) == (off_t)-1) {
 			ret = -errno;
-			pr_debug("Failed to lseek to %zu: %s",
-				 pos, strerror(errno));
+			pr_debug("Failed to lseek to %zu: %m\n",
+				 pos);
 			goto out;
 		}
 	}

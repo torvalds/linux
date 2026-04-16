@@ -70,7 +70,7 @@ static void erofs_fscache_req_put(struct erofs_fscache_rq *req)
 static struct erofs_fscache_rq *erofs_fscache_req_alloc(struct address_space *mapping,
 						loff_t start, size_t len)
 {
-	struct erofs_fscache_rq *req = kzalloc(sizeof(*req), GFP_KERNEL);
+	struct erofs_fscache_rq *req = kzalloc_obj(*req);
 
 	if (!req)
 		return NULL;
@@ -101,7 +101,7 @@ static void erofs_fscache_req_end_io(void *priv, ssize_t transferred_or_error)
 
 static struct erofs_fscache_io *erofs_fscache_req_io_alloc(struct erofs_fscache_rq *req)
 {
-	struct erofs_fscache_io *io = kzalloc(sizeof(*io), GFP_KERNEL);
+	struct erofs_fscache_io *io = kzalloc_obj(*io);
 
 	if (!io)
 		return NULL;
@@ -181,7 +181,7 @@ struct bio *erofs_fscache_bio_alloc(struct erofs_map_dev *mdev)
 {
 	struct erofs_fscache_bio *io;
 
-	io = kmalloc(sizeof(*io), GFP_KERNEL | __GFP_NOFAIL);
+	io = kmalloc_obj(*io, GFP_KERNEL | __GFP_NOFAIL);
 	bio_init(&io->bio, NULL, io->bvecs, BIO_MAX_VECS, REQ_OP_READ);
 	io->io.private = mdev->m_dif->fscache->cookie;
 	io->io.end_io = erofs_fscache_bio_endio;
@@ -417,7 +417,7 @@ static int erofs_fscache_init_domain(struct super_block *sb)
 	struct erofs_domain *domain;
 	struct erofs_sb_info *sbi = EROFS_SB(sb);
 
-	domain = kzalloc(sizeof(struct erofs_domain), GFP_KERNEL);
+	domain = kzalloc_obj(struct erofs_domain);
 	if (!domain)
 		return -ENOMEM;
 
@@ -482,7 +482,7 @@ static struct erofs_fscache *erofs_fscache_acquire_cookie(struct super_block *sb
 	struct inode *inode;
 	int ret;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 	INIT_LIST_HEAD(&ctx->node);

@@ -210,7 +210,7 @@ static int x509_key_preparse(struct key_preparsed_payload *prep)
 	p = bin2hex(p, q, srlen);
 	*p = 0;
 
-	kids = kmalloc(sizeof(struct asymmetric_key_ids), GFP_KERNEL);
+	kids = kmalloc_obj(struct asymmetric_key_ids);
 	if (!kids)
 		return -ENOMEM;
 	kids->id[0] = cert->id;

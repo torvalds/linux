@@ -915,7 +915,7 @@ qed_dcbx_mib_update_event(struct qed_hwfn *p_hwfn,
 
 int qed_dcbx_info_alloc(struct qed_hwfn *p_hwfn)
 {
-	p_hwfn->p_dcbx_info = kzalloc(sizeof(*p_hwfn->p_dcbx_info), GFP_KERNEL);
+	p_hwfn->p_dcbx_info = kzalloc_obj(*p_hwfn->p_dcbx_info);
 	if (!p_hwfn->p_dcbx_info)
 		return -ENOMEM;
 
@@ -1244,7 +1244,7 @@ int qed_dcbx_get_config_params(struct qed_hwfn *p_hwfn,
 		return 0;
 	}
 
-	dcbx_info = kzalloc(sizeof(*dcbx_info), GFP_KERNEL);
+	dcbx_info = kzalloc_obj(*dcbx_info);
 	if (!dcbx_info)
 		return -ENOMEM;
 
@@ -1283,7 +1283,7 @@ static struct qed_dcbx_get *qed_dcbnl_get_dcbx(struct qed_hwfn *hwfn,
 {
 	struct qed_dcbx_get *dcbx_info;
 
-	dcbx_info = kzalloc(sizeof(*dcbx_info), GFP_ATOMIC);
+	dcbx_info = kzalloc_obj(*dcbx_info, GFP_ATOMIC);
 	if (!dcbx_info)
 		return NULL;
 

@@ -1665,7 +1665,7 @@ static int btintel_pcie_setup_txq_bufs(struct btintel_pcie_data *data,
 	struct data_buf *buf;
 
 	/* Allocate the same number of buffers as the descriptor */
-	txq->bufs = kmalloc_array(txq->count, sizeof(*buf), GFP_KERNEL);
+	txq->bufs = kmalloc_objs(*buf, txq->count);
 	if (!txq->bufs)
 		return -ENOMEM;
 
@@ -1709,7 +1709,7 @@ static int btintel_pcie_setup_rxq_bufs(struct btintel_pcie_data *data,
 	struct data_buf *buf;
 
 	/* Allocate the same number of buffers as the descriptor */
-	rxq->bufs = kmalloc_array(rxq->count, sizeof(*buf), GFP_KERNEL);
+	rxq->bufs = kmalloc_objs(*buf, rxq->count);
 	if (!rxq->bufs)
 		return -ENOMEM;
 
@@ -2191,7 +2191,7 @@ btintel_pcie_get_recovery(struct pci_dev *pdev, struct device *dev)
 		return data;
 	}
 
-	data = kzalloc(struct_size(data, name, name_len), GFP_ATOMIC);
+	data = kzalloc_flex(*data, name, name_len, GFP_ATOMIC);
 	if (!data)
 		return NULL;
 
@@ -2306,7 +2306,7 @@ static void btintel_pcie_reset(struct hci_dev *hdev)
 	if (test_and_set_bit(BTINTEL_PCIE_RECOVERY_IN_PROGRESS, &data->flags))
 		return;
 
-	removal = kzalloc(sizeof(*removal), GFP_ATOMIC);
+	removal = kzalloc_obj(*removal, GFP_ATOMIC);
 	if (!removal)
 		return;
 

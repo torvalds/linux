@@ -29,7 +29,7 @@ void sof_ipc4_intel_dump_telemetry_state(struct snd_sof_dev *sdev, u32 flags)
 	if (!slot_offset)
 		return;
 
-	telemetry_data = kmalloc(sizeof(*telemetry_data), GFP_KERNEL);
+	telemetry_data = kmalloc_obj(*telemetry_data);
 	if (!telemetry_data)
 		return;
 	sof_mailbox_read(sdev, slot_offset, telemetry_data, sizeof(*telemetry_data));
@@ -39,7 +39,7 @@ void sof_ipc4_intel_dump_telemetry_state(struct snd_sof_dev *sdev, u32 flags)
 		goto free_telemetry_data;
 	}
 
-	block = kmalloc(sizeof(*block), GFP_KERNEL);
+	block = kmalloc_obj(*block);
 	if (!block)
 		goto free_telemetry_data;
 
@@ -71,7 +71,7 @@ void sof_ipc4_intel_dump_telemetry_state(struct snd_sof_dev *sdev, u32 flags)
 		break;
 	}
 
-	xoops = kzalloc(struct_size(xoops, ar, XTENSA_CORE_AR_REGS_COUNT), GFP_KERNEL);
+	xoops = kzalloc_flex(*xoops, ar, XTENSA_CORE_AR_REGS_COUNT);
 	if (!xoops)
 		goto free_block;
 

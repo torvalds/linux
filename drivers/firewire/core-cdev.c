@@ -291,7 +291,7 @@ static int fw_device_op_open(struct inode *inode, struct file *file)
 		return -ENODEV;
 	}
 
-	client = kzalloc(sizeof(*client), GFP_KERNEL);
+	client = kzalloc_obj(*client);
 	if (client == NULL) {
 		fw_device_put(device);
 		return -ENOMEM;
@@ -412,7 +412,7 @@ static void queue_bus_reset_event(struct client *client)
 	struct client_resource *resource;
 	unsigned long index;
 
-	e = kzalloc(sizeof(*e), GFP_KERNEL);
+	e = kzalloc_obj(*e);
 	if (e == NULL)
 		return;
 
@@ -745,8 +745,8 @@ static void handle_request(struct fw_card *card, struct fw_request *request,
 	if (is_fcp)
 		fw_request_get(request);
 
-	r = kmalloc(sizeof(*r), GFP_ATOMIC);
-	e = kmalloc(sizeof(*e), GFP_ATOMIC);
+	r = kmalloc_obj(*r, GFP_ATOMIC);
+	e = kmalloc_obj(*e, GFP_ATOMIC);
 	if (r == NULL || e == NULL)
 		goto failed;
 
@@ -837,7 +837,7 @@ static int ioctl_allocate(struct client *client, union ioctl_arg *arg)
 	struct fw_address_region region;
 	int ret;
 
-	r = kmalloc(sizeof(*r), GFP_KERNEL);
+	r = kmalloc_obj(*r);
 	if (r == NULL)
 		return -ENOMEM;
 
@@ -941,7 +941,7 @@ static int ioctl_add_descriptor(struct client *client, union ioctl_arg *arg)
 	if (a->length > 256)
 		return -EINVAL;
 
-	r = kmalloc(struct_size(r, data, a->length), GFP_KERNEL);
+	r = kmalloc_flex(*r, data, a->length);
 	if (r == NULL)
 		return -ENOMEM;
 
@@ -1006,7 +1006,7 @@ static void iso_mc_callback(struct fw_iso_context *context,
 	struct client *client = data;
 	struct iso_interrupt_mc_event *e;
 
-	e = kmalloc(sizeof(*e), GFP_KERNEL);
+	e = kmalloc_obj(*e);
 	if (e == NULL)
 		return;
 
@@ -1409,9 +1409,9 @@ static int init_iso_resource(struct client *client,
 	    request->bandwidth > BANDWIDTH_AVAILABLE_INITIAL)
 		return -EINVAL;
 
-	r  = kmalloc(sizeof(*r), GFP_KERNEL);
-	e1 = kmalloc(sizeof(*e1), GFP_KERNEL);
-	e2 = kmalloc(sizeof(*e2), GFP_KERNEL);
+	r = kmalloc_obj(*r);
+	e1 = kmalloc_obj(*e1);
+	e2 = kmalloc_obj(*e2);
 	if (r == NULL || e1 == NULL || e2 == NULL) {
 		ret = -ENOMEM;
 		goto fail;

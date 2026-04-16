@@ -1213,7 +1213,7 @@ int nf_nat_register_fn(struct net *net, u8 pf, const struct nf_hook_ops *ops,
 		}
 
 		for (i = 0; i < ops_count; i++) {
-			priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+			priv = kzalloc_obj(*priv);
 			if (priv) {
 				nat_ops[i].priv = priv;
 				continue;

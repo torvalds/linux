@@ -37,8 +37,8 @@ int mshv_update_routing_table(struct mshv_partition *partition,
 	}
 	nr_rt_entries += 1;
 
-	new = kzalloc(struct_size(new, mshv_girq_info_tbl, nr_rt_entries),
-		      GFP_KERNEL_ACCOUNT);
+	new = kzalloc_flex(*new, mshv_girq_info_tbl, nr_rt_entries,
+			   GFP_KERNEL_ACCOUNT);
 	if (!new)
 		return -ENOMEM;
 

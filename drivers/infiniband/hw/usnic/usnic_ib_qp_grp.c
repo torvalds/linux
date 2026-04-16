@@ -232,7 +232,7 @@ create_roce_custom_flow(struct usnic_ib_qp_grp *qp_grp,
 	}
 
 	/* Create Flow Handle */
-	qp_flow = kzalloc(sizeof(*qp_flow), GFP_ATOMIC);
+	qp_flow = kzalloc_obj(*qp_flow, GFP_ATOMIC);
 	if (!qp_flow) {
 		err = -ENOMEM;
 		goto out_dealloc_flow;
@@ -305,7 +305,7 @@ create_udp_flow(struct usnic_ib_qp_grp *qp_grp,
 	}
 
 	/* Create qp_flow */
-	qp_flow = kzalloc(sizeof(*qp_flow), GFP_ATOMIC);
+	qp_flow = kzalloc_obj(*qp_flow, GFP_ATOMIC);
 	if (!qp_flow) {
 		err = -ENOMEM;
 		goto out_dealloc_flow;
@@ -542,8 +542,8 @@ alloc_res_chunk_list(struct usnic_vnic *vnic,
 		/* Do Nothing */
 	}
 
-	res_chunk_list = kcalloc(res_lst_sz + 1, sizeof(*res_chunk_list),
-					GFP_ATOMIC);
+	res_chunk_list = kzalloc_objs(*res_chunk_list, res_lst_sz + 1,
+				      GFP_ATOMIC);
 	if (!res_chunk_list)
 		return ERR_PTR(-ENOMEM);
 

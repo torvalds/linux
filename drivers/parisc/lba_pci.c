@@ -1025,11 +1025,11 @@ lba_pat_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 	pdc_pat_cell_mod_maddr_block_t *io_pdc_cell;	/* IO_VIEW */
 	int i;
 
-	pa_pdc_cell = kzalloc(sizeof(pdc_pat_cell_mod_maddr_block_t), GFP_KERNEL);
+	pa_pdc_cell = kzalloc_obj(pdc_pat_cell_mod_maddr_block_t);
 	if (!pa_pdc_cell)
 		return;
 
-	io_pdc_cell = kzalloc(sizeof(pdc_pat_cell_mod_maddr_block_t), GFP_KERNEL);
+	io_pdc_cell = kzalloc_obj(pdc_pat_cell_mod_maddr_block_t);
 	if (!io_pdc_cell) {
 		kfree(pa_pdc_cell);
 		return;
@@ -1546,7 +1546,7 @@ lba_driver_probe(struct parisc_device *dev)
 	**	have an IRT entry will get NULL back from iosapic code.
 	*/
 	
-	lba_dev = kzalloc(sizeof(struct lba_device), GFP_KERNEL);
+	lba_dev = kzalloc_obj(struct lba_device);
 	if (!lba_dev) {
 		printk(KERN_ERR "lba_init_chip - couldn't alloc lba_device\n");
 		return(1);

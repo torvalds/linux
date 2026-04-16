@@ -1725,7 +1725,7 @@ static int cgx_lmac_init(struct cgx *cgx)
 		cgx->lmac_count = cgx->max_lmac_per_mac;
 
 	for (i = 0; i < cgx->lmac_count; i++) {
-		lmac = kzalloc(sizeof(struct lmac), GFP_KERNEL);
+		lmac = kzalloc_obj(struct lmac);
 		if (!lmac)
 			return -ENOMEM;
 		lmac->name = kcalloc(1, sizeof("cgx_fwi_xxx_yyy"), GFP_KERNEL);

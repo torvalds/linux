@@ -423,6 +423,7 @@ static const char *s_flag[MAX_SBI_FLAG] = {
 	[SBI_IS_RESIZEFS]	= "resizefs",
 	[SBI_IS_FREEZING]	= "freezefs",
 	[SBI_IS_WRITABLE]	= "writable",
+	[SBI_ENABLE_CHECKPOINT]	= "enable_checkpoint",
 };
 
 static const char *ipu_mode_names[F2FS_IPU_MAX] = {

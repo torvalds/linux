@@ -483,7 +483,7 @@ static int __add_reloc_root(struct btrfs_root *root)
 	struct mapping_node *node;
 	struct reloc_control *rc = fs_info->reloc_ctl;
 
-	node = kmalloc(sizeof(*node), GFP_NOFS);
+	node = kmalloc_obj(*node, GFP_NOFS);
 	if (!node)
 		return -ENOMEM;
 
@@ -3115,7 +3115,7 @@ static int add_tree_block(struct reloc_control *rc,
 
 	BUG_ON(level == -1);
 
-	block = kmalloc(sizeof(*block), GFP_NOFS);
+	block = kmalloc_obj(*block, GFP_NOFS);
 	if (!block)
 		return -ENOMEM;
 
@@ -3813,7 +3813,7 @@ static struct reloc_control *alloc_reloc_control(struct btrfs_fs_info *fs_info)
 {
 	struct reloc_control *rc;
 
-	rc = kzalloc(sizeof(*rc), GFP_NOFS);
+	rc = kzalloc_obj(*rc, GFP_NOFS);
 	if (!rc)
 		return NULL;
 
@@ -4042,7 +4042,7 @@ static int copy_remapped_data(struct btrfs_fs_info *fs_info, u64 old_addr,
 	struct reloc_io_private priv;
 	unsigned int nr_pages = DIV_ROUND_UP(length, PAGE_SIZE);
 
-	pages = kcalloc(nr_pages, sizeof(struct page *), GFP_NOFS);
+	pages = kzalloc_objs(struct page *, nr_pages, GFP_NOFS);
 	if (!pages)
 		return -ENOMEM;
 
@@ -4399,6 +4399,8 @@ static int move_existing_remaps(struct btrfs_fs_info *fs_info,
 
 				leaf = path->nodes[0];
 			}
+
+			btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
 		}
 
 		remap = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_remap_item);
@@ -4723,6 +4725,7 @@ int btrfs_last_identity_remap_gone(struct btrfs_chunk_map *chunk_map,
 	ret = btrfs_remove_dev_extents(trans, chunk_map);
 	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
+		btrfs_end_transaction(trans);
 		return ret;
 	}
 
@@ -4732,6 +4735,7 @@ int btrfs_last_identity_remap_gone(struct btrfs_chunk_map *chunk_map,
 		if (unlikely(ret)) {
 			mutex_unlock(&trans->fs_info->chunk_mutex);
 			btrfs_abort_transaction(trans, ret);
+			btrfs_end_transaction(trans);
 			return ret;
 		}
 	}
@@ -4750,6 +4754,7 @@ int btrfs_last_identity_remap_gone(struct btrfs_chunk_map *chunk_map,
 	ret = remove_chunk_stripes(trans, chunk_map, path);
 	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
+		btrfs_end_transaction(trans);
 		return ret;
 	}
 
@@ -5982,6 +5987,9 @@ static int remove_range_from_remap_tree(struct btrfs_trans_handle *trans,
 		struct btrfs_block_group *dest_bg;
 
 		dest_bg = btrfs_lookup_block_group(fs_info, new_addr);
+		if (unlikely(!dest_bg))
+			return -EUCLEAN;
+
 		adjust_block_group_remap_bytes(trans, dest_bg, -overlap_length);
 		btrfs_put_block_group(dest_bg);
 		ret = btrfs_add_to_free_space_tree(trans,

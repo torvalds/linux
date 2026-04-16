@@ -139,7 +139,7 @@ static int virtio_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	struct virtio_i2c_req *reqs;
 	int count;
 
-	reqs = kcalloc(num, sizeof(*reqs), GFP_KERNEL);
+	reqs = kzalloc_objs(*reqs, num);
 	if (!reqs)
 		return -ENOMEM;
 

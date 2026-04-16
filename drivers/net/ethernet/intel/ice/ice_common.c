@@ -1067,7 +1067,7 @@ int ice_init_hw(struct ice_hw *hw)
 	if (status)
 		goto err_unroll_sched;
 
-	pcaps = kzalloc(sizeof(*pcaps), GFP_KERNEL);
+	pcaps = kzalloc_obj(*pcaps);
 	if (!pcaps) {
 		status = -ENOMEM;
 		goto err_unroll_sched;
@@ -1103,8 +1103,7 @@ int ice_init_hw(struct ice_hw *hw)
 
 	/* Get MAC information */
 	/* A single port can report up to two (LAN and WoL) addresses */
-	mac_buf = kcalloc(2, sizeof(struct ice_aqc_manage_mac_read_resp),
-			  GFP_KERNEL);
+	mac_buf = kzalloc_objs(struct ice_aqc_manage_mac_read_resp, 2);
 	if (!mac_buf) {
 		status = -ENOMEM;
 		goto err_unroll_fltr_mgmt_struct;
@@ -1817,6 +1816,7 @@ static bool ice_should_retry_sq_send_cmd(u16 opcode)
 	case ice_aqc_opc_lldp_stop:
 	case ice_aqc_opc_lldp_start:
 	case ice_aqc_opc_lldp_filter_ctrl:
+	case ice_aqc_opc_sff_eeprom:
 		return true;
 	}
 
@@ -1842,6 +1842,7 @@ ice_sq_send_cmd_retry(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 {
 	struct libie_aq_desc desc_cpy;
 	bool is_cmd_for_retry;
+	u8 *buf_cpy = NULL;
 	u8 idx = 0;
 	u16 opcode;
 	int status;
@@ -1851,8 +1852,11 @@ ice_sq_send_cmd_retry(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	memset(&desc_cpy, 0, sizeof(desc_cpy));
 
 	if (is_cmd_for_retry) {
-		/* All retryable cmds are direct, without buf. */
-		WARN_ON(buf);
+		if (buf) {
+			buf_cpy = kmemdup(buf, buf_size, GFP_KERNEL);
+			if (!buf_cpy)
+				return -ENOMEM;
+		}
 
 		memcpy(&desc_cpy, desc, sizeof(desc_cpy));
 	}
@@ -1864,12 +1868,14 @@ ice_sq_send_cmd_retry(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 		    hw->adminq.sq_last_status != LIBIE_AQ_RC_EBUSY)
 			break;
 
+		if (buf_cpy)
+			memcpy(buf, buf_cpy, buf_size);
 		memcpy(desc, &desc_cpy, sizeof(desc_cpy));
-
 		msleep(ICE_SQ_SEND_DELAY_TIME_MS);
 
 	} while (++idx < ICE_SQ_SEND_MAX_EXECUTE);
 
+	kfree(buf_cpy);
 	return status;
 }
 
@@ -3630,7 +3636,7 @@ int ice_update_link_info(struct ice_port_info *pi)
 	if (li->link_info & ICE_AQ_MEDIA_AVAILABLE) {
 		struct ice_aqc_get_phy_caps_data *pcaps __free(kfree) = NULL;
 
-		pcaps = kzalloc(sizeof(*pcaps), GFP_KERNEL);
+		pcaps = kzalloc_obj(*pcaps);
 		if (!pcaps)
 			return -ENOMEM;
 
@@ -3881,7 +3887,7 @@ ice_set_fc(struct ice_port_info *pi, u8 *aq_failures, bool ena_auto_link_update)
 	*aq_failures = 0;
 	hw = pi->hw;
 
-	pcaps = kzalloc(sizeof(*pcaps), GFP_KERNEL);
+	pcaps = kzalloc_obj(*pcaps);
 	if (!pcaps)
 		return -ENOMEM;
 
@@ -4020,7 +4026,7 @@ ice_cfg_phy_fec(struct ice_port_info *pi, struct ice_aqc_set_phy_cfg_data *cfg,
 
 	hw = pi->hw;
 
-	pcaps = kzalloc(sizeof(*pcaps), GFP_KERNEL);
+	pcaps = kzalloc_obj(*pcaps);
 	if (!pcaps)
 		return -ENOMEM;
 
@@ -4358,7 +4364,7 @@ int ice_get_phy_lane_number(struct ice_hw *hw)
 	    hw->device_id == ICE_DEV_ID_E825C_SGMII)
 		return hw->pf_id;
 
-	options = kcalloc(ICE_AQC_PORT_OPT_MAX, sizeof(*options), GFP_KERNEL);
+	options = kzalloc_objs(*options, ICE_AQC_PORT_OPT_MAX);
 	if (!options)
 		return -ENOMEM;
 
@@ -6392,7 +6398,7 @@ int ice_lldp_fltr_add_remove(struct ice_hw *hw, struct ice_vsi *vsi, bool add)
 	struct ice_aqc_lldp_filter_ctrl *cmd;
 	struct libie_aq_desc desc;
 
-	if (vsi->type != ICE_VSI_PF || !ice_fw_supports_lldp_fltr_ctrl(hw))
+	if (!ice_fw_supports_lldp_fltr_ctrl(hw))
 		return -EOPNOTSUPP;
 
 	cmd = libie_aq_raw(&desc);

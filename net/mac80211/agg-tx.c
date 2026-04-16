@@ -710,7 +710,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 	}
 
 	/* prepare A-MPDU MLME for Tx aggregation */
-	tid_tx = kzalloc(sizeof(struct tid_ampdu_tx), GFP_ATOMIC);
+	tid_tx = kzalloc_obj(struct tid_ampdu_tx, GFP_ATOMIC);
 	if (!tid_tx) {
 		ret = -ENOMEM;
 		goto err_unlock_sta;

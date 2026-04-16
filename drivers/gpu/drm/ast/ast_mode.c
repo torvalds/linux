@@ -876,8 +876,7 @@ static const struct drm_crtc_helper_funcs ast_crtc_helper_funcs = {
 
 static void ast_crtc_reset(struct drm_crtc *crtc)
 {
-	struct ast_crtc_state *ast_state =
-		kzalloc(sizeof(*ast_state), GFP_KERNEL);
+	struct ast_crtc_state *ast_state = kzalloc_obj(*ast_state);
 
 	if (crtc->state)
 		crtc->funcs->atomic_destroy_state(crtc, crtc->state);
@@ -897,7 +896,7 @@ ast_crtc_atomic_duplicate_state(struct drm_crtc *crtc)
 	if (drm_WARN_ON(dev, !crtc->state))
 		return NULL;
 
-	new_ast_state = kmalloc(sizeof(*new_ast_state), GFP_KERNEL);
+	new_ast_state = kmalloc_obj(*new_ast_state);
 	if (!new_ast_state)
 		return NULL;
 	__drm_atomic_helper_crtc_duplicate_state(crtc, &new_ast_state->base);

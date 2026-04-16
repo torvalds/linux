@@ -213,7 +213,8 @@ snd_seq_oss_synth_setup(struct seq_oss_devinfo *dp)
 		}
 		info->nr_voices = rec->nr_voices;
 		if (info->nr_voices > 0) {
-			info->ch = kcalloc(info->nr_voices, sizeof(struct seq_oss_chinfo), GFP_KERNEL);
+			info->ch = kzalloc_objs(struct seq_oss_chinfo,
+						info->nr_voices);
 			if (!info->ch) {
 				rec->oper.close(&info->arg);
 				module_put(rec->oper.owner);

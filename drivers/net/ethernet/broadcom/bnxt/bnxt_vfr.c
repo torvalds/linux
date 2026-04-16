@@ -496,7 +496,7 @@ int bnxt_vf_reps_create(struct bnxt *bp)
 	if (!(bp->flags & BNXT_FLAG_DSN_VALID))
 		return -ENODEV;
 
-	bp->vf_reps = kcalloc(num_vfs, sizeof(vf_rep), GFP_KERNEL);
+	bp->vf_reps = kzalloc_objs(vf_rep, num_vfs);
 	if (!bp->vf_reps)
 		return -ENOMEM;
 

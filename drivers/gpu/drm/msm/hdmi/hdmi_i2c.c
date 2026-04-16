@@ -246,7 +246,7 @@ struct i2c_adapter *msm_hdmi_i2c_init(struct hdmi *hdmi)
 	struct i2c_adapter *i2c = NULL;
 	int ret;
 
-	hdmi_i2c = kzalloc(sizeof(*hdmi_i2c), GFP_KERNEL);
+	hdmi_i2c = kzalloc_obj(*hdmi_i2c);
 	if (!hdmi_i2c) {
 		ret = -ENOMEM;
 		goto fail;

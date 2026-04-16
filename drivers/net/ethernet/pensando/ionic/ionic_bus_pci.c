@@ -151,7 +151,7 @@ static int ionic_vf_alloc(struct ionic *ionic, int num_vfs)
 
 	down_write(&ionic->vf_op_lock);
 
-	ionic->vfs = kcalloc(num_vfs, sizeof(struct ionic_vf), GFP_KERNEL);
+	ionic->vfs = kzalloc_objs(struct ionic_vf, num_vfs);
 	if (!ionic->vfs) {
 		err = -ENOMEM;
 		goto out;

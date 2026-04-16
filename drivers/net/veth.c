@@ -1434,8 +1434,8 @@ static int veth_alloc_queues(struct net_device *dev)
 	struct veth_priv *priv = netdev_priv(dev);
 	int i;
 
-	priv->rq = kvcalloc(dev->num_rx_queues, sizeof(*priv->rq),
-			    GFP_KERNEL_ACCOUNT | __GFP_RETRY_MAYFAIL);
+	priv->rq = kvzalloc_objs(*priv->rq, dev->num_rx_queues,
+				 GFP_KERNEL_ACCOUNT | __GFP_RETRY_MAYFAIL);
 	if (!priv->rq)
 		return -ENOMEM;
 

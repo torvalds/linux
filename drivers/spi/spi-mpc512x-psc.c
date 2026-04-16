@@ -362,7 +362,7 @@ static int mpc512x_psc_spi_setup(struct spi_device *spi)
 		return -EINVAL;
 
 	if (!cs) {
-		cs = kzalloc(sizeof(*cs), GFP_KERNEL);
+		cs = kzalloc_obj(*cs);
 		if (!cs)
 			return -ENOMEM;
 

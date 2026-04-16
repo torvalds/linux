@@ -212,8 +212,7 @@ static int amdgpu_ctx_init_entity(struct amdgpu_ctx *ctx, u32 hw_ip,
 	int32_t ctx_prio;
 	int r;
 
-	entity = kzalloc(struct_size(entity, fences, amdgpu_sched_jobs),
-			 GFP_KERNEL);
+	entity = kzalloc_flex(*entity, fences, amdgpu_sched_jobs);
 	if (!entity)
 		return  -ENOMEM;
 
@@ -483,7 +482,7 @@ static int amdgpu_ctx_alloc(struct amdgpu_device *adev,
 	struct amdgpu_ctx *ctx;
 	int r;
 
-	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kmalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

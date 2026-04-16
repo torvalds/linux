@@ -265,7 +265,7 @@ int ocfs2_dentry_attach_lock(struct dentry *dentry,
 	/*
 	 * There are no other aliases
 	 */
-	dl = kmalloc(sizeof(*dl), GFP_NOFS);
+	dl = kmalloc_obj(*dl, GFP_NOFS);
 	if (!dl) {
 		ret = -ENOMEM;
 		mlog_errno(ret);

@@ -8,6 +8,7 @@
 #include "kvm_util.h"
 #include "pmu.h"
 #include "processor.h"
+#include "smm.h"
 #include "svm_util.h"
 #include "sev.h"
 #include "vmx.h"
@@ -1443,4 +1444,29 @@ bool sys_clocksource_is_based_on_tsc(void)
 bool kvm_arch_has_default_irqchip(void)
 {
 	return true;
+}
+
+void setup_smram(struct kvm_vm *vm, struct kvm_vcpu *vcpu,
+		 uint64_t smram_gpa,
+		 const void *smi_handler, size_t handler_size)
+{
+	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS, smram_gpa,
+				    SMRAM_MEMSLOT, SMRAM_PAGES, 0);
+	TEST_ASSERT(vm_phy_pages_alloc(vm, SMRAM_PAGES, smram_gpa,
+				       SMRAM_MEMSLOT) == smram_gpa,
+		    "Could not allocate guest physical addresses for SMRAM");
+
+	memset(addr_gpa2hva(vm, smram_gpa), 0x0, SMRAM_SIZE);
+	memcpy(addr_gpa2hva(vm, smram_gpa) + 0x8000, smi_handler, handler_size);
+	vcpu_set_msr(vcpu, MSR_IA32_SMBASE, smram_gpa);
+}
+
+void inject_smi(struct kvm_vcpu *vcpu)
+{
+	struct kvm_vcpu_events events;
+
+	vcpu_events_get(vcpu, &events);
+	events.smi.pending = 1;
+	events.flags |= KVM_VCPUEVENT_VALID_SMM;
+	vcpu_events_set(vcpu, &events);
 }

@@ -3021,7 +3021,7 @@ int dvb_register_frontend(struct dvb_adapter *dvb,
 	if (mutex_lock_interruptible(&frontend_mutex))
 		return -ERESTARTSYS;
 
-	fe->frontend_priv = kzalloc(sizeof(struct dvb_frontend_private), GFP_KERNEL);
+	fe->frontend_priv = kzalloc_obj(struct dvb_frontend_private);
 	if (!fe->frontend_priv) {
 		mutex_unlock(&frontend_mutex);
 		return -ENOMEM;

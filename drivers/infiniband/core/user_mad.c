@@ -247,7 +247,7 @@ static void recv_handler(struct ib_mad_agent *agent,
 	if (mad_recv_wc->wc->status != IB_WC_SUCCESS)
 		goto err1;
 
-	packet = kzalloc(sizeof *packet, GFP_KERNEL);
+	packet = kzalloc_obj(*packet);
 	if (!packet)
 		goto err1;
 
@@ -1018,7 +1018,7 @@ static int ib_umad_open(struct inode *inode, struct file *filp)
 		goto out;
 	}
 
-	file = kzalloc(sizeof(*file), GFP_KERNEL);
+	file = kzalloc_obj(*file);
 	if (!file) {
 		ret = -ENOMEM;
 		goto out;
@@ -1396,9 +1396,7 @@ static int ib_umad_add_one(struct ib_device *device)
 	s = rdma_start_port(device);
 	e = rdma_end_port(device);
 
-	umad_dev = kzalloc(struct_size(umad_dev, ports,
-				       size_add(size_sub(e, s), 1)),
-			   GFP_KERNEL);
+	umad_dev = kzalloc_flex(*umad_dev, ports, size_add(size_sub(e, s), 1));
 	if (!umad_dev)
 		return -ENOMEM;
 

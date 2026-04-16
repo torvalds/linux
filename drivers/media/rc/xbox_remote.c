@@ -213,7 +213,7 @@ static int xbox_remote_probe(struct usb_interface *interface,
 		return -ENODEV;
 	}
 
-	xbox_remote = kzalloc(sizeof(*xbox_remote), GFP_KERNEL);
+	xbox_remote = kzalloc_obj(*xbox_remote);
 	rc_dev = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!xbox_remote || !rc_dev)
 		goto exit_free_dev_rdev;

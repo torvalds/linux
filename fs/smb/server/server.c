@@ -21,7 +21,6 @@
 #include "mgmt/user_session.h"
 #include "crypto_ctx.h"
 #include "auth.h"
-#include "misc.h"
 #include "stats.h"
 
 int ksmbd_debug_types;
@@ -410,7 +409,7 @@ static int __queue_ctrl_work(int type)
 {
 	struct server_ctrl_struct *ctrl;
 
-	ctrl = kmalloc(sizeof(struct server_ctrl_struct), KSMBD_DEFAULT_GFP);
+	ctrl = kmalloc_obj(struct server_ctrl_struct, KSMBD_DEFAULT_GFP);
 	if (!ctrl)
 		return -ENOMEM;
 

@@ -620,14 +620,16 @@ static int panfrost_mmu_map_fault_addr(struct panfrost_device *pfdev, int as,
 	dma_resv_lock(obj->resv, NULL);
 
 	if (!bo->base.pages) {
-		bo->sgts = kvmalloc_array(bo->base.base.size / SZ_2M,
-				     sizeof(struct sg_table), GFP_KERNEL | __GFP_ZERO);
+		bo->sgts = kvmalloc_objs(struct sg_table,
+					 bo->base.base.size / SZ_2M,
+					 GFP_KERNEL | __GFP_ZERO);
 		if (!bo->sgts) {
 			ret = -ENOMEM;
 			goto err_unlock;
 		}
 
-		pages = kvmalloc_array(nr_pages, sizeof(struct page *), GFP_KERNEL | __GFP_ZERO);
+		pages = kvmalloc_objs(struct page *, nr_pages,
+				      GFP_KERNEL | __GFP_ZERO);
 		if (!pages) {
 			kvfree(bo->sgts);
 			bo->sgts = NULL;
@@ -792,7 +794,7 @@ struct panfrost_mmu *panfrost_mmu_ctx_create(struct panfrost_device *pfdev)
 		fmt = ARM_MALI_LPAE;
 	}
 
-	mmu = kzalloc(sizeof(*mmu), GFP_KERNEL);
+	mmu = kzalloc_obj(*mmu);
 	if (!mmu)
 		return ERR_PTR(-ENOMEM);
 

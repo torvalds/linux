@@ -364,7 +364,7 @@ static void tidss_crtc_reset(struct drm_crtc *crtc)
 	if (crtc->state)
 		tidss_crtc_destroy_state(crtc, crtc->state);
 
-	tstate = kzalloc(sizeof(*tstate), GFP_KERNEL);
+	tstate = kzalloc_obj(*tstate);
 	if (!tstate) {
 		crtc->state = NULL;
 		return;
@@ -382,7 +382,7 @@ static struct drm_crtc_state *tidss_crtc_duplicate_state(struct drm_crtc *crtc)
 
 	current_state = to_tidss_crtc_state(crtc->state);
 
-	state = kmalloc(sizeof(*state), GFP_KERNEL);
+	state = kmalloc_obj(*state);
 	if (!state)
 		return NULL;
 
@@ -425,7 +425,7 @@ struct tidss_crtc *tidss_crtc_create(struct tidss_device *tidss,
 	bool has_ctm = tidss->feat->vp_feat.color.has_ctm;
 	int ret;
 
-	tcrtc = kzalloc(sizeof(*tcrtc), GFP_KERNEL);
+	tcrtc = kzalloc_obj(*tcrtc);
 	if (!tcrtc)
 		return ERR_PTR(-ENOMEM);
 

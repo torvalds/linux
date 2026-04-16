@@ -3035,7 +3035,7 @@ static int alloc_stream(struct vip_port *port, int stream_id, int vfl_type)
 	struct list_head *pos, *tmp;
 	int ret, i;
 
-	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
+	stream = kzalloc_obj(*stream);
 	if (!stream)
 		return -ENOMEM;
 
@@ -3079,7 +3079,7 @@ static int alloc_stream(struct vip_port *port, int stream_id, int vfl_type)
 	/* Allocate/populate Drop queue entries */
 	INIT_LIST_HEAD(&stream->dropq);
 	for (i = 0; i < VIP_DROPQ_SIZE; i++) {
-		buf = kzalloc(sizeof(*buf), GFP_ATOMIC);
+		buf = kzalloc_obj(*buf, GFP_ATOMIC);
 		if (!buf) {
 			ret = -ENOMEM;
 			goto do_free_dropq;

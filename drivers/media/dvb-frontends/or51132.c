@@ -552,7 +552,7 @@ struct dvb_frontend* or51132_attach(const struct or51132_config* config,
 	struct or51132_state* state = NULL;
 
 	/* Allocate memory for the internal state */
-	state = kzalloc(sizeof(struct or51132_state), GFP_KERNEL);
+	state = kzalloc_obj(struct or51132_state);
 	if (state == NULL)
 		return NULL;
 

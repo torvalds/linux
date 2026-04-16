@@ -103,7 +103,7 @@ static struct public_key *pkcs8_parse(const void *data, size_t datalen)
 	memset(&ctx, 0, sizeof(ctx));
 
 	ret = -ENOMEM;
-	ctx.pub = kzalloc(sizeof(struct public_key), GFP_KERNEL);
+	ctx.pub = kzalloc_obj(struct public_key);
 	if (!ctx.pub)
 		goto error;
 

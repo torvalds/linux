@@ -322,7 +322,7 @@ static void page_reporting_process(struct work_struct *work)
 	atomic_set(&prdev->state, state);
 
 	/* allocate scatterlist to store pages being reported on */
-	sgl = kmalloc_array(PAGE_REPORTING_CAPACITY, sizeof(*sgl), GFP_KERNEL);
+	sgl = kmalloc_objs(*sgl, PAGE_REPORTING_CAPACITY);
 	if (!sgl)
 		goto err_out;
 

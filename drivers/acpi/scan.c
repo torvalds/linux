@@ -6,6 +6,7 @@
 #define pr_fmt(fmt) "ACPI: " fmt
 
 #include <linux/async.h>
+#include <linux/auxiliary_bus.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -757,8 +758,7 @@ int acpi_device_add(struct acpi_device *device)
 		if (result)
 			goto err_unlock;
 	} else {
-		acpi_device_bus_id = kzalloc(sizeof(*acpi_device_bus_id),
-					     GFP_KERNEL);
+		acpi_device_bus_id = kzalloc_obj(*acpi_device_bus_id);
 		if (!acpi_device_bus_id) {
 			result = -ENOMEM;
 			goto err_unlock;
@@ -1330,7 +1330,7 @@ static void acpi_add_id(struct acpi_device_pnp *pnp, const char *dev_id)
 {
 	struct acpi_hardware_id *id;
 
-	id = kmalloc(sizeof(*id), GFP_KERNEL);
+	id = kmalloc_obj(*id);
 	if (!id)
 		return;
 
@@ -1568,7 +1568,7 @@ int acpi_dma_get_range(struct device *dev, const struct bus_dma_region **map)
 
 	ret = acpi_dev_get_dma_resources(adev, &list);
 	if (ret > 0) {
-		r = kcalloc(ret + 1, sizeof(*r), GFP_KERNEL);
+		r = kzalloc_objs(*r, ret + 1);
 		if (!r) {
 			ret = -ENOMEM;
 			goto out;
@@ -1863,7 +1863,7 @@ static int acpi_add_single_object(struct acpi_device **child,
 	bool release_dep_lock = false;
 	int result;
 
-	device = kzalloc(sizeof(struct acpi_device), GFP_KERNEL);
+	device = kzalloc_obj(struct acpi_device);
 	if (!device)
 		return -ENOMEM;
 
@@ -2028,7 +2028,7 @@ int acpi_scan_add_dep(acpi_handle handle, struct acpi_handle_list *dep_devices)
 		if (skip)
 			continue;
 
-		dep = kzalloc(sizeof(*dep), GFP_KERNEL);
+		dep = kzalloc_obj(*dep);
 		if (!dep)
 			continue;
 
@@ -2193,6 +2193,44 @@ static acpi_status acpi_bus_check_add_2(acpi_handle handle, u32 lvl_not_used,
 	return acpi_bus_check_add(handle, false, (struct acpi_device **)ret_p);
 }
 
+static void acpi_video_bus_device_release(struct device *dev)
+{
+	struct auxiliary_device *aux_dev = to_auxiliary_dev(dev);
+
+	kfree(aux_dev);
+}
+
+static void acpi_create_video_bus_device(struct acpi_device *adev,
+					 struct acpi_device *parent)
+{
+	struct auxiliary_device *aux_dev;
+	static unsigned int aux_dev_id;
+
+	aux_dev = kzalloc_obj(*aux_dev);
+	if (!aux_dev)
+		return;
+
+	aux_dev->id = aux_dev_id++;
+	aux_dev->name = "video_bus";
+	aux_dev->dev.parent = acpi_get_first_physical_node(parent);
+	if (!aux_dev->dev.parent)
+		goto err;
+
+	aux_dev->dev.release = acpi_video_bus_device_release;
+
+	if (auxiliary_device_init(aux_dev))
+		goto err;
+
+	ACPI_COMPANION_SET(&aux_dev->dev, adev);
+	if (__auxiliary_device_add(aux_dev, "acpi"))
+		auxiliary_device_uninit(aux_dev);
+
+	return;
+
+err:
+	kfree(aux_dev);
+}
+
 struct acpi_scan_system_dev {
 	struct list_head node;
 	struct acpi_device *adev;
@@ -2225,11 +2263,17 @@ static void acpi_default_enumeration(struct acpi_device *device)
 		 * other device objects have been processed and PCI has claimed
 		 * BARs in case there are resource conflicts.
 		 */
-		sd = kmalloc(sizeof(*sd), GFP_KERNEL);
+		sd = kmalloc_obj(*sd);
 		if (sd) {
 			sd->adev = device;
 			list_add_tail(&sd->node, &acpi_scan_system_dev_list);
 		}
+	} else if (device->pnp.type.backlight) {
+		struct acpi_device *parent;
+
+		parent = acpi_dev_parent(device);
+		if (parent)
+			acpi_create_video_bus_device(device, parent);
 	} else {
 		/* For a regular device object, create a platform device. */
 		acpi_create_platform_device(device, NULL);
@@ -2899,7 +2943,7 @@ void acpi_scan_table_notify(void)
 	if (!acpi_scan_initialized)
 		return;
 
-	work = kmalloc(sizeof(*work), GFP_KERNEL);
+	work = kmalloc_obj(*work);
 	if (!work)
 		return;
 

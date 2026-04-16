@@ -39,7 +39,6 @@ static const struct mhi_channel_config aic100_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -55,7 +54,6 @@ static const struct mhi_channel_config aic100_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -71,7 +69,6 @@ static const struct mhi_channel_config aic100_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -87,7 +84,6 @@ static const struct mhi_channel_config aic100_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -103,7 +99,6 @@ static const struct mhi_channel_config aic100_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -119,7 +114,6 @@ static const struct mhi_channel_config aic100_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -135,7 +129,6 @@ static const struct mhi_channel_config aic100_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -151,7 +144,6 @@ static const struct mhi_channel_config aic100_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -167,7 +159,6 @@ static const struct mhi_channel_config aic100_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -183,7 +174,6 @@ static const struct mhi_channel_config aic100_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -199,7 +189,6 @@ static const struct mhi_channel_config aic100_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -215,7 +204,6 @@ static const struct mhi_channel_config aic100_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -231,7 +219,6 @@ static const struct mhi_channel_config aic100_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -247,7 +234,6 @@ static const struct mhi_channel_config aic100_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -263,7 +249,6 @@ static const struct mhi_channel_config aic100_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -279,7 +264,6 @@ static const struct mhi_channel_config aic100_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -295,7 +279,6 @@ static const struct mhi_channel_config aic100_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -311,7 +294,6 @@ static const struct mhi_channel_config aic100_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -327,7 +309,6 @@ static const struct mhi_channel_config aic100_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -343,7 +324,6 @@ static const struct mhi_channel_config aic100_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -359,7 +339,6 @@ static const struct mhi_channel_config aic100_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -375,7 +354,6 @@ static const struct mhi_channel_config aic100_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -391,7 +369,6 @@ static const struct mhi_channel_config aic100_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -407,7 +384,6 @@ static const struct mhi_channel_config aic100_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -423,7 +399,6 @@ static const struct mhi_channel_config aic100_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -439,7 +414,6 @@ static const struct mhi_channel_config aic100_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = true,
 		.wake_capable = false,
 	},
 };
@@ -458,7 +432,6 @@ static const struct mhi_channel_config aic200_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -474,7 +447,6 @@ static const struct mhi_channel_config aic200_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -490,7 +462,6 @@ static const struct mhi_channel_config aic200_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -506,7 +477,6 @@ static const struct mhi_channel_config aic200_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -522,7 +492,6 @@ static const struct mhi_channel_config aic200_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -538,7 +507,6 @@ static const struct mhi_channel_config aic200_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -554,7 +522,6 @@ static const struct mhi_channel_config aic200_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -570,7 +537,6 @@ static const struct mhi_channel_config aic200_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -586,7 +552,6 @@ static const struct mhi_channel_config aic200_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -602,7 +567,6 @@ static const struct mhi_channel_config aic200_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -618,7 +582,6 @@ static const struct mhi_channel_config aic200_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -634,7 +597,6 @@ static const struct mhi_channel_config aic200_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -650,7 +612,6 @@ static const struct mhi_channel_config aic200_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -666,7 +627,6 @@ static const struct mhi_channel_config aic200_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -682,7 +642,6 @@ static const struct mhi_channel_config aic200_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -698,7 +657,6 @@ static const struct mhi_channel_config aic200_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -714,7 +672,6 @@ static const struct mhi_channel_config aic200_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = false,
 		.wake_capable = false,
 	},
 	{
@@ -730,7 +687,6 @@ static const struct mhi_channel_config aic200_channels[] = {
 		.lpm_notify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
-		.auto_queue = true,
 		.wake_capable = false,
 	},
 };

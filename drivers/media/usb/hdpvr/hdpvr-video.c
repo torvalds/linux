@@ -147,7 +147,7 @@ int hdpvr_alloc_buffers(struct hdpvr_device *dev, uint count)
 
 	for (i = 0; i < count; i++) {
 
-		buf = kzalloc(sizeof(struct hdpvr_buffer), GFP_KERNEL);
+		buf = kzalloc_obj(struct hdpvr_buffer);
 		if (!buf) {
 			v4l2_err(&dev->v4l2_dev, "cannot allocate buffer\n");
 			goto exit;
@@ -379,7 +379,7 @@ static int hdpvr_stop_streaming(struct hdpvr_device *dev)
 
 static int hdpvr_open(struct file *file)
 {
-	struct hdpvr_fh *fh = kzalloc(sizeof(*fh), GFP_KERNEL);
+	struct hdpvr_fh *fh = kzalloc_obj(*fh);
 
 	if (fh == NULL)
 		return -ENOMEM;

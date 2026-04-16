@@ -486,7 +486,7 @@ static struct key_restriction *asymmetric_restriction_alloc(
 	struct key *key)
 {
 	struct key_restriction *keyres =
-		kzalloc(sizeof(struct key_restriction), GFP_KERNEL);
+		kzalloc_obj(struct key_restriction);
 
 	if (!keyres)
 		return ERR_PTR(-ENOMEM);

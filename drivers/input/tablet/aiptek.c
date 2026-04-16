@@ -1673,7 +1673,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	 */
 	speeds[0] = programmableDelay;
 
-	aiptek = kzalloc(sizeof(*aiptek), GFP_KERNEL);
+	aiptek = kzalloc_obj(*aiptek);
 	inputdev = input_allocate_device();
 	if (!aiptek || !inputdev) {
 		dev_warn(&intf->dev,

@@ -4221,7 +4221,7 @@ static int ath11k_mac_op_hw_scan(struct ieee80211_hw *hw,
 	if (ret)
 		goto exit;
 
-	arg = kzalloc(sizeof(*arg), GFP_KERNEL);
+	arg = kzalloc_obj(*arg);
 
 	if (!arg) {
 		ret = -ENOMEM;
@@ -7876,7 +7876,7 @@ ath11k_mac_update_active_vif_chan(struct ath11k *ar,
 	if (arg.n_vifs == 0)
 		return;
 
-	arg.vifs = kcalloc(arg.n_vifs, sizeof(arg.vifs[0]), GFP_KERNEL);
+	arg.vifs = kzalloc_objs(arg.vifs[0], arg.n_vifs);
 	if (!arg.vifs)
 		return;
 
@@ -9729,7 +9729,7 @@ static int ath11k_mac_op_remain_on_channel(struct ieee80211_hw *hw,
 
 	scan_time_msec = ar->hw->wiphy->max_remain_on_channel_duration * 2;
 
-	arg = kzalloc(sizeof(*arg), GFP_KERNEL);
+	arg = kzalloc_obj(*arg);
 	if (!arg) {
 		ret = -ENOMEM;
 		goto exit;
@@ -9823,7 +9823,7 @@ static int ath11k_mac_station_add(struct ath11k *ar,
 		arvif->reinstall_group_keys = false;
 	}
 
-	arsta->rx_stats = kzalloc(sizeof(*arsta->rx_stats), GFP_KERNEL);
+	arsta->rx_stats = kzalloc_obj(*arsta->rx_stats);
 	if (!arsta->rx_stats) {
 		ret = -ENOMEM;
 		goto dec_num_station;
@@ -9844,7 +9844,7 @@ static int ath11k_mac_station_add(struct ath11k *ar,
 		   sta->addr, arvif->vdev_id);
 
 	if (ath11k_debugfs_is_extd_tx_stats_enabled(ar)) {
-		arsta->tx_stats = kzalloc(sizeof(*arsta->tx_stats), GFP_KERNEL);
+		arsta->tx_stats = kzalloc_obj(*arsta->tx_stats);
 		if (!arsta->tx_stats) {
 			ret = -ENOMEM;
 			goto free_peer;
@@ -10278,7 +10278,7 @@ static void ath11k_mac_setup_mac_address_list(struct ath11k *ar)
 		return;
 
 	n_addresses = ar->ab->hw_params.num_vdevs;
-	addresses = kcalloc(n_addresses, sizeof(*addresses), GFP_KERNEL);
+	addresses = kzalloc_objs(*addresses, n_addresses);
 	if (!addresses)
 		return;
 
@@ -10310,7 +10310,7 @@ static int ath11k_mac_setup_iface_combinations(struct ath11k *ar)
 	else
 		n_combos = 1;
 
-	combinations = kcalloc(n_combos, sizeof(*combinations), GFP_KERNEL);
+	combinations = kzalloc_objs(*combinations, n_combos);
 	if (!combinations)
 		return -ENOMEM;
 
@@ -10319,7 +10319,7 @@ static int ath11k_mac_setup_iface_combinations(struct ath11k *ar)
 	else
 		n_limits = 2;
 
-	limits = kcalloc(n_limits, sizeof(*limits), GFP_KERNEL);
+	limits = kzalloc_objs(*limits, n_limits);
 	if (!limits) {
 		kfree(combinations);
 		return -ENOMEM;

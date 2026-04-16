@@ -867,7 +867,7 @@ static int  r852_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	error = -ENOMEM;
 
 	/* init nand chip, but register it only on card insert */
-	chip = kzalloc(sizeof(struct nand_chip), GFP_KERNEL);
+	chip = kzalloc_obj(struct nand_chip);
 
 	if (!chip)
 		goto error4;
@@ -883,7 +883,7 @@ static int  r852_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	chip->legacy.write_buf = r852_write_buf;
 
 	/* init our device structure */
-	dev = kzalloc(sizeof(struct r852_device), GFP_KERNEL);
+	dev = kzalloc_obj(struct r852_device);
 
 	if (!dev)
 		goto error5;

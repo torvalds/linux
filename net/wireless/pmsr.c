@@ -312,7 +312,7 @@ int nl80211_pmsr_start(struct sk_buff *skb, struct genl_info *info)
 		}
 	}
 
-	req = kzalloc(struct_size(req, peers, count), GFP_KERNEL);
+	req = kzalloc_flex(*req, peers, count);
 	if (!req)
 		return -ENOMEM;
 	req->n_peers = count;

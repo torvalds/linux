@@ -30,7 +30,8 @@
 
 int fw_iso_buffer_alloc(struct fw_iso_buffer *buffer, int page_count)
 {
-	struct page **page_array __free(kfree) = kcalloc(page_count, sizeof(page_array[0]), GFP_KERNEL);
+	struct page **page_array __free(kfree) = kzalloc_objs(page_array[0],
+							      page_count);
 
 	if (!page_array)
 		return -ENOMEM;
@@ -55,8 +56,8 @@ int fw_iso_buffer_alloc(struct fw_iso_buffer *buffer, int page_count)
 int fw_iso_buffer_map_dma(struct fw_iso_buffer *buffer, struct fw_card *card,
 			  enum dma_data_direction direction)
 {
-	dma_addr_t *dma_addrs __free(kfree) = kcalloc(buffer->page_count, sizeof(dma_addrs[0]),
-						      GFP_KERNEL);
+	dma_addr_t *dma_addrs __free(kfree) = kzalloc_objs(dma_addrs[0],
+							   buffer->page_count);
 	int i;
 
 	if (!dma_addrs)

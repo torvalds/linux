@@ -24,6 +24,7 @@ properties:
       - items:
           - enum:
               - renesas,r9a09g047-dmac # RZ/G3E
+              - renesas,r9a09g056-dmac # RZ/V2N
           - const: renesas,r9a09g057-dmac
 
       - const: renesas,r9a09g057-dmac # RZ/V2H(P)

@@ -422,8 +422,7 @@ int drm_writeback_set_fb(struct drm_connector_state *conn_state,
 	WARN_ON(conn_state->connector->connector_type != DRM_MODE_CONNECTOR_WRITEBACK);
 
 	if (!conn_state->writeback_job) {
-		conn_state->writeback_job =
-			kzalloc(sizeof(*conn_state->writeback_job), GFP_KERNEL);
+		conn_state->writeback_job = kzalloc_obj(*conn_state->writeback_job);
 		if (!conn_state->writeback_job)
 			return -ENOMEM;
 
@@ -581,7 +580,7 @@ drm_writeback_get_out_fence(struct drm_writeback_connector *wb_connector)
 		    DRM_MODE_CONNECTOR_WRITEBACK))
 		return NULL;
 
-	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
+	fence = kzalloc_obj(*fence);
 	if (!fence)
 		return NULL;
 

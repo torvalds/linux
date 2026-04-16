@@ -361,6 +361,7 @@ static void drm_sched_run_free_queue(struct drm_gpu_scheduler *sched)
 /**
  * drm_sched_job_done - complete a job
  * @s_job: pointer to the job which is done
+ * @result: 0 on success, -ERRNO on error
  *
  * Finish the job's fence and resubmit the work items.
  */
@@ -1352,13 +1353,13 @@ int drm_sched_init(struct drm_gpu_scheduler *sched, const struct drm_sched_init_
 		sched->own_submit_wq = true;
 	}
 
-	sched->sched_rq = kmalloc_array(args->num_rqs, sizeof(*sched->sched_rq),
-					GFP_KERNEL | __GFP_ZERO);
+	sched->sched_rq = kmalloc_objs(*sched->sched_rq, args->num_rqs,
+				       GFP_KERNEL | __GFP_ZERO);
 	if (!sched->sched_rq)
 		goto Out_check_own;
 	sched->num_rqs = args->num_rqs;
 	for (i = DRM_SCHED_PRIORITY_KERNEL; i < sched->num_rqs; i++) {
-		sched->sched_rq[i] = kzalloc(sizeof(*sched->sched_rq[i]), GFP_KERNEL);
+		sched->sched_rq[i] = kzalloc_obj(*sched->sched_rq[i]);
 		if (!sched->sched_rq[i])
 			goto Out_unroll;
 		drm_sched_rq_init(sched, sched->sched_rq[i]);

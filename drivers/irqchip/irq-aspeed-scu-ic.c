@@ -270,7 +270,7 @@ static int __init aspeed_scu_ic_of_init(struct device_node *node, struct device_
 	if (!variant)
 		return -ENODEV;
 
-	scu_ic = kzalloc(sizeof(*scu_ic), GFP_KERNEL);
+	scu_ic = kzalloc_obj(*scu_ic);
 	if (!scu_ic)
 		return -ENOMEM;
 

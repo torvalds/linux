@@ -159,7 +159,7 @@ gpio_aggregator_line_alloc(struct gpio_aggregator *parent, unsigned int idx,
 {
 	struct gpio_aggregator_line *line;
 
-	line = kzalloc(sizeof(*line), GFP_KERNEL);
+	line = kzalloc_obj(*line);
 	if (!line)
 		return ERR_PTR(-ENOMEM);
 
@@ -916,8 +916,7 @@ static int gpio_aggregator_activate(struct gpio_aggregator *aggr)
 	if (gpio_aggregator_count_lines(aggr) == 0)
 		return -EINVAL;
 
-	aggr->lookups = kzalloc(struct_size(aggr->lookups, table, 1),
-				GFP_KERNEL);
+	aggr->lookups = kzalloc_flex(*aggr->lookups, table, 1);
 	if (!aggr->lookups)
 		return -ENOMEM;
 
@@ -1457,8 +1456,7 @@ static ssize_t gpio_aggregator_new_device_store(struct device_driver *driver,
 	memcpy(aggr->args, buf, count + 1);
 
 	aggr->init_via_sysfs = true;
-	aggr->lookups = kzalloc(struct_size(aggr->lookups, table, 1),
-				GFP_KERNEL);
+	aggr->lookups = kzalloc_flex(*aggr->lookups, table, 1);
 	if (!aggr->lookups) {
 		res = -ENOMEM;
 		goto free_ga;

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
-*
-* Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
-*
-******************************************************************************/
+ *
+ * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ *
+ ******************************************************************************/
 
 #include <linux/kernel.h>
 #include "odm_precomp.h"
@@ -79,8 +79,8 @@ static bool CheckPositive(
 }
 
 /******************************************************************************
-*                           RadioA.TXT
-******************************************************************************/
+ *                           RadioA.TXT
+ ******************************************************************************/
 
 static u32 Array_MP_8723B_RadioA[] = {
 		0x000, 0x00010000,
@@ -243,9 +243,10 @@ void ODM_ReadAndConfig_MP_8723B_RadioA(struct dm_odm_t *pDM_Odm)
 			}
 
 			if (!bMatched) {
-				/*  Condition isn't matched.
-				*   Discard the following (offset, data) pairs.
-				*/
+				/*
+				 *  Condition isn't matched.
+				 *  Discard the following (offset, data) pairs.
+				 */
 				while (v1 < 0x40000000 && i < ArrayLen-2)
 					READ_NEXT_PAIR(v1, v2, i);
 
@@ -269,8 +270,8 @@ void ODM_ReadAndConfig_MP_8723B_RadioA(struct dm_odm_t *pDM_Odm)
 }
 
 /******************************************************************************
-*                           TxPowerTrack_SDIO.TXT
-******************************************************************************/
+ *                           TxPowerTrack_SDIO.TXT
+ ******************************************************************************/
 
 static u8 gDeltaSwingTableIdx_MP_2GB_N_TxPowerTrack_SDIO_8723B[] = {
 	0, 0, 1, 2, 2, 2, 3, 3, 3, 4,  5,  5,  6,  6, 6,  6,
@@ -354,8 +355,8 @@ void ODM_ReadAndConfig_MP_8723B_TxPowerTrack_SDIO(struct dm_odm_t *pDM_Odm)
 }
 
 /******************************************************************************
-*                           TXPWR_LMT.TXT
-******************************************************************************/
+ *                           TXPWR_LMT.TXT
+ ******************************************************************************/
 
 static u8 *Array_MP_8723B_TXPWR_LMT[] = {
 	"FCC", "20M", "CCK", "1T", "01", "32",

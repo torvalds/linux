@@ -227,15 +227,13 @@ struct clk ** __init tegra_clk_init(void __iomem *regs, int num, int banks)
 	if (WARN_ON(banks > ARRAY_SIZE(periph_regs)))
 		return NULL;
 
-	periph_clk_enb_refcnt = kcalloc(32 * banks,
-					sizeof(*periph_clk_enb_refcnt),
-					GFP_KERNEL);
+	periph_clk_enb_refcnt = kzalloc_objs(*periph_clk_enb_refcnt, 32 * banks);
 	if (!periph_clk_enb_refcnt)
 		return NULL;
 
 	periph_banks = banks;
 
-	clks = kcalloc(num, sizeof(struct clk *), GFP_KERNEL);
+	clks = kzalloc_objs(struct clk *, num);
 	if (!clks) {
 		kfree(periph_clk_enb_refcnt);
 		return NULL;

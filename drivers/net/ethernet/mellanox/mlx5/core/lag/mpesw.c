@@ -65,7 +65,7 @@ err_metadata:
 	return err;
 }
 
-static int enable_mpesw(struct mlx5_lag *ldev)
+static int mlx5_lag_enable_mpesw(struct mlx5_lag *ldev)
 {
 	struct mlx5_core_dev *dev0;
 	int err;
@@ -126,7 +126,7 @@ err_add_devices:
 	return err;
 }
 
-static void disable_mpesw(struct mlx5_lag *ldev)
+void mlx5_lag_disable_mpesw(struct mlx5_lag *ldev)
 {
 	if (ldev->mode == MLX5_LAG_MODE_MPESW) {
 		mlx5_mpesw_metadata_cleanup(ldev);
@@ -152,9 +152,9 @@ static void mlx5_mpesw_work(struct work_struct *work)
 	}
 
 	if (mpesww->op == MLX5_MPESW_OP_ENABLE)
-		mpesww->result = enable_mpesw(ldev);
+		mpesww->result = mlx5_lag_enable_mpesw(ldev);
 	else if (mpesww->op == MLX5_MPESW_OP_DISABLE)
-		disable_mpesw(ldev);
+		mlx5_lag_disable_mpesw(ldev);
 unlock:
 	mutex_unlock(&ldev->lock);
 	mlx5_devcom_comp_unlock(devcom);
@@ -171,7 +171,7 @@ static int mlx5_lag_mpesw_queue_work(struct mlx5_core_dev *dev,
 	if (!ldev)
 		return 0;
 
-	work = kzalloc(sizeof(*work), GFP_KERNEL);
+	work = kzalloc_obj(*work);
 	if (!work)
 		return -ENOMEM;
 

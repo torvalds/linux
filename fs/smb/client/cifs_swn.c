@@ -315,7 +315,7 @@ static struct cifs_swn_reg *cifs_get_swn_reg(struct cifs_tcon *tcon)
 		goto unlock;
 	}
 
-	reg = kmalloc(sizeof(struct cifs_swn_reg), GFP_ATOMIC);
+	reg = kmalloc_obj(struct cifs_swn_reg, GFP_ATOMIC);
 	if (reg == NULL) {
 		ret = -ENOMEM;
 		goto fail_unlock;

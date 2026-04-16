@@ -16,12 +16,8 @@ int mlx5dr_buddy_init(struct mlx5dr_icm_buddy_mem *buddy,
 
 	INIT_LIST_HEAD(&buddy->list_node);
 
-	buddy->bitmap = kcalloc(buddy->max_order + 1,
-				sizeof(*buddy->bitmap),
-				GFP_KERNEL);
-	buddy->num_free = kcalloc(buddy->max_order + 1,
-				  sizeof(*buddy->num_free),
-				  GFP_KERNEL);
+	buddy->bitmap = kzalloc_objs(*buddy->bitmap, buddy->max_order + 1);
+	buddy->num_free = kzalloc_objs(*buddy->num_free, buddy->max_order + 1);
 
 	if (!buddy->bitmap || !buddy->num_free)
 		goto err_free_all;

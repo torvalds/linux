@@ -881,7 +881,7 @@ static struct esp_cmd_entry *esp_get_ent(struct esp *esp)
 	struct esp_cmd_entry *ret;
 
 	if (list_empty(head)) {
-		ret = kzalloc(sizeof(struct esp_cmd_entry), GFP_ATOMIC);
+		ret = kzalloc_obj(struct esp_cmd_entry, GFP_ATOMIC);
 	} else {
 		ret = list_entry(head->next, struct esp_cmd_entry, list);
 		list_del(&ret->list);
@@ -2447,7 +2447,7 @@ static int esp_sdev_init(struct scsi_device *dev)
 	struct esp_target_data *tp = &esp->target[dev->id];
 	struct esp_lun_data *lp;
 
-	lp = kzalloc(sizeof(*lp), GFP_KERNEL);
+	lp = kzalloc_obj(*lp);
 	if (!lp)
 		return -ENOMEM;
 	dev->hostdata = lp;

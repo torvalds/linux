@@ -15,7 +15,7 @@ struct intel_colorop *intel_colorop_alloc(void)
 {
 	struct intel_colorop *colorop;
 
-	colorop = kzalloc(sizeof(*colorop), GFP_KERNEL);
+	colorop = kzalloc_obj(*colorop);
 	if (!colorop)
 		return ERR_PTR(-ENOMEM);
 

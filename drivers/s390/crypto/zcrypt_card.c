@@ -90,7 +90,7 @@ static ssize_t online_store(struct device *dev,
 	list_for_each_entry(zq, &zc->zqueues, list)
 		maxzqs++;
 	if (maxzqs > 0)
-		zq_uelist = kcalloc(maxzqs + 1, sizeof(*zq_uelist), GFP_ATOMIC);
+		zq_uelist = kzalloc_objs(*zq_uelist, maxzqs + 1, GFP_ATOMIC);
 	list_for_each_entry(zq, &zc->zqueues, list)
 		if (zcrypt_queue_force_online(zq, online))
 			if (zq_uelist) {
@@ -138,7 +138,7 @@ struct zcrypt_card *zcrypt_card_alloc(void)
 {
 	struct zcrypt_card *zc;
 
-	zc = kzalloc(sizeof(*zc), GFP_KERNEL);
+	zc = kzalloc_obj(*zc);
 	if (!zc)
 		return NULL;
 	INIT_LIST_HEAD(&zc->list);

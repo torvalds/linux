@@ -768,7 +768,7 @@ static struct sg_table *alloc_single_sgt(struct device *dev, size_t size,
 	struct sg_table *sgt;
 	struct page *page;
 
-	sgt = kmalloc(sizeof(*sgt), gfp);
+	sgt = kmalloc_obj(*sgt, gfp);
 	if (!sgt)
 		return NULL;
 	if (sg_alloc_table(sgt, 1, gfp))

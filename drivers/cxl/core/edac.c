@@ -2009,8 +2009,7 @@ static void err_rec_free(void *_cxlmd)
 
 static int devm_cxl_memdev_setup_err_rec(struct cxl_memdev *cxlmd)
 {
-	struct cxl_mem_err_rec *array_rec =
-		kzalloc(sizeof(*array_rec), GFP_KERNEL);
+	struct cxl_mem_err_rec *array_rec = kzalloc_obj(*array_rec);
 
 	if (!array_rec)
 		return -ENOMEM;

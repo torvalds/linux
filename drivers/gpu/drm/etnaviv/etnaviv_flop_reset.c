@@ -182,8 +182,7 @@ int etnaviv_flop_reset_ppu_init(struct etnaviv_drm_private *priv)
 	 * (input and output image, and shader), we keep this buffer
 	 * for the whole life time the driver is bound
 	 */
-	priv->flop_reset_data_ppu =
-		kzalloc(sizeof(*priv->flop_reset_data_ppu), GFP_KERNEL);
+	priv->flop_reset_data_ppu = kzalloc_obj(*priv->flop_reset_data_ppu);
 
 	if (!priv->flop_reset_data_ppu)
 		return -ENOMEM;

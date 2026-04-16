@@ -104,6 +104,9 @@
  * @regulator: LED supply regulator pointer
  * @led_enable: LED sync to be enabled
  * @model_id: Current device model ID enumerated
+ * @boost_ctrl: Cached configuration for the boost control register
+ * @brightness_ctrl: Cached configuration for brightness/brightness control
+ * @enabled: Cached enable state of the device
  */
 struct lm3692x_led {
 	struct mutex lock;

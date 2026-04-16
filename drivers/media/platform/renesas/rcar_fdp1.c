@@ -2078,7 +2078,7 @@ static int fdp1_open(struct file *file)
 	if (mutex_lock_interruptible(&fdp1->dev_mutex))
 		return -ERESTARTSYS;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx) {
 		ret = -ENOMEM;
 		goto done;

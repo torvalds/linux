@@ -510,7 +510,8 @@ int __weak populate_cache_leaves(unsigned int cpu)
 
 static inline int allocate_cache_info(int cpu)
 {
-	per_cpu_cacheinfo(cpu) = kcalloc(cache_leaves(cpu), sizeof(struct cacheinfo), GFP_ATOMIC);
+	per_cpu_cacheinfo(cpu) = kzalloc_objs(struct cacheinfo,
+					      cache_leaves(cpu), GFP_ATOMIC);
 	if (!per_cpu_cacheinfo(cpu)) {
 		cache_leaves(cpu) = 0;
 		return -ENOMEM;
@@ -882,8 +883,8 @@ static int cpu_cache_sysfs_init(unsigned int cpu)
 		return PTR_ERR(per_cpu_cache_dev(cpu));
 
 	/* Allocate all required memory */
-	per_cpu_index_dev(cpu) = kcalloc(cache_leaves(cpu),
-					 sizeof(struct device *), GFP_KERNEL);
+	per_cpu_index_dev(cpu) = kzalloc_objs(struct device *,
+					      cache_leaves(cpu));
 	if (unlikely(per_cpu_index_dev(cpu) == NULL))
 		goto err_out;
 

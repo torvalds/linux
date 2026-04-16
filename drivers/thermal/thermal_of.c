@@ -107,7 +107,7 @@ static struct thermal_trip *thermal_of_trips_init(struct device_node *np, int *n
 	if (!count)
 		return NULL;
 
-	struct thermal_trip *tt __free(kfree) = kcalloc(count, sizeof(*tt), GFP_KERNEL);
+	struct thermal_trip *tt __free(kfree) = kzalloc_objs(*tt, count);
 	if (!tt)
 		return ERR_PTR(-ENOMEM);
 

@@ -528,7 +528,7 @@ int hinic3_init_hwdev(struct pci_dev *pdev)
 	struct hinic3_hwdev *hwdev;
 	int err;
 
-	hwdev = kzalloc(sizeof(*hwdev), GFP_KERNEL);
+	hwdev = kzalloc_obj(*hwdev);
 	if (!hwdev)
 		return -ENOMEM;
 

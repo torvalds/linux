@@ -211,7 +211,7 @@ static struct trace_eprobe *alloc_event_probe(const char *group,
 	sys_name = event->class->system;
 	event_name = trace_event_name(event);
 
-	ep = kzalloc(struct_size(ep, tp.args, nargs), GFP_KERNEL);
+	ep = kzalloc_flex(*ep, tp.args, nargs);
 	if (!ep) {
 		trace_event_put_ref(event);
 		return ERR_PTR(-ENOMEM);
@@ -529,8 +529,8 @@ new_eprobe_trigger(struct trace_eprobe *ep, struct trace_event_file *file)
 	struct eprobe_data *edata;
 	int ret;
 
-	edata = kzalloc(sizeof(*edata), GFP_KERNEL);
-	trigger = kzalloc(sizeof(*trigger), GFP_KERNEL);
+	edata = kzalloc_obj(*edata);
+	trigger = kzalloc_obj(*trigger);
 	if (!trigger || !edata) {
 		ret = -ENOMEM;
 		goto error;

@@ -211,7 +211,7 @@ static int wilc_bus_probe(struct spi_device *spi)
 	struct wilc *wilc;
 	int ret;
 
-	spi_priv = kzalloc(sizeof(*spi_priv), GFP_KERNEL);
+	spi_priv = kzalloc_obj(*spi_priv);
 	if (!spi_priv)
 		return -ENOMEM;
 

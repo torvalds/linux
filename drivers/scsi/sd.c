@@ -3735,7 +3735,7 @@ static void sd_revalidate_disk(struct gendisk *disk)
 	if (!scsi_device_online(sdp))
 		return;
 
-	lim = kmalloc(sizeof(*lim), GFP_KERNEL);
+	lim = kmalloc_obj(*lim);
 	if (!lim)
 		return;
 
@@ -3974,7 +3974,7 @@ static int sd_probe(struct scsi_device *sdp)
 					"sd_probe\n"));
 
 	error = -ENOMEM;
-	sdkp = kzalloc(sizeof(*sdkp), GFP_KERNEL);
+	sdkp = kzalloc_obj(*sdkp);
 	if (!sdkp)
 		goto out;
 

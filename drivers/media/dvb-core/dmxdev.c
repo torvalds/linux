@@ -168,7 +168,9 @@ static int dvb_dvr_open(struct inode *inode, struct file *file)
 			mutex_unlock(&dmxdev->mutex);
 			return -ENOMEM;
 		}
-		dvb_ringbuffer_init(&dmxdev->dvr_buffer, mem, DVR_BUFFER_SIZE);
+		dmxdev->dvr_buffer.data = mem;
+		dmxdev->dvr_buffer.size = DVR_BUFFER_SIZE;
+		dvb_ringbuffer_reset(&dmxdev->dvr_buffer);
 		if (dmxdev->may_do_mmap)
 			dvb_vb2_init(&dmxdev->dvr_vb2_ctx, "dvr",
 				     &dmxdev->mutex,
@@ -892,7 +894,7 @@ static int dvb_dmxdev_add_pid(struct dmxdev *dmxdev,
 	    (!list_empty(&filter->feed.ts)))
 		return -EINVAL;
 
-	feed = kzalloc(sizeof(struct dmxdev_feed), GFP_KERNEL);
+	feed = kzalloc_obj(struct dmxdev_feed);
 	if (feed == NULL)
 		return -ENOMEM;
 

@@ -819,7 +819,7 @@ static int add_new_ctl(struct usb_mixer_interface *mixer,
 	struct usb_mixer_elem_info *elem;
 	int err;
 
-	elem = kzalloc(sizeof(*elem), GFP_KERNEL);
+	elem = kzalloc_obj(*elem);
 	if (!elem)
 		return -ENOMEM;
 

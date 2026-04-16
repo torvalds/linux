@@ -260,7 +260,21 @@ test_uid() {
 
 test_leader_sampling() {
   echo "Basic leader sampling test"
-  if ! perf record -o "${perfdata}" -e "{cycles,cycles}:Su" -- \
+  events="{cycles,cycles}:Su"
+  [ "$(uname -m)" = "s390x" ] && {
+    [ ! -d /sys/devices/cpum_sf ] && {
+      echo "No CPUMF [Skipped record]"
+      return
+    }
+    events="{cpum_sf/SF_CYCLES_BASIC/,cycles}:Su"
+    perf record -o "${perfdata}" -e "$events" -- perf test -w brstack 2> /dev/null
+    # Perf grouping might be unsupported, depends on version.
+    [ "$?" -ne 0 ] && {
+      echo "Grouping not support [Skipped record]"
+      return
+    }
+  }
+  if ! perf record -o "${perfdata}" -e "$events" -- \
     perf test -w brstack 2> /dev/null
   then
     echo "Leader sampling [Failed record]"

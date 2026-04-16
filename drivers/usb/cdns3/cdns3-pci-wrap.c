@@ -97,7 +97,7 @@ static int cdns3_pci_probe(struct pci_dev *pdev,
 	if (pci_is_enabled(func)) {
 		wrap = pci_get_drvdata(func);
 	} else {
-		wrap = kzalloc(sizeof(*wrap), GFP_KERNEL);
+		wrap = kzalloc_obj(*wrap);
 		if (!wrap)
 			return -ENOMEM;
 	}

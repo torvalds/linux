@@ -400,7 +400,7 @@ static int cmpc_accel_add_v4(struct acpi_device *acpi)
 	struct input_dev *inputdev;
 	struct cmpc_accel *accel;
 
-	accel = kmalloc(sizeof(*accel), GFP_KERNEL);
+	accel = kmalloc_obj(*accel);
 	if (!accel)
 		return -ENOMEM;
 
@@ -650,7 +650,7 @@ static int cmpc_accel_add(struct acpi_device *acpi)
 	struct input_dev *inputdev;
 	struct cmpc_accel *accel;
 
-	accel = kmalloc(sizeof(*accel), GFP_KERNEL);
+	accel = kmalloc_obj(*accel);
 	if (!accel)
 		return -ENOMEM;
 
@@ -964,7 +964,7 @@ static int cmpc_ipml_add(struct acpi_device *acpi)
 	struct ipml200_dev *ipml;
 	struct backlight_properties props;
 
-	ipml = kmalloc(sizeof(*ipml), GFP_KERNEL);
+	ipml = kmalloc_obj(*ipml);
 	if (ipml == NULL)
 		return -ENOMEM;
 

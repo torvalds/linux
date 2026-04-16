@@ -622,7 +622,7 @@ static int kvm_eiointc_create(struct kvm_device *dev, u32 type)
 	if (kvm->arch.eiointc)
 		return -EINVAL;
 
-	s = kzalloc(sizeof(struct loongarch_eiointc), GFP_KERNEL);
+	s = kzalloc_obj(struct loongarch_eiointc);
 	if (!s)
 		return -ENOMEM;
 

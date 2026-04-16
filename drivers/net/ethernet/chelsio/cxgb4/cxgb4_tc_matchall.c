@@ -531,13 +531,11 @@ int cxgb4_init_tc_matchall(struct adapter *adap)
 	struct cxgb4_tc_matchall *tc_matchall;
 	int ret;
 
-	tc_matchall = kzalloc(sizeof(*tc_matchall), GFP_KERNEL);
+	tc_matchall = kzalloc_obj(*tc_matchall);
 	if (!tc_matchall)
 		return -ENOMEM;
 
-	tc_port_matchall = kcalloc(adap->params.nports,
-				   sizeof(*tc_port_matchall),
-				   GFP_KERNEL);
+	tc_port_matchall = kzalloc_objs(*tc_port_matchall, adap->params.nports);
 	if (!tc_port_matchall) {
 		ret = -ENOMEM;
 		goto out_free_matchall;

@@ -314,7 +314,7 @@ void cx18_read_eeprom(struct cx18 *cx, struct tveeprom *tv)
 
 	memset(tv, 0, sizeof(*tv));
 
-	c = kzalloc(sizeof(*c), GFP_KERNEL);
+	c = kzalloc_obj(*c);
 	if (!c)
 		return;
 
@@ -899,7 +899,7 @@ static int cx18_probe(struct pci_dev *pci_dev,
 		return -ENOMEM;
 	}
 
-	cx = kzalloc(sizeof(*cx), GFP_KERNEL);
+	cx = kzalloc_obj(*cx);
 	if (!cx)
 		return -ENOMEM;
 

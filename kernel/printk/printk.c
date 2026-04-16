@@ -933,7 +933,7 @@ static int devkmsg_open(struct inode *inode, struct file *file)
 			return err;
 	}
 
-	user = kvmalloc(sizeof(struct devkmsg_user), GFP_KERNEL);
+	user = kvmalloc_obj(struct devkmsg_user);
 	if (!user)
 		return -ENOMEM;
 
@@ -3415,22 +3415,6 @@ void console_unlock(void)
 		__console_unlock();
 }
 EXPORT_SYMBOL(console_unlock);
-
-/**
- * console_conditional_schedule - yield the CPU if required
- *
- * If the console code is currently allowed to sleep, and
- * if this CPU should yield the CPU to another task, do
- * so here.
- *
- * Must be called within console_lock();.
- */
-void __sched console_conditional_schedule(void)
-{
-	if (console_may_schedule)
-		cond_resched();
-}
-EXPORT_SYMBOL(console_conditional_schedule);
 
 void console_unblank(void)
 {

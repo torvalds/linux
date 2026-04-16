@@ -173,7 +173,7 @@ static int ssb_gige_probe(struct ssb_device *sdev,
 	struct ssb_gige *dev;
 	u32 base, tmslow, tmshigh;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return -ENOMEM;
 	dev->dev = sdev;

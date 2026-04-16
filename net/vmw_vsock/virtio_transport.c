@@ -805,7 +805,7 @@ static int virtio_vsock_probe(struct virtio_device *vdev)
 		goto out;
 	}
 
-	vsock = kzalloc(sizeof(*vsock), GFP_KERNEL);
+	vsock = kzalloc_obj(*vsock);
 	if (!vsock) {
 		ret = -ENOMEM;
 		goto out;

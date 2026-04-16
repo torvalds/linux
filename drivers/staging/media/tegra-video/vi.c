@@ -1209,7 +1209,7 @@ static int tegra_vi_channel_alloc(struct tegra_vi *vi, unsigned int port_num,
 	 * be holding the device node open. Channel memory allocated
 	 * with kzalloc is freed during video device release callback.
 	 */
-	chan = kzalloc(sizeof(*chan), GFP_KERNEL);
+	chan = kzalloc_obj(*chan);
 	if (!chan)
 		return -ENOMEM;
 

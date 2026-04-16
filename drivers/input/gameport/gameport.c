@@ -374,7 +374,7 @@ static int gameport_queue_event(void *object, struct module *owner,
 		}
 	}
 
-	event = kmalloc(sizeof(*event), GFP_ATOMIC);
+	event = kmalloc_obj(*event, GFP_ATOMIC);
 	if (!event) {
 		pr_err("Not enough memory to queue event %d\n", event_type);
 		retval = -ENOMEM;

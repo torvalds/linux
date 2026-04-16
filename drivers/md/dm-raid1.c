@@ -890,7 +890,7 @@ static struct mirror_set *alloc_context(unsigned int nr_mirrors,
 					struct dm_dirty_log *dl)
 {
 	struct mirror_set *ms =
-		kzalloc(struct_size(ms, mirror, nr_mirrors), GFP_KERNEL);
+		kzalloc_flex(*ms, mirror, nr_mirrors);
 
 	if (!ms) {
 		ti->error = "Cannot allocate mirror context";

@@ -919,7 +919,7 @@ gm20b_clk_new_speedo0(struct nvkm_device *device, enum nvkm_subdev_type type, in
 	struct gk20a_clk *clk;
 	int ret;
 
-	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
+	clk = kzalloc_obj(*clk);
 	if (!clk)
 		return -ENOMEM;
 	*pclk = &clk->base;

@@ -27,6 +27,8 @@ static DEFINE_IDA(cntlid_ida);
 
 struct workqueue_struct *nvmet_wq;
 EXPORT_SYMBOL_GPL(nvmet_wq);
+struct workqueue_struct *nvmet_aen_wq;
+EXPORT_SYMBOL_GPL(nvmet_aen_wq);
 
 /*
  * This read/write semaphore is used to synchronize access to configuration
@@ -194,7 +196,7 @@ void nvmet_add_async_event(struct nvmet_ctrl *ctrl, u8 event_type,
 {
 	struct nvmet_async_event *aen;
 
-	aen = kmalloc(sizeof(*aen), GFP_KERNEL);
+	aen = kmalloc_obj(*aen);
 	if (!aen)
 		return;
 
@@ -206,7 +208,7 @@ void nvmet_add_async_event(struct nvmet_ctrl *ctrl, u8 event_type,
 	list_add_tail(&aen->entry, &ctrl->async_events);
 	mutex_unlock(&ctrl->lock);
 
-	queue_work(nvmet_wq, &ctrl->async_event_work);
+	queue_work(nvmet_aen_wq, &ctrl->async_event_work);
 }
 
 static void nvmet_add_to_changed_ns_log(struct nvmet_ctrl *ctrl, __le32 nsid)
@@ -693,7 +695,7 @@ struct nvmet_ns *nvmet_ns_alloc(struct nvmet_subsys *subsys, u32 nsid)
 	if (subsys->nr_namespaces == NVMET_MAX_NAMESPACES)
 		goto out_unlock;
 
-	ns = kzalloc(sizeof(*ns), GFP_KERNEL);
+	ns = kzalloc_obj(*ns);
 	if (!ns)
 		goto out_unlock;
 
@@ -1609,7 +1611,7 @@ struct nvmet_ctrl *nvmet_alloc_ctrl(struct nvmet_alloc_ctrl_args *args)
 	up_read(&nvmet_config_sem);
 
 	args->status = NVME_SC_INTERNAL;
-	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
+	ctrl = kzalloc_obj(*ctrl);
 	if (!ctrl)
 		goto out_put_subsystem;
 	mutex_init(&ctrl->lock);
@@ -1642,14 +1644,11 @@ struct nvmet_ctrl *nvmet_alloc_ctrl(struct nvmet_alloc_ctrl_args *args)
 	if (!ctrl->changed_ns_list)
 		goto out_free_ctrl;
 
-	ctrl->sqs = kcalloc(subsys->max_qid + 1,
-			sizeof(struct nvmet_sq *),
-			GFP_KERNEL);
+	ctrl->sqs = kzalloc_objs(struct nvmet_sq *, subsys->max_qid + 1);
 	if (!ctrl->sqs)
 		goto out_free_changed_ns_list;
 
-	ctrl->cqs = kcalloc(subsys->max_qid + 1, sizeof(struct nvmet_cq *),
-			   GFP_KERNEL);
+	ctrl->cqs = kzalloc_objs(struct nvmet_cq *, subsys->max_qid + 1);
 	if (!ctrl->cqs)
 		goto out_free_sqs;
 
@@ -1829,7 +1828,7 @@ struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 	char serial[NVMET_SN_MAX_SIZE / 2];
 	int ret;
 
-	subsys = kzalloc(sizeof(*subsys), GFP_KERNEL);
+	subsys = kzalloc_obj(*subsys);
 	if (!subsys)
 		return ERR_PTR(-ENOMEM);
 
@@ -1959,9 +1958,14 @@ static int __init nvmet_init(void)
 	if (!nvmet_wq)
 		goto out_free_buffered_work_queue;
 
+	nvmet_aen_wq = alloc_workqueue("nvmet-aen-wq",
+			WQ_MEM_RECLAIM | WQ_UNBOUND, 0);
+	if (!nvmet_aen_wq)
+		goto out_free_nvmet_work_queue;
+
 	error = nvmet_init_debugfs();
 	if (error)
-		goto out_free_nvmet_work_queue;
+		goto out_free_nvmet_aen_work_queue;
 
 	error = nvmet_init_discovery();
 	if (error)
@@ -1977,6 +1981,8 @@ out_exit_discovery:
 	nvmet_exit_discovery();
 out_exit_debugfs:
 	nvmet_exit_debugfs();
+out_free_nvmet_aen_work_queue:
+	destroy_workqueue(nvmet_aen_wq);
 out_free_nvmet_work_queue:
 	destroy_workqueue(nvmet_wq);
 out_free_buffered_work_queue:
@@ -1994,6 +2000,7 @@ static void __exit nvmet_exit(void)
 	nvmet_exit_discovery();
 	nvmet_exit_debugfs();
 	ida_destroy(&cntlid_ida);
+	destroy_workqueue(nvmet_aen_wq);
 	destroy_workqueue(nvmet_wq);
 	destroy_workqueue(buffered_io_wq);
 	destroy_workqueue(zbd_wq);

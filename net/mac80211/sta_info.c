@@ -644,7 +644,7 @@ __sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	wiphy_work_init(&sta->ampdu_mlme.work, ieee80211_ba_session_work);
 #ifdef CONFIG_MAC80211_MESH
 	if (ieee80211_vif_is_mesh(&sdata->vif)) {
-		sta->mesh = kzalloc(sizeof(*sta->mesh), gfp);
+		sta->mesh = kzalloc_obj(*sta->mesh, gfp);
 		if (!sta->mesh)
 			goto free;
 		sta->mesh->plink_sta = sta;
@@ -903,7 +903,7 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
 		goto out_cleanup;
 	}
 
-	sinfo = kzalloc(sizeof(struct station_info), GFP_KERNEL);
+	sinfo = kzalloc_obj(struct station_info);
 	if (!sinfo) {
 		err = -ENOMEM;
 		goto out_cleanup;
@@ -1545,7 +1545,7 @@ static void __sta_info_destroy_part2(struct sta_info *sta, bool recalc)
 		}
 	}
 
-	sinfo = kzalloc(sizeof(*sinfo), GFP_KERNEL);
+	sinfo = kzalloc_obj(*sinfo);
 	if (sinfo)
 		sta_set_sinfo(sta, sinfo, true);
 
@@ -3306,7 +3306,7 @@ int ieee80211_sta_allocate_link(struct sta_info *sta, unsigned int link_id)
 		    sta->link[link_id]))
 		return -EBUSY;
 
-	alloc = kzalloc(sizeof(*alloc), GFP_KERNEL);
+	alloc = kzalloc_obj(*alloc);
 	if (!alloc)
 		return -ENOMEM;
 

@@ -36,7 +36,7 @@ nvif_fifo_runlists(struct nvif_device *device)
 	if (device->runlist)
 		return 0;
 
-	if (!(a = kmalloc(sizeof(*a), GFP_KERNEL)))
+	if (!(a = kmalloc_obj(*a)))
 		return -ENOMEM;
 	a->m.version = 1;
 	a->m.count = sizeof(a->v) / sizeof(a->v.runlists);
@@ -51,8 +51,7 @@ nvif_fifo_runlists(struct nvif_device *device)
 		goto done;
 
 	device->runlists = fls64(a->v.runlists.data);
-	device->runlist = kcalloc(device->runlists, sizeof(*device->runlist),
-				  GFP_KERNEL);
+	device->runlist = kzalloc_objs(*device->runlist, device->runlists);
 	if (!device->runlist) {
 		ret = -ENOMEM;
 		goto done;

@@ -568,7 +568,7 @@ static int mdp_m2m_open(struct file *file)
 	struct v4l2_format default_format = {};
 	const struct mdp_limit *limit = mdp->mdp_data->def_limit;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

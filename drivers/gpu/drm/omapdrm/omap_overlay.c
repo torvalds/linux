@@ -159,7 +159,7 @@ static struct omap_hw_overlay *omap_overlay_init(enum omap_plane_id overlay_id,
 {
 	struct omap_hw_overlay *overlay;
 
-	overlay = kzalloc(sizeof(*overlay), GFP_KERNEL);
+	overlay = kzalloc_obj(*overlay);
 	if (!overlay)
 		return ERR_PTR(-ENOMEM);
 

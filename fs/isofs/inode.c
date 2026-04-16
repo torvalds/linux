@@ -589,7 +589,7 @@ static int isofs_fill_super(struct super_block *s, struct fs_context *fc)
 	unsigned int vol_desc_start;
 	int silent = fc->sb_flags & SB_SILENT;
 
-	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
+	sbi = kzalloc_obj(*sbi);
 	if (!sbi)
 		return -ENOMEM;
 	s->s_fs_info = sbi;
@@ -1557,7 +1557,7 @@ static int isofs_init_fs_context(struct fs_context *fc)
 {
 	struct isofs_options *opt;
 
-	opt = kzalloc(sizeof(*opt), GFP_KERNEL);
+	opt = kzalloc_obj(*opt);
 	if (!opt)
 		return -ENOMEM;
 

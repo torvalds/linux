@@ -355,6 +355,13 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	dev->error_state = pci_channel_io_normal;
 	dev->dma_mask = 0xffffffff;
 
+	/*
+	 * Assume 64-bit addresses for MSI initially. Will be changed to 32-bit
+	 * if MSI (rather than MSI-X) capability does not have
+	 * PCI_MSI_FLAGS_64BIT. Can also be overridden by driver.
+	 */
+	dev->msi_addr_mask = DMA_BIT_MASK(64);
+
 	if (of_node_name_eq(node, "pci")) {
 		/* a PCI-PCI bridge */
 		dev->hdr_type = PCI_HEADER_TYPE_BRIDGE;
@@ -650,7 +657,7 @@ static void pci_claim_legacy_resources(struct pci_dev *dev)
 	if ((dev->class >> 8) != PCI_CLASS_DISPLAY_VGA)
 		return;
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (!p)
 		return;
 

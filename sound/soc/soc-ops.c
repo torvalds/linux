@@ -454,7 +454,7 @@ static int snd_soc_clip_to_platform_max(struct snd_kcontrol *kctl)
 	if (!mc->platform_max)
 		return 0;
 
-	uctl = kzalloc(sizeof(*uctl), GFP_KERNEL);
+	uctl = kzalloc_obj(*uctl);
 	if (!uctl)
 		return -ENOMEM;
 

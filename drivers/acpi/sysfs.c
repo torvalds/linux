@@ -385,7 +385,7 @@ acpi_status acpi_sysfs_table_handler(u32 event, void *table, void *context)
 
 	switch (event) {
 	case ACPI_TABLE_EVENT_INSTALL:
-		table_attr = kzalloc(sizeof(*table_attr), GFP_KERNEL);
+		table_attr = kzalloc_obj(*table_attr);
 		if (!table_attr)
 			return AE_NO_MEMORY;
 
@@ -491,7 +491,7 @@ static int acpi_table_data_init(struct acpi_table_header *th)
 
 	for (i = 0; i < NUM_ACPI_DATA_OBJS; i++) {
 		if (ACPI_COMPARE_NAMESEG(th->signature, acpi_data_objs[i].name)) {
-			data_attr = kzalloc(sizeof(*data_attr), GFP_KERNEL);
+			data_attr = kzalloc_obj(*data_attr);
 			if (!data_attr)
 				return -ENOMEM;
 			sysfs_attr_init(&data_attr->attr.attr);
@@ -532,7 +532,7 @@ static int acpi_tables_sysfs_init(void)
 		if (ACPI_FAILURE(status))
 			continue;
 
-		table_attr = kzalloc(sizeof(*table_attr), GFP_KERNEL);
+		table_attr = kzalloc_obj(*table_attr);
 		if (!table_attr)
 			return -ENOMEM;
 
@@ -864,11 +864,11 @@ void acpi_irq_stats_init(void)
 	num_gpes = acpi_current_gpe_count;
 	num_counters = num_gpes + ACPI_NUM_FIXED_EVENTS + NUM_COUNTERS_EXTRA;
 
-	all_attrs = kcalloc(num_counters + 1, sizeof(*all_attrs), GFP_KERNEL);
+	all_attrs = kzalloc_objs(*all_attrs, num_counters + 1);
 	if (all_attrs == NULL)
 		return;
 
-	all_counters = kcalloc(num_counters, sizeof(*all_counters), GFP_KERNEL);
+	all_counters = kzalloc_objs(*all_counters, num_counters);
 	if (all_counters == NULL)
 		goto fail;
 
@@ -876,7 +876,7 @@ void acpi_irq_stats_init(void)
 	if (ACPI_FAILURE(status))
 		goto fail;
 
-	counter_attrs = kcalloc(num_counters, sizeof(*counter_attrs), GFP_KERNEL);
+	counter_attrs = kzalloc_objs(*counter_attrs, num_counters);
 	if (counter_attrs == NULL)
 		goto fail;
 

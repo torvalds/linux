@@ -57,11 +57,12 @@ xfile_create(
 	struct xfile		*xf;
 	int			error;
 
-	xf = kmalloc(sizeof(struct xfile), XCHK_GFP_FLAGS);
+	xf = kmalloc_obj(struct xfile, XCHK_GFP_FLAGS);
 	if (!xf)
 		return -ENOMEM;
 
-	xf->file = shmem_kernel_file_setup(description, isize, VM_NORESERVE);
+	xf->file = shmem_kernel_file_setup(description, isize,
+					   mk_vma_flags(VMA_NORESERVE_BIT));
 	if (IS_ERR(xf->file)) {
 		error = PTR_ERR(xf->file);
 		goto out_xfile;

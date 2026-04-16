@@ -237,7 +237,7 @@ void omap2xxx_clkt_vps_init(void)
 	omap2xxx_clkt_vps_late_init();
 	omap2xxx_clkt_vps_check_bootloader_rates();
 
-	hw = kzalloc(sizeof(*hw), GFP_KERNEL);
+	hw = kzalloc_obj(*hw);
 	if (!hw)
 		return;
 	init.name = "virt_prcm_set";

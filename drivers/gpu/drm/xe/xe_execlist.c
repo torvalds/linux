@@ -352,7 +352,7 @@ static int execlist_exec_queue_init(struct xe_exec_queue *q)
 
 	drm_info(&xe->drm, "Enabling execlist submission (GuC submission disabled)\n");
 
-	exl = kzalloc(sizeof(*exl), GFP_KERNEL);
+	exl = kzalloc_obj(*exl);
 	if (!exl)
 		return -ENOMEM;
 

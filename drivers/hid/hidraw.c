@@ -281,7 +281,7 @@ static int hidraw_open(struct inode *inode, struct file *file)
 	unsigned long flags;
 	int err = 0;
 
-	if (!(list = kzalloc(sizeof(struct hidraw_list), GFP_KERNEL))) {
+	if (!(list = kzalloc_obj(struct hidraw_list))) {
 		err = -ENOMEM;
 		goto out;
 	}
@@ -603,7 +603,7 @@ int hidraw_connect(struct hid_device *hid)
 
 	/* we accept any HID device, all applications */
 
-	dev = kzalloc(sizeof(struct hidraw), GFP_KERNEL);
+	dev = kzalloc_obj(struct hidraw);
 	if (!dev)
 		return -ENOMEM;
 

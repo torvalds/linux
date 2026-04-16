@@ -2,7 +2,7 @@
 /*
  * Intel pinctrl/GPIO core driver.
  *
- * Copyright (C) 2015, Intel Corporation
+ * Copyright (C) 2015 Intel Corporation
  * Authors: Mathias Nyman <mathias.nyman@linux.intel.com>
  *          Mika Westerberg <mika.westerberg@linux.intel.com>
  */
@@ -1673,7 +1673,7 @@ int intel_pinctrl_probe(struct platform_device *pdev,
 
 	pctrl->pctldev = devm_pinctrl_register(dev, &pctrl->pctldesc, pctrl);
 	if (IS_ERR(pctrl->pctldev))
-		return dev_err_probe(dev, PTR_ERR(pctrl->pctldev), "failed to register pinctrl\n");
+		return PTR_ERR(pctrl->pctldev);
 
 	ret = intel_gpio_probe(pctrl, irq);
 	if (ret)

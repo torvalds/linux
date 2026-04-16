@@ -342,7 +342,7 @@ static int __init __uniphier_cache_init(struct device_node *np,
 		return -EINVAL;
 	}
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 

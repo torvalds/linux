@@ -420,7 +420,7 @@ struct hisi_qp **sec_create_qps(void)
 	u8 *type;
 	int ret;
 
-	qps = kcalloc(ctx_num, sizeof(struct hisi_qp *), GFP_KERNEL);
+	qps = kzalloc_objs(struct hisi_qp *, ctx_num);
 	if (!qps)
 		return NULL;
 

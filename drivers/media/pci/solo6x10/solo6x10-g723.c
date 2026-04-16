@@ -120,7 +120,7 @@ static int snd_solo_pcm_open(struct snd_pcm_substream *ss)
 	struct solo_dev *solo_dev = snd_pcm_substream_chip(ss);
 	struct solo_snd_pcm *solo_pcm;
 
-	solo_pcm = kzalloc(sizeof(*solo_pcm), GFP_KERNEL);
+	solo_pcm = kzalloc_obj(*solo_pcm);
 	if (solo_pcm == NULL)
 		goto oom;
 

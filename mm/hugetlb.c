@@ -154,7 +154,7 @@ struct hugepage_subpool *hugepage_new_subpool(struct hstate *h, long max_hpages,
 {
 	struct hugepage_subpool *spool;
 
-	spool = kzalloc(sizeof(*spool), GFP_KERNEL);
+	spool = kzalloc_obj(*spool);
 	if (!spool)
 		return NULL;
 
@@ -429,7 +429,7 @@ int hugetlb_vma_lock_alloc(struct vm_area_struct *vma)
 	if (vma->vm_private_data)
 		return -EINVAL;
 
-	vma_lock = kmalloc(sizeof(*vma_lock), GFP_KERNEL);
+	vma_lock = kmalloc_obj(*vma_lock);
 	if (!vma_lock) {
 		/*
 		 * If we can not allocate structure, then vma can not
@@ -687,7 +687,7 @@ static int allocate_file_region_entries(struct resv_map *resv,
 
 		spin_unlock(&resv->lock);
 		for (i = 0; i < to_allocate; i++) {
-			trg = kmalloc(sizeof(*trg), GFP_KERNEL);
+			trg = kmalloc_obj(*trg);
 			if (!trg)
 				goto out_of_memory;
 			list_add(&trg->link, &allocated_regions);
@@ -891,7 +891,7 @@ retry:
 
 			if (!nrg) {
 				spin_unlock(&resv->lock);
-				nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
+				nrg = kmalloc_obj(*nrg);
 				if (!nrg)
 					return -ENOMEM;
 				goto retry;
@@ -1105,8 +1105,8 @@ resv_map_set_hugetlb_cgroup_uncharge_info(struct resv_map *resv_map,
 
 struct resv_map *resv_map_alloc(void)
 {
-	struct resv_map *resv_map = kmalloc(sizeof(*resv_map), GFP_KERNEL);
-	struct file_region *rg = kmalloc(sizeof(*rg), GFP_KERNEL);
+	struct resv_map *resv_map = kmalloc_obj(*resv_map);
+	struct file_region *rg = kmalloc_obj(*rg);
 
 	if (!resv_map || !rg) {
 		kfree(resv_map);
@@ -1193,16 +1193,16 @@ static void set_vma_resv_flags(struct vm_area_struct *vma, unsigned long flags)
 
 static void set_vma_desc_resv_map(struct vm_area_desc *desc, struct resv_map *map)
 {
-	VM_WARN_ON_ONCE(!is_vm_hugetlb_flags(desc->vm_flags));
-	VM_WARN_ON_ONCE(desc->vm_flags & VM_MAYSHARE);
+	VM_WARN_ON_ONCE(!is_vma_hugetlb_flags(&desc->vma_flags));
+	VM_WARN_ON_ONCE(vma_desc_test_flags(desc, VMA_MAYSHARE_BIT));
 
 	desc->private_data = map;
 }
 
 static void set_vma_desc_resv_flags(struct vm_area_desc *desc, unsigned long flags)
 {
-	VM_WARN_ON_ONCE(!is_vm_hugetlb_flags(desc->vm_flags));
-	VM_WARN_ON_ONCE(desc->vm_flags & VM_MAYSHARE);
+	VM_WARN_ON_ONCE(!is_vma_hugetlb_flags(&desc->vma_flags));
+	VM_WARN_ON_ONCE(vma_desc_test_flags(desc, VMA_MAYSHARE_BIT));
 
 	desc->private_data = (void *)((unsigned long)desc->private_data | flags);
 }
@@ -1216,7 +1216,7 @@ static int is_vma_resv_set(struct vm_area_struct *vma, unsigned long flag)
 
 static bool is_vma_desc_resv_set(struct vm_area_desc *desc, unsigned long flag)
 {
-	VM_WARN_ON_ONCE(!is_vm_hugetlb_flags(desc->vm_flags));
+	VM_WARN_ON_ONCE(!is_vma_hugetlb_flags(&desc->vma_flags));
 
 	return ((unsigned long)desc->private_data) & flag;
 }
@@ -3101,7 +3101,7 @@ static __init void *alloc_bootmem(struct hstate *h, int nid, bool node_exact)
 			 * extract the actual node first.
 			 */
 			if (m)
-				listnode = early_pfn_to_nid(PHYS_PFN(virt_to_phys(m)));
+				listnode = early_pfn_to_nid(PHYS_PFN(__pa(m)));
 		}
 
 		if (m) {
@@ -3160,7 +3160,7 @@ found:
 	 * The head struct page is used to get folio information by the HugeTLB
 	 * subsystem like zone id and node id.
 	 */
-	memblock_reserved_mark_noinit(virt_to_phys((void *)m + PAGE_SIZE),
+	memblock_reserved_mark_noinit(__pa((void *)m + PAGE_SIZE),
 		huge_page_size(h) - PAGE_SIZE);
 
 	return 1;
@@ -4190,8 +4190,7 @@ static int __init hugetlb_init(void)
 	num_fault_mutexes = 1;
 #endif
 	hugetlb_fault_mutex_table =
-		kmalloc_array(num_fault_mutexes, sizeof(struct mutex),
-			      GFP_KERNEL);
+		kmalloc_objs(struct mutex, num_fault_mutexes);
 	BUG_ON(!hugetlb_fault_mutex_table);
 
 	for (i = 0; i < num_fault_mutexes; i++)
@@ -6571,7 +6570,7 @@ next:
 long hugetlb_reserve_pages(struct inode *inode,
 		long from, long to,
 		struct vm_area_desc *desc,
-		vm_flags_t vm_flags)
+		vma_flags_t vma_flags)
 {
 	long chg = -1, add = -1, spool_resv, gbl_resv;
 	struct hstate *h = hstate_inode(inode);
@@ -6592,7 +6591,7 @@ long hugetlb_reserve_pages(struct inode *inode,
 	 * attempt will be made for VM_NORESERVE to allocate a page
 	 * without using reserves
 	 */
-	if (vm_flags & VM_NORESERVE)
+	if (vma_flags_test(&vma_flags, VMA_NORESERVE_BIT))
 		return 0;
 
 	/*
@@ -6601,7 +6600,7 @@ long hugetlb_reserve_pages(struct inode *inode,
 	 * to reserve the full area even if read-only as mprotect() may be
 	 * called to make the mapping read-write. Assume !desc is a shm mapping
 	 */
-	if (!desc || desc->vm_flags & VM_MAYSHARE) {
+	if (!desc || vma_desc_test_flags(desc, VMA_MAYSHARE_BIT)) {
 		/*
 		 * resv_map can not be NULL as hugetlb_reserve_pages is only
 		 * called for inodes for which resv_maps were created (see
@@ -6635,7 +6634,7 @@ long hugetlb_reserve_pages(struct inode *inode,
 	if (err < 0)
 		goto out_err;
 
-	if (desc && !(desc->vm_flags & VM_MAYSHARE) && h_cg) {
+	if (desc && !vma_desc_test_flags(desc, VMA_MAYSHARE_BIT) && h_cg) {
 		/* For private mappings, the hugetlb_cgroup uncharge info hangs
 		 * of the resv_map.
 		 */
@@ -6672,7 +6671,7 @@ long hugetlb_reserve_pages(struct inode *inode,
 	 * consumed reservations are stored in the map. Hence, nothing
 	 * else has to be done for private mappings here
 	 */
-	if (!desc || desc->vm_flags & VM_MAYSHARE) {
+	if (!desc || vma_desc_test_flags(desc, VMA_MAYSHARE_BIT)) {
 		add = region_add(resv_map, from, to, regions_needed, h, h_cg);
 
 		if (unlikely(add < 0)) {
@@ -6736,7 +6735,7 @@ out_uncharge_cgroup:
 	hugetlb_cgroup_uncharge_cgroup_rsvd(hstate_index(h),
 					    chg * pages_per_huge_page(h), h_cg);
 out_err:
-	if (!desc || desc->vm_flags & VM_MAYSHARE)
+	if (!desc || vma_desc_test_flags(desc, VMA_MAYSHARE_BIT))
 		/* Only call region_abort if the region_chg succeeded but the
 		 * region_add failed or didn't run.
 		 */

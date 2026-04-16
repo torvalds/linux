@@ -344,7 +344,7 @@ void __iomem __ref
 		goto out;
 	}
 
-	map = kzalloc(sizeof(*map), GFP_KERNEL);
+	map = kzalloc_obj(*map);
 	if (!map) {
 		mutex_unlock(&acpi_ioremap_lock);
 		return NULL;
@@ -1117,7 +1117,7 @@ acpi_status acpi_os_execute(acpi_execute_type type,
 	 * having a static work_struct.
 	 */
 
-	dpc = kzalloc(sizeof(struct acpi_os_dpc), GFP_ATOMIC);
+	dpc = kzalloc_obj(struct acpi_os_dpc, GFP_ATOMIC);
 	if (!dpc)
 		return AE_NO_MEMORY;
 
@@ -1197,7 +1197,7 @@ acpi_status acpi_hotplug_schedule(struct acpi_device *adev, u32 src)
 			  "Scheduling hotplug event %u for deferred handling\n",
 			   src);
 
-	hpw = kmalloc(sizeof(*hpw), GFP_KERNEL);
+	hpw = kmalloc_obj(*hpw);
 	if (!hpw)
 		return AE_NO_MEMORY;
 
@@ -1681,7 +1681,7 @@ acpi_status __init acpi_os_initialize(void)
 		 * Use acpi_os_map_generic_address to pre-map the reset
 		 * register if it's in system memory.
 		 */
-		void *rv;
+		void __iomem *rv;
 
 		rv = acpi_os_map_generic_address(&acpi_gbl_FADT.reset_register);
 		pr_debug("%s: Reset register mapping %s\n", __func__,

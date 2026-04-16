@@ -50,7 +50,7 @@ int snd_gf1_mem_proc_init(struct snd_gus_card * gus)
 
 	for (idx = 0; idx < 4; idx++) {
 		if (gus->gf1.mem_alloc.banks_8[idx].size > 0) {
-			priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+			priv = kzalloc_obj(*priv);
 			if (priv == NULL)
 				return -ENOMEM;
 			priv->gus = gus;
@@ -67,7 +67,7 @@ int snd_gf1_mem_proc_init(struct snd_gus_card * gus)
 	}
 	for (idx = 0; idx < 4; idx++) {
 		if (gus->gf1.rom_present & (1 << idx)) {
-			priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+			priv = kzalloc_obj(*priv);
 			if (priv == NULL)
 				return -ENOMEM;
 			priv->rom = 1;

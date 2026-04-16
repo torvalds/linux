@@ -35,13 +35,19 @@ enum {
 	 * If set, any currently unset opcode will have a deny filter attached
 	 */
 	IO_URING_BPF_FILTER_DENY_REST	= 1,
+	/*
+	 * If set, if kernel and application don't agree on pdu_size for
+	 * the given opcode, fail the registration of the filter.
+	 */
+	IO_URING_BPF_FILTER_SZ_STRICT	= 2,
 };
 
 struct io_uring_bpf_filter {
 	__u32	opcode;		/* io_uring opcode to filter */
 	__u32	flags;
 	__u32	filter_len;	/* number of BPF instructions */
-	__u32	resv;
+	__u8	pdu_size;	/* expected pdu size for opcode */
+	__u8	resv[3];
 	__u64	filter_ptr;	/* pointer to BPF filter */
 	__u64	resv2[5];
 };

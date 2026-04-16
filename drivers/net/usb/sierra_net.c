@@ -683,7 +683,7 @@ static int sierra_net_bind(struct usbnet *dev, struct usb_interface *intf)
 		return -ENODEV;
 	}
 	/* Initialize sierra private data */
-	priv = kzalloc(sizeof *priv, GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

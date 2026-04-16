@@ -779,7 +779,7 @@ int v4l2_async_subdev_endpoint_add(struct v4l2_subdev *sd,
 {
 	struct v4l2_async_subdev_endpoint *ase;
 
-	ase = kmalloc(sizeof(*ase), GFP_KERNEL);
+	ase = kmalloc_obj(*ase);
 	if (!ase)
 		return -ENOMEM;
 

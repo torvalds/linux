@@ -905,7 +905,7 @@ __xe_oa_alloc_config_buffer(struct xe_oa_stream *stream, struct xe_oa_config *oa
 	size_t config_length;
 	struct xe_bb *bb;
 
-	oa_bo = kzalloc(sizeof(*oa_bo), GFP_KERNEL);
+	oa_bo = kzalloc_obj(*oa_bo);
 	if (!oa_bo)
 		return ERR_PTR(-ENOMEM);
 
@@ -997,7 +997,7 @@ static int xe_oa_emit_oa_config(struct xe_oa_stream *stream, struct xe_oa_config
 	int i, err, num_signal = 0;
 	struct dma_fence *fence;
 
-	ofence = kzalloc(sizeof(*ofence), GFP_KERNEL);
+	ofence = kzalloc_obj(*ofence);
 	if (!ofence) {
 		err = -ENOMEM;
 		goto exit;
@@ -1408,7 +1408,7 @@ static int xe_oa_parse_syncs(struct xe_oa *oa,
 	}
 
 	if (param->num_syncs) {
-		param->syncs = kcalloc(param->num_syncs, sizeof(*param->syncs), GFP_KERNEL);
+		param->syncs = kzalloc_objs(*param->syncs, param->num_syncs);
 		if (!param->syncs) {
 			ret = -ENOMEM;
 			goto exit;
@@ -1852,7 +1852,7 @@ static int xe_oa_stream_open_ioctl_locked(struct xe_oa *oa,
 	if (ret)
 		goto exit;
 
-	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
+	stream = kzalloc_obj(*stream);
 	if (!stream) {
 		ret = -ENOMEM;
 		goto err_syncobj;
@@ -2259,7 +2259,7 @@ xe_oa_alloc_regs(struct xe_oa *oa, bool (*is_valid)(struct xe_oa *oa, u32 addr),
 	int err;
 	u32 i;
 
-	oa_regs = kmalloc_array(n_regs, sizeof(*oa_regs), GFP_KERNEL);
+	oa_regs = kmalloc_objs(*oa_regs, n_regs);
 	if (!oa_regs)
 		return ERR_PTR(-ENOMEM);
 
@@ -2361,7 +2361,7 @@ int xe_oa_add_config_ioctl(struct drm_device *dev, u64 data, struct drm_file *fi
 	    XE_IOCTL_DBG(oa->xe, !arg->n_regs))
 		return -EINVAL;
 
-	oa_config = kzalloc(sizeof(*oa_config), GFP_KERNEL);
+	oa_config = kzalloc_obj(*oa_config);
 	if (!oa_config)
 		return -ENOMEM;
 

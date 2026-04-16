@@ -1936,7 +1936,7 @@ int otx2_alloc_queue_mem(struct otx2_nic *pf)
 
 	pf->qset.cq_cnt = pf->hw.rx_queues + otx2_get_total_tx_queues(pf);
 
-	qset->napi = kcalloc(pf->hw.cint_cnt, sizeof(*cq_poll), GFP_KERNEL);
+	qset->napi = kzalloc_objs(*cq_poll, pf->hw.cint_cnt);
 	if (!qset->napi)
 		return -ENOMEM;
 
@@ -1945,18 +1945,16 @@ int otx2_alloc_queue_mem(struct otx2_nic *pf)
 	/* CQ size of SQ */
 	qset->sqe_cnt = qset->sqe_cnt ? qset->sqe_cnt : Q_COUNT(Q_SIZE_4K);
 
-	qset->cq = kcalloc(pf->qset.cq_cnt,
-			   sizeof(struct otx2_cq_queue), GFP_KERNEL);
+	qset->cq = kzalloc_objs(struct otx2_cq_queue, pf->qset.cq_cnt);
 	if (!qset->cq)
 		goto err_free_mem;
 
-	qset->sq = kcalloc(otx2_get_total_tx_queues(pf),
-			   sizeof(struct otx2_snd_queue), GFP_KERNEL);
+	qset->sq = kzalloc_objs(struct otx2_snd_queue,
+				otx2_get_total_tx_queues(pf));
 	if (!qset->sq)
 		goto err_free_mem;
 
-	qset->rq = kcalloc(pf->hw.rx_queues,
-			   sizeof(struct otx2_rcv_queue), GFP_KERNEL);
+	qset->rq = kzalloc_objs(struct otx2_rcv_queue, pf->hw.rx_queues);
 	if (!qset->rq)
 		goto err_free_mem;
 

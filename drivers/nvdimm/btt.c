@@ -539,8 +539,7 @@ static int btt_freelist_init(struct arena_info *arena)
 	struct log_entry log_new;
 	u32 i, map_entry, log_oldmap, log_newmap;
 
-	arena->freelist = kcalloc(arena->nfree, sizeof(struct free_entry),
-					GFP_KERNEL);
+	arena->freelist = kzalloc_objs(struct free_entry, arena->nfree);
 	if (!arena->freelist)
 		return -ENOMEM;
 
@@ -733,8 +732,7 @@ static int btt_maplocks_init(struct arena_info *arena)
 {
 	u32 i;
 
-	arena->map_locks = kcalloc(arena->nfree, sizeof(struct aligned_lock),
-				GFP_KERNEL);
+	arena->map_locks = kzalloc_objs(struct aligned_lock, arena->nfree);
 	if (!arena->map_locks)
 		return -ENOMEM;
 
@@ -751,7 +749,7 @@ static struct arena_info *alloc_arena(struct btt *btt, size_t size,
 	u64 logsize, mapsize, datasize;
 	u64 available = size;
 
-	arena = kzalloc(sizeof(*arena), GFP_KERNEL);
+	arena = kzalloc_obj(*arena);
 	if (!arena)
 		return NULL;
 	arena->nd_btt = btt->nd_btt;
@@ -854,7 +852,7 @@ static int discover_arenas(struct btt *btt)
 	size_t cur_off = 0;
 	int num_arenas = 0;
 
-	struct btt_sb *super __free(kfree) = kzalloc(sizeof(*super), GFP_KERNEL);
+	struct btt_sb *super __free(kfree) = kzalloc_obj(*super);
 	if (!super)
 		return -ENOMEM;
 
@@ -978,7 +976,7 @@ static int btt_arena_write_layout(struct arena_info *arena)
 	if (ret)
 		return ret;
 
-	super = kzalloc(sizeof(*super), GFP_NOIO);
+	super = kzalloc_obj(*super, GFP_NOIO);
 	if (!super)
 		return -ENOMEM;
 

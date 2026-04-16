@@ -359,9 +359,8 @@ int idpf_intr_req(struct idpf_adapter *adapter)
 			num_rdma_vecs = IDPF_MIN_RDMA_VEC;
 		}
 
-		adapter->rdma_msix_entries = kcalloc(num_rdma_vecs,
-						     sizeof(struct msix_entry),
-						     GFP_KERNEL);
+		adapter->rdma_msix_entries = kzalloc_objs(struct msix_entry,
+							  num_rdma_vecs);
 		if (!adapter->rdma_msix_entries) {
 			err = -ENOMEM;
 			goto free_irq;
@@ -369,8 +368,7 @@ int idpf_intr_req(struct idpf_adapter *adapter)
 	}
 
 	num_lan_vecs = actual_vecs - num_rdma_vecs;
-	adapter->msix_entries = kcalloc(num_lan_vecs, sizeof(struct msix_entry),
-					GFP_KERNEL);
+	adapter->msix_entries = kzalloc_objs(struct msix_entry, num_lan_vecs);
 	if (!adapter->msix_entries) {
 		err = -ENOMEM;
 		goto free_rdma_msix;
@@ -577,7 +575,7 @@ static int __idpf_add_mac_filter(struct idpf_vport_config *vport_config,
 		return 0;
 	}
 
-	f = kzalloc(sizeof(*f), GFP_ATOMIC);
+	f = kzalloc_obj(*f, GFP_ATOMIC);
 	if (!f) {
 		spin_unlock_bh(&vport_config->mac_filter_list_lock);
 
@@ -1239,7 +1237,7 @@ static struct idpf_vport *idpf_vport_alloc(struct idpf_adapter *adapter,
 	if (idx == IDPF_NO_FREE_SLOT)
 		return NULL;
 
-	vport = kzalloc(sizeof(*vport), GFP_KERNEL);
+	vport = kzalloc_obj(*vport);
 	if (!vport)
 		return vport;
 
@@ -1248,14 +1246,14 @@ static struct idpf_vport *idpf_vport_alloc(struct idpf_adapter *adapter,
 		struct idpf_vport_config *vport_config;
 		struct idpf_q_coalesce *q_coal;
 
-		vport_config = kzalloc(sizeof(*vport_config), GFP_KERNEL);
+		vport_config = kzalloc_obj(*vport_config);
 		if (!vport_config) {
 			kfree(vport);
 
 			return NULL;
 		}
 
-		q_coal = kcalloc(num_max_q, sizeof(*q_coal), GFP_KERNEL);
+		q_coal = kzalloc_objs(*q_coal, num_max_q);
 		if (!q_coal) {
 			kfree(vport_config);
 			kfree(vport);
@@ -1320,6 +1318,7 @@ static struct idpf_vport *idpf_vport_alloc(struct idpf_adapter *adapter,
 
 free_rss_key:
 	kfree(rss_data->rss_key);
+	rss_data->rss_key = NULL;
 free_qreg_chunks:
 	idpf_vport_deinit_queue_reg_chunks(adapter->vport_config[idx]);
 free_vector_idxs:
@@ -2027,7 +2026,7 @@ int idpf_initiate_soft_reset(struct idpf_vport *vport,
 	 * error occurred, the existing vport will be untouched.
 	 *
 	 */
-	new_vport = kzalloc(sizeof(*vport), GFP_KERNEL);
+	new_vport = kzalloc_obj(*vport);
 	if (!new_vport)
 		return -ENOMEM;
 

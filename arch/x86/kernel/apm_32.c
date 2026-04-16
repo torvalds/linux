@@ -1576,7 +1576,7 @@ static int do_open(struct inode *inode, struct file *filp)
 {
 	struct apm_user *as;
 
-	as = kmalloc(sizeof(*as), GFP_KERNEL);
+	as = kmalloc_obj(*as);
 	if (as == NULL)
 		return -ENOMEM;
 

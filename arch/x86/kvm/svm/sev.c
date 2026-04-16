@@ -2512,7 +2512,7 @@ static int snp_launch_finish(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	if (ret)
 		return ret;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL_ACCOUNT);
+	data = kzalloc_obj(*data, GFP_KERNEL_ACCOUNT);
 	if (!data)
 		return -ENOMEM;
 
@@ -2711,7 +2711,7 @@ int sev_mem_enc_register_region(struct kvm *kvm,
 	if (range->addr > ULONG_MAX || range->size > ULONG_MAX)
 		return -EINVAL;
 
-	region = kzalloc(sizeof(*region), GFP_KERNEL_ACCOUNT);
+	region = kzalloc_obj(*region, GFP_KERNEL_ACCOUNT);
 	if (!region)
 		return -ENOMEM;
 

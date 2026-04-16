@@ -506,6 +506,7 @@ int amdgpu_dm_crtc_configure_crc_source(struct drm_crtc *crtc,
 	struct amdgpu_dm_connector *aconnector = NULL;
 	bool enable = amdgpu_dm_is_valid_crc_source(source);
 	int ret = 0;
+	enum crc_poly_mode crc_poly_mode = CRC_POLY_MODE_16;
 
 	/* Configuration will be deferred to stream enable. */
 	if (!stream_state)
@@ -528,10 +529,18 @@ int amdgpu_dm_crtc_configure_crc_source(struct drm_crtc *crtc,
 		amdgpu_dm_replay_disable(stream_state);
 	}
 
+	/* CRC polynomial selection only support for DCN3.6+ except DCN4.0.1 */
+	if ((amdgpu_ip_version(adev, DCE_HWIP, 0) >= IP_VERSION(3, 6, 0)) &&
+		(amdgpu_ip_version(adev, DCE_HWIP, 0) != IP_VERSION(4, 0, 1))) {
+		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+
+		crc_poly_mode = acrtc->dm_irq_params.crc_poly_mode;
+	}
+
 	/* Enable or disable CRTC CRC generation */
 	if (dm_is_crc_source_crtc(source) || source == AMDGPU_DM_PIPE_CRC_SOURCE_NONE) {
 		if (!dc_stream_configure_crc(stream_state->ctx->dc,
-					     stream_state, NULL, enable, enable, 0, true)) {
+					     stream_state, NULL, enable, enable, 0, true, crc_poly_mode)) {
 			ret = -EINVAL;
 			goto unlock;
 		}
@@ -877,7 +886,7 @@ void amdgpu_dm_crtc_handle_crc_window_irq(struct drm_crtc *crtc)
 			else if (adev->dm.secure_display_ctx.op_mode == DISPLAY_CRC_MODE)
 				/* update ROI via dm*/
 				dc_stream_configure_crc(stream_state->ctx->dc, stream_state,
-					&crc_window, true, true, i, false);
+					&crc_window, true, true, i, false, (enum crc_poly_mode)acrtc->dm_irq_params.crc_poly_mode);
 
 			reset_crc_frame_count[i] = true;
 
@@ -901,7 +910,7 @@ void amdgpu_dm_crtc_handle_crc_window_irq(struct drm_crtc *crtc)
 			else if (adev->dm.secure_display_ctx.op_mode == DISPLAY_CRC_MODE)
 				/* Avoid ROI window get changed, keep overwriting. */
 				dc_stream_configure_crc(stream_state->ctx->dc, stream_state,
-						&crc_window, true, true, i, false);
+						&crc_window, true, true, i, false, (enum crc_poly_mode)acrtc->dm_irq_params.crc_poly_mode);
 
 			/* crc ready for psp to read out */
 			crtc_ctx->crc_info.crc[i].crc_ready = true;
@@ -949,9 +958,8 @@ void amdgpu_dm_crtc_secure_display_create_contexts(struct amdgpu_device *adev)
 	struct secure_display_crtc_context *crtc_ctx = NULL;
 	int i;
 
-	crtc_ctx = kcalloc(adev->mode_info.num_crtc,
-				      sizeof(struct secure_display_crtc_context),
-				      GFP_KERNEL);
+	crtc_ctx = kzalloc_objs(struct secure_display_crtc_context,
+				adev->mode_info.num_crtc);
 
 	if (!crtc_ctx) {
 		adev->dm.secure_display_ctx.crtc_ctx = NULL;

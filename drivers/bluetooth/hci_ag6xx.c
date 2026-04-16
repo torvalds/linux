@@ -36,7 +36,7 @@ static int ag6xx_open(struct hci_uart *hu)
 
 	BT_DBG("hu %p", hu);
 
-	ag6xx = kzalloc(sizeof(*ag6xx), GFP_KERNEL);
+	ag6xx = kzalloc_obj(*ag6xx);
 	if (!ag6xx)
 		return -ENOMEM;
 

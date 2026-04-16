@@ -1021,8 +1021,7 @@ static int dcbnl_build_peer_app(struct net_device *netdev, struct sk_buff* skb,
 	 */
 	err = ops->peer_getappinfo(netdev, &info, &app_count);
 	if (!err && app_count) {
-		table = kmalloc_array(app_count, sizeof(struct dcb_app),
-				      GFP_KERNEL);
+		table = kmalloc_objs(struct dcb_app, app_count);
 		if (!table)
 			return -ENOMEM;
 
@@ -2004,7 +2003,7 @@ static int dcb_app_add(struct list_head *list, const struct dcb_app *app,
 {
 	struct dcb_app_type *entry;
 
-	entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
+	entry = kmalloc_obj(*entry, GFP_ATOMIC);
 	if (!entry)
 		return -ENOMEM;
 

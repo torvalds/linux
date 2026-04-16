@@ -971,7 +971,7 @@ static int rkvdec_vp9_start(struct rkvdec_ctx *ctx)
 	unsigned char *count_tbl;
 	int ret;
 
-	vp9_ctx = kzalloc(sizeof(*vp9_ctx), GFP_KERNEL);
+	vp9_ctx = kzalloc_obj(*vp9_ctx);
 	if (!vp9_ctx)
 		return -ENOMEM;
 

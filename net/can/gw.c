@@ -1099,7 +1099,7 @@ static int cgw_create_job(struct sk_buff *skb,  struct nlmsghdr *nlh,
 	if (r->gwtype != CGW_TYPE_CAN_CAN)
 		return -EINVAL;
 
-	mod = kmalloc(sizeof(*mod), GFP_KERNEL);
+	mod = kmalloc_obj(*mod);
 	if (!mod)
 		return -ENOMEM;
 

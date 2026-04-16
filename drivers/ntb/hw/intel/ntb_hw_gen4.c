@@ -46,6 +46,16 @@ static const struct intel_ntb_alt_reg gen4_b2b_reg = {
 	.spad			= GEN4_EM_SPAD_OFFSET,
 };
 
+static u64 get_ppd0(struct pci_dev *pdev)
+{
+	if (pdev_is_gen4(pdev) || pdev_is_gen5(pdev))
+		return GEN4_PPD0_OFFSET;
+	else if (pdev_is_gen6(pdev))
+		return GEN6_PPD0_OFFSET;
+
+	return ULLONG_MAX;
+}
+
 static int gen4_poll_link(struct intel_ntb_dev *ndev)
 {
 	u16 reg_val;
@@ -183,7 +193,7 @@ static enum ntb_topo spr_ppd_topo(struct intel_ntb_dev *ndev, u32 ppd)
 int gen4_init_dev(struct intel_ntb_dev *ndev)
 {
 	struct pci_dev *pdev = ndev->ntb.pdev;
-	u32 ppd1/*, ppd0*/;
+	u32 ppd1;
 	u16 lnkctl;
 	int rc;
 
@@ -197,7 +207,7 @@ int gen4_init_dev(struct intel_ntb_dev *ndev)
 	ppd1 = ioread32(ndev->self_mmio + GEN4_PPD1_OFFSET);
 	if (pdev_is_ICX(pdev))
 		ndev->ntb.topo = gen4_ppd_topo(ndev, ppd1);
-	else if (pdev_is_SPR(pdev) || pdev_is_gen5(pdev))
+	else if (pdev_is_SPR(pdev) || pdev_is_gen5(pdev) || pdev_is_gen6(pdev))
 		ndev->ntb.topo = spr_ppd_topo(ndev, ppd1);
 	dev_dbg(&pdev->dev, "ppd %#x topo %s\n", ppd1,
 		ntb_topo_string(ndev->ntb.topo));
@@ -432,10 +442,12 @@ static int intel_ntb4_link_enable(struct ntb_dev *ntb,
 		enum ntb_speed max_speed, enum ntb_width max_width)
 {
 	struct intel_ntb_dev *ndev;
+	struct pci_dev *pdev;
 	u32 ntb_ctl, ppd0;
 	u16 lnkctl;
 
 	ndev = container_of(ntb, struct intel_ntb_dev, ntb);
+	pdev = ntb->pdev;
 
 	dev_dbg(&ntb->pdev->dev,
 			"Enabling link with max_speed %d max_width %d\n",
@@ -476,12 +488,12 @@ static int intel_ntb4_link_enable(struct ntb_dev *ntb,
 	iowrite16(lnkctl, ndev->self_mmio + GEN4_LINK_CTRL_OFFSET);
 
 	/* start link training in PPD0 */
-	ppd0 = ioread32(ndev->self_mmio + GEN4_PPD0_OFFSET);
+	ppd0 = ioread32(ndev->self_mmio + get_ppd0(pdev));
 	ppd0 |= GEN4_PPD_LINKTRN;
-	iowrite32(ppd0, ndev->self_mmio + GEN4_PPD0_OFFSET);
+	iowrite32(ppd0, ndev->self_mmio + get_ppd0(pdev));
 
 	/* make sure link training has started */
-	ppd0 = ioread32(ndev->self_mmio + GEN4_PPD0_OFFSET);
+	ppd0 = ioread32(ndev->self_mmio + get_ppd0(pdev));
 	if (!(ppd0 & GEN4_PPD_LINKTRN)) {
 		dev_warn(&ntb->pdev->dev, "Link is not training\n");
 		return -ENXIO;

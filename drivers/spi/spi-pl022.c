@@ -1606,7 +1606,7 @@ static int pl022_setup(struct spi_device *spi)
 	chip = spi_get_ctldata(spi);
 
 	if (chip == NULL) {
-		chip = kzalloc(sizeof(struct chip_data), GFP_KERNEL);
+		chip = kzalloc_obj(struct chip_data);
 		if (!chip)
 			return -ENOMEM;
 		dev_dbg(&spi->dev,

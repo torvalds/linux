@@ -73,7 +73,7 @@ static struct iscsi_param *iscsi_set_default_param(struct iscsi_param_list *para
 {
 	struct iscsi_param *param = NULL;
 
-	param = kzalloc(sizeof(struct iscsi_param), GFP_KERNEL);
+	param = kzalloc_obj(struct iscsi_param);
 	if (!param) {
 		pr_err("Unable to allocate memory for parameter.\n");
 		goto out;
@@ -148,7 +148,7 @@ int iscsi_create_default_params(struct iscsi_param_list **param_list_ptr)
 	struct iscsi_param *param = NULL;
 	struct iscsi_param_list *pl;
 
-	pl = kzalloc(sizeof(struct iscsi_param_list), GFP_KERNEL);
+	pl = kzalloc_obj(struct iscsi_param_list);
 	if (!pl) {
 		pr_err("Unable to allocate memory for"
 				" struct iscsi_param_list.\n");
@@ -519,7 +519,7 @@ int iscsi_copy_param_list(
 	struct iscsi_param *new_param = NULL;
 	struct iscsi_param_list *param_list = NULL;
 
-	param_list = kzalloc(sizeof(struct iscsi_param_list), GFP_KERNEL);
+	param_list = kzalloc_obj(struct iscsi_param_list);
 	if (!param_list) {
 		pr_err("Unable to allocate memory for struct iscsi_param_list.\n");
 		return -ENOMEM;
@@ -535,7 +535,7 @@ int iscsi_copy_param_list(
 				continue;
 		}
 
-		new_param = kzalloc(sizeof(struct iscsi_param), GFP_KERNEL);
+		new_param = kzalloc_obj(struct iscsi_param);
 		if (!new_param) {
 			pr_err("Unable to allocate memory for struct iscsi_param.\n");
 			goto err_out;
@@ -670,7 +670,7 @@ static int iscsi_add_notunderstood_response(
 		return -1;
 	}
 
-	extra_response = kzalloc(sizeof(struct iscsi_extra_response), GFP_KERNEL);
+	extra_response = kzalloc_obj(struct iscsi_extra_response);
 	if (!extra_response) {
 		pr_err("Unable to allocate memory for"
 			" struct iscsi_extra_response.\n");

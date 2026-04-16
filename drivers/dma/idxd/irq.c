@@ -492,7 +492,7 @@ irqreturn_t idxd_misc_thread(int vec, void *data)
 
 		val |= IDXD_INTC_INT_HANDLE_REVOKED;
 
-		revoke = kzalloc(sizeof(*revoke), GFP_ATOMIC);
+		revoke = kzalloc_obj(*revoke, GFP_ATOMIC);
 		if (revoke) {
 			revoke->idxd = idxd;
 			INIT_WORK(&revoke->work, idxd_int_handle_revoke);
@@ -567,7 +567,7 @@ bool idxd_queue_int_handle_resubmit(struct idxd_desc *desc)
 	struct idxd_device *idxd = wq->idxd;
 	struct idxd_resubmit *irw;
 
-	irw = kzalloc(sizeof(*irw), GFP_KERNEL);
+	irw = kzalloc_obj(*irw);
 	if (!irw)
 		return false;
 

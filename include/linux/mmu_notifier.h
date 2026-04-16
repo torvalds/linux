@@ -234,7 +234,7 @@ struct mmu_notifier {
 };
 
 /**
- * struct mmu_interval_notifier_ops
+ * struct mmu_interval_notifier_ops - callback for range notification
  * @invalidate: Upon return the caller must stop using any SPTEs within this
  *              range. This function can sleep. Return false only if sleeping
  *              was required but mmu_notifier_range_blockable(range) is false.
@@ -309,8 +309,8 @@ void mmu_interval_notifier_remove(struct mmu_interval_notifier *interval_sub);
 
 /**
  * mmu_interval_set_seq - Save the invalidation sequence
- * @interval_sub - The subscription passed to invalidate
- * @cur_seq - The cur_seq passed to the invalidate() callback
+ * @interval_sub: The subscription passed to invalidate
+ * @cur_seq: The cur_seq passed to the invalidate() callback
  *
  * This must be called unconditionally from the invalidate callback of a
  * struct mmu_interval_notifier_ops under the same lock that is used to call
@@ -329,8 +329,8 @@ mmu_interval_set_seq(struct mmu_interval_notifier *interval_sub,
 
 /**
  * mmu_interval_read_retry - End a read side critical section against a VA range
- * interval_sub: The subscription
- * seq: The return of the paired mmu_interval_read_begin()
+ * @interval_sub: The subscription
+ * @seq: The return of the paired mmu_interval_read_begin()
  *
  * This MUST be called under a user provided lock that is also held
  * unconditionally by op->invalidate() when it calls mmu_interval_set_seq().
@@ -338,7 +338,7 @@ mmu_interval_set_seq(struct mmu_interval_notifier *interval_sub,
  * Each call should be paired with a single mmu_interval_read_begin() and
  * should be used to conclude the read side.
  *
- * Returns true if an invalidation collided with this critical section, and
+ * Returns: true if an invalidation collided with this critical section, and
  * the caller should retry.
  */
 static inline bool
@@ -350,20 +350,21 @@ mmu_interval_read_retry(struct mmu_interval_notifier *interval_sub,
 
 /**
  * mmu_interval_check_retry - Test if a collision has occurred
- * interval_sub: The subscription
- * seq: The return of the matching mmu_interval_read_begin()
+ * @interval_sub: The subscription
+ * @seq: The return of the matching mmu_interval_read_begin()
  *
  * This can be used in the critical section between mmu_interval_read_begin()
- * and mmu_interval_read_retry().  A return of true indicates an invalidation
- * has collided with this critical region and a future
- * mmu_interval_read_retry() will return true.
- *
- * False is not reliable and only suggests a collision may not have
- * occurred. It can be called many times and does not have to hold the user
- * provided lock.
+ * and mmu_interval_read_retry().
  *
  * This call can be used as part of loops and other expensive operations to
  * expedite a retry.
+ * It can be called many times and does not have to hold the user
+ * provided lock.
+ *
+ * Returns: true indicates an invalidation has collided with this critical
+ * region and a future mmu_interval_read_retry() will return true.
+ * False is not reliable and only suggests a collision may not have
+ * occurred.
  */
 static inline bool
 mmu_interval_check_retry(struct mmu_interval_notifier *interval_sub,
@@ -515,16 +516,17 @@ static inline void mmu_notifier_range_init_owner(
 	range->owner = owner;
 }
 
-#define ptep_clear_flush_young_notify(__vma, __address, __ptep)		\
+#define clear_flush_young_ptes_notify(__vma, __address, __ptep, __nr)	\
 ({									\
 	int __young;							\
 	struct vm_area_struct *___vma = __vma;				\
 	unsigned long ___address = __address;				\
-	__young = ptep_clear_flush_young(___vma, ___address, __ptep);	\
+	unsigned int ___nr = __nr;					\
+	__young = clear_flush_young_ptes(___vma, ___address, __ptep, ___nr);	\
 	__young |= mmu_notifier_clear_flush_young(___vma->vm_mm,	\
 						  ___address,		\
 						  ___address +		\
-							PAGE_SIZE);	\
+						  ___nr * PAGE_SIZE);	\
 	__young;							\
 })
 
@@ -650,7 +652,7 @@ static inline void mmu_notifier_subscriptions_destroy(struct mm_struct *mm)
 
 #define mmu_notifier_range_update_to_read_only(r) false
 
-#define ptep_clear_flush_young_notify ptep_clear_flush_young
+#define clear_flush_young_ptes_notify clear_flush_young_ptes
 #define pmdp_clear_flush_young_notify pmdp_clear_flush_young
 #define ptep_clear_young_notify ptep_test_and_clear_young
 #define pmdp_clear_young_notify pmdp_test_and_clear_young

@@ -200,7 +200,7 @@ static int fops_vcodec_open(struct file *file)
 	struct vb2_queue *src_vq;
 	unsigned long flags;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

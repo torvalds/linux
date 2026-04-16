@@ -304,7 +304,7 @@ static unsigned int _sun4d_build_device_irq(unsigned int real_irq,
 	if (unlikely(handler_data))
 		goto err_out;
 
-	handler_data = kzalloc(sizeof(struct sun4d_handler_data), GFP_ATOMIC);
+	handler_data = kzalloc_obj(struct sun4d_handler_data, GFP_ATOMIC);
 	if (unlikely(!handler_data)) {
 		prom_printf("IRQ: kzalloc(sun4d_handler_data) failed.\n");
 		prom_halt();

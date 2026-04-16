@@ -264,7 +264,7 @@ static int do_signalfd4(int ufd, sigset_t *mask, int flags)
 		int fd;
 		struct signalfd_ctx *ctx __free(kfree) = NULL;
 
-		ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
+		ctx = kmalloc_obj(*ctx);
 		if (!ctx)
 			return -ENOMEM;
 

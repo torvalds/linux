@@ -329,7 +329,7 @@ struct ipa_interrupt *ipa_interrupt_init(struct platform_device *pdev)
 	if (irq <= 0)
 		return ERR_PTR(irq ? : -EINVAL);
 
-	interrupt = kzalloc(sizeof(*interrupt), GFP_KERNEL);
+	interrupt = kzalloc_obj(*interrupt);
 	if (!interrupt)
 		return ERR_PTR(-ENOMEM);
 	interrupt->irq = irq;

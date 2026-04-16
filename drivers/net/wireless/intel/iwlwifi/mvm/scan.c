@@ -547,7 +547,7 @@ iwl_mvm_config_sched_scan_profiles(struct iwl_mvm *mvm,
 	else
 		blocklist_len = IWL_SCAN_MAX_BLACKLIST_LEN;
 
-	blocklist = kcalloc(blocklist_len, sizeof(*blocklist), GFP_KERNEL);
+	blocklist = kzalloc_objs(*blocklist, blocklist_len);
 	if (!blocklist)
 		return -ENOMEM;
 
@@ -3603,9 +3603,8 @@ void iwl_mvm_rx_channel_survey_notif(struct iwl_mvm *mvm,
 			n_channels += mvm->hw->wiphy->bands[band]->n_channels;
 		}
 
-		mvm->acs_survey = kzalloc(struct_size(mvm->acs_survey,
-						      channels, n_channels),
-					  GFP_KERNEL);
+		mvm->acs_survey = kzalloc_flex(*mvm->acs_survey, channels,
+					       n_channels);
 
 		if (!mvm->acs_survey)
 			return;

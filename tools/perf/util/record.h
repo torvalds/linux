@@ -40,6 +40,8 @@ struct record_opts {
 	bool	      record_cgroup;
 	bool	      record_switch_events;
 	bool	      record_switch_events_set;
+	bool	      record_data_mmap;
+	bool	      record_data_mmap_set;
 	bool	      all_kernel;
 	bool	      all_user;
 	bool	      kernel_callchains;

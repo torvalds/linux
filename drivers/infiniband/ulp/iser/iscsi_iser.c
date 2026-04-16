@@ -802,7 +802,7 @@ static struct iscsi_endpoint *iscsi_iser_ep_connect(struct Scsi_Host *shost,
 	if (!ep)
 		return ERR_PTR(-ENOMEM);
 
-	iser_conn = kzalloc(sizeof(*iser_conn), GFP_KERNEL);
+	iser_conn = kzalloc_obj(*iser_conn);
 	if (!iser_conn) {
 		err = -ENOMEM;
 		goto failure;

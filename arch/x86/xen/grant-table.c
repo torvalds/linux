@@ -101,7 +101,7 @@ static int gnttab_apply(pte_t *pte, unsigned long addr, void *data)
 
 static int arch_gnttab_valloc(struct gnttab_vm_area *area, unsigned nr_frames)
 {
-	area->ptes = kmalloc_array(nr_frames, sizeof(*area->ptes), GFP_KERNEL);
+	area->ptes = kmalloc_objs(*area->ptes, nr_frames);
 	if (area->ptes == NULL)
 		return -ENOMEM;
 	area->area = get_vm_area(PAGE_SIZE * nr_frames, VM_IOREMAP);

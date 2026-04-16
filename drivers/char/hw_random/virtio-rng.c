@@ -134,7 +134,7 @@ static int probe_common(struct virtio_device *vdev)
 	int err, index;
 	struct virtrng_info *vi = NULL;
 
-	vi = kzalloc(sizeof(struct virtrng_info), GFP_KERNEL);
+	vi = kzalloc_obj(struct virtrng_info);
 	if (!vi)
 		return -ENOMEM;
 

@@ -479,8 +479,7 @@ static const struct drm_connector_helper_funcs ast_astdp_connector_helper_funcs 
 
 static void ast_astdp_connector_reset(struct drm_connector *connector)
 {
-	struct ast_astdp_connector_state *astdp_state =
-		kzalloc(sizeof(*astdp_state), GFP_KERNEL);
+	struct ast_astdp_connector_state *astdp_state = kzalloc_obj(*astdp_state);
 
 	if (connector->state)
 		connector->funcs->atomic_destroy_state(connector, connector->state);
@@ -500,7 +499,7 @@ ast_astdp_connector_atomic_duplicate_state(struct drm_connector *connector)
 	if (drm_WARN_ON(dev, !connector->state))
 		return NULL;
 
-	new_astdp_state = kmalloc(sizeof(*new_astdp_state), GFP_KERNEL);
+	new_astdp_state = kmalloc_obj(*new_astdp_state);
 	if (!new_astdp_state)
 		return NULL;
 	__drm_atomic_helper_connector_duplicate_state(connector, &new_astdp_state->base);

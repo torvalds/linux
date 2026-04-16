@@ -82,7 +82,7 @@ static void __init tc_bus_add_devices(struct tc_bus *tbus)
 			goto out_err;
 
 		/* Found a board, allocate it an entry in the list */
-		tdev = kzalloc(sizeof(*tdev), GFP_KERNEL);
+		tdev = kzalloc_obj(*tdev);
 		if (!tdev) {
 			pr_err("tc%x: unable to allocate tc_dev\n", slot);
 			goto out_err;

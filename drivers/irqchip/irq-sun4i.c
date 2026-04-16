@@ -146,7 +146,7 @@ static int __init sun4i_of_init(struct device_node *node,
 static int __init sun4i_ic_of_init(struct device_node *node,
 				   struct device_node *parent)
 {
-	irq_ic_data = kzalloc(sizeof(struct sun4i_irq_chip_data), GFP_KERNEL);
+	irq_ic_data = kzalloc_obj(struct sun4i_irq_chip_data);
 	if (!irq_ic_data)
 		return -ENOMEM;
 
@@ -161,7 +161,7 @@ IRQCHIP_DECLARE(allwinner_sun4i_ic, "allwinner,sun4i-a10-ic", sun4i_ic_of_init);
 static int __init suniv_ic_of_init(struct device_node *node,
 				   struct device_node *parent)
 {
-	irq_ic_data = kzalloc(sizeof(struct sun4i_irq_chip_data), GFP_KERNEL);
+	irq_ic_data = kzalloc_obj(struct sun4i_irq_chip_data);
 	if (!irq_ic_data)
 		return -ENOMEM;
 

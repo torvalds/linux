@@ -142,7 +142,7 @@ struct snd_pdacf *snd_pdacf_create(struct snd_card *card)
 {
 	struct snd_pdacf *chip;
 
-	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc_obj(*chip);
 	if (chip == NULL)
 		return NULL;
 	chip->card = card;

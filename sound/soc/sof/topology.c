@@ -973,7 +973,7 @@ static int sof_control_load(struct snd_soc_component *scomp, int index,
 	dev_dbg(scomp->dev, "tplg: load control type %d name : %s\n",
 		hdr->type, hdr->name);
 
-	scontrol = kzalloc(sizeof(*scontrol), GFP_KERNEL);
+	scontrol = kzalloc_obj(*scontrol);
 	if (!scontrol)
 		return -ENOMEM;
 
@@ -1233,7 +1233,7 @@ static int sof_widget_parse_tokens(struct snd_soc_component *scomp, struct snd_s
 		num_tuples += token_list[object_token_list[i]].count;
 
 	/* allocate memory for tuples array */
-	swidget->tuples = kcalloc(num_tuples, sizeof(*swidget->tuples), GFP_KERNEL);
+	swidget->tuples = kzalloc_objs(*swidget->tuples, num_tuples);
 	if (!swidget->tuples)
 		return -ENOMEM;
 
@@ -1420,7 +1420,7 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 	int token_list_size = 0;
 	int ret = 0;
 
-	swidget = kzalloc(sizeof(*swidget), GFP_KERNEL);
+	swidget = kzalloc_obj(*swidget);
 	if (!swidget)
 		return -ENOMEM;
 
@@ -1496,7 +1496,7 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 	switch (w->id) {
 	case snd_soc_dapm_dai_in:
 	case snd_soc_dapm_dai_out:
-		dai = kzalloc(sizeof(*dai), GFP_KERNEL);
+		dai = kzalloc_obj(*dai);
 		if (!dai) {
 			ret = -ENOMEM;
 			goto widget_free;
@@ -1586,7 +1586,7 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 	if (w->id == snd_soc_dapm_scheduler) {
 		struct snd_sof_pipeline *spipe;
 
-		spipe = kzalloc(sizeof(*spipe), GFP_KERNEL);
+		spipe = kzalloc_obj(*spipe);
 		if (!spipe) {
 			ret = -ENOMEM;
 			goto free;
@@ -1739,7 +1739,7 @@ static int sof_dai_load(struct snd_soc_component *scomp, int index,
 	if (!pcm)
 		return 0;
 
-	spcm = kzalloc(sizeof(*spcm), GFP_KERNEL);
+	spcm = kzalloc_obj(*spcm);
 	if (!spcm)
 		return -ENOMEM;
 
@@ -1906,7 +1906,7 @@ static int sof_link_load(struct snd_soc_component *scomp, int index, struct snd_
 		return -EINVAL;
 	}
 
-	slink = kzalloc(sizeof(*slink), GFP_KERNEL);
+	slink = kzalloc_obj(*slink);
 	if (!slink)
 		return -ENOMEM;
 
@@ -1999,7 +1999,7 @@ static int sof_link_load(struct snd_soc_component *scomp, int index, struct snd_
 	}
 
 	/* allocate memory for tuples array */
-	slink->tuples = kcalloc(num_tuples, sizeof(*slink->tuples), GFP_KERNEL);
+	slink->tuples = kzalloc_objs(*slink->tuples, num_tuples);
 	if (!slink->tuples) {
 		kfree(slink->hw_configs);
 		kfree(slink);
@@ -2094,7 +2094,7 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 	int ret = 0;
 
 	/* allocate memory for sroute and connect */
-	sroute = kzalloc(sizeof(*sroute), GFP_KERNEL);
+	sroute = kzalloc_obj(*sroute);
 	if (!sroute)
 		return -ENOMEM;
 
@@ -2398,11 +2398,11 @@ static int sof_dspless_widget_ready(struct snd_soc_component *scomp, int index,
 		struct snd_sof_widget *swidget;
 		struct snd_sof_dai *sdai;
 
-		swidget = kzalloc(sizeof(*swidget), GFP_KERNEL);
+		swidget = kzalloc_obj(*swidget);
 		if (!swidget)
 			return -ENOMEM;
 
-		sdai = kzalloc(sizeof(*sdai), GFP_KERNEL);
+		sdai = kzalloc_obj(*sdai);
 		if (!sdai) {
 			kfree(swidget);
 			return -ENOMEM;

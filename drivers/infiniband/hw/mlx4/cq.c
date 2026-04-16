@@ -300,7 +300,7 @@ static int mlx4_alloc_resize_buf(struct mlx4_ib_dev *dev, struct mlx4_ib_cq *cq,
 	if (cq->resize_buf)
 		return -EBUSY;
 
-	cq->resize_buf = kmalloc(sizeof *cq->resize_buf, GFP_KERNEL);
+	cq->resize_buf = kmalloc_obj(*cq->resize_buf);
 	if (!cq->resize_buf)
 		return -ENOMEM;
 
@@ -328,7 +328,7 @@ static int mlx4_alloc_resize_umem(struct mlx4_ib_dev *dev, struct mlx4_ib_cq *cq
 	if (ib_copy_from_udata(&ucmd, udata, sizeof ucmd))
 		return -EFAULT;
 
-	cq->resize_buf = kmalloc(sizeof *cq->resize_buf, GFP_KERNEL);
+	cq->resize_buf = kmalloc_obj(*cq->resize_buf);
 	if (!cq->resize_buf)
 		return -ENOMEM;
 

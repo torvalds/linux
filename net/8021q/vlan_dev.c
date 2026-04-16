@@ -192,7 +192,7 @@ int vlan_dev_set_egress_priority(const struct net_device *dev,
 
 	/* Create a new mapping then. */
 	mp = vlan->egress_priority_map[skb_prio & 0xF];
-	np = kmalloc(sizeof(struct vlan_priority_tci_mapping), GFP_KERNEL);
+	np = kmalloc_obj(struct vlan_priority_tci_mapping);
 	if (!np)
 		return -ENOBUFS;
 
@@ -708,7 +708,7 @@ static int vlan_dev_netpoll_setup(struct net_device *dev)
 	struct netpoll *netpoll;
 	int err = 0;
 
-	netpoll = kzalloc(sizeof(*netpoll), GFP_KERNEL);
+	netpoll = kzalloc_obj(*netpoll);
 	err = -ENOMEM;
 	if (!netpoll)
 		goto out;

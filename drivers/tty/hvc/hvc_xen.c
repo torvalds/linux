@@ -264,7 +264,7 @@ static int xen_hvm_console_init(void)
 
 	info = vtermno_to_xencons(HVC_COOKIE);
 	if (!info) {
-		info = kzalloc(sizeof(struct xencons_info), GFP_KERNEL);
+		info = kzalloc_obj(struct xencons_info);
 		if (!info)
 			return -ENOMEM;
 		spin_lock_init(&info->ring_lock);
@@ -328,7 +328,7 @@ static int xen_pv_console_init(void)
 
 	info = vtermno_to_xencons(HVC_COOKIE);
 	if (!info) {
-		info = kzalloc(sizeof(struct xencons_info), GFP_KERNEL);
+		info = kzalloc_obj(struct xencons_info);
 		if (!info)
 			return -ENOMEM;
 	} else if (info->intf != NULL) {
@@ -352,7 +352,7 @@ static int xen_initial_domain_console_init(void)
 
 	info = vtermno_to_xencons(HVC_COOKIE);
 	if (!info) {
-		info = kzalloc(sizeof(struct xencons_info), GFP_KERNEL);
+		info = kzalloc_obj(struct xencons_info);
 		if (!info)
 			return -ENOMEM;
 		spin_lock_init(&info->ring_lock);
@@ -513,7 +513,7 @@ static int xencons_probe(struct xenbus_device *dev,
 	if (devid == 0)
 		return -ENODEV;
 
-	info = kzalloc(sizeof(struct xencons_info), GFP_KERNEL);
+	info = kzalloc_obj(struct xencons_info);
 	if (!info)
 		return -ENOMEM;
 	spin_lock_init(&info->ring_lock);

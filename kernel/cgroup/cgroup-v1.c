@@ -317,7 +317,7 @@ static struct cgroup_pidlist *cgroup_pidlist_find_create(struct cgroup *cgrp,
 		return l;
 
 	/* entry not found; create a new one */
-	l = kzalloc(sizeof(struct cgroup_pidlist), GFP_KERNEL);
+	l = kzalloc_obj(struct cgroup_pidlist);
 	if (!l)
 		return l;
 
@@ -352,7 +352,7 @@ static int pidlist_array_load(struct cgroup *cgrp, enum cgroup_filetype type,
 	 * show up until sometime later on.
 	 */
 	length = cgroup_task_count(cgrp);
-	array = kvmalloc_array(length, sizeof(pid_t), GFP_KERNEL);
+	array = kvmalloc_objs(pid_t, length);
 	if (!array)
 		return -ENOMEM;
 	/* now, populate the array */
@@ -1237,7 +1237,7 @@ static int cgroup1_root_to_use(struct fs_context *fc)
 	if (ctx->ns != &init_cgroup_ns)
 		return -EPERM;
 
-	root = kzalloc(sizeof(*root), GFP_KERNEL);
+	root = kzalloc_obj(*root);
 	if (!root)
 		return -ENOMEM;
 

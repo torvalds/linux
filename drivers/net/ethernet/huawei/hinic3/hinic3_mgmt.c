@@ -120,7 +120,7 @@ static void hinic3_init_mgmt_msg_work(struct hinic3_msg_pf_to_mgmt *pf_to_mgmt,
 {
 	struct mgmt_msg_handle_work *mgmt_work;
 
-	mgmt_work = kmalloc(sizeof(*mgmt_work), GFP_KERNEL);
+	mgmt_work = kmalloc_obj(*mgmt_work);
 	if (!mgmt_work)
 		return;
 
@@ -252,7 +252,7 @@ int hinic3_pf_to_mgmt_init(struct hinic3_hwdev *hwdev)
 	struct hinic3_msg_pf_to_mgmt *pf_to_mgmt;
 	int err;
 
-	pf_to_mgmt = kzalloc(sizeof(*pf_to_mgmt), GFP_KERNEL);
+	pf_to_mgmt = kzalloc_obj(*pf_to_mgmt);
 	if (!pf_to_mgmt)
 		return -ENOMEM;
 

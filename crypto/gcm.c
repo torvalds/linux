@@ -1098,7 +1098,7 @@ static int __init crypto_gcm_module_init(void)
 {
 	int err;
 
-	gcm_zeroes = kzalloc(sizeof(*gcm_zeroes), GFP_KERNEL);
+	gcm_zeroes = kzalloc_obj(*gcm_zeroes);
 	if (!gcm_zeroes)
 		return -ENOMEM;
 

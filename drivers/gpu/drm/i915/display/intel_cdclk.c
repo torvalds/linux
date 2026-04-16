@@ -3409,7 +3409,7 @@ int intel_cdclk_init(struct intel_display *display)
 {
 	struct intel_cdclk_state *cdclk_state;
 
-	cdclk_state = kzalloc(sizeof(*cdclk_state), GFP_KERNEL);
+	cdclk_state = kzalloc_obj(*cdclk_state);
 	if (!cdclk_state)
 		return -ENOMEM;
 

@@ -93,7 +93,7 @@ static int opal_memory_err_event(struct notifier_block *nb,
 	if (msg_type != OPAL_MSG_MEM_ERR)
 		return 0;
 
-	msg_node = kzalloc(sizeof(*msg_node), GFP_ATOMIC);
+	msg_node = kzalloc_obj(*msg_node, GFP_ATOMIC);
 	if (!msg_node) {
 		pr_err("MEMORY_ERROR: out of memory, Opal message event not"
 		       "handled\n");

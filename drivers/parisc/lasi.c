@@ -162,7 +162,7 @@ static int __init lasi_init_chip(struct parisc_device *dev)
 	struct gsc_asic *lasi;
 	int ret;
 
-	lasi = kzalloc(sizeof(*lasi), GFP_KERNEL);
+	lasi = kzalloc_obj(*lasi);
 	if (!lasi)
 		return -ENOMEM;
 

@@ -259,7 +259,8 @@ static void cblist_init_generic(struct rcu_tasks *rtp)
 	}
 	lim = rcu_task_enqueue_lim;
 
-	rtp->rtpcp_array = kcalloc(num_possible_cpus(), sizeof(struct rcu_tasks_percpu *), GFP_KERNEL);
+	rtp->rtpcp_array = kzalloc_objs(struct rcu_tasks_percpu *,
+					num_possible_cpus());
 	BUG_ON(!rtp->rtpcp_array);
 
 	for_each_possible_cpu(cpu) {

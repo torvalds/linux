@@ -58,8 +58,8 @@ static int monwrite_diag(struct monwrite_hdr *myhdr, char *buffer, int fcn)
 	struct appldata_product_id *id;
 	int rc;
 
-	id = kmalloc(sizeof(*id), GFP_KERNEL);
-	parm_list = kmalloc(sizeof(*parm_list), GFP_KERNEL);
+	id = kmalloc_obj(*id);
+	parm_list = kmalloc_obj(*parm_list);
 	rc = -ENOMEM;
 	if (!id || !parm_list)
 		goto out;
@@ -126,7 +126,7 @@ static int monwrite_new_hdr(struct mon_private *monpriv)
 	} else if (monhdr->mon_function != MONWRITE_STOP_INTERVAL) {
 		if (mon_buf_count >= mon_max_bufs)
 			return -ENOSPC;
-		monbuf = kzalloc(sizeof(struct mon_buf), GFP_KERNEL);
+		monbuf = kzalloc_obj(struct mon_buf);
 		if (!monbuf)
 			return -ENOMEM;
 		monbuf->data = kzalloc(monhdr->datalen,
@@ -188,7 +188,7 @@ static int monwrite_open(struct inode *inode, struct file *filp)
 {
 	struct mon_private *monpriv;
 
-	monpriv = kzalloc(sizeof(struct mon_private), GFP_KERNEL);
+	monpriv = kzalloc_obj(struct mon_private);
 	if (!monpriv)
 		return -ENOMEM;
 	INIT_LIST_HEAD(&monpriv->list);

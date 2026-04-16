@@ -4445,7 +4445,7 @@ brcmf_sdio_prepare_fw_request(struct brcmf_sdio *bus)
 	return fwreq;
 }
 
-struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
+int brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 {
 	int ret;
 	struct brcmf_sdio *bus;
@@ -4455,7 +4455,7 @@ struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 	brcmf_dbg(TRACE, "Enter\n");
 
 	/* Allocate private bus interface state */
-	bus = kzalloc(sizeof(*bus), GFP_ATOMIC);
+	bus = kzalloc_obj(*bus, GFP_ATOMIC);
 	if (!bus) {
 		ret = -ENOMEM;
 		goto fail;
@@ -4551,11 +4551,12 @@ struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 		goto fail;
 	}
 
-	return bus;
+	return 0;
 
 fail:
 	brcmf_sdio_remove(bus);
-	return ERR_PTR(ret);
+	sdiodev->bus = NULL;
+	return ret;
 }
 
 /* Detach and free everything */

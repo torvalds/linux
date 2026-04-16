@@ -54,7 +54,7 @@ ff_layout_alloc_layout_hdr(struct inode *inode, gfp_t gfp_flags)
 {
 	struct nfs4_flexfile_layout *ffl;
 
-	ffl = kzalloc(sizeof(*ffl), gfp_flags);
+	ffl = kzalloc_obj(*ffl, gfp_flags);
 	if (ffl) {
 		pnfs_init_ds_commit_info(&ffl->commit_info);
 		INIT_LIST_HEAD(&ffl->error_list);
@@ -275,7 +275,7 @@ static struct nfs4_ff_layout_mirror *ff_layout_alloc_mirror(u32 dss_count,
 {
 	struct nfs4_ff_layout_mirror *mirror;
 
-	mirror = kzalloc(sizeof(*mirror), gfp_flags);
+	mirror = kzalloc_obj(*mirror, gfp_flags);
 	if (mirror == NULL)
 		return NULL;
 
@@ -285,8 +285,8 @@ static struct nfs4_ff_layout_mirror *ff_layout_alloc_mirror(u32 dss_count,
 
 	mirror->dss_count = dss_count;
 	mirror->dss =
-		kcalloc(dss_count, sizeof(struct nfs4_ff_layout_ds_stripe),
-			gfp_flags);
+		kzalloc_objs(struct nfs4_ff_layout_ds_stripe, dss_count,
+			     gfp_flags);
 	if (mirror->dss == NULL) {
 		kfree(mirror);
 		return NULL;
@@ -483,8 +483,7 @@ ff_layout_alloc_lseg(struct pnfs_layout_hdr *lh,
 		goto out_err_free;
 
 	rc = -ENOMEM;
-	fls = kzalloc(struct_size(fls, mirror_array, mirror_array_cnt),
-			gfp_flags);
+	fls = kzalloc_flex(*fls, mirror_array, mirror_array_cnt, gfp_flags);
 	if (!fls)
 		goto out_err_free;
 
@@ -554,8 +553,7 @@ ff_layout_alloc_lseg(struct pnfs_layout_hdr *lh,
 			fh_count = be32_to_cpup(p);
 
 			dss_info->fh_versions =
-			    kcalloc(fh_count, sizeof(struct nfs_fh),
-				    gfp_flags);
+			    kzalloc_objs(struct nfs_fh, fh_count, gfp_flags);
 			if (dss_info->fh_versions == NULL) {
 				rc = -ENOMEM;
 				goto out_err_free;
@@ -2633,7 +2631,7 @@ ff_layout_prepare_layoutreturn(struct nfs4_layoutreturn_args *args)
 	struct nfs4_flexfile_layoutreturn_args *ff_args;
 	struct nfs4_flexfile_layout *ff_layout = FF_LAYOUT_FROM_HDR(args->layout);
 
-	ff_args = kmalloc(sizeof(*ff_args), nfs_io_gfp_mask());
+	ff_args = kmalloc_obj(*ff_args, nfs_io_gfp_mask());
 	if (!ff_args)
 		goto out_nomem;
 	ff_args->pages[0] = alloc_page(nfs_io_gfp_mask());
@@ -2674,8 +2672,7 @@ ff_layout_send_layouterror(struct pnfs_layout_segment *lseg)
 	if (list_empty(&head))
 		return;
 
-	errors = kmalloc_array(NFS42_LAYOUTERROR_MAX, sizeof(*errors),
-			       nfs_io_gfp_mask());
+	errors = kmalloc_objs(*errors, NFS42_LAYOUTERROR_MAX, nfs_io_gfp_mask());
 	if (errors != NULL) {
 		const struct nfs4_ff_layout_ds_err *pos;
 		size_t n = 0;
@@ -2943,8 +2940,8 @@ static int ff_layout_prepare_layoutstats(struct nfs42_layoutstat_args *args)
 	const int dev_count = PNFS_LAYOUTSTATS_MAXDEV;
 
 	/* For now, send at most PNFS_LAYOUTSTATS_MAXDEV statistics */
-	args->devinfo = kmalloc_array(dev_count, sizeof(*args->devinfo),
-				      nfs_io_gfp_mask());
+	args->devinfo = kmalloc_objs(*args->devinfo, dev_count,
+				     nfs_io_gfp_mask());
 	if (!args->devinfo)
 		return -ENOMEM;
 

@@ -180,7 +180,7 @@ static struct clk_hw *cp110_register_gate(const char *name,
 	struct clk_init_data init;
 	int ret;
 
-	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
+	gate = kzalloc_obj(*gate);
 	if (!gate)
 		return ERR_PTR(-ENOMEM);
 

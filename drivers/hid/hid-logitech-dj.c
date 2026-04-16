@@ -733,7 +733,7 @@ static struct dj_receiver_dev *dj_get_receiver_dev(struct hid_device *hdev,
 
 	djrcv_dev = dj_find_receiver_dev(hdev, type);
 	if (!djrcv_dev) {
-		djrcv_dev = kzalloc(sizeof(*djrcv_dev), GFP_KERNEL);
+		djrcv_dev = kzalloc_obj(*djrcv_dev);
 		if (!djrcv_dev)
 			goto out;
 
@@ -851,7 +851,7 @@ static void logi_dj_recv_add_djhid_device(struct dj_receiver_dev *djrcv_dev,
 	snprintf(tmpstr, sizeof(tmpstr), ":%d", device_index);
 	strlcat(dj_hiddev->phys, tmpstr, sizeof(dj_hiddev->phys));
 
-	dj_dev = kzalloc(sizeof(struct dj_device), GFP_KERNEL);
+	dj_dev = kzalloc_obj(struct dj_device);
 
 	if (!dj_dev) {
 		hid_err(djrcv_hdev, "%s: failed allocating dj_dev\n", __func__);
@@ -1332,7 +1332,7 @@ static int logi_dj_recv_query_paired_devices(struct dj_receiver_dev *djrcv_dev)
 		goto out;
 	}
 
-	dj_report = kzalloc(sizeof(struct dj_report), GFP_KERNEL);
+	dj_report = kzalloc_obj(struct dj_report);
 	if (!dj_report)
 		return -ENOMEM;
 	dj_report->report_id = REPORT_ID_DJ_SHORT;
@@ -1356,7 +1356,7 @@ static int logi_dj_recv_switch_to_dj_mode(struct dj_receiver_dev *djrcv_dev,
 	u8 *buf;
 	int retval = 0;
 
-	dj_report = kzalloc(sizeof(struct dj_report), GFP_KERNEL);
+	dj_report = kzalloc_obj(struct dj_report);
 	if (!dj_report)
 		return -ENOMEM;
 

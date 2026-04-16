@@ -2041,7 +2041,7 @@ lpfc_xcvr_data_show(struct device *dev, struct device_attribute *attr,
 	struct sff_trasnceiver_codes_byte7 *trasn_code_byte7;
 
 	/* Get transceiver information */
-	rdp_context = kmalloc(sizeof(*rdp_context), GFP_KERNEL);
+	rdp_context = kmalloc_obj(*rdp_context);
 	if (!rdp_context) {
 		len = scnprintf(buf, PAGE_SIZE - len,
 				"SPF info NA: alloc failure\n");

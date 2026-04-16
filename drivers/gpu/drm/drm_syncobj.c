@@ -557,7 +557,7 @@ int drm_syncobj_create(struct drm_syncobj **out_syncobj, uint32_t flags,
 	int ret;
 	struct drm_syncobj *syncobj;
 
-	syncobj = kzalloc(sizeof(struct drm_syncobj), GFP_KERNEL);
+	syncobj = kzalloc_obj(struct drm_syncobj);
 	if (!syncobj)
 		return -ENOMEM;
 
@@ -1062,7 +1062,7 @@ static signed long drm_syncobj_array_wait_timeout(struct drm_syncobj **syncobjs,
 		goto err_free_points;
 	}
 
-	entries = kcalloc(count, sizeof(*entries), GFP_KERNEL);
+	entries = kzalloc_objs(*entries, count);
 	if (!entries) {
 		timeout = -ENOMEM;
 		goto err_free_points;
@@ -1279,7 +1279,7 @@ static int drm_syncobj_array_find(struct drm_file *file_private,
 		goto err_free_handles;
 	}
 
-	syncobjs = kmalloc_array(count_handles, sizeof(*syncobjs), GFP_KERNEL);
+	syncobjs = kmalloc_objs(*syncobjs, count_handles);
 	if (syncobjs == NULL) {
 		ret = -ENOMEM;
 		goto err_free_handles;
@@ -1485,7 +1485,7 @@ drm_syncobj_eventfd_ioctl(struct drm_device *dev, void *data,
 		goto err_fdget;
 	}
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry) {
 		ret = -ENOMEM;
 		goto err_kzalloc;

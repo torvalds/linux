@@ -390,7 +390,7 @@ void pci_aer_init(struct pci_dev *dev)
 	if (!dev->aer_cap)
 		return;
 
-	dev->aer_info = kzalloc(sizeof(*dev->aer_info), GFP_KERNEL);
+	dev->aer_info = kzalloc_obj(*dev->aer_info);
 	if (!dev->aer_info) {
 		dev->aer_cap = 0;
 		return;

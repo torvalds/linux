@@ -60,7 +60,7 @@ static void dc_dmub_srv_handle_failure(struct dc_dmub_srv *dc_dmub_srv)
 struct dc_dmub_srv *dc_dmub_srv_create(struct dc *dc, struct dmub_srv *dmub)
 {
 	struct dc_dmub_srv *dc_srv =
-		kzalloc(sizeof(struct dc_dmub_srv), GFP_KERNEL);
+		kzalloc_obj(struct dc_dmub_srv);
 
 	if (dc_srv == NULL) {
 		BREAK_TO_DEBUGGER();
@@ -1034,12 +1034,19 @@ static void dc_build_cursor_update_payload0(
 		struct pipe_ctx *pipe_ctx, uint8_t p_idx,
 		struct dmub_cmd_update_cursor_payload0 *payload)
 {
+	struct dc *dc = pipe_ctx->stream->ctx->dc;
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
 	unsigned int panel_inst = 0;
 
-	if (!dc_get_edp_link_panel_inst(hubp->ctx->dc,
-		pipe_ctx->stream->link, &panel_inst))
-		return;
+	if (dc->config.frame_update_cmd_version2 == true) {
+		/* Don't need panel_inst for command version2 */
+		payload->cmd_version = DMUB_CMD_CURSOR_UPDATE_VERSION_2;
+	} else {
+		if (!dc_get_edp_link_panel_inst(hubp->ctx->dc,
+			pipe_ctx->stream->link, &panel_inst))
+			return;
+		payload->cmd_version = DMUB_CMD_CURSOR_UPDATE_VERSION_1;
+	}
 
 	/* Payload: Cursor Rect is built from position & attribute
 	 * x & y are obtained from postion
@@ -1052,8 +1059,8 @@ static void dc_build_cursor_update_payload0(
 
 	payload->enable      = hubp->pos.cur_ctl.bits.cur_enable;
 	payload->pipe_idx    = p_idx;
-	payload->cmd_version = DMUB_CMD_PSR_CONTROL_VERSION_1;
 	payload->panel_inst  = panel_inst;
+	payload->otg_inst    = pipe_ctx->stream_res.tg->inst;
 }
 
 static void dc_build_cursor_position_update_payload0(

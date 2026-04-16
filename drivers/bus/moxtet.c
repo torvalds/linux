@@ -145,7 +145,7 @@ moxtet_alloc_device(struct moxtet *moxtet)
 	if (!get_device(moxtet->dev))
 		return NULL;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev) {
 		put_device(moxtet->dev);
 		return NULL;

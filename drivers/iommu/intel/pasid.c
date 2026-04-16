@@ -50,7 +50,7 @@ int intel_pasid_alloc_table(struct device *dev)
 	if (WARN_ON(info->pasid_table))
 		return -EEXIST;
 
-	pasid_table = kzalloc(sizeof(*pasid_table), GFP_KERNEL);
+	pasid_table = kzalloc_obj(*pasid_table);
 	if (!pasid_table)
 		return -ENOMEM;
 

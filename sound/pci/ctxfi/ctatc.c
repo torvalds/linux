@@ -1723,7 +1723,7 @@ int ct_atc_create(struct snd_card *card, struct pci_dev *pci,
 
 	*ratc = NULL;
 
-	atc = kzalloc(sizeof(*atc), GFP_KERNEL);
+	atc = kzalloc_obj(*atc);
 	if (!atc)
 		return -ENOMEM;
 

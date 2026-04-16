@@ -147,7 +147,7 @@ int parse_int_array(const char *buf, size_t count, int **array)
 	if (!nints)
 		return -ENOENT;
 
-	ints = kcalloc(nints + 1, sizeof(*ints), GFP_KERNEL);
+	ints = kzalloc_objs(*ints, nints + 1);
 	if (!ints)
 		return -ENOMEM;
 

@@ -34,11 +34,11 @@ snd_seq_oss_readq_new(struct seq_oss_devinfo *dp, int maxlen)
 {
 	struct seq_oss_readq *q;
 
-	q = kzalloc(sizeof(*q), GFP_KERNEL);
+	q = kzalloc_obj(*q);
 	if (!q)
 		return NULL;
 
-	q->q = kcalloc(maxlen, sizeof(union evrec), GFP_KERNEL);
+	q->q = kzalloc_objs(union evrec, maxlen);
 	if (!q->q) {
 		kfree(q);
 		return NULL;

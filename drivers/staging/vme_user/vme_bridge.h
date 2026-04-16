@@ -88,7 +88,7 @@ struct vme_error_handler {
 };
 
 struct vme_callback {
-	void (*func)(int, int, void*);
+	void (*func)(int level, int statid, void *priv_data);
 	void *priv_data;
 };
 
@@ -178,11 +178,11 @@ struct vme_bridge {
 };
 
 void vme_bus_error_handler(struct vme_bridge *bridge, unsigned long long address, int am);
-void vme_irq_handler(struct vme_bridge *, int, int);
+void vme_irq_handler(struct vme_bridge *bridge, int level, int statid);
 
-struct vme_bridge *vme_init_bridge(struct vme_bridge *);
-int vme_register_bridge(struct vme_bridge *);
-void vme_unregister_bridge(struct vme_bridge *);
+struct vme_bridge *vme_init_bridge(struct vme_bridge *bridge);
+int vme_register_bridge(struct vme_bridge *bridge);
+void vme_unregister_bridge(struct vme_bridge *bridge);
 struct vme_error_handler *vme_register_error_handler(struct vme_bridge *bridge, u32 aspace,
 						     unsigned long long address, size_t len);
 void vme_unregister_error_handler(struct vme_error_handler *handler);

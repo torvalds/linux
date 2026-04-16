@@ -823,7 +823,7 @@ static int usb_parse_configuration(struct usb_device *dev, int cfgidx,
 			nalts[i] = j = USB_MAXALTSETTING;
 		}
 
-		intfc = kzalloc(struct_size(intfc, altsetting, j), GFP_KERNEL);
+		intfc = kzalloc_flex(*intfc, altsetting, j);
 		config->intf_cache[i] = intfc;
 		if (!intfc)
 			return -ENOMEM;
@@ -927,7 +927,11 @@ int usb_get_configuration(struct usb_device *dev)
 		dev->descriptor.bNumConfigurations = ncfg = USB_MAXCONFIG;
 	}
 
-	if (ncfg < 1) {
+	if (ncfg < 1 && dev->quirks & USB_QUIRK_FORCE_ONE_CONFIG) {
+		dev_info(ddev, "Device claims zero configurations, forcing to 1\n");
+		dev->descriptor.bNumConfigurations = 1;
+		ncfg = 1;
+	} else if (ncfg < 1) {
 		dev_err(ddev, "no configurations\n");
 		return -EINVAL;
 	}
@@ -1045,7 +1049,7 @@ int usb_get_bos_descriptor(struct usb_device *dev)
 		return -ENOMSG;
 	}
 
-	bos = kzalloc(sizeof(*bos), GFP_KERNEL);
+	bos = kzalloc_obj(*bos);
 	if (!bos)
 		return -ENOMEM;
 
@@ -1066,7 +1070,7 @@ int usb_get_bos_descriptor(struct usb_device *dev)
 	if (total_len < length)
 		return -EINVAL;
 
-	dev->bos = kzalloc(sizeof(*dev->bos), GFP_KERNEL);
+	dev->bos = kzalloc_obj(*dev->bos);
 	if (!dev->bos)
 		return -ENOMEM;
 

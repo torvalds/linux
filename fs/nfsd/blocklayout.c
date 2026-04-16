@@ -131,7 +131,7 @@ nfsd4_block_proc_layoutget(struct svc_rqst *rqstp, struct inode *inode,
 	 * layouts, so make sure to zero the whole structure.
 	 */
 	nfserr = nfserrno(-ENOMEM);
-	bl = kzalloc(struct_size(bl, extents, nr_extents_max), GFP_KERNEL);
+	bl = kzalloc_flex(*bl, extents, nr_extents_max);
 	if (!bl)
 		goto out_error;
 	bl->nr_extents = nr_extents_max;
@@ -208,7 +208,7 @@ nfsd4_block_get_device_info_simple(struct super_block *sb,
 	struct pnfs_block_deviceaddr *dev;
 	struct pnfs_block_volume *b;
 
-	dev = kzalloc(struct_size(dev, volumes, 1), GFP_KERNEL);
+	dev = kzalloc_flex(*dev, volumes, 1);
 	if (!dev)
 		return -ENOMEM;
 	gdp->gd_device = dev;
@@ -319,7 +319,7 @@ nfsd4_block_get_device_info_scsi(struct super_block *sb,
 	const struct pr_ops *ops;
 	int ret;
 
-	dev = kzalloc(struct_size(dev, volumes, 1), GFP_KERNEL);
+	dev = kzalloc_flex(*dev, volumes, 1);
 	if (!dev)
 		return -ENOMEM;
 	gdp->gd_device = dev;

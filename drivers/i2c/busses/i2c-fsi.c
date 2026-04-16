@@ -674,8 +674,9 @@ static struct device_node *fsi_i2c_find_port_of_node(struct device_node *fsi,
 	return NULL;
 }
 
-static int fsi_i2c_probe(struct device *dev)
+static int fsi_i2c_probe(struct fsi_device *fsi_dev)
 {
+	struct device *dev = &fsi_dev->dev;
 	struct fsi_i2c_ctrl *i2c;
 	struct fsi_i2c_port *port;
 	struct device_node *np;
@@ -706,7 +707,7 @@ static int fsi_i2c_probe(struct device *dev)
 		if (!of_device_is_available(np))
 			continue;
 
-		port = kzalloc(sizeof(*port), GFP_KERNEL);
+		port = kzalloc_obj(*port);
 		if (!port) {
 			of_node_put(np);
 			break;
@@ -735,14 +736,14 @@ static int fsi_i2c_probe(struct device *dev)
 		list_add(&port->list, &i2c->ports);
 	}
 
-	dev_set_drvdata(dev, i2c);
+	fsi_set_drvdata(fsi_dev, i2c);
 
 	return 0;
 }
 
-static int fsi_i2c_remove(struct device *dev)
+static void fsi_i2c_remove(struct fsi_device *fsi_dev)
 {
-	struct fsi_i2c_ctrl *i2c = dev_get_drvdata(dev);
+	struct fsi_i2c_ctrl *i2c = fsi_get_drvdata(fsi_dev);
 	struct fsi_i2c_port *port, *tmp;
 
 	list_for_each_entry_safe(port, tmp, &i2c->ports, list) {
@@ -750,8 +751,6 @@ static int fsi_i2c_remove(struct device *dev)
 		i2c_del_adapter(&port->adapter);
 		kfree(port);
 	}
-
-	return 0;
 }
 
 static const struct fsi_device_id fsi_i2c_ids[] = {
@@ -761,11 +760,10 @@ static const struct fsi_device_id fsi_i2c_ids[] = {
 
 static struct fsi_driver fsi_i2c_driver = {
 	.id_table = fsi_i2c_ids,
+	.probe = fsi_i2c_probe,
+	.remove = fsi_i2c_remove,
 	.drv = {
 		.name = "i2c-fsi",
-		.bus = &fsi_bus_type,
-		.probe = fsi_i2c_probe,
-		.remove = fsi_i2c_remove,
 	},
 };
 

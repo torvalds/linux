@@ -692,13 +692,13 @@ static __init int match_config_table(const efi_guid_t *guid,
 
 static __init void reserve_unaccepted(struct efi_unaccepted_memory *unaccepted)
 {
-	phys_addr_t start, size;
+	phys_addr_t start, end;
 
 	start = PAGE_ALIGN_DOWN(efi.unaccepted);
-	size = PAGE_ALIGN(sizeof(*unaccepted) + unaccepted->size);
+	end = PAGE_ALIGN(efi.unaccepted + sizeof(*unaccepted) + unaccepted->size);
 
-	memblock_add(start, size);
-	memblock_reserve(start, size);
+	memblock_add(start, end - start);
+	memblock_reserve(start, end - start);
 }
 
 int __init efi_config_parse_tables(const efi_config_table_t *config_tables,
@@ -1079,7 +1079,7 @@ static int efi_mem_reserve_iomem(phys_addr_t addr, u64 size)
 	struct resource *res, *parent;
 	int ret;
 
-	res = kzalloc(sizeof(struct resource), GFP_ATOMIC);
+	res = kzalloc_obj(struct resource, GFP_ATOMIC);
 	if (!res)
 		return -ENOMEM;
 

@@ -318,7 +318,7 @@ static int process_tar_file(struct device *dev,
 		return -EINVAL;
 	}
 
-	tar_info = kzalloc(sizeof(struct tar_ucode_info_t), GFP_KERNEL);
+	tar_info = kzalloc_obj(struct tar_ucode_info_t);
 	if (!tar_info)
 		return -ENOMEM;
 
@@ -412,7 +412,7 @@ static struct tar_arch_info_t *load_tar_archive(struct device *dev,
 	size_t tar_size;
 	int ret;
 
-	tar_arch = kzalloc(sizeof(struct tar_arch_info_t), GFP_KERNEL);
+	tar_arch = kzalloc_obj(struct tar_arch_info_t);
 	if (!tar_arch)
 		return NULL;
 

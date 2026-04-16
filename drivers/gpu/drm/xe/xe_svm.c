@@ -109,7 +109,7 @@ xe_svm_range_alloc(struct drm_gpusvm *gpusvm)
 {
 	struct xe_svm_range *range;
 
-	range = kzalloc(sizeof(*range), GFP_KERNEL);
+	range = kzalloc_obj(*range);
 	if (!range)
 		return NULL;
 
@@ -1676,13 +1676,13 @@ xe_drm_pagemap_device_map(struct drm_pagemap *dpagemap,
 
 static void xe_drm_pagemap_device_unmap(struct drm_pagemap *dpagemap,
 					struct device *dev,
-					struct drm_pagemap_addr addr)
+					const struct drm_pagemap_addr *addr)
 {
-	if (addr.proto != XE_INTERCONNECT_P2P)
+	if (addr->proto != XE_INTERCONNECT_P2P)
 		return;
 
-	dma_unmap_resource(dev, addr.addr, PAGE_SIZE << addr.order,
-			   addr.dir, DMA_ATTR_SKIP_CPU_SYNC);
+	dma_unmap_resource(dev, addr->addr, PAGE_SIZE << addr->order,
+			   addr->dir, DMA_ATTR_SKIP_CPU_SYNC);
 }
 
 static void xe_pagemap_destroy_work(struct work_struct *work)
@@ -1748,7 +1748,7 @@ static struct xe_pagemap *xe_pagemap_create(struct xe_device *xe, struct xe_vram
 	void *addr;
 	int err;
 
-	xpagemap = kzalloc(sizeof(*xpagemap), GFP_KERNEL);
+	xpagemap = kzalloc_obj(*xpagemap);
 	if (!xpagemap)
 		return ERR_PTR(-ENOMEM);
 

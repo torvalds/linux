@@ -697,7 +697,7 @@ static struct vxlan_vni_node *vxlan_vni_alloc(struct vxlan_dev *vxlan,
 {
 	struct vxlan_vni_node *vninode;
 
-	vninode = kzalloc(sizeof(*vninode), GFP_KERNEL);
+	vninode = kzalloc_obj(*vninode);
 	if (!vninode)
 		return NULL;
 	vninode->stats = netdev_alloc_pcpu_stats(struct vxlan_vni_stats_pcpu);
@@ -925,7 +925,7 @@ int vxlan_vnigroup_init(struct vxlan_dev *vxlan)
 	struct vxlan_vni_group *vg;
 	int ret;
 
-	vg = kzalloc(sizeof(*vg), GFP_KERNEL);
+	vg = kzalloc_obj(*vg);
 	if (!vg)
 		return -ENOMEM;
 	ret = rhashtable_init(&vg->vni_hash, &vxlan_vni_rht_params);

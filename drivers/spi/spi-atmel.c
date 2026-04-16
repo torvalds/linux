@@ -1300,7 +1300,7 @@ static int atmel_spi_setup(struct spi_device *spi)
 
 	asd = spi->controller_state;
 	if (!asd) {
-		asd = kzalloc(sizeof(struct atmel_spi_device), GFP_KERNEL);
+		asd = kzalloc_obj(struct atmel_spi_device);
 		if (!asd)
 			return -ENOMEM;
 

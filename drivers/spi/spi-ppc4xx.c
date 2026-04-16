@@ -218,7 +218,7 @@ static int spi_ppc4xx_setup(struct spi_device *spi)
 	}
 
 	if (cs == NULL) {
-		cs = kzalloc(sizeof(*cs), GFP_KERNEL);
+		cs = kzalloc_obj(*cs);
 		if (!cs)
 			return -ENOMEM;
 		spi->controller_state = cs;

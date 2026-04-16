@@ -25,7 +25,7 @@ static int vduse_iotlb_add_range(struct vduse_iova_domain *domain,
 	struct vdpa_map_file *map_file;
 	int ret;
 
-	map_file = kmalloc(sizeof(*map_file), GFP_ATOMIC);
+	map_file = kmalloc_obj(*map_file, GFP_ATOMIC);
 	if (!map_file)
 		return -ENOMEM;
 
@@ -622,7 +622,7 @@ vduse_domain_create(unsigned long iova_limit, size_t bounce_size)
 	if (iova_limit <= bounce_size)
 		return NULL;
 
-	domain = kzalloc(sizeof(*domain), GFP_KERNEL);
+	domain = kzalloc_obj(*domain);
 	if (!domain)
 		return NULL;
 

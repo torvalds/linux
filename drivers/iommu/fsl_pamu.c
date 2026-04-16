@@ -785,7 +785,7 @@ static int fsl_pamu_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data) {
 		ret = -ENOMEM;
 		goto error;

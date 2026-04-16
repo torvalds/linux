@@ -792,7 +792,7 @@ static int acpi_thermal_probe(struct platform_device *pdev)
 	if (!device)
 		return -EINVAL;
 
-	tz = kzalloc(sizeof(struct acpi_thermal), GFP_KERNEL);
+	tz = kzalloc_obj(struct acpi_thermal);
 	if (!tz)
 		return -ENOMEM;
 

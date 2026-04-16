@@ -89,7 +89,7 @@ static struct snd_seq_queue *queue_new(int owner, int locked)
 {
 	struct snd_seq_queue *q;
 
-	q = kzalloc(sizeof(*q), GFP_KERNEL);
+	q = kzalloc_obj(*q);
 	if (!q)
 		return NULL;
 

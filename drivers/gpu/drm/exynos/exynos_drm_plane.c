@@ -134,7 +134,7 @@ static void exynos_drm_plane_reset(struct drm_plane *plane)
 		plane->state = NULL;
 	}
 
-	exynos_state = kzalloc(sizeof(*exynos_state), GFP_KERNEL);
+	exynos_state = kzalloc_obj(*exynos_state);
 	if (exynos_state) {
 		__drm_atomic_helper_plane_reset(plane, &exynos_state->base);
 		plane->state->zpos = exynos_plane->config->zpos;
@@ -148,7 +148,7 @@ exynos_drm_plane_duplicate_state(struct drm_plane *plane)
 	struct exynos_drm_plane_state *copy;
 
 	exynos_state = to_exynos_plane_state(plane->state);
-	copy = kzalloc(sizeof(*exynos_state), GFP_KERNEL);
+	copy = kzalloc_obj(*exynos_state);
 	if (!copy)
 		return NULL;
 

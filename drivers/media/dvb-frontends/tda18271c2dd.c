@@ -1215,7 +1215,7 @@ struct dvb_frontend *tda18271c2dd_attach(struct dvb_frontend *fe,
 {
 	struct tda_state *state;
 
-	state = kzalloc(sizeof(struct tda_state), GFP_KERNEL);
+	state = kzalloc_obj(struct tda_state);
 	if (!state)
 		return NULL;
 

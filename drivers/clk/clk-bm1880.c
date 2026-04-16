@@ -621,18 +621,11 @@ static int bm1880_clk_div_determine_rate(struct clk_hw *hw,
 		val = readl(reg_addr) >> div->shift;
 		val &= clk_div_mask(div->width);
 
-		req->rate = divider_ro_round_rate(hw, req->rate,
-						  &req->best_parent_rate,
-						  div->table,
-						  div->width, div->flags, val);
-
-		return 0;
+		return divider_ro_determine_rate(hw, req, div->table,
+						 div->width, div->flags, val);
 	}
 
-	req->rate = divider_round_rate(hw, req->rate, &req->best_parent_rate,
-				       div->table, div->width, div->flags);
-
-	return 0;
+	return divider_determine_rate(hw, req, div->table, div->width, div->flags);
 }
 
 static int bm1880_clk_div_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -771,7 +764,7 @@ static struct clk_hw *bm1880_clk_register_composite(struct bm1880_composite_cloc
 	int ret;
 
 	if (clks->mux_shift >= 0) {
-		mux = kzalloc(sizeof(*mux), GFP_KERNEL);
+		mux = kzalloc_obj(*mux);
 		if (!mux)
 			return ERR_PTR(-ENOMEM);
 
@@ -791,7 +784,7 @@ static struct clk_hw *bm1880_clk_register_composite(struct bm1880_composite_cloc
 	}
 
 	if (clks->gate_shift >= 0) {
-		gate = kzalloc(sizeof(*gate), GFP_KERNEL);
+		gate = kzalloc_obj(*gate);
 		if (!gate) {
 			ret = -ENOMEM;
 			goto err_out;
@@ -806,7 +799,7 @@ static struct clk_hw *bm1880_clk_register_composite(struct bm1880_composite_cloc
 	}
 
 	if (clks->div_shift >= 0) {
-		div_hws = kzalloc(sizeof(*div_hws), GFP_KERNEL);
+		div_hws = kzalloc_obj(*div_hws);
 		if (!div_hws) {
 			ret = -ENOMEM;
 			goto err_out;

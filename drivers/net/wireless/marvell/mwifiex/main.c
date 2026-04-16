@@ -60,7 +60,7 @@ static int mwifiex_register(void *card, struct device *dev,
 	struct mwifiex_adapter *adapter;
 	int i;
 
-	adapter = kzalloc(sizeof(struct mwifiex_adapter), GFP_KERNEL);
+	adapter = kzalloc_obj(struct mwifiex_adapter);
 	if (!adapter)
 		return -ENOMEM;
 
@@ -82,7 +82,7 @@ static int mwifiex_register(void *card, struct device *dev,
 	for (i = 0; i < MWIFIEX_MAX_BSS_NUM; i++) {
 		/* Allocate memory for private structure */
 		adapter->priv[i] =
-			kzalloc(sizeof(struct mwifiex_private), GFP_KERNEL);
+			kzalloc_obj(struct mwifiex_private);
 		if (!adapter->priv[i])
 			goto error;
 
@@ -1180,7 +1180,7 @@ void mwifiex_drv_info_dump(struct mwifiex_adapter *adapter)
 			p += adapter->if_ops.reg_dump(adapter, p);
 	}
 	p += sprintf(p, "\n=== more debug information\n");
-	debug_info = kzalloc(sizeof(*debug_info), GFP_KERNEL);
+	debug_info = kzalloc_obj(*debug_info);
 	if (debug_info) {
 		for (i = 0; i < adapter->priv_num; i++) {
 			if (!adapter->priv[i]->netdev)
@@ -1346,7 +1346,7 @@ void mwifiex_init_priv_params(struct mwifiex_private *priv,
 
 	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA ||
 	    GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) {
-		priv->hist_data = kmalloc(sizeof(*priv->hist_data), GFP_KERNEL);
+		priv->hist_data = kmalloc_obj(*priv->hist_data);
 		if (priv->hist_data)
 			mwifiex_hist_data_reset(priv);
 	}

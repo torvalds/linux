@@ -215,7 +215,7 @@ static int pinctrl_register_one_pin(struct pinctrl_dev *pctldev,
 		return -EINVAL;
 	}
 
-	pindesc = kzalloc(sizeof(*pindesc), GFP_KERNEL);
+	pindesc = kzalloc_obj(*pindesc);
 	if (!pindesc)
 		return -ENOMEM;
 
@@ -955,7 +955,7 @@ static struct pinctrl_state *create_state(struct pinctrl *p,
 {
 	struct pinctrl_state *state;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state)
 		return ERR_PTR(-ENOMEM);
 
@@ -983,7 +983,7 @@ static int add_setting(struct pinctrl *p, struct pinctrl_dev *pctldev,
 	if (map->type == PIN_MAP_TYPE_DUMMY_STATE)
 		return 0;
 
-	setting = kzalloc(sizeof(*setting), GFP_KERNEL);
+	setting = kzalloc_obj(*setting);
 	if (!setting)
 		return -ENOMEM;
 
@@ -1063,7 +1063,7 @@ static struct pinctrl *create_pinctrl(struct device *dev,
 	 * mapping, this is what consumers will get when requesting
 	 * a pin control handle with pinctrl_get()
 	 */
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (!p)
 		return ERR_PTR(-ENOMEM);
 	p->dev = dev;
@@ -1383,9 +1383,9 @@ int pinctrl_select_state(struct pinctrl *p, struct pinctrl_state *state)
 }
 EXPORT_SYMBOL_GPL(pinctrl_select_state);
 
-static void devm_pinctrl_release(struct device *dev, void *res)
+static void devm_pinctrl_release(void *p)
 {
-	pinctrl_put(*(struct pinctrl **)res);
+	pinctrl_put(p);
 }
 
 /**
@@ -1397,30 +1397,20 @@ static void devm_pinctrl_release(struct device *dev, void *res)
  */
 struct pinctrl *devm_pinctrl_get(struct device *dev)
 {
-	struct pinctrl **ptr, *p;
-
-	ptr = devres_alloc(devm_pinctrl_release, sizeof(*ptr), GFP_KERNEL);
-	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+	struct pinctrl *p;
+	int ret;
 
 	p = pinctrl_get(dev);
-	if (!IS_ERR(p)) {
-		*ptr = p;
-		devres_add(dev, ptr);
-	} else {
-		devres_free(ptr);
-	}
+	if (IS_ERR(p))
+		return p;
+
+	ret = devm_add_action_or_reset(dev, devm_pinctrl_release, p);
+	if (ret)
+		return ERR_PTR(ret);
 
 	return p;
 }
 EXPORT_SYMBOL_GPL(devm_pinctrl_get);
-
-static int devm_pinctrl_match(struct device *dev, void *res, void *data)
-{
-	struct pinctrl **p = res;
-
-	return *p == data;
-}
 
 /**
  * devm_pinctrl_put() - Resource managed pinctrl_put()
@@ -1432,8 +1422,7 @@ static int devm_pinctrl_match(struct device *dev, void *res, void *data)
  */
 void devm_pinctrl_put(struct pinctrl *p)
 {
-	WARN_ON(devres_release(p->dev, devm_pinctrl_release,
-			       devm_pinctrl_match, p));
+	devm_release_action(p->dev, devm_pinctrl_release, p);
 }
 EXPORT_SYMBOL_GPL(devm_pinctrl_put);
 
@@ -1494,7 +1483,7 @@ int pinctrl_register_mappings(const struct pinctrl_map *maps,
 		}
 	}
 
-	maps_node = kzalloc(sizeof(*maps_node), GFP_KERNEL);
+	maps_node = kzalloc_obj(*maps_node);
 	if (!maps_node)
 		return -ENOMEM;
 
@@ -2087,7 +2076,7 @@ pinctrl_init_controller(const struct pinctrl_desc *pctldesc, struct device *dev,
 	if (!pctldesc->name)
 		return ERR_PTR(-EINVAL);
 
-	pctldev = kzalloc(sizeof(*pctldev), GFP_KERNEL);
+	pctldev = kzalloc_obj(*pctldev);
 	if (!pctldev)
 		return ERR_PTR(-ENOMEM);
 
@@ -2198,10 +2187,8 @@ int pinctrl_enable(struct pinctrl_dev *pctldev)
 	int error;
 
 	error = pinctrl_claim_hogs(pctldev);
-	if (error) {
-		dev_err(pctldev->dev, "could not claim hogs: %i\n", error);
+	if (error)
 		return error;
-	}
 
 	mutex_lock(&pinctrldev_list_mutex);
 	list_add_tail(&pctldev->node, &pinctrldev_list);
@@ -2316,21 +2303,9 @@ void pinctrl_unregister(struct pinctrl_dev *pctldev)
 }
 EXPORT_SYMBOL_GPL(pinctrl_unregister);
 
-static void devm_pinctrl_dev_release(struct device *dev, void *res)
+static void devm_pinctrl_dev_release(void *pctldev)
 {
-	struct pinctrl_dev *pctldev = *(struct pinctrl_dev **)res;
-
 	pinctrl_unregister(pctldev);
-}
-
-static int devm_pinctrl_dev_match(struct device *dev, void *res, void *data)
-{
-	struct pctldev **r = res;
-
-	if (WARN_ON(!r || !*r))
-		return 0;
-
-	return *r == data;
 }
 
 /**
@@ -2348,20 +2323,16 @@ struct pinctrl_dev *devm_pinctrl_register(struct device *dev,
 					  const struct pinctrl_desc *pctldesc,
 					  void *driver_data)
 {
-	struct pinctrl_dev **ptr, *pctldev;
-
-	ptr = devres_alloc(devm_pinctrl_dev_release, sizeof(*ptr), GFP_KERNEL);
-	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+	struct pinctrl_dev *pctldev;
+	int ret;
 
 	pctldev = pinctrl_register(pctldesc, dev, driver_data);
-	if (IS_ERR(pctldev)) {
-		devres_free(ptr);
+	if (IS_ERR(pctldev))
 		return pctldev;
-	}
 
-	*ptr = pctldev;
-	devres_add(dev, ptr);
+	ret = devm_add_action_or_reset(dev, devm_pinctrl_dev_release, pctldev);
+	if (ret)
+		return ERR_PTR(ret);
 
 	return pctldev;
 }
@@ -2383,37 +2354,15 @@ int devm_pinctrl_register_and_init(struct device *dev,
 				   void *driver_data,
 				   struct pinctrl_dev **pctldev)
 {
-	struct pinctrl_dev **ptr;
 	int error;
 
-	ptr = devres_alloc(devm_pinctrl_dev_release, sizeof(*ptr), GFP_KERNEL);
-	if (!ptr)
-		return -ENOMEM;
-
 	error = pinctrl_register_and_init(pctldesc, dev, driver_data, pctldev);
-	if (error) {
-		devres_free(ptr);
+	if (error)
 		return error;
-	}
 
-	*ptr = *pctldev;
-	devres_add(dev, ptr);
-
-	return 0;
+	return devm_add_action_or_reset(dev, devm_pinctrl_dev_release, *pctldev);
 }
 EXPORT_SYMBOL_GPL(devm_pinctrl_register_and_init);
-
-/**
- * devm_pinctrl_unregister() - Resource managed version of pinctrl_unregister().
- * @dev: device for which resource was allocated
- * @pctldev: the pinctrl device to unregister.
- */
-void devm_pinctrl_unregister(struct device *dev, struct pinctrl_dev *pctldev)
-{
-	WARN_ON(devres_release(dev, devm_pinctrl_dev_release,
-			       devm_pinctrl_dev_match, pctldev));
-}
-EXPORT_SYMBOL_GPL(devm_pinctrl_unregister);
 
 static int __init pinctrl_init(void)
 {

@@ -982,7 +982,7 @@ static int llbitmap_create(struct mddev *mddev)
 	if (ret)
 		return ret;
 
-	llbitmap = kzalloc(sizeof(*llbitmap), GFP_KERNEL);
+	llbitmap = kzalloc_obj(*llbitmap);
 	if (!llbitmap)
 		return -ENOMEM;
 

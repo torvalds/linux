@@ -141,7 +141,7 @@ static struct device *wakeup_source_device_create(struct device *parent,
 	struct device *dev = NULL;
 	int retval;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev) {
 		retval = -ENOMEM;
 		goto error;

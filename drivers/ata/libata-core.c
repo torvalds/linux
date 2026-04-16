@@ -2557,7 +2557,7 @@ static int ata_dev_init_cdl_resources(struct ata_device *dev)
 	unsigned int err_mask;
 
 	if (!cdl) {
-		cdl = kzalloc(sizeof(*cdl), GFP_KERNEL);
+		cdl = kzalloc_obj(*cdl);
 		if (!cdl)
 			return -ENOMEM;
 		dev->cdl = cdl;
@@ -2832,7 +2832,7 @@ static void ata_dev_config_cpr(struct ata_device *dev)
 	if (!nr_cpr)
 		goto out;
 
-	cpr_log = kzalloc(struct_size(cpr_log, cpr, nr_cpr), GFP_KERNEL);
+	cpr_log = kzalloc_flex(*cpr_log, cpr, nr_cpr);
 	if (!cpr_log)
 		goto out;
 
@@ -4189,6 +4189,7 @@ static const struct ata_dev_quirks_entry __ata_dev_quirks[] = {
 						ATA_QUIRK_FIRMWARE_WARN },
 
 	/* Seagate disks with LPM issues */
+	{ "ST1000DM010-2EP102",	NULL,		ATA_QUIRK_NOLPM },
 	{ "ST2000DM008-2FR102",	NULL,		ATA_QUIRK_NOLPM },
 
 	/* drives which fail FPDMA_AA activation (some may freeze afterwards)
@@ -4231,6 +4232,7 @@ static const struct ata_dev_quirks_entry __ata_dev_quirks[] = {
 	/* Devices that do not need bridging limits applied */
 	{ "MTRON MSP-SATA*",		NULL,	ATA_QUIRK_BRIDGE_OK },
 	{ "BUFFALO HD-QSU2/R5",		NULL,	ATA_QUIRK_BRIDGE_OK },
+	{ "QEMU HARDDISK",		"2.5+",	ATA_QUIRK_BRIDGE_OK },
 
 	/* Devices which aren't very happy with higher link speeds */
 	{ "WD My Book",			NULL,	ATA_QUIRK_1_5_GBPS },
@@ -5638,7 +5640,7 @@ struct ata_port *ata_port_alloc(struct ata_host *host)
 	struct ata_port *ap;
 	int id;
 
-	ap = kzalloc(sizeof(*ap), GFP_KERNEL);
+	ap = kzalloc_obj(*ap);
 	if (!ap)
 		return NULL;
 
@@ -6269,10 +6271,6 @@ static void ata_port_detach(struct ata_port *ap)
 		}
 	}
 
-	/* Make sure the deferred qc work finished. */
-	cancel_work_sync(&ap->deferred_qc_work);
-	WARN_ON(ap->deferred_qc);
-
 	/* Tell EH to disable all devices */
 	ap->pflags |= ATA_PFLAG_UNLOADING;
 	ata_port_schedule_eh(ap);
@@ -6283,9 +6281,11 @@ static void ata_port_detach(struct ata_port *ap)
 	/* wait till EH commits suicide */
 	ata_port_wait_eh(ap);
 
-	/* it better be dead now */
+	/* It better be dead now and not have any remaining deferred qc. */
 	WARN_ON(!(ap->pflags & ATA_PFLAG_UNLOADED));
+	WARN_ON(ap->deferred_qc);
 
+	cancel_work_sync(&ap->deferred_qc_work);
 	cancel_delayed_work_sync(&ap->hotplug_task);
 	cancel_delayed_work_sync(&ap->scsi_rescan_task);
 
@@ -6714,7 +6714,7 @@ static void __init ata_parse_force_param(void)
 		if (*p == ',')
 			size++;
 
-	ata_force_tbl = kcalloc(size, sizeof(ata_force_tbl[0]), GFP_KERNEL);
+	ata_force_tbl = kzalloc_objs(ata_force_tbl[0], size);
 	if (!ata_force_tbl) {
 		printk(KERN_WARNING "ata: failed to extend force table, "
 		       "libata.force ignored\n");

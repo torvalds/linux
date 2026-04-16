@@ -26,7 +26,7 @@ static void once_disable_jump(struct static_key_true *key, struct module *mod)
 {
 	struct once_work *w;
 
-	w = kmalloc(sizeof(*w), GFP_ATOMIC);
+	w = kmalloc_obj(*w, GFP_ATOMIC);
 	if (!w)
 		return;
 

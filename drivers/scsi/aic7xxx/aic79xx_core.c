@@ -3604,7 +3604,7 @@ ahd_alloc_tstate(struct ahd_softc *ahd, u_int scsi_id, char channel)
 	 && ahd->enabled_targets[scsi_id] != master_tstate)
 		panic("%s: ahd_alloc_tstate - Target already allocated",
 		      ahd_name(ahd));
-	tstate = kmalloc(sizeof(*tstate), GFP_ATOMIC);
+	tstate = kmalloc_obj(*tstate, GFP_ATOMIC);
 	if (tstate == NULL)
 		return (NULL);
 
@@ -6037,14 +6037,14 @@ ahd_alloc(void *platform_arg, char *name)
 {
 	struct  ahd_softc *ahd;
 
-	ahd = kzalloc(sizeof(*ahd), GFP_ATOMIC);
+	ahd = kzalloc_obj(*ahd, GFP_ATOMIC);
 	if (!ahd) {
 		printk("aic7xxx: cannot malloc softc!\n");
 		kfree(name);
 		return NULL;
 	}
 
-	ahd->seep_config = kmalloc(sizeof(*ahd->seep_config), GFP_ATOMIC);
+	ahd->seep_config = kmalloc_obj(*ahd->seep_config, GFP_ATOMIC);
 	if (ahd->seep_config == NULL) {
 		kfree(ahd);
 		kfree(name);
@@ -6777,7 +6777,7 @@ ahd_alloc_scbs(struct ahd_softc *ahd)
 		hscb = &((struct hardware_scb *)hscb_map->vaddr)[offset];
 		hscb_busaddr = hscb_map->physaddr + (offset * sizeof(*hscb));
 	} else {
-		hscb_map = kmalloc(sizeof(*hscb_map), GFP_ATOMIC);
+		hscb_map = kmalloc_obj(*hscb_map, GFP_ATOMIC);
 
 		if (hscb_map == NULL)
 			return;
@@ -6810,7 +6810,7 @@ ahd_alloc_scbs(struct ahd_softc *ahd)
 		segs = sg_map->vaddr + offset;
 		sg_busaddr = sg_map->physaddr + offset;
 	} else {
-		sg_map = kmalloc(sizeof(*sg_map), GFP_ATOMIC);
+		sg_map = kmalloc_obj(*sg_map, GFP_ATOMIC);
 
 		if (sg_map == NULL)
 			return;
@@ -6847,7 +6847,7 @@ ahd_alloc_scbs(struct ahd_softc *ahd)
 		sense_data = sense_map->vaddr + offset;
 		sense_busaddr = sense_map->physaddr + offset;
 	} else {
-		sense_map = kmalloc(sizeof(*sense_map), GFP_ATOMIC);
+		sense_map = kmalloc_obj(*sense_map, GFP_ATOMIC);
 
 		if (sense_map == NULL)
 			return;
@@ -6882,11 +6882,11 @@ ahd_alloc_scbs(struct ahd_softc *ahd)
 		struct scb_platform_data *pdata;
 		u_int col_tag;
 
-		next_scb = kmalloc(sizeof(*next_scb), GFP_ATOMIC);
+		next_scb = kmalloc_obj(*next_scb, GFP_ATOMIC);
 		if (next_scb == NULL)
 			break;
 
-		pdata = kmalloc(sizeof(*pdata), GFP_ATOMIC);
+		pdata = kmalloc_obj(*pdata, GFP_ATOMIC);
 		if (pdata == NULL) {
 			kfree(next_scb);
 			break;
@@ -10339,7 +10339,7 @@ ahd_handle_en_lun(struct ahd_softc *ahd, struct cam_sim *sim, union ccb *ccb)
 				return;
 			}
 		}
-		lstate = kzalloc(sizeof(*lstate), GFP_ATOMIC);
+		lstate = kzalloc_obj(*lstate, GFP_ATOMIC);
 		if (lstate == NULL) {
 			xpt_print_path(ccb->ccb_h.path);
 			printk("Couldn't allocate lstate\n");

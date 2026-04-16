@@ -1290,8 +1290,7 @@ static int rtw_sdio_init_tx(struct rtw_dev *rtwdev)
 
 	for (i = 0; i < RTK_MAX_TX_QUEUE_NUM; i++)
 		skb_queue_head_init(&rtwsdio->tx_queue[i]);
-	rtwsdio->tx_handler_data = kmalloc(sizeof(*rtwsdio->tx_handler_data),
-					   GFP_KERNEL);
+	rtwsdio->tx_handler_data = kmalloc_obj(*rtwsdio->tx_handler_data);
 	if (!rtwsdio->tx_handler_data)
 		goto err_destroy_wq;
 

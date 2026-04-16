@@ -112,7 +112,7 @@ DEFINE_SHOW_ATTRIBUTE(ucsi_vbus_volt);
 
 void ucsi_debugfs_register(struct ucsi *ucsi)
 {
-	ucsi->debugfs = kzalloc(sizeof(*ucsi->debugfs), GFP_KERNEL);
+	ucsi->debugfs = kzalloc_obj(*ucsi->debugfs);
 	if (!ucsi->debugfs)
 		return;
 

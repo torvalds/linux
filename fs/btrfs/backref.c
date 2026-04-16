@@ -78,7 +78,7 @@ static int check_extent_in_eb(struct btrfs_backref_walk_ctx *ctx,
 	}
 
 add_inode_elem:
-	e = kmalloc(sizeof(*e), GFP_NOFS);
+	e = kmalloc_obj(*e, GFP_NOFS);
 	if (!e)
 		return -ENOMEM;
 
@@ -1805,7 +1805,7 @@ struct btrfs_backref_share_check_ctx *btrfs_alloc_backref_share_check_ctx(void)
 {
 	struct btrfs_backref_share_check_ctx *ctx;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return NULL;
 
@@ -2797,7 +2797,7 @@ struct inode_fs_paths *init_ipath(s32 total_bytes, struct btrfs_root *fs_root,
 	if (IS_ERR(fspath))
 		return ERR_CAST(fspath);
 
-	ifp = kmalloc(sizeof(*ifp), GFP_KERNEL);
+	ifp = kmalloc_obj(*ifp);
 	if (!ifp) {
 		kvfree(fspath);
 		return ERR_PTR(-ENOMEM);
@@ -2814,7 +2814,7 @@ struct btrfs_backref_iter *btrfs_backref_iter_alloc(struct btrfs_fs_info *fs_inf
 {
 	struct btrfs_backref_iter *ret;
 
-	ret = kzalloc(sizeof(*ret), GFP_NOFS);
+	ret = kzalloc_obj(*ret, GFP_NOFS);
 	if (!ret)
 		return NULL;
 
@@ -3024,7 +3024,7 @@ struct btrfs_backref_node *btrfs_backref_alloc_node(
 	struct btrfs_backref_node *node;
 
 	ASSERT(level >= 0 && level < BTRFS_MAX_LEVEL);
-	node = kzalloc(sizeof(*node), GFP_NOFS);
+	node = kzalloc_obj(*node, GFP_NOFS);
 	if (!node)
 		return node;
 
@@ -3057,7 +3057,7 @@ struct btrfs_backref_edge *btrfs_backref_alloc_edge(
 {
 	struct btrfs_backref_edge *edge;
 
-	edge = kzalloc(sizeof(*edge), GFP_NOFS);
+	edge = kzalloc_obj(*edge, GFP_NOFS);
 	if (edge)
 		cache->nr_edges++;
 	return edge;

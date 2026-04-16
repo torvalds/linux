@@ -1614,7 +1614,6 @@ static void hsw_configure_cpu_transcoder(const struct intel_crtc_state *crtc_sta
 	}
 
 	intel_set_transcoder_timings(crtc_state);
-	intel_vrr_set_transcoder_timings(crtc_state);
 
 	if (cpu_transcoder != TRANSCODER_EDP)
 		intel_de_write(display, TRANS_MULT(display, cpu_transcoder),
@@ -4122,7 +4121,7 @@ intel_encoder_current_mode(struct intel_encoder *encoder)
 
 	crtc = intel_crtc_for_pipe(display, pipe);
 
-	mode = kzalloc(sizeof(*mode), GFP_KERNEL);
+	mode = kzalloc_obj(*mode);
 	if (!mode)
 		return NULL;
 

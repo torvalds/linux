@@ -53,7 +53,7 @@ static int zstd_setup_params(struct zcomp_params *params)
 	zstd_compression_parameters prm;
 	struct zstd_params *zp;
 
-	zp = kzalloc(sizeof(*zp), GFP_KERNEL);
+	zp = kzalloc_obj(*zp);
 	if (!zp)
 		return -ENOMEM;
 
@@ -122,7 +122,7 @@ static int zstd_create(struct zcomp_params *params, struct zcomp_ctx *ctx)
 	zstd_parameters prm;
 	size_t sz;
 
-	zctx = kzalloc(sizeof(*zctx), GFP_KERNEL);
+	zctx = kzalloc_obj(*zctx);
 	if (!zctx)
 		return -ENOMEM;
 

@@ -297,7 +297,7 @@ int qedf_send_rrq(struct qedf_ioreq *aborted_io_req)
 		   aborted_io_req->xid);
 	memset(&rrq, 0, sizeof(rrq));
 
-	cb_arg = kzalloc(sizeof(struct qedf_els_cb_arg), GFP_NOIO);
+	cb_arg = kzalloc_obj(struct qedf_els_cb_arg, GFP_NOIO);
 	if (!cb_arg) {
 		QEDF_ERR(&(qedf->dbg_ctx), "Unable to allocate cb_arg for "
 			  "RRQ\n");
@@ -510,7 +510,7 @@ int qedf_send_adisc(struct qedf_rport *fcport, struct fc_frame *fp)
 	qedf = fcport->qedf;
 	fh = fc_frame_header_get(fp);
 
-	cb_arg = kzalloc(sizeof(struct qedf_els_cb_arg), GFP_NOIO);
+	cb_arg = kzalloc_obj(struct qedf_els_cb_arg, GFP_NOIO);
 	if (!cb_arg) {
 		QEDF_ERR(&(qedf->dbg_ctx), "Unable to allocate cb_arg for "
 			  "ADISC\n");
@@ -659,7 +659,7 @@ static int qedf_send_srr(struct qedf_ioreq *orig_io_req, u32 offset, u8 r_ctl)
 		   "orig_xid=0x%x\n", orig_io_req, orig_io_req->xid);
 	memset(&srr, 0, sizeof(srr));
 
-	cb_arg = kzalloc(sizeof(struct qedf_els_cb_arg), GFP_NOIO);
+	cb_arg = kzalloc_obj(struct qedf_els_cb_arg, GFP_NOIO);
 	if (!cb_arg) {
 		QEDF_ERR(&(qedf->dbg_ctx), "Unable to allocate cb_arg for "
 			  "SRR\n");
@@ -708,7 +708,7 @@ static void qedf_initiate_seq_cleanup(struct qedf_ioreq *orig_io_req,
 	    "Doing sequence cleanup for xid=0x%x offset=%u.\n",
 	    orig_io_req->xid, offset);
 
-	cb_arg = kzalloc(sizeof(struct qedf_els_cb_arg), GFP_NOIO);
+	cb_arg = kzalloc_obj(struct qedf_els_cb_arg, GFP_NOIO);
 	if (!cb_arg) {
 		QEDF_ERR(&(fcport->qedf->dbg_ctx), "Unable to allocate cb_arg "
 			  "for sequence cleanup\n");
@@ -1033,7 +1033,7 @@ int qedf_send_rec(struct qedf_ioreq *orig_io_req)
 
 	memset(&rec, 0, sizeof(rec));
 
-	cb_arg = kzalloc(sizeof(struct qedf_els_cb_arg), GFP_NOIO);
+	cb_arg = kzalloc_obj(struct qedf_els_cb_arg, GFP_NOIO);
 	if (!cb_arg) {
 		QEDF_ERR(&(qedf->dbg_ctx), "Unable to allocate cb_arg for "
 			  "REC\n");

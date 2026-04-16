@@ -171,7 +171,7 @@ static int __init msc313e_clkevt_init(struct device_node *np)
 	int ret;
 	struct timer_of *to;
 
-	to = kzalloc(sizeof(*to), GFP_KERNEL);
+	to = kzalloc_obj(*to);
 	if (!to)
 		return -ENOMEM;
 

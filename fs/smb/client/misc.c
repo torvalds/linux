@@ -28,6 +28,11 @@
 #include "fs_context.h"
 #include "cached_dir.h"
 
+struct tcon_list {
+	struct list_head entry;
+	struct cifs_tcon *tcon;
+};
+
 /* The xid serves as a useful identifier for each incoming vfs request,
    in a similar way to the mid which is useful to track each sent smb,
    and CurrentXid can also provide a running counter (although it
@@ -67,7 +72,7 @@ sesInfoAlloc(void)
 {
 	struct cifs_ses *ret_buf;
 
-	ret_buf = kzalloc(sizeof(struct cifs_ses), GFP_KERNEL);
+	ret_buf = kzalloc_obj(struct cifs_ses);
 	if (ret_buf) {
 		atomic_inc(&sesInfoAllocCount);
 		spin_lock_init(&ret_buf->ses_lock);
@@ -118,7 +123,7 @@ tcon_info_alloc(bool dir_leases_enabled, enum smb3_tcon_ref_trace trace)
 	struct cifs_tcon *ret_buf;
 	static atomic_t tcon_debug_id;
 
-	ret_buf = kzalloc(sizeof(*ret_buf), GFP_KERNEL);
+	ret_buf = kzalloc_obj(*ret_buf);
 	if (!ret_buf)
 		return NULL;
 
@@ -275,13 +280,15 @@ dump_smb(void *buf, int smb_buf_length)
 void
 cifs_autodisable_serverino(struct cifs_sb_info *cifs_sb)
 {
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM) {
+	unsigned int sbflags = cifs_sb_flags(cifs_sb);
+
+	if (sbflags & CIFS_MOUNT_SERVER_INUM) {
 		struct cifs_tcon *tcon = NULL;
 
 		if (cifs_sb->master_tlink)
 			tcon = cifs_sb_master_tcon(cifs_sb);
 
-		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_SERVER_INUM;
+		atomic_andnot(CIFS_MOUNT_SERVER_INUM, &cifs_sb->mnt_cifs_flags);
 		cifs_sb->mnt_cifs_serverino_autodisabled = true;
 		cifs_dbg(VFS, "Autodisabling the use of server inode numbers on %s\n",
 			 tcon ? tcon->tree_name : "new server");
@@ -382,11 +389,13 @@ void cifs_done_oplock_break(struct cifsInodeInfo *cinode)
 bool
 backup_cred(struct cifs_sb_info *cifs_sb)
 {
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_BACKUPUID) {
+	unsigned int sbflags = cifs_sb_flags(cifs_sb);
+
+	if (sbflags & CIFS_MOUNT_CIFS_BACKUPUID) {
 		if (uid_eq(cifs_sb->ctx->backupuid, current_fsuid()))
 			return true;
 	}
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_BACKUPGID) {
+	if (sbflags & CIFS_MOUNT_CIFS_BACKUPGID) {
 		if (in_group_p(cifs_sb->ctx->backupgid))
 			return true;
 	}
@@ -499,7 +508,8 @@ cifs_close_deferred_file(struct cifsInodeInfo *cifs_inode)
 				cifs_del_deferred_close(cfile);
 				spin_unlock(&cifs_inode->deferred_lock);
 
-				tmp_list = kmalloc(sizeof(struct file_list), GFP_ATOMIC);
+				tmp_list = kmalloc_obj(struct file_list,
+						       GFP_ATOMIC);
 				if (tmp_list == NULL)
 					break;
 				tmp_list->cfile = cfile;
@@ -531,7 +541,8 @@ cifs_close_all_deferred_files(struct cifs_tcon *tcon)
 				cifs_del_deferred_close(cfile);
 				spin_unlock(&CIFS_I(d_inode(cfile->dentry))->deferred_lock);
 
-				tmp_list = kmalloc(sizeof(struct file_list), GFP_ATOMIC);
+				tmp_list = kmalloc_obj(struct file_list,
+						       GFP_ATOMIC);
 				if (tmp_list == NULL)
 					break;
 				tmp_list->cfile = cfile;
@@ -544,6 +555,43 @@ cifs_close_all_deferred_files(struct cifs_tcon *tcon)
 	list_for_each_entry_safe(tmp_list, tmp_next_list, &file_head, list) {
 		_cifsFileInfo_put(tmp_list->cfile, true, false);
 		list_del(&tmp_list->list);
+		kfree(tmp_list);
+	}
+}
+
+void cifs_close_all_deferred_files_sb(struct cifs_sb_info *cifs_sb)
+{
+	struct rb_root *root = &cifs_sb->tlink_tree;
+	struct rb_node *node;
+	struct cifs_tcon *tcon;
+	struct tcon_link *tlink;
+	struct tcon_list *tmp_list, *q;
+	LIST_HEAD(tcon_head);
+
+	spin_lock(&cifs_sb->tlink_tree_lock);
+	for (node = rb_first(root); node; node = rb_next(node)) {
+		tlink = rb_entry(node, struct tcon_link, tl_rbnode);
+		tcon = tlink_tcon(tlink);
+		if (IS_ERR(tcon))
+			continue;
+		tmp_list = kmalloc_obj(struct tcon_list, GFP_ATOMIC);
+		if (tmp_list == NULL)
+			break;
+		tmp_list->tcon = tcon;
+		/* Take a reference on tcon to prevent it from being freed */
+		spin_lock(&tcon->tc_lock);
+		++tcon->tc_count;
+		trace_smb3_tcon_ref(tcon->debug_id, tcon->tc_count,
+				    netfs_trace_tcon_ref_get_close_defer_files);
+		spin_unlock(&tcon->tc_lock);
+		list_add_tail(&tmp_list->entry, &tcon_head);
+	}
+	spin_unlock(&cifs_sb->tlink_tree_lock);
+
+	list_for_each_entry_safe(tmp_list, q, &tcon_head, entry) {
+		cifs_close_all_deferred_files(tmp_list->tcon);
+		list_del(&tmp_list->entry);
+		cifs_put_tcon(tmp_list->tcon, netfs_trace_tcon_ref_put_close_defer_files);
 		kfree(tmp_list);
 	}
 }
@@ -564,7 +612,7 @@ void cifs_close_deferred_file_under_dentry(struct cifs_tcon *tcon,
 			cifs_del_deferred_close(cfile);
 			spin_unlock(&CIFS_I(d_inode(cfile->dentry))->deferred_lock);
 
-			tmp_list = kmalloc(sizeof(struct file_list), GFP_ATOMIC);
+			tmp_list = kmalloc_obj(struct file_list, GFP_ATOMIC);
 			if (tmp_list == NULL)
 				break;
 			tmp_list->cfile = cfile;
@@ -671,8 +719,7 @@ parse_dfs_referrals(struct get_dfs_referral_rsp *rsp, u32 rsp_size,
 	cifs_dbg(FYI, "num_referrals: %d dfs flags: 0x%x ...\n",
 		 *num_of_nodes, le32_to_cpu(rsp->DFSFlags));
 
-	*target_nodes = kcalloc(*num_of_nodes, sizeof(struct dfs_info3_param),
-				GFP_KERNEL);
+	*target_nodes = kzalloc_objs(struct dfs_info3_param, *num_of_nodes);
 	if (*target_nodes == NULL) {
 		rc = -ENOMEM;
 		goto parse_DFS_referrals_exit;
@@ -954,7 +1001,7 @@ int cifs_update_super_prepath(struct cifs_sb_info *cifs_sb, char *prefix)
 			convert_delimiter(cifs_sb->prepath, CIFS_DIR_SEP(cifs_sb));
 	}
 
-	cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_USE_PREFIX_PATH;
+	atomic_or(CIFS_MOUNT_USE_PREFIX_PATH, &cifs_sb->mnt_cifs_flags);
 	return 0;
 }
 
@@ -983,7 +1030,7 @@ int cifs_inval_name_dfs_link_error(const unsigned int xid,
 	 * look up or tcon is not DFS.
 	 */
 	if (strlen(full_path) < 2 || !cifs_sb ||
-	    (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_DFS) ||
+	    (cifs_sb_flags(cifs_sb) & CIFS_MOUNT_NO_DFS) ||
 	    !is_tcon_dfs(tcon))
 		return 0;
 

@@ -933,7 +933,7 @@ xrep_bmap(
 	if (error)
 		return error;
 
-	rb = kzalloc(sizeof(struct xrep_bmap), XCHK_GFP_FLAGS);
+	rb = kzalloc_obj(struct xrep_bmap, XCHK_GFP_FLAGS);
 	if (!rb)
 		return -ENOMEM;
 	rb->sc = sc;

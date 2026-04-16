@@ -224,7 +224,7 @@ static int do_bpt_sequence(struct sdw_slave *slave, bool write, u8 *buffer)
 	struct sdw_bpt_msg msg = {0};
 	struct sdw_bpt_section *sec;
 
-	sec = kcalloc(1, sizeof(*sec), GFP_KERNEL);
+	sec = kzalloc_objs(*sec, 1);
 	if (!sec)
 		return -ENOMEM;
 	msg.sections = 1;

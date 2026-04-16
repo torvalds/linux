@@ -52,7 +52,7 @@ static struct clflush *clflush_work_create(struct drm_i915_gem_object *obj)
 
 	GEM_BUG_ON(!obj->cache_dirty);
 
-	clflush = kmalloc(sizeof(*clflush), GFP_KERNEL);
+	clflush = kmalloc_obj(*clflush);
 	if (!clflush)
 		return NULL;
 

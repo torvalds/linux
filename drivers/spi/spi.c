@@ -568,7 +568,7 @@ struct spi_device *spi_alloc_device(struct spi_controller *ctlr)
 	if (!spi_controller_get(ctlr))
 		return NULL;
 
-	spi = kzalloc(sizeof(*spi), GFP_KERNEL);
+	spi = kzalloc_obj(*spi);
 	if (!spi) {
 		spi_controller_put(ctlr);
 		return NULL;
@@ -921,7 +921,7 @@ int spi_register_board_info(struct spi_board_info const *info, unsigned n)
 	if (!n)
 		return 0;
 
-	bi = kcalloc(n, sizeof(*bi), GFP_KERNEL);
+	bi = kzalloc_objs(*bi, n);
 	if (!bi)
 		return -ENOMEM;
 

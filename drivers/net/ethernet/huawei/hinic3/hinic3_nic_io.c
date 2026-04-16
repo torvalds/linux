@@ -212,7 +212,7 @@ int hinic3_init_nic_io(struct hinic3_nic_dev *nic_dev)
 	struct hinic3_nic_io *nic_io;
 	int err;
 
-	nic_io = kzalloc(sizeof(*nic_io), GFP_KERNEL);
+	nic_io = kzalloc_obj(*nic_io);
 	if (!nic_io)
 		return -ENOMEM;
 
@@ -408,13 +408,13 @@ int hinic3_alloc_qps(struct hinic3_nic_dev *nic_dev,
 	if (qp_params->num_qps > nic_io->max_qps || !qp_params->num_qps)
 		return -EINVAL;
 
-	sqs = kcalloc(qp_params->num_qps, sizeof(*sqs), GFP_KERNEL);
+	sqs = kzalloc_objs(*sqs, qp_params->num_qps);
 	if (!sqs) {
 		err = -ENOMEM;
 		goto err_out;
 	}
 
-	rqs = kcalloc(qp_params->num_qps, sizeof(*rqs), GFP_KERNEL);
+	rqs = kzalloc_objs(*rqs, qp_params->num_qps);
 	if (!rqs) {
 		err = -ENOMEM;
 		goto err_free_sqs;

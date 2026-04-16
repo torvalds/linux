@@ -139,8 +139,13 @@ static void *usb_role_switch_match(const struct fwnode_handle *fwnode, const cha
 static struct usb_role_switch *
 usb_role_switch_is_parent(struct fwnode_handle *fwnode)
 {
-	struct fwnode_handle *parent = fwnode_get_parent(fwnode);
+	struct fwnode_handle *parent;
 	struct device *dev;
+
+	if (!fwnode_device_is_compatible(fwnode, "usb-b-connector"))
+		return NULL;
+
+	parent = fwnode_get_parent(fwnode);
 
 	if (!fwnode_property_present(parent, "usb-role-switch")) {
 		fwnode_handle_put(parent);
@@ -364,7 +369,7 @@ usb_role_switch_register(struct device *parent,
 	if (!desc || !desc->set)
 		return ERR_PTR(-EINVAL);
 
-	sw = kzalloc(sizeof(*sw), GFP_KERNEL);
+	sw = kzalloc_obj(*sw);
 	if (!sw)
 		return ERR_PTR(-ENOMEM);
 

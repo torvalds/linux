@@ -482,7 +482,7 @@ static int jumpshot_transport(struct scsi_cmnd *srb, struct us_data *us)
 	};
 
 	if (!us->extra) {
-		us->extra = kzalloc(sizeof(struct jumpshot_info), GFP_NOIO);
+		us->extra = kzalloc_obj(struct jumpshot_info, GFP_NOIO);
 		if (!us->extra)
 			return USB_STOR_TRANSPORT_ERROR;
 

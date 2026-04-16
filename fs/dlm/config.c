@@ -426,9 +426,9 @@ static struct config_group *make_cluster(struct config_group *g,
 	struct dlm_spaces *sps = NULL;
 	struct dlm_comms *cms = NULL;
 
-	cl = kzalloc(sizeof(struct dlm_cluster), GFP_NOFS);
-	sps = kzalloc(sizeof(struct dlm_spaces), GFP_NOFS);
-	cms = kzalloc(sizeof(struct dlm_comms), GFP_NOFS);
+	cl = kzalloc_obj(struct dlm_cluster, GFP_NOFS);
+	sps = kzalloc_obj(struct dlm_spaces, GFP_NOFS);
+	cms = kzalloc_obj(struct dlm_comms, GFP_NOFS);
 
 	if (!cl || !sps || !cms)
 		goto fail;
@@ -480,8 +480,8 @@ static struct config_group *make_space(struct config_group *g, const char *name)
 	struct dlm_space *sp = NULL;
 	struct dlm_nodes *nds = NULL;
 
-	sp = kzalloc(sizeof(struct dlm_space), GFP_NOFS);
-	nds = kzalloc(sizeof(struct dlm_nodes), GFP_NOFS);
+	sp = kzalloc_obj(struct dlm_space, GFP_NOFS);
+	nds = kzalloc_obj(struct dlm_nodes, GFP_NOFS);
 
 	if (!sp || !nds)
 		goto fail;
@@ -531,7 +531,7 @@ static struct config_item *make_comm(struct config_group *g, const char *name)
 	if (rv)
 		return ERR_PTR(rv);
 
-	cm = kzalloc(sizeof(struct dlm_comm), GFP_NOFS);
+	cm = kzalloc_obj(struct dlm_comm, GFP_NOFS);
 	if (!cm)
 		return ERR_PTR(-ENOMEM);
 
@@ -577,7 +577,7 @@ static struct config_item *make_node(struct config_group *g, const char *name)
 	if (rv)
 		return ERR_PTR(rv);
 
-	nd = kzalloc(sizeof(struct dlm_node), GFP_NOFS);
+	nd = kzalloc_obj(struct dlm_node, GFP_NOFS);
 	if (!nd)
 		return ERR_PTR(-ENOMEM);
 
@@ -602,7 +602,7 @@ static void drop_node(struct config_group *g, struct config_item *i)
 	struct dlm_node *nd = config_item_to_node(i);
 	struct dlm_member_gone *mb_gone;
 
-	mb_gone = kzalloc(sizeof(*mb_gone), GFP_KERNEL);
+	mb_gone = kzalloc_obj(*mb_gone);
 	if (!mb_gone)
 		return;
 
@@ -701,7 +701,7 @@ static ssize_t comm_addr_store(struct config_item *item, const char *buf,
 	if (cm->addr_count >= DLM_MAX_ADDR_COUNT)
 		return -ENOSPC;
 
-	addr = kzalloc(sizeof(*addr), GFP_NOFS);
+	addr = kzalloc_obj(*addr, GFP_NOFS);
 	if (!addr)
 		return -ENOMEM;
 
@@ -946,7 +946,7 @@ int dlm_config_nodes(char *lsname, struct dlm_config_node **nodes_out,
 
 	count = sp->members_count + sp->members_gone_count;
 
-	nodes = kcalloc(count, sizeof(struct dlm_config_node), GFP_NOFS);
+	nodes = kzalloc_objs(struct dlm_config_node, count, GFP_NOFS);
 	if (!nodes) {
 		rv = -ENOMEM;
 		goto out;

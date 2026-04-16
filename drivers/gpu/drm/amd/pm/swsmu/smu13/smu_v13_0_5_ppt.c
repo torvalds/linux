@@ -51,17 +51,19 @@
 #define mmMP1_C2PMSG_33                                                                                (0xbee261 + 0xb00000 / 4)
 #define mmMP1_C2PMSG_33_BASE_IDX                                                                   0
 
-#define FEATURE_MASK(feature) (1ULL << feature)
-#define SMC_DPM_FEATURE ( \
-	FEATURE_MASK(FEATURE_CCLK_DPM_BIT) | \
-	FEATURE_MASK(FEATURE_FCLK_DPM_BIT)	 | \
-	FEATURE_MASK(FEATURE_LCLK_DPM_BIT)	 | \
-	FEATURE_MASK(FEATURE_GFX_DPM_BIT)	 | \
-	FEATURE_MASK(FEATURE_VCN_DPM_BIT)	 | \
-	FEATURE_MASK(FEATURE_DCFCLK_DPM_BIT)	 | \
-	FEATURE_MASK(FEATURE_SOCCLK_DPM_BIT)| \
-	FEATURE_MASK(FEATURE_MP0CLK_DPM_BIT)| \
-	FEATURE_MASK(FEATURE_SHUBCLK_DPM_BIT))
+static const struct smu_feature_bits smu_v13_0_5_dpm_features = {
+	.bits = {
+		SMU_FEATURE_BIT_INIT(FEATURE_CCLK_DPM_BIT),
+		SMU_FEATURE_BIT_INIT(FEATURE_FCLK_DPM_BIT),
+		SMU_FEATURE_BIT_INIT(FEATURE_LCLK_DPM_BIT),
+		SMU_FEATURE_BIT_INIT(FEATURE_GFX_DPM_BIT),
+		SMU_FEATURE_BIT_INIT(FEATURE_VCN_DPM_BIT),
+		SMU_FEATURE_BIT_INIT(FEATURE_DCFCLK_DPM_BIT),
+		SMU_FEATURE_BIT_INIT(FEATURE_SOCCLK_DPM_BIT),
+		SMU_FEATURE_BIT_INIT(FEATURE_MP0CLK_DPM_BIT),
+		SMU_FEATURE_BIT_INIT(FEATURE_SHUBCLK_DPM_BIT)
+	}
+};
 
 static struct cmn2asic_msg_mapping smu_v13_0_5_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,                    PPSMC_MSG_TestMessage,			1),
@@ -134,16 +136,16 @@ static int smu_v13_0_5_init_smc_tables(struct smu_context *smu)
 	SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS, sizeof(SmuMetrics_t),
 		PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 
-	smu_table->clocks_table = kzalloc(sizeof(DpmClocks_t), GFP_KERNEL);
+	smu_table->clocks_table = kzalloc_obj(DpmClocks_t);
 	if (!smu_table->clocks_table)
 		goto err0_out;
 
-	smu_table->metrics_table = kzalloc(sizeof(SmuMetrics_t), GFP_KERNEL);
+	smu_table->metrics_table = kzalloc_obj(SmuMetrics_t);
 	if (!smu_table->metrics_table)
 		goto err1_out;
 	smu_table->metrics_time = 0;
 
-	smu_table->watermarks_table = kzalloc(sizeof(Watermarks_t), GFP_KERNEL);
+	smu_table->watermarks_table = kzalloc_obj(Watermarks_t);
 	if (!smu_table->watermarks_table)
 		goto err2_out;
 
@@ -230,14 +232,15 @@ static int smu_v13_0_5_dpm_set_jpeg_enable(struct smu_context *smu, bool enable)
 static bool smu_v13_0_5_is_dpm_running(struct smu_context *smu)
 {
 	int ret = 0;
-	uint64_t feature_enabled;
+	struct smu_feature_bits feature_enabled;
 
 	ret = smu_cmn_get_enabled_mask(smu, &feature_enabled);
 
 	if (ret)
 		return false;
 
-	return !!(feature_enabled & SMC_DPM_FEATURE);
+	return smu_feature_bits_test_mask(&feature_enabled,
+					  smu_v13_0_5_dpm_features.bits);
 }
 
 static int smu_v13_0_5_mode_reset(struct smu_context *smu, int type)

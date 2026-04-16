@@ -581,7 +581,7 @@ static int fou_create(struct net *net, struct fou_cfg *cfg,
 		goto error;
 
 	/* Allocate FOU port structure */
-	fou = kzalloc(sizeof(*fou), GFP_KERNEL);
+	fou = kzalloc_obj(*fou);
 	if (!fou) {
 		err = -ENOMEM;
 		goto error;

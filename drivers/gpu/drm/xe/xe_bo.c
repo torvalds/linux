@@ -480,7 +480,7 @@ static struct ttm_tt *xe_ttm_tt_create(struct ttm_buffer_object *ttm_bo,
 	enum ttm_caching caching = ttm_cached;
 	int err;
 
-	xe_tt = kzalloc(sizeof(*xe_tt), GFP_KERNEL);
+	xe_tt = kzalloc_obj(*xe_tt);
 	if (!xe_tt)
 		return NULL;
 
@@ -1941,7 +1941,7 @@ static vm_fault_t xe_bo_cpu_fault(struct vm_fault *vmf)
 	int err = 0;
 	int idx;
 
-	if (!drm_dev_enter(&xe->drm, &idx))
+	if (xe_device_wedged(xe) || !drm_dev_enter(&xe->drm, &idx))
 		return ttm_bo_vm_dummy_page(vmf, vmf->vma->vm_page_prot);
 
 	ret = xe_bo_cpu_fault_fastpath(vmf, xe, bo, needs_rpm);
@@ -2089,7 +2089,7 @@ static const struct drm_gem_object_funcs xe_gem_object_funcs = {
  */
 struct xe_bo *xe_bo_alloc(void)
 {
-	struct xe_bo *bo = kzalloc(sizeof(*bo), GFP_KERNEL);
+	struct xe_bo *bo = kzalloc_obj(*bo);
 
 	if (!bo)
 		return ERR_PTR(-ENOMEM);

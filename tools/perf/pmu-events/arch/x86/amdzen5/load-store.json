@@ -70,19 +70,19 @@
     "EventName": "ls_mab_alloc.load_store_allocations",
     "EventCode": "0x41",
     "BriefDescription": "Miss Address Buffer (MAB) entries allocated by a Load-Store (LS) pipe for load-store allocations.",
-    "UMask": "0x3f"
+    "UMask": "0x07"
   },
   {
     "EventName": "ls_mab_alloc.hardware_prefetcher_allocations",
     "EventCode": "0x41",
     "BriefDescription": "Miss Address Buffer (MAB) entries allocated by a Load-Store (LS) pipe for hardware prefetcher allocations.",
-    "UMask": "0x40"
+    "UMask": "0x08"
   },
   {
     "EventName": "ls_mab_alloc.all_allocations",
     "EventCode": "0x41",
     "BriefDescription": "Miss Address Buffer (MAB) entries allocated by a Load-Store (LS) pipe for all types of allocations.",
-    "UMask": "0x7f"
+    "UMask": "0x0f"
   },
   {
     "EventName": "ls_dmnd_fills_from_sys.local_l2",

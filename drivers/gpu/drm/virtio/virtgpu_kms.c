@@ -316,7 +316,7 @@ int virtio_gpu_driver_open(struct drm_device *dev, struct drm_file *file)
 		return 0;
 
 	/* allocate a virt GPU context for this opener */
-	vfpriv = kzalloc(sizeof(*vfpriv), GFP_KERNEL);
+	vfpriv = kzalloc_obj(*vfpriv);
 	if (!vfpriv)
 		return -ENOMEM;
 

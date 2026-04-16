@@ -218,7 +218,7 @@ static int acp3x_dma_open(struct snd_soc_component *component,
 	prtd = snd_soc_substream_to_rtd(substream);
 	component = snd_soc_rtdcom_lookup(prtd, DRV_NAME);
 	adata = dev_get_drvdata(component->dev);
-	i2s_data = kzalloc(sizeof(*i2s_data), GFP_KERNEL);
+	i2s_data = kzalloc_obj(*i2s_data);
 	if (!i2s_data)
 		return -EINVAL;
 

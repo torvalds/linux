@@ -60,11 +60,13 @@ static struct gfx_user_settings {
 
 static uint32_t cyan_skillfish_sclk_default;
 
-#define FEATURE_MASK(feature) (1ULL << feature)
-#define SMC_DPM_FEATURE ( \
-	FEATURE_MASK(FEATURE_FCLK_DPM_BIT)	|	\
-	FEATURE_MASK(FEATURE_SOC_DPM_BIT)	|	\
-	FEATURE_MASK(FEATURE_GFX_DPM_BIT))
+static const struct smu_feature_bits cyan_skillfish_dpm_features = {
+	.bits = {
+		SMU_FEATURE_BIT_INIT(FEATURE_FCLK_DPM_BIT),
+		SMU_FEATURE_BIT_INIT(FEATURE_SOC_DPM_BIT),
+		SMU_FEATURE_BIT_INIT(FEATURE_GFX_DPM_BIT)
+	}
+};
 
 static struct cmn2asic_msg_mapping cyan_skillfish_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,                    PPSMC_MSG_TestMessage,			0),
@@ -95,7 +97,7 @@ static int cyan_skillfish_tables_init(struct smu_context *smu)
 				PAGE_SIZE,
 				AMDGPU_GEM_DOMAIN_VRAM);
 
-	smu_table->metrics_table = kzalloc(sizeof(SmuMetrics_t), GFP_KERNEL);
+	smu_table->metrics_table = kzalloc_obj(SmuMetrics_t);
 	if (!smu_table->metrics_table)
 		goto err0_out;
 
@@ -361,7 +363,7 @@ static bool cyan_skillfish_is_dpm_running(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
-	uint64_t feature_enabled;
+	struct smu_feature_bits feature_enabled;
 
 	/* we need to re-init after suspend so return false */
 	if (adev->in_suspend)
@@ -378,7 +380,8 @@ static bool cyan_skillfish_is_dpm_running(struct smu_context *smu)
 		cyan_skillfish_get_smu_metrics_data(smu, METRICS_CURR_GFXCLK,
 			&cyan_skillfish_sclk_default);
 
-	return !!(feature_enabled & SMC_DPM_FEATURE);
+	return smu_feature_bits_test_mask(&feature_enabled,
+					  cyan_skillfish_dpm_features.bits);
 }
 
 static ssize_t cyan_skillfish_get_gpu_metrics(struct smu_context *smu,
@@ -565,12 +568,13 @@ static int cyan_skillfish_get_dpm_ultimate_freq(struct smu_context *smu,
 	return 0;
 }
 
-static int cyan_skillfish_get_enabled_mask(struct smu_context *smu,
-					   uint64_t *feature_mask)
+static int
+cyan_skillfish_get_enabled_mask(struct smu_context *smu,
+				struct smu_feature_bits *feature_mask)
 {
 	if (!feature_mask)
 		return -EINVAL;
-	memset(feature_mask, 0xff, sizeof(*feature_mask));
+	smu_feature_bits_fill(feature_mask);
 
 	return 0;
 }

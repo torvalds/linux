@@ -46,7 +46,7 @@ static int host1x_video_probe(struct host1x_device *dev)
 	struct tegra_video_device *vid;
 	int ret;
 
-	vid = kzalloc(sizeof(*vid), GFP_KERNEL);
+	vid = kzalloc_obj(*vid);
 	if (!vid)
 		return -ENOMEM;
 

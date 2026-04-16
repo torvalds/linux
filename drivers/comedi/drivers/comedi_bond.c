@@ -223,7 +223,7 @@ static int do_dev_config(struct comedi_device *dev, struct comedi_devconfig *it)
 					nchans, minor, sdev);
 				return -EINVAL;
 			}
-			bdev = kmalloc(sizeof(*bdev), GFP_KERNEL);
+			bdev = kmalloc_obj(*bdev);
 			if (!bdev)
 				return -ENOMEM;
 

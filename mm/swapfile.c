@@ -2575,7 +2575,7 @@ add_swap_extent(struct swap_info_struct *sis, unsigned long start_page,
 	}
 
 	/* No merge, insert a new extent. */
-	new_se = kmalloc(sizeof(*se), GFP_KERNEL);
+	new_se = kmalloc_obj(*se);
 	if (new_se == NULL)
 		return -ENOMEM;
 	new_se->start_page = start_page;
@@ -3048,7 +3048,7 @@ static struct swap_info_struct *alloc_swap_info(void)
 	struct swap_info_struct *defer = NULL;
 	unsigned int type;
 
-	p = kvzalloc(sizeof(struct swap_info_struct), GFP_KERNEL);
+	p = kvzalloc_obj(struct swap_info_struct);
 	if (!p)
 		return ERR_PTR(-ENOMEM);
 
@@ -3257,7 +3257,7 @@ static struct swap_cluster_info *setup_clusters(struct swap_info_struct *si,
 	int err = -ENOMEM;
 	unsigned long i;
 
-	cluster_info = kvcalloc(nr_clusters, sizeof(*cluster_info), GFP_KERNEL);
+	cluster_info = kvzalloc_objs(*cluster_info, nr_clusters);
 	if (!cluster_info)
 		goto err;
 
@@ -3265,8 +3265,7 @@ static struct swap_cluster_info *setup_clusters(struct swap_info_struct *si,
 		spin_lock_init(&cluster_info[i].lock);
 
 	if (!(si->flags & SWP_SOLIDSTATE)) {
-		si->global_cluster = kmalloc(sizeof(*si->global_cluster),
-				     GFP_KERNEL);
+		si->global_cluster = kmalloc_obj(*si->global_cluster);
 		if (!si->global_cluster)
 			goto err;
 		for (i = 0; i < SWAP_NR_ORDERS; i++)

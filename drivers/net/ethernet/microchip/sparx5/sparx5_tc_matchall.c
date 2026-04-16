@@ -60,7 +60,7 @@ static int sparx5_tc_matchall_replace(struct net_device *ndev,
 	}
 	action = &tmo->rule->action.entries[0];
 
-	mall_entry = kzalloc(sizeof(*mall_entry), GFP_KERNEL);
+	mall_entry = kzalloc_obj(*mall_entry);
 	if (!mall_entry)
 		return -ENOMEM;
 

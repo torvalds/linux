@@ -446,7 +446,7 @@ int qede_ptp_enable(struct qede_dev *edev)
 	struct qede_ptp *ptp;
 	int rc;
 
-	ptp = kzalloc(sizeof(*ptp), GFP_KERNEL);
+	ptp = kzalloc_obj(*ptp);
 	if (!ptp) {
 		DP_INFO(edev, "Failed to allocate struct for PTP\n");
 		return -ENOMEM;

@@ -607,7 +607,7 @@ int verity_fec_ctr_alloc(struct dm_verity *v)
 {
 	struct dm_verity_fec *f;
 
-	f = kzalloc(sizeof(struct dm_verity_fec), GFP_KERNEL);
+	f = kzalloc_obj(struct dm_verity_fec);
 	if (!f) {
 		v->ti->error = "Cannot allocate FEC structure";
 		return -ENOMEM;

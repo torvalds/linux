@@ -233,7 +233,7 @@ static int snd_ctl_new(struct snd_kcontrol **kctl, unsigned int count,
 	if (count == 0 || count > MAX_CONTROL_COUNT)
 		return -EINVAL;
 
-	*kctl = kzalloc(struct_size(*kctl, vd, count), GFP_KERNEL);
+	*kctl = kzalloc_flex(**kctl, vd, count);
 	if (!*kctl)
 		return -ENOMEM;
 
@@ -2057,7 +2057,7 @@ static int _snd_ctl_register_ioctl(snd_kctl_ioctl_func_t fcn, struct list_head *
 {
 	struct snd_kctl_ioctl *pn;
 
-	pn = kzalloc(sizeof(struct snd_kctl_ioctl), GFP_KERNEL);
+	pn = kzalloc_obj(struct snd_kctl_ioctl);
 	if (pn == NULL)
 		return -ENOMEM;
 	pn->fioctl = fcn;

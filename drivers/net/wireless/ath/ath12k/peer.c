@@ -413,7 +413,7 @@ int ath12k_link_sta_rhash_tbl_init(struct ath12k_base *ab)
 	struct rhashtable *rhash_addr_tbl;
 	int ret;
 
-	rhash_addr_tbl = kzalloc(sizeof(*ab->rhead_sta_addr), GFP_KERNEL);
+	rhash_addr_tbl = kzalloc_obj(*ab->rhead_sta_addr);
 	if (!rhash_addr_tbl)
 		return -ENOMEM;
 

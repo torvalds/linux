@@ -382,7 +382,7 @@ static struct btrfs_fs_devices *alloc_fs_devices(const u8 *fsid)
 {
 	struct btrfs_fs_devices *fs_devs;
 
-	fs_devs = kzalloc(sizeof(*fs_devs), GFP_KERNEL);
+	fs_devs = kzalloc_obj(*fs_devs);
 	if (!fs_devs)
 		return ERR_PTR(-ENOMEM);
 
@@ -3587,7 +3587,7 @@ int btrfs_relocate_chunk(struct btrfs_fs_info *fs_info, u64 chunk_offset, bool v
 
 	/* step one, relocate all the extents inside this chunk */
 	btrfs_scrub_pause(fs_info);
-	ret = btrfs_relocate_block_group(fs_info, chunk_offset, true);
+	ret = btrfs_relocate_block_group(fs_info, chunk_offset, verbose);
 	btrfs_scrub_continue(fs_info);
 	if (ret) {
 		/*
@@ -4367,8 +4367,14 @@ again:
 		 * this shouldn't happen, it means the last relocate
 		 * failed
 		 */
-		if (ret == 0)
-			BUG(); /* FIXME break ? */
+		if (unlikely(ret == 0)) {
+			btrfs_err(fs_info,
+				  "unexpected exact match of CHUNK_ITEM in chunk tree, offset 0x%llx",
+				  key.offset);
+			mutex_unlock(&fs_info->reclaim_bgs_lock);
+			ret = -EUCLEAN;
+			goto error;
+		}
 
 		ret = btrfs_previous_item(chunk_root, path, 0,
 					  BTRFS_CHUNK_ITEM_KEY);
@@ -4450,7 +4456,7 @@ again:
 		if (chunk_type & BTRFS_BLOCK_GROUP_METADATA_REMAP) {
 			mutex_unlock(&fs_info->reclaim_bgs_lock);
 
-			rci = kmalloc(sizeof(struct remap_chunk_info), GFP_NOFS);
+			rci = kmalloc_obj(struct remap_chunk_info, GFP_NOFS);
 			if (!rci) {
 				ret = -ENOMEM;
 				goto error;
@@ -4998,7 +5004,7 @@ int btrfs_recover_balance(struct btrfs_fs_info *fs_info)
 		return 0;
 	}
 
-	bctl = kzalloc(sizeof(*bctl), GFP_NOFS);
+	bctl = kzalloc_obj(*bctl, GFP_NOFS);
 	if (!bctl)
 		return -ENOMEM;
 
@@ -6332,7 +6338,7 @@ struct btrfs_io_context *alloc_btrfs_io_context(struct btrfs_fs_info *fs_info,
 {
 	struct btrfs_io_context *bioc;
 
-	bioc = kzalloc(struct_size(bioc, stripes, total_stripes), GFP_NOFS);
+	bioc = kzalloc_flex(*bioc, stripes, total_stripes, GFP_NOFS);
 
 	if (!bioc)
 		return NULL;
@@ -6465,7 +6471,7 @@ struct btrfs_discard_stripe *btrfs_map_discard(struct btrfs_fs_info *fs_info,
 		stripe_nr /= map->num_stripes;
 	}
 
-	stripes = kcalloc(*num_stripes, sizeof(*stripes), GFP_NOFS);
+	stripes = kzalloc_objs(*stripes, *num_stripes, GFP_NOFS);
 	if (!stripes) {
 		ret = -ENOMEM;
 		goto out_free_map;
@@ -6901,7 +6907,7 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 
 		ret = btrfs_translate_remap(fs_info, &new_logical, length);
 		if (ret)
-			return ret;
+			goto out;
 
 		if (new_logical != logical) {
 			btrfs_free_chunk_map(map);
@@ -6915,8 +6921,10 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 	}
 
 	num_copies = btrfs_chunk_map_num_copies(map);
-	if (io_geom.mirror_num > num_copies)
-		return -EINVAL;
+	if (io_geom.mirror_num > num_copies) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	map_offset = logical - map->start;
 	io_geom.raid56_full_stripe_start = (u64)-1;
@@ -7196,7 +7204,7 @@ struct btrfs_device *btrfs_alloc_device(struct btrfs_fs_info *fs_info,
 	if (WARN_ON(!devid && !fs_info))
 		return ERR_PTR(-EINVAL);
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 

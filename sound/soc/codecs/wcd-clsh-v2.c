@@ -883,7 +883,7 @@ struct wcd_clsh_ctrl *wcd_clsh_ctrl_alloc(struct snd_soc_component *comp,
 {
 	struct wcd_clsh_ctrl *ctrl;
 
-	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
+	ctrl = kzalloc_obj(*ctrl);
 	if (!ctrl)
 		return ERR_PTR(-ENOMEM);
 

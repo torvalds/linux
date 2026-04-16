@@ -21,8 +21,8 @@ int iris_vdec_inst_init(struct iris_inst *inst)
 	struct iris_core *core = inst->core;
 	struct v4l2_format *f;
 
-	inst->fmt_src  = kzalloc(sizeof(*inst->fmt_src), GFP_KERNEL);
-	inst->fmt_dst  = kzalloc(sizeof(*inst->fmt_dst), GFP_KERNEL);
+	inst->fmt_src = kzalloc_obj(*inst->fmt_src);
+	inst->fmt_dst = kzalloc_obj(*inst->fmt_dst);
 
 	inst->fw_min_count = MIN_BUFFERS;
 

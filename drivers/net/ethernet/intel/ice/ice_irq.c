@@ -81,7 +81,7 @@ static struct ice_irq_entry *ice_get_irq_res(struct ice_pf *pf,
 	unsigned int index;
 	int ret;
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return NULL;
 

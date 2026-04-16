@@ -108,7 +108,7 @@ struct sg_table *dma_buf_phys_vec_to_sgt(struct dma_buf_attachment *attach,
 		/* This function is supposed to work on MMIO memory only */
 		return ERR_PTR(-EINVAL);
 
-	dma = kzalloc(sizeof(*dma), GFP_KERNEL);
+	dma = kzalloc_obj(*dma);
 	if (!dma)
 		return ERR_PTR(-ENOMEM);
 
@@ -119,7 +119,7 @@ struct sg_table *dma_buf_phys_vec_to_sgt(struct dma_buf_attachment *attach,
 		 */
 		break;
 	case PCI_P2PDMA_MAP_THRU_HOST_BRIDGE:
-		dma->state = kzalloc(sizeof(*dma->state), GFP_KERNEL);
+		dma->state = kzalloc_obj(*dma->state);
 		if (!dma->state) {
 			ret = -ENOMEM;
 			goto err_free_dma;

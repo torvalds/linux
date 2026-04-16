@@ -162,7 +162,7 @@ ppp_sync_open(struct tty_struct *tty)
 	if (tty->ops->write == NULL)
 		return -EOPNOTSUPP;
 
-	ap = kzalloc(sizeof(*ap), GFP_KERNEL);
+	ap = kzalloc_obj(*ap);
 	err = -ENOMEM;
 	if (!ap)
 		goto out;

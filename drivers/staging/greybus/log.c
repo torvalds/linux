@@ -77,7 +77,7 @@ static int gb_log_probe(struct gb_bundle *bundle,
 	if (cport_desc->protocol_id != GREYBUS_PROTOCOL_LOG)
 		return -ENODEV;
 
-	log = kzalloc(sizeof(*log), GFP_KERNEL);
+	log = kzalloc_obj(*log);
 	if (!log)
 		return -ENOMEM;
 

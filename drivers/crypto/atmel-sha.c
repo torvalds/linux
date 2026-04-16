@@ -2207,7 +2207,7 @@ struct atmel_sha_authenc_ctx *atmel_sha_authenc_spawn(unsigned long mode)
 	tctx->start = atmel_sha_authenc_start;
 	tctx->flags = mode;
 
-	auth = kzalloc(sizeof(*auth), GFP_KERNEL);
+	auth = kzalloc_obj(*auth);
 	if (!auth) {
 		err = -ENOMEM;
 		goto err_free_ahash;

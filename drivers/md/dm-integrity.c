@@ -4243,7 +4243,8 @@ static struct page_list *dm_integrity_alloc_page_list(unsigned int n_pages)
 	struct page_list *pl;
 	unsigned int i;
 
-	pl = kvmalloc_array(n_pages + 1, sizeof(struct page_list), GFP_KERNEL | __GFP_ZERO);
+	pl = kvmalloc_objs(struct page_list, n_pages + 1,
+			   GFP_KERNEL | __GFP_ZERO);
 	if (!pl)
 		return NULL;
 
@@ -4277,9 +4278,8 @@ static struct scatterlist **dm_integrity_alloc_journal_scatterlist(struct dm_int
 	struct scatterlist **sl;
 	unsigned int i;
 
-	sl = kvmalloc_array(ic->journal_sections,
-			    sizeof(struct scatterlist *),
-			    GFP_KERNEL | __GFP_ZERO);
+	sl = kvmalloc_objs(struct scatterlist *, ic->journal_sections,
+			   GFP_KERNEL | __GFP_ZERO);
 	if (!sl)
 		return NULL;
 
@@ -4296,8 +4296,7 @@ static struct scatterlist **dm_integrity_alloc_journal_scatterlist(struct dm_int
 
 		n_pages = (end_index - start_index + 1);
 
-		s = kvmalloc_array(n_pages, sizeof(struct scatterlist),
-				   GFP_KERNEL);
+		s = kvmalloc_objs(struct scatterlist, n_pages);
 		if (!s) {
 			dm_integrity_free_journal_scatterlist(ic, sl);
 			return NULL;
@@ -4500,9 +4499,8 @@ static int create_journal(struct dm_integrity_c *ic, char **error)
 				goto bad;
 			}
 
-			sg = kvmalloc_array(ic->journal_pages + 1,
-					    sizeof(struct scatterlist),
-					    GFP_KERNEL);
+			sg = kvmalloc_objs(struct scatterlist,
+					   ic->journal_pages + 1);
 			if (!sg) {
 				*error = "Unable to allocate sg list";
 				r = -ENOMEM;
@@ -4569,9 +4567,9 @@ static int create_journal(struct dm_integrity_c *ic, char **error)
 				r = -ENOMEM;
 				goto bad;
 			}
-			ic->sk_requests = kvmalloc_array(ic->journal_sections,
-							 sizeof(struct skcipher_request *),
-							 GFP_KERNEL | __GFP_ZERO);
+			ic->sk_requests = kvmalloc_objs(struct skcipher_request *,
+							ic->journal_sections,
+							GFP_KERNEL | __GFP_ZERO);
 			if (!ic->sk_requests) {
 				*error = "Unable to allocate sk requests";
 				r = -ENOMEM;
@@ -4703,7 +4701,7 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned int argc, char **argv
 		return -EINVAL;
 	}
 
-	ic = kzalloc(sizeof(struct dm_integrity_c), GFP_KERNEL);
+	ic = kzalloc_obj(struct dm_integrity_c);
 	if (!ic) {
 		ti->error = "Cannot allocate integrity context";
 		return -ENOMEM;
@@ -5272,7 +5270,8 @@ try_smaller_buffer:
 			r = -ENOMEM;
 			goto bad;
 		}
-		ic->bbs = kvmalloc_array(ic->n_bitmap_blocks, sizeof(struct bitmap_block_status), GFP_KERNEL);
+		ic->bbs = kvmalloc_objs(struct bitmap_block_status,
+					ic->n_bitmap_blocks);
 		if (!ic->bbs) {
 			ti->error = "Could not allocate memory for bitmap";
 			r = -ENOMEM;

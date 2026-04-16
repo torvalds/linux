@@ -154,7 +154,7 @@ int usb_create_ep_devs(struct device *parent,
 	struct ep_device *ep_dev;
 	int retval;
 
-	ep_dev = kzalloc(sizeof(*ep_dev), GFP_KERNEL);
+	ep_dev = kzalloc_obj(*ep_dev);
 	if (!ep_dev) {
 		retval = -ENOMEM;
 		goto exit;

@@ -5,9 +5,8 @@
  */
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/platform_data/pic32.h>
 #include <linux/spinlock.h>
-
-#include <asm/mach-pic32/pic32.h>
 
 #include "pic32mzda.h"
 

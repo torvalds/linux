@@ -1229,8 +1229,8 @@ static int query_virtqueues(struct mlx5_vdpa_net *ndev,
 	WARN(start_vq + num_vqs > mvdev->max_vqs, "query vq range invalid [%d, %d), max_vqs: %u\n",
 	     start_vq, start_vq + num_vqs, mvdev->max_vqs);
 
-	cmds = kvcalloc(num_vqs, sizeof(*cmds), GFP_KERNEL);
-	cmd_mem = kvcalloc(num_vqs, sizeof(*cmd_mem), GFP_KERNEL);
+	cmds = kvzalloc_objs(*cmds, num_vqs);
+	cmd_mem = kvzalloc_objs(*cmd_mem, num_vqs);
 	if (!cmds || !cmd_mem) {
 		err = -ENOMEM;
 		goto done;
@@ -1562,8 +1562,8 @@ static int modify_virtqueues(struct mlx5_vdpa_net *ndev, int start_vq, int num_v
 	WARN(start_vq + num_vqs > mvdev->max_vqs, "modify vq range invalid [%d, %d), max_vqs: %u\n",
 	     start_vq, start_vq + num_vqs, mvdev->max_vqs);
 
-	cmds = kvcalloc(num_vqs, sizeof(*cmds), GFP_KERNEL);
-	cmd_mem = kvcalloc(num_vqs, sizeof(*cmd_mem), GFP_KERNEL);
+	cmds = kvzalloc_objs(*cmds, num_vqs);
+	cmd_mem = kvzalloc_objs(*cmd_mem, num_vqs);
 	if (!cmds || !cmd_mem) {
 		err = -ENOMEM;
 		goto done;
@@ -1649,7 +1649,7 @@ static int suspend_vqs(struct mlx5_vdpa_net *ndev, int start_vq, int num_vqs)
 	if (err)
 		return err;
 
-	attrs = kcalloc(num_vqs, sizeof(struct mlx5_virtq_attr), GFP_KERNEL);
+	attrs = kzalloc_objs(struct mlx5_virtq_attr, num_vqs);
 	if (!attrs)
 		return -ENOMEM;
 
@@ -1922,7 +1922,7 @@ static int mlx5_vdpa_add_mac_vlan_rules(struct mlx5_vdpa_net *ndev, u8 *mac,
 	int err;
 	u16 vid;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 
@@ -2034,7 +2034,7 @@ static int mac_vlan_add(struct mlx5_vdpa_net *ndev, u8 *mac, u16 vid, bool tagge
 	if (mac_vlan_lookup(ndev, val))
 		return -EEXIST;
 
-	ptr = kzalloc(sizeof(*ptr), GFP_KERNEL);
+	ptr = kzalloc_obj(*ptr);
 	if (!ptr)
 		return -ENOMEM;
 
@@ -2846,7 +2846,7 @@ static int queue_link_work(struct mlx5_vdpa_net *ndev)
 {
 	struct mlx5_vdpa_wq_ent *wqent;
 
-	wqent = kzalloc(sizeof(*wqent), GFP_ATOMIC);
+	wqent = kzalloc_obj(*wqent, GFP_ATOMIC);
 	if (!wqent)
 		return -ENOMEM;
 
@@ -3809,7 +3809,8 @@ static void allocate_irqs(struct mlx5_vdpa_net *ndev)
 	if (!ndev->mvdev.mdev->pdev)
 		return;
 
-	ndev->irqp.entries = kcalloc(ndev->mvdev.max_vqs, sizeof(*ndev->irqp.entries), GFP_KERNEL);
+	ndev->irqp.entries = kzalloc_objs(*ndev->irqp.entries,
+					  ndev->mvdev.max_vqs);
 	if (!ndev->irqp.entries)
 		return;
 
@@ -3901,8 +3902,8 @@ static int mlx5_vdpa_dev_add(struct vdpa_mgmt_dev *v_mdev, const char *name,
 
 	mlx5_cmd_init_async_ctx(mdev, &mvdev->async_ctx);
 
-	ndev->vqs = kcalloc(max_vqs, sizeof(*ndev->vqs), GFP_KERNEL);
-	ndev->event_cbs = kcalloc(max_vqs + 1, sizeof(*ndev->event_cbs), GFP_KERNEL);
+	ndev->vqs = kzalloc_objs(*ndev->vqs, max_vqs);
+	ndev->event_cbs = kzalloc_objs(*ndev->event_cbs, max_vqs + 1);
 	if (!ndev->vqs || !ndev->event_cbs) {
 		err = -ENOMEM;
 		goto err_alloc;
@@ -4102,7 +4103,7 @@ static int mlx5v_probe(struct auxiliary_device *adev,
 	struct mlx5_vdpa_mgmtdev *mgtdev;
 	int err;
 
-	mgtdev = kzalloc(sizeof(*mgtdev), GFP_KERNEL);
+	mgtdev = kzalloc_obj(*mgtdev);
 	if (!mgtdev)
 		return -ENOMEM;
 

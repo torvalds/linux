@@ -277,8 +277,8 @@ int mlx5_adev_init(struct mlx5_core_dev *dev)
 {
 	struct mlx5_priv *priv = &dev->priv;
 
-	priv->adev = kcalloc(ARRAY_SIZE(mlx5_adev_devices),
-			     sizeof(struct mlx5_adev *), GFP_KERNEL);
+	priv->adev = kzalloc_objs(struct mlx5_adev *,
+				  ARRAY_SIZE(mlx5_adev_devices));
 	if (!priv->adev)
 		return -ENOMEM;
 
@@ -310,7 +310,7 @@ static struct mlx5_adev *add_adev(struct mlx5_core_dev *dev, int idx)
 	struct mlx5_adev *madev;
 	int ret;
 
-	madev = kzalloc(sizeof(*madev), GFP_KERNEL);
+	madev = kzalloc_obj(*madev);
 	if (!madev)
 		return ERR_PTR(-ENOMEM);
 

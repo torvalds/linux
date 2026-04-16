@@ -234,7 +234,7 @@ static inline void expkey_update(struct cache_head *cnew,
 
 static struct cache_head *expkey_alloc(void)
 {
-	struct svc_expkey *i = kmalloc(sizeof(*i), GFP_KERNEL);
+	struct svc_expkey *i = kmalloc_obj(*i);
 	if (i)
 		return &i->h;
 	else
@@ -427,7 +427,8 @@ static int check_export(const struct path *path, int *flags, unsigned char *uuid
 	 *       either a device number (so FS_REQUIRES_DEV needed)
 	 *       or an FSID number (so NFSEXP_FSID or ->uuid is needed).
 	 * 2:  We must be able to find an inode from a filehandle.
-	 *       This means that s_export_op must be set.
+	 *       This means that s_export_op must be set and comply with
+	 *       the requirements for remote filesystem export.
 	 * 3: We must not currently be on an idmapped mount.
 	 */
 	if (!(inode->i_sb->s_type->fs_flags & FS_REQUIRES_DEV) &&
@@ -437,8 +438,9 @@ static int check_export(const struct path *path, int *flags, unsigned char *uuid
 		return -EINVAL;
 	}
 
-	if (!exportfs_can_decode_fh(inode->i_sb->s_export_op)) {
-		dprintk("exp_export: export of invalid fs type.\n");
+	if (!exportfs_may_export(inode->i_sb->s_export_op)) {
+		dprintk("exp_export: export of invalid fs type (%s).\n",
+			inode->i_sb->s_type->name);
 		return -EINVAL;
 	}
 
@@ -477,9 +479,8 @@ fsloc_parse(char **mesg, char *buf, struct nfsd4_fs_locations *fsloc)
 	if (fsloc->locations_count == 0)
 		return 0;
 
-	fsloc->locations = kcalloc(fsloc->locations_count,
-				   sizeof(struct nfsd4_fs_location),
-				   GFP_KERNEL);
+	fsloc->locations = kzalloc_objs(struct nfsd4_fs_location,
+					fsloc->locations_count);
 	if (!fsloc->locations)
 		return -ENOMEM;
 	for (i=0; i < fsloc->locations_count; i++) {
@@ -869,11 +870,11 @@ static void export_update(struct cache_head *cnew, struct cache_head *citem)
 
 static struct cache_head *svc_export_alloc(void)
 {
-	struct svc_export *i = kmalloc(sizeof(*i), GFP_KERNEL);
+	struct svc_export *i = kmalloc_obj(*i);
 	if (!i)
 		return NULL;
 
-	i->ex_stats = kmalloc(sizeof(*(i->ex_stats)), GFP_KERNEL);
+	i->ex_stats = kmalloc_obj(*(i->ex_stats));
 	if (!i->ex_stats) {
 		kfree(i);
 		return NULL;

@@ -239,7 +239,7 @@ static struct intel_quirk intel_quirks[] = {
 	{ 0x0f31, 0x103c, 0x220f, quirk_invert_brightness },
 
 	/* Dell XPS 13 7390 2-in-1 */
-	{ 0x8a12, 0x1028, 0x08b0, quirk_edp_limit_rate_hbr2 },
+	{ 0x8a52, 0x1028, 0x08b0, quirk_edp_limit_rate_hbr2 },
 };
 
 static const struct intel_dpcd_quirk intel_dpcd_quirks[] = {

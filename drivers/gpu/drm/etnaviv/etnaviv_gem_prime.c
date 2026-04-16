@@ -126,7 +126,7 @@ struct drm_gem_object *etnaviv_gem_prime_import_sg_table(struct drm_device *dev,
 	npages = size / PAGE_SIZE;
 
 	etnaviv_obj->sgt = sgt;
-	etnaviv_obj->pages = kvmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
+	etnaviv_obj->pages = kvmalloc_objs(struct page *, npages);
 	if (!etnaviv_obj->pages) {
 		ret = -ENOMEM;
 		goto fail;

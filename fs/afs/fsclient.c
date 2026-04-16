@@ -2010,7 +2010,7 @@ static int afs_deliver_fs_fetch_acl(struct afs_call *call)
 		size = call->count2 = ntohl(call->tmp);
 		size = round_up(size, 4);
 
-		acl = kmalloc(struct_size(acl, data, size), GFP_KERNEL);
+		acl = kmalloc_flex(*acl, data, size);
 		if (!acl)
 			return -ENOMEM;
 		op->acl = acl;

@@ -335,7 +335,7 @@ ls2x_dma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	if (!burst_size)
 		return NULL;
 
-	desc = kzalloc(struct_size(desc, sg, sg_len), GFP_NOWAIT);
+	desc = kzalloc_flex(*desc, sg, sg_len, GFP_NOWAIT);
 	if (!desc)
 		return NULL;
 
@@ -400,7 +400,7 @@ ls2x_dma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr, size_t buf_
 		return NULL;
 
 	num_periods = buf_len / period_len;
-	desc = kzalloc(struct_size(desc, sg, num_periods), GFP_NOWAIT);
+	desc = kzalloc_flex(*desc, sg, num_periods, GFP_NOWAIT);
 	if (!desc)
 		return NULL;
 

@@ -228,7 +228,7 @@ int radeon_fbdev_driver_fbdev_probe(struct drm_fb_helper *fb_helper,
 	}
 	rbo = gem_to_radeon_bo(gobj);
 
-	fb = kzalloc(sizeof(*fb), GFP_KERNEL);
+	fb = kzalloc_obj(*fb);
 	if (!fb) {
 		ret = -ENOMEM;
 		goto err_radeon_fbdev_destroy_pinned_object;

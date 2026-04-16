@@ -8,7 +8,7 @@ struct dma_fence *v3d_fence_create(struct v3d_dev *v3d, enum v3d_queue q)
 	struct v3d_queue_state *queue = &v3d->queue[q];
 	struct v3d_fence *fence;
 
-	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
+	fence = kzalloc_obj(*fence);
 	if (!fence)
 		return ERR_PTR(-ENOMEM);
 

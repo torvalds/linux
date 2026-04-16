@@ -72,7 +72,7 @@ int smb2_fix_symlink_target_type(char **target, bool directory, struct cifs_sb_i
 	 * POSIX server does not distinguish between symlinks to file and
 	 * symlink directory. So nothing is needed to fix on the client side.
 	 */
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS)
+	if (cifs_sb_flags(cifs_sb) & CIFS_MOUNT_POSIX_PATHS)
 		return 0;
 
 	if (!*target)
@@ -281,7 +281,7 @@ smb2_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock,
 	BUILD_BUG_ON(sizeof(struct smb2_lock_element) > PAGE_SIZE);
 	max_buf = min_t(unsigned int, max_buf, PAGE_SIZE);
 	max_num = max_buf / sizeof(struct smb2_lock_element);
-	buf = kcalloc(max_num, sizeof(struct smb2_lock_element), GFP_KERNEL);
+	buf = kzalloc_objs(struct smb2_lock_element, max_num);
 	if (!buf)
 		return -ENOMEM;
 
@@ -424,7 +424,7 @@ smb2_push_mandatory_locks(struct cifsFileInfo *cfile)
 	BUILD_BUG_ON(sizeof(struct smb2_lock_element) > PAGE_SIZE);
 	max_buf = min_t(unsigned int, max_buf, PAGE_SIZE);
 	max_num = max_buf / sizeof(struct smb2_lock_element);
-	buf = kcalloc(max_num, sizeof(struct smb2_lock_element), GFP_KERNEL);
+	buf = kzalloc_objs(struct smb2_lock_element, max_num);
 	if (!buf) {
 		free_xid(xid);
 		return -ENOMEM;

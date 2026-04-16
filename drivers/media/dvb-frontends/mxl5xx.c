@@ -1829,7 +1829,7 @@ struct dvb_frontend *mxl5xx_attach(struct i2c_adapter *i2c,
 	struct mxl *state;
 	struct mxl_base *base;
 
-	state = kzalloc(sizeof(struct mxl), GFP_KERNEL);
+	state = kzalloc_obj(struct mxl);
 	if (!state)
 		return NULL;
 
@@ -1845,7 +1845,7 @@ struct dvb_frontend *mxl5xx_attach(struct i2c_adapter *i2c,
 			goto fail;
 		state->base = base;
 	} else {
-		base = kzalloc(sizeof(struct mxl_base), GFP_KERNEL);
+		base = kzalloc_obj(struct mxl_base);
 		if (!base)
 			goto fail;
 		base->i2c = i2c;

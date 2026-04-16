@@ -487,7 +487,7 @@ struct phylink_pcs *miic_create(struct device *dev, struct device_node *np)
 		return ERR_PTR(-EINVAL);
 	}
 
-	miic_port = kzalloc(sizeof(*miic_port), GFP_KERNEL);
+	miic_port = kzalloc_obj(*miic_port);
 	if (!miic_port) {
 		put_device(&pdev->dev);
 		return ERR_PTR(-ENOMEM);
@@ -679,8 +679,7 @@ static int miic_parse_dt(struct miic *miic, u32 *mode_cfg)
 	s8 *dt_val;
 	u32 conf;
 
-	dt_val = kmalloc_array(miic->of_data->conf_conv_count,
-			       sizeof(*dt_val), GFP_KERNEL);
+	dt_val = kmalloc_objs(*dt_val, miic->of_data->conf_conv_count);
 	if (!dt_val)
 		return -ENOMEM;
 

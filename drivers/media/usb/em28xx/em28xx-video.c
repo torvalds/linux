@@ -2529,7 +2529,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 
 	mutex_lock(&dev->lock);
 
-	v4l2 = kzalloc(sizeof(*v4l2), GFP_KERNEL);
+	v4l2 = kzalloc_obj(*v4l2);
 	if (!v4l2) {
 		mutex_unlock(&dev->lock);
 		return -ENOMEM;

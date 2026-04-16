@@ -725,12 +725,10 @@ static int damos_test_help_dests_setup(struct damos_migrate_dests *dests,
 {
 	size_t i;
 
-	dests->node_id_arr = kmalloc_array(nr_dests,
-			sizeof(*dests->node_id_arr), GFP_KERNEL);
+	dests->node_id_arr = kmalloc_objs(*dests->node_id_arr, nr_dests);
 	if (!dests->node_id_arr)
 		return -ENOMEM;
-	dests->weight_arr = kmalloc_array(nr_dests,
-			sizeof(*dests->weight_arr), GFP_KERNEL);
+	dests->weight_arr = kmalloc_objs(*dests->weight_arr, nr_dests);
 	if (!dests->weight_arr) {
 		kfree(dests->node_id_arr);
 		dests->node_id_arr = NULL;

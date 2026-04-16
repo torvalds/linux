@@ -40,8 +40,7 @@ static int idpf_ctlq_alloc_bufs(struct idpf_hw *hw,
 	/* We'll be allocating the buffer info memory first, then we can
 	 * allocate the mapped buffers for the event processing
 	 */
-	cq->bi.rx_buff = kcalloc(cq->ring_size, sizeof(struct idpf_dma_mem *),
-				 GFP_KERNEL);
+	cq->bi.rx_buff = kzalloc_objs(struct idpf_dma_mem *, cq->ring_size);
 	if (!cq->bi.rx_buff)
 		return -ENOMEM;
 
@@ -50,8 +49,7 @@ static int idpf_ctlq_alloc_bufs(struct idpf_hw *hw,
 		struct idpf_dma_mem *bi;
 		int num = 1; /* number of idpf_dma_mem to be allocated */
 
-		cq->bi.rx_buff[i] = kcalloc(num, sizeof(struct idpf_dma_mem),
-					    GFP_KERNEL);
+		cq->bi.rx_buff[i] = kzalloc_objs(struct idpf_dma_mem, num);
 		if (!cq->bi.rx_buff[i])
 			goto unwind_alloc_cq_bufs;
 

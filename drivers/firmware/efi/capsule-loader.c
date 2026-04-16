@@ -282,7 +282,7 @@ static int efi_capsule_open(struct inode *inode, struct file *file)
 {
 	struct capsule_info *cap_info;
 
-	cap_info = kzalloc(sizeof(*cap_info), GFP_KERNEL);
+	cap_info = kzalloc_obj(*cap_info);
 	if (!cap_info)
 		return -ENOMEM;
 
@@ -292,7 +292,7 @@ static int efi_capsule_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 	}
 
-	cap_info->phys = kzalloc(sizeof(phys_addr_t), GFP_KERNEL);
+	cap_info->phys = kzalloc_obj(phys_addr_t);
 	if (!cap_info->phys) {
 		kfree(cap_info->pages);
 		kfree(cap_info);

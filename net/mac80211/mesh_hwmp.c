@@ -1005,7 +1005,7 @@ static void mesh_queue_preq(struct mesh_path *mpath, u8 flags)
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct mesh_preq_queue *preq_node;
 
-	preq_node = kmalloc(sizeof(struct mesh_preq_queue), GFP_ATOMIC);
+	preq_node = kmalloc_obj(struct mesh_preq_queue, GFP_ATOMIC);
 	if (!preq_node) {
 		mhwmp_dbg(sdata, "could not allocate PREQ node\n");
 		return;

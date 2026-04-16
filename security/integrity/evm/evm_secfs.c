@@ -199,7 +199,7 @@ static ssize_t evm_write_xattrs(struct file *file, const char __user *buf,
 	if (!ab && IS_ENABLED(CONFIG_AUDIT))
 		return -ENOMEM;
 
-	xattr = kmalloc(sizeof(struct xattr_list), GFP_KERNEL);
+	xattr = kmalloc_obj(struct xattr_list);
 	if (!xattr) {
 		err = -ENOMEM;
 		goto out;

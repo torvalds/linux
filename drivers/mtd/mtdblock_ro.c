@@ -36,7 +36,7 @@ static int mtdblock_writesect(struct mtd_blktrans_dev *dev,
 
 static void mtdblock_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 {
-	struct mtd_blktrans_dev *dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	struct mtd_blktrans_dev *dev = kzalloc_obj(*dev);
 
 	if (!dev)
 		return;

@@ -140,7 +140,7 @@ static void bcm74110_rx_push_init_msg(struct bcm74110_mbox *mbox, u32 val)
 {
 	struct bcm74110_mbox_msg *msg;
 
-	msg = kzalloc(sizeof(*msg), GFP_ATOMIC);
+	msg = kzalloc_obj(*msg, GFP_ATOMIC);
 	if (!msg)
 		return;
 

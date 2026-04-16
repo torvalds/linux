@@ -96,7 +96,7 @@ int snd_register_oss_device(int type, struct snd_card *card, int dev,
 		return 0; /* ignore silently */
 	if (minor < 0)
 		return minor;
-	preg = kmalloc(sizeof(struct snd_minor), GFP_KERNEL);
+	preg = kmalloc_obj(struct snd_minor);
 	if (preg == NULL)
 		return -ENOMEM;
 	preg->type = type;

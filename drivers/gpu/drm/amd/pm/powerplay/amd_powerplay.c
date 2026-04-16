@@ -41,7 +41,7 @@ static int amd_powerplay_create(struct amdgpu_device *adev)
 	if (adev == NULL)
 		return -EINVAL;
 
-	hwmgr = kzalloc(sizeof(struct pp_hwmgr), GFP_KERNEL);
+	hwmgr = kzalloc_obj(struct pp_hwmgr);
 	if (hwmgr == NULL)
 		return -ENOMEM;
 

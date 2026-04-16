@@ -101,7 +101,7 @@ static int ath_open(struct hci_uart *hu)
 	if (!hci_uart_has_flow_control(hu))
 		return -EOPNOTSUPP;
 
-	ath = kzalloc(sizeof(*ath), GFP_KERNEL);
+	ath = kzalloc_obj(*ath);
 	if (!ath)
 		return -ENOMEM;
 

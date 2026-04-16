@@ -334,7 +334,7 @@ static void snd_pcm_proc_info_read(struct snd_pcm_substream *substream,
 		return;
 
 	struct snd_pcm_info *info __free(kfree) =
-		kmalloc(sizeof(*info), GFP_KERNEL);
+		kmalloc_obj(*info);
 	if (!info)
 		return;
 
@@ -657,7 +657,7 @@ int snd_pcm_new_stream(struct snd_pcm *pcm, int stream, int substream_count)
 	}
 	prev = NULL;
 	for (idx = 0, prev = NULL; idx < substream_count; idx++) {
-		substream = kzalloc(sizeof(*substream), GFP_KERNEL);
+		substream = kzalloc_obj(*substream);
 		if (!substream)
 			return -ENOMEM;
 		substream->pcm = pcm;
@@ -713,7 +713,7 @@ static int _snd_pcm_new(struct snd_card *card, const char *id, int device,
 		return -ENXIO;
 	if (rpcm)
 		*rpcm = NULL;
-	pcm = kzalloc(sizeof(*pcm), GFP_KERNEL);
+	pcm = kzalloc_obj(*pcm);
 	if (!pcm)
 		return -ENOMEM;
 	pcm->card = card;
@@ -935,7 +935,7 @@ int snd_pcm_attach_substream(struct snd_pcm *pcm, int stream,
 	if (substream == NULL)
 		return -EAGAIN;
 
-	runtime = kzalloc(sizeof(*runtime), GFP_KERNEL);
+	runtime = kzalloc_obj(*runtime);
 	if (runtime == NULL)
 		return -ENOMEM;
 

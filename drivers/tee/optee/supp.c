@@ -89,7 +89,7 @@ u32 optee_supp_thrd_req(struct tee_context *ctx, u32 func, size_t num_params,
 	if (!supp->ctx && ctx->supp_nowait)
 		return TEEC_ERROR_COMMUNICATION;
 
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req)
 		return TEEC_ERROR_OUT_OF_MEMORY;
 

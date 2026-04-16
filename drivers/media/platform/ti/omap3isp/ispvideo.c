@@ -1371,7 +1371,7 @@ static int isp_video_open(struct file *file)
 	struct vb2_queue *queue;
 	int ret = 0;
 
-	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
+	handle = kzalloc_obj(*handle);
 	if (handle == NULL)
 		return -ENOMEM;
 

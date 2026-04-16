@@ -505,5 +505,164 @@
         "teardown": [
             "$TC qdisc del dev $DEV1 ingress"
         ]
+    },
+    {
+        "id": "8883",
+        "name": "Try to attach act_ct to an ets qdisc",
+        "category": [
+            "actions",
+            "ct"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action ct",
+                0,
+                1,
+                255
+            ],
+            "$TC qdisc add dev $DEV1 root handle 1: ets bands 2"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DEV1 parent 1: prio 1 protocol ip matchall action ct index 42",
+        "expExitCode": "2",
+        "verifyCmd": "$TC -j filter ls dev $DEV1 parent 1: prio 1 protocol ip",
+        "matchJSON": [],
+        "teardown": [
+            "$TC qdisc del dev $DEV1 root"
+        ]
+    },
+    {
+        "id": "3b10",
+        "name": "Attach act_ct to an ingress qdisc",
+        "category": [
+            "actions",
+            "ct"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action ct",
+                0,
+                1,
+                255
+            ],
+            "$TC qdisc add dev $DEV1 ingress"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DEV1 ingress prio 1 protocol ip matchall action ct index 42",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -j filter ls dev $DEV1 ingress prio 1 protocol ip",
+        "matchJSON": [
+            {
+                "kind": "matchall"
+            },
+            {
+                "options": {
+                    "actions": [
+                        {
+                            "order": 1,
+                            "kind": "ct",
+                            "index": 42,
+                            "ref": 1,
+                            "bind": 1
+                        }
+                    ]
+                }
+            }
+        ],
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress"
+        ]
+    },
+    {
+        "id": "0337",
+        "name": "Attach act_ct to a clsact/egress qdisc",
+        "category": [
+            "actions",
+            "ct"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action ct",
+                0,
+                1,
+                255
+            ],
+            "$TC qdisc add dev $DEV1 clsact"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DEV1 egress prio 1 protocol ip matchall action ct index 42",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -j filter ls dev $DEV1 egress prio 1 protocol ip",
+        "matchJSON": [
+            {
+                "kind": "matchall"
+            },
+            {
+                "options": {
+                    "actions": [
+                        {
+                            "order": 1,
+                            "kind": "ct",
+                            "index": 42,
+                            "ref": 1,
+                            "bind": 1
+                        }
+                    ]
+                }
+            }
+        ],
+        "teardown": [
+            "$TC qdisc del dev $DEV1 clsact"
+        ]
+    },
+    {
+        "id": "4f60",
+        "name": "Attach act_ct to a shared block",
+        "category": [
+            "actions",
+            "ct"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action ct",
+                0,
+                1,
+                255
+            ],
+            "$TC qdisc add dev $DEV1 ingress_block 21 clsact"
+        ],
+        "cmdUnderTest": "$TC filter add block 21 prio 1 protocol ip matchall action ct index 42",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -j filter ls block 21 prio 1 protocol ip",
+        "matchJSON": [
+            {
+                "kind": "matchall"
+            },
+            {
+                "options": {
+                    "actions": [
+                        {
+                            "order": 1,
+                            "kind": "ct",
+                            "index": 42,
+                            "ref": 1,
+                            "bind": 1
+                        }
+                    ]
+                }
+            }
+        ],
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress_block 21 clsact"
+        ]
     }
 ]

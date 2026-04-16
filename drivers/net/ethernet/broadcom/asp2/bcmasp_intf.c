@@ -689,8 +689,7 @@ static int bcmasp_alloc_buffers(struct bcmasp_intf *intf)
 	if (!intf->tx_spb_cpu)
 		goto free_rx_edpkt_dma;
 
-	intf->tx_cbs = kcalloc(DESC_RING_COUNT, sizeof(struct bcmasp_tx_cb),
-			       GFP_KERNEL);
+	intf->tx_cbs = kzalloc_objs(struct bcmasp_tx_cb, DESC_RING_COUNT);
 	if (!intf->tx_cbs)
 		goto free_tx_spb_dma;
 

@@ -87,6 +87,14 @@ module! {
     license: "GPL",
 }
 
+use kernel::bindings::rust_binder_layout;
+#[no_mangle]
+static RUST_BINDER_LAYOUT: rust_binder_layout = rust_binder_layout {
+    t: transaction::TRANSACTION_LAYOUT,
+    p: process::PROCESS_LAYOUT,
+    n: node::NODE_LAYOUT,
+};
+
 fn next_debug_id() -> usize {
     static NEXT_DEBUG_ID: Atomic<usize> = Atomic::new(0);
 
@@ -286,7 +294,7 @@ impl kernel::Module for BinderModule {
 
         pr_warn!("Loaded Rust Binder.");
 
-        BINDER_SHRINKER.register(kernel::c_str!("android-binder"))?;
+        BINDER_SHRINKER.register(c"android-binder")?;
 
         // SAFETY: The module is being loaded, so we can initialize binderfs.
         unsafe { kernel::error::to_result(binderfs::init_rust_binderfs())? };
@@ -312,7 +320,7 @@ pub static rust_binder_fops: AssertSync<kernel::bindings::file_operations> = {
         owner: THIS_MODULE.as_ptr(),
         poll: Some(rust_binder_poll),
         unlocked_ioctl: Some(rust_binder_ioctl),
-        compat_ioctl: Some(bindings::compat_ptr_ioctl),
+        compat_ioctl: bindings::compat_ptr_ioctl,
         mmap: Some(rust_binder_mmap),
         open: Some(rust_binder_open),
         release: Some(rust_binder_release),

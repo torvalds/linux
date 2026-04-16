@@ -32,7 +32,7 @@ struct edac_pci_ctl_info *edac_pci_alloc_ctl_info(unsigned int sz_pvt,
 
 	edac_dbg(1, "\n");
 
-	pci = kzalloc(sizeof(struct edac_pci_ctl_info), GFP_KERNEL);
+	pci = kzalloc_obj(struct edac_pci_ctl_info);
 	if (!pci)
 		return NULL;
 

@@ -293,7 +293,7 @@ To initialize the timeout field, the following function can be used::
 
   extern int watchdog_init_timeout(struct watchdog_device *wdd,
                                    unsigned int timeout_parm,
-                                   struct device *dev);
+                                   const struct device *dev);
 
 The watchdog_init_timeout function allows you to initialize the timeout field
 using the module timeout parameter or by retrieving the timeout-sec property from

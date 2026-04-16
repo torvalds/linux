@@ -24,6 +24,15 @@ void *memmove(void *dest, const void *src, size_t n)
 			src = csrc;
 			n--;
 		}
+#if defined(CONFIG_M68000)
+		if ((long)src & 1) {
+			char *cdest = dest;
+			const char *csrc = src;
+			for (; n; n--)
+				*cdest++ = *csrc++;
+			return xdest;
+		}
+#endif
 		if (n > 2 && (long)dest & 2) {
 			short *sdest = dest;
 			const short *ssrc = src;
@@ -66,6 +75,15 @@ void *memmove(void *dest, const void *src, size_t n)
 			src = csrc;
 			n--;
 		}
+#if defined(CONFIG_M68000)
+		if ((long)src & 1) {
+			char *cdest = dest;
+			const char *csrc = src;
+			for (; n; n--)
+				*--cdest = *--csrc;
+			return xdest;
+		}
+#endif
 		if (n > 2 && (long)dest & 2) {
 			short *sdest = dest;
 			const short *ssrc = src;

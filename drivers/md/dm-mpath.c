@@ -160,7 +160,7 @@ static bool mpath_double_check_test_bit(int MPATHF_bit, struct multipath *m)
  */
 static struct pgpath *alloc_pgpath(void)
 {
-	struct pgpath *pgpath = kzalloc(sizeof(*pgpath), GFP_KERNEL);
+	struct pgpath *pgpath = kzalloc_obj(*pgpath);
 
 	if (!pgpath)
 		return NULL;
@@ -179,7 +179,7 @@ static struct priority_group *alloc_priority_group(void)
 {
 	struct priority_group *pg;
 
-	pg = kzalloc(sizeof(*pg), GFP_KERNEL);
+	pg = kzalloc_obj(*pg);
 
 	if (pg)
 		INIT_LIST_HEAD(&pg->pgpaths);
@@ -216,7 +216,7 @@ static struct multipath *alloc_multipath(struct dm_target *ti)
 {
 	struct multipath *m;
 
-	m = kzalloc(sizeof(*m), GFP_KERNEL);
+	m = kzalloc_obj(*m);
 	if (m) {
 		INIT_LIST_HEAD(&m->priority_groups);
 		spin_lock_init(&m->lock);

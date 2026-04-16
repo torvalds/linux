@@ -910,7 +910,7 @@ static int acpi_processor_evaluate_lpi(acpi_handle handle,
 		goto end;
 	}
 
-	lpi_state = kcalloc(pkg_count, sizeof(*lpi_state), GFP_KERNEL);
+	lpi_state = kzalloc_objs(*lpi_state, pkg_count);
 	if (!lpi_state) {
 		ret = -ENOMEM;
 		goto end;
@@ -1417,7 +1417,7 @@ void acpi_processor_power_init(struct acpi_processor *pr)
 	if (!pr->flags.power)
 		return;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return;
 

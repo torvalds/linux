@@ -1921,7 +1921,7 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 	if (ret)
 		return ret;
 
-	bb = kzalloc(sizeof(*bb), GFP_KERNEL);
+	bb = kzalloc_obj(*bb);
 	if (!bb)
 		return -ENOMEM;
 
@@ -3226,7 +3226,7 @@ static int init_cmd_table(struct intel_gvt *gvt)
 		if (!(cmd_info[i].devices & gen_type))
 			continue;
 
-		e = kzalloc(sizeof(*e), GFP_KERNEL);
+		e = kzalloc_obj(*e);
 		if (!e)
 			return -ENOMEM;
 

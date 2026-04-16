@@ -591,7 +591,7 @@ int alloc_iommu_pmu(struct intel_iommu *iommu)
 	if (!ecmd_has_pmu_essential(iommu))
 		return -ENODEV;
 
-	iommu_pmu = kzalloc(sizeof(*iommu_pmu), GFP_KERNEL);
+	iommu_pmu = kzalloc_obj(*iommu_pmu);
 	if (!iommu_pmu)
 		return -ENOMEM;
 

@@ -466,7 +466,7 @@ int ubi_ensure_anchor_pebs(struct ubi_device *ubi)
 	ubi->wl_scheduled = 1;
 	spin_unlock(&ubi->wl_lock);
 
-	wrk = kmalloc(sizeof(struct ubi_work), GFP_NOFS);
+	wrk = kmalloc_obj(struct ubi_work, GFP_NOFS);
 	if (!wrk) {
 		spin_lock(&ubi->wl_lock);
 		ubi->wl_scheduled = 0;

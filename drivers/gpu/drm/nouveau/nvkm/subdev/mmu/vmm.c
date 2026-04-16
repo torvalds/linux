@@ -59,7 +59,7 @@ nvkm_vmm_pt_new(const struct nvkm_vmm_desc *desc, bool sparse,
 	pgt->sparse = sparse;
 
 	if (desc->type == PGD) {
-		pgt->pde = kvcalloc(pten, sizeof(*pgt->pde), GFP_KERNEL);
+		pgt->pde = kvzalloc_objs(*pgt->pde, pten);
 		if (!pgt->pde) {
 			kfree(pgt);
 			return NULL;
@@ -823,7 +823,7 @@ nvkm_vmm_ptes_get_map(struct nvkm_vmm *vmm, const struct nvkm_vmm_page *page,
 struct nvkm_vma *
 nvkm_vma_new(u64 addr, u64 size)
 {
-	struct nvkm_vma *vma = kzalloc(sizeof(*vma), GFP_KERNEL);
+	struct nvkm_vma *vma = kzalloc_obj(*vma);
 	if (vma) {
 		vma->addr = addr;
 		vma->size = size;
@@ -1226,7 +1226,7 @@ nvkm_vmm_new_(const struct nvkm_vmm_func *func, struct nvkm_mmu *mmu,
 	      struct lock_class_key *key, const char *name,
 	      struct nvkm_vmm **pvmm)
 {
-	if (!(*pvmm = kzalloc(sizeof(**pvmm), GFP_KERNEL)))
+	if (!(*pvmm = kzalloc_obj(**pvmm)))
 		return -ENOMEM;
 	return nvkm_vmm_ctor(func, mmu, hdr, managed, addr, size, key, name, *pvmm);
 }

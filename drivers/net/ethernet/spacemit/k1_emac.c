@@ -391,9 +391,8 @@ static int emac_alloc_tx_resources(struct emac_priv *priv)
 	struct emac_desc_ring *tx_ring = &priv->tx_ring;
 	struct platform_device *pdev = priv->pdev;
 
-	tx_ring->tx_desc_buf = kcalloc(tx_ring->total_cnt,
-				       sizeof(*tx_ring->tx_desc_buf),
-				       GFP_KERNEL);
+	tx_ring->tx_desc_buf = kzalloc_objs(*tx_ring->tx_desc_buf,
+					    tx_ring->total_cnt);
 
 	if (!tx_ring->tx_desc_buf)
 		return -ENOMEM;
@@ -420,9 +419,8 @@ static int emac_alloc_rx_resources(struct emac_priv *priv)
 	struct emac_desc_ring *rx_ring = &priv->rx_ring;
 	struct platform_device *pdev = priv->pdev;
 
-	rx_ring->rx_desc_buf = kcalloc(rx_ring->total_cnt,
-				       sizeof(*rx_ring->rx_desc_buf),
-				       GFP_KERNEL);
+	rx_ring->rx_desc_buf = kzalloc_objs(*rx_ring->rx_desc_buf,
+					    rx_ring->total_cnt);
 	if (!rx_ring->rx_desc_buf)
 		return -ENOMEM;
 
@@ -567,7 +565,9 @@ static void emac_alloc_rx_desc_buffers(struct emac_priv *priv)
 						  DMA_FROM_DEVICE);
 		if (dma_mapping_error(&priv->pdev->dev, rx_buf->dma_addr)) {
 			dev_err_ratelimited(&ndev->dev, "Mapping skb failed\n");
-			goto err_free_skb;
+			dev_kfree_skb_any(skb);
+			rx_buf->skb = NULL;
+			break;
 		}
 
 		rx_desc_addr = &((struct emac_desc *)rx_ring->desc_addr)[i];
@@ -592,10 +592,6 @@ static void emac_alloc_rx_desc_buffers(struct emac_priv *priv)
 
 	rx_ring->head = i;
 	return;
-
-err_free_skb:
-	dev_kfree_skb_any(skb);
-	rx_buf->skb = NULL;
 }
 
 /* Returns number of packets received */
@@ -737,7 +733,7 @@ static void emac_tx_mem_map(struct emac_priv *priv, struct sk_buff *skb)
 	struct emac_desc tx_desc, *tx_desc_addr;
 	struct device *dev = &priv->pdev->dev;
 	struct emac_tx_desc_buffer *tx_buf;
-	u32 head, old_head, frag_num, f;
+	u32 head, old_head, frag_num, f, i;
 	bool buf_idx;
 
 	frag_num = skb_shinfo(skb)->nr_frags;
@@ -805,6 +801,15 @@ static void emac_tx_mem_map(struct emac_priv *priv, struct sk_buff *skb)
 
 err_free_skb:
 	dev_dstats_tx_dropped(priv->ndev);
+
+	i = old_head;
+	while (i != head) {
+		emac_free_tx_buf(priv, i);
+
+		if (++i == tx_ring->total_cnt)
+			i = 0;
+	}
+
 	dev_kfree_skb_any(skb);
 }
 

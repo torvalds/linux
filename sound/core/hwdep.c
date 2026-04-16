@@ -375,7 +375,7 @@ int snd_hwdep_new(struct snd_card *card, char *id, int device,
 		return -ENXIO;
 	if (rhwdep)
 		*rhwdep = NULL;
-	hwdep = kzalloc(sizeof(*hwdep), GFP_KERNEL);
+	hwdep = kzalloc_obj(*hwdep);
 	if (!hwdep)
 		return -ENOMEM;
 

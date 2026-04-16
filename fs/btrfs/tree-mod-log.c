@@ -243,7 +243,7 @@ static struct tree_mod_elem *alloc_tree_mod_elem(const struct extent_buffer *eb,
 	ASSERT(op != BTRFS_MOD_LOG_MOVE_KEYS);
 	ASSERT(op != BTRFS_MOD_LOG_ROOT_REPLACE);
 
-	tm = kzalloc(sizeof(*tm), GFP_NOFS);
+	tm = kzalloc_obj(*tm, GFP_NOFS);
 	if (!tm)
 		return NULL;
 
@@ -301,7 +301,7 @@ static struct tree_mod_elem *tree_mod_log_alloc_move(const struct extent_buffer 
 {
 	struct tree_mod_elem *tm;
 
-	tm = kzalloc(sizeof(*tm), GFP_NOFS);
+	tm = kzalloc_obj(*tm, GFP_NOFS);
 	if (!tm)
 		return ERR_PTR(-ENOMEM);
 
@@ -328,7 +328,7 @@ int btrfs_tree_mod_log_insert_move(const struct extent_buffer *eb,
 	if (!tree_mod_need_log(eb->fs_info, eb))
 		return 0;
 
-	tm_list = kcalloc(nr_items, sizeof(struct tree_mod_elem *), GFP_NOFS);
+	tm_list = kzalloc_objs(struct tree_mod_elem *, nr_items, GFP_NOFS);
 	if (!tm_list) {
 		ret = -ENOMEM;
 		goto lock;
@@ -439,8 +439,8 @@ int btrfs_tree_mod_log_insert_root(struct extent_buffer *old_root,
 
 	if (log_removal && btrfs_header_level(old_root) > 0) {
 		nritems = btrfs_header_nritems(old_root);
-		tm_list = kcalloc(nritems, sizeof(struct tree_mod_elem *),
-				  GFP_NOFS);
+		tm_list = kzalloc_objs(struct tree_mod_elem *, nritems,
+				       GFP_NOFS);
 		if (!tm_list) {
 			ret = -ENOMEM;
 			goto lock;
@@ -455,7 +455,7 @@ int btrfs_tree_mod_log_insert_root(struct extent_buffer *old_root,
 		}
 	}
 
-	tm = kzalloc(sizeof(*tm), GFP_NOFS);
+	tm = kzalloc_obj(*tm, GFP_NOFS);
 	if (!tm) {
 		ret = -ENOMEM;
 		goto lock;
@@ -595,8 +595,7 @@ int btrfs_tree_mod_log_eb_copy(struct extent_buffer *dst,
 	if (btrfs_header_level(dst) == 0 && btrfs_header_level(src) == 0)
 		return 0;
 
-	tm_list = kcalloc(nr_items * 2, sizeof(struct tree_mod_elem *),
-			  GFP_NOFS);
+	tm_list = kzalloc_objs(struct tree_mod_elem *, nr_items * 2, GFP_NOFS);
 	if (!tm_list) {
 		ret = -ENOMEM;
 		goto lock;
@@ -714,7 +713,7 @@ int btrfs_tree_mod_log_free_eb(struct extent_buffer *eb)
 		return 0;
 
 	nritems = btrfs_header_nritems(eb);
-	tm_list = kcalloc(nritems, sizeof(struct tree_mod_elem *), GFP_NOFS);
+	tm_list = kzalloc_objs(struct tree_mod_elem *, nritems, GFP_NOFS);
 	if (!tm_list) {
 		ret = -ENOMEM;
 		goto lock;

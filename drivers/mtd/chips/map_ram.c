@@ -57,7 +57,7 @@ static struct mtd_info *map_ram_probe(struct map_info *map)
 #endif
 	/* OK. It seems to be RAM. */
 
-	mtd = kzalloc(sizeof(*mtd), GFP_KERNEL);
+	mtd = kzalloc_obj(*mtd);
 	if (!mtd)
 		return NULL;
 

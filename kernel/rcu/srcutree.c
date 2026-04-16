@@ -173,7 +173,8 @@ static bool init_srcu_struct_nodes(struct srcu_struct *ssp, gfp_t gfp_flags)
 
 	/* Initialize geometry if it has not already been initialized. */
 	rcu_init_geometry();
-	ssp->srcu_sup->node = kcalloc(rcu_num_nodes, sizeof(*ssp->srcu_sup->node), gfp_flags);
+	ssp->srcu_sup->node = kzalloc_objs(*ssp->srcu_sup->node, rcu_num_nodes,
+					   gfp_flags);
 	if (!ssp->srcu_sup->node)
 		return false;
 
@@ -237,7 +238,7 @@ static bool init_srcu_struct_nodes(struct srcu_struct *ssp, gfp_t gfp_flags)
 static int init_srcu_struct_fields(struct srcu_struct *ssp, bool is_static)
 {
 	if (!is_static)
-		ssp->srcu_sup = kzalloc(sizeof(*ssp->srcu_sup), GFP_KERNEL);
+		ssp->srcu_sup = kzalloc_obj(*ssp->srcu_sup);
 	if (!ssp->srcu_sup)
 		return -ENOMEM;
 	if (!is_static)
@@ -789,7 +790,8 @@ void __srcu_check_read_flavor(struct srcu_struct *ssp, int read_flavor)
 	struct srcu_data *sdp;
 
 	/* NMI-unsafe use in NMI is a bad sign, as is multi-bit read_flavor values. */
-	WARN_ON_ONCE((read_flavor != SRCU_READ_FLAVOR_NMI) && in_nmi());
+	WARN_ON_ONCE(read_flavor != SRCU_READ_FLAVOR_NMI &&
+		     read_flavor != SRCU_READ_FLAVOR_FAST && in_nmi());
 	WARN_ON_ONCE(read_flavor & (read_flavor - 1));
 
 	sdp = raw_cpu_ptr(ssp->sda);

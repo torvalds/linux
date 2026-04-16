@@ -326,7 +326,7 @@ already:
 
 		/* don't restore interrupts */
 		raw_spin_unlock(&irq_lock);
-		new = kzalloc(sizeof(*irq_entry), GFP_ATOMIC);
+		new = kzalloc_obj(*irq_entry, GFP_ATOMIC);
 		if (!new) {
 			local_irq_restore(flags);
 			return -ENOMEM;

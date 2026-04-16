@@ -311,7 +311,7 @@ int __init dove_init_pmu_legacy(const struct dove_pmu_initdata *initdata)
 	struct pmu_data *pmu;
 	int ret;
 
-	pmu = kzalloc(sizeof(*pmu), GFP_KERNEL);
+	pmu = kzalloc_obj(*pmu);
 	if (!pmu)
 		return -ENOMEM;
 
@@ -324,7 +324,7 @@ int __init dove_init_pmu_legacy(const struct dove_pmu_initdata *initdata)
 	     domain_initdata++) {
 		struct pmu_domain *domain;
 
-		domain = kzalloc(sizeof(*domain), GFP_KERNEL);
+		domain = kzalloc_obj(*domain);
 		if (domain) {
 			domain->pmu = pmu;
 			domain->pwr_mask = domain_initdata->pwr_mask;
@@ -386,7 +386,7 @@ int __init dove_init_pmu(void)
 		return 0;
 	}
 
-	pmu = kzalloc(sizeof(*pmu), GFP_KERNEL);
+	pmu = kzalloc_obj(*pmu);
 	if (!pmu)
 		return -ENOMEM;
 
@@ -408,7 +408,7 @@ int __init dove_init_pmu(void)
 		struct of_phandle_args args;
 		struct pmu_domain *domain;
 
-		domain = kzalloc(sizeof(*domain), GFP_KERNEL);
+		domain = kzalloc_obj(*domain);
 		if (!domain)
 			break;
 

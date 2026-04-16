@@ -756,7 +756,7 @@ mwifiex_cfg80211_set_wiphy_params(struct wiphy *wiphy, int radio_idx,
 			return -EINVAL;
 		}
 
-		bss_cfg = kzalloc(sizeof(*bss_cfg), GFP_KERNEL);
+		bss_cfg = kzalloc_obj(*bss_cfg);
 		if (!bss_cfg)
 			return -ENOMEM;
 
@@ -2073,7 +2073,7 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 	if (GET_BSS_ROLE(priv) != MWIFIEX_BSS_ROLE_UAP)
 		return -1;
 
-	bss_cfg = kzalloc(sizeof(struct mwifiex_uap_bss_param), GFP_KERNEL);
+	bss_cfg = kzalloc_obj(struct mwifiex_uap_bss_param);
 	if (!bss_cfg)
 		return -ENOMEM;
 
@@ -2683,7 +2683,7 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 	if (!mwifiex_stop_bg_scan(priv))
 		cfg80211_sched_scan_stopped_locked(priv->wdev.wiphy, 0);
 
-	user_scan_cfg = kzalloc(sizeof(*user_scan_cfg), GFP_KERNEL);
+	user_scan_cfg = kzalloc_obj(*user_scan_cfg);
 	if (!user_scan_cfg)
 		return -ENOMEM;
 
@@ -2787,7 +2787,7 @@ mwifiex_cfg80211_sched_scan_start(struct wiphy *wiphy,
 		   request->n_channels, request->scan_plans->interval,
 		   (int)request->ie_len);
 
-	bgscan_cfg = kzalloc(sizeof(*bgscan_cfg), GFP_KERNEL);
+	bgscan_cfg = kzalloc_obj(*bgscan_cfg);
 	if (!bgscan_cfg)
 		return -ENOMEM;
 
@@ -3148,7 +3148,7 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 	SET_NETDEV_DEV(dev, adapter->dev);
 
 	ret = dev_alloc_name(dev, name);
-	if (ret)
+	if (ret < 0)
 		goto err_alloc_name;
 
 	priv->dfs_cac_workqueue = alloc_workqueue("MWIFIEX_DFS_CAC-%s",
@@ -3452,7 +3452,7 @@ static int mwifiex_set_mef_filter(struct mwifiex_private *priv,
 	if (wowlan->n_patterns || wowlan->magic_pkt)
 		num_entries++;
 
-	mef_entry = kcalloc(num_entries, sizeof(*mef_entry), GFP_KERNEL);
+	mef_entry = kzalloc_objs(*mef_entry, num_entries);
 	if (!mef_entry)
 		return -ENOMEM;
 
@@ -3989,7 +3989,7 @@ mwifiex_cfg80211_uap_add_station(struct mwifiex_private *priv, const u8 *mac,
 	if (!ret) {
 		struct station_info *sinfo;
 
-		sinfo = kzalloc(sizeof(*sinfo), GFP_KERNEL);
+		sinfo = kzalloc_obj(*sinfo);
 		if (!sinfo)
 			return -ENOMEM;
 
@@ -4161,7 +4161,7 @@ static int mwifiex_tm_cmd(struct wiphy *wiphy, struct wireless_dev *wdev,
 		if (!tb[MWIFIEX_TM_ATTR_DATA])
 			return -EINVAL;
 
-		hostcmd = kzalloc(sizeof(*hostcmd), GFP_KERNEL);
+		hostcmd = kzalloc_obj(*hostcmd);
 		if (!hostcmd)
 			return -ENOMEM;
 
@@ -4677,9 +4677,8 @@ int mwifiex_init_channel_scan_gap(struct mwifiex_adapter *adapter)
 	 * additional active scan request for hidden SSIDs on passive channels.
 	 */
 	adapter->num_in_chan_stats = 2 * (n_channels_bg + n_channels_a);
-	adapter->chan_stats = kcalloc(adapter->num_in_chan_stats,
-				      sizeof(*adapter->chan_stats),
-				      GFP_KERNEL);
+	adapter->chan_stats = kzalloc_objs(*adapter->chan_stats,
+					   adapter->num_in_chan_stats);
 
 	if (!adapter->chan_stats)
 		return -ENOMEM;

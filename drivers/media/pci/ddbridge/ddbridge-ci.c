@@ -155,7 +155,7 @@ static void ci_attach(struct ddb_port *port)
 {
 	struct ddb_ci *ci;
 
-	ci = kzalloc(sizeof(*ci), GFP_KERNEL);
+	ci = kzalloc_obj(*ci);
 	if (!ci)
 		return;
 	memcpy(&ci->en, &en_templ, sizeof(en_templ));
@@ -288,7 +288,7 @@ static void ci_xo2_attach(struct ddb_port *port)
 {
 	struct ddb_ci *ci;
 
-	ci = kzalloc(sizeof(*ci), GFP_KERNEL);
+	ci = kzalloc_obj(*ci);
 	if (!ci)
 		return;
 	memcpy(&ci->en, &en_xo2_templ, sizeof(en_xo2_templ));

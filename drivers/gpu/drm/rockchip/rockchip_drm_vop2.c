@@ -2140,8 +2140,7 @@ static void vop2_crtc_destroy_state(struct drm_crtc *crtc,
 
 static void vop2_crtc_reset(struct drm_crtc *crtc)
 {
-	struct rockchip_crtc_state *vcstate =
-		kzalloc(sizeof(*vcstate), GFP_KERNEL);
+	struct rockchip_crtc_state *vcstate = kzalloc_obj(*vcstate);
 
 	if (crtc->state)
 		vop2_crtc_destroy_state(crtc, crtc->state);

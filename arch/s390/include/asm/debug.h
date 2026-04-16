@@ -45,7 +45,7 @@ typedef struct debug_info {
 	struct debug_info *next;
 	struct debug_info *prev;
 	refcount_t ref_count;
-	spinlock_t lock;
+	raw_spinlock_t lock;
 	int level;
 	int nr_areas;
 	int pages_per_area;
@@ -440,7 +440,7 @@ static int VNAME(var, active_entries)[EARLY_AREAS] __initdata
 	.next = NULL,							\
 	.prev = NULL,							\
 	.ref_count = REFCOUNT_INIT(1),					\
-	.lock = __SPIN_LOCK_UNLOCKED(var.lock),				\
+	.lock = __RAW_SPIN_LOCK_UNLOCKED(var.lock),			\
 	.level = DEBUG_DEFAULT_LEVEL,					\
 	.nr_areas = EARLY_AREAS,					\
 	.pages_per_area = EARLY_PAGES,					\

@@ -858,7 +858,7 @@ static int venc_frame_encoded(struct vpu_inst *inst, void *arg)
 	if (!info)
 		return -EINVAL;
 	venc = inst->priv;
-	frame = kzalloc(sizeof(*frame), GFP_KERNEL);
+	frame = kzalloc_obj(*frame);
 	if (!frame)
 		return -ENOMEM;
 
@@ -1307,11 +1307,11 @@ static int venc_open(struct file *file)
 	struct venc_t *venc;
 	int ret;
 
-	inst = kzalloc(sizeof(*inst), GFP_KERNEL);
+	inst = kzalloc_obj(*inst);
 	if (!inst)
 		return -ENOMEM;
 
-	venc = kzalloc(sizeof(*venc), GFP_KERNEL);
+	venc = kzalloc_obj(*venc);
 	if (!venc) {
 		kfree(inst);
 		return -ENOMEM;

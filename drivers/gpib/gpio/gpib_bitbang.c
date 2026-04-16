@@ -1066,9 +1066,9 @@ static int bb_line_status(const struct gpib_board *board)
 
 static int allocate_private(struct gpib_board *board)
 {
-	board->private_data = kzalloc(sizeof(struct bb_priv), GFP_KERNEL);
+	board->private_data = kzalloc_obj(struct bb_priv);
 	if (!board->private_data)
-		return -1;
+		return -ENOMEM;
 	return 0;
 }
 
@@ -1205,14 +1205,15 @@ static void bb_detach(struct gpib_board *board)
 static int bb_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	struct bb_priv *priv;
-	int retval = 0;
+	int retval;
 
 	dbg_printk(2, "%s\n", "Enter ...");
 
 	board->status = 0;
 
-	if (allocate_private(board))
-		return -ENOMEM;
+	retval = allocate_private(board);
+	if (retval)
+		return retval;
 	priv = board->private_data;
 	priv->direction = -1;
 	priv->t1_delay = 2000;

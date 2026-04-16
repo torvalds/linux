@@ -14,7 +14,7 @@ int zlib_inflate_blob(void *gunzip_buf, unsigned int sz,
 	int rc;
 
 	rc = -ENOMEM;
-	strm = kmalloc(sizeof(*strm), GFP_KERNEL);
+	strm = kmalloc_obj(*strm);
 	if (strm == NULL)
 		goto gunzip_nomem1;
 	strm->workspace = kmalloc(zlib_inflate_workspacesize(), GFP_KERNEL);

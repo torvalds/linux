@@ -234,7 +234,7 @@ static struct parport *parport_gsc_probe_port(unsigned long base,
 	struct parport tmp;
 	struct parport *p = &tmp;
 
-	priv = kzalloc (sizeof (struct parport_gsc_private), GFP_KERNEL);
+	priv = kzalloc_obj(struct parport_gsc_private);
 	if (!priv) {
 		printk(KERN_DEBUG "parport (0x%lx): no memory!\n", base);
 		return NULL;

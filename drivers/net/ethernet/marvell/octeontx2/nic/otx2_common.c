@@ -1005,7 +1005,7 @@ int otx2_sq_init(struct otx2_nic *pfvf, u16 qidx, u16 sqb_aura)
 	}
 
 	sq->sqe_base = sq->sqe->base;
-	sq->sg = kcalloc(qset->sqe_cnt, sizeof(struct sg_list), GFP_KERNEL);
+	sq->sg = kzalloc_objs(struct sg_list, qset->sqe_cnt);
 	if (!sq->sg)
 		return -ENOMEM;
 
@@ -1585,7 +1585,7 @@ int otx2_sq_aura_pool_init(struct otx2_nic *pfvf)
 
 		sq = &qset->sq[qidx];
 		sq->sqb_count = 0;
-		sq->sqb_ptrs = kcalloc(num_sqbs, sizeof(*sq->sqb_ptrs), GFP_KERNEL);
+		sq->sqb_ptrs = kzalloc_objs(*sq->sqb_ptrs, num_sqbs);
 		if (!sq->sqb_ptrs) {
 			err = -ENOMEM;
 			goto err_mem;

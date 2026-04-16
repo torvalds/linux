@@ -3940,9 +3940,8 @@ cfg80211_beacon_dup(struct cfg80211_beacon_data *beacon)
 
 	if (beacon->mbssid_ies && beacon->mbssid_ies->cnt) {
 		new_beacon->mbssid_ies =
-			kzalloc(struct_size(new_beacon->mbssid_ies,
-					    elem, beacon->mbssid_ies->cnt),
-				GFP_KERNEL);
+			kzalloc_flex(*new_beacon->mbssid_ies, elem,
+				     beacon->mbssid_ies->cnt);
 		if (!new_beacon->mbssid_ies) {
 			kfree(new_beacon);
 			return NULL;
@@ -3950,9 +3949,8 @@ cfg80211_beacon_dup(struct cfg80211_beacon_data *beacon)
 
 		if (beacon->rnr_ies && beacon->rnr_ies->cnt) {
 			new_beacon->rnr_ies =
-				kzalloc(struct_size(new_beacon->rnr_ies,
-						    elem, beacon->rnr_ies->cnt),
-					GFP_KERNEL);
+				kzalloc_flex(*new_beacon->rnr_ies, elem,
+					     beacon->rnr_ies->cnt);
 			if (!new_beacon->rnr_ies) {
 				kfree(new_beacon->mbssid_ies);
 				kfree(new_beacon);
@@ -4744,7 +4742,7 @@ static int ieee80211_set_qos_map(struct wiphy *wiphy,
 	struct mac80211_qos_map *new_qos_map, *old_qos_map;
 
 	if (qos_map) {
-		new_qos_map = kzalloc(sizeof(*new_qos_map), GFP_KERNEL);
+		new_qos_map = kzalloc_obj(*new_qos_map);
 		if (!new_qos_map)
 			return -ENOMEM;
 		memcpy(&new_qos_map->qos_map, qos_map, sizeof(*qos_map));

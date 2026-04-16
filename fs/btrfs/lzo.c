@@ -88,7 +88,7 @@ struct list_head *lzo_alloc_workspace(struct btrfs_fs_info *fs_info)
 {
 	struct workspace *workspace;
 
-	workspace = kzalloc(sizeof(*workspace), GFP_KERNEL);
+	workspace = kzalloc_obj(*workspace);
 	if (!workspace)
 		return ERR_PTR(-ENOMEM);
 

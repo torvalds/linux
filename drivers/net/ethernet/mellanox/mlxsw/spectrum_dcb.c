@@ -654,8 +654,7 @@ static const struct dcbnl_rtnl_ops mlxsw_sp_dcbnl_ops = {
 
 static int mlxsw_sp_port_ets_init(struct mlxsw_sp_port *mlxsw_sp_port)
 {
-	mlxsw_sp_port->dcb.ets = kzalloc(sizeof(*mlxsw_sp_port->dcb.ets),
-					 GFP_KERNEL);
+	mlxsw_sp_port->dcb.ets = kzalloc_obj(*mlxsw_sp_port->dcb.ets);
 	if (!mlxsw_sp_port->dcb.ets)
 		return -ENOMEM;
 
@@ -673,8 +672,7 @@ static int mlxsw_sp_port_maxrate_init(struct mlxsw_sp_port *mlxsw_sp_port)
 {
 	int i;
 
-	mlxsw_sp_port->dcb.maxrate = kmalloc(sizeof(*mlxsw_sp_port->dcb.maxrate),
-					     GFP_KERNEL);
+	mlxsw_sp_port->dcb.maxrate = kmalloc_obj(*mlxsw_sp_port->dcb.maxrate);
 	if (!mlxsw_sp_port->dcb.maxrate)
 		return -ENOMEM;
 
@@ -691,8 +689,7 @@ static void mlxsw_sp_port_maxrate_fini(struct mlxsw_sp_port *mlxsw_sp_port)
 
 static int mlxsw_sp_port_pfc_init(struct mlxsw_sp_port *mlxsw_sp_port)
 {
-	mlxsw_sp_port->dcb.pfc = kzalloc(sizeof(*mlxsw_sp_port->dcb.pfc),
-					 GFP_KERNEL);
+	mlxsw_sp_port->dcb.pfc = kzalloc_obj(*mlxsw_sp_port->dcb.pfc);
 	if (!mlxsw_sp_port->dcb.pfc)
 		return -ENOMEM;
 

@@ -7085,6 +7085,9 @@ static void ieee80211_ml_reconfiguration(struct ieee80211_sub_if_data *sdata,
 		control = le16_to_cpu(prof->control);
 		link_id = control & IEEE80211_MLE_STA_RECONF_CONTROL_LINK_ID;
 
+		if (link_id >= IEEE80211_MLD_MAX_NUM_LINKS)
+			continue;
+
 		removed_links |= BIT(link_id);
 
 		/* the MAC address should not be included, but handle it */
@@ -10839,7 +10842,7 @@ int ieee80211_mgd_assoc_ml_reconf(struct ieee80211_sub_if_data *sdata,
 	if (added_links) {
 		bool uapsd_supported;
 
-		data = kzalloc(sizeof(*data), GFP_KERNEL);
+		data = kzalloc_obj(*data);
 		if (!data)
 			return -ENOMEM;
 

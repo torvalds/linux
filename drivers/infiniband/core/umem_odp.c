@@ -140,7 +140,7 @@ struct ib_umem_odp *ib_umem_odp_alloc_implicit(struct ib_device *device,
 	if (access & IB_ACCESS_HUGETLB)
 		return ERR_PTR(-EINVAL);
 
-	umem_odp = kzalloc(sizeof(*umem_odp), GFP_KERNEL);
+	umem_odp = kzalloc_obj(*umem_odp);
 	if (!umem_odp)
 		return ERR_PTR(-ENOMEM);
 	umem = &umem_odp->umem;
@@ -181,7 +181,7 @@ ib_umem_odp_alloc_child(struct ib_umem_odp *root, unsigned long addr,
 	if (WARN_ON(!root->is_implicit_odp))
 		return ERR_PTR(-EINVAL);
 
-	odp_data = kzalloc(sizeof(*odp_data), GFP_KERNEL);
+	odp_data = kzalloc_obj(*odp_data);
 	if (!odp_data)
 		return ERR_PTR(-ENOMEM);
 	umem = &odp_data->umem;
@@ -241,7 +241,7 @@ struct ib_umem_odp *ib_umem_odp_get(struct ib_device *device,
 	if (WARN_ON_ONCE(!(access & IB_ACCESS_ON_DEMAND)))
 		return ERR_PTR(-EINVAL);
 
-	umem_odp = kzalloc(sizeof(struct ib_umem_odp), GFP_KERNEL);
+	umem_odp = kzalloc_obj(struct ib_umem_odp);
 	if (!umem_odp)
 		return ERR_PTR(-ENOMEM);
 

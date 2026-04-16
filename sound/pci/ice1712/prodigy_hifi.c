@@ -1060,12 +1060,12 @@ static int prodigy_hifi_init(struct snd_ice1712 *ice)
 	ice->gpio.saved[0] = 0;
 	/* to remember the register values */
 
-	ice->akm = kzalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
+	ice->akm = kzalloc_obj(struct snd_akm4xxx);
 	if (! ice->akm)
 		return -ENOMEM;
 	ice->akm_codecs = 1;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 	ice->spec = spec;
@@ -1143,12 +1143,12 @@ static int prodigy_hd2_init(struct snd_ice1712 *ice)
 	ice->gpio.saved[0] = 0;
 	/* to remember the register values */
 
-	ice->akm = kzalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
+	ice->akm = kzalloc_obj(struct snd_akm4xxx);
 	if (! ice->akm)
 		return -ENOMEM;
 	ice->akm_codecs = 1;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 	ice->spec = spec;

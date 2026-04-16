@@ -206,7 +206,7 @@ static int amdgpu_debugfs_regs2_open(struct inode *inode, struct file *file)
 {
 	struct amdgpu_debugfs_regs2_data *rd;
 
-	rd = kzalloc(sizeof(*rd), GFP_KERNEL);
+	rd = kzalloc_obj(*rd);
 	if (!rd)
 		return -ENOMEM;
 	rd->adev = file_inode(file)->i_private;
@@ -371,7 +371,7 @@ static int amdgpu_debugfs_gprwave_open(struct inode *inode, struct file *file)
 {
 	struct amdgpu_debugfs_gprwave_data *rd;
 
-	rd = kzalloc(sizeof(*rd), GFP_KERNEL);
+	rd = kzalloc_obj(*rd);
 	if (!rd)
 		return -ENOMEM;
 	rd->adev = file_inode(file)->i_private;

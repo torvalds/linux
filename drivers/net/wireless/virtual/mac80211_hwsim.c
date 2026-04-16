@@ -6489,7 +6489,7 @@ static int hwsim_new_radio_nl(struct sk_buff *msg, struct genl_info *info)
 	if (info->attrs[HWSIM_ATTR_PMSR_SUPPORT]) {
 		struct cfg80211_pmsr_capabilities *pmsr_capa;
 
-		pmsr_capa = kmalloc(sizeof(*pmsr_capa), GFP_KERNEL);
+		pmsr_capa = kmalloc_obj(*pmsr_capa);
 		if (!pmsr_capa) {
 			ret = -ENOMEM;
 			goto out_free;

@@ -532,7 +532,7 @@ nv04_dac_create(struct drm_connector *connector, struct dcb_output *entry)
 	struct drm_device *dev = connector->dev;
 	struct drm_encoder *encoder;
 
-	nv_encoder = kzalloc(sizeof(*nv_encoder), GFP_KERNEL);
+	nv_encoder = kzalloc_obj(*nv_encoder);
 	if (!nv_encoder)
 		return -ENOMEM;
 

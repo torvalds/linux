@@ -4,7 +4,7 @@
 
 #include <stdlib.h>
 #include <linux/types.h>
-#include <asm/perf_regs.h>
+#include "../../../../arch/powerpc/include/uapi/asm/perf_regs.h"
 
 void perf_regs_load(u64 *regs);
 

@@ -204,7 +204,7 @@ static struct sco_conn *sco_conn_add(struct hci_conn *hcon)
 		return conn;
 	}
 
-	conn = kzalloc(sizeof(struct sco_conn), GFP_KERNEL);
+	conn = kzalloc_obj(struct sco_conn);
 	if (!conn)
 		return NULL;
 
@@ -470,6 +470,7 @@ static void sco_sock_destruct(struct sock *sk)
 
 	skb_queue_purge(&sk->sk_receive_queue);
 	skb_queue_purge(&sk->sk_write_queue);
+	skb_queue_purge(&sk->sk_error_queue);
 }
 
 static void sco_sock_cleanup_listen(struct sock *parent)

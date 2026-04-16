@@ -447,7 +447,7 @@ static int initialize_event_pool(struct event_pool *pool,
 
 	pool->size = size;
 	pool->next = 0;
-	pool->events = kcalloc(pool->size, sizeof(*pool->events), GFP_KERNEL);
+	pool->events = kzalloc_objs(*pool->events, pool->size);
 	if (!pool->events)
 		return -ENOMEM;
 

@@ -185,7 +185,7 @@ static int iforce_serio_connect(struct serio *serio, struct serio_driver *drv)
 	struct iforce_serio *iforce_serio;
 	int err;
 
-	iforce_serio = kzalloc(sizeof(*iforce_serio), GFP_KERNEL);
+	iforce_serio = kzalloc_obj(*iforce_serio);
 	if (!iforce_serio)
 		return -ENOMEM;
 

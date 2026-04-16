@@ -111,7 +111,7 @@ static struct devlink_rel *devlink_rel_alloc(void)
 	static u32 next;
 	int err;
 
-	rel = kzalloc(sizeof(*rel), GFP_KERNEL);
+	rel = kzalloc_obj(*rel);
 	if (!rel)
 		return ERR_PTR(-ENOMEM);
 
@@ -418,7 +418,7 @@ struct devlink *devlink_alloc_ns(const struct devlink_ops *ops,
 	if (!devlink_reload_actions_valid(ops))
 		return NULL;
 
-	devlink = kvzalloc(struct_size(devlink, priv, priv_size), GFP_KERNEL);
+	devlink = kvzalloc_flex(*devlink, priv, priv_size);
 	if (!devlink)
 		return NULL;
 

@@ -2303,7 +2303,7 @@ static struct drm_pagemap_addr *xe_migrate_dma_map(struct xe_device *xe,
 	struct drm_pagemap_addr *pagemap_addr;
 	unsigned long i, npages = DIV_ROUND_UP(len, PAGE_SIZE);
 
-	pagemap_addr = kcalloc(npages, sizeof(*pagemap_addr), GFP_KERNEL);
+	pagemap_addr = kzalloc_objs(*pagemap_addr, npages);
 	if (!pagemap_addr)
 		return ERR_PTR(-ENOMEM);
 

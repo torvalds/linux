@@ -29,7 +29,6 @@ static void bcmgenet_mac_config(struct net_device *dev)
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	struct phy_device *phydev = dev->phydev;
 	u32 reg, cmd_bits = 0;
-	bool active;
 
 	/* speed */
 	if (phydev->speed == SPEED_1000)
@@ -90,10 +89,6 @@ static void bcmgenet_mac_config(struct net_device *dev)
 	bcmgenet_umac_writel(priv, reg, UMAC_CMD);
 	spin_unlock_bh(&priv->reg_lock);
 
-	active = phy_init_eee(phydev, 0) >= 0;
-	bcmgenet_eee_enable_set(dev,
-				priv->eee.eee_enabled && active,
-				priv->eee.tx_lpi_enabled);
 }
 
 /* setup netdev link state when PHY link status change and
@@ -112,6 +107,8 @@ void bcmgenet_mii_setup(struct net_device *dev)
 		reg &= ~RGMII_LINK;
 		bcmgenet_ext_writel(priv, reg, EXT_RGMII_OOB_CTRL);
 	}
+
+	bcmgenet_eee_enable_set(dev, phydev->enable_tx_lpi);
 
 	phy_print_status(phydev);
 }
@@ -411,6 +408,9 @@ int bcmgenet_mii_probe(struct net_device *dev)
 
 	/* Indicate that the MAC is responsible for PHY PM */
 	dev->phydev->mac_managed_pm = true;
+
+	if (!GENET_IS_V1(priv))
+		phy_support_eee(dev->phydev);
 
 	return 0;
 }

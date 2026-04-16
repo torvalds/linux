@@ -42,10 +42,10 @@ static int qat_uclo_init_ae_data(struct icp_qat_uclo_objhandle *obj_handle,
 	} else {
 		ae_slice->ctx_mask_assigned = 0;
 	}
-	ae_slice->region = kzalloc(sizeof(*ae_slice->region), GFP_KERNEL);
+	ae_slice->region = kzalloc_obj(*ae_slice->region);
 	if (!ae_slice->region)
 		return -ENOMEM;
-	ae_slice->page = kzalloc(sizeof(*ae_slice->page), GFP_KERNEL);
+	ae_slice->page = kzalloc_obj(*ae_slice->page);
 	if (!ae_slice->page)
 		goto out_err;
 	page = ae_slice->page;
@@ -258,7 +258,7 @@ static int qat_uclo_create_batch_init_list(struct icp_qat_fw_loader_handle
 
 	init_header = *init_tab_base;
 	if (!init_header) {
-		init_header = kzalloc(sizeof(*init_header), GFP_KERNEL);
+		init_header = kzalloc_obj(*init_header);
 		if (!init_header)
 			return -ENOMEM;
 		init_header->size = 1;
@@ -270,7 +270,7 @@ static int qat_uclo_create_batch_init_list(struct icp_qat_fw_loader_handle
 		tail_old = tail_old->next;
 	tail = tail_old;
 	for (i = 0; i < init_mem->val_attr_num; i++) {
-		mem_init = kzalloc(sizeof(*mem_init), GFP_KERNEL);
+		mem_init = kzalloc_obj(*mem_init);
 		if (!mem_init)
 			goto out_err;
 		mem_init->ae = ae;
@@ -501,7 +501,7 @@ qat_uclo_map_chunk(char *buf, struct icp_qat_uof_filehdr *file_hdr,
 			if (file_chunk->checksum != qat_uclo_calc_str_checksum(
 				chunk, file_chunk->size))
 				break;
-			obj_hdr = kzalloc(sizeof(*obj_hdr), GFP_KERNEL);
+			obj_hdr = kzalloc_obj(*obj_hdr);
 			if (!obj_hdr)
 				break;
 			obj_hdr->file_buff = chunk;
@@ -634,8 +634,7 @@ static int qat_uclo_map_uimage(struct icp_qat_uclo_objhandle *obj_handle,
 		if (qat_uclo_check_image_compat(encap_uof_obj, image))
 			goto out_err;
 		ae_uimage[j].page =
-			kzalloc(sizeof(struct icp_qat_uclo_encap_page),
-				GFP_KERNEL);
+			kzalloc_obj(struct icp_qat_uclo_encap_page);
 		if (!ae_uimage[j].page)
 			goto out_err;
 		qat_uclo_map_image_page(encap_uof_obj, image,
@@ -1200,9 +1199,8 @@ static int qat_uclo_map_suof(struct icp_qat_fw_loader_handle *handle,
 	suof_handle->img_table.num_simgs = suof_ptr->num_chunks - 1;
 
 	if (suof_handle->img_table.num_simgs != 0) {
-		suof_img_hdr = kcalloc(suof_handle->img_table.num_simgs,
-				       sizeof(img_header),
-				       GFP_KERNEL);
+		suof_img_hdr = kzalloc_objs(img_header,
+					    suof_handle->img_table.num_simgs);
 		if (!suof_img_hdr)
 			return -ENOMEM;
 		suof_handle->img_table.simg_hdr = suof_img_hdr;
@@ -1720,7 +1718,7 @@ static int qat_uclo_map_suof_obj(struct icp_qat_fw_loader_handle *handle,
 {
 	struct icp_qat_suof_handle *suof_handle;
 
-	suof_handle = kzalloc(sizeof(*suof_handle), GFP_KERNEL);
+	suof_handle = kzalloc_obj(*suof_handle);
 	if (!suof_handle)
 		return -ENOMEM;
 	handle->sobj_handle = suof_handle;
@@ -1764,7 +1762,7 @@ static int qat_uclo_map_uof_obj(struct icp_qat_fw_loader_handle *handle,
 	struct icp_qat_uof_filehdr *filehdr;
 	struct icp_qat_uclo_objhandle *objhdl;
 
-	objhdl = kzalloc(sizeof(*objhdl), GFP_KERNEL);
+	objhdl = kzalloc_obj(*objhdl);
 	if (!objhdl)
 		return -ENOMEM;
 	objhdl->obj_buf = kmemdup(addr_ptr, mem_size, GFP_KERNEL);
@@ -1892,8 +1890,8 @@ static int qat_uclo_map_objs_from_mof(struct icp_qat_mof_handle *mobj_handle)
 	if (sobj_hdr)
 		sobj_chunk_num = sobj_hdr->num_chunks;
 
-	mobj_hdr = kcalloc(size_add(uobj_chunk_num, sobj_chunk_num),
-			   sizeof(*mobj_hdr), GFP_KERNEL);
+	mobj_hdr = kzalloc_objs(*mobj_hdr,
+				size_add(uobj_chunk_num, sobj_chunk_num));
 	if (!mobj_hdr)
 		return -ENOMEM;
 
@@ -2003,7 +2001,7 @@ static int qat_uclo_map_mof_obj(struct icp_qat_fw_loader_handle *handle,
 	if (qat_uclo_check_mof_format(mof_ptr))
 		return -EINVAL;
 
-	mobj_handle = kzalloc(sizeof(*mobj_handle), GFP_KERNEL);
+	mobj_handle = kzalloc_obj(*mobj_handle);
 	if (!mobj_handle)
 		return -ENOMEM;
 

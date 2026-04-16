@@ -899,7 +899,7 @@ static struct iommu_domain *exynos_iommu_domain_alloc_paging(struct device *dev)
 	/* Check if correct PTE offsets are initialized */
 	BUG_ON(PG_ENT_SHIFT < 0 || !dma_dev);
 
-	domain = kzalloc(sizeof(*domain), GFP_KERNEL);
+	domain = kzalloc_obj(*domain);
 	if (!domain)
 		return NULL;
 
@@ -1451,7 +1451,7 @@ static int exynos_iommu_of_xlate(struct device *dev,
 		return -ENODEV;
 
 	if (!owner) {
-		owner = kzalloc(sizeof(*owner), GFP_KERNEL);
+		owner = kzalloc_obj(*owner);
 		if (!owner)
 			return -ENOMEM;
 

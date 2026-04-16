@@ -1926,8 +1926,8 @@ static int its_vlpi_map(struct irq_data *d, struct its_cmd_info *info)
 	if (!its_dev->event_map.vm) {
 		struct its_vlpi_map *maps;
 
-		maps = kcalloc(its_dev->event_map.nr_lpis, sizeof(*maps),
-			       GFP_ATOMIC);
+		maps = kzalloc_objs(*maps, its_dev->event_map.nr_lpis,
+				    GFP_ATOMIC);
 		if (!maps)
 			return -ENOMEM;
 
@@ -2108,7 +2108,7 @@ static struct lpi_range *mk_lpi_range(u32 base, u32 span)
 {
 	struct lpi_range *range;
 
-	range = kmalloc(sizeof(*range), GFP_KERNEL);
+	range = kmalloc_obj(*range);
 	if (range) {
 		range->base_id = base;
 		range->span = span;
@@ -2927,7 +2927,7 @@ static int allocate_vpe_l1_table(void)
 	if (val & GICR_VPROPBASER_4_1_VALID)
 		goto out;
 
-	gic_data_rdist()->vpe_table_mask = kzalloc(sizeof(cpumask_t), GFP_ATOMIC);
+	gic_data_rdist()->vpe_table_mask = kzalloc_obj(cpumask_t, GFP_ATOMIC);
 	if (!gic_data_rdist()->vpe_table_mask)
 		return -ENOMEM;
 
@@ -3025,8 +3025,7 @@ static int its_alloc_collections(struct its_node *its)
 {
 	int i;
 
-	its->collections = kcalloc(nr_cpu_ids, sizeof(*its->collections),
-				   GFP_KERNEL);
+	its->collections = kzalloc_objs(*its->collections, nr_cpu_ids);
 	if (!its->collections)
 		return -ENOMEM;
 
@@ -3475,6 +3474,7 @@ static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
 	int lpi_base;
 	int nr_lpis;
 	int nr_ites;
+	int id_bits;
 	int sz;
 
 	if (!its_alloc_device_table(its, dev_id))
@@ -3486,14 +3486,17 @@ static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
 	/*
 	 * Even if the device wants a single LPI, the ITT must be
 	 * sized as a power of two (and you need at least one bit...).
+	 * Also honor the ITS's own EID limit.
 	 */
+	id_bits = FIELD_GET(GITS_TYPER_IDBITS, its->typer) + 1;
+	nvecs = min_t(unsigned int, nvecs, BIT(id_bits));
 	nr_ites = max(2, nvecs);
 	sz = nr_ites * (FIELD_GET(GITS_TYPER_ITT_ENTRY_SIZE, its->typer) + 1);
 	sz = max(sz, ITS_ITT_ALIGN);
 
 	itt = itt_alloc_pool(its->numa_node, sz);
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 
 	if (alloc_lpis) {
 		lpi_map = its_lpi_alloc(nvecs, &lpi_base, &nr_lpis);
@@ -5139,7 +5142,7 @@ static int its_init_domain(struct its_node *its)
 	};
 	struct msi_domain_info *info;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return -ENOMEM;
 
@@ -5169,8 +5172,7 @@ static int its_init_vpe_domain(void)
 	its = list_first_entry(&its_nodes, struct its_node, entry);
 
 	entries = roundup_pow_of_two(nr_cpu_ids);
-	vpe_proxy.vpes = kcalloc(entries, sizeof(*vpe_proxy.vpes),
-				 GFP_KERNEL);
+	vpe_proxy.vpes = kzalloc_objs(*vpe_proxy.vpes, entries);
 	if (!vpe_proxy.vpes)
 		return -ENOMEM;
 
@@ -5514,7 +5516,7 @@ static struct its_node __init *its_node_init(struct resource *res,
 
 	pr_info("ITS %pR\n", res);
 
-	its = kzalloc(sizeof(*its), GFP_KERNEL);
+	its = kzalloc_obj(*its);
 	if (!its)
 		goto out_unmap;
 
@@ -5680,8 +5682,7 @@ static void __init acpi_table_parse_srat_its(void)
 	if (count <= 0)
 		return;
 
-	its_srat_maps = kmalloc_array(count, sizeof(struct its_srat_map),
-				      GFP_KERNEL);
+	its_srat_maps = kmalloc_objs(struct its_srat_map, count);
 	if (!its_srat_maps)
 		return;
 

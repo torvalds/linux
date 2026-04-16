@@ -1348,7 +1348,7 @@ static int hackrf_probe(struct usb_interface *intf,
 	int ret;
 	u8 u8tmp, buf[BUF_SIZE];
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev) {
 		ret = -ENOMEM;
 		goto err;

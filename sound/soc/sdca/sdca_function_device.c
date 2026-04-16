@@ -39,7 +39,7 @@ static struct sdca_dev *sdca_dev_register(struct device *parent,
 	int ret;
 	int rc;
 
-	sdev = kzalloc(sizeof(*sdev), GFP_KERNEL);
+	sdev = kzalloc_obj(*sdev);
 	if (!sdev)
 		return ERR_PTR(-ENOMEM);
 

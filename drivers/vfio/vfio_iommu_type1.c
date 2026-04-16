@@ -388,7 +388,7 @@ static int vfio_add_to_pfn_list(struct vfio_dma *dma, dma_addr_t iova,
 {
 	struct vfio_pfn *vpfn;
 
-	vpfn = kzalloc(sizeof(*vpfn), GFP_KERNEL);
+	vpfn = kzalloc_obj(*vpfn);
 	if (!vpfn)
 		return -ENOMEM;
 
@@ -1097,7 +1097,7 @@ static size_t unmap_unpin_fast(struct vfio_domain *domain,
 			       struct iommu_iotlb_gather *iotlb_gather)
 {
 	size_t unmapped = 0;
-	struct vfio_regions *entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	struct vfio_regions *entry = kzalloc_obj(*entry);
 
 	if (entry) {
 		unmapped = iommu_unmap_fast(domain->domain, iova, len,
@@ -1753,7 +1753,7 @@ static int vfio_dma_do_map(struct vfio_iommu *iommu,
 		goto out_unlock;
 	}
 
-	dma = kzalloc(sizeof(*dma), GFP_KERNEL);
+	dma = kzalloc_obj(*dma);
 	if (!dma) {
 		ret = -ENOMEM;
 		goto out_unlock;
@@ -2017,7 +2017,7 @@ static int vfio_iommu_iova_insert(struct list_head *head,
 {
 	struct vfio_iova *region;
 
-	region = kmalloc(sizeof(*region), GFP_KERNEL);
+	region = kmalloc_obj(*region);
 	if (!region)
 		return -ENOMEM;
 
@@ -2259,7 +2259,7 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 		goto out_unlock;
 
 	ret = -ENOMEM;
-	group = kzalloc(sizeof(*group), GFP_KERNEL);
+	group = kzalloc_obj(*group);
 	if (!group)
 		goto out_unlock;
 	group->iommu_group = iommu_group;
@@ -2278,7 +2278,7 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 	}
 
 	ret = -ENOMEM;
-	domain = kzalloc(sizeof(*domain), GFP_KERNEL);
+	domain = kzalloc_obj(*domain);
 	if (!domain)
 		goto out_free_group;
 
@@ -2625,7 +2625,7 @@ static void *vfio_iommu_type1_open(unsigned long arg)
 {
 	struct vfio_iommu *iommu;
 
-	iommu = kzalloc(sizeof(*iommu), GFP_KERNEL);
+	iommu = kzalloc_obj(*iommu);
 	if (!iommu)
 		return ERR_PTR(-ENOMEM);
 

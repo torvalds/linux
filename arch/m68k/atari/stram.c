@@ -161,7 +161,7 @@ void *atari_stram_alloc(unsigned long size, const char *owner)
 	/* round up */
 	size = PAGE_ALIGN(size);
 
-	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+	res = kzalloc_obj(struct resource);
 	if (!res)
 		return NULL;
 

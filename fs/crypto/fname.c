@@ -76,7 +76,7 @@ struct fscrypt_nokey_name {
 
 static inline bool fscrypt_is_dot_dotdot(const struct qstr *str)
 {
-	return is_dot_dotdot(str->name, str->len);
+	return name_is_dot_dotdot(str->name, str->len);
 }
 
 /**

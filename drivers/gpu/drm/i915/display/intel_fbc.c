@@ -2294,7 +2294,7 @@ static struct intel_fbc *intel_fbc_create(struct intel_display *display,
 {
 	struct intel_fbc *fbc;
 
-	fbc = kzalloc(sizeof(*fbc), GFP_KERNEL);
+	fbc = kzalloc_obj(*fbc);
 	if (!fbc)
 		return NULL;
 

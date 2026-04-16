@@ -1351,3 +1351,13 @@ and do_rmdir()) are gone; they are replaced with non-consuming analogues
 (filename_renameat2(), etc.)
 Callers are adjusted - responsibility for dropping the filenames belongs
 to them now.
+
+---
+
+**mandatory**
+
+readlink_copy() now requires link length as the 4th argument. Said length needs
+to match what strlen() would return if it was ran on the string.
+
+However, if the string is freely accessible for the duration of inode's
+lifetime, consider using inode_set_cached_link() instead.

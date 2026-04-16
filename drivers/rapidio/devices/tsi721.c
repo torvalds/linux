@@ -1145,7 +1145,7 @@ static int tsi721_rio_map_inb_mem(struct rio_mport *mport, dma_addr_t lstart,
 
 		loc_start = ibw_start;
 
-		map = kzalloc(sizeof(struct tsi721_ib_win_mapping), GFP_ATOMIC);
+		map = kzalloc_obj(struct tsi721_ib_win_mapping, GFP_ATOMIC);
 		if (map == NULL)
 			return -ENOMEM;
 
@@ -2774,7 +2774,7 @@ static int tsi721_probe(struct pci_dev *pdev,
 	struct tsi721_device *priv;
 	int err;
 
-	priv = kzalloc(sizeof(struct tsi721_device), GFP_KERNEL);
+	priv = kzalloc_obj(struct tsi721_device);
 	if (!priv) {
 		err = -ENOMEM;
 		goto err_exit;

@@ -250,12 +250,12 @@ static int iio_gts_alloc_int_table_array(int ***arr, int num_tables, int num_tab
 {
 	int i, **tmp;
 
-	tmp = kcalloc(num_tables, sizeof(**arr), GFP_KERNEL);
+	tmp = kzalloc_objs(**arr, num_tables);
 	if (!tmp)
 		return -ENOMEM;
 
 	for (i = 0; i < num_tables; i++) {
-		tmp[i] = kcalloc(num_table_items, sizeof(int), GFP_KERNEL);
+		tmp[i] = kzalloc_objs(int, num_table_items);
 		if (!tmp[i])
 			goto err_free;
 	}
@@ -432,7 +432,7 @@ static int iio_gts_build_avail_time_table(struct iio_gts *gts)
 	if (!gts->num_itime)
 		return 0;
 
-	times = kcalloc(gts->num_itime, sizeof(int), GFP_KERNEL);
+	times = kzalloc_objs(int, gts->num_itime);
 	if (!times)
 		return -ENOMEM;
 

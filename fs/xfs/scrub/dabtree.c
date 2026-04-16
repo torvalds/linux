@@ -512,7 +512,7 @@ xchk_da_btree(
 		return 0;
 
 	/* Set up initial da state. */
-	ds = kzalloc(sizeof(struct xchk_da_btree), XCHK_GFP_FLAGS);
+	ds = kzalloc_obj(struct xchk_da_btree, XCHK_GFP_FLAGS);
 	if (!ds)
 		return -ENOMEM;
 	ds->dargs.dp = sc->ip;

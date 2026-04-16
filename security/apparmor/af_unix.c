@@ -416,7 +416,7 @@ static int profile_peer_perm(struct aa_profile *profile, u32 request,
 				      unix_sk(sk),
 				      peer_addr, peer_addrlen, &p, &ad->info);
 
-		return fn_for_each_in_ns(peer_label, peerp,
+		return fn_for_each_in_scope(peer_label, peerp,
 				match_label(profile, rules, state, request,
 					    peerp, p, ad));
 	}

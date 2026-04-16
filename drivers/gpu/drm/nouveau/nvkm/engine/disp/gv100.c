@@ -822,7 +822,7 @@ gv100_disp_caps_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 	struct nvkm_disp *disp = nvkm_udisp(oclass->parent);
 	struct gv100_disp_caps *caps;
 
-	if (!(caps = kzalloc(sizeof(*caps), GFP_KERNEL)))
+	if (!(caps = kzalloc_obj(*caps)))
 		return -ENOMEM;
 	*pobject = &caps->object;
 

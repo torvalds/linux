@@ -231,7 +231,7 @@ int onenand_default_bbt(struct mtd_info *mtd)
 	struct onenand_chip *this = mtd->priv;
 	struct bbm_info *bbm;
 
-	this->bbm = kzalloc(sizeof(struct bbm_info), GFP_KERNEL);
+	this->bbm = kzalloc_obj(struct bbm_info);
 	if (!this->bbm)
 		return -ENOMEM;
 

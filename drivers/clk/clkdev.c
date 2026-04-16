@@ -164,7 +164,7 @@ vclkdev_alloc(struct clk_hw *hw, const char *con_id, const char *dev_fmt,
 	size_t max_size;
 	ssize_t res;
 
-	cla = kzalloc(sizeof(*cla), GFP_KERNEL);
+	cla = kzalloc_obj(*cla);
 	if (!cla)
 		return NULL;
 

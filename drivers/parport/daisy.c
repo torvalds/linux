@@ -51,7 +51,7 @@ static int assign_addrs(struct parport *port);
 static void add_dev(int devnum, struct parport *port, int daisy)
 {
 	struct daisydev *newdev, **p;
-	newdev = kmalloc(sizeof(struct daisydev), GFP_KERNEL);
+	newdev = kmalloc_obj(struct daisydev);
 	if (newdev) {
 		newdev->port = port;
 		newdev->daisy = daisy;

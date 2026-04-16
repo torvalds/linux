@@ -96,7 +96,7 @@ struct ovl_file {
 
 struct ovl_file *ovl_file_alloc(struct file *realfile)
 {
-	struct ovl_file *of = kzalloc(sizeof(struct ovl_file), GFP_KERNEL);
+	struct ovl_file *of = kzalloc_obj(struct ovl_file);
 
 	if (unlikely(!of))
 		return NULL;

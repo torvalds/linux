@@ -4341,8 +4341,7 @@ static int niu_alloc_rx_ring_info(struct niu *np,
 {
 	BUILD_BUG_ON(sizeof(struct rxdma_mailbox) != 64);
 
-	rp->rxhash = kcalloc(MAX_RBR_RING_SIZE, sizeof(struct page *),
-			     GFP_KERNEL);
+	rp->rxhash = kzalloc_objs(struct page *, MAX_RBR_RING_SIZE);
 	if (!rp->rxhash)
 		return -ENOMEM;
 
@@ -4485,8 +4484,7 @@ static int niu_alloc_channels(struct niu *np)
 	num_rx_rings = parent->rxchan_per_port[port];
 	num_tx_rings = parent->txchan_per_port[port];
 
-	rx_rings = kcalloc(num_rx_rings, sizeof(struct rx_ring_info),
-			   GFP_KERNEL);
+	rx_rings = kzalloc_objs(struct rx_ring_info, num_rx_rings);
 	err = -ENOMEM;
 	if (!rx_rings)
 		goto out_err;
@@ -4525,8 +4523,7 @@ static int niu_alloc_channels(struct niu *np)
 			goto out_err;
 	}
 
-	tx_rings = kcalloc(num_tx_rings, sizeof(struct tx_ring_info),
-			   GFP_KERNEL);
+	tx_rings = kzalloc_objs(struct tx_ring_info, num_tx_rings);
 	err = -ENOMEM;
 	if (!tx_rings)
 		goto out_err;
@@ -9514,7 +9511,7 @@ static struct niu_parent *niu_new_parent(struct niu *np,
 			goto fail_unregister;
 	}
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (!p)
 		goto fail_unregister;
 

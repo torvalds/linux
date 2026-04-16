@@ -53,7 +53,7 @@ nvkm_memx_init(struct nvkm_pmu *pmu, struct nvkm_memx **pmemx)
 	if (ret)
 		return ret;
 
-	memx = *pmemx = kzalloc(sizeof(*memx), GFP_KERNEL);
+	memx = *pmemx = kzalloc_obj(*memx);
 	if (!memx)
 		return -ENOMEM;
 	memx->pmu = pmu;

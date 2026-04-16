@@ -764,7 +764,7 @@ exit_sys_error_transition:
 int mhi_queue_state_transition(struct mhi_controller *mhi_cntrl,
 			       enum dev_st_transition state)
 {
-	struct state_transition *item = kmalloc(sizeof(*item), GFP_ATOMIC);
+	struct state_transition *item = kmalloc_obj(*item, GFP_ATOMIC);
 	unsigned long flags;
 
 	if (!item)

@@ -61,7 +61,7 @@ struct core_freesync {
 struct mod_freesync *mod_freesync_create(struct dc *dc)
 {
 	struct core_freesync *core_freesync =
-			kzalloc(sizeof(struct core_freesync), GFP_KERNEL);
+			kzalloc_obj(struct core_freesync);
 
 	if (core_freesync == NULL)
 		goto fail_alloc_context;

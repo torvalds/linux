@@ -400,14 +400,19 @@ static void trace_graph_thresh_return(struct ftrace_graph_ret *trace,
 				      struct fgraph_ops *gops,
 				      struct ftrace_regs *fregs)
 {
+	unsigned long *task_var = fgraph_get_task_var(gops);
 	struct fgraph_times *ftimes;
 	struct trace_array *tr;
+	unsigned int trace_ctx;
+	u64 calltime, rettime;
 	int size;
+
+	rettime = trace_clock_local();
 
 	ftrace_graph_addr_finish(gops, trace);
 
-	if (trace_recursion_test(TRACE_GRAPH_NOTRACE_BIT)) {
-		trace_recursion_clear(TRACE_GRAPH_NOTRACE_BIT);
+	if (*task_var & TRACE_GRAPH_NOTRACE) {
+		*task_var &= ~TRACE_GRAPH_NOTRACE;
 		return;
 	}
 
@@ -418,11 +423,13 @@ static void trace_graph_thresh_return(struct ftrace_graph_ret *trace,
 	tr = gops->private;
 	handle_nosleeptime(tr, trace, ftimes, size);
 
-	if (tracing_thresh &&
-	    (trace_clock_local() - ftimes->calltime < tracing_thresh))
+	calltime = ftimes->calltime;
+
+	if (tracing_thresh && (rettime - calltime < tracing_thresh))
 		return;
-	else
-		trace_graph_return(trace, gops, fregs);
+
+	trace_ctx = tracing_gen_ctx();
+	__trace_graph_return(tr, trace, trace_ctx, calltime, rettime);
 }
 
 static struct fgraph_ops funcgraph_ops = {
@@ -434,7 +441,7 @@ int allocate_fgraph_ops(struct trace_array *tr, struct ftrace_ops *ops)
 {
 	struct fgraph_ops *gops;
 
-	gops = kzalloc(sizeof(*gops), GFP_KERNEL);
+	gops = kzalloc_obj(*gops);
 	if (!gops)
 		return -ENOMEM;
 
@@ -1613,7 +1620,7 @@ void graph_trace_open(struct trace_iterator *iter)
 	/* We can be called in atomic context via ftrace_dump() */
 	gfpflags = (in_atomic() || irqs_disabled()) ? GFP_ATOMIC : GFP_KERNEL;
 
-	data = kzalloc(sizeof(*data), gfpflags);
+	data = kzalloc_obj(*data, gfpflags);
 	if (!data)
 		goto out_err;
 

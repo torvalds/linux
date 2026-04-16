@@ -238,7 +238,7 @@ static int delayed_uprobe_add(struct uprobe *uprobe, struct mm_struct *mm)
 	if (delayed_uprobe_check(uprobe, mm))
 		return 0;
 
-	du  = kzalloc(sizeof(*du), GFP_KERNEL);
+	du = kzalloc_obj(*du);
 	if (!du)
 		return -ENOMEM;
 
@@ -994,7 +994,7 @@ static struct uprobe *alloc_uprobe(struct inode *inode, loff_t offset,
 {
 	struct uprobe *uprobe, *cur_uprobe;
 
-	uprobe = kzalloc(sizeof(struct uprobe), GFP_KERNEL);
+	uprobe = kzalloc_obj(struct uprobe);
 	if (!uprobe)
 		return ERR_PTR(-ENOMEM);
 
@@ -1219,8 +1219,8 @@ build_map_info(struct address_space *mapping, loff_t offset, bool is_register)
 			 * Needs GFP_NOWAIT to avoid i_mmap_rwsem recursion through
 			 * reclaim. This is optimistic, no harm done if it fails.
 			 */
-			prev = kmalloc(sizeof(struct map_info),
-					GFP_NOWAIT | __GFP_NOMEMALLOC);
+			prev = kmalloc_obj(struct map_info,
+					   GFP_NOWAIT | __GFP_NOMEMALLOC);
 			if (prev)
 				prev->next = NULL;
 		}
@@ -1252,7 +1252,7 @@ build_map_info(struct address_space *mapping, loff_t offset, bool is_register)
 	}
 
 	do {
-		info = kmalloc(sizeof(struct map_info), GFP_KERNEL);
+		info = kmalloc_obj(struct map_info);
 		if (!info) {
 			curr = ERR_PTR(-ENOMEM);
 			goto out;
@@ -1755,7 +1755,7 @@ static struct xol_area *__create_xol_area(unsigned long vaddr)
 	struct xol_area *area;
 	void *insns;
 
-	area = kzalloc(sizeof(*area), GFP_KERNEL);
+	area = kzalloc_obj(*area);
 	if (unlikely(!area))
 		goto out;
 
@@ -2069,7 +2069,7 @@ static struct uprobe_task *alloc_utask(void)
 {
 	struct uprobe_task *utask;
 
-	utask = kzalloc(sizeof(*utask), GFP_KERNEL);
+	utask = kzalloc_obj(*utask);
 	if (!utask)
 		return NULL;
 
@@ -2102,7 +2102,7 @@ static struct return_instance *alloc_return_instance(struct uprobe_task *utask)
 	if (ri)
 		return ri;
 
-	ri = kzalloc(sizeof(*ri), GFP_KERNEL);
+	ri = kzalloc_obj(*ri);
 	if (!ri)
 		return ZERO_SIZE_PTR;
 

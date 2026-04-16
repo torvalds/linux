@@ -686,7 +686,7 @@ int ad_dpot_probe(struct device *dev,
 	struct dpot_data *data;
 	int i, err = 0;
 
-	data = kzalloc(sizeof(struct dpot_data), GFP_KERNEL);
+	data = kzalloc_obj(struct dpot_data);
 	if (!data) {
 		err = -ENOMEM;
 		goto exit;

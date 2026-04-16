@@ -348,7 +348,7 @@ static struct netconsole_target *alloc_and_init(void)
 {
 	struct netconsole_target *nt;
 
-	nt = kzalloc(sizeof(*nt), GFP_KERNEL);
+	nt = kzalloc_obj(*nt);
 	if (!nt)
 		return nt;
 
@@ -617,7 +617,7 @@ static ssize_t sysdata_release_enabled_show(struct config_item *item,
 	bool release_enabled;
 
 	dynamic_netconsole_mutex_lock();
-	release_enabled = !!(nt->sysdata_fields & SYSDATA_TASKNAME);
+	release_enabled = !!(nt->sysdata_fields & SYSDATA_RELEASE);
 	dynamic_netconsole_mutex_unlock();
 
 	return sysfs_emit(buf, "%d\n", release_enabled);
@@ -1270,7 +1270,7 @@ static struct config_item *userdatum_make_item(struct config_group *group,
 	if (count_userdata_entries(nt) >= MAX_USERDATA_ITEMS)
 		return ERR_PTR(-ENOSPC);
 
-	udm = kzalloc(sizeof(*udm), GFP_KERNEL);
+	udm = kzalloc_obj(*udm);
 	if (!udm)
 		return ERR_PTR(-ENOMEM);
 
@@ -1679,7 +1679,8 @@ static void send_msg_no_fragmentation(struct netconsole_target *nt,
 	if (release_len) {
 		release = init_utsname()->release;
 
-		scnprintf(nt->buf, MAX_PRINT_CHUNK, "%s,%s", release, msg);
+		scnprintf(nt->buf, MAX_PRINT_CHUNK, "%s,%.*s", release,
+			  msg_len, msg);
 		msg_len += release_len;
 	} else {
 		memcpy(nt->buf, msg, msg_len);

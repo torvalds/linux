@@ -17,5 +17,8 @@ struct netns_vsock {
 
 	enum vsock_net_mode mode;
 	enum vsock_net_mode child_ns_mode;
+
+	/* 0 = unlocked, 1 = locked to global, 2 = locked to local */
+	int child_ns_mode_locked;
 };
 #endif /* __NET_NET_NAMESPACE_VSOCK_H */

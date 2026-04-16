@@ -923,7 +923,7 @@ int setup_rmid_lru_list(void)
 		return 0;
 
 	idx_limit = resctrl_arch_system_num_rmid_idx();
-	rmid_ptrs = kcalloc(idx_limit, sizeof(struct rmid_entry), GFP_KERNEL);
+	rmid_ptrs = kzalloc_objs(struct rmid_entry, idx_limit);
 	if (!rmid_ptrs)
 		return -ENOMEM;
 

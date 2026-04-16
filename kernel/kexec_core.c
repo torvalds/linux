@@ -231,7 +231,7 @@ struct kimage *do_kimage_alloc_init(void)
 	struct kimage *image;
 
 	/* Allocate a controlling structure */
-	image = kzalloc(sizeof(*image), GFP_KERNEL);
+	image = kzalloc_obj(*image);
 	if (!image)
 		return NULL;
 
@@ -975,7 +975,7 @@ void *kimage_map_segment(struct kimage *image, int idx)
 	 * Collect the source pages and map them in a contiguous VA range.
 	 */
 	npages = PFN_UP(eaddr) - PFN_DOWN(addr);
-	src_pages = kmalloc_array(npages, sizeof(*src_pages), GFP_KERNEL);
+	src_pages = kmalloc_objs(*src_pages, npages);
 	if (!src_pages) {
 		pr_err("Could not allocate ima pages array.\n");
 		return NULL;

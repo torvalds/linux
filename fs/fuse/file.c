@@ -56,13 +56,13 @@ struct fuse_file *fuse_file_alloc(struct fuse_mount *fm, bool release)
 {
 	struct fuse_file *ff;
 
-	ff = kzalloc(sizeof(struct fuse_file), GFP_KERNEL_ACCOUNT);
+	ff = kzalloc_obj(struct fuse_file, GFP_KERNEL_ACCOUNT);
 	if (unlikely(!ff))
 		return NULL;
 
 	ff->fm = fm;
 	if (release) {
-		ff->args = kzalloc(sizeof(*ff->args), GFP_KERNEL_ACCOUNT);
+		ff->args = kzalloc_obj(*ff->args, GFP_KERNEL_ACCOUNT);
 		if (!ff->args) {
 			kfree(ff);
 			return NULL;
@@ -684,7 +684,7 @@ static struct fuse_io_args *fuse_io_alloc(struct fuse_io_priv *io,
 {
 	struct fuse_io_args *ia;
 
-	ia = kzalloc(sizeof(*ia), GFP_KERNEL);
+	ia = kzalloc_obj(*ia);
 	if (ia) {
 		ia->io = io;
 		ia->ap.folios = fuse_folios_alloc(nfolios, GFP_KERNEL,
@@ -2045,7 +2045,7 @@ static struct fuse_writepage_args *fuse_writepage_args_alloc(void)
 	struct fuse_writepage_args *wpa;
 	struct fuse_args_pages *ap;
 
-	wpa = kzalloc(sizeof(*wpa), GFP_NOFS);
+	wpa = kzalloc_obj(*wpa, GFP_NOFS);
 	if (wpa) {
 		ap = &wpa->ia.ap;
 		ap->num_folios = 0;
@@ -2834,7 +2834,7 @@ fuse_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 	if ((iov_iter_rw(iter) == READ) && (offset >= i_size))
 		return 0;
 
-	io = kmalloc(sizeof(struct fuse_io_priv), GFP_KERNEL);
+	io = kmalloc_obj(struct fuse_io_priv);
 	if (!io)
 		return -ENOMEM;
 	spin_lock_init(&io->lock);

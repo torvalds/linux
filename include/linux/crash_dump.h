@@ -136,7 +136,7 @@ struct vmcore_range {
 static inline int vmcore_alloc_add_range(struct list_head *list,
 		unsigned long long paddr, unsigned long long size)
 {
-	struct vmcore_range *m = kzalloc(sizeof(*m), GFP_KERNEL);
+	struct vmcore_range *m = kzalloc_obj(*m);
 
 	if (!m)
 		return -ENOMEM;

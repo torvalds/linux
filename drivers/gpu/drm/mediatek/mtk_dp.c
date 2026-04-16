@@ -2482,7 +2482,7 @@ static u32 *mtk_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 	u32 *output_fmts;
 
 	*num_output_fmts = 0;
-	output_fmts = kmalloc(sizeof(*output_fmts), GFP_KERNEL);
+	output_fmts = kmalloc_obj(*output_fmts);
 	if (!output_fmts)
 		return NULL;
 	*num_output_fmts = 1;

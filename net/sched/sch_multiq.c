@@ -249,7 +249,7 @@ static int multiq_init(struct Qdisc *sch, struct nlattr *opt,
 
 	q->max_bands = qdisc_dev(sch)->num_tx_queues;
 
-	q->queues = kcalloc(q->max_bands, sizeof(struct Qdisc *), GFP_KERNEL);
+	q->queues = kzalloc_objs(struct Qdisc *, q->max_bands);
 	if (!q->queues)
 		return -ENOBUFS;
 	for (i = 0; i < q->max_bands; i++)

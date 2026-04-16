@@ -318,7 +318,7 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
 	if (ret)
 		return ret;
 
-	lh = kzalloc(sizeof(*lh), GFP_KERNEL);
+	lh = kzalloc_obj(*lh);
 	if (!lh)
 		return -ENOMEM;
 	lh->gdev = gpio_device_get(gdev);
@@ -388,7 +388,7 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
 	fd_publish(fdf);
 
 	dev_dbg(&gdev->dev, "registered chardev handle for %d lines\n",
-		lh->num_descs);
+		handlereq.lines);
 
 	return 0;
 }
@@ -1280,7 +1280,7 @@ static long linereq_get_values(struct linereq *lr, void __user *ip)
 
 	if (num_get != 1) {
 		/* build compacted desc array */
-		descs = kmalloc_array(num_get, sizeof(*descs), GFP_KERNEL);
+		descs = kmalloc_objs(*descs, num_get);
 		if (!descs)
 			return -ENOMEM;
 		for (didx = 0, i = 0; i < lr->num_lines; i++) {
@@ -1355,7 +1355,7 @@ static long linereq_set_values(struct linereq *lr, void __user *ip)
 
 	if (num_set != 1) {
 		/* build compacted desc array */
-		descs = kmalloc_array(num_set, sizeof(*descs), GFP_KERNEL);
+		descs = kmalloc_objs(*descs, num_set);
 		if (!descs)
 			return -ENOMEM;
 		for (didx = 0, i = 0; i < lr->num_lines; i++) {
@@ -1610,7 +1610,7 @@ static int linereq_create(struct gpio_device *gdev, void __user *ip)
 	if (ret)
 		return ret;
 
-	lr = kvzalloc(struct_size(lr, lines, ulr.num_lines), GFP_KERNEL);
+	lr = kvzalloc_flex(*lr, lines, ulr.num_lines);
 	if (!lr)
 		return -ENOMEM;
 	lr->num_lines = ulr.num_lines;
@@ -2054,7 +2054,7 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
 	     (lflags & GPIOHANDLE_REQUEST_BIAS_PULL_UP)))
 		return -EINVAL;
 
-	le = kzalloc(sizeof(*le), GFP_KERNEL);
+	le = kzalloc_obj(*le);
 	if (!le)
 		return -ENOMEM;
 	le->gdev = gpio_device_get(gdev);
@@ -2546,7 +2546,7 @@ static int lineinfo_changed_notify(struct notifier_block *nb,
 	 * is executed.
 	 */
 
-	ctx = kzalloc(sizeof(*ctx), GFP_ATOMIC);
+	ctx = kzalloc_obj(*ctx, GFP_ATOMIC);
 	if (!ctx) {
 		pr_err("Failed to allocate memory for line info notification\n");
 		fput(fp);

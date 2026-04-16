@@ -97,7 +97,8 @@ static int xdp_umem_pin_pages(struct xdp_umem *umem, unsigned long address)
 	long npgs;
 	int err;
 
-	umem->pgs = kvcalloc(umem->npgs, sizeof(*umem->pgs), GFP_KERNEL | __GFP_NOWARN);
+	umem->pgs = kvzalloc_objs(*umem->pgs, umem->npgs,
+				  GFP_KERNEL | __GFP_NOWARN);
 	if (!umem->pgs)
 		return -ENOMEM;
 
@@ -249,7 +250,7 @@ struct xdp_umem *xdp_umem_create(struct xdp_umem_reg *mr)
 	struct xdp_umem *umem;
 	int err;
 
-	umem = kzalloc(sizeof(*umem), GFP_KERNEL);
+	umem = kzalloc_obj(*umem);
 	if (!umem)
 		return ERR_PTR(-ENOMEM);
 

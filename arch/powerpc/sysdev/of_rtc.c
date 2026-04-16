@@ -33,7 +33,7 @@ void __init of_instantiate_rtc(void)
 					 of_rtc_table[i].compatible) {
 			struct resource *res;
 
-			res = kmalloc(sizeof(*res), GFP_KERNEL);
+			res = kmalloc_obj(*res);
 			if (!res) {
 				printk(KERN_ERR "OF RTC: Out of memory "
 				       "allocating resource structure for %pOF\n",

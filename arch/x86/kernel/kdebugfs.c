@@ -102,7 +102,7 @@ static int __init create_setup_data_nodes(struct dentry *parent)
 	pa_data = boot_params.hdr.setup_data;
 
 	while (pa_data) {
-		node = kmalloc(sizeof(*node), GFP_KERNEL);
+		node = kmalloc_obj(*node);
 		if (!node) {
 			error = -ENOMEM;
 			goto err_dir;

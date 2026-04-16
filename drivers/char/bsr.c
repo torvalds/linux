@@ -186,8 +186,7 @@ static int bsr_add_node(struct device_node *bn)
 	num_bsr_devs = bsr_bytes_len / sizeof(u32);
 
 	for (i = 0 ; i < num_bsr_devs; i++) {
-		struct bsr_dev *cur = kzalloc(sizeof(struct bsr_dev),
-					      GFP_KERNEL);
+		struct bsr_dev *cur = kzalloc_obj(struct bsr_dev);
 		struct resource res;
 		int result;
 

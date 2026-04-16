@@ -1549,7 +1549,7 @@ static int igen6_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	edac_dbg(2, "\n");
 
-	igen6_pvt = kzalloc(sizeof(*igen6_pvt), GFP_KERNEL);
+	igen6_pvt = kzalloc_obj(*igen6_pvt);
 	if (!igen6_pvt)
 		return -ENOMEM;
 

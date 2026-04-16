@@ -328,7 +328,7 @@ static void p54u_tx_net2280(struct ieee80211_hw *dev, struct sk_buff *skb)
 	struct net2280_reg_write *reg = NULL;
 	int err = -ENOMEM;
 
-	reg = kmalloc(sizeof(*reg), GFP_ATOMIC);
+	reg = kmalloc_obj(*reg, GFP_ATOMIC);
 	if (!reg)
 		goto out;
 

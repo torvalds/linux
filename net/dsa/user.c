@@ -147,7 +147,7 @@ static int dsa_user_schedule_standalone_work(struct net_device *dev,
 {
 	struct dsa_standalone_event_work *standalone_work;
 
-	standalone_work = kzalloc(sizeof(*standalone_work), GFP_ATOMIC);
+	standalone_work = kzalloc_obj(*standalone_work, GFP_ATOMIC);
 	if (!standalone_work)
 		return -ENOMEM;
 
@@ -1318,7 +1318,7 @@ static int dsa_user_netpoll_setup(struct net_device *dev)
 	struct netpoll *netpoll;
 	int err = 0;
 
-	netpoll = kzalloc(sizeof(*netpoll), GFP_KERNEL);
+	netpoll = kzalloc_obj(*netpoll);
 	if (!netpoll)
 		return -ENOMEM;
 
@@ -1430,7 +1430,7 @@ dsa_user_add_cls_matchall_mirred(struct net_device *dev,
 		return -EOPNOTSUPP;
 	}
 
-	mall_tc_entry = kzalloc(sizeof(*mall_tc_entry), GFP_KERNEL);
+	mall_tc_entry = kzalloc_obj(*mall_tc_entry);
 	if (!mall_tc_entry)
 		return -ENOMEM;
 
@@ -1490,7 +1490,7 @@ dsa_user_add_cls_matchall_police(struct net_device *dev,
 
 	act = &cls->rule->action.entries[0];
 
-	mall_tc_entry = kzalloc(sizeof(*mall_tc_entry), GFP_KERNEL);
+	mall_tc_entry = kzalloc_obj(*mall_tc_entry);
 	if (!mall_tc_entry)
 		return -ENOMEM;
 
@@ -1823,7 +1823,7 @@ static int dsa_user_vlan_rx_add_vid(struct net_device *dev, __be16 proto,
 	    !dsa_switch_supports_mc_filtering(ds))
 		return 0;
 
-	v = kzalloc(sizeof(*v), GFP_KERNEL);
+	v = kzalloc_obj(*v);
 	if (!v) {
 		ret = -ENOMEM;
 		goto rollback;
@@ -2070,7 +2070,7 @@ static void dsa_bridge_mtu_normalization(struct dsa_port *dp)
 			if (min_mtu > user->mtu)
 				min_mtu = user->mtu;
 
-			hw_port = kzalloc(sizeof(*hw_port), GFP_KERNEL);
+			hw_port = kzalloc_obj(*hw_port);
 			if (!hw_port)
 				goto out;
 
@@ -3738,7 +3738,7 @@ static int dsa_user_fdb_event(struct net_device *dev,
 			return -EOPNOTSUPP;
 	}
 
-	switchdev_work = kzalloc(sizeof(*switchdev_work), GFP_ATOMIC);
+	switchdev_work = kzalloc_obj(*switchdev_work, GFP_ATOMIC);
 	if (!switchdev_work)
 		return -ENOMEM;
 

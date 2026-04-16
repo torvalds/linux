@@ -392,7 +392,7 @@ static int create_trip_attrs(struct thermal_zone_device *tz)
 	struct attribute **attrs;
 	int i;
 
-	attrs = kcalloc(tz->num_trips * 3 + 1, sizeof(*attrs), GFP_KERNEL);
+	attrs = kzalloc_objs(*attrs, tz->num_trips * 3 + 1);
 	if (!attrs)
 		return -ENOMEM;
 
@@ -465,7 +465,7 @@ int thermal_zone_create_device_groups(struct thermal_zone_device *tz)
 	/* we need one extra for trips and the NULL to terminate the array */
 	size = ARRAY_SIZE(thermal_zone_attribute_groups) + 2;
 	/* This also takes care of API requirement to be NULL terminated */
-	groups = kcalloc(size, sizeof(*groups), GFP_KERNEL);
+	groups = kzalloc_objs(*groups, size);
 	if (!groups)
 		return -ENOMEM;
 

@@ -272,7 +272,7 @@ static struct ghes *ghes_new(struct acpi_hest_generic *generic)
 	unsigned int error_block_length;
 	int rc;
 
-	ghes = kzalloc(sizeof(*ghes), GFP_KERNEL);
+	ghes = kzalloc_obj(*ghes);
 	if (!ghes)
 		return ERR_PTR(-ENOMEM);
 

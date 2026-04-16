@@ -59,7 +59,7 @@ static const struct tee_shm_pool_ops pool_ops = {
 
 struct tee_shm_pool *amdtee_config_shm(void)
 {
-	struct tee_shm_pool *pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+	struct tee_shm_pool *pool = kzalloc_obj(*pool);
 
 	if (!pool)
 		return ERR_PTR(-ENOMEM);

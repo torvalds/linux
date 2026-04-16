@@ -616,7 +616,7 @@ static int fimc_m2m_open(struct file *file)
 	if (test_bit(ST_CAPT_BUSY, &fimc->state))
 		goto unlock;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx) {
 		ret = -ENOMEM;
 		goto unlock;

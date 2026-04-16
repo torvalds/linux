@@ -2155,6 +2155,18 @@ static enum dc_status enable_link_dp_mst(
 	return enable_link_dp(state, pipe_ctx);
 }
 
+static enum dc_status enable_link_analog(
+		struct dc_state *state,
+		struct pipe_ctx *pipe_ctx)
+{
+	struct dc_link *link = pipe_ctx->stream->link;
+
+	link->dc->hwss.enable_analog_link_output(
+		link, pipe_ctx->stream->timing.pix_clk_100hz);
+
+	return DC_OK;
+}
+
 static enum dc_status enable_link_virtual(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_link *link = pipe_ctx->stream->link;
@@ -2210,7 +2222,7 @@ static enum dc_status enable_link(
 		status = DC_OK;
 		break;
 	case SIGNAL_TYPE_RGB:
-		status = DC_OK;
+		status = enable_link_analog(state, pipe_ctx);
 		break;
 	case SIGNAL_TYPE_VIRTUAL:
 		status = enable_link_virtual(pipe_ctx);

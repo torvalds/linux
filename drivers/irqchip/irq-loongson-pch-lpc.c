@@ -183,7 +183,7 @@ int __init pch_lpc_acpi_init(struct irq_domain *parent,
 	struct irq_fwspec fwspec;
 	struct fwnode_handle *irq_handle;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

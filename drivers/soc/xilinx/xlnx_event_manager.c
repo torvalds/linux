@@ -122,7 +122,7 @@ static int xlnx_add_cb_for_notify_event(const u32 node_id, const u32 event, cons
 
 	if (!present_in_hash) {
 		/* Add new entry if not present in HASH table */
-		eve_data = kmalloc(sizeof(*eve_data), GFP_KERNEL);
+		eve_data = kmalloc_obj(*eve_data);
 		if (!eve_data)
 			return -ENOMEM;
 		eve_data->key = key;
@@ -130,7 +130,7 @@ static int xlnx_add_cb_for_notify_event(const u32 node_id, const u32 event, cons
 		eve_data->wake = wake;
 		INIT_LIST_HEAD(&eve_data->cb_list_head);
 
-		cb_data = kmalloc(sizeof(*cb_data), GFP_KERNEL);
+		cb_data = kmalloc_obj(*cb_data);
 		if (!cb_data) {
 			kfree(eve_data);
 			return -ENOMEM;
@@ -153,7 +153,7 @@ static int xlnx_add_cb_for_notify_event(const u32 node_id, const u32 event, cons
 		}
 
 		/* Add multiple handler and private data in list */
-		cb_data = kmalloc(sizeof(*cb_data), GFP_KERNEL);
+		cb_data = kmalloc_obj(*cb_data);
 		if (!cb_data)
 			return -ENOMEM;
 		cb_data->eve_cb = cb_fun;
@@ -179,7 +179,7 @@ static int xlnx_add_cb_for_suspend(event_cb_func_t cb_fun, void *data)
 	}
 
 	/* Add new entry if not present */
-	eve_data = kmalloc(sizeof(*eve_data), GFP_KERNEL);
+	eve_data = kmalloc_obj(*eve_data);
 	if (!eve_data)
 		return -ENOMEM;
 
@@ -187,7 +187,7 @@ static int xlnx_add_cb_for_suspend(event_cb_func_t cb_fun, void *data)
 	eve_data->cb_type = PM_INIT_SUSPEND_CB;
 	INIT_LIST_HEAD(&eve_data->cb_list_head);
 
-	cb_data = kmalloc(sizeof(*cb_data), GFP_KERNEL);
+	cb_data = kmalloc_obj(*cb_data);
 	if (!cb_data) {
 		kfree(eve_data);
 		return -ENOMEM;

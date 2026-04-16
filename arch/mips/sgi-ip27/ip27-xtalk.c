@@ -34,7 +34,7 @@ static void bridge_platform_create(nasid_t nasid, int widget, int masterwid)
 
 	offset = NODE_OFFSET(nasid);
 
-	wd = kzalloc(sizeof(*wd), GFP_KERNEL);
+	wd = kzalloc_obj(*wd);
 	if (!wd) {
 		pr_warn("xtalk:n%d/%x bridge create out of memory\n", nasid, widget);
 		return;
@@ -69,7 +69,7 @@ static void bridge_platform_create(nasid_t nasid, int widget, int masterwid)
 	/* platform_device_add_data() duplicates the data */
 	kfree(wd);
 
-	bd = kzalloc(sizeof(*bd), GFP_KERNEL);
+	bd = kzalloc_obj(*bd);
 	if (!bd) {
 		pr_warn("xtalk:n%d/%x bridge create out of memory\n", nasid, widget);
 		goto err_unregister_pdev_wd;

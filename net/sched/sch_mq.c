@@ -82,8 +82,7 @@ int mq_init_common(struct Qdisc *sch, struct nlattr *opt,
 		return -EOPNOTSUPP;
 
 	/* pre-allocate qdiscs, attachment can't fail */
-	priv->qdiscs = kcalloc(dev->num_tx_queues, sizeof(priv->qdiscs[0]),
-			       GFP_KERNEL);
+	priv->qdiscs = kzalloc_objs(priv->qdiscs[0], dev->num_tx_queues);
 	if (!priv->qdiscs)
 		return -ENOMEM;
 

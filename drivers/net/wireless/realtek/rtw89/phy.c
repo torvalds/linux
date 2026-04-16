@@ -1975,7 +1975,7 @@ void rtw89_phy_init_rf_reg(struct rtw89_dev *rtwdev, bool noio)
 	struct rtw89_fw_h2c_rf_reg_info *rf_reg_info;
 	u8 path;
 
-	rf_reg_info = kzalloc(sizeof(*rf_reg_info), GFP_KERNEL);
+	rf_reg_info = kzalloc_obj(*rf_reg_info);
 	if (!rf_reg_info)
 		return;
 

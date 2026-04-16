@@ -1725,8 +1725,7 @@ int v4l2_ctrl_handler_init_class(struct v4l2_ctrl_handler *hdl,
 	INIT_LIST_HEAD(&hdl->ctrls);
 	INIT_LIST_HEAD(&hdl->ctrl_refs);
 	hdl->nr_of_buckets = 1 + nr_of_controls_hint / 8;
-	hdl->buckets = kvcalloc(hdl->nr_of_buckets, sizeof(hdl->buckets[0]),
-				GFP_KERNEL);
+	hdl->buckets = kvzalloc_objs(hdl->buckets[0], hdl->nr_of_buckets);
 	hdl->error = hdl->buckets ? 0 : -ENOMEM;
 	v4l2_ctrl_handler_init_request(hdl);
 	return hdl->error;

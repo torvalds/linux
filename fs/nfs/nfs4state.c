@@ -446,7 +446,7 @@ nfs4_alloc_state_owner(struct nfs_server *server,
 {
 	struct nfs4_state_owner *sp;
 
-	sp = kzalloc(sizeof(*sp), gfp_flags);
+	sp = kzalloc_obj(*sp, gfp_flags);
 	if (!sp)
 		return NULL;
 	sp->so_seqid.owner_id = atomic64_inc_return(&server->owner_ctr);
@@ -612,7 +612,7 @@ nfs4_alloc_open_state(void)
 {
 	struct nfs4_state *state;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL_ACCOUNT);
+	state = kzalloc_obj(*state, GFP_KERNEL_ACCOUNT);
 	if (!state)
 		return NULL;
 	refcount_set(&state->count, 1);
@@ -815,7 +815,7 @@ static struct nfs4_lock_state *nfs4_alloc_lock_state(struct nfs4_state *state, f
 	struct nfs4_lock_state *lsp;
 	struct nfs_server *server = state->owner->so_server;
 
-	lsp = kzalloc(sizeof(*lsp), GFP_KERNEL_ACCOUNT);
+	lsp = kzalloc_obj(*lsp, GFP_KERNEL_ACCOUNT);
 	if (lsp == NULL)
 		return NULL;
 	nfs4_init_seqid_counter(&lsp->ls_seqid);
@@ -1014,7 +1014,7 @@ struct nfs_seqid *nfs_alloc_seqid(struct nfs_seqid_counter *counter, gfp_t gfp_m
 {
 	struct nfs_seqid *new;
 
-	new = kmalloc(sizeof(*new), gfp_mask);
+	new = kmalloc_obj(*new, gfp_mask);
 	if (new == NULL)
 		return ERR_PTR(-ENOMEM);
 	new->sequence = counter;
@@ -2054,7 +2054,7 @@ static int nfs4_try_migration(struct nfs_server *server, const struct cred *cred
 			clp->cl_hostname);
 
 	page = alloc_page(GFP_KERNEL);
-	locations = kmalloc(sizeof(struct nfs4_fs_locations), GFP_KERNEL);
+	locations = kmalloc_obj(struct nfs4_fs_locations);
 	fattr = nfs_alloc_fattr();
 	if (page == NULL || locations == NULL || fattr == NULL) {
 		dprintk("<-- %s: no memory\n", __func__);

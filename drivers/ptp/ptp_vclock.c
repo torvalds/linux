@@ -191,7 +191,7 @@ struct ptp_vclock *ptp_vclock_register(struct ptp_clock *pclock)
 {
 	struct ptp_vclock *vclock;
 
-	vclock = kzalloc(sizeof(*vclock), GFP_KERNEL);
+	vclock = kzalloc_obj(*vclock);
 	if (!vclock)
 		return NULL;
 

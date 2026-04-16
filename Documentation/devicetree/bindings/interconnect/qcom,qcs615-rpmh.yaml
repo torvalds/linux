@@ -27,7 +27,6 @@ properties:
       - qcom,qcs615-config-noc
       - qcom,qcs615-dc-noc
       - qcom,qcs615-gem-noc
-      - qcom,qcs615-ipa-virt
       - qcom,qcs615-mc-virt
       - qcom,qcs615-mmss-noc
       - qcom,qcs615-system-noc
@@ -46,7 +45,6 @@ allOf:
           contains:
             enum:
               - qcom,qcs615-camnoc-virt
-              - qcom,qcs615-ipa-virt
               - qcom,qcs615-mc-virt
     then:
       properties:

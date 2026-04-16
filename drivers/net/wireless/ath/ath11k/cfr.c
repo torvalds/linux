@@ -975,8 +975,7 @@ int ath11k_cfr_init(struct ath11k_base *ab)
 		spin_lock_init(&cfr->lut_lock);
 
 		num_lut_entries = min_t(u32, CFR_MAX_LUT_ENTRIES, db_cap.min_elem);
-		cfr->lut = kcalloc(num_lut_entries, sizeof(*cfr->lut),
-				   GFP_KERNEL);
+		cfr->lut = kzalloc_objs(*cfr->lut, num_lut_entries);
 		if (!cfr->lut) {
 			ret = -ENOMEM;
 			goto err;

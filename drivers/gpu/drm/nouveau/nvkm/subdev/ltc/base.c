@@ -133,7 +133,7 @@ nvkm_ltc_new_(const struct nvkm_ltc_func *func, struct nvkm_device *device,
 {
 	struct nvkm_ltc *ltc;
 
-	if (!(ltc = *pltc = kzalloc(sizeof(*ltc), GFP_KERNEL)))
+	if (!(ltc = *pltc = kzalloc_obj(*ltc)))
 		return -ENOMEM;
 
 	nvkm_subdev_ctor(&nvkm_ltc, device, type, inst, &ltc->subdev);

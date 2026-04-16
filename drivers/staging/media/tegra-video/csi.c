@@ -463,7 +463,7 @@ static int tegra_csi_channel_alloc(struct tegra_csi *csi,
 	struct tegra_csi_channel *chan;
 	int ret = 0, i;
 
-	chan = kzalloc(sizeof(*chan), GFP_KERNEL);
+	chan = kzalloc_obj(*chan);
 	if (!chan)
 		return -ENOMEM;
 

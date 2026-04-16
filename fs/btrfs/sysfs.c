@@ -1833,7 +1833,7 @@ void btrfs_sysfs_add_block_group_type(struct btrfs_block_group *cache)
 	 */
 	nofs_flag = memalloc_nofs_save();
 
-	rkobj = kzalloc(sizeof(*rkobj), GFP_NOFS);
+	rkobj = kzalloc_obj(*rkobj, GFP_NOFS);
 	if (!rkobj) {
 		memalloc_nofs_restore(nofs_flag);
 		btrfs_warn(cache->fs_info,
@@ -2597,7 +2597,7 @@ int btrfs_sysfs_add_qgroups(struct btrfs_fs_info *fs_info)
 	if (fs_info->qgroups_kobj)
 		return 0;
 
-	fs_info->qgroups_kobj = kzalloc(sizeof(struct kobject), GFP_KERNEL);
+	fs_info->qgroups_kobj = kzalloc_obj(struct kobject);
 	if (!fs_info->qgroups_kobj)
 		return -ENOMEM;
 

@@ -222,7 +222,7 @@ static int via_cputemp_online(unsigned int cpu)
 		goto exit;
 	}
 
-	pdev_entry = kzalloc(sizeof(struct pdev_entry), GFP_KERNEL);
+	pdev_entry = kzalloc_obj(struct pdev_entry);
 	if (!pdev_entry) {
 		err = -ENOMEM;
 		goto exit_device_put;

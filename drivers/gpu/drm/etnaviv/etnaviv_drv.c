@@ -66,7 +66,7 @@ static int etnaviv_open(struct drm_device *dev, struct drm_file *file)
 	struct etnaviv_file_private *ctx;
 	int ret, i;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -531,7 +531,7 @@ static int etnaviv_bind(struct device *dev)
 	if (IS_ERR(drm))
 		return PTR_ERR(drm);
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv) {
 		dev_err(dev, "failed to allocate private data\n");
 		ret = -ENOMEM;

@@ -961,7 +961,7 @@ static struct s3c64xx_spi_csinfo *s3c64xx_get_target_ctrldata(
 		return ERR_PTR(-EINVAL);
 	}
 
-	cs = kzalloc(sizeof(*cs), GFP_KERNEL);
+	cs = kzalloc_obj(*cs);
 	if (!cs)
 		return ERR_PTR(-ENOMEM);
 

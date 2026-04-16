@@ -519,7 +519,7 @@ snd_compr_get_codec_caps(struct snd_compr_stream *stream, unsigned long arg)
 		return -ENXIO;
 
 	struct snd_compr_codec_caps *caps __free(kfree) =
-		kzalloc(sizeof(*caps), GFP_KERNEL);
+		kzalloc_obj(*caps);
 	if (!caps)
 		return -ENOMEM;
 
@@ -539,7 +539,7 @@ int snd_compr_malloc_pages(struct snd_compr_stream *stream, size_t size)
 
 	if (snd_BUG_ON(!(stream) || !(stream)->runtime))
 		return -EINVAL;
-	dmab = kzalloc(sizeof(*dmab), GFP_KERNEL);
+	dmab = kzalloc_obj(*dmab);
 	if (!dmab)
 		return -ENOMEM;
 	dmab->dev = stream->dma_buffer.dev;
@@ -694,7 +694,7 @@ snd_compr_get_params(struct snd_compr_stream *stream, unsigned long arg)
 		return -EBADFD;
 
 	struct snd_codec *params __free(kfree) =
-		kzalloc(sizeof(*params), GFP_KERNEL);
+		kzalloc_obj(*params);
 	if (!params)
 		return -ENOMEM;
 	retval = stream->ops->get_params(stream, params);
@@ -1066,7 +1066,7 @@ static int snd_compr_task_new(struct snd_compr_stream *stream, struct snd_compr_
 		return -EBUSY;
 	if (utask->origin_seqno != 0 || utask->input_size != 0)
 		return -EINVAL;
-	task = kzalloc(sizeof(*task), GFP_KERNEL);
+	task = kzalloc_obj(*task);
 	if (task == NULL)
 		return -ENOMEM;
 	task->seqno = utask->seqno = snd_compr_seqno_next(stream);

@@ -18,25 +18,25 @@
 
 static void dwc3_otg_disable_events(struct dwc3 *dwc, u32 disable_mask)
 {
-	u32 reg = dwc3_readl(dwc->regs, DWC3_OEVTEN);
+	u32 reg = dwc3_readl(dwc, DWC3_OEVTEN);
 
 	reg &= ~(disable_mask);
-	dwc3_writel(dwc->regs, DWC3_OEVTEN, reg);
+	dwc3_writel(dwc, DWC3_OEVTEN, reg);
 }
 
 static void dwc3_otg_enable_events(struct dwc3 *dwc, u32 enable_mask)
 {
-	u32 reg = dwc3_readl(dwc->regs, DWC3_OEVTEN);
+	u32 reg = dwc3_readl(dwc, DWC3_OEVTEN);
 
 	reg |= (enable_mask);
-	dwc3_writel(dwc->regs, DWC3_OEVTEN, reg);
+	dwc3_writel(dwc, DWC3_OEVTEN, reg);
 }
 
 static void dwc3_otg_clear_events(struct dwc3 *dwc)
 {
-	u32 reg = dwc3_readl(dwc->regs, DWC3_OEVT);
+	u32 reg = dwc3_readl(dwc, DWC3_OEVT);
 
-	dwc3_writel(dwc->regs, DWC3_OEVTEN, reg);
+	dwc3_writel(dwc, DWC3_OEVTEN, reg);
 }
 
 #define DWC3_OTG_ALL_EVENTS	(DWC3_OEVTEN_XHCIRUNSTPSETEN | \
@@ -72,18 +72,18 @@ static irqreturn_t dwc3_otg_irq(int irq, void *_dwc)
 	struct dwc3 *dwc = _dwc;
 	irqreturn_t ret = IRQ_NONE;
 
-	reg = dwc3_readl(dwc->regs, DWC3_OEVT);
+	reg = dwc3_readl(dwc, DWC3_OEVT);
 	if (reg) {
 		/* ignore non OTG events, we can't disable them in OEVTEN */
 		if (!(reg & DWC3_OTG_ALL_EVENTS)) {
-			dwc3_writel(dwc->regs, DWC3_OEVT, reg);
+			dwc3_writel(dwc, DWC3_OEVT, reg);
 			return IRQ_NONE;
 		}
 
 		if (dwc->current_otg_role == DWC3_OTG_ROLE_HOST &&
 		    !(reg & DWC3_OEVT_DEVICEMODE))
 			dwc->otg_restart_host = true;
-		dwc3_writel(dwc->regs, DWC3_OEVT, reg);
+		dwc3_writel(dwc, DWC3_OEVT, reg);
 		ret = IRQ_WAKE_THREAD;
 	}
 
@@ -100,23 +100,23 @@ static void dwc3_otgregs_init(struct dwc3 *dwc)
 	 * the signal outputs sent to the PHY, the OTG FSM logic of the
 	 * core and also the resets to the VBUS filters inside the core.
 	 */
-	reg = dwc3_readl(dwc->regs, DWC3_OCFG);
+	reg = dwc3_readl(dwc, DWC3_OCFG);
 	reg |= DWC3_OCFG_SFTRSTMASK;
-	dwc3_writel(dwc->regs, DWC3_OCFG, reg);
+	dwc3_writel(dwc, DWC3_OCFG, reg);
 
 	/* Disable hibernation for simplicity */
-	reg = dwc3_readl(dwc->regs, DWC3_GCTL);
+	reg = dwc3_readl(dwc, DWC3_GCTL);
 	reg &= ~DWC3_GCTL_GBLHIBERNATIONEN;
-	dwc3_writel(dwc->regs, DWC3_GCTL, reg);
+	dwc3_writel(dwc, DWC3_GCTL, reg);
 
 	/*
 	 * Initialize OTG registers as per
 	 * Figure 11-4 OTG Driver Overall Programming Flow
 	 */
 	/* OCFG.SRPCap = 0, OCFG.HNPCap = 0 */
-	reg = dwc3_readl(dwc->regs, DWC3_OCFG);
+	reg = dwc3_readl(dwc, DWC3_OCFG);
 	reg &= ~(DWC3_OCFG_SRPCAP | DWC3_OCFG_HNPCAP);
-	dwc3_writel(dwc->regs, DWC3_OCFG, reg);
+	dwc3_writel(dwc, DWC3_OCFG, reg);
 	/* OEVT = FFFF */
 	dwc3_otg_clear_events(dwc);
 	/* OEVTEN = 0 */
@@ -127,11 +127,11 @@ static void dwc3_otgregs_init(struct dwc3 *dwc)
 	 * OCTL.PeriMode = 1, OCTL.DevSetHNPEn = 0, OCTL.HstSetHNPEn = 0,
 	 * OCTL.HNPReq = 0
 	 */
-	reg = dwc3_readl(dwc->regs, DWC3_OCTL);
+	reg = dwc3_readl(dwc, DWC3_OCTL);
 	reg |= DWC3_OCTL_PERIMODE;
 	reg &= ~(DWC3_OCTL_DEVSETHNPEN | DWC3_OCTL_HSTSETHNPEN |
 		 DWC3_OCTL_HNPREQ);
-	dwc3_writel(dwc->regs, DWC3_OCTL, reg);
+	dwc3_writel(dwc, DWC3_OCTL, reg);
 }
 
 static int dwc3_otg_get_irq(struct dwc3 *dwc)
@@ -175,9 +175,9 @@ void dwc3_otg_init(struct dwc3 *dwc)
 	/* GCTL.PrtCapDir=2'b11 */
 	dwc3_set_prtcap(dwc, DWC3_GCTL_PRTCAP_OTG, true);
 	/* GUSB2PHYCFG0.SusPHY=0 */
-	reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYCFG(0));
+	reg = dwc3_readl(dwc, DWC3_GUSB2PHYCFG(0));
 	reg &= ~DWC3_GUSB2PHYCFG_SUSPHY;
-	dwc3_writel(dwc->regs, DWC3_GUSB2PHYCFG(0), reg);
+	dwc3_writel(dwc, DWC3_GUSB2PHYCFG(0), reg);
 
 	/* Initialize OTG registers */
 	dwc3_otgregs_init(dwc);
@@ -203,17 +203,17 @@ void dwc3_otg_host_init(struct dwc3 *dwc)
 	 * OCTL.PeriMode=0, OCTL.TermSelDLPulse = 0,
 	 * OCTL.DevSetHNPEn = 0, OCTL.HstSetHNPEn = 0
 	 */
-	reg = dwc3_readl(dwc->regs, DWC3_OCTL);
+	reg = dwc3_readl(dwc, DWC3_OCTL);
 	reg &= ~(DWC3_OCTL_PERIMODE | DWC3_OCTL_TERMSELIDPULSE |
 			DWC3_OCTL_DEVSETHNPEN | DWC3_OCTL_HSTSETHNPEN);
-	dwc3_writel(dwc->regs, DWC3_OCTL, reg);
+	dwc3_writel(dwc, DWC3_OCTL, reg);
 
 	/*
 	 * OCFG.DisPrtPwrCutoff = 0/1
 	 */
-	reg = dwc3_readl(dwc->regs, DWC3_OCFG);
+	reg = dwc3_readl(dwc, DWC3_OCFG);
 	reg &= ~DWC3_OCFG_DISPWRCUTTOFF;
-	dwc3_writel(dwc->regs, DWC3_OCFG, reg);
+	dwc3_writel(dwc, DWC3_OCFG, reg);
 
 	/*
 	 * OCFG.SRPCap = 1, OCFG.HNPCap = GHWPARAMS6.HNP_CAP
@@ -229,15 +229,15 @@ void dwc3_otg_host_init(struct dwc3 *dwc)
 
 	/* GUSB2PHYCFG.ULPIAutoRes = 1/0, GUSB2PHYCFG.SusPHY = 1 */
 	if (!dwc->dis_u2_susphy_quirk) {
-		reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYCFG(0));
+		reg = dwc3_readl(dwc, DWC3_GUSB2PHYCFG(0));
 		reg |= DWC3_GUSB2PHYCFG_SUSPHY;
-		dwc3_writel(dwc->regs, DWC3_GUSB2PHYCFG(0), reg);
+		dwc3_writel(dwc, DWC3_GUSB2PHYCFG(0), reg);
 	}
 
 	/* Set Port Power to enable VBUS: OCTL.PrtPwrCtl = 1 */
-	reg = dwc3_readl(dwc->regs, DWC3_OCTL);
+	reg = dwc3_readl(dwc, DWC3_OCTL);
 	reg |= DWC3_OCTL_PRTPWRCTL;
-	dwc3_writel(dwc->regs, DWC3_OCTL, reg);
+	dwc3_writel(dwc, DWC3_OCTL, reg);
 }
 
 /* should be called after Host controller driver is stopped */
@@ -258,9 +258,9 @@ static void dwc3_otg_host_exit(struct dwc3 *dwc)
 	 */
 
 	/* OCTL.HstSetHNPEn = 0, OCTL.PrtPwrCtl=0 */
-	reg = dwc3_readl(dwc->regs, DWC3_OCTL);
+	reg = dwc3_readl(dwc, DWC3_OCTL);
 	reg &= ~(DWC3_OCTL_HSTSETHNPEN | DWC3_OCTL_PRTPWRCTL);
-	dwc3_writel(dwc->regs, DWC3_OCTL, reg);
+	dwc3_writel(dwc, DWC3_OCTL, reg);
 }
 
 /* should be called before the gadget controller driver is started */
@@ -274,27 +274,27 @@ static void dwc3_otg_device_init(struct dwc3 *dwc)
 	 * OCFG.HNPCap = GHWPARAMS6.HNP_CAP, OCFG.SRPCap = 1
 	 * but we keep them 0 for simple dual-role operation.
 	 */
-	reg = dwc3_readl(dwc->regs, DWC3_OCFG);
+	reg = dwc3_readl(dwc, DWC3_OCFG);
 	/* OCFG.OTGSftRstMsk = 0/1 */
 	reg |= DWC3_OCFG_SFTRSTMASK;
-	dwc3_writel(dwc->regs, DWC3_OCFG, reg);
+	dwc3_writel(dwc, DWC3_OCFG, reg);
 	/*
 	 * OCTL.PeriMode = 1
 	 * OCTL.TermSelDLPulse = 0/1, OCTL.HNPReq = 0
 	 * OCTL.DevSetHNPEn = 0, OCTL.HstSetHNPEn = 0
 	 */
-	reg = dwc3_readl(dwc->regs, DWC3_OCTL);
+	reg = dwc3_readl(dwc, DWC3_OCTL);
 	reg |= DWC3_OCTL_PERIMODE;
 	reg &= ~(DWC3_OCTL_TERMSELIDPULSE | DWC3_OCTL_HNPREQ |
 			DWC3_OCTL_DEVSETHNPEN | DWC3_OCTL_HSTSETHNPEN);
-	dwc3_writel(dwc->regs, DWC3_OCTL, reg);
+	dwc3_writel(dwc, DWC3_OCTL, reg);
 	/* OEVTEN.OTGBDevSesVldDetEvntEn = 1 */
 	dwc3_otg_enable_events(dwc, DWC3_OEVTEN_BDEVSESSVLDDETEN);
 	/* GUSB2PHYCFG.ULPIAutoRes = 0, GUSB2PHYCFG0.SusPHY = 1 */
 	if (!dwc->dis_u2_susphy_quirk) {
-		reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYCFG(0));
+		reg = dwc3_readl(dwc, DWC3_GUSB2PHYCFG(0));
 		reg |= DWC3_GUSB2PHYCFG_SUSPHY;
-		dwc3_writel(dwc->regs, DWC3_GUSB2PHYCFG(0), reg);
+		dwc3_writel(dwc, DWC3_GUSB2PHYCFG(0), reg);
 	}
 	/* GCTL.GblHibernationEn = 0. Already 0. */
 }
@@ -319,10 +319,10 @@ static void dwc3_otg_device_exit(struct dwc3 *dwc)
 				DWC3_OEVTEN_BDEVBHOSTENDEN);
 
 	/* OCTL.DevSetHNPEn = 0, OCTL.HNPReq = 0, OCTL.PeriMode=1 */
-	reg = dwc3_readl(dwc->regs, DWC3_OCTL);
+	reg = dwc3_readl(dwc, DWC3_OCTL);
 	reg &= ~(DWC3_OCTL_DEVSETHNPEN | DWC3_OCTL_HNPREQ);
 	reg |= DWC3_OCTL_PERIMODE;
-	dwc3_writel(dwc->regs, DWC3_OCTL, reg);
+	dwc3_writel(dwc, DWC3_OCTL, reg);
 }
 
 void dwc3_otg_update(struct dwc3 *dwc, bool ignore_idstatus)
@@ -341,7 +341,7 @@ void dwc3_otg_update(struct dwc3 *dwc, bool ignore_idstatus)
 		return;
 
 	if (!ignore_idstatus) {
-		reg = dwc3_readl(dwc->regs, DWC3_OSTS);
+		reg = dwc3_readl(dwc, DWC3_OSTS);
 		id = !!(reg & DWC3_OSTS_CONIDSTS);
 
 		dwc->desired_otg_role = id ? DWC3_OTG_ROLE_DEVICE :
@@ -381,6 +381,7 @@ void dwc3_otg_update(struct dwc3 *dwc, bool ignore_idstatus)
 		dwc3_otgregs_init(dwc);
 		dwc3_otg_host_init(dwc);
 		spin_unlock_irqrestore(&dwc->lock, flags);
+		dwc3_pre_set_role(dwc, USB_ROLE_HOST);
 		ret = dwc3_host_init(dwc);
 		if (ret) {
 			dev_err(dwc->dev, "failed to initialize host\n");
@@ -406,6 +407,7 @@ void dwc3_otg_update(struct dwc3 *dwc, bool ignore_idstatus)
 			otg_set_vbus(dwc->usb2_phy->otg, false);
 		if (dwc->usb2_generic_phy[0])
 			phy_set_mode(dwc->usb2_generic_phy[0], PHY_MODE_USB_DEVICE);
+		dwc3_pre_set_role(dwc, USB_ROLE_DEVICE);
 		ret = dwc3_gadget_init(dwc);
 		if (ret)
 			dev_err(dwc->dev, "failed to initialize peripheral\n");
@@ -433,10 +435,12 @@ static int dwc3_drd_notifier(struct notifier_block *nb,
 			     unsigned long event, void *ptr)
 {
 	struct dwc3 *dwc = container_of(nb, struct dwc3, edev_nb);
+	u32 mode = event ? DWC3_GCTL_PRTCAP_HOST : DWC3_GCTL_PRTCAP_DEVICE;
+	enum usb_role role = mode == DWC3_GCTL_PRTCAP_HOST ?
+				     USB_ROLE_HOST : USB_ROLE_DEVICE;
 
-	dwc3_set_mode(dwc, event ?
-		      DWC3_GCTL_PRTCAP_HOST :
-		      DWC3_GCTL_PRTCAP_DEVICE);
+	dwc3_pre_set_role(dwc, role);
+	dwc3_set_mode(dwc, mode);
 
 	return NOTIFY_DONE;
 }

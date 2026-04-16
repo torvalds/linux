@@ -122,7 +122,7 @@ static int amdgpu_gtt_mgr_new(struct ttm_resource_manager *man,
 	struct ttm_range_mgr_node *node;
 	int r;
 
-	node = kzalloc(struct_size(node, mm_nodes, 1), GFP_KERNEL);
+	node = kzalloc_flex(*node, mm_nodes, 1);
 	if (!node)
 		return -ENOMEM;
 

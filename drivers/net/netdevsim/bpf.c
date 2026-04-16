@@ -222,7 +222,7 @@ static int nsim_bpf_create_prog(struct nsim_dev *nsim_dev,
 	char name[16];
 	int ret;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state)
 		return -ENOMEM;
 
@@ -501,7 +501,7 @@ nsim_bpf_map_alloc(struct netdevsim *ns, struct bpf_offloaded_map *offmap)
 	if (offmap->map.map_flags)
 		return -EINVAL;
 
-	nmap = kzalloc(sizeof(*nmap), GFP_KERNEL_ACCOUNT);
+	nmap = kzalloc_obj(*nmap, GFP_KERNEL_ACCOUNT);
 	if (!nmap)
 		return -ENOMEM;
 

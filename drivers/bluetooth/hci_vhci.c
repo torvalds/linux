@@ -640,7 +640,7 @@ static int vhci_open(struct inode *inode, struct file *file)
 {
 	struct vhci_data *data;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 

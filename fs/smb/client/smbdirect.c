@@ -2098,7 +2098,7 @@ static struct smbd_connection *_smbd_get_connection(
 	char wq_name[80];
 	struct workqueue_struct *workqueue;
 
-	info = kzalloc(sizeof(struct smbd_connection), GFP_KERNEL);
+	info = kzalloc_obj(struct smbd_connection);
 	if (!info)
 		return NULL;
 	sc = &info->socket;
@@ -2786,7 +2786,7 @@ static int allocate_mr_list(struct smbdirect_socket *sc)
 
 	/* Allocate more MRs (2x) than hardware responder_resources */
 	for (i = 0; i < sp->responder_resources * 2; i++) {
-		mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+		mr = kzalloc_obj(*mr);
 		if (!mr) {
 			ret = -ENOMEM;
 			goto kzalloc_mr_failed;
@@ -2805,9 +2805,8 @@ static int allocate_mr_list(struct smbdirect_socket *sc)
 			goto ib_alloc_mr_failed;
 		}
 
-		mr->sgt.sgl = kcalloc(sp->max_frmr_depth,
-				      sizeof(struct scatterlist),
-				      GFP_KERNEL);
+		mr->sgt.sgl = kzalloc_objs(struct scatterlist,
+					   sp->max_frmr_depth);
 		if (!mr->sgt.sgl) {
 			ret = -ENOMEM;
 			log_rdma_mr(ERR, "failed to allocate sgl\n");

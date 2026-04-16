@@ -306,7 +306,7 @@ static int uio_dev_add_attributes(struct uio_device *idev)
 				goto err_map;
 			}
 		}
-		map = kzalloc(sizeof(*map), GFP_KERNEL);
+		map = kzalloc_obj(*map);
 		if (!map) {
 			ret = -ENOMEM;
 			goto err_map;
@@ -335,7 +335,7 @@ static int uio_dev_add_attributes(struct uio_device *idev)
 				goto err_portio;
 			}
 		}
-		portio = kzalloc(sizeof(*portio), GFP_KERNEL);
+		portio = kzalloc_obj(*portio);
 		if (!portio) {
 			ret = -ENOMEM;
 			goto err_portio;
@@ -494,7 +494,7 @@ static int uio_open(struct inode *inode, struct file *filep)
 		goto err_module_get;
 	}
 
-	listener = kmalloc(sizeof(*listener), GFP_KERNEL);
+	listener = kmalloc_obj(*listener);
 	if (!listener) {
 		ret = -ENOMEM;
 		goto err_alloc_listener;
@@ -991,7 +991,7 @@ int __uio_register_device(struct module *owner,
 
 	info->uio_dev = NULL;
 
-	idev = kzalloc(sizeof(*idev), GFP_KERNEL);
+	idev = kzalloc_obj(*idev);
 	if (!idev) {
 		return -ENOMEM;
 	}

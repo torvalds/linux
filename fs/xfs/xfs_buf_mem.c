@@ -58,11 +58,11 @@ xmbuf_alloc(
 	struct xfs_buftarg	*btp;
 	int			error;
 
-	btp = kzalloc(struct_size(btp, bt_cache, 1), GFP_KERNEL);
+	btp = kzalloc_flex(*btp, bt_cache, 1);
 	if (!btp)
 		return -ENOMEM;
 
-	file = shmem_kernel_file_setup(descr, 0, 0);
+	file = shmem_kernel_file_setup(descr, 0, EMPTY_VMA_FLAGS);
 	if (IS_ERR(file)) {
 		error = PTR_ERR(file);
 		goto out_free_btp;

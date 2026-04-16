@@ -99,8 +99,7 @@ int nfp_shared_buf_register(struct nfp_pf *pf)
 
 	entry_sz = nfp_cpp_area_size(sb_desc_area) / num_entries;
 
-	pf->shared_bufs = kmalloc_array(num_entries, sizeof(pf->shared_bufs[0]),
-					GFP_KERNEL);
+	pf->shared_bufs = kmalloc_objs(pf->shared_bufs[0], num_entries);
 	if (!pf->shared_bufs) {
 		err = -ENOMEM;
 		goto err_release_area;

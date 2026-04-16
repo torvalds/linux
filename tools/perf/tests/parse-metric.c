@@ -41,6 +41,8 @@ static void load_runtime_stat(struct evlist *evlist, struct value *vals)
 		count = find_value(evsel->name, vals);
 		evsel->supported = true;
 		evsel->stats->aggr->counts.val = count;
+		evsel->stats->aggr->counts.ena = 1;
+		evsel->stats->aggr->counts.run = 1;
 	}
 }
 

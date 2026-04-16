@@ -311,7 +311,7 @@ static int usb_keene_probe(struct usb_interface *intf,
 	if (dev->product && strcmp(dev->product, "B-LINK USB Audio  "))
 		return -ENODEV;
 
-	radio = kzalloc(sizeof(struct keene_device), GFP_KERNEL);
+	radio = kzalloc_obj(struct keene_device);
 	if (radio)
 		radio->buffer = kmalloc(BUFFER_LENGTH, GFP_KERNEL);
 

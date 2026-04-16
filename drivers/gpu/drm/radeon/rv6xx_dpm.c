@@ -1887,9 +1887,8 @@ static int rv6xx_parse_power_table(struct radeon_device *rdev)
 		return -EINVAL;
 	power_info = (union power_info *)(mode_info->atom_context->bios + data_offset);
 
-	rdev->pm.dpm.ps = kcalloc(power_info->pplib.ucNumStates,
-				  sizeof(struct radeon_ps),
-				  GFP_KERNEL);
+	rdev->pm.dpm.ps = kzalloc_objs(struct radeon_ps,
+				       power_info->pplib.ucNumStates);
 	if (!rdev->pm.dpm.ps)
 		return -ENOMEM;
 
@@ -1905,7 +1904,7 @@ static int rv6xx_parse_power_table(struct radeon_device *rdev)
 			  power_info->pplib.ucNonClockSize));
 		if (power_info->pplib.ucStateEntrySize - 1) {
 			u8 *idx;
-			ps = kzalloc(sizeof(struct rv6xx_ps), GFP_KERNEL);
+			ps = kzalloc_obj(struct rv6xx_ps);
 			if (ps == NULL) {
 				kfree(rdev->pm.dpm.ps);
 				return -ENOMEM;
@@ -1936,7 +1935,7 @@ int rv6xx_dpm_init(struct radeon_device *rdev)
 	struct rv6xx_power_info *pi;
 	int ret;
 
-	pi = kzalloc(sizeof(struct rv6xx_power_info), GFP_KERNEL);
+	pi = kzalloc_obj(struct rv6xx_power_info);
 	if (pi == NULL)
 		return -ENOMEM;
 	rdev->pm.dpm.priv = pi;

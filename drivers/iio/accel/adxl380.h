@@ -8,10 +8,18 @@
 #ifndef _ADXL380_H_
 #define _ADXL380_H_
 
+enum adxl380_odr {
+	ADXL380_ODR_VLP,
+	ADXL380_ODR_DSM,
+	ADXL380_ODR_DSM_2X,
+	ADXL380_ODR_DSM_4X,
+	ADXL380_ODR_MAX
+};
+
 struct adxl380_chip_info {
 	const char *name;
 	const int scale_tbl[3][2];
-	const int samp_freq_tbl[3];
+	const int samp_freq_tbl[ADXL380_ODR_MAX];
 	const struct iio_info *info;
 	const int temp_offset;
 	const u16 chip_id;

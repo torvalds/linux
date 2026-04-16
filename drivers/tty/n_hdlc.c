@@ -127,6 +127,8 @@ struct n_hdlc_buf_list {
  * @rx_buf_list: list of received frame buffers
  * @tx_free_buf_list: list unused transmit frame buffers
  * @rx_free_buf_list: list unused received frame buffers
+ * @write_work: work struct for deferred frame transmission
+ * @tty_for_write_work: pointer to tty instance used by the @write_work
  */
 struct n_hdlc {
 	bool			tbusy;
@@ -386,8 +388,7 @@ static void n_hdlc_tty_receive(struct tty_struct *tty, const u8 *data,
 		 * buffer unless the maximum count has been reached
 		 */
 		if (n_hdlc->rx_buf_list.count < MAX_RX_BUF_COUNT)
-			buf = kmalloc(struct_size(buf, buf, maxframe),
-				      GFP_ATOMIC);
+			buf = kmalloc_flex(*buf, buf, maxframe, GFP_ATOMIC);
 	}
 
 	if (!buf) {
@@ -668,7 +669,7 @@ static void n_hdlc_alloc_buf(struct n_hdlc_buf_list *list, unsigned int count,
 	unsigned int i;
 
 	for (i = 0; i < count; i++) {
-		buf = kmalloc(struct_size(buf, buf, maxframe), GFP_KERNEL);
+		buf = kmalloc_flex(*buf, buf, maxframe);
 		if (!buf) {
 			pr_debug("%s(), kmalloc() failed for %s buffer %u\n",
 					__func__, name, i);
@@ -685,7 +686,7 @@ static void n_hdlc_alloc_buf(struct n_hdlc_buf_list *list, unsigned int count,
  */
 static struct n_hdlc *n_hdlc_alloc(void)
 {
-	struct n_hdlc *n_hdlc = kzalloc(sizeof(*n_hdlc), GFP_KERNEL);
+	struct n_hdlc *n_hdlc = kzalloc_obj(*n_hdlc);
 
 	if (!n_hdlc)
 		return NULL;

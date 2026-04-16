@@ -438,7 +438,7 @@ static SIMPLE_DEV_PM_OPS(mdio_bus_phy_pm_ops, mdio_bus_phy_suspend,
 static int phy_register_fixup(const char *bus_id, u32 phy_uid, u32 phy_uid_mask,
 			      int (*run)(struct phy_device *))
 {
-	struct phy_fixup *fixup = kzalloc(sizeof(*fixup), GFP_KERNEL);
+	struct phy_fixup *fixup = kzalloc_obj(*fixup);
 
 	if (!fixup)
 		return -ENOMEM;
@@ -754,7 +754,7 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, u32 phy_id,
 	int ret = 0;
 
 	/* We allocate the device, and initialize the default values */
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 
@@ -1866,8 +1866,6 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 		goto error;
 
 	phy_resume(phydev);
-	if (!phydev->is_on_sfp_module)
-		phy_led_triggers_register(phydev);
 
 	/**
 	 * If the external phy used by current mac interface is managed by
@@ -1981,9 +1979,6 @@ void phy_detach(struct phy_device *phydev)
 
 	phydev->phy_link_change = NULL;
 	phydev->phylink = NULL;
-
-	if (!phydev->is_on_sfp_module)
-		phy_led_triggers_unregister(phydev);
 
 	if (phydev->mdio.dev.driver)
 		module_put(phydev->mdio.dev.driver->owner);
@@ -3499,6 +3494,9 @@ static int of_phy_ports(struct phy_device *phydev)
 
 		port->parent_type = PHY_PORT_PHY;
 		port->phy = phydev;
+
+		linkmode_copy(port->supported, phydev->supported);
+
 		err = phy_add_port(phydev, port);
 		if (err) {
 			phy_port_destroy(port);
@@ -3775,16 +3773,27 @@ static int phy_probe(struct device *dev)
 	/* Set the state to READY by default */
 	phydev->state = PHY_READY;
 
+	/* Register the PHY LED triggers */
+	if (!phydev->is_on_sfp_module)
+		phy_led_triggers_register(phydev);
+
 	/* Get the LEDs from the device tree, and instantiate standard
 	 * LEDs for them.
 	 */
-	if (IS_ENABLED(CONFIG_PHYLIB_LEDS) && !phy_driver_is_genphy(phydev))
+	if (IS_ENABLED(CONFIG_PHYLIB_LEDS) && !phy_driver_is_genphy(phydev)) {
 		err = of_phy_leds(phydev);
+		if (err)
+			goto out;
+	}
+
+	return 0;
 
 out:
+	if (!phydev->is_on_sfp_module)
+		phy_led_triggers_unregister(phydev);
+
 	/* Re-assert the reset signal on error */
-	if (err)
-		phy_device_reset(phydev, 1);
+	phy_device_reset(phydev, 1);
 
 	return err;
 }
@@ -3797,6 +3806,9 @@ static int phy_remove(struct device *dev)
 
 	if (IS_ENABLED(CONFIG_PHYLIB_LEDS) && !phy_driver_is_genphy(phydev))
 		phy_leds_unregister(phydev);
+
+	if (!phydev->is_on_sfp_module)
+		phy_led_triggers_unregister(phydev);
 
 	phydev->state = PHY_DOWN;
 

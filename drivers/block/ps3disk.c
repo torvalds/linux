@@ -416,7 +416,7 @@ static int ps3disk_probe(struct ps3_system_bus_device *_dev)
 	__set_bit(devidx, &ps3disk_mask);
 	mutex_unlock(&ps3disk_mask_mutex);
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv) {
 		error = -ENOMEM;
 		goto fail;

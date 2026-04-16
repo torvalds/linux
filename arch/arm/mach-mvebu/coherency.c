@@ -190,7 +190,7 @@ static void __init armada_375_380_coherency_init(struct device_node *np)
 	for_each_compatible_node(cache_dn, NULL, "arm,pl310-cache") {
 		struct property *p;
 
-		p = kzalloc(sizeof(*p), GFP_KERNEL);
+		p = kzalloc_obj(*p);
 		p->name = kstrdup("arm,io-coherent", GFP_KERNEL);
 		of_add_property(cache_dn, p);
 	}

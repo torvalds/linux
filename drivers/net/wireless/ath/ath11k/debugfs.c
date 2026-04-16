@@ -1193,8 +1193,7 @@ static int ath11k_debugfs_dbr_dbg_init(struct ath11k *ar, int dbr_id)
 	if (ar->debug.dbr_debug[dbr_id])
 		return 0;
 
-	ar->debug.dbr_debug[dbr_id] = kzalloc(sizeof(*dbr_debug),
-					      GFP_KERNEL);
+	ar->debug.dbr_debug[dbr_id] = kzalloc_obj(*dbr_debug);
 
 	if (!ar->debug.dbr_debug[dbr_id])
 		return -ENOMEM;
@@ -1216,9 +1215,8 @@ static int ath11k_debugfs_dbr_dbg_init(struct ath11k *ar, int dbr_id)
 	dbr_debug->dbr_debug_enabled = true;
 	dbr_dbg_data->num_ring_debug_entries = ATH11K_DEBUG_DBR_ENTRIES_MAX;
 	dbr_dbg_data->dbr_debug_idx = 0;
-	dbr_dbg_data->entries = kcalloc(ATH11K_DEBUG_DBR_ENTRIES_MAX,
-					sizeof(struct ath11k_dbg_dbr_entry),
-					GFP_KERNEL);
+	dbr_dbg_data->entries = kzalloc_objs(struct ath11k_dbg_dbr_entry,
+					     ATH11K_DEBUG_DBR_ENTRIES_MAX);
 	if (!dbr_dbg_data->entries)
 		return -ENOMEM;
 

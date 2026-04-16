@@ -99,7 +99,7 @@ EXPORT_SYMBOL(sof_set_stream_data_offset);
 int sof_stream_pcm_open(struct snd_sof_dev *sdev,
 			struct snd_pcm_substream *substream)
 {
-	struct sof_stream *stream = kmalloc(sizeof(*stream), GFP_KERNEL);
+	struct sof_stream *stream = kmalloc_obj(*stream);
 
 	if (!stream)
 		return -ENOMEM;

@@ -2926,7 +2926,7 @@ int ppp_register_net_channel(struct net *net, struct ppp_channel *chan)
 	struct channel *pch;
 	struct ppp_net *pn;
 
-	pch = kzalloc(sizeof(struct channel), GFP_KERNEL);
+	pch = kzalloc_obj(struct channel);
 	if (!pch)
 		return -ENOMEM;
 
@@ -3277,7 +3277,7 @@ ppp_register_compressor(struct compressor *cp)
 	if (find_comp_entry(cp->compress_proto))
 		goto out;
 	ret = -ENOMEM;
-	ce = kmalloc(sizeof(struct compressor_entry), GFP_ATOMIC);
+	ce = kmalloc_obj(struct compressor_entry, GFP_ATOMIC);
 	if (!ce)
 		goto out;
 	ret = 0;

@@ -159,7 +159,7 @@ static int oneshot_trig_activate(struct led_classdev *led_cdev)
 {
 	struct oneshot_trig_data *oneshot_data;
 
-	oneshot_data = kzalloc(sizeof(*oneshot_data), GFP_KERNEL);
+	oneshot_data = kzalloc_obj(*oneshot_data);
 	if (!oneshot_data)
 		return -ENOMEM;
 

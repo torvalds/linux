@@ -553,7 +553,7 @@ static int sec_alg_alloc_and_calc_split_sizes(int length, size_t **split_sizes,
 
 	/* Split into suitable sized blocks */
 	*steps = roundup(length, SEC_REQ_LIMIT) / SEC_REQ_LIMIT;
-	sizes = kcalloc(*steps, sizeof(*sizes), gfp);
+	sizes = kzalloc_objs(*sizes, *steps, gfp);
 	if (!sizes)
 		return -ENOMEM;
 
@@ -577,12 +577,12 @@ static int sec_map_and_split_sg(struct scatterlist *sgl, size_t *split_sizes,
 	if (!count)
 		return -EINVAL;
 
-	*splits = kcalloc(steps, sizeof(struct scatterlist *), gfp);
+	*splits = kzalloc_objs(struct scatterlist *, steps, gfp);
 	if (!*splits) {
 		ret = -ENOMEM;
 		goto err_unmap_sg;
 	}
-	*splits_nents = kcalloc(steps, sizeof(int), gfp);
+	*splits_nents = kzalloc_objs(int, steps, gfp);
 	if (!*splits_nents) {
 		ret = -ENOMEM;
 		goto err_free_splits;
@@ -637,7 +637,7 @@ static struct sec_request_el
 	struct sec_bd_info *req;
 	int ret;
 
-	el = kzalloc(sizeof(*el), gfp);
+	el = kzalloc_obj(*el, gfp);
 	if (!el)
 		return ERR_PTR(-ENOMEM);
 	el->el_length = el_size;

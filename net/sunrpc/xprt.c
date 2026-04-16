@@ -1709,7 +1709,7 @@ static struct rpc_rqst *xprt_dynamic_alloc_slot(struct rpc_xprt *xprt)
 		goto out;
 	++xprt->num_reqs;
 	spin_unlock(&xprt->reserve_lock);
-	req = kzalloc(sizeof(*req), rpc_task_gfp_mask());
+	req = kzalloc_obj(*req, rpc_task_gfp_mask());
 	spin_lock(&xprt->reserve_lock);
 	if (req != NULL)
 		goto out;
@@ -1829,7 +1829,7 @@ struct rpc_xprt *xprt_alloc(struct net *net, size_t size,
 	xprt_init(xprt, net);
 
 	for (i = 0; i < num_prealloc; i++) {
-		req = kzalloc(sizeof(struct rpc_rqst), GFP_KERNEL);
+		req = kzalloc_obj(struct rpc_rqst);
 		if (!req)
 			goto out_free;
 		list_add(&req->rq_list, &xprt->free);

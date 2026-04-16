@@ -87,10 +87,17 @@ struct rseq_slice_ctrl {
 };
 
 /*
- * struct rseq is aligned on 4 * 8 bytes to ensure it is always
- * contained within a single cache-line.
+ * The original size and alignment of the allocation for struct rseq is
+ * 32 bytes.
  *
- * A single struct rseq per thread is allowed.
+ * The allocation size needs to be greater or equal to
+ * max(getauxval(AT_RSEQ_FEATURE_SIZE), 32), and the allocation needs to
+ * be aligned on max(getauxval(AT_RSEQ_ALIGN), 32).
+ *
+ * As an alternative, userspace is allowed to use both the original size
+ * and alignment of 32 bytes for backward compatibility.
+ *
+ * A single active struct rseq registration per thread is allowed.
  */
 struct rseq {
 	/*
@@ -181,9 +188,20 @@ struct rseq {
 	struct rseq_slice_ctrl slice_ctrl;
 
 	/*
+	 * Before rseq became extensible, its original size was 32 bytes even
+	 * though the active rseq area was only 20 bytes.
+	 * Exposing a 32 bytes feature size would make life needlessly painful
+	 * for userspace. Therefore, add a reserved byte after byte 32
+	 * to bump the rseq feature size from 32 to 33.
+	 * The next field to be added to the rseq area will be larger
+	 * than one byte, and will replace this reserved byte.
+	 */
+	__u8 __reserved;
+
+	/*
 	 * Flexible array member at end of structure, after last feature field.
 	 */
 	char end[];
-} __attribute__((aligned(4 * sizeof(__u64))));
+} __attribute__((aligned(32)));
 
 #endif /* _UAPI_LINUX_RSEQ_H */

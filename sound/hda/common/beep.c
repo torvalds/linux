@@ -220,7 +220,7 @@ int snd_hda_attach_beep_device(struct hda_codec *codec, int nid)
 			return 0; /* disabled by module option */
 	}
 
-	beep = kzalloc(sizeof(*beep), GFP_KERNEL);
+	beep = kzalloc_obj(*beep);
 	if (beep == NULL)
 		return -ENOMEM;
 	snprintf(beep->phys, sizeof(beep->phys),

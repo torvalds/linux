@@ -320,7 +320,7 @@ hid_bpf_allocate_context(unsigned int hid_id)
 	if (IS_ERR(hdev))
 		return NULL;
 
-	ctx_kern = kzalloc(sizeof(*ctx_kern), GFP_KERNEL);
+	ctx_kern = kzalloc_obj(*ctx_kern);
 	if (!ctx_kern) {
 		hid_put_device(hdev);
 		return NULL;

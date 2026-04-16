@@ -80,7 +80,7 @@ alloc_nfs_open_dir_context(struct inode *dir)
 	struct nfs_inode *nfsi = NFS_I(dir);
 	struct nfs_open_dir_context *ctx;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL_ACCOUNT);
+	ctx = kzalloc_obj(*ctx, GFP_KERNEL_ACCOUNT);
 	if (ctx != NULL) {
 		ctx->attr_gencount = nfsi->attr_gencount;
 		ctx->dtsize = min(NFS_SERVER(dir)->dtsize, NFS_INIT_DTSIZE);
@@ -912,7 +912,7 @@ static struct page **nfs_readdir_alloc_pages(size_t npages)
 	struct page **pages;
 	size_t i;
 
-	pages = kmalloc_array(npages, sizeof(*pages), GFP_KERNEL);
+	pages = kmalloc_objs(*pages, npages);
 	if (!pages)
 		return NULL;
 	for (i = 0; i < npages; i++) {
@@ -942,7 +942,7 @@ static int nfs_readdir_xdr_to_array(struct nfs_readdir_descriptor *desc,
 	unsigned int pglen;
 	int status = -ENOMEM;
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 	entry->cookie = nfs_readdir_folio_last_cookie(folio);
@@ -1154,7 +1154,7 @@ static int uncached_readdir(struct nfs_readdir_descriptor *desc)
 	dfprintk(DIRCACHE, "NFS: uncached_readdir() searching for cookie %llu\n",
 			(unsigned long long)desc->dir_cookie);
 
-	arrays = kcalloc(sz, sizeof(*arrays), GFP_KERNEL);
+	arrays = kzalloc_objs(*arrays, sz);
 	if (!arrays)
 		goto out;
 	arrays[0] = nfs_readdir_folio_array_alloc(desc->dir_cookie, GFP_KERNEL);
@@ -1245,7 +1245,7 @@ static int nfs_readdir(struct file *file, struct dir_context *ctx)
 	nfs_revalidate_mapping(inode, file->f_mapping);
 
 	res = -ENOMEM;
-	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+	desc = kzalloc_obj(*desc);
 	if (!desc)
 		goto out;
 	desc->file = file;
@@ -3216,7 +3216,7 @@ found:
 void nfs_access_add_cache(struct inode *inode, struct nfs_access_entry *set,
 			  const struct cred *cred)
 {
-	struct nfs_access_entry *cache = kmalloc(sizeof(*cache), GFP_KERNEL);
+	struct nfs_access_entry *cache = kmalloc_obj(*cache);
 	if (cache == NULL)
 		return;
 	RB_CLEAR_NODE(&cache->rb_node);

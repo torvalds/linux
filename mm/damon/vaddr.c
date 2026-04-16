@@ -821,8 +821,7 @@ static unsigned long damos_va_migrate(struct damon_target *target,
 	use_target_nid = dests->nr_dests == 0;
 	nr_dests = use_target_nid ? 1 : dests->nr_dests;
 	priv.scheme = s;
-	priv.migration_lists = kmalloc_array(nr_dests,
-		sizeof(*priv.migration_lists), GFP_KERNEL);
+	priv.migration_lists = kmalloc_objs(*priv.migration_lists, nr_dests);
 	if (!priv.migration_lists)
 		return 0;
 

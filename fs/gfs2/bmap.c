@@ -2225,7 +2225,7 @@ static int gfs2_add_jextent(struct gfs2_jdesc *jd, u64 lblock, u64 dblock, u64 b
 		}
 	}
 
-	jext = kzalloc(sizeof(struct gfs2_journal_extent), GFP_NOFS);
+	jext = kzalloc_obj(struct gfs2_journal_extent, GFP_NOFS);
 	if (jext == NULL)
 		return -ENOMEM;
 	jext->dblock = dblock;

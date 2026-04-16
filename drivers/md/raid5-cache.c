@@ -2447,7 +2447,7 @@ static int r5l_recovery_log(struct r5l_log *log)
 	int ret;
 	sector_t pos;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -3071,7 +3071,7 @@ int r5l_init_log(struct r5conf *conf, struct md_rdev *rdev)
 		return -EINVAL;
 	}
 
-	log = kzalloc(sizeof(*log), GFP_KERNEL);
+	log = kzalloc_obj(*log);
 	if (!log)
 		return -ENOMEM;
 	log->rdev = rdev;

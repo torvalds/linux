@@ -194,7 +194,7 @@ void ata_acpi_bind_port(struct ata_port *ap)
 	if (!adev || adev->hp)
 		return;
 
-	context = kzalloc(sizeof(*context), GFP_KERNEL);
+	context = kzalloc_obj(*context);
 	if (!context)
 		return;
 
@@ -236,7 +236,7 @@ void ata_acpi_bind_dev(struct ata_device *dev)
 	if (!adev || adev->hp)
 		return;
 
-	context = kzalloc(sizeof(*context), GFP_KERNEL);
+	context = kzalloc_obj(*context);
 	if (!context)
 		return;
 

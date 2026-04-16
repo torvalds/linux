@@ -4447,7 +4447,7 @@ struct llcc_slice_desc *llcc_slice_getd(u32 uid)
 	if (count == sz || !cfg)
 		return ERR_PTR(-ENODEV);
 
-	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+	desc = kzalloc_obj(*desc);
 	if (!desc)
 		return ERR_PTR(-ENOMEM);
 

@@ -705,7 +705,7 @@ struct sdw_master_device {
 
 struct sdw_driver {
 	int (*probe)(struct sdw_slave *sdw, const struct sdw_device_id *id);
-	int (*remove)(struct sdw_slave *sdw);
+	void (*remove)(struct sdw_slave *sdw);
 	void (*shutdown)(struct sdw_slave *sdw);
 
 	const struct sdw_device_id *id_table;

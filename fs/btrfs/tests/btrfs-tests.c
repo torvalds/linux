@@ -98,7 +98,7 @@ struct btrfs_device *btrfs_alloc_dummy_device(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_device *dev;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 
@@ -117,21 +117,18 @@ static void btrfs_free_dummy_device(struct btrfs_device *dev)
 
 struct btrfs_fs_info *btrfs_alloc_dummy_fs_info(u32 nodesize, u32 sectorsize)
 {
-	struct btrfs_fs_info *fs_info = kzalloc(sizeof(struct btrfs_fs_info),
-						GFP_KERNEL);
+	struct btrfs_fs_info *fs_info = kzalloc_obj(struct btrfs_fs_info);
 
 	if (!fs_info)
 		return fs_info;
-	fs_info->fs_devices = kzalloc(sizeof(struct btrfs_fs_devices),
-				      GFP_KERNEL);
+	fs_info->fs_devices = kzalloc_obj(struct btrfs_fs_devices);
 	if (!fs_info->fs_devices) {
 		kfree(fs_info);
 		return NULL;
 	}
 	INIT_LIST_HEAD(&fs_info->fs_devices->devices);
 
-	fs_info->super_copy = kzalloc(sizeof(struct btrfs_super_block),
-				      GFP_KERNEL);
+	fs_info->super_copy = kzalloc_obj(struct btrfs_super_block);
 	if (!fs_info->super_copy) {
 		kfree(fs_info->fs_devices);
 		kfree(fs_info);
@@ -208,11 +205,10 @@ btrfs_alloc_dummy_block_group(struct btrfs_fs_info *fs_info,
 {
 	struct btrfs_block_group *cache;
 
-	cache = kzalloc(sizeof(*cache), GFP_KERNEL);
+	cache = kzalloc_obj(*cache);
 	if (!cache)
 		return NULL;
-	cache->free_space_ctl = kzalloc(sizeof(*cache->free_space_ctl),
-					GFP_KERNEL);
+	cache->free_space_ctl = kzalloc_obj(*cache->free_space_ctl);
 	if (!cache->free_space_ctl) {
 		kfree(cache);
 		return NULL;

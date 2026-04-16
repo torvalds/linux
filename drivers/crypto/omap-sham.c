@@ -636,7 +636,7 @@ static int omap_sham_copy_sg_lists(struct omap_sham_reqctx *ctx,
 	if (ctx->bufcnt)
 		n++;
 
-	ctx->sg = kmalloc_array(n, sizeof(*sg), GFP_KERNEL);
+	ctx->sg = kmalloc_objs(*sg, n);
 	if (!ctx->sg)
 		return -ENOMEM;
 

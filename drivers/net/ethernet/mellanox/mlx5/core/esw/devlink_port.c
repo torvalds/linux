@@ -70,7 +70,7 @@ int mlx5_esw_offloads_pf_vf_devlink_port_init(struct mlx5_eswitch *esw,
 	if (!mlx5_esw_devlink_port_supported(esw, vport_num))
 		return 0;
 
-	dl_port = kzalloc(sizeof(*dl_port), GFP_KERNEL);
+	dl_port = kzalloc_obj(*dl_port);
 	if (!dl_port)
 		return -ENOMEM;
 

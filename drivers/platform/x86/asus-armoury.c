@@ -1005,8 +1005,7 @@ static void init_rog_tunables(void)
 	/* Initialize AC power tunables */
 	ac_limits = power_data->ac_data;
 	if (ac_limits) {
-		ac_rog_tunables = kzalloc(sizeof(*asus_armoury.rog_tunables[ASUS_ROG_TUNABLE_AC]),
-				GFP_KERNEL);
+		ac_rog_tunables = kzalloc_obj(*asus_armoury.rog_tunables[ASUS_ROG_TUNABLE_AC]);
 		if (!ac_rog_tunables)
 			goto err_nomem;
 
@@ -1053,8 +1052,7 @@ static void init_rog_tunables(void)
 	/* Initialize DC power tunables */
 	dc_limits = power_data->dc_data;
 	if (dc_limits) {
-		dc_rog_tunables = kzalloc(sizeof(*asus_armoury.rog_tunables[ASUS_ROG_TUNABLE_DC]),
-					  GFP_KERNEL);
+		dc_rog_tunables = kzalloc_obj(*asus_armoury.rog_tunables[ASUS_ROG_TUNABLE_DC]);
 		if (!dc_rog_tunables) {
 			kfree(ac_rog_tunables);
 			goto err_nomem;

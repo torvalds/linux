@@ -392,7 +392,7 @@ static int head_onwire_len(int ctrl_len, bool secure)
 	int head_len;
 	int rem_len;
 
-	BUG_ON(ctrl_len < 0 || ctrl_len > CEPH_MSG_MAX_CONTROL_LEN);
+	BUG_ON(ctrl_len < 1 || ctrl_len > CEPH_MSG_MAX_CONTROL_LEN);
 
 	if (secure) {
 		head_len = CEPH_PREAMBLE_SECURE_LEN;
@@ -401,9 +401,7 @@ static int head_onwire_len(int ctrl_len, bool secure)
 			head_len += padded_len(rem_len) + CEPH_GCM_TAG_LEN;
 		}
 	} else {
-		head_len = CEPH_PREAMBLE_PLAIN_LEN;
-		if (ctrl_len)
-			head_len += ctrl_len + CEPH_CRC_LEN;
+		head_len = CEPH_PREAMBLE_PLAIN_LEN + ctrl_len + CEPH_CRC_LEN;
 	}
 	return head_len;
 }
@@ -528,11 +526,16 @@ static int decode_preamble(void *p, struct ceph_frame_desc *desc)
 		desc->fd_aligns[i] = ceph_decode_16(&p);
 	}
 
-	if (desc->fd_lens[0] < 0 ||
+	/*
+	 * This would fire for FRAME_TAG_WAIT (it has one empty
+	 * segment), but we should never get it as client.
+	 */
+	if (desc->fd_lens[0] < 1 ||
 	    desc->fd_lens[0] > CEPH_MSG_MAX_CONTROL_LEN) {
 		pr_err("bad control segment length %d\n", desc->fd_lens[0]);
 		return -EINVAL;
 	}
+
 	if (desc->fd_lens[1] < 0 ||
 	    desc->fd_lens[1] > CEPH_MSG_MAX_FRONT_LEN) {
 		pr_err("bad front segment length %d\n", desc->fd_lens[1]);
@@ -549,10 +552,6 @@ static int decode_preamble(void *p, struct ceph_frame_desc *desc)
 		return -EINVAL;
 	}
 
-	/*
-	 * This would fire for FRAME_TAG_WAIT (it has one empty
-	 * segment), but we should never get it as client.
-	 */
 	if (!desc->fd_lens[desc->fd_seg_cnt - 1]) {
 		pr_err("last segment empty, segment count %d\n",
 		       desc->fd_seg_cnt);
@@ -779,9 +778,9 @@ static int setup_crypto(struct ceph_connection *con,
 	return 0;  /* auth_x, secure mode */
 }
 
-static void ceph_hmac_sha256(struct ceph_connection *con,
-			     const struct kvec *kvecs, int kvec_cnt,
-			     u8 hmac[SHA256_DIGEST_SIZE])
+static void con_hmac_sha256(struct ceph_connection *con,
+			    const struct kvec *kvecs, int kvec_cnt,
+			    u8 hmac[SHA256_DIGEST_SIZE])
 {
 	struct hmac_sha256_ctx ctx;
 	int i;
@@ -1438,8 +1437,8 @@ static int prepare_auth_signature(struct ceph_connection *con)
 	if (!buf)
 		return -ENOMEM;
 
-	ceph_hmac_sha256(con, con->v2.in_sign_kvecs, con->v2.in_sign_kvec_cnt,
-			 CTRL_BODY(buf));
+	con_hmac_sha256(con, con->v2.in_sign_kvecs, con->v2.in_sign_kvec_cnt,
+			CTRL_BODY(buf));
 
 	return prepare_control(con, FRAME_TAG_AUTH_SIGNATURE, buf,
 			       SHA256_DIGEST_SIZE);
@@ -2360,7 +2359,7 @@ bad:
  */
 static int process_auth_done(struct ceph_connection *con, void *p, void *end)
 {
-	u8 session_key_buf[CEPH_KEY_LEN + 16];
+	u8 session_key_buf[CEPH_MAX_KEY_LEN + 16];
 	u8 con_secret_buf[CEPH_MAX_CON_SECRET_LEN + 16];
 	u8 *session_key = PTR_ALIGN(&session_key_buf[0], 16);
 	u8 *con_secret = PTR_ALIGN(&con_secret_buf[0], 16);
@@ -2436,8 +2435,8 @@ static int process_auth_signature(struct ceph_connection *con,
 		return -EINVAL;
 	}
 
-	ceph_hmac_sha256(con, con->v2.out_sign_kvecs, con->v2.out_sign_kvec_cnt,
-			 hmac);
+	con_hmac_sha256(con, con->v2.out_sign_kvecs, con->v2.out_sign_kvec_cnt,
+			hmac);
 
 	ceph_decode_need(&p, end, SHA256_DIGEST_SIZE, bad);
 	if (crypto_memneq(p, hmac, SHA256_DIGEST_SIZE)) {
@@ -2833,11 +2832,14 @@ static int process_message_header(struct ceph_connection *con,
 				  void *p, void *end)
 {
 	struct ceph_frame_desc *desc = &con->v2.in_desc;
-	struct ceph_msg_header2 *hdr2 = p;
+	struct ceph_msg_header2 *hdr2;
 	struct ceph_msg_header hdr;
 	int skip;
 	int ret;
 	u64 seq;
+
+	ceph_decode_need(&p, end, sizeof(*hdr2), bad);
+	hdr2 = p;
 
 	/* verify seq# */
 	seq = le64_to_cpu(hdr2->seq);
@@ -2869,6 +2871,10 @@ static int process_message_header(struct ceph_connection *con,
 	WARN_ON(!con->in_msg);
 	WARN_ON(con->in_msg->con != con);
 	return 1;
+
+bad:
+	pr_err("failed to decode message header\n");
+	return -EINVAL;
 }
 
 static int process_message(struct ceph_connection *con)
@@ -2897,6 +2903,11 @@ static int __handle_control(struct ceph_connection *con, void *p)
 
 	if (con->v2.in_desc.fd_tag != FRAME_TAG_MESSAGE)
 		return process_control(con, p, end);
+
+	if (con->state != CEPH_CON_S_OPEN) {
+		con->error_msg = "protocol error, unexpected message";
+		return -EINVAL;
+	}
 
 	ret = process_message_header(con, p, end);
 	if (ret < 0)

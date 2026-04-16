@@ -91,7 +91,7 @@ struct anon_vma_name *anon_vma_name_alloc(const char *name)
 
 	/* Add 1 for NUL terminator at the end of the anon_name->name */
 	count = strlen(name) + 1;
-	anon_name = kmalloc(struct_size(anon_name, name, count), GFP_KERNEL);
+	anon_name = kmalloc_flex(*anon_name, name, count);
 	if (anon_name) {
 		kref_init(&anon_name->kref);
 		memcpy(anon_name->name, name, count);
@@ -1140,7 +1140,7 @@ static long madvise_guard_install(struct madvise_behavior *madv_behavior)
 	 * acquire an mmap/VMA write lock to read it. All remaining readers may
 	 * or may not see the flag set, but we don't care.
 	 */
-	vma_flag_set_atomic(vma, VMA_MAYBE_GUARD_BIT);
+	vma_set_atomic_flag(vma, VMA_MAYBE_GUARD_BIT);
 
 	/*
 	 * If anonymous and we are establishing page tables the VMA ought to
@@ -1389,7 +1389,7 @@ static int madvise_vma_behavior(struct madvise_behavior *madv_behavior)
 		new_flags |= VM_DONTCOPY;
 		break;
 	case MADV_DOFORK:
-		if (new_flags & VM_IO)
+		if (new_flags & VM_SPECIAL)
 			return -EINVAL;
 		new_flags &= ~VM_DONTCOPY;
 		break;

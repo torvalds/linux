@@ -430,7 +430,7 @@ tegra124_usb2_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
 	struct tegra_xusb_usb2_lane *usb2;
 	int err;
 
-	usb2 = kzalloc(sizeof(*usb2), GFP_KERNEL);
+	usb2 = kzalloc_obj(*usb2);
 	if (!usb2)
 		return ERR_PTR(-ENOMEM);
 
@@ -614,7 +614,7 @@ tegra124_usb2_pad_probe(struct tegra_xusb_padctl *padctl,
 	struct tegra_xusb_pad *pad;
 	int err;
 
-	usb2 = kzalloc(sizeof(*usb2), GFP_KERNEL);
+	usb2 = kzalloc_obj(*usb2);
 	if (!usb2)
 		return ERR_PTR(-ENOMEM);
 
@@ -679,7 +679,7 @@ tegra124_ulpi_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
 	struct tegra_xusb_ulpi_lane *ulpi;
 	int err;
 
-	ulpi = kzalloc(sizeof(*ulpi), GFP_KERNEL);
+	ulpi = kzalloc_obj(*ulpi);
 	if (!ulpi)
 		return ERR_PTR(-ENOMEM);
 
@@ -751,7 +751,7 @@ tegra124_ulpi_pad_probe(struct tegra_xusb_padctl *padctl,
 	struct tegra_xusb_pad *pad;
 	int err;
 
-	ulpi = kzalloc(sizeof(*ulpi), GFP_KERNEL);
+	ulpi = kzalloc_obj(*ulpi);
 	if (!ulpi)
 		return ERR_PTR(-ENOMEM);
 
@@ -815,7 +815,7 @@ tegra124_hsic_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
 	struct tegra_xusb_hsic_lane *hsic;
 	int err;
 
-	hsic = kzalloc(sizeof(*hsic), GFP_KERNEL);
+	hsic = kzalloc_obj(*hsic);
 	if (!hsic)
 		return ERR_PTR(-ENOMEM);
 
@@ -967,7 +967,7 @@ tegra124_hsic_pad_probe(struct tegra_xusb_padctl *padctl,
 	struct tegra_xusb_pad *pad;
 	int err;
 
-	hsic = kzalloc(sizeof(*hsic), GFP_KERNEL);
+	hsic = kzalloc_obj(*hsic);
 	if (!hsic)
 		return ERR_PTR(-ENOMEM);
 
@@ -1035,7 +1035,7 @@ tegra124_pcie_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
 	struct tegra_xusb_pcie_lane *pcie;
 	int err;
 
-	pcie = kzalloc(sizeof(*pcie), GFP_KERNEL);
+	pcie = kzalloc_obj(*pcie);
 	if (!pcie)
 		return ERR_PTR(-ENOMEM);
 
@@ -1155,7 +1155,7 @@ tegra124_pcie_pad_probe(struct tegra_xusb_padctl *padctl,
 	struct tegra_xusb_pad *pad;
 	int err;
 
-	pcie = kzalloc(sizeof(*pcie), GFP_KERNEL);
+	pcie = kzalloc_obj(*pcie);
 	if (!pcie)
 		return ERR_PTR(-ENOMEM);
 
@@ -1213,7 +1213,7 @@ tegra124_sata_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
 	struct tegra_xusb_sata_lane *sata;
 	int err;
 
-	sata = kzalloc(sizeof(*sata), GFP_KERNEL);
+	sata = kzalloc_obj(*sata);
 	if (!sata)
 		return ERR_PTR(-ENOMEM);
 
@@ -1351,7 +1351,7 @@ tegra124_sata_pad_probe(struct tegra_xusb_padctl *padctl,
 	struct tegra_xusb_pad *pad;
 	int err;
 
-	sata = kzalloc(sizeof(*sata), GFP_KERNEL);
+	sata = kzalloc_obj(*sata);
 	if (!sata)
 		return ERR_PTR(-ENOMEM);
 

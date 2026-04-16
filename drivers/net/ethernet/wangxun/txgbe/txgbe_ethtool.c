@@ -73,7 +73,7 @@ static int txgbe_set_ringparam(struct net_device *netdev,
 
 	/* allocate temporary buffer to store rings in */
 	i = max_t(int, wx->num_tx_queues, wx->num_rx_queues);
-	temp_ring = kvmalloc_array(i, sizeof(struct wx_ring), GFP_KERNEL);
+	temp_ring = kvmalloc_objs(struct wx_ring, i);
 	if (!temp_ring) {
 		err = -ENOMEM;
 		goto clear_reset;
@@ -390,7 +390,7 @@ static int txgbe_add_ethtool_fdir_entry(struct txgbe *txgbe,
 		return -EINVAL;
 	}
 
-	input = kzalloc(sizeof(*input), GFP_ATOMIC);
+	input = kzalloc_obj(*input, GFP_ATOMIC);
 	if (!input)
 		return -ENOMEM;
 

@@ -399,7 +399,7 @@ static int augmented_check(void)
 
 static int __init rbtree_test_init(void)
 {
-	nodes = kmalloc_array(nnodes, sizeof(*nodes), GFP_KERNEL);
+	nodes = kmalloc_objs(*nodes, nnodes);
 	if (!nodes)
 		return -ENOMEM;
 

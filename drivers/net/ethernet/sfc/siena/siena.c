@@ -266,7 +266,7 @@ static int siena_probe_nic(struct efx_nic *efx)
 	int rc;
 
 	/* Allocate storage for hardware specific data */
-	nic_data = kzalloc(sizeof(struct siena_nic_data), GFP_KERNEL);
+	nic_data = kzalloc_obj(struct siena_nic_data);
 	if (!nic_data)
 		return -ENOMEM;
 	nic_data->efx = efx;
@@ -923,7 +923,7 @@ static int siena_mtd_probe(struct efx_nic *efx)
 	if (rc)
 		return rc;
 
-	parts = kcalloc(hweight32(nvram_types), sizeof(*parts), GFP_KERNEL);
+	parts = kzalloc_objs(*parts, hweight32(nvram_types));
 	if (!parts)
 		return -ENOMEM;
 

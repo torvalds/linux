@@ -303,7 +303,7 @@ static int _of_opp_alloc_required_opps(struct opp_table *opp_table,
 	if (!count)
 		return 0;
 
-	opp->required_opps = kcalloc(count, sizeof(*opp->required_opps), GFP_KERNEL);
+	opp->required_opps = kzalloc_objs(*opp->required_opps, count);
 	if (!opp->required_opps)
 		return -ENOMEM;
 
@@ -469,7 +469,7 @@ int dev_pm_opp_of_find_icc_paths(struct device *dev,
 	}
 
 	num_paths = count / 2;
-	paths = kcalloc(num_paths, sizeof(*paths), GFP_KERNEL);
+	paths = kzalloc_objs(*paths, num_paths);
 	if (!paths)
 		return -ENOMEM;
 

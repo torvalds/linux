@@ -102,7 +102,7 @@ static struct tpmi_rapl_package *trp_alloc(int pkg_id)
 		}
 	}
 
-	trp = kzalloc(sizeof(*trp), GFP_KERNEL);
+	trp = kzalloc_obj(*trp);
 	if (!trp) {
 		ret = -ENOMEM;
 		goto err_del_powercap;
@@ -157,7 +157,7 @@ static int parse_one_domain(struct tpmi_rapl_package *trp, u32 offset)
 	tpmi_domain_flags = tpmi_domain_header >> 32 & 0xffff;
 
 	if (tpmi_domain_version == TPMI_VERSION_INVALID) {
-		pr_warn(FW_BUG "Invalid version\n");
+		pr_debug("Invalid version, other instances may be valid\n");
 		return -ENODEV;
 	}
 

@@ -1549,7 +1549,7 @@ struct clk_mgr_internal *dcn401_clk_mgr_construct(
 		struct dccg *dccg)
 {
 	struct clk_log_info log_info = {0};
-	struct dcn401_clk_mgr *clk_mgr401 = kzalloc(sizeof(struct dcn401_clk_mgr), GFP_KERNEL);
+	struct dcn401_clk_mgr *clk_mgr401 = kzalloc_obj(struct dcn401_clk_mgr);
 	struct clk_mgr_internal *clk_mgr;
 
 	if (!clk_mgr401)
@@ -1599,7 +1599,7 @@ struct clk_mgr_internal *dcn401_clk_mgr_construct(
 
 	clk_mgr->smu_present = false;
 
-	clk_mgr->base.bw_params = kzalloc(sizeof(*clk_mgr->base.bw_params), GFP_KERNEL);
+	clk_mgr->base.bw_params = kzalloc_obj(*clk_mgr->base.bw_params);
 	if (!clk_mgr->base.bw_params) {
 		BREAK_TO_DEBUGGER();
 		kfree(clk_mgr401);

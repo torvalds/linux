@@ -734,7 +734,7 @@ int sof_mtl_set_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *dsp_ops)
 	dsp_ops->core_get = mtl_dsp_core_get;
 	dsp_ops->core_put = mtl_dsp_core_put;
 
-	sdev->private = kzalloc(sizeof(struct sof_ipc4_fw_data), GFP_KERNEL);
+	sdev->private = kzalloc_obj(struct sof_ipc4_fw_data);
 	if (!sdev->private)
 		return -ENOMEM;
 

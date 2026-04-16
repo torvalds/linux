@@ -48,7 +48,7 @@ static int unstripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		return -EINVAL;
 	}
 
-	uc = kzalloc(sizeof(*uc), GFP_KERNEL);
+	uc = kzalloc_obj(*uc);
 	if (!uc) {
 		ti->error = "Memory allocation for unstriped context failed";
 		return -ENOMEM;

@@ -482,7 +482,7 @@ static int shrink_test_run_device(struct xe_device *xe)
 		unsigned int mem_type;
 		struct xe_ttm_tt *xe_tt;
 
-		link = kzalloc(sizeof(*link), GFP_KERNEL);
+		link = kzalloc_obj(*link);
 		if (!link) {
 			KUNIT_FAIL(test, "Unexpected link allocation failure\n");
 			failed = true;

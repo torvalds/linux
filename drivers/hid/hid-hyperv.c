@@ -149,7 +149,7 @@ static struct mousevsc_dev *mousevsc_alloc_device(struct hv_device *device)
 {
 	struct mousevsc_dev *input_dev;
 
-	input_dev = kzalloc(sizeof(struct mousevsc_dev), GFP_KERNEL);
+	input_dev = kzalloc_obj(struct mousevsc_dev);
 
 	if (!input_dev)
 		return NULL;

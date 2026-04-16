@@ -462,7 +462,7 @@ static struct st_request *st_allocate_request(struct scsi_tape *stp)
 {
 	struct st_request *streq;
 
-	streq = kzalloc(sizeof(*streq), GFP_KERNEL);
+	streq = kzalloc_obj(*streq);
 	if (streq)
 		streq->stp = stp;
 	else {
@@ -3973,7 +3973,7 @@ static struct st_buffer *new_tape_buffer(int max_sg)
 {
 	struct st_buffer *tb;
 
-	tb = kzalloc(sizeof(struct st_buffer), GFP_KERNEL);
+	tb = kzalloc_obj(struct st_buffer);
 	if (!tb) {
 		printk(KERN_NOTICE "st: Can't allocate new tape buffer.\n");
 		return NULL;
@@ -3982,8 +3982,7 @@ static struct st_buffer *new_tape_buffer(int max_sg)
 	tb->use_sg = max_sg;
 	tb->buffer_size = 0;
 
-	tb->reserved_pages = kcalloc(max_sg, sizeof(struct page *),
-				     GFP_KERNEL);
+	tb->reserved_pages = kzalloc_objs(struct page *, max_sg);
 	if (!tb->reserved_pages) {
 		kfree(tb);
 		return NULL;
@@ -4374,7 +4373,7 @@ static int st_probe(struct scsi_device *SDp)
 		goto out;
 	}
 
-	tpnt = kzalloc(sizeof(struct scsi_tape), GFP_KERNEL);
+	tpnt = kzalloc_obj(struct scsi_tape);
 	if (tpnt == NULL) {
 		sdev_printk(KERN_ERR, SDp,
 			    "st: Can't allocate device descriptor.\n");
@@ -4457,7 +4456,7 @@ static int st_probe(struct scsi_device *SDp)
 	}
 	tpnt->index = error;
 	sprintf(tpnt->name, "st%d", tpnt->index);
-	tpnt->stats = kzalloc(sizeof(struct scsi_tape_stats), GFP_KERNEL);
+	tpnt->stats = kzalloc_obj(struct scsi_tape_stats);
 	if (tpnt->stats == NULL) {
 		sdev_printk(KERN_ERR, SDp,
 			    "st: Can't allocate statistics.\n");
@@ -5007,7 +5006,7 @@ static int sgl_map_user_pages(struct st_buffer *STbp,
 	if (count == 0)
 		return 0;
 
-	pages = kmalloc_array(max_pages, sizeof(*pages), GFP_KERNEL);
+	pages = kmalloc_objs(*pages, max_pages);
 	if (pages == NULL)
 		return -ENOMEM;
 

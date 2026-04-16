@@ -155,8 +155,7 @@ static void * r1buf_pool_alloc(gfp_t gfp_flags, void *data)
 	if (!r1_bio)
 		return NULL;
 
-	rps = kmalloc_array(conf->raid_disks * 2, sizeof(struct resync_pages),
-			    gfp_flags);
+	rps = kmalloc_objs(struct resync_pages, conf->raid_disks * 2, gfp_flags);
 	if (!rps)
 		goto out_free_r1bio;
 
@@ -3070,27 +3069,23 @@ static struct r1conf *setup_conf(struct mddev *mddev)
 	size_t r1bio_size;
 	int err = -ENOMEM;
 
-	conf = kzalloc(sizeof(struct r1conf), GFP_KERNEL);
+	conf = kzalloc_obj(struct r1conf);
 	if (!conf)
 		goto abort;
 
-	conf->nr_pending = kcalloc(BARRIER_BUCKETS_NR,
-				   sizeof(atomic_t), GFP_KERNEL);
+	conf->nr_pending = kzalloc_objs(atomic_t, BARRIER_BUCKETS_NR);
 	if (!conf->nr_pending)
 		goto abort;
 
-	conf->nr_waiting = kcalloc(BARRIER_BUCKETS_NR,
-				   sizeof(atomic_t), GFP_KERNEL);
+	conf->nr_waiting = kzalloc_objs(atomic_t, BARRIER_BUCKETS_NR);
 	if (!conf->nr_waiting)
 		goto abort;
 
-	conf->nr_queued = kcalloc(BARRIER_BUCKETS_NR,
-				  sizeof(atomic_t), GFP_KERNEL);
+	conf->nr_queued = kzalloc_objs(atomic_t, BARRIER_BUCKETS_NR);
 	if (!conf->nr_queued)
 		goto abort;
 
-	conf->barrier = kcalloc(BARRIER_BUCKETS_NR,
-				sizeof(atomic_t), GFP_KERNEL);
+	conf->barrier = kzalloc_objs(atomic_t, BARRIER_BUCKETS_NR);
 	if (!conf->barrier)
 		goto abort;
 

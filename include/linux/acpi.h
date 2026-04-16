@@ -66,7 +66,7 @@ static inline struct fwnode_handle *acpi_alloc_fwnode_static(void)
 {
 	struct fwnode_handle *fwnode;
 
-	fwnode = kzalloc(sizeof(struct fwnode_handle), GFP_KERNEL);
+	fwnode = kzalloc_obj(struct fwnode_handle);
 	if (!fwnode)
 		return NULL;
 

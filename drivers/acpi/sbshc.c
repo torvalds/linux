@@ -254,7 +254,7 @@ static int acpi_smbus_hc_probe(struct platform_device *pdev)
 	strscpy(acpi_device_name(device), ACPI_SMB_HC_DEVICE_NAME);
 	strscpy(acpi_device_class(device), ACPI_SMB_HC_CLASS);
 
-	hc = kzalloc(sizeof(struct acpi_smb_hc), GFP_KERNEL);
+	hc = kzalloc_obj(struct acpi_smb_hc);
 	if (!hc)
 		return -ENOMEM;
 	mutex_init(&hc->lock);
@@ -275,13 +275,11 @@ static int acpi_smbus_hc_probe(struct platform_device *pdev)
 
 static void acpi_smbus_hc_remove(struct platform_device *pdev)
 {
-	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
 	struct acpi_smb_hc *hc = platform_get_drvdata(pdev);
 
 	acpi_ec_remove_query_handler(hc->ec, hc->query_bit);
 	acpi_os_wait_events_complete();
 	kfree(hc);
-	device->driver_data = NULL;
 }
 
 module_platform_driver(acpi_smb_hc_driver);

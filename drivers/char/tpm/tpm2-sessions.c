@@ -991,7 +991,7 @@ int tpm2_start_auth_session(struct tpm_chip *chip)
 		return 0;
 	}
 
-	auth = kzalloc(sizeof(*auth), GFP_KERNEL);
+	auth = kzalloc_obj(*auth);
 	if (!auth)
 		return -ENOMEM;
 

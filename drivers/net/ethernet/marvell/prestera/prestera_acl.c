@@ -144,7 +144,7 @@ prestera_acl_ruleset_create(struct prestera_acl *acl,
 	if (!prestera_acl_chain_is_supported(chain_index, block->ingress))
 		return ERR_PTR(-EINVAL);
 
-	ruleset = kzalloc(sizeof(*ruleset), GFP_KERNEL);
+	ruleset = kzalloc_obj(*ruleset);
 	if (!ruleset)
 		return ERR_PTR(-ENOMEM);
 
@@ -438,7 +438,7 @@ prestera_acl_rule_create(struct prestera_acl_ruleset *ruleset,
 {
 	struct prestera_acl_rule *rule;
 
-	rule = kzalloc(sizeof(*rule), GFP_KERNEL);
+	rule = kzalloc_obj(*rule);
 	if (!rule)
 		return ERR_PTR(-ENOMEM);
 
@@ -713,7 +713,7 @@ prestera_acl_rule_entry_create(struct prestera_acl *acl,
 	struct prestera_acl_rule_entry *e;
 	int err;
 
-	e = kzalloc(sizeof(*e), GFP_KERNEL);
+	e = kzalloc_obj(*e);
 	if (!e)
 		goto err_kzalloc;
 
@@ -816,7 +816,7 @@ int prestera_acl_vtcam_id_get(struct prestera_acl *acl, u8 lookup, u8 dir,
 	}
 
 	/* vtcam not found, try to create new one */
-	vtcam = kzalloc(sizeof(*vtcam), GFP_KERNEL);
+	vtcam = kzalloc_obj(*vtcam);
 	if (!vtcam)
 		return -ENOMEM;
 
@@ -880,7 +880,7 @@ int prestera_acl_init(struct prestera_switch *sw)
 	struct prestera_acl *acl;
 	int err;
 
-	acl = kzalloc(sizeof(*acl), GFP_KERNEL);
+	acl = kzalloc_obj(*acl);
 	if (!acl)
 		return -ENOMEM;
 

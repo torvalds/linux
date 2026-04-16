@@ -444,7 +444,7 @@ static int hvs_sock_init(struct vsock_sock *vsk, struct vsock_sock *psk)
 	struct hvsock *hvs;
 	struct sock *sk = sk_vsock(vsk);
 
-	hvs = kzalloc(sizeof(*hvs), GFP_KERNEL);
+	hvs = kzalloc_obj(*hvs);
 	if (!hvs)
 		return -ENOMEM;
 
@@ -655,7 +655,7 @@ static ssize_t hvs_stream_enqueue(struct vsock_sock *vsk, struct msghdr *msg,
 
 	BUILD_BUG_ON(sizeof(*send_buf) != HV_HYP_PAGE_SIZE);
 
-	send_buf = kmalloc(sizeof(*send_buf), GFP_KERNEL);
+	send_buf = kmalloc_obj(*send_buf);
 	if (!send_buf)
 		return -ENOMEM;
 

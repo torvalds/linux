@@ -94,7 +94,7 @@ get_supported_features(struct cxl_features_state *cxlfs)
 		return NULL;
 
 	struct cxl_feat_entries *entries __free(kvfree) =
-		kvmalloc(struct_size(entries, ent, count), GFP_KERNEL);
+		kvmalloc_flex(*entries, ent, count);
 	if (!entries)
 		return NULL;
 
@@ -204,7 +204,7 @@ int devm_cxl_setup_features(struct cxl_dev_state *cxlds)
 		return -ENODEV;
 
 	struct cxl_features_state *cxlfs __free(kfree) =
-		kzalloc(sizeof(*cxlfs), GFP_KERNEL);
+		kzalloc_obj(*cxlfs);
 	if (!cxlfs)
 		return -ENOMEM;
 

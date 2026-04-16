@@ -441,7 +441,7 @@ int snd_ac97_pcm_assign(struct snd_ac97_bus *bus,
 	unsigned int rates;
 	struct snd_ac97 *codec;
 
-	rpcms = kcalloc(pcms_count, sizeof(struct ac97_pcm), GFP_KERNEL);
+	rpcms = kzalloc_objs(struct ac97_pcm, pcms_count);
 	if (rpcms == NULL)
 		return -ENOMEM;
 	memset(avail_slots, 0, sizeof(avail_slots));

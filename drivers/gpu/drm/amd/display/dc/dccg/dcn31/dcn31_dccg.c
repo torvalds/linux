@@ -26,6 +26,7 @@
 #include "reg_helper.h"
 #include "core_types.h"
 #include "dcn31_dccg.h"
+#include "dcn20/dcn20_dccg.h"
 #include "dal_asic_id.h"
 
 #define TO_DCN_DCCG(dccg)\
@@ -850,6 +851,10 @@ static const struct dccg_funcs dccg31_funcs = {
 	.disable_dsc = dccg31_disable_dscclk,
 	.enable_dsc = dccg31_enable_dscclk,
 	.dccg_read_reg_state = dccg31_read_reg_state,
+	.refclk_setup = dccg2_refclk_setup, /* Deprecated - for backward compatibility only */
+	.allow_clock_gating = dccg2_allow_clock_gating,
+	.enable_memory_low_power = dccg2_enable_memory_low_power,
+	.is_s0i3_golden_init_wa_done = dccg2_is_s0i3_golden_init_wa_done /* Deprecated - for backward compatibility only */
 };
 
 struct dccg *dccg31_create(
@@ -858,7 +863,7 @@ struct dccg *dccg31_create(
 	const struct dccg_shift *dccg_shift,
 	const struct dccg_mask *dccg_mask)
 {
-	struct dcn_dccg *dccg_dcn = kzalloc(sizeof(*dccg_dcn), GFP_KERNEL);
+	struct dcn_dccg *dccg_dcn = kzalloc_obj(*dccg_dcn);
 	struct dccg *base;
 
 	if (dccg_dcn == NULL) {

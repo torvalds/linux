@@ -1025,8 +1025,7 @@ static int md_bitmap_storage_alloc(struct bitmap_storage *store,
 	num_pages = DIV_ROUND_UP(bytes, PAGE_SIZE);
 	offset = slot_number * num_pages;
 
-	store->filemap = kmalloc_array(num_pages, sizeof(struct page *),
-				       GFP_KERNEL);
+	store->filemap = kmalloc_objs(struct page *, num_pages);
 	if (!store->filemap)
 		return -ENOMEM;
 
@@ -2121,7 +2120,7 @@ static struct bitmap *__bitmap_create(struct mddev *mddev, int slot)
 		return ERR_PTR(-EBUSY);
 	}
 
-	bitmap = kzalloc(sizeof(*bitmap), GFP_KERNEL);
+	bitmap = kzalloc_obj(*bitmap);
 	if (!bitmap)
 		return ERR_PTR(-ENOMEM);
 
@@ -2436,7 +2435,7 @@ static int __bitmap_resize(struct bitmap *bitmap, sector_t blocks,
 
 	pages = DIV_ROUND_UP(chunks, PAGE_COUNTER_RATIO);
 
-	new_bp = kcalloc(pages, sizeof(*new_bp), GFP_KERNEL);
+	new_bp = kzalloc_objs(*new_bp, pages);
 	ret = -ENOMEM;
 	if (!new_bp) {
 		md_bitmap_file_unmap(&store);

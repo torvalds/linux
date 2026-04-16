@@ -305,7 +305,7 @@ static struct connection *nodeid2con(int nodeid, gfp_t alloc)
 	if (con || !alloc)
 		return con;
 
-	con = kzalloc(sizeof(*con), alloc);
+	con = kzalloc_obj(*con, alloc);
 	if (!con)
 		return NULL;
 
@@ -838,7 +838,7 @@ static struct processqueue_entry *new_processqueue_entry(int nodeid,
 {
 	struct processqueue_entry *pentry;
 
-	pentry = kmalloc(sizeof(*pentry), GFP_NOFS);
+	pentry = kmalloc_obj(*pentry, GFP_NOFS);
 	if (!pentry)
 		return NULL;
 
@@ -1052,7 +1052,7 @@ static int accept_from_sock(void)
 		struct connection *othercon = newcon->othercon;
 
 		if (!othercon) {
-			othercon = kzalloc(sizeof(*othercon), GFP_NOFS);
+			othercon = kzalloc_obj(*othercon, GFP_NOFS);
 			if (!othercon) {
 				log_print("failed to allocate incoming socket");
 				up_write(&newcon->sock_lock);

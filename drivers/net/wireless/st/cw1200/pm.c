@@ -207,7 +207,7 @@ int cw1200_wow_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	wsm_set_ether_type_filter(priv, &cw1200_ether_type_filter_on.hdr);
 
 	/* Allocate state */
-	state = kzalloc(sizeof(struct cw1200_suspend_state), GFP_KERNEL);
+	state = kzalloc_obj(struct cw1200_suspend_state);
 	if (!state)
 		goto revert3;
 
@@ -264,12 +264,14 @@ int cw1200_wow_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 		wiphy_err(priv->hw->wiphy,
 			  "PM request failed: %d. WoW is disabled.\n", ret);
 		cw1200_wow_resume(hw);
+		mutex_unlock(&priv->conf_mutex);
 		return -EBUSY;
 	}
 
 	/* Force resume if event is coming from the device. */
 	if (atomic_read(&priv->bh_rx)) {
 		cw1200_wow_resume(hw);
+		mutex_unlock(&priv->conf_mutex);
 		return -EAGAIN;
 	}
 

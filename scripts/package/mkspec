@@ -23,15 +23,47 @@ else
 echo '%define with_devel 0'
 fi
 
+# use %{debug_package} machinery to generate -debuginfo
+with_debuginfo_rpm=0
+# manually generate -debuginfo package
+with_debuginfo_manual=0
 # debuginfo package generation uses find-debuginfo.sh under the hood,
 # which only works on uncompressed modules that contain debuginfo
 if grep -q CONFIG_DEBUG_INFO=y include/config/auto.conf &&
    (! grep -q CONFIG_MODULE_COMPRESS=y include/config/auto.conf) &&
    (! grep -q CONFIG_DEBUG_INFO_SPLIT=y include/config/auto.conf); then
-echo '%define with_debuginfo %{?_without_debuginfo: 0} %{?!_without_debuginfo: 1}'
-else
-echo '%define with_debuginfo 0'
+	# If module signing is enabled (which may be required to boot with
+	# lockdown enabled), the find-debuginfo.sh machinery cannot be used
+	# because the signatures will be stripped off the modules. However, due
+	# to an rpm bug in versions prior to 4.20.0
+	#
+	#     https://github.com/rpm-software-management/rpm/issues/3057
+	#     https://github.com/rpm-software-management/rpm/commit/49f906998f3cf1f4152162ca61ac0869251c380f
+	#
+	# We cannot provide our own debuginfo package because it does not listen
+	# to our custom files list, failing the build due to unpackaged files.
+	# Manually generate the debug info package if using rpm 4.20.0. If not
+	# using rpm 4.20.0, avoid generating a -debuginfo package altogether,
+	# as it is not safe.
+	if grep -q CONFIG_MODULE_SIG=y include/config/auto.conf; then
+		rpm_ver_str=$(rpm --version 2>/dev/null)
+		# Split the version on spaces
+		IFS=' '
+		set -- $rpm_ver_str
+		if [ "${1:-}" = RPM -a "${2:-}" = version ]; then
+			IFS=.
+			set -- $3
+			rpm_ver=$(( 1000000 * $1 + 10000 * $2 + 100 * $3 + ${4:-0} ))
+			if [ "$rpm_ver" -ge 4200000 ]; then
+				with_debuginfo_manual='%{?_without_debuginfo:0}%{?!_without_debuginfo:1}'
+			fi
+		fi
+	else
+		with_debuginfo_rpm='%{?_without_debuginfo:0}%{?!_without_debuginfo:1}'
+	fi
 fi
+echo "%define with_debuginfo_manual $with_debuginfo_manual"
+echo "%define with_debuginfo_rpm $with_debuginfo_rpm"
 
 cat<<EOF
 %define ARCH ${ARCH}

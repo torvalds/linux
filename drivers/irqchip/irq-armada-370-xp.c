@@ -835,7 +835,7 @@ static int __init mpic_of_init(struct device_node *node, struct device_node *par
 	struct mpic *mpic;
 	int err;
 
-	mpic = kzalloc(sizeof(*mpic), GFP_KERNEL);
+	mpic = kzalloc_obj(*mpic);
 	if (WARN_ON(!mpic))
 		return -ENOMEM;
 

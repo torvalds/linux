@@ -210,7 +210,7 @@ void bnge_rdma_aux_device_init(struct bnge_dev *bd)
 	if (!bnge_is_roce_en(bd))
 		return;
 
-	aux_priv = kzalloc(sizeof(*aux_priv), GFP_KERNEL);
+	aux_priv = kzalloc_obj(*aux_priv);
 	if (!aux_priv)
 		goto exit;
 
@@ -235,13 +235,13 @@ void bnge_rdma_aux_device_init(struct bnge_dev *bd)
 	}
 	bd->aux_priv = aux_priv;
 
-	auxr_dev = kzalloc(sizeof(*auxr_dev), GFP_KERNEL);
+	auxr_dev = kzalloc_obj(*auxr_dev);
 	if (!auxr_dev)
 		goto aux_dev_uninit;
 
 	aux_priv->auxr_dev = auxr_dev;
 
-	auxr_info = kzalloc(sizeof(*auxr_info), GFP_KERNEL);
+	auxr_info = kzalloc_obj(*auxr_info);
 	if (!auxr_info)
 		goto aux_dev_uninit;
 

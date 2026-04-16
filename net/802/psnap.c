@@ -132,7 +132,7 @@ struct datalink_proto *register_snap_client(const unsigned char *desc,
 	if (find_snap_client(desc))
 		goto out;
 
-	proto = kmalloc(sizeof(*proto), GFP_ATOMIC);
+	proto = kmalloc_obj(*proto, GFP_ATOMIC);
 	if (proto) {
 		memcpy(proto->type, desc, 5);
 		proto->rcvfunc		= rcvfunc;

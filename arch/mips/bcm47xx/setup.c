@@ -187,7 +187,7 @@ static struct device * __init bcm47xx_setup_device(void)
 	struct device *dev;
 	int err;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return NULL;
 

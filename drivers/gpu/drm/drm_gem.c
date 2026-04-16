@@ -186,15 +186,16 @@ int drm_gem_object_init(struct drm_device *dev, struct drm_gem_object *obj,
 {
 	struct vfsmount *huge_mnt;
 	struct file *filp;
+	const vma_flags_t flags = mk_vma_flags(VMA_NORESERVE_BIT);
 
 	drm_gem_private_object_init(dev, obj, size);
 
 	huge_mnt = drm_gem_get_huge_mnt(dev);
 	if (huge_mnt)
 		filp = shmem_file_setup_with_mnt(huge_mnt, "drm mm object",
-						 size, VM_NORESERVE);
+						 size, flags);
 	else
-		filp = shmem_file_setup("drm mm object", size, VM_NORESERVE);
+		filp = shmem_file_setup("drm mm object", size, flags);
 
 	if (IS_ERR(filp))
 		return PTR_ERR(filp);
@@ -683,7 +684,7 @@ struct page **drm_gem_get_pages(struct drm_gem_object *obj)
 
 	npages = obj->size >> PAGE_SHIFT;
 
-	pages = kvmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
+	pages = kvmalloc_objs(struct page *, npages);
 	if (pages == NULL)
 		return ERR_PTR(-ENOMEM);
 
@@ -831,7 +832,7 @@ int drm_gem_objects_lookup(struct drm_file *filp, void __user *bo_handles,
 	if (!count)
 		return 0;
 
-	objs = kvmalloc_array(count, sizeof(struct drm_gem_object *),
+	objs = kvmalloc_objs(struct drm_gem_object *, count,
 			     GFP_KERNEL | __GFP_ZERO);
 	if (!objs)
 		return -ENOMEM;

@@ -727,9 +727,8 @@ ath5k_eeprom_convert_pcal_info_5111(struct ath5k_hw *ah, int mode,
 
 		/* Allocate pd_curves for this cal pier */
 		chinfo[pier].pd_curves =
-			kcalloc(AR5K_EEPROM_N_PD_CURVES,
-				sizeof(struct ath5k_pdgain_info),
-				GFP_KERNEL);
+			kzalloc_objs(struct ath5k_pdgain_info,
+				     AR5K_EEPROM_N_PD_CURVES);
 
 		if (!chinfo[pier].pd_curves)
 			goto err_out;
@@ -761,8 +760,7 @@ ath5k_eeprom_convert_pcal_info_5111(struct ath5k_hw *ah, int mode,
 		if (!pd->pd_step)
 			goto err_out;
 
-		pd->pd_pwr = kcalloc(AR5K_EEPROM_N_PWR_POINTS_5111,
-					sizeof(s16), GFP_KERNEL);
+		pd->pd_pwr = kzalloc_objs(s16, AR5K_EEPROM_N_PWR_POINTS_5111);
 		if (!pd->pd_pwr)
 			goto err_out;
 
@@ -917,9 +915,8 @@ ath5k_eeprom_convert_pcal_info_5112(struct ath5k_hw *ah, int mode,
 
 		/* Allocate pd_curves for this cal pier */
 		chinfo[pier].pd_curves =
-				kcalloc(AR5K_EEPROM_N_PD_CURVES,
-					sizeof(struct ath5k_pdgain_info),
-					GFP_KERNEL);
+				kzalloc_objs(struct ath5k_pdgain_info,
+					     AR5K_EEPROM_N_PD_CURVES);
 
 		if (!chinfo[pier].pd_curves)
 			goto err_out;
@@ -943,8 +940,7 @@ ath5k_eeprom_convert_pcal_info_5112(struct ath5k_hw *ah, int mode,
 				if (!pd->pd_step)
 					goto err_out;
 
-				pd->pd_pwr = kcalloc(pd->pd_points,
-						sizeof(s16), GFP_KERNEL);
+				pd->pd_pwr = kzalloc_objs(s16, pd->pd_points);
 
 				if (!pd->pd_pwr)
 					goto err_out;
@@ -981,8 +977,7 @@ ath5k_eeprom_convert_pcal_info_5112(struct ath5k_hw *ah, int mode,
 				if (!pd->pd_step)
 					goto err_out;
 
-				pd->pd_pwr = kcalloc(pd->pd_points,
-						sizeof(s16), GFP_KERNEL);
+				pd->pd_pwr = kzalloc_objs(s16, pd->pd_points);
 
 				if (!pd->pd_pwr)
 					goto err_out;
@@ -1209,9 +1204,8 @@ ath5k_eeprom_convert_pcal_info_2413(struct ath5k_hw *ah, int mode,
 
 		/* Allocate pd_curves for this cal pier */
 		chinfo[pier].pd_curves =
-				kcalloc(AR5K_EEPROM_N_PD_CURVES,
-					sizeof(struct ath5k_pdgain_info),
-					GFP_KERNEL);
+				kzalloc_objs(struct ath5k_pdgain_info,
+					     AR5K_EEPROM_N_PD_CURVES);
 
 		if (!chinfo[pier].pd_curves)
 			goto err_out;
@@ -1237,8 +1231,7 @@ ath5k_eeprom_convert_pcal_info_2413(struct ath5k_hw *ah, int mode,
 			if (!pd->pd_step)
 				goto err_out;
 
-			pd->pd_pwr = kcalloc(pd->pd_points,
-					sizeof(s16), GFP_KERNEL);
+			pd->pd_pwr = kzalloc_objs(s16, pd->pd_points);
 
 			if (!pd->pd_pwr)
 				goto err_out;

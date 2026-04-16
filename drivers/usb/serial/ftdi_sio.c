@@ -2188,7 +2188,7 @@ static int ftdi_port_probe(struct usb_serial_port *port)
 	struct ftdi_private *priv;
 	int result;
 
-	priv = kzalloc(sizeof(struct ftdi_private), GFP_KERNEL);
+	priv = kzalloc_obj(struct ftdi_private);
 	if (!priv)
 		return -ENOMEM;
 

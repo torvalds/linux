@@ -65,7 +65,7 @@ megasas_debugfs_raidmap_open(struct inode *inode, struct file *file)
 
 	fusion = instance->ctrl_context;
 
-	debug = kzalloc(sizeof(struct megasas_debugfs_buffer), GFP_KERNEL);
+	debug = kzalloc_obj(struct megasas_debugfs_buffer);
 	if (!debug)
 		return -ENOMEM;
 

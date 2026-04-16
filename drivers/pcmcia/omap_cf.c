@@ -218,7 +218,7 @@ static int __init omap_cf_probe(struct platform_device *pdev)
 	if (!res)
 		return -EINVAL;
 
-	cf = kzalloc(sizeof *cf, GFP_KERNEL);
+	cf = kzalloc_obj(*cf);
 	if (!cf)
 		return -ENOMEM;
 	timer_setup(&cf->timer, omap_cf_timer, 0);

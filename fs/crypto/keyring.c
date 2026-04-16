@@ -209,7 +209,7 @@ static int allocate_filesystem_keyring(struct super_block *sb)
 	if (sb->s_master_keys)
 		return 0;
 
-	keyring = kzalloc(sizeof(*keyring), GFP_KERNEL);
+	keyring = kzalloc_obj(*keyring);
 	if (!keyring)
 		return -ENOMEM;
 	spin_lock_init(&keyring->lock);
@@ -434,7 +434,7 @@ static int add_new_master_key(struct super_block *sb,
 	struct fscrypt_master_key *mk;
 	int err;
 
-	mk = kzalloc(sizeof(*mk), GFP_KERNEL);
+	mk = kzalloc_obj(*mk);
 	if (!mk)
 		return -ENOMEM;
 

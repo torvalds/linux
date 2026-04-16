@@ -290,7 +290,7 @@ nvkm_object_new_(const struct nvkm_object_func *func,
 		 struct nvkm_object **pobject)
 {
 	if (size == 0) {
-		if (!(*pobject = kzalloc(sizeof(**pobject), GFP_KERNEL)))
+		if (!(*pobject = kzalloc_obj(**pobject)))
 			return -ENOMEM;
 		nvkm_object_ctor(func, oclass, *pobject);
 		return 0;

@@ -139,7 +139,7 @@ static int b43_sdio_probe(struct sdio_func *func,
 	}
 	sdio_release_host(func);
 
-	sdio = kzalloc(sizeof(*sdio), GFP_KERNEL);
+	sdio = kzalloc_obj(*sdio);
 	if (!sdio) {
 		error = -ENOMEM;
 		dev_err(&func->dev, "failed to allocate ssb bus\n");

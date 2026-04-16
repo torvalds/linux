@@ -1377,8 +1377,7 @@ static int build_dma_sg(const struct sk_buff *skb, struct urb *urb)
 		return 0;
 
 	/* reserve one for zero packet */
-	urb->sg = kmalloc_array(num_sgs + 1, sizeof(struct scatterlist),
-				GFP_ATOMIC);
+	urb->sg = kmalloc_objs(struct scatterlist, num_sgs + 1, GFP_ATOMIC);
 	if (!urb->sg)
 		return -ENOMEM;
 
@@ -1830,11 +1829,12 @@ usbnet_probe(struct usb_interface *udev, const struct usb_device_id *prod)
 		if ((dev->driver_info->flags & FLAG_NOARP) != 0)
 			net->flags |= IFF_NOARP;
 
-		if (net->max_mtu > (dev->hard_mtu - net->hard_header_len))
+		if ((dev->driver_info->flags & FLAG_NOMAXMTU) == 0 &&
+		    net->max_mtu > (dev->hard_mtu - net->hard_header_len))
 			net->max_mtu = dev->hard_mtu - net->hard_header_len;
 
-		if (net->mtu > net->max_mtu)
-			net->mtu = net->max_mtu;
+		if (net->mtu > (dev->hard_mtu - net->hard_header_len))
+			net->mtu = dev->hard_mtu - net->hard_header_len;
 
 	} else if (!info->in || !info->out)
 		status = usbnet_get_endpoints(dev, udev);
@@ -2234,7 +2234,7 @@ int usbnet_write_cmd_async(struct usbnet *dev, u8 cmd, u8 reqtype,
 		}
 	}
 
-	req = kmalloc(sizeof(struct usb_ctrlrequest), GFP_ATOMIC);
+	req = kmalloc_obj(struct usb_ctrlrequest, GFP_ATOMIC);
 	if (!req)
 		goto fail_free_buf;
 

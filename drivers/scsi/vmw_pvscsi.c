@@ -1478,8 +1478,7 @@ static int pvscsi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 */
 	pvscsi_setup_all_rings(adapter);
 
-	adapter->cmd_map = kcalloc(adapter->req_depth,
-				   sizeof(struct pvscsi_ctx), GFP_KERNEL);
+	adapter->cmd_map = kzalloc_objs(struct pvscsi_ctx, adapter->req_depth);
 	if (!adapter->cmd_map) {
 		printk(KERN_ERR "vmw_pvscsi: failed to allocate memory.\n");
 		error = -ENOMEM;

@@ -329,7 +329,7 @@ static struct iommu_domain *qcom_iommu_domain_alloc_paging(struct device *dev)
 	 * We can't really do anything meaningful until we've added a
 	 * master.
 	 */
-	qcom_domain = kzalloc(sizeof(*qcom_domain), GFP_KERNEL);
+	qcom_domain = kzalloc_obj(*qcom_domain);
 	if (!qcom_domain)
 		return NULL;
 

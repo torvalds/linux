@@ -648,7 +648,7 @@ static int acpi_pci_root_add(struct acpi_device *device,
 	bool hotadd = system_state == SYSTEM_RUNNING;
 	const char *acpi_hid;
 
-	root = kzalloc(sizeof(struct acpi_pci_root), GFP_KERNEL);
+	root = kzalloc_obj(struct acpi_pci_root);
 	if (!root)
 		return -ENOMEM;
 

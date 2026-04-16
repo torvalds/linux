@@ -626,7 +626,7 @@ static const struct tee_shm_pool_ops pool_ops = {
  */
 static struct tee_shm_pool *optee_shm_pool_alloc_pages(void)
 {
-	struct tee_shm_pool *pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+	struct tee_shm_pool *pool = kzalloc_obj(*pool);
 
 	if (!pool)
 		return ERR_PTR(-ENOMEM);
@@ -1816,7 +1816,7 @@ static int optee_probe(struct platform_device *pdev)
 	if (IS_ERR(pool))
 		return PTR_ERR(pool);
 
-	optee = kzalloc(sizeof(*optee), GFP_KERNEL);
+	optee = kzalloc_obj(*optee);
 	if (!optee) {
 		rc = -ENOMEM;
 		goto err_free_shm_pool;

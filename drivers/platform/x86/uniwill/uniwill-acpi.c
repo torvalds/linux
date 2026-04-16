@@ -314,8 +314,8 @@
 #define LED_CHANNELS		3
 #define LED_MAX_BRIGHTNESS	200
 
-#define UNIWILL_FEATURE_FN_LOCK_TOGGLE		BIT(0)
-#define UNIWILL_FEATURE_SUPER_KEY_TOGGLE	BIT(1)
+#define UNIWILL_FEATURE_FN_LOCK			BIT(0)
+#define UNIWILL_FEATURE_SUPER_KEY		BIT(1)
 #define UNIWILL_FEATURE_TOUCHPAD_TOGGLE		BIT(2)
 #define UNIWILL_FEATURE_LIGHTBAR		BIT(3)
 #define UNIWILL_FEATURE_BATTERY			BIT(4)
@@ -330,6 +330,7 @@ struct uniwill_data {
 	struct acpi_battery_hook hook;
 	unsigned int last_charge_ctrl;
 	struct mutex battery_lock;	/* Protects the list of currently registered batteries */
+	unsigned int last_status;
 	unsigned int last_switch_status;
 	struct mutex super_key_lock;	/* Protects the toggling of the super key lock state */
 	struct list_head batteries;
@@ -377,11 +378,15 @@ static const struct key_entry uniwill_keymap[] = {
 	{ KE_IGNORE,    UNIWILL_OSD_CAPSLOCK,                   { KEY_CAPSLOCK }},
 	{ KE_IGNORE,    UNIWILL_OSD_NUMLOCK,                    { KEY_NUMLOCK }},
 
-	/* Reported when the user locks/unlocks the super key */
-	{ KE_IGNORE,    UNIWILL_OSD_SUPER_KEY_LOCK_ENABLE,      { KEY_UNKNOWN }},
-	{ KE_IGNORE,    UNIWILL_OSD_SUPER_KEY_LOCK_DISABLE,     { KEY_UNKNOWN }},
+	/*
+	 * Reported when the user enables/disables the super key.
+	 * Those events might even be reported when the change was done
+	 * using the sysfs attribute!
+	 */
+	{ KE_IGNORE,    UNIWILL_OSD_SUPER_KEY_DISABLE,		{ KEY_UNKNOWN }},
+	{ KE_IGNORE,    UNIWILL_OSD_SUPER_KEY_ENABLE,		{ KEY_UNKNOWN }},
 	/* Optional, might not be reported by all devices */
-	{ KE_IGNORE,	UNIWILL_OSD_SUPER_KEY_LOCK_CHANGED,	{ KEY_UNKNOWN }},
+	{ KE_IGNORE,	UNIWILL_OSD_SUPER_KEY_STATE_CHANGED,	{ KEY_UNKNOWN }},
 
 	/* Reported in manual mode when toggling the airplane mode status */
 	{ KE_KEY,       UNIWILL_OSD_RFKILL,                     { KEY_RFKILL }},
@@ -400,9 +405,6 @@ static const struct key_entry uniwill_keymap[] = {
 
 	/* Reported when the user wants to toggle the mute status */
 	{ KE_IGNORE,    UNIWILL_OSD_MUTE,                       { KEY_MUTE }},
-
-	/* Reported when the user locks/unlocks the Fn key */
-	{ KE_IGNORE,    UNIWILL_OSD_FN_LOCK,                    { KEY_FN_ESC }},
 
 	/* Reported when the user wants to toggle the brightness of the keyboard */
 	{ KE_KEY,       UNIWILL_OSD_KBDILLUMTOGGLE,             { KEY_KBDILLUMTOGGLE }},
@@ -576,6 +578,7 @@ static bool uniwill_volatile_reg(struct device *dev, unsigned int reg)
 	case EC_ADDR_SECOND_FAN_RPM_1:
 	case EC_ADDR_SECOND_FAN_RPM_2:
 	case EC_ADDR_BAT_ALERT:
+	case EC_ADDR_BIOS_OEM:
 	case EC_ADDR_PWM_1:
 	case EC_ADDR_PWM_2:
 	case EC_ADDR_TRIGGER:
@@ -600,8 +603,8 @@ static const struct regmap_config uniwill_ec_config = {
 	.use_single_write = true,
 };
 
-static ssize_t fn_lock_toggle_enable_store(struct device *dev, struct device_attribute *attr,
-					   const char *buf, size_t count)
+static ssize_t fn_lock_store(struct device *dev, struct device_attribute *attr, const char *buf,
+			     size_t count)
 {
 	struct uniwill_data *data = dev_get_drvdata(dev);
 	unsigned int value;
@@ -624,8 +627,7 @@ static ssize_t fn_lock_toggle_enable_store(struct device *dev, struct device_att
 	return count;
 }
 
-static ssize_t fn_lock_toggle_enable_show(struct device *dev, struct device_attribute *attr,
-					  char *buf)
+static ssize_t fn_lock_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct uniwill_data *data = dev_get_drvdata(dev);
 	unsigned int value;
@@ -638,10 +640,10 @@ static ssize_t fn_lock_toggle_enable_show(struct device *dev, struct device_attr
 	return sysfs_emit(buf, "%d\n", !!(value & FN_LOCK_STATUS));
 }
 
-static DEVICE_ATTR_RW(fn_lock_toggle_enable);
+static DEVICE_ATTR_RW(fn_lock);
 
-static ssize_t super_key_toggle_enable_store(struct device *dev, struct device_attribute *attr,
-					     const char *buf, size_t count)
+static ssize_t super_key_enable_store(struct device *dev, struct device_attribute *attr,
+				      const char *buf, size_t count)
 {
 	struct uniwill_data *data = dev_get_drvdata(dev);
 	unsigned int value;
@@ -673,8 +675,7 @@ static ssize_t super_key_toggle_enable_store(struct device *dev, struct device_a
 	return count;
 }
 
-static ssize_t super_key_toggle_enable_show(struct device *dev, struct device_attribute *attr,
-					    char *buf)
+static ssize_t super_key_enable_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct uniwill_data *data = dev_get_drvdata(dev);
 	unsigned int value;
@@ -687,7 +688,7 @@ static ssize_t super_key_toggle_enable_show(struct device *dev, struct device_at
 	return sysfs_emit(buf, "%d\n", !(value & SUPER_KEY_LOCK_STATUS));
 }
 
-static DEVICE_ATTR_RW(super_key_toggle_enable);
+static DEVICE_ATTR_RW(super_key_enable);
 
 static ssize_t touchpad_toggle_enable_store(struct device *dev, struct device_attribute *attr,
 					    const char *buf, size_t count)
@@ -881,8 +882,8 @@ static int uniwill_nvidia_ctgp_init(struct uniwill_data *data)
 
 static struct attribute *uniwill_attrs[] = {
 	/* Keyboard-related */
-	&dev_attr_fn_lock_toggle_enable.attr,
-	&dev_attr_super_key_toggle_enable.attr,
+	&dev_attr_fn_lock.attr,
+	&dev_attr_super_key_enable.attr,
 	&dev_attr_touchpad_toggle_enable.attr,
 	/* Lightbar-related */
 	&dev_attr_rainbow_animation.attr,
@@ -897,13 +898,13 @@ static umode_t uniwill_attr_is_visible(struct kobject *kobj, struct attribute *a
 	struct device *dev = kobj_to_dev(kobj);
 	struct uniwill_data *data = dev_get_drvdata(dev);
 
-	if (attr == &dev_attr_fn_lock_toggle_enable.attr) {
-		if (uniwill_device_supports(data, UNIWILL_FEATURE_FN_LOCK_TOGGLE))
+	if (attr == &dev_attr_fn_lock.attr) {
+		if (uniwill_device_supports(data, UNIWILL_FEATURE_FN_LOCK))
 			return attr->mode;
 	}
 
-	if (attr == &dev_attr_super_key_toggle_enable.attr) {
-		if (uniwill_device_supports(data, UNIWILL_FEATURE_SUPER_KEY_TOGGLE))
+	if (attr == &dev_attr_super_key_enable.attr) {
+		if (uniwill_device_supports(data, UNIWILL_FEATURE_SUPER_KEY))
 			return attr->mode;
 	}
 
@@ -1293,7 +1294,7 @@ static int uniwill_add_battery(struct power_supply *battery, struct acpi_battery
 	struct uniwill_battery_entry *entry;
 	int ret;
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 
@@ -1357,6 +1358,9 @@ static int uniwill_notifier_call(struct notifier_block *nb, unsigned long action
 
 	switch (action) {
 	case UNIWILL_OSD_BATTERY_ALERT:
+		if (!uniwill_device_supports(data, UNIWILL_FEATURE_BATTERY))
+			return NOTIFY_DONE;
+
 		mutex_lock(&data->battery_lock);
 		list_for_each_entry(entry, &data->batteries, head) {
 			power_supply_changed(entry->battery);
@@ -1368,6 +1372,13 @@ static int uniwill_notifier_call(struct notifier_block *nb, unsigned long action
 		/* noop for the time being, will change once charging priority
 		 * gets implemented.
 		 */
+
+		return NOTIFY_OK;
+	case UNIWILL_OSD_FN_LOCK:
+		if (!uniwill_device_supports(data, UNIWILL_FEATURE_FN_LOCK))
+			return NOTIFY_DONE;
+
+		sysfs_notify(&data->dev->kobj, NULL, "fn_lock");
 
 		return NOTIFY_OK;
 	default:
@@ -1503,9 +1514,21 @@ static void uniwill_shutdown(struct platform_device *pdev)
 	regmap_clear_bits(data->regmap, EC_ADDR_AP_OEM, ENABLE_MANUAL_CTRL);
 }
 
-static int uniwill_suspend_keyboard(struct uniwill_data *data)
+static int uniwill_suspend_fn_lock(struct uniwill_data *data)
 {
-	if (!uniwill_device_supports(data, UNIWILL_FEATURE_SUPER_KEY_TOGGLE))
+	if (!uniwill_device_supports(data, UNIWILL_FEATURE_FN_LOCK))
+		return 0;
+
+	/*
+	 * The EC_ADDR_BIOS_OEM is marked as volatile, so we have to restore it
+	 * ourselves.
+	 */
+	return regmap_read(data->regmap, EC_ADDR_BIOS_OEM, &data->last_status);
+}
+
+static int uniwill_suspend_super_key(struct uniwill_data *data)
+{
+	if (!uniwill_device_supports(data, UNIWILL_FEATURE_SUPER_KEY))
 		return 0;
 
 	/*
@@ -1542,7 +1565,11 @@ static int uniwill_suspend(struct device *dev)
 	struct uniwill_data *data = dev_get_drvdata(dev);
 	int ret;
 
-	ret = uniwill_suspend_keyboard(data);
+	ret = uniwill_suspend_fn_lock(data);
+	if (ret < 0)
+		return ret;
+
+	ret = uniwill_suspend_super_key(data);
 	if (ret < 0)
 		return ret;
 
@@ -1560,12 +1587,21 @@ static int uniwill_suspend(struct device *dev)
 	return 0;
 }
 
-static int uniwill_resume_keyboard(struct uniwill_data *data)
+static int uniwill_resume_fn_lock(struct uniwill_data *data)
+{
+	if (!uniwill_device_supports(data, UNIWILL_FEATURE_FN_LOCK))
+		return 0;
+
+	return regmap_update_bits(data->regmap, EC_ADDR_BIOS_OEM, FN_LOCK_STATUS,
+				  data->last_status);
+}
+
+static int uniwill_resume_super_key(struct uniwill_data *data)
 {
 	unsigned int value;
 	int ret;
 
-	if (!uniwill_device_supports(data, UNIWILL_FEATURE_SUPER_KEY_TOGGLE))
+	if (!uniwill_device_supports(data, UNIWILL_FEATURE_SUPER_KEY))
 		return 0;
 
 	ret = regmap_read(data->regmap, EC_ADDR_SWITCH_STATUS, &value);
@@ -1608,7 +1644,11 @@ static int uniwill_resume(struct device *dev)
 	if (ret < 0)
 		return ret;
 
-	ret = uniwill_resume_keyboard(data);
+	ret = uniwill_resume_fn_lock(data);
+	if (ret < 0)
+		return ret;
+
+	ret = uniwill_resume_super_key(data);
 	if (ret < 0)
 		return ret;
 
@@ -1643,16 +1683,16 @@ static struct platform_driver uniwill_driver = {
 };
 
 static struct uniwill_device_descriptor lapac71h_descriptor __initdata = {
-	.features = UNIWILL_FEATURE_FN_LOCK_TOGGLE |
-		    UNIWILL_FEATURE_SUPER_KEY_TOGGLE |
+	.features = UNIWILL_FEATURE_FN_LOCK |
+		    UNIWILL_FEATURE_SUPER_KEY |
 		    UNIWILL_FEATURE_TOUCHPAD_TOGGLE |
 		    UNIWILL_FEATURE_BATTERY |
 		    UNIWILL_FEATURE_HWMON,
 };
 
 static struct uniwill_device_descriptor lapkc71f_descriptor __initdata = {
-	.features = UNIWILL_FEATURE_FN_LOCK_TOGGLE |
-		    UNIWILL_FEATURE_SUPER_KEY_TOGGLE |
+	.features = UNIWILL_FEATURE_FN_LOCK |
+		    UNIWILL_FEATURE_SUPER_KEY |
 		    UNIWILL_FEATURE_TOUCHPAD_TOGGLE |
 		    UNIWILL_FEATURE_LIGHTBAR |
 		    UNIWILL_FEATURE_BATTERY |

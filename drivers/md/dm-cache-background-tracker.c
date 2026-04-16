@@ -26,7 +26,7 @@ struct kmem_cache *btracker_work_cache = NULL;
 
 struct background_tracker *btracker_create(unsigned int max_work)
 {
-	struct background_tracker *b = kmalloc(sizeof(*b), GFP_KERNEL);
+	struct background_tracker *b = kmalloc_obj(*b);
 
 	if (!b) {
 		DMERR("couldn't create background_tracker");

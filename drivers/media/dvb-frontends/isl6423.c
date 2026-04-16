@@ -258,7 +258,7 @@ struct dvb_frontend *isl6423_attach(struct dvb_frontend *fe,
 {
 	struct isl6423_dev *isl6423;
 
-	isl6423 = kzalloc(sizeof(struct isl6423_dev), GFP_KERNEL);
+	isl6423 = kzalloc_obj(struct isl6423_dev);
 	if (!isl6423)
 		return NULL;
 

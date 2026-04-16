@@ -248,7 +248,7 @@ static int telem_open(struct inode *inode, struct file *filp)
 
 	get_device(&dev_data->dev);
 
-	sess_data = kzalloc(sizeof(*sess_data), GFP_KERNEL);
+	sess_data = kzalloc_obj(*sess_data);
 	if (!sess_data) {
 		atomic_set(&dev_data->available, 1);
 		return -ENOMEM;
@@ -370,7 +370,7 @@ static int telem_device_probe(struct platform_device *pdev)
 		return error;
 	}
 
-	dev_data = kzalloc(sizeof(*dev_data), GFP_KERNEL);
+	dev_data = kzalloc_obj(*dev_data);
 	if (!dev_data) {
 		ida_free(&telem_ida, minor);
 		return -ENOMEM;

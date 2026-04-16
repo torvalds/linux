@@ -139,7 +139,7 @@ void fnic_fcoe_process_vlan_resp(struct fnic *fnic, struct fip_header *fiph)
 			FNIC_FIP_DBG(KERN_INFO, fnic->host,
 				     fnic->fnic_num,
 				     "process_vlan_resp: FIP VLAN %d\n", vid);
-			vlan = kzalloc(sizeof(*vlan), GFP_KERNEL);
+			vlan = kzalloc_obj(*vlan);
 
 			if (!vlan) {
 				/* retry from timer */

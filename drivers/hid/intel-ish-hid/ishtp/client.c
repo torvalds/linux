@@ -105,7 +105,7 @@ struct ishtp_cl *ishtp_cl_allocate(struct ishtp_cl_device *cl_device)
 {
 	struct ishtp_cl *cl;
 
-	cl = kmalloc(sizeof(struct ishtp_cl), GFP_KERNEL);
+	cl = kmalloc_obj(struct ishtp_cl);
 	if (!cl)
 		return NULL;
 

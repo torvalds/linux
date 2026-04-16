@@ -58,7 +58,7 @@ static int cpufreq_userspace_policy_init(struct cpufreq_policy *policy)
 {
 	struct userspace_policy *userspace;
 
-	userspace = kzalloc(sizeof(*userspace), GFP_KERNEL);
+	userspace = kzalloc_obj(*userspace);
 	if (!userspace)
 		return -ENOMEM;
 

@@ -479,8 +479,7 @@ static int hisi_zip_create_req_q(struct hisi_zip_ctx *ctx)
 		}
 		spin_lock_init(&req_q->req_lock);
 
-		req_q->q = kcalloc(req_q->size, sizeof(struct hisi_zip_req),
-				   GFP_KERNEL);
+		req_q->q = kzalloc_objs(struct hisi_zip_req, req_q->size);
 		if (!req_q->q) {
 			ret = -ENOMEM;
 			if (i == 0)

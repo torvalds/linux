@@ -106,7 +106,7 @@ xchk_setup_dirtree(
 			return error;
 	}
 
-	dl = kvzalloc(sizeof(struct xchk_dirtree), XCHK_GFP_FLAGS);
+	dl = kvzalloc_obj(struct xchk_dirtree, XCHK_GFP_FLAGS);
 	if (!dl)
 		return -ENOMEM;
 	dl->sc = sc;
@@ -238,7 +238,7 @@ xchk_dirtree_create_path(
 	 * Create a new xchk_path structure to remember this parent pointer
 	 * and record the first name step.
 	 */
-	path = kmalloc(sizeof(struct xchk_dirpath), XCHK_GFP_FLAGS);
+	path = kmalloc_obj(struct xchk_dirpath, XCHK_GFP_FLAGS);
 	if (!path)
 		return -ENOMEM;
 

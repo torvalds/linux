@@ -500,7 +500,7 @@ calc_seckey(struct cifs_ses *ses)
 
 	get_random_bytes(sec_key, CIFS_SESS_KEY_SIZE);
 
-	ctx_arc4 = kmalloc(sizeof(*ctx_arc4), GFP_KERNEL);
+	ctx_arc4 = kmalloc_obj(*ctx_arc4);
 	if (!ctx_arc4) {
 		cifs_dbg(VFS, "Could not allocate arc4 context\n");
 		return -ENOMEM;

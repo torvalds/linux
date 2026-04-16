@@ -502,7 +502,6 @@ void kvm_destroy_vcpus(struct kvm *kvm)
 }
 EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_destroy_vcpus);
 
-#ifdef CONFIG_KVM_GENERIC_MMU_NOTIFIER
 static inline struct kvm *mmu_notifier_to_kvm(struct mmu_notifier *mn)
 {
 	return container_of(mn, struct kvm, mmu_notifier);
@@ -901,15 +900,6 @@ static int kvm_init_mmu_notifier(struct kvm *kvm)
 	return mmu_notifier_register(&kvm->mmu_notifier, current->mm);
 }
 
-#else  /* !CONFIG_KVM_GENERIC_MMU_NOTIFIER */
-
-static int kvm_init_mmu_notifier(struct kvm *kvm)
-{
-	return 0;
-}
-
-#endif /* CONFIG_KVM_GENERIC_MMU_NOTIFIER */
-
 #ifdef CONFIG_HAVE_KVM_PM_NOTIFIER
 static int kvm_pm_notifier_call(struct notifier_block *bl,
 				unsigned long state,
@@ -983,9 +973,9 @@ static void kvm_free_memslots(struct kvm *kvm, struct kvm_memslots *slots)
 		kvm_free_memslot(kvm, memslot);
 }
 
-static umode_t kvm_stats_debugfs_mode(const struct _kvm_stats_desc *pdesc)
+static umode_t kvm_stats_debugfs_mode(const struct kvm_stats_desc *desc)
 {
-	switch (pdesc->desc.flags & KVM_STATS_TYPE_MASK) {
+	switch (desc->flags & KVM_STATS_TYPE_MASK) {
 	case KVM_STATS_TYPE_INSTANT:
 		return 0444;
 	case KVM_STATS_TYPE_CUMULATIVE:
@@ -1020,7 +1010,7 @@ static int kvm_create_vm_debugfs(struct kvm *kvm, const char *fdname)
 	struct dentry *dent;
 	char dir_name[ITOA_MAX_LEN * 2];
 	struct kvm_stat_data *stat_data;
-	const struct _kvm_stats_desc *pdesc;
+	const struct kvm_stats_desc *pdesc;
 	int i, ret = -ENOMEM;
 	int kvm_debugfs_num_entries = kvm_vm_stats_header.num_desc +
 				      kvm_vcpu_stats_header.num_desc;
@@ -1043,15 +1033,15 @@ static int kvm_create_vm_debugfs(struct kvm *kvm, const char *fdname)
 		return 0;
 
 	kvm->debugfs_dentry = dent;
-	kvm->debugfs_stat_data = kcalloc(kvm_debugfs_num_entries,
-					 sizeof(*kvm->debugfs_stat_data),
-					 GFP_KERNEL_ACCOUNT);
+	kvm->debugfs_stat_data = kzalloc_objs(*kvm->debugfs_stat_data,
+					      kvm_debugfs_num_entries,
+					      GFP_KERNEL_ACCOUNT);
 	if (!kvm->debugfs_stat_data)
 		goto out_err;
 
 	for (i = 0; i < kvm_vm_stats_header.num_desc; ++i) {
 		pdesc = &kvm_vm_stats_desc[i];
-		stat_data = kzalloc(sizeof(*stat_data), GFP_KERNEL_ACCOUNT);
+		stat_data = kzalloc_obj(*stat_data, GFP_KERNEL_ACCOUNT);
 		if (!stat_data)
 			goto out_err;
 
@@ -1066,7 +1056,7 @@ static int kvm_create_vm_debugfs(struct kvm *kvm, const char *fdname)
 
 	for (i = 0; i < kvm_vcpu_stats_header.num_desc; ++i) {
 		pdesc = &kvm_vcpu_stats_desc[i];
-		stat_data = kzalloc(sizeof(*stat_data), GFP_KERNEL_ACCOUNT);
+		stat_data = kzalloc_obj(*stat_data, GFP_KERNEL_ACCOUNT);
 		if (!stat_data)
 			goto out_err;
 
@@ -1185,7 +1175,7 @@ static struct kvm *kvm_create_vm(unsigned long type, const char *fdname)
 	r = -ENOMEM;
 	for (i = 0; i < KVM_NR_BUSES; i++) {
 		rcu_assign_pointer(kvm->buses[i],
-			kzalloc(sizeof(struct kvm_io_bus), GFP_KERNEL_ACCOUNT));
+			kzalloc_obj(struct kvm_io_bus, GFP_KERNEL_ACCOUNT));
 		if (!kvm->buses[i])
 			goto out_err_no_arch_destroy_vm;
 	}
@@ -1226,10 +1216,8 @@ static struct kvm *kvm_create_vm(unsigned long type, const char *fdname)
 out_err_no_debugfs:
 	kvm_coalesced_mmio_free(kvm);
 out_no_coalesced_mmio:
-#ifdef CONFIG_KVM_GENERIC_MMU_NOTIFIER
 	if (kvm->mmu_notifier.ops)
 		mmu_notifier_unregister(&kvm->mmu_notifier, current->mm);
-#endif
 out_err_no_mmu_notifier:
 	kvm_disable_virtualization();
 out_err_no_disable:
@@ -1292,7 +1280,6 @@ static void kvm_destroy_vm(struct kvm *kvm)
 		kvm->buses[i] = NULL;
 	}
 	kvm_coalesced_mmio_free(kvm);
-#ifdef CONFIG_KVM_GENERIC_MMU_NOTIFIER
 	mmu_notifier_unregister(&kvm->mmu_notifier, kvm->mm);
 	/*
 	 * At this point, pending calls to invalidate_range_start()
@@ -1311,9 +1298,6 @@ static void kvm_destroy_vm(struct kvm *kvm)
 		kvm->mn_active_invalidate_count = 0;
 	else
 		WARN_ON(kvm->mmu_invalidate_in_progress);
-#else
-	kvm_flush_shadow_all(kvm);
-#endif
 	kvm_arch_destroy_vm(kvm);
 	kvm_destroy_devices(kvm);
 	for (i = 0; i < kvm_arch_nr_memslot_as_ids(kvm); i++) {
@@ -1944,7 +1928,7 @@ static int kvm_set_memslot(struct kvm *kvm,
 	 * invalidation needs to be reverted.
 	 */
 	if (change == KVM_MR_DELETE || change == KVM_MR_MOVE) {
-		invalid_slot = kzalloc(sizeof(*invalid_slot), GFP_KERNEL_ACCOUNT);
+		invalid_slot = kzalloc_obj(*invalid_slot, GFP_KERNEL_ACCOUNT);
 		if (!invalid_slot) {
 			mutex_unlock(&kvm->slots_arch_lock);
 			return -ENOMEM;
@@ -2117,7 +2101,7 @@ static int kvm_set_memory_region(struct kvm *kvm,
 		return -EEXIST;
 
 	/* Allocate a slot that will persist in the memslot. */
-	new = kzalloc(sizeof(*new), GFP_KERNEL_ACCOUNT);
+	new = kzalloc_obj(*new, GFP_KERNEL_ACCOUNT);
 	if (!new)
 		return -ENOMEM;
 
@@ -4505,7 +4489,7 @@ static long kvm_vcpu_ioctl(struct file *filp,
 		struct kvm_regs *kvm_regs;
 
 		r = -ENOMEM;
-		kvm_regs = kzalloc(sizeof(struct kvm_regs), GFP_KERNEL);
+		kvm_regs = kzalloc_obj(struct kvm_regs);
 		if (!kvm_regs)
 			goto out;
 		r = kvm_arch_vcpu_ioctl_get_regs(vcpu, kvm_regs);
@@ -4532,7 +4516,7 @@ out_free1:
 		break;
 	}
 	case KVM_GET_SREGS: {
-		kvm_sregs = kzalloc(sizeof(struct kvm_sregs), GFP_KERNEL);
+		kvm_sregs = kzalloc_obj(struct kvm_sregs);
 		r = -ENOMEM;
 		if (!kvm_sregs)
 			goto out;
@@ -4624,7 +4608,7 @@ out_free1:
 		break;
 	}
 	case KVM_GET_FPU: {
-		fpu = kzalloc(sizeof(struct kvm_fpu), GFP_KERNEL);
+		fpu = kzalloc_obj(struct kvm_fpu);
 		r = -ENOMEM;
 		if (!fpu)
 			goto out;
@@ -4844,7 +4828,7 @@ static int kvm_ioctl_create_device(struct kvm *kvm,
 	if (test)
 		return 0;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL_ACCOUNT);
+	dev = kzalloc_obj(*dev, GFP_KERNEL_ACCOUNT);
 	if (!dev)
 		return -ENOMEM;
 
@@ -4886,6 +4870,7 @@ static int kvm_ioctl_create_device(struct kvm *kvm,
 static int kvm_vm_ioctl_check_extension_generic(struct kvm *kvm, long arg)
 {
 	switch (arg) {
+	case KVM_CAP_SYNC_MMU:
 	case KVM_CAP_USER_MEMORY:
 	case KVM_CAP_USER_MEMORY2:
 	case KVM_CAP_DESTROY_MEMORY_REGION_WORKS:
@@ -6006,8 +5991,8 @@ int kvm_io_bus_register_dev(struct kvm *kvm, enum kvm_bus bus_idx, gpa_t addr,
 	if (bus->dev_count - bus->ioeventfd_count > NR_IOBUS_DEVS - 1)
 		return -ENOSPC;
 
-	new_bus = kmalloc(struct_size(bus, range, bus->dev_count + 1),
-			  GFP_KERNEL_ACCOUNT);
+	new_bus = kmalloc_flex(*bus, range, bus->dev_count + 1,
+			       GFP_KERNEL_ACCOUNT);
 	if (!new_bus)
 		return -ENOMEM;
 
@@ -6053,8 +6038,8 @@ int kvm_io_bus_unregister_dev(struct kvm *kvm, enum kvm_bus bus_idx,
 	if (i == bus->dev_count)
 		return 0;
 
-	new_bus = kmalloc(struct_size(bus, range, bus->dev_count - 1),
-			  GFP_KERNEL_ACCOUNT);
+	new_bus = kmalloc_flex(*bus, range, bus->dev_count - 1,
+			       GFP_KERNEL_ACCOUNT);
 	if (new_bus) {
 		memcpy(new_bus, bus, struct_size(bus, range, i));
 		new_bus->dev_count--;
@@ -6186,11 +6171,11 @@ static int kvm_stat_data_get(void *data, u64 *val)
 	switch (stat_data->kind) {
 	case KVM_STAT_VM:
 		r = kvm_get_stat_per_vm(stat_data->kvm,
-					stat_data->desc->desc.offset, val);
+					stat_data->desc->offset, val);
 		break;
 	case KVM_STAT_VCPU:
 		r = kvm_get_stat_per_vcpu(stat_data->kvm,
-					  stat_data->desc->desc.offset, val);
+					  stat_data->desc->offset, val);
 		break;
 	}
 
@@ -6208,11 +6193,11 @@ static int kvm_stat_data_clear(void *data, u64 val)
 	switch (stat_data->kind) {
 	case KVM_STAT_VM:
 		r = kvm_clear_stat_per_vm(stat_data->kvm,
-					  stat_data->desc->desc.offset);
+					  stat_data->desc->offset);
 		break;
 	case KVM_STAT_VCPU:
 		r = kvm_clear_stat_per_vcpu(stat_data->kvm,
-					    stat_data->desc->desc.offset);
+					    stat_data->desc->offset);
 		break;
 	}
 
@@ -6326,7 +6311,7 @@ static void kvm_uevent_notify_change(unsigned int type, struct kvm *kvm)
 	active = kvm_active_vms;
 	mutex_unlock(&kvm_lock);
 
-	env = kzalloc(sizeof(*env), GFP_KERNEL);
+	env = kzalloc_obj(*env);
 	if (!env)
 		return;
 
@@ -6360,7 +6345,7 @@ static void kvm_uevent_notify_change(unsigned int type, struct kvm *kvm)
 static void kvm_init_debug(void)
 {
 	const struct file_operations *fops;
-	const struct _kvm_stats_desc *pdesc;
+	const struct kvm_stats_desc *pdesc;
 	int i;
 
 	kvm_debugfs_dir = debugfs_create_dir("kvm", NULL);
@@ -6373,7 +6358,7 @@ static void kvm_init_debug(void)
 			fops = &vm_stat_readonly_fops;
 		debugfs_create_file(pdesc->name, kvm_stats_debugfs_mode(pdesc),
 				kvm_debugfs_dir,
-				(void *)(long)pdesc->desc.offset, fops);
+				(void *)(long)pdesc->offset, fops);
 	}
 
 	for (i = 0; i < kvm_vcpu_stats_header.num_desc; ++i) {
@@ -6384,7 +6369,7 @@ static void kvm_init_debug(void)
 			fops = &vcpu_stat_readonly_fops;
 		debugfs_create_file(pdesc->name, kvm_stats_debugfs_mode(pdesc),
 				kvm_debugfs_dir,
-				(void *)(long)pdesc->desc.offset, fops);
+				(void *)(long)pdesc->offset, fops);
 	}
 }
 

@@ -294,8 +294,7 @@ static inline int udp_lib_init_sock(struct sock *sk)
 	up->forward_threshold = sk->sk_rcvbuf >> 2;
 	set_bit(SOCK_CUSTOM_SOCKOPT, &sk->sk_socket->flags);
 
-	up->udp_prod_queue = kcalloc(nr_node_ids, sizeof(*up->udp_prod_queue),
-				     GFP_KERNEL);
+	up->udp_prod_queue = kzalloc_objs(*up->udp_prod_queue, nr_node_ids);
 	if (!up->udp_prod_queue)
 		return -ENOMEM;
 	for (int i = 0; i < nr_node_ids; i++)

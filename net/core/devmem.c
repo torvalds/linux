@@ -241,9 +241,8 @@ net_devmem_bind_dmabuf(struct net_device *dev,
 	}
 
 	if (direction == DMA_TO_DEVICE) {
-		binding->tx_vec = kvmalloc_array(dmabuf->size / PAGE_SIZE,
-						 sizeof(struct net_iov *),
-						 GFP_KERNEL);
+		binding->tx_vec = kvmalloc_objs(struct net_iov *,
+						dmabuf->size / PAGE_SIZE);
 		if (!binding->tx_vec) {
 			err = -ENOMEM;
 			goto err_unmap;
@@ -289,9 +288,8 @@ net_devmem_bind_dmabuf(struct net_device *dev,
 			goto err_free_chunks;
 		}
 
-		owner->area.niovs = kvmalloc_array(owner->area.num_niovs,
-						   sizeof(*owner->area.niovs),
-						   GFP_KERNEL);
+		owner->area.niovs = kvmalloc_objs(*owner->area.niovs,
+						  owner->area.num_niovs);
 		if (!owner->area.niovs) {
 			err = -ENOMEM;
 			goto err_free_chunks;
@@ -398,7 +396,8 @@ struct net_devmem_dmabuf_binding *net_devmem_get_binding(struct sock *sk,
 	 * net_device.
 	 */
 	dst_dev = dst_dev_rcu(dst);
-	if (unlikely(!dst_dev) || unlikely(dst_dev != binding->dev)) {
+	if (unlikely(!dst_dev) ||
+	    unlikely(dst_dev != READ_ONCE(binding->dev))) {
 		err = -ENODEV;
 		goto out_unlock;
 	}
@@ -515,7 +514,8 @@ static void mp_dmabuf_devmem_uninstall(void *mp_priv,
 			xa_erase(&binding->bound_rxqs, xa_idx);
 			if (xa_empty(&binding->bound_rxqs)) {
 				mutex_lock(&binding->lock);
-				binding->dev = NULL;
+				ASSERT_EXCLUSIVE_WRITER(binding->dev);
+				WRITE_ONCE(binding->dev, NULL);
 				mutex_unlock(&binding->lock);
 			}
 			break;

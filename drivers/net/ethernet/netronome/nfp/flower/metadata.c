@@ -214,7 +214,7 @@ nfp_add_mask_table(struct nfp_app *app, char *mask_data, u32 mask_len)
 	if (nfp_mask_alloc(app, &mask_id))
 		return -ENOENT;
 
-	mask_entry = kmalloc(sizeof(*mask_entry), GFP_KERNEL);
+	mask_entry = kmalloc_obj(*mask_entry);
 	if (!mask_entry) {
 		nfp_release_mask_id(app, mask_id);
 		return -ENOMEM;
@@ -324,7 +324,7 @@ int nfp_compile_flow_metadata(struct nfp_app *app, u32 cookie,
 	nfp_flow->meta.host_cookie = cpu_to_be64(cookie);
 	nfp_flow->ingress_dev = netdev;
 
-	ctx_entry = kzalloc(sizeof(*ctx_entry), GFP_KERNEL);
+	ctx_entry = kzalloc_obj(*ctx_entry);
 	if (!ctx_entry) {
 		err = -ENOMEM;
 		goto err_release_stats;
@@ -557,8 +557,8 @@ int nfp_flower_metadata_init(struct nfp_app *app, u64 host_ctx_count,
 
 	/* Init timestamps for mask id*/
 	priv->mask_ids.last_used =
-		kmalloc_array(NFP_FLOWER_MASK_ENTRY_RS,
-			      sizeof(*priv->mask_ids.last_used), GFP_KERNEL);
+		kmalloc_objs(*priv->mask_ids.last_used,
+			     NFP_FLOWER_MASK_ENTRY_RS);
 	if (!priv->mask_ids.last_used)
 		goto err_free_mask_id;
 
@@ -573,8 +573,7 @@ int nfp_flower_metadata_init(struct nfp_app *app, u64 host_ctx_count,
 
 	stats_size = FIELD_PREP(NFP_FL_STAT_ID_STAT, host_ctx_count) |
 		     FIELD_PREP(NFP_FL_STAT_ID_MU_NUM, host_num_mems - 1);
-	priv->stats = kvmalloc_array(stats_size, sizeof(struct nfp_fl_stats),
-				     GFP_KERNEL);
+	priv->stats = kvmalloc_objs(struct nfp_fl_stats, stats_size);
 	if (!priv->stats)
 		goto err_free_ring_buf;
 

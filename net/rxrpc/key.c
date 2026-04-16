@@ -75,7 +75,7 @@ static int rxrpc_preparse_xdr_rxkad(struct key_preparsed_payload *prep,
 	prep->quotalen = datalen + plen;
 
 	plen -= sizeof(*token);
-	token = kzalloc(sizeof(*token), GFP_KERNEL);
+	token = kzalloc_obj(*token);
 	if (!token)
 		return -ENOMEM;
 
@@ -202,7 +202,7 @@ static int rxrpc_preparse_xdr_yfs_rxgk(struct key_preparsed_payload *prep,
 	prep->quotalen = datalen + plen;
 
 	plen -= sizeof(*token);
-	token = kzalloc(sizeof(*token), GFP_KERNEL);
+	token = kzalloc_obj(*token);
 	if (!token)
 		goto nomem;
 
@@ -500,7 +500,7 @@ static int rxrpc_preparse(struct key_preparsed_payload *prep)
 	prep->quotalen = plen + sizeof(*token);
 
 	ret = -ENOMEM;
-	token = kzalloc(sizeof(*token), GFP_KERNEL);
+	token = kzalloc_obj(*token);
 	if (!token)
 		goto error;
 	token->kad = kzalloc(plen, GFP_KERNEL);

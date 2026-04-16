@@ -441,7 +441,7 @@ static void mgmt_recv_msg_handler(struct hinic_pf_to_mgmt *pf_to_mgmt,
 {
 	struct hinic_mgmt_msg_handle_work *mgmt_work = NULL;
 
-	mgmt_work = kzalloc(sizeof(*mgmt_work), GFP_KERNEL);
+	mgmt_work = kzalloc_obj(*mgmt_work);
 	if (!mgmt_work)
 		return;
 

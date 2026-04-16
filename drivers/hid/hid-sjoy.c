@@ -83,7 +83,7 @@ static int sjoyff_init(struct hid_device *hid)
 			return -ENODEV;
 		}
 
-		sjoyff = kzalloc(sizeof(struct sjoyff_device), GFP_KERNEL);
+		sjoyff = kzalloc_obj(struct sjoyff_device);
 		if (!sjoyff)
 			return -ENOMEM;
 

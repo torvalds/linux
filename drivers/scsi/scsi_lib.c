@@ -2751,7 +2751,7 @@ EXPORT_SYMBOL_GPL(sdev_evt_send);
 struct scsi_event *sdev_evt_alloc(enum scsi_device_event evt_type,
 				  gfp_t gfpflags)
 {
-	struct scsi_event *evt = kzalloc(sizeof(struct scsi_event), gfpflags);
+	struct scsi_event *evt = kzalloc_obj(struct scsi_event, gfpflags);
 	if (!evt)
 		return NULL;
 

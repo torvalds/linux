@@ -224,7 +224,7 @@ static int delay_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		return -EINVAL;
 	}
 
-	dc = kzalloc(sizeof(*dc), GFP_KERNEL);
+	dc = kzalloc_obj(*dc);
 	if (!dc) {
 		ti->error = "Cannot allocate context";
 		return -ENOMEM;

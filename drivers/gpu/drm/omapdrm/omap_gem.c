@@ -254,7 +254,7 @@ static int omap_gem_attach_pages(struct drm_gem_object *obj)
 	 * DSS, GPU, etc. are not cache coherent:
 	 */
 	if (omap_obj->flags & (OMAP_BO_WC|OMAP_BO_UNCACHED)) {
-		addrs = kmalloc_array(npages, sizeof(*addrs), GFP_KERNEL);
+		addrs = kmalloc_objs(*addrs, npages);
 		if (!addrs) {
 			ret = -ENOMEM;
 			goto free_pages;
@@ -278,7 +278,7 @@ static int omap_gem_attach_pages(struct drm_gem_object *obj)
 			}
 		}
 	} else {
-		addrs = kcalloc(npages, sizeof(*addrs), GFP_KERNEL);
+		addrs = kzalloc_objs(*addrs, npages);
 		if (!addrs) {
 			ret = -ENOMEM;
 			goto free_pages;
@@ -989,7 +989,7 @@ struct sg_table *omap_gem_get_sg(struct drm_gem_object *obj,
 	if (sgt)
 		goto out;
 
-	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
+	sgt = kzalloc_obj(*sgt);
 	if (!sgt) {
 		ret = -ENOMEM;
 		goto err_unpin;
@@ -1319,7 +1319,7 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 	}
 
 	/* Allocate the initialize the OMAP GEM object. */
-	omap_obj = kzalloc(sizeof(*omap_obj), GFP_KERNEL);
+	omap_obj = kzalloc_obj(*omap_obj);
 	if (!omap_obj)
 		return NULL;
 
@@ -1410,7 +1410,7 @@ struct drm_gem_object *omap_gem_new_dmabuf(struct drm_device *dev, size_t size,
 		unsigned int ret;
 
 		npages = DIV_ROUND_UP(size, PAGE_SIZE);
-		pages = kcalloc(npages, sizeof(*pages), GFP_KERNEL);
+		pages = kzalloc_objs(*pages, npages);
 		if (!pages) {
 			omap_gem_free_object(obj);
 			return ERR_PTR(-ENOMEM);
@@ -1470,7 +1470,7 @@ void omap_gem_init(struct drm_device *dev)
 		return;
 	}
 
-	usergart = kcalloc(3, sizeof(*usergart), GFP_KERNEL);
+	usergart = kzalloc_objs(*usergart, 3);
 	if (!usergart)
 		return;
 

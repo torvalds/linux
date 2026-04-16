@@ -188,7 +188,8 @@ enum io_uring_sqe_flags_bit {
 /*
  * If COOP_TASKRUN is set, get notified if task work is available for
  * running and a kernel transition would be needed to run it. This sets
- * IORING_SQ_TASKRUN in the sq ring flags. Not valid with COOP_TASKRUN.
+ * IORING_SQ_TASKRUN in the sq ring flags. Not valid without COOP_TASKRUN
+ * or DEFER_TASKRUN.
  */
 #define IORING_SETUP_TASKRUN_FLAG	(1U << 9)
 #define IORING_SETUP_SQE128		(1U << 10) /* SQEs are 128 byte */
@@ -1088,6 +1089,14 @@ struct io_uring_zcrx_area_reg {
 
 enum zcrx_reg_flags {
 	ZCRX_REG_IMPORT	= 1,
+};
+
+enum zcrx_features {
+	/*
+	 * The user can ask for the desired rx page size by passing the
+	 * value in struct io_uring_zcrx_ifq_reg::rx_buf_len.
+	 */
+	ZCRX_FEATURE_RX_PAGE_SIZE	= 1 << 0,
 };
 
 /*

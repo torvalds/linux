@@ -723,7 +723,7 @@ static int mts_usb_probe(struct usb_interface *intf,
 	}
 
 
-	new_desc = kzalloc(sizeof(struct mts_desc), GFP_KERNEL);
+	new_desc = kzalloc_obj(struct mts_desc);
 	if (!new_desc)
 		goto out;
 

@@ -370,8 +370,8 @@ static inline void vmbus_signal_eom(struct hv_message *msg, u32 old_msg_type)
 	 * CHANNELMSG_UNLOAD_RESPONSE and we don't care about other messages
 	 * on crash.
 	 */
-	if (cmpxchg(&msg->header.message_type, old_msg_type,
-		    HVMSG_NONE) != old_msg_type)
+	if (!try_cmpxchg(&msg->header.message_type,
+			 &old_msg_type, HVMSG_NONE))
 		return;
 
 	/*

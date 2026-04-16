@@ -21,7 +21,7 @@ alloc_empty_config(struct i915_perf *perf)
 {
 	struct i915_oa_config *oa_config;
 
-	oa_config = kzalloc(sizeof(*oa_config), GFP_KERNEL);
+	oa_config = kzalloc_obj(*oa_config);
 	if (!oa_config)
 		return -ENOMEM;
 
@@ -114,7 +114,7 @@ test_stream(struct i915_perf *perf)
 
 	props.metrics_set = oa_config->id;
 
-	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
+	stream = kzalloc_obj(*stream);
 	if (!stream) {
 		i915_oa_config_put(oa_config);
 		return NULL;

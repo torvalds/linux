@@ -435,7 +435,7 @@ static struct ishtp_cl_device *ishtp_bus_add_device(struct ishtp_device *dev,
 	}
 	spin_unlock_irqrestore(&dev->device_list_lock, flags);
 
-	device = kzalloc(sizeof(struct ishtp_cl_device), GFP_KERNEL);
+	device = kzalloc_obj(struct ishtp_cl_device);
 	if (!device)
 		return NULL;
 

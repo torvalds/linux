@@ -59,7 +59,7 @@ int iommu_device_sysfs_add(struct iommu_device *iommu,
 	va_list vargs;
 	int ret;
 
-	iommu->dev = kzalloc(sizeof(*iommu->dev), GFP_KERNEL);
+	iommu->dev = kzalloc_obj(*iommu->dev);
 	if (!iommu->dev)
 		return -ENOMEM;
 

@@ -1203,7 +1203,7 @@ static int mlxbf_tmfifo_create_vdev(struct device *dev,
 		goto fail;
 	}
 
-	tm_vdev = kzalloc(sizeof(*tm_vdev), GFP_KERNEL);
+	tm_vdev = kzalloc_obj(*tm_vdev);
 	if (!tm_vdev) {
 		ret = -ENOMEM;
 		goto fail;

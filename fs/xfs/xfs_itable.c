@@ -230,8 +230,8 @@ xfs_bulkstat_one(
 
 	ASSERT(breq->icount == 1);
 
-	bc.buf = kzalloc(sizeof(struct xfs_bulkstat),
-			GFP_KERNEL | __GFP_RETRY_MAYFAIL);
+	bc.buf = kzalloc_obj(struct xfs_bulkstat,
+			     GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 	if (!bc.buf)
 		return -ENOMEM;
 
@@ -317,8 +317,8 @@ xfs_bulkstat(
 	if (xfs_bulkstat_already_done(breq->mp, breq->startino))
 		return 0;
 
-	bc.buf = kzalloc(sizeof(struct xfs_bulkstat),
-			GFP_KERNEL | __GFP_RETRY_MAYFAIL);
+	bc.buf = kzalloc_obj(struct xfs_bulkstat,
+			     GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 	if (!bc.buf)
 		return -ENOMEM;
 

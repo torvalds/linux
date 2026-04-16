@@ -134,7 +134,7 @@ static u32 get_ta_refcount(u32 ta_handle)
 		if (ta_data->ta_handle == ta_handle)
 			return ++ta_data->refcount;
 
-	ta_data = kzalloc(sizeof(*ta_data), GFP_KERNEL);
+	ta_data = kzalloc_obj(*ta_data);
 	if (ta_data) {
 		ta_data->ta_handle = ta_handle;
 		ta_data->refcount = 1;
@@ -293,7 +293,7 @@ int handle_map_shmem(u32 count, struct shmem_desc *start, u32 *buf_id)
 	if (!count || !start || !buf_id)
 		return -EINVAL;
 
-	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd)
 		return -ENOMEM;
 

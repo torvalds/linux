@@ -750,7 +750,7 @@ static int video_i2c_probe(struct i2c_client *client)
 	struct vb2_queue *queue;
 	int ret = -ENODEV;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 

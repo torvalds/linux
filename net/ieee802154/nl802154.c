@@ -603,7 +603,7 @@ nl802154_dump_wpan_phy(struct sk_buff *skb, struct netlink_callback *cb)
 
 	rtnl_lock();
 	if (!state) {
-		state = kzalloc(sizeof(*state), GFP_KERNEL);
+		state = kzalloc_obj(*state);
 		if (!state) {
 			rtnl_unlock();
 			return -ENOMEM;
@@ -1418,7 +1418,7 @@ static int nl802154_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 		return -EOPNOTSUPP;
 	}
 
-	request = kzalloc(sizeof(*request), GFP_KERNEL);
+	request = kzalloc_obj(*request);
 	if (!request)
 		return -ENOMEM;
 
@@ -1586,7 +1586,7 @@ nl802154_send_beacons(struct sk_buff *skb, struct genl_info *info)
 		return -EOPNOTSUPP;
 	}
 
-	request = kzalloc(sizeof(*request), GFP_KERNEL);
+	request = kzalloc_obj(*request);
 	if (!request)
 		return -ENOMEM;
 

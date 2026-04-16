@@ -536,7 +536,7 @@ struct tiler_block *tiler_reserve_2d(enum tiler_fmt fmt, u16 w,
 	unsigned long flags;
 	u32 slot_bytes;
 
-	block = kzalloc(sizeof(*block), GFP_KERNEL);
+	block = kzalloc_obj(*block);
 	if (!block)
 		return ERR_PTR(-ENOMEM);
 
@@ -571,7 +571,7 @@ struct tiler_block *tiler_reserve_2d(enum tiler_fmt fmt, u16 w,
 
 struct tiler_block *tiler_reserve_1d(size_t size)
 {
-	struct tiler_block *block = kzalloc(sizeof(*block), GFP_KERNEL);
+	struct tiler_block *block = kzalloc_obj(*block);
 	int num_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	unsigned long flags;
 
@@ -774,7 +774,7 @@ static int omap_dmm_probe(struct platform_device *dev)
 	u32 hwinfo, pat_geom;
 	struct resource *mem;
 
-	omap_dmm = kzalloc(sizeof(*omap_dmm), GFP_KERNEL);
+	omap_dmm = kzalloc_obj(*omap_dmm);
 	if (!omap_dmm)
 		goto fail;
 
@@ -885,8 +885,8 @@ static int omap_dmm_probe(struct platform_device *dev)
 	}
 
 	/* alloc engines */
-	omap_dmm->engines = kcalloc(omap_dmm->num_engines,
-				    sizeof(*omap_dmm->engines), GFP_KERNEL);
+	omap_dmm->engines = kzalloc_objs(*omap_dmm->engines,
+					 omap_dmm->num_engines);
 	if (!omap_dmm->engines) {
 		ret = -ENOMEM;
 		goto fail;
@@ -904,8 +904,7 @@ static int omap_dmm_probe(struct platform_device *dev)
 		list_add(&omap_dmm->engines[i].idle_node, &omap_dmm->idle_head);
 	}
 
-	omap_dmm->tcm = kcalloc(omap_dmm->num_lut, sizeof(*omap_dmm->tcm),
-				GFP_KERNEL);
+	omap_dmm->tcm = kzalloc_objs(*omap_dmm->tcm, omap_dmm->num_lut);
 	if (!omap_dmm->tcm) {
 		ret = -ENOMEM;
 		goto fail;

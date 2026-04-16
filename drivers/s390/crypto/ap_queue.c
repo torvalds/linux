@@ -1183,7 +1183,7 @@ struct ap_queue *ap_queue_create(ap_qid_t qid, struct ap_card *ac)
 {
 	struct ap_queue *aq;
 
-	aq = kzalloc(sizeof(*aq), GFP_KERNEL);
+	aq = kzalloc_obj(*aq);
 	if (!aq)
 		return NULL;
 	aq->card = ac;

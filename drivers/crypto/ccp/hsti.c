@@ -87,7 +87,7 @@ static int psp_populate_hsti(struct psp_device *psp)
 		return 0;
 
 	/* Allocate command-response buffer */
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req)
 		return -ENOMEM;
 

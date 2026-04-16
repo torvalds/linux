@@ -1492,7 +1492,7 @@ static int adin1110_switchdev_event(struct notifier_block *unused,
 	if (!adin1110_port_dev_check(netdev))
 		return NOTIFY_DONE;
 
-	switchdev_work = kzalloc(sizeof(*switchdev_work), GFP_ATOMIC);
+	switchdev_work = kzalloc_obj(*switchdev_work, GFP_ATOMIC);
 	if (WARN_ON(!switchdev_work))
 		return NOTIFY_BAD;
 

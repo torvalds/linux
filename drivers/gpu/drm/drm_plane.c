@@ -1514,7 +1514,7 @@ retry:
 	}
 
 	if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT) {
-		e = kzalloc(sizeof *e, GFP_KERNEL);
+		e = kzalloc_obj(*e);
 		if (!e) {
 			ret = -ENOMEM;
 			goto out;
@@ -1844,9 +1844,7 @@ int drm_plane_create_color_pipeline_property(struct drm_plane *plane,
 	int len = 0;
 	int i;
 
-	all_pipelines = kcalloc(num_pipelines + 1,
-				sizeof(*all_pipelines),
-				GFP_KERNEL);
+	all_pipelines = kzalloc_objs(*all_pipelines, num_pipelines + 1);
 
 	if (!all_pipelines) {
 		drm_err(plane->dev, "failed to allocate color pipeline\n");

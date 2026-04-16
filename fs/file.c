@@ -212,11 +212,11 @@ static struct fdtable *alloc_fdtable(unsigned int slots_wanted)
 	if (unlikely(nr > INT_MAX / sizeof(struct file *)))
 		return ERR_PTR(-EMFILE);
 
-	fdt = kmalloc(sizeof(struct fdtable), GFP_KERNEL_ACCOUNT);
+	fdt = kmalloc_obj(struct fdtable, GFP_KERNEL_ACCOUNT);
 	if (!fdt)
 		goto out;
 	fdt->max_fds = nr;
-	data = kvmalloc_array(nr, sizeof(struct file *), GFP_KERNEL_ACCOUNT);
+	data = kvmalloc_objs(struct file *, nr, GFP_KERNEL_ACCOUNT);
 	if (!data)
 		goto out_fdt;
 	fdt->fd = data;
@@ -777,23 +777,29 @@ static inline void __range_close(struct files_struct *files, unsigned int fd,
 				 unsigned int max_fd)
 {
 	struct file *file;
+	struct fdtable *fdt;
 	unsigned n;
 
 	spin_lock(&files->file_lock);
-	n = last_fd(files_fdtable(files));
+	fdt = files_fdtable(files);
+	n = last_fd(fdt);
 	max_fd = min(max_fd, n);
 
-	for (; fd <= max_fd; fd++) {
+	for (fd = find_next_bit(fdt->open_fds, max_fd + 1, fd);
+	     fd <= max_fd;
+	     fd = find_next_bit(fdt->open_fds, max_fd + 1, fd + 1)) {
 		file = file_close_fd_locked(files, fd);
 		if (file) {
 			spin_unlock(&files->file_lock);
 			filp_close(file, files);
 			cond_resched();
 			spin_lock(&files->file_lock);
+			fdt = files_fdtable(files);
 		} else if (need_resched()) {
 			spin_unlock(&files->file_lock);
 			cond_resched();
 			spin_lock(&files->file_lock);
+			fdt = files_fdtable(files);
 		}
 	}
 	spin_unlock(&files->file_lock);

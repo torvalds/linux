@@ -2163,7 +2163,7 @@ static int qeth_l3_ip6_event(struct notifier_block *this,
 	if (!qeth_is_supported(card, IPA_IPV6))
 		return NOTIFY_DONE;
 
-	ip_work = kmalloc(sizeof(*ip_work), GFP_ATOMIC);
+	ip_work = kmalloc_obj(*ip_work, GFP_ATOMIC);
 	if (!ip_work)
 		return NOTIFY_DONE;
 

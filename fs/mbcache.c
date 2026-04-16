@@ -358,16 +358,14 @@ struct mb_cache *mb_cache_create(int bucket_bits)
 	unsigned long bucket_count = 1UL << bucket_bits;
 	unsigned long i;
 
-	cache = kzalloc(sizeof(struct mb_cache), GFP_KERNEL);
+	cache = kzalloc_obj(struct mb_cache);
 	if (!cache)
 		goto err_out;
 	cache->c_bucket_bits = bucket_bits;
 	cache->c_max_entries = bucket_count << 4;
 	INIT_LIST_HEAD(&cache->c_list);
 	spin_lock_init(&cache->c_list_lock);
-	cache->c_hash = kmalloc_array(bucket_count,
-				      sizeof(struct hlist_bl_head),
-				      GFP_KERNEL);
+	cache->c_hash = kmalloc_objs(struct hlist_bl_head, bucket_count);
 	if (!cache->c_hash) {
 		kfree(cache);
 		goto err_out;

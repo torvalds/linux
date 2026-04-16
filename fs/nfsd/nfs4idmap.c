@@ -97,7 +97,7 @@ ent_put(struct kref *ref)
 static struct cache_head *
 ent_alloc(void)
 {
-	struct ent *e = kmalloc(sizeof(*e), GFP_KERNEL);
+	struct ent *e = kmalloc_obj(*e);
 	if (e)
 		return &e->h;
 	else

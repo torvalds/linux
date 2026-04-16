@@ -202,4 +202,13 @@ static inline unsigned int kmem_cache_sheaf_size(struct slab_sheaf *sheaf)
 	return sheaf->size;
 }
 
+#define __alloc_objs(KMALLOC, GFP, TYPE, COUNT)				\
+({									\
+	const size_t __obj_size = size_mul(sizeof(TYPE), COUNT);	\
+	(TYPE *)KMALLOC(__obj_size, GFP);				\
+})
+
+#define kzalloc_obj(P, ...) \
+	__alloc_objs(kzalloc, default_gfp(__VA_ARGS__), typeof(P), 1)
+
 #endif		/* _TOOLS_SLAB_H */

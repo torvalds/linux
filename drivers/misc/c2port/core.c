@@ -912,7 +912,7 @@ struct c2port_device *c2port_device_register(char *name,
 		unlikely(!ops->c2d_get) || unlikely(!ops->c2d_set))
 		return ERR_PTR(-EINVAL);
 
-	c2dev = kzalloc(sizeof(struct c2port_device), GFP_KERNEL);
+	c2dev = kzalloc_obj(struct c2port_device);
 	if (unlikely(!c2dev))
 		return ERR_PTR(-ENOMEM);
 

@@ -128,7 +128,7 @@ static int gb_vibrator_probe(struct gb_bundle *bundle,
 	if (cport_desc->protocol_id != GREYBUS_PROTOCOL_VIBRATOR)
 		return -ENODEV;
 
-	vib = kzalloc(sizeof(*vib), GFP_KERNEL);
+	vib = kzalloc_obj(*vib);
 	if (!vib)
 		return -ENOMEM;
 

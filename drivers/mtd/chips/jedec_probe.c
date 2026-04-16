@@ -1985,7 +1985,7 @@ static int cfi_jedec_setup(struct map_info *map, struct cfi_private *cfi, int in
 
 	num_erase_regions = jedec_table[index].nr_regions;
 
-	cfi->cfiq = kmalloc(struct_size(cfi->cfiq, EraseRegionInfo, num_erase_regions), GFP_KERNEL);
+	cfi->cfiq = kmalloc_flex(*cfi->cfiq, EraseRegionInfo, num_erase_regions);
 	if (!cfi->cfiq) {
 		//xx printk(KERN_WARNING "%s: kmalloc failed for CFI ident structure\n", map->name);
 		return 0;

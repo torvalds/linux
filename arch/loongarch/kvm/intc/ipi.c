@@ -409,7 +409,7 @@ static int kvm_ipi_create(struct kvm_device *dev, u32 type)
 		return -EINVAL;
 	}
 
-	s = kzalloc(sizeof(struct loongarch_ipi), GFP_KERNEL);
+	s = kzalloc_obj(struct loongarch_ipi);
 	if (!s)
 		return -ENOMEM;
 

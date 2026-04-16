@@ -114,7 +114,7 @@ mlx5_vhca_state_change_notifier(struct notifier_block *nb, unsigned long type, v
 	struct mlx5_eqe *eqe = data;
 	int wq_idx;
 
-	work = kzalloc(sizeof(*work), GFP_ATOMIC);
+	work = kzalloc_obj(*work, GFP_ATOMIC);
 	if (!work)
 		return NOTIFY_DONE;
 	INIT_WORK(&work->work, &mlx5_vhca_state_work_handler);
@@ -153,7 +153,7 @@ int mlx5_vhca_event_init(struct mlx5_core_dev *dev)
 	if (!mlx5_vhca_event_supported(dev))
 		return 0;
 
-	events = kzalloc(sizeof(*events), GFP_KERNEL);
+	events = kzalloc_obj(*events);
 	if (!events)
 		return -ENOMEM;
 

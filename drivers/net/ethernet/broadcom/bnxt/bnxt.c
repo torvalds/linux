@@ -3752,21 +3752,19 @@ static int bnxt_alloc_one_tpa_info(struct bnxt *bp,
 	struct rx_agg_cmp *agg;
 	int i;
 
-	rxr->rx_tpa = kcalloc(bp->max_tpa, sizeof(struct bnxt_tpa_info),
-			      GFP_KERNEL);
+	rxr->rx_tpa = kzalloc_objs(struct bnxt_tpa_info, bp->max_tpa);
 	if (!rxr->rx_tpa)
 		return -ENOMEM;
 
 	if (!(bp->flags & BNXT_FLAG_CHIP_P5_PLUS))
 		return 0;
 	for (i = 0; i < bp->max_tpa; i++) {
-		agg = kcalloc(MAX_SKB_FRAGS, sizeof(*agg), GFP_KERNEL);
+		agg = kzalloc_objs(*agg, MAX_SKB_FRAGS);
 		if (!agg)
 			return -ENOMEM;
 		rxr->rx_tpa[i].agg_arr = agg;
 	}
-	rxr->rx_tpa_idx_map = kzalloc(sizeof(*rxr->rx_tpa_idx_map),
-				      GFP_KERNEL);
+	rxr->rx_tpa_idx_map = kzalloc_obj(*rxr->rx_tpa_idx_map);
 	if (!rxr->rx_tpa_idx_map)
 		return -ENOMEM;
 
@@ -4081,11 +4079,10 @@ static void bnxt_free_cp_arrays(struct bnxt_cp_ring_info *cpr)
 
 static int bnxt_alloc_cp_arrays(struct bnxt_cp_ring_info *cpr, int n)
 {
-	cpr->cp_desc_ring = kcalloc(n, sizeof(*cpr->cp_desc_ring), GFP_KERNEL);
+	cpr->cp_desc_ring = kzalloc_objs(*cpr->cp_desc_ring, n);
 	if (!cpr->cp_desc_ring)
 		return -ENOMEM;
-	cpr->cp_desc_mapping = kcalloc(n, sizeof(*cpr->cp_desc_mapping),
-				       GFP_KERNEL);
+	cpr->cp_desc_mapping = kzalloc_objs(*cpr->cp_desc_mapping, n);
 	if (!cpr->cp_desc_mapping)
 		return -ENOMEM;
 	return 0;
@@ -4232,8 +4229,7 @@ static int bnxt_alloc_cp_rings(struct bnxt *bp)
 			tx = 1;
 		}
 
-		cpr->cp_ring_arr = kcalloc(cp_count, sizeof(*cpr),
-					   GFP_KERNEL);
+		cpr->cp_ring_arr = kzalloc_objs(*cpr, cp_count);
 		if (!cpr->cp_ring_arr)
 			return -ENOMEM;
 		cpr->cp_ring_count = cp_count;
@@ -4627,9 +4623,8 @@ static int bnxt_init_ring_grps(struct bnxt *bp, bool irq_re_init)
 	int i;
 
 	if (irq_re_init) {
-		bp->grp_info = kcalloc(bp->cp_nr_rings,
-				       sizeof(struct bnxt_ring_grp_info),
-				       GFP_KERNEL);
+		bp->grp_info = kzalloc_objs(struct bnxt_ring_grp_info,
+					    bp->cp_nr_rings);
 		if (!bp->grp_info)
 			return -ENOMEM;
 	}
@@ -4667,8 +4662,7 @@ static int bnxt_alloc_vnics(struct bnxt *bp)
 	if (BNXT_CHIP_TYPE_NITRO_A0(bp))
 		num_vnics++;
 
-	bp->vnic_info = kcalloc(num_vnics, sizeof(struct bnxt_vnic_info),
-				GFP_KERNEL);
+	bp->vnic_info = kzalloc_objs(struct bnxt_vnic_info, num_vnics);
 	if (!bp->vnic_info)
 		return -ENOMEM;
 
@@ -5248,7 +5242,7 @@ static int bnxt_alloc_stats(struct bnxt *bp)
 		struct bnxt_napi *bnapi = bp->bnapi[i];
 		struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
 
-		cpr->sw_stats = kzalloc(sizeof(*cpr->sw_stats), GFP_KERNEL);
+		cpr->sw_stats = kzalloc_obj(*cpr->sw_stats);
 		if (!cpr->sw_stats)
 			return -ENOMEM;
 
@@ -5516,9 +5510,8 @@ static int bnxt_alloc_mem(struct bnxt *bp, bool irq_re_init)
 			}
 		}
 
-		bp->rx_ring = kcalloc(bp->rx_nr_rings,
-				      sizeof(struct bnxt_rx_ring_info),
-				      GFP_KERNEL);
+		bp->rx_ring = kzalloc_objs(struct bnxt_rx_ring_info,
+					   bp->rx_nr_rings);
 		if (!bp->rx_ring)
 			return -ENOMEM;
 
@@ -5537,9 +5530,8 @@ static int bnxt_alloc_mem(struct bnxt *bp, bool irq_re_init)
 			bp->bnapi[i]->rx_ring = &bp->rx_ring[i];
 		}
 
-		bp->tx_ring = kcalloc(bp->tx_nr_rings,
-				      sizeof(struct bnxt_tx_ring_info),
-				      GFP_KERNEL);
+		bp->tx_ring = kzalloc_objs(struct bnxt_tx_ring_info,
+					   bp->tx_nr_rings);
 		if (!bp->tx_ring)
 			return -ENOMEM;
 
@@ -6096,7 +6088,7 @@ static struct bnxt_l2_filter *bnxt_alloc_l2_filter(struct bnxt *bp,
 	if (fltr)
 		return fltr;
 
-	fltr = kzalloc(sizeof(*fltr), gfp);
+	fltr = kzalloc_obj(*fltr, gfp);
 	if (!fltr)
 		return ERR_PTR(-ENOMEM);
 	spin_lock_bh(&bp->ntp_fltr_lock);
@@ -6125,7 +6117,7 @@ struct bnxt_l2_filter *bnxt_alloc_new_l2_filter(struct bnxt *bp,
 		fltr = ERR_PTR(-EEXIST);
 		goto l2_filter_exit;
 	}
-	fltr = kzalloc(sizeof(*fltr), GFP_ATOMIC);
+	fltr = kzalloc_obj(*fltr, GFP_ATOMIC);
 	if (!fltr) {
 		fltr = ERR_PTR(-ENOMEM);
 		goto l2_filter_exit;
@@ -6240,6 +6232,9 @@ int bnxt_hwrm_cfa_ntuple_filter_free(struct bnxt *bp,
 	int rc;
 
 	set_bit(BNXT_FLTR_FW_DELETED, &fltr->base.state);
+	if (!test_bit(BNXT_STATE_OPEN, &bp->state))
+		return 0;
+
 	rc = hwrm_req_init(bp, req, HWRM_CFA_NTUPLE_FILTER_FREE);
 	if (rc)
 		return rc;
@@ -8655,7 +8650,7 @@ static int bnxt_alloc_all_ctx_pg_info(struct bnxt *bp, int ctx_max)
 
 		if (ctxm->instance_bmap)
 			n = hweight32(ctxm->instance_bmap);
-		ctxm->pg_info = kcalloc(n, sizeof(*ctxm->pg_info), GFP_KERNEL);
+		ctxm->pg_info = kzalloc_objs(*ctxm->pg_info, n);
 		if (!ctxm->pg_info)
 			return -ENOMEM;
 	}
@@ -8682,7 +8677,7 @@ static int bnxt_hwrm_func_backing_store_qcaps_v2(struct bnxt *bp)
 		return rc;
 
 	if (!ctx) {
-		ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+		ctx = kzalloc_obj(*ctx);
 		if (!ctx)
 			return -ENOMEM;
 		bp->ctx = ctx;
@@ -8769,7 +8764,7 @@ static int bnxt_hwrm_func_backing_store_qcaps(struct bnxt *bp)
 
 		ctx = bp->ctx;
 		if (!ctx) {
-			ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+			ctx = kzalloc_obj(*ctx);
 			if (!ctx) {
 				rc = -ENOMEM;
 				goto ctx_err;
@@ -9048,8 +9043,7 @@ static int bnxt_alloc_ctx_pg_tbls(struct bnxt *bp,
 		int nr_tbls, i;
 
 		rmem->depth = 2;
-		ctx_pg->ctx_pg_tbl = kcalloc(MAX_CTX_PAGES, sizeof(ctx_pg),
-					     GFP_KERNEL);
+		ctx_pg->ctx_pg_tbl = kzalloc_objs(ctx_pg, MAX_CTX_PAGES);
 		if (!ctx_pg->ctx_pg_tbl)
 			return -ENOMEM;
 		nr_tbls = DIV_ROUND_UP(ctx_pg->nr_pages, MAX_CTX_PAGES);
@@ -9060,7 +9054,7 @@ static int bnxt_alloc_ctx_pg_tbls(struct bnxt *bp,
 		for (i = 0; i < nr_tbls; i++) {
 			struct bnxt_ctx_pg_info *pg_tbl;
 
-			pg_tbl = kzalloc(sizeof(*pg_tbl), GFP_KERNEL);
+			pg_tbl = kzalloc_obj(*pg_tbl);
 			if (!pg_tbl)
 				return -ENOMEM;
 			ctx_pg->ctx_pg_tbl[i] = pg_tbl;
@@ -9569,8 +9563,7 @@ static int bnxt_alloc_crash_dump_mem(struct bnxt *bp)
 	if (bp->fw_crash_mem)
 		bnxt_free_ctx_pg_tbls(bp, bp->fw_crash_mem);
 	else
-		bp->fw_crash_mem = kzalloc(sizeof(*bp->fw_crash_mem),
-					   GFP_KERNEL);
+		bp->fw_crash_mem = kzalloc_obj(*bp->fw_crash_mem);
 	if (!bp->fw_crash_mem)
 		return -ENOMEM;
 
@@ -9677,7 +9670,7 @@ static int __bnxt_hwrm_ptp_qcfg(struct bnxt *bp)
 		goto exit;
 	}
 	if (!ptp) {
-		ptp = kzalloc(sizeof(*ptp), GFP_KERNEL);
+		ptp = kzalloc_obj(*ptp);
 		if (!ptp) {
 			rc = -ENOMEM;
 			goto exit;
@@ -9949,7 +9942,7 @@ static int __bnxt_alloc_fw_health(struct bnxt *bp)
 	if (bp->fw_health)
 		return 0;
 
-	bp->fw_health = kzalloc(sizeof(*bp->fw_health), GFP_KERNEL);
+	bp->fw_health = kzalloc_obj(*bp->fw_health);
 	if (!bp->fw_health)
 		return -ENOMEM;
 
@@ -10889,12 +10882,10 @@ void bnxt_del_one_rss_ctx(struct bnxt *bp, struct bnxt_rss_ctx *rss_ctx,
 	struct bnxt_ntuple_filter *ntp_fltr;
 	int i;
 
-	if (netif_running(bp->dev)) {
-		bnxt_hwrm_vnic_free_one(bp, &rss_ctx->vnic);
-		for (i = 0; i < BNXT_MAX_CTX_PER_VNIC; i++) {
-			if (vnic->fw_rss_cos_lb_ctx[i] != INVALID_HW_RING_ID)
-				bnxt_hwrm_vnic_ctx_free_one(bp, vnic, i);
-		}
+	bnxt_hwrm_vnic_free_one(bp, &rss_ctx->vnic);
+	for (i = 0; i < BNXT_MAX_CTX_PER_VNIC; i++) {
+		if (vnic->fw_rss_cos_lb_ctx[i] != INVALID_HW_RING_ID)
+			bnxt_hwrm_vnic_ctx_free_one(bp, vnic, i);
 	}
 	if (!all)
 		return;
@@ -11460,7 +11451,7 @@ static int bnxt_init_int_mode(struct bnxt *bp)
 	tbl_size = total_vecs;
 	if (pci_msix_can_alloc_dyn(bp->pdev))
 		tbl_size = max;
-	bp->irq_tbl = kcalloc(tbl_size, sizeof(*bp->irq_tbl), GFP_KERNEL);
+	bp->irq_tbl = kzalloc_objs(*bp->irq_tbl, tbl_size);
 	if (bp->irq_tbl) {
 		for (i = 0; i < total_vecs; i++)
 			bp->irq_tbl[i].vector = pci_irq_vector(bp->pdev, i);
@@ -12957,7 +12948,7 @@ static int bnxt_set_xps_mapping(struct bnxt *bp)
 	cpumask_t *q_map;
 	int rc = 0;
 
-	q_map = kcalloc(bp->tx_nr_rings_per_tc, sizeof(*q_map), GFP_KERNEL);
+	q_map = kzalloc_objs(*q_map, bp->tx_nr_rings_per_tc);
 	if (!q_map)
 		return -ENOMEM;
 
@@ -15650,7 +15641,7 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 			return -EINVAL;
 		}
 	}
-	new_fltr = kzalloc(sizeof(*new_fltr), GFP_ATOMIC);
+	new_fltr = kzalloc_obj(*new_fltr, GFP_ATOMIC);
 	if (!new_fltr) {
 		bnxt_del_l2_filter(bp, l2_fltr);
 		return -ENOMEM;

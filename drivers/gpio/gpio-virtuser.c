@@ -1388,7 +1388,7 @@ gpio_virtuser_make_lookup_table(struct gpio_virtuser_device *dev)
 	lockdep_assert_held(&dev->lock);
 
 	struct gpiod_lookup_table *table __free(kfree) =
-		kzalloc(struct_size(table, table, num_entries + 1), GFP_KERNEL);
+		kzalloc_flex(*table, table, num_entries + 1);
 	if (!table)
 		return -ENOMEM;
 
@@ -1605,7 +1605,7 @@ gpio_virtuser_make_lookup_entry_group(struct config_group *group,
 		return ERR_PTR(-EBUSY);
 
 	struct gpio_virtuser_lookup_entry *entry __free(kfree) =
-				kzalloc(sizeof(*entry), GFP_KERNEL);
+				kzalloc_obj(*entry);
 	if (!entry)
 		return ERR_PTR(-ENOMEM);
 
@@ -1661,7 +1661,7 @@ gpio_virtuser_make_lookup_group(struct config_group *group, const char *name)
 		return ERR_PTR(-EBUSY);
 
 	struct gpio_virtuser_lookup *lookup __free(kfree) =
-				kzalloc(sizeof(*lookup), GFP_KERNEL);
+				kzalloc_obj(*lookup);
 	if (!lookup)
 		return ERR_PTR(-ENOMEM);
 
@@ -1711,8 +1711,7 @@ static struct config_group *
 gpio_virtuser_config_make_device_group(struct config_group *group,
 				       const char *name)
 {
-	struct gpio_virtuser_device *dev __free(kfree) = kzalloc(sizeof(*dev),
-								 GFP_KERNEL);
+	struct gpio_virtuser_device *dev __free(kfree) = kzalloc_obj(*dev);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 

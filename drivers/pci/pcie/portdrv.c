@@ -293,7 +293,7 @@ static int pcie_device_init(struct pci_dev *pdev, int service, int irq)
 	struct pcie_device *pcie;
 	struct device *device;
 
-	pcie = kzalloc(sizeof(*pcie), GFP_KERNEL);
+	pcie = kzalloc_obj(*pcie);
 	if (!pcie)
 		return -ENOMEM;
 	pcie->port = pdev;

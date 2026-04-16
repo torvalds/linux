@@ -780,8 +780,8 @@ static int kfd_ioctl_get_process_apertures_new(struct file *filp,
 	 * nodes, but not more than args->num_of_nodes as that is
 	 * the amount of memory allocated by user
 	 */
-	pa = kcalloc(args->num_of_nodes, sizeof(struct kfd_process_device_apertures),
-		     GFP_KERNEL);
+	pa = kzalloc_objs(struct kfd_process_device_apertures,
+			  args->num_of_nodes);
 	if (!pa)
 		return -ENOMEM;
 
@@ -2224,7 +2224,7 @@ static int criu_restore_devices(struct kfd_process *p,
 	if (*priv_offset + (args->num_devices * sizeof(*device_privs)) > max_priv_data_size)
 		return -EINVAL;
 
-	device_buckets = kmalloc_array(args->num_devices, sizeof(*device_buckets), GFP_KERNEL);
+	device_buckets = kmalloc_objs(*device_buckets, args->num_devices);
 	if (!device_buckets)
 		return -ENOMEM;
 
@@ -2467,7 +2467,7 @@ static int criu_restore_bos(struct kfd_process *p,
 	/* Prevent MMU notifications until stage-4 IOCTL (CRIU_RESUME) is received */
 	amdgpu_amdkfd_block_mmu_notifications(p->kgd_process_info);
 
-	bo_buckets = kvmalloc_array(args->num_bos, sizeof(*bo_buckets), GFP_KERNEL);
+	bo_buckets = kvmalloc_objs(*bo_buckets, args->num_bos);
 	if (!bo_buckets)
 		return -ENOMEM;
 
@@ -2485,7 +2485,7 @@ static int criu_restore_bos(struct kfd_process *p,
 		goto exit;
 	}
 
-	bo_privs = kvmalloc_array(args->num_bos, sizeof(*bo_privs), GFP_KERNEL);
+	bo_privs = kvmalloc_objs(*bo_privs, args->num_bos);
 	if (!bo_privs) {
 		ret = -ENOMEM;
 		goto exit;
@@ -2804,8 +2804,12 @@ static int runtime_enable(struct kfd_process *p, uint64_t r_debug,
 		 * SET_SHADER_DEBUGGER clears any stale process context data
 		 * saved in MES.
 		 */
-		if (pdd->dev->kfd->shared_resources.enable_mes)
-			kfd_dbg_set_mes_debug_mode(pdd, !kfd_dbg_has_cwsr_workaround(pdd->dev));
+		if (pdd->dev->kfd->shared_resources.enable_mes) {
+			ret = kfd_dbg_set_mes_debug_mode(
+				pdd, !kfd_dbg_has_cwsr_workaround(pdd->dev));
+			if (ret)
+				return ret;
+		}
 	}
 
 	p->runtime_info.runtime_state = DEBUG_RUNTIME_STATE_ENABLED;

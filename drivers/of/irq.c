@@ -669,7 +669,7 @@ void __init of_irq_init(const struct of_device_id *matches)
 		 * Here, we allocate and populate an of_intc_desc with the node
 		 * pointer, interrupt-parent device_node etc.
 		 */
-		desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+		desc = kzalloc_obj(*desc);
 		if (!desc) {
 			of_node_put(np);
 			goto err;

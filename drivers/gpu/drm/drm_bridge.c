@@ -1189,7 +1189,7 @@ drm_atomic_bridge_chain_select_bus_fmts(struct drm_bridge *bridge,
 			return -ENOMEM;
 	} else {
 		num_out_bus_fmts = 1;
-		out_bus_fmts = kmalloc(sizeof(*out_bus_fmts), GFP_KERNEL);
+		out_bus_fmts = kmalloc_obj(*out_bus_fmts);
 		if (!out_bus_fmts)
 			return -ENOMEM;
 

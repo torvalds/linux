@@ -132,7 +132,7 @@ void gro_cells_destroy(struct gro_cells *gcells)
 	 * because we might be called from cleanup_net(), and we
 	 * definitely do not want to block this critical task.
 	 */
-	defer = kmalloc(sizeof(*defer), GFP_KERNEL | __GFP_NOWARN);
+	defer = kmalloc_obj(*defer, GFP_KERNEL | __GFP_NOWARN);
 	if (likely(defer)) {
 		defer->ptr = gcells->cells;
 		call_rcu(&defer->rcu, percpu_free_defer_callback);

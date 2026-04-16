@@ -125,7 +125,7 @@ static int __init ifs_init(void)
 	if (rdmsrq_safe(MSR_INTEGRITY_CAPS, &msrval))
 		return -ENODEV;
 
-	ifs_pkg_auth = kmalloc_array(topology_max_packages(), sizeof(bool), GFP_KERNEL);
+	ifs_pkg_auth = kmalloc_objs(bool, topology_max_packages());
 	if (!ifs_pkg_auth)
 		return -ENOMEM;
 

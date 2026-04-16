@@ -263,7 +263,7 @@ static int __init mst_intc_of_init(struct device_node *dn,
 	    of_property_read_u32_index(dn, "mstar,irqs-map-range", 1, &irq_end))
 		return -EINVAL;
 
-	cd = kzalloc(sizeof(*cd), GFP_KERNEL);
+	cd = kzalloc_obj(*cd);
 	if (!cd)
 		return -ENOMEM;
 

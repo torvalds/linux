@@ -113,11 +113,11 @@ static void __init sunxi_usb_clk_setup(struct device_node *node,
 	qty = find_last_bit((unsigned long *)&data->clk_mask,
 			    SUNXI_USB_MAX_SIZE);
 
-	clk_data = kmalloc(sizeof(struct clk_onecell_data), GFP_KERNEL);
+	clk_data = kmalloc_obj(struct clk_onecell_data);
 	if (!clk_data)
 		return;
 
-	clk_data->clks = kcalloc(qty + 1, sizeof(struct clk *), GFP_KERNEL);
+	clk_data->clks = kzalloc_objs(struct clk *, qty + 1);
 	if (!clk_data->clks) {
 		kfree(clk_data);
 		return;
@@ -144,7 +144,7 @@ static void __init sunxi_usb_clk_setup(struct device_node *node,
 	if (data->reset_mask == 0)
 		return;
 
-	reset_data = kzalloc(sizeof(*reset_data), GFP_KERNEL);
+	reset_data = kzalloc_obj(*reset_data);
 	if (!reset_data)
 		return;
 

@@ -22,21 +22,21 @@ struct nt_err_code_struct {
 
 extern const struct nt_err_code_struct nt_errs[];
 
-/* Win32 Status codes. */
-#define NT_STATUS_MORE_ENTRIES         0x0105
+/* Win32 Error Codes. */
 #define NT_ERROR_INVALID_PARAMETER     0x0057
 #define NT_ERROR_INSUFFICIENT_BUFFER   0x007a
-#define NT_STATUS_1804                 0x070c
-#define NT_STATUS_NOTIFY_ENUM_DIR      0x010c
+#define NT_ERROR_INVALID_DATATYPE      0x070c
 
 /*
- * Win32 Error codes extracted using a loop in smbclient then printing a netmon
+ * NTSTATUS Values extracted using a loop in smbclient then printing a netmon
  * sniff to a file.
  */
 
 #define NT_STATUS_OK                   0x0000
 #define NT_STATUS_PENDING              0x0103
-#define NT_STATUS_SOME_UNMAPPED        0x0107
+#define NT_STATUS_MORE_ENTRIES         0x0105
+#define NT_STATUS_SOME_NOT_MAPPED      0x0107
+#define NT_STATUS_NOTIFY_ENUM_DIR      0x010c
 #define NT_STATUS_BUFFER_OVERFLOW  0x80000005
 #define NT_STATUS_NO_MORE_ENTRIES  0x8000001a
 #define NT_STATUS_MEDIA_CHANGED    0x8000001c

@@ -133,7 +133,7 @@ static int uvc_ioctl_xu_ctrl_map(struct uvc_video_chain *chain,
 		return -EINVAL;
 	}
 
-	map = kzalloc(sizeof(*map), GFP_KERNEL);
+	map = kzalloc_obj(*map);
 	if (map == NULL)
 		return -ENOMEM;
 
@@ -572,7 +572,7 @@ static int uvc_v4l2_open(struct file *file)
 	uvc_dbg(stream->dev, CALLS, "%s\n", __func__);
 
 	/* Create the device handle. */
-	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
+	handle = kzalloc_obj(*handle);
 	if (!handle)
 		return -ENOMEM;
 

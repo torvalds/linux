@@ -1385,8 +1385,7 @@ static int rtsx_pci_init_chip(struct rtsx_pcr *pcr)
 	pcr_dbg(pcr, "PID: 0x%04x, IC version: 0x%02x\n",
 			PCI_PID(pcr), pcr->ic_version);
 
-	pcr->slots = kcalloc(pcr->num_slots, sizeof(struct rtsx_slot),
-			GFP_KERNEL);
+	pcr->slots = kzalloc_objs(struct rtsx_slot, pcr->num_slots);
 	if (!pcr->slots)
 		return -ENOMEM;
 
@@ -1494,13 +1493,13 @@ static int rtsx_pci_probe(struct pci_dev *pcidev,
 	if (ret)
 		goto disable;
 
-	pcr = kzalloc(sizeof(*pcr), GFP_KERNEL);
+	pcr = kzalloc_obj(*pcr);
 	if (!pcr) {
 		ret = -ENOMEM;
 		goto release_pci;
 	}
 
-	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
+	handle = kzalloc_obj(*handle);
 	if (!handle) {
 		ret = -ENOMEM;
 		goto free_pcr;

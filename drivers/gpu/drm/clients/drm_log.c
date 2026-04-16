@@ -248,7 +248,7 @@ static void drm_log_init_client(struct drm_log *dlog)
 	if (!max_modeset)
 		return;
 
-	dlog->scanout = kcalloc(max_modeset, sizeof(*dlog->scanout), GFP_KERNEL);
+	dlog->scanout = kzalloc_objs(*dlog->scanout, max_modeset);
 	if (!dlog->scanout)
 		return;
 
@@ -419,7 +419,7 @@ void drm_log_register(struct drm_device *dev)
 {
 	struct drm_log *new;
 
-	new = kzalloc(sizeof(*new), GFP_KERNEL);
+	new = kzalloc_obj(*new);
 	if (!new)
 		goto err_warn;
 

@@ -402,7 +402,7 @@ static int kvm_setup_default_irq_routing(struct kvm *kvm)
 	u32 nr = KVM_IRQCHIP_NUM_PINS;
 	struct kvm_irq_routing_entry *entries;
 
-	entries = kcalloc(nr, sizeof(*entries), GFP_KERNEL);
+	entries = kzalloc_objs(*entries, nr);
 	if (!entries)
 		return -ENOMEM;
 
@@ -432,7 +432,7 @@ static int kvm_pch_pic_create(struct kvm_device *dev, u32 type)
 	if (ret)
 		return -ENOMEM;
 
-	s = kzalloc(sizeof(struct loongarch_pch_pic), GFP_KERNEL);
+	s = kzalloc_obj(struct loongarch_pch_pic);
 	if (!s)
 		return -ENOMEM;
 

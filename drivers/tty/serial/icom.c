@@ -1632,7 +1632,7 @@ static int icom_alloc_adapter(struct icom_adapter
 	struct icom_adapter *icom_adapter;
 	struct icom_adapter *cur_adapter_entry;
 
-	icom_adapter = kzalloc(sizeof(struct icom_adapter), GFP_KERNEL);
+	icom_adapter = kzalloc_obj(struct icom_adapter);
 
 	if (!icom_adapter) {
 		return -ENOMEM;

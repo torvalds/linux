@@ -66,7 +66,7 @@ static struct live_active *__live_alloc(struct drm_i915_private *i915)
 {
 	struct live_active *active;
 
-	active = kzalloc(sizeof(*active), GFP_KERNEL);
+	active = kzalloc_obj(*active);
 	if (!active)
 		return NULL;
 

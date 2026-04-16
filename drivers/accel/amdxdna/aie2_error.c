@@ -350,7 +350,7 @@ int aie2_error_async_events_alloc(struct amdxdna_dev_hdl *ndev)
 	struct async_events *events;
 	int i, ret;
 
-	events = kzalloc(struct_size(events, event, total_col), GFP_KERNEL);
+	events = kzalloc_flex(*events, event, total_col);
 	if (!events)
 		return -ENOMEM;
 

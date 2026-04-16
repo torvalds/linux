@@ -208,7 +208,7 @@ int wl1251_event_handle(struct wl1251 *wl, u8 mbox_num)
 	if (mbox_num > 1)
 		return -EINVAL;
 
-	mbox = kmalloc(sizeof(*mbox), GFP_KERNEL);
+	mbox = kmalloc_obj(*mbox);
 	if (!mbox) {
 		wl1251_error("can not allocate mbox buffer");
 		return -ENOMEM;

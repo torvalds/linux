@@ -122,7 +122,7 @@ static struct kcov_remote *kcov_remote_add(struct kcov *kcov, u64 handle)
 
 	if (kcov_remote_find(handle))
 		return ERR_PTR(-EEXIST);
-	remote = kmalloc(sizeof(*remote), GFP_ATOMIC);
+	remote = kmalloc_obj(*remote, GFP_ATOMIC);
 	if (!remote)
 		return ERR_PTR(-ENOMEM);
 	remote->handle = handle;
@@ -527,7 +527,7 @@ static int kcov_open(struct inode *inode, struct file *filep)
 {
 	struct kcov *kcov;
 
-	kcov = kzalloc(sizeof(*kcov), GFP_KERNEL);
+	kcov = kzalloc_obj(*kcov);
 	if (!kcov)
 		return -ENOMEM;
 	guard(spinlock_init)(&kcov->lock);

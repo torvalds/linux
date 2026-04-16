@@ -154,7 +154,7 @@ int drm_fbdev_client_setup(struct drm_device *dev, const struct drm_format_info 
 	drm_WARN(dev, !dev->registered, "Device has not been registered.\n");
 	drm_WARN(dev, dev->fb_helper, "fb_helper is already set!\n");
 
-	fb_helper = kzalloc(sizeof(*fb_helper), GFP_KERNEL);
+	fb_helper = kzalloc_obj(*fb_helper);
 	if (!fb_helper)
 		return -ENOMEM;
 	drm_fb_helper_prepare(dev, fb_helper, color_mode, NULL);

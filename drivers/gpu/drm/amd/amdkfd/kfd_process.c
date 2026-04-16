@@ -153,7 +153,7 @@ static void kfd_sdma_activity_worker(struct work_struct *work)
 		    (q->properties.type != KFD_QUEUE_TYPE_SDMA_XGMI))
 			continue;
 
-		sdma_q = kzalloc(sizeof(struct temp_sdma_queue_list), GFP_KERNEL);
+		sdma_q = kzalloc_obj(struct temp_sdma_queue_list);
 		if (!sdma_q) {
 			dqm_unlock(dqm);
 			goto cleanup;
@@ -291,7 +291,7 @@ static int kfd_get_cu_occupancy(struct attribute *attr, char *buffer)
 	wave_cnt = 0;
 	max_waves_per_cu = 0;
 
-	cu_occupancy = kcalloc(AMDGPU_MAX_QUEUES, sizeof(*cu_occupancy), GFP_KERNEL);
+	cu_occupancy = kzalloc_objs(*cu_occupancy, AMDGPU_MAX_QUEUES);
 	if (!cu_occupancy)
 		return -ENOMEM;
 
@@ -1592,7 +1592,7 @@ struct kfd_process *create_process(const struct task_struct *thread, bool primar
 	struct mmu_notifier *mn;
 	int err = -ENOMEM;
 
-	process = kzalloc(sizeof(*process), GFP_KERNEL);
+	process = kzalloc_obj(*process);
 	if (!process)
 		goto err_alloc_process;
 
@@ -1708,7 +1708,7 @@ struct kfd_process_device *kfd_create_process_device_data(struct kfd_node *dev,
 
 	if (WARN_ON_ONCE(p->n_pdds >= MAX_GPU_INSTANCE))
 		return NULL;
-	pdd = kzalloc(sizeof(*pdd), GFP_KERNEL);
+	pdd = kzalloc_obj(*pdd);
 	if (!pdd)
 		return NULL;
 
@@ -1766,9 +1766,6 @@ int kfd_process_device_init_vm(struct kfd_process_device *pdd,
 	struct dma_fence *ef;
 	struct kfd_node *dev;
 	int ret;
-
-	if (!drm_file)
-		return -EINVAL;
 
 	if (pdd->drm_priv)
 		return -EBUSY;

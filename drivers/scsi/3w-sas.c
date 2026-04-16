@@ -1052,7 +1052,7 @@ static int twl_initialize_device_extension(TW_Device_Extension *tw_dev)
 	}
 
 	/* Allocate event info space */
-	tw_dev->event_queue[0] = kcalloc(TW_Q_LENGTH, sizeof(TW_Event), GFP_KERNEL);
+	tw_dev->event_queue[0] = kzalloc_objs(TW_Event, TW_Q_LENGTH);
 	if (!tw_dev->event_queue[0]) {
 		TW_PRINTK(tw_dev->host, TW_DRIVER, 0xc, "Event info memory allocation failed");
 		goto out;

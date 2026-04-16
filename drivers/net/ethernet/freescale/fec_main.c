@@ -3952,7 +3952,7 @@ static int fec_enet_alloc_queue(struct net_device *ndev)
 	struct fec_enet_priv_tx_q *txq;
 
 	for (i = 0; i < fep->num_tx_queues; i++) {
-		txq = kzalloc(sizeof(*txq), GFP_KERNEL);
+		txq = kzalloc_obj(*txq);
 		if (!txq) {
 			ret = -ENOMEM;
 			goto alloc_failed;
@@ -3975,8 +3975,7 @@ static int fec_enet_alloc_queue(struct net_device *ndev)
 	}
 
 	for (i = 0; i < fep->num_rx_queues; i++) {
-		fep->rx_queue[i] = kzalloc(sizeof(*fep->rx_queue[i]),
-					   GFP_KERNEL);
+		fep->rx_queue[i] = kzalloc_obj(*fep->rx_queue[i]);
 		if (!fep->rx_queue[i]) {
 			ret = -ENOMEM;
 			goto alloc_failed;
@@ -4426,7 +4425,7 @@ fec_alloc_new_rxq_xsk(struct fec_enet_private *fep, int queue,
 	union fec_rx_buffer *buf;
 	int i;
 
-	rxq = kzalloc(sizeof(*rxq), GFP_KERNEL);
+	rxq = kzalloc_obj(*rxq);
 	if (!rxq)
 		return NULL;
 
@@ -4467,7 +4466,7 @@ fec_alloc_new_rxq_pp(struct fec_enet_private *fep, int queue)
 	union fec_rx_buffer *buf;
 	int i = 0;
 
-	rxq = kzalloc(sizeof(*rxq), GFP_KERNEL);
+	rxq = kzalloc_obj(*rxq);
 	if (!rxq)
 		return NULL;
 

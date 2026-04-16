@@ -692,7 +692,7 @@ static struct expansion_card *__init ecard_alloc_card(int type, int slot)
 	unsigned long base;
 	int i;
 
-	ec = kzalloc(sizeof(ecard_t), GFP_KERNEL);
+	ec = kzalloc_obj(ecard_t);
 	if (!ec) {
 		ec = ERR_PTR(-ENOMEM);
 		goto nomem;

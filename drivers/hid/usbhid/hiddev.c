@@ -434,7 +434,7 @@ static noinline int hiddev_ioctl_usage(struct hiddev *hiddev, unsigned int cmd, 
 	struct hid_field *field;
 	int i;
 
-	uref_multi = kmalloc(sizeof(struct hiddev_usage_ref_multi), GFP_KERNEL);
+	uref_multi = kmalloc_obj(struct hiddev_usage_ref_multi);
 	if (!uref_multi)
 		return -ENOMEM;
 	uref = &uref_multi->uref;
@@ -890,7 +890,7 @@ int hiddev_connect(struct hid_device *hid, unsigned int force)
 			return -EINVAL;
 	}
 
-	if (!(hiddev = kzalloc(sizeof(struct hiddev), GFP_KERNEL)))
+	if (!(hiddev = kzalloc_obj(struct hiddev)))
 		return -ENOMEM;
 
 	init_waitqueue_head(&hiddev->wait);

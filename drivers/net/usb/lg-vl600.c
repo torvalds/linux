@@ -56,7 +56,7 @@ struct vl600_state {
 static int vl600_bind(struct usbnet *dev, struct usb_interface *intf)
 {
 	int ret;
-	struct vl600_state *s = kzalloc(sizeof(struct vl600_state), GFP_KERNEL);
+	struct vl600_state *s = kzalloc_obj(struct vl600_state);
 
 	if (!s)
 		return -ENOMEM;

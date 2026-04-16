@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _KDBPRIVATE_H
 #define _KDBPRIVATE_H
 

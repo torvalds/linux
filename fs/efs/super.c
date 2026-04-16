@@ -243,7 +243,7 @@ static int efs_fill_super(struct super_block *s, struct fs_context *fc)
 	struct buffer_head *bh;
 	struct inode *root;
 
-	sb = kzalloc(sizeof(struct efs_sb_info), GFP_KERNEL);
+	sb = kzalloc_obj(struct efs_sb_info);
 	if (!sb)
 		return -ENOMEM;
 	s->s_fs_info = sb;

@@ -54,7 +54,7 @@ static int __init z_erofs_lzma_init(void)
 		z_erofs_lzma_nstrms = num_possible_cpus();
 
 	for (i = 0; i < z_erofs_lzma_nstrms; ++i) {
-		struct z_erofs_lzma *strm = kzalloc(sizeof(*strm), GFP_KERNEL);
+		struct z_erofs_lzma *strm = kzalloc_obj(*strm);
 
 		if (!strm) {
 			z_erofs_lzma_exit();

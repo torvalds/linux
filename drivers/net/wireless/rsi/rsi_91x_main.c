@@ -304,11 +304,11 @@ struct rsi_hw *rsi_91x_init(u16 oper_mode)
 	struct rsi_common *common = NULL;
 	u8 ii = 0;
 
-	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
+	adapter = kzalloc_obj(*adapter);
 	if (!adapter)
 		return NULL;
 
-	adapter->priv = kzalloc(sizeof(*common), GFP_KERNEL);
+	adapter->priv = kzalloc_obj(*common);
 	if (adapter->priv == NULL) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of memory\n",
 			__func__);

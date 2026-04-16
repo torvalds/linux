@@ -291,8 +291,8 @@ int vfio_platform_irq_init(struct vfio_platform_device *vdev)
 	while (vdev->get_irq(vdev, cnt) >= 0)
 		cnt++;
 
-	vdev->irqs = kcalloc(cnt, sizeof(struct vfio_platform_irq),
-			     GFP_KERNEL_ACCOUNT);
+	vdev->irqs = kzalloc_objs(struct vfio_platform_irq, cnt,
+				  GFP_KERNEL_ACCOUNT);
 	if (!vdev->irqs)
 		return -ENOMEM;
 

@@ -983,9 +983,8 @@ static int bnxt_ptp_pps_init(struct bnxt *bp)
 	pps_info = &ptp->pps_info;
 	pps_info->num_pins = resp->num_pins;
 	ptp_info->n_pins = pps_info->num_pins;
-	ptp_info->pin_config = kcalloc(ptp_info->n_pins,
-				       sizeof(*ptp_info->pin_config),
-				       GFP_KERNEL);
+	ptp_info->pin_config = kzalloc_objs(*ptp_info->pin_config,
+					    ptp_info->n_pins);
 	if (!ptp_info->pin_config) {
 		hwrm_req_drop(bp, req);
 		return -ENOMEM;

@@ -223,7 +223,7 @@ void __fscache_write_to_cache(struct fscache_cookie *cookie,
 
 	_enter("%llx,%zx", start, len);
 
-	wreq = kzalloc(sizeof(struct fscache_write_request), GFP_NOFS);
+	wreq = kzalloc_obj(struct fscache_write_request, GFP_NOFS);
 	if (!wreq)
 		goto abandon;
 	wreq->mapping		= mapping;

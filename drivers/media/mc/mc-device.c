@@ -737,7 +737,7 @@ int __must_check __media_device_register(struct media_device *mdev,
 	struct media_devnode *devnode;
 	int ret;
 
-	devnode = kzalloc(sizeof(*devnode), GFP_KERNEL);
+	devnode = kzalloc_obj(*devnode);
 	if (!devnode)
 		return -ENOMEM;
 

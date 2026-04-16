@@ -545,13 +545,15 @@ static void schedule_dc_vmin_vmax(struct amdgpu_device *adev,
 	struct dc_stream_state *stream,
 	struct dc_crtc_timing_adjust *adjust)
 {
-	struct vupdate_offload_work *offload_work = kzalloc(sizeof(*offload_work), GFP_NOWAIT);
+	struct vupdate_offload_work *offload_work = kzalloc_obj(*offload_work,
+								GFP_NOWAIT);
 	if (!offload_work) {
 		drm_dbg_driver(adev_to_drm(adev), "Failed to allocate vupdate_offload_work\n");
 		return;
 	}
 
-	struct dc_crtc_timing_adjust *adjust_copy = kzalloc(sizeof(*adjust_copy), GFP_NOWAIT);
+	struct dc_crtc_timing_adjust *adjust_copy = kzalloc_obj(*adjust_copy,
+								GFP_NOWAIT);
 	if (!adjust_copy) {
 		drm_dbg_driver(adev_to_drm(adev), "Failed to allocate adjust_copy\n");
 		kfree(offload_work);
@@ -1023,7 +1025,8 @@ static void dm_dmub_outbox1_low_irq(void *interrupt_params)
 				continue;
 			}
 			if (dm->dmub_thread_offload[notify.type] == true) {
-				dmub_hpd_wrk = kzalloc(sizeof(*dmub_hpd_wrk), GFP_ATOMIC);
+				dmub_hpd_wrk = kzalloc_obj(*dmub_hpd_wrk,
+							   GFP_ATOMIC);
 				if (!dmub_hpd_wrk) {
 					drm_err(adev_to_drm(adev), "Failed to allocate dmub_hpd_wrk");
 					return;
@@ -1244,6 +1247,7 @@ static int dm_dmub_hw_init(struct amdgpu_device *adev)
 	struct dmub_srv *dmub_srv = adev->dm.dmub_srv;
 	struct dmub_srv_fb_info *fb_info = adev->dm.dmub_fb_info;
 	const struct firmware *dmub_fw = adev->dm.dmub_fw;
+	struct dc *dc = adev->dm.dc;
 	struct dmcu *dmcu = adev->dm.dc->res_pool->dmcu;
 	struct abm *abm = adev->dm.dc->res_pool->abm;
 	struct dc_context *ctx = adev->dm.dc->ctx;
@@ -1349,18 +1353,15 @@ static int dm_dmub_hw_init(struct amdgpu_device *adev)
 	for (i = 0; i < fb_info->num_fb; ++i)
 		hw_params.fb[i] = &fb_info->fb[i];
 
-	switch (amdgpu_ip_version(adev, DCE_HWIP, 0)) {
-	case IP_VERSION(3, 1, 3):
-	case IP_VERSION(3, 1, 4):
-	case IP_VERSION(3, 5, 0):
-	case IP_VERSION(3, 5, 1):
-	case IP_VERSION(3, 6, 0):
-	case IP_VERSION(4, 0, 1):
+	/* Enable usb4 dpia in the FW APU */
+	if (dc->caps.is_apu &&
+		dc->res_pool->usb4_dpia_count != 0 &&
+		!dc->debug.dpia_debug.bits.disable_dpia) {
 		hw_params.dpia_supported = true;
-		hw_params.disable_dpia = adev->dm.dc->debug.dpia_debug.bits.disable_dpia;
-		break;
-	default:
-		break;
+		hw_params.disable_dpia = dc->debug.dpia_debug.bits.disable_dpia;
+		hw_params.dpia_hpd_int_enable_supported = false;
+		hw_params.enable_non_transparent_setconfig = dc->config.consolidated_dpia_dp_lt;
+		hw_params.disable_dpia_bw_allocation = !dc->config.usb4_bw_alloc_support;
 	}
 
 	switch (amdgpu_ip_version(adev, DCE_HWIP, 0)) {
@@ -1649,7 +1650,7 @@ static struct hpd_rx_irq_offload_work_queue *hpd_rx_irq_create_workqueue(struct 
 	int i = 0;
 	struct hpd_rx_irq_offload_work_queue *hpd_rx_offload_wq = NULL;
 
-	hpd_rx_offload_wq = kcalloc(max_caps, sizeof(*hpd_rx_offload_wq), GFP_KERNEL);
+	hpd_rx_offload_wq = kzalloc_objs(*hpd_rx_offload_wq, max_caps);
 
 	if (!hpd_rx_offload_wq)
 		return NULL;
@@ -1722,7 +1723,7 @@ dm_allocate_gpu_mem(
 		AMDGPU_GEM_DOMAIN_GTT : AMDGPU_GEM_DOMAIN_VRAM;
 	int ret;
 
-	da = kzalloc(sizeof(struct dal_allocation), GFP_KERNEL);
+	da = kzalloc_obj(struct dal_allocation);
 	if (!da)
 		return NULL;
 
@@ -2128,7 +2129,7 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 	}
 	if (dc_is_dmub_outbox_supported(adev->dm.dc)) {
 		init_completion(&adev->dm.dmub_aux_transfer_done);
-		adev->dm.dmub_notify = kzalloc(sizeof(struct dmub_notification), GFP_KERNEL);
+		adev->dm.dmub_notify = kzalloc_obj(struct dmub_notification);
 		if (!adev->dm.dmub_notify) {
 			drm_info(adev_to_drm(adev), "fail to allocate adev->dm.dmub_notify");
 			goto error;
@@ -2523,7 +2524,7 @@ static int dm_dmub_sw_init(struct amdgpu_device *adev)
 	}
 
 
-	adev->dm.dmub_srv = kzalloc(sizeof(*adev->dm.dmub_srv), GFP_KERNEL);
+	adev->dm.dmub_srv = kzalloc_obj(*adev->dm.dmub_srv);
 	dmub_srv = adev->dm.dmub_srv;
 
 	if (!dmub_srv) {
@@ -2604,8 +2605,7 @@ static int dm_dmub_sw_init(struct amdgpu_device *adev)
 	memory_params.region_info = &region_info;
 	memory_params.window_memory_type = window_memory_type;
 
-	adev->dm.dmub_fb_info =
-		kzalloc(sizeof(*adev->dm.dmub_fb_info), GFP_KERNEL);
+	adev->dm.dmub_fb_info = kzalloc_obj(*adev->dm.dmub_fb_info);
 	fb_info = adev->dm.dmub_fb_info;
 
 	if (!fb_info) {
@@ -3361,7 +3361,7 @@ static void dm_gpureset_commit_state(struct dc_state *dc_state,
 	} *bundle __free(kfree);
 	int k, m;
 
-	bundle = kzalloc(sizeof(*bundle), GFP_KERNEL);
+	bundle = kzalloc_obj(*bundle);
 
 	if (!bundle) {
 		drm_err(dm->ddev, "Failed to allocate update bundle\n");
@@ -3481,7 +3481,17 @@ static int dm_resume(struct amdgpu_ip_block *ip_block)
 	struct dc_commit_streams_params commit_params = {};
 
 	if (dm->dc->caps.ips_support) {
+		if (!amdgpu_in_reset(adev))
+			mutex_lock(&dm->dc_lock);
+
+		/* Need to set POWER_STATE_D0 first or it will not execute
+		 * idle_power_optimizations command to DMUB.
+		 */
+		dc_dmub_srv_set_power_state(dm->dc->ctx->dmub_srv, DC_ACPI_CM_POWER_STATE_D0);
 		dc_dmub_srv_apply_idle_power_optimizations(dm->dc, false);
+
+		if (!amdgpu_in_reset(adev))
+			mutex_unlock(&dm->dc_lock);
 	}
 
 	if (amdgpu_in_reset(adev)) {
@@ -3604,6 +3614,11 @@ static int dm_resume(struct amdgpu_ip_block *ip_block)
 		 * MST connectors, should be skipped
 		 */
 		if (aconnector->mst_root)
+			continue;
+
+		/* Skip eDP detection, when there is no sink present */
+		if (aconnector->dc_link->connector_signal == SIGNAL_TYPE_EDP &&
+		    !aconnector->dc_link->edp_sink_present)
 			continue;
 
 		guard(mutex)(&aconnector->hpd_lock);
@@ -3914,7 +3929,7 @@ void amdgpu_dm_update_connector_after_detect(
 
 		if (!aconnector->timing_requested) {
 			aconnector->timing_requested =
-				kzalloc(sizeof(struct dc_crtc_timing), GFP_KERNEL);
+				kzalloc_obj(struct dc_crtc_timing);
 			if (!aconnector->timing_requested)
 				drm_err(dev,
 					"failed to create aconnector->requested_timing\n");
@@ -4143,8 +4158,7 @@ static void handle_hpd_irq(void *param)
 static void schedule_hpd_rx_offload_work(struct amdgpu_device *adev, struct hpd_rx_irq_offload_work_queue *offload_wq,
 							union hpd_irq_data hpd_irq_data)
 {
-	struct hpd_rx_irq_offload_work *offload_work =
-				kzalloc(sizeof(*offload_work), GFP_KERNEL);
+	struct hpd_rx_irq_offload_work *offload_work = kzalloc_obj(*offload_work);
 
 	if (!offload_work) {
 		drm_err(adev_to_drm(adev), "Failed to allocate hpd_rx_irq_offload_work.\n");
@@ -4865,7 +4879,7 @@ dm_atomic_duplicate_state(struct drm_private_obj *obj)
 {
 	struct dm_atomic_state *old_state, *new_state;
 
-	new_state = kzalloc(sizeof(*new_state), GFP_KERNEL);
+	new_state = kzalloc_obj(*new_state);
 	if (!new_state)
 		return NULL;
 
@@ -4922,7 +4936,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
 	/* indicates support for immediate flip */
 	adev_to_drm(adev)->mode_config.async_page_flip = true;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state)
 		return -ENOMEM;
 
@@ -5350,7 +5364,7 @@ static int initialize_plane(struct amdgpu_display_manager *dm,
 	unsigned long possible_crtcs;
 	int ret = 0;
 
-	plane = kzalloc(sizeof(struct drm_plane), GFP_KERNEL);
+	plane = kzalloc_obj(struct drm_plane);
 	if (!plane) {
 		drm_err(adev_to_drm(dm->adev), "KMS: Failed to allocate plane\n");
 		return -ENOMEM;
@@ -5589,7 +5603,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		link = dc_get_link_at_index(dm->dc, i);
 
 		if (link->connector_signal == SIGNAL_TYPE_VIRTUAL) {
-			struct amdgpu_dm_wb_connector *wbcon = kzalloc(sizeof(*wbcon), GFP_KERNEL);
+			struct amdgpu_dm_wb_connector *wbcon = kzalloc_obj(*wbcon);
 
 			if (!wbcon) {
 				drm_err(adev_to_drm(adev), "KMS: Failed to allocate writeback connector\n");
@@ -5608,11 +5622,11 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 			continue;
 		}
 
-		aconnector = kzalloc(sizeof(*aconnector), GFP_KERNEL);
+		aconnector = kzalloc_obj(*aconnector);
 		if (!aconnector)
 			goto fail;
 
-		aencoder = kzalloc(sizeof(*aencoder), GFP_KERNEL);
+		aencoder = kzalloc_obj(*aencoder);
 		if (!aencoder)
 			goto fail;
 
@@ -7806,7 +7820,7 @@ void amdgpu_dm_connector_funcs_reset(struct drm_connector *connector)
 
 	kfree(state);
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 
 	if (state) {
 		state->scaling = RMX_OFF;
@@ -9081,7 +9095,7 @@ static int amdgpu_dm_i2c_xfer(struct i2c_adapter *i2c_adap,
 	if (!ddc_service->ddc_pin)
 		return result;
 
-	cmd.payloads = kcalloc(num, sizeof(struct i2c_payload), GFP_KERNEL);
+	cmd.payloads = kzalloc_objs(struct i2c_payload, num);
 
 	if (!cmd.payloads)
 		return result;
@@ -9130,7 +9144,7 @@ create_i2c(struct ddc_service *ddc_service, bool oem)
 	struct amdgpu_device *adev = ddc_service->ctx->driver_context;
 	struct amdgpu_i2c_adapter *i2c;
 
-	i2c = kzalloc(sizeof(struct amdgpu_i2c_adapter), GFP_KERNEL);
+	i2c = kzalloc_obj(struct amdgpu_i2c_adapter);
 	if (!i2c)
 		return NULL;
 	i2c->base.owner = THIS_MODULE;
@@ -9931,7 +9945,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		struct dc_stream_update stream_update;
 	} *bundle;
 
-	bundle = kzalloc(sizeof(*bundle), GFP_KERNEL);
+	bundle = kzalloc_obj(*bundle);
 
 	if (!bundle) {
 		drm_err(dev, "Failed to allocate update bundle\n");
@@ -10606,7 +10620,7 @@ static void dm_set_writeback(struct amdgpu_display_manager *dm,
 	struct amdgpu_framebuffer *afb;
 	int i = 0;
 
-	wb_info = kzalloc(sizeof(*wb_info), GFP_KERNEL);
+	wb_info = kzalloc_obj(*wb_info);
 	if (!wb_info) {
 		drm_err(adev_to_drm(adev), "Failed to allocate wb_info\n");
 		return;
@@ -10662,10 +10676,10 @@ static void dm_set_writeback(struct amdgpu_display_manager *dm,
 
 	wb_info->dwb_params.capture_rate = dwb_capture_rate_0;
 
-	wb_info->dwb_params.scaler_taps.h_taps = 4;
-	wb_info->dwb_params.scaler_taps.v_taps = 4;
-	wb_info->dwb_params.scaler_taps.h_taps_c = 2;
-	wb_info->dwb_params.scaler_taps.v_taps_c = 2;
+	wb_info->dwb_params.scaler_taps.h_taps = 1;
+	wb_info->dwb_params.scaler_taps.v_taps = 1;
+	wb_info->dwb_params.scaler_taps.h_taps_c = 1;
+	wb_info->dwb_params.scaler_taps.v_taps_c = 1;
 	wb_info->dwb_params.subsample_position = DWB_INTERSTITIAL_SUBSAMPLING;
 
 	wb_info->mcif_buf_params.luma_pitch = afb->base.pitches[0];
@@ -10965,7 +10979,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 			continue;
 		}
 		for (j = 0; j < status->plane_count; j++)
-			dummy_updates[j].surface = status->plane_states[0];
+			dummy_updates[j].surface = status->plane_states[j];
 
 		sort(dummy_updates, status->plane_count,
 		     sizeof(*dummy_updates), dm_plane_layer_index_cmp, NULL);
@@ -11681,6 +11695,8 @@ static bool should_reset_plane(struct drm_atomic_state *state,
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	struct dm_crtc_state *old_dm_crtc_state, *new_dm_crtc_state;
 	struct amdgpu_device *adev = drm_to_adev(plane->dev);
+	struct drm_connector_state *new_con_state;
+	struct drm_connector *connector;
 	int i;
 
 	/*
@@ -11690,6 +11706,15 @@ static bool should_reset_plane(struct drm_atomic_state *state,
 	if (amdgpu_ip_version(adev, DCE_HWIP, 0) < IP_VERSION(3, 2, 0) &&
 	    state->allow_modeset)
 		return true;
+
+	/* Check for writeback commit */
+	for_each_new_connector_in_state(state, connector, new_con_state, i) {
+		if (connector->connector_type != DRM_MODE_CONNECTOR_WRITEBACK)
+			continue;
+
+		if (new_con_state->writeback_job)
+			return true;
+	}
 
 	if (amdgpu_in_reset(adev) && state->allow_modeset)
 		return true;
@@ -12289,10 +12314,9 @@ static int dm_crtc_get_cursor_mode(struct amdgpu_device *adev,
 
 	/* Overlay cursor not supported on HW before DCN
 	 * DCN401 does not have the cursor-on-scaled-plane or cursor-on-yuv-plane restrictions
-	 * as previous DCN generations, so enable native mode on DCN401 in addition to DCE
+	 * as previous DCN generations, so enable native mode on DCN401
 	 */
-	if (amdgpu_ip_version(adev, DCE_HWIP, 0) == 0 ||
-	    amdgpu_ip_version(adev, DCE_HWIP, 0) == IP_VERSION(4, 0, 1)) {
+	if (amdgpu_ip_version(adev, DCE_HWIP, 0) == IP_VERSION(4, 0, 1)) {
 		*cursor_mode = DM_CURSOR_NATIVE_MODE;
 		return 0;
 	}
@@ -12612,6 +12636,12 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 		 * need to be added for DC to not disable a plane by mistake
 		 */
 		if (dm_new_crtc_state->cursor_mode == DM_CURSOR_OVERLAY_MODE) {
+			if (amdgpu_ip_version(adev, DCE_HWIP, 0) == 0) {
+				drm_dbg(dev, "Overlay cursor not supported on DCE\n");
+				ret = -EINVAL;
+				goto fail;
+			}
+
 			ret = drm_atomic_add_affected_planes(state, crtc);
 			if (ret)
 				goto fail;
@@ -13129,6 +13159,7 @@ static int parse_amd_vsdb(struct amdgpu_dm_connector *aconnector,
 	u8 *edid_ext = NULL;
 	int i;
 	int j = 0;
+	int total_ext_block_len;
 
 	if (edid == NULL || edid->extensions == 0)
 		return -ENODEV;
@@ -13140,7 +13171,8 @@ static int parse_amd_vsdb(struct amdgpu_dm_connector *aconnector,
 			break;
 	}
 
-	while (j < EDID_LENGTH - sizeof(struct amd_vsdb_block)) {
+	total_ext_block_len = EDID_LENGTH * edid->extensions;
+	while (j < total_ext_block_len - sizeof(struct amd_vsdb_block)) {
 		struct amd_vsdb_block *amd_vsdb = (struct amd_vsdb_block *)&edid_ext[j];
 		unsigned int ieeeId = (amd_vsdb->ieee_id[2] << 16) | (amd_vsdb->ieee_id[1] << 8) | (amd_vsdb->ieee_id[0]);
 

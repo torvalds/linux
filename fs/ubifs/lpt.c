@@ -624,9 +624,9 @@ int ubifs_create_dflt_lpt(struct ubifs_info *c, int *main_lebs, int lpt_first,
 	if (IS_ERR(desc))
 		return PTR_ERR(desc);
 
-	lsave = kmalloc_array(c->lsave_cnt, sizeof(int), GFP_KERNEL);
-	pnode = kzalloc(sizeof(struct ubifs_pnode), GFP_KERNEL);
-	nnode = kzalloc(sizeof(struct ubifs_nnode), GFP_KERNEL);
+	lsave = kmalloc_objs(int, c->lsave_cnt);
+	pnode = kzalloc_obj(struct ubifs_pnode);
+	nnode = kzalloc_obj(struct ubifs_nnode);
 	buf = vmalloc(c->leb_size);
 	ltab = vmalloc_array(c->lpt_lebs,
 			     sizeof(struct ubifs_lpt_lprops));
@@ -1215,7 +1215,7 @@ int ubifs_read_nnode(struct ubifs_info *c, struct ubifs_nnode *parent, int iip)
 		lnum = c->lpt_lnum;
 		offs = c->lpt_offs;
 	}
-	nnode = kzalloc(sizeof(struct ubifs_nnode), GFP_NOFS);
+	nnode = kzalloc_obj(struct ubifs_nnode, GFP_NOFS);
 	if (!nnode) {
 		err = -ENOMEM;
 		goto out;
@@ -1278,7 +1278,7 @@ static int read_pnode(struct ubifs_info *c, struct ubifs_nnode *parent, int iip)
 	branch = &parent->nbranch[iip];
 	lnum = branch->lnum;
 	offs = branch->offs;
-	pnode = kzalloc(sizeof(struct ubifs_pnode), GFP_NOFS);
+	pnode = kzalloc_obj(struct ubifs_pnode, GFP_NOFS);
 	if (!pnode)
 		return -ENOMEM;
 
@@ -1856,7 +1856,7 @@ static int lpt_init_wr(struct ubifs_info *c)
 		return -ENOMEM;
 
 	if (c->big_lpt) {
-		c->lsave = kmalloc_array(c->lsave_cnt, sizeof(int), GFP_NOFS);
+		c->lsave = kmalloc_objs(int, c->lsave_cnt, GFP_NOFS);
 		if (!c->lsave)
 			return -ENOMEM;
 		err = read_lsave(c);
@@ -2099,8 +2099,7 @@ int ubifs_lpt_scan_nolock(struct ubifs_info *c, int start_lnum, int end_lnum,
 			return err;
 	}
 
-	path = kmalloc_array(c->lpt_hght + 1, sizeof(struct lpt_scan_node),
-			     GFP_NOFS);
+	path = kmalloc_objs(struct lpt_scan_node, c->lpt_hght + 1, GFP_NOFS);
 	if (!path)
 		return -ENOMEM;
 

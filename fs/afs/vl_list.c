@@ -15,8 +15,7 @@ struct afs_vlserver *afs_alloc_vlserver(const char *name, size_t name_len,
 	struct afs_vlserver *vlserver;
 	static atomic_t debug_ids;
 
-	vlserver = kzalloc(struct_size(vlserver, name, name_len + 1),
-			   GFP_KERNEL);
+	vlserver = kzalloc_flex(*vlserver, name, name_len + 1);
 	if (vlserver) {
 		refcount_set(&vlserver->ref, 1);
 		rwlock_init(&vlserver->lock);
@@ -52,7 +51,7 @@ struct afs_vlserver_list *afs_alloc_vlserver_list(unsigned int nr_servers)
 {
 	struct afs_vlserver_list *vllist;
 
-	vllist = kzalloc(struct_size(vllist, servers, nr_servers), GFP_KERNEL);
+	vllist = kzalloc_flex(*vllist, servers, nr_servers);
 	if (vllist) {
 		refcount_set(&vllist->ref, 1);
 		rwlock_init(&vllist->lock);

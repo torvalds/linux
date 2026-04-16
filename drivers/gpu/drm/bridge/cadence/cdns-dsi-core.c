@@ -902,7 +902,7 @@ static u32 *cdns_dsi_bridge_get_input_bus_fmts(struct drm_bridge *bridge,
 
 	*num_input_fmts = 0;
 
-	input_fmts = kzalloc(sizeof(*input_fmts), GFP_KERNEL);
+	input_fmts = kzalloc_obj(*input_fmts);
 	if (!input_fmts)
 		return NULL;
 
@@ -985,7 +985,7 @@ cdns_dsi_bridge_atomic_duplicate_state(struct drm_bridge *bridge)
 	bridge_state = drm_priv_to_bridge_state(bridge->base.state);
 	old_dsi_state = to_cdns_dsi_bridge_state(bridge_state);
 
-	dsi_state = kzalloc(sizeof(*dsi_state), GFP_KERNEL);
+	dsi_state = kzalloc_obj(*dsi_state);
 	if (!dsi_state)
 		return NULL;
 
@@ -1013,7 +1013,7 @@ cdns_dsi_bridge_atomic_reset(struct drm_bridge *bridge)
 {
 	struct cdns_dsi_bridge_state *dsi_state;
 
-	dsi_state = kzalloc(sizeof(*dsi_state), GFP_KERNEL);
+	dsi_state = kzalloc_obj(*dsi_state);
 	if (!dsi_state)
 		return NULL;
 

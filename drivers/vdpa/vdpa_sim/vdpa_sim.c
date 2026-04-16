@@ -246,18 +246,16 @@ struct vdpasim *vdpasim_create(struct vdpasim_dev_attr *dev_attr,
 	if (!vdpasim->config)
 		goto err_iommu;
 
-	vdpasim->vqs = kcalloc(dev_attr->nvqs, sizeof(struct vdpasim_virtqueue),
-			       GFP_KERNEL);
+	vdpasim->vqs = kzalloc_objs(struct vdpasim_virtqueue, dev_attr->nvqs);
 	if (!vdpasim->vqs)
 		goto err_iommu;
 
-	vdpasim->iommu = kmalloc_array(vdpasim->dev_attr.nas,
-				       sizeof(*vdpasim->iommu), GFP_KERNEL);
+	vdpasim->iommu = kmalloc_objs(*vdpasim->iommu, vdpasim->dev_attr.nas);
 	if (!vdpasim->iommu)
 		goto err_iommu;
 
-	vdpasim->iommu_pt = kmalloc_array(vdpasim->dev_attr.nas,
-					  sizeof(*vdpasim->iommu_pt), GFP_KERNEL);
+	vdpasim->iommu_pt = kmalloc_objs(*vdpasim->iommu_pt,
+					 vdpasim->dev_attr.nas);
 	if (!vdpasim->iommu_pt)
 		goto err_iommu;
 

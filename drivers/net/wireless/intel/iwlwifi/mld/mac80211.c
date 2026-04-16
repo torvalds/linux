@@ -2092,8 +2092,7 @@ static int iwl_mld_alloc_ptk_pn(struct iwl_mld *mld,
 		return -EINVAL;
 
 	WARN_ON(rcu_access_pointer(mld_sta->ptk_pn[keyidx]));
-	*ptk_pn = kzalloc(struct_size(*ptk_pn, q, num_rx_queues),
-			  GFP_KERNEL);
+	*ptk_pn = kzalloc_flex(**ptk_pn, q, num_rx_queues);
 	if (!*ptk_pn)
 		return -ENOMEM;
 

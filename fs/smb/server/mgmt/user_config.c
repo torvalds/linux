@@ -36,7 +36,7 @@ struct ksmbd_user *ksmbd_alloc_user(struct ksmbd_login_response *resp,
 {
 	struct ksmbd_user *user;
 
-	user = kmalloc(sizeof(struct ksmbd_user), KSMBD_DEFAULT_GFP);
+	user = kmalloc_obj(struct ksmbd_user, KSMBD_DEFAULT_GFP);
 	if (!user)
 		return NULL;
 

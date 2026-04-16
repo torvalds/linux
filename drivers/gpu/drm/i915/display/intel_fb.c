@@ -2173,7 +2173,7 @@ static int intel_user_framebuffer_dirty(struct drm_framebuffer *fb,
 	if (ret || !fence)
 		goto flush;
 
-	cb = kmalloc(sizeof(*cb), GFP_KERNEL);
+	cb = kmalloc_obj(*cb);
 	if (!cb) {
 		dma_fence_put(fence);
 		ret = -ENOMEM;
@@ -2361,7 +2361,7 @@ struct intel_framebuffer *intel_framebuffer_alloc(void)
 {
 	struct intel_framebuffer *intel_fb;
 
-	intel_fb = kzalloc(sizeof(*intel_fb), GFP_KERNEL);
+	intel_fb = kzalloc_obj(*intel_fb);
 	if (!intel_fb)
 		return NULL;
 

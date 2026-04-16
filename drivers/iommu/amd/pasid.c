@@ -121,7 +121,7 @@ int iommu_sva_set_dev_pasid(struct iommu_domain *domain,
 		return ret;
 
 	/* Add PASID to protection domain pasid list */
-	pdom_dev_data = kzalloc(sizeof(*pdom_dev_data), GFP_KERNEL);
+	pdom_dev_data = kzalloc_obj(*pdom_dev_data);
 	if (pdom_dev_data == NULL)
 		return ret;
 

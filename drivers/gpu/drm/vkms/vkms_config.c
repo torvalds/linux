@@ -12,7 +12,7 @@ struct vkms_config *vkms_config_create(const char *dev_name)
 {
 	struct vkms_config *config;
 
-	config = kzalloc(sizeof(*config), GFP_KERNEL);
+	config = kzalloc_obj(*config);
 	if (!config)
 		return ERR_PTR(-ENOMEM);
 
@@ -388,7 +388,7 @@ struct vkms_config_plane *vkms_config_create_plane(struct vkms_config *config)
 {
 	struct vkms_config_plane *plane_cfg;
 
-	plane_cfg = kzalloc(sizeof(*plane_cfg), GFP_KERNEL);
+	plane_cfg = kzalloc_obj(*plane_cfg);
 	if (!plane_cfg)
 		return ERR_PTR(-ENOMEM);
 
@@ -448,7 +448,7 @@ struct vkms_config_crtc *vkms_config_create_crtc(struct vkms_config *config)
 {
 	struct vkms_config_crtc *crtc_cfg;
 
-	crtc_cfg = kzalloc(sizeof(*crtc_cfg), GFP_KERNEL);
+	crtc_cfg = kzalloc_obj(*crtc_cfg);
 	if (!crtc_cfg)
 		return ERR_PTR(-ENOMEM);
 
@@ -527,7 +527,7 @@ struct vkms_config_encoder *vkms_config_create_encoder(struct vkms_config *confi
 {
 	struct vkms_config_encoder *encoder_cfg;
 
-	encoder_cfg = kzalloc(sizeof(*encoder_cfg), GFP_KERNEL);
+	encoder_cfg = kzalloc_obj(*encoder_cfg);
 	if (!encoder_cfg)
 		return ERR_PTR(-ENOMEM);
 
@@ -591,7 +591,7 @@ struct vkms_config_connector *vkms_config_create_connector(struct vkms_config *c
 {
 	struct vkms_config_connector *connector_cfg;
 
-	connector_cfg = kzalloc(sizeof(*connector_cfg), GFP_KERNEL);
+	connector_cfg = kzalloc_obj(*connector_cfg);
 	if (!connector_cfg)
 		return ERR_PTR(-ENOMEM);
 

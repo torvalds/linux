@@ -204,7 +204,7 @@ int amdgpu_display_crtc_page_flip_target(struct drm_crtc *crtc,
 	u64 tiling_flags;
 	int i, r;
 
-	work = kzalloc(sizeof(*work), GFP_KERNEL);
+	work = kzalloc_obj(*work);
 	if (work == NULL)
 		return -ENOMEM;
 
@@ -1323,7 +1323,7 @@ amdgpu_display_user_framebuffer_create(struct drm_device *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	amdgpu_fb = kzalloc(sizeof(*amdgpu_fb), GFP_KERNEL);
+	amdgpu_fb = kzalloc_obj(*amdgpu_fb);
 	if (amdgpu_fb == NULL) {
 		drm_gem_object_put(obj);
 		return ERR_PTR(-ENOMEM);

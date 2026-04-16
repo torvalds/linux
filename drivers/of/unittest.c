@@ -197,7 +197,7 @@ static void __init of_unittest_dynamic(void)
 	}
 
 	/* Array of 4 properties for the purpose of testing */
-	prop = kcalloc(4, sizeof(*prop), GFP_KERNEL);
+	prop = kzalloc_objs(*prop, 4);
 	if (!prop) {
 		unittest(0, "kzalloc() failed\n");
 		return;
@@ -379,7 +379,7 @@ static void __init of_unittest_check_phandles(void)
 			}
 		}
 
-		nh = kzalloc(sizeof(*nh), GFP_KERNEL);
+		nh = kzalloc_obj(*nh);
 		if (!nh)
 			return;
 
@@ -1136,7 +1136,7 @@ static void __init of_unittest_dma_ranges_one(const char *path,
 		dma_addr_t	dma_addr;
 		struct device	*dev_bogus;
 
-		dev_bogus = kzalloc(sizeof(struct device), GFP_KERNEL);
+		dev_bogus = kzalloc_obj(struct device);
 		if (!dev_bogus) {
 			unittest(0, "kzalloc() failed\n");
 			kfree(map);
@@ -2275,7 +2275,7 @@ static int unittest_gpio_probe(struct platform_device *pdev)
 
 	unittest_gpio_probe_count++;
 
-	devptr = kzalloc(sizeof(*devptr), GFP_KERNEL);
+	devptr = kzalloc_obj(*devptr);
 	if (!devptr)
 		return -ENOMEM;
 

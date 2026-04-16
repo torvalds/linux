@@ -195,7 +195,7 @@ xrep_newbt_add_blocks(
 	struct xrep_newbt_resv		*resv;
 	int				error;
 
-	resv = kmalloc(sizeof(struct xrep_newbt_resv), XCHK_GFP_FLAGS);
+	resv = kmalloc_obj(struct xrep_newbt_resv, XCHK_GFP_FLAGS);
 	if (!resv)
 		return -ENOMEM;
 

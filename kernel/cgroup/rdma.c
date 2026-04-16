@@ -134,7 +134,7 @@ get_cg_rpool_locked(struct rdma_cgroup *cg, struct rdmacg_device *device)
 	if (rpool)
 		return rpool;
 
-	rpool = kzalloc(sizeof(*rpool), GFP_KERNEL);
+	rpool = kzalloc_obj(*rpool);
 	if (!rpool)
 		return ERR_PTR(-ENOMEM);
 
@@ -443,7 +443,7 @@ static ssize_t rdmacg_resource_set_max(struct kernfs_open_file *of,
 		goto err;
 	}
 
-	new_limits = kcalloc(RDMACG_RESOURCE_MAX, sizeof(int), GFP_KERNEL);
+	new_limits = kzalloc_objs(int, RDMACG_RESOURCE_MAX);
 	if (!new_limits) {
 		ret = -ENOMEM;
 		goto err;
@@ -566,7 +566,7 @@ rdmacg_css_alloc(struct cgroup_subsys_state *parent)
 {
 	struct rdma_cgroup *cg;
 
-	cg = kzalloc(sizeof(*cg), GFP_KERNEL);
+	cg = kzalloc_obj(*cg);
 	if (!cg)
 		return ERR_PTR(-ENOMEM);
 

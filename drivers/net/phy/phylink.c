@@ -1853,7 +1853,7 @@ struct phylink *phylink_create(struct phylink_config *config,
 		return ERR_PTR(-EINVAL);
 	}
 
-	pl = kzalloc(sizeof(*pl), GFP_KERNEL);
+	pl = kzalloc_obj(*pl);
 	if (!pl)
 		return ERR_PTR(-ENOMEM);
 

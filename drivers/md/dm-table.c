@@ -133,7 +133,7 @@ int dm_table_create(struct dm_table **result, blk_mode_t mode,
 	if (num_targets > DM_MAX_TARGETS)
 		return -EOVERFLOW;
 
-	t = kzalloc(sizeof(*t), GFP_KERNEL);
+	t = kzalloc_obj(*t);
 
 	if (!t)
 		return -ENOMEM;
@@ -381,7 +381,7 @@ int dm_get_device(struct dm_target *ti, const char *path, blk_mode_t mode,
 
 	dd = find_device(&t->devices, dev);
 	if (!dd) {
-		dd = kmalloc(sizeof(*dd), GFP_KERNEL);
+		dd = kmalloc_obj(*dd);
 		if (!dd)
 			return -ENOMEM;
 
@@ -1391,7 +1391,7 @@ static int dm_table_construct_crypto_profile(struct dm_table *t)
 	unsigned int i;
 	bool empty_profile = true;
 
-	dmcp = kmalloc(sizeof(*dmcp), GFP_KERNEL);
+	dmcp = kmalloc_obj(*dmcp);
 	if (!dmcp)
 		return -ENOMEM;
 	dmcp->md = t->md;

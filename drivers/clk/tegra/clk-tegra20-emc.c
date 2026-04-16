@@ -249,7 +249,7 @@ struct clk *tegra20_clk_register_emc(void __iomem *ioaddr, bool low_jitter)
 	struct clk_init_data init;
 	struct clk *clk;
 
-	emc = kzalloc(sizeof(*emc), GFP_KERNEL);
+	emc = kzalloc_obj(*emc);
 	if (!emc)
 		return NULL;
 

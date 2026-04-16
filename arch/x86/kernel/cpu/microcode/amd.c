@@ -1086,7 +1086,7 @@ static int verify_and_add_patch(u8 family, u8 *fw, unsigned int leftover,
 	if (ret)
 		return ret;
 
-	patch = kzalloc(sizeof(*patch), GFP_KERNEL);
+	patch = kzalloc_obj(*patch);
 	if (!patch) {
 		pr_err("Patch allocation failure.\n");
 		return -EINVAL;

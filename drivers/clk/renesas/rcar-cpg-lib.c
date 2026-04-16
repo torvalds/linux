@@ -94,7 +94,7 @@ struct clk * __init cpg_sdh_clk_register(const char *name,
 	struct cpg_simple_notifier *csn;
 	struct clk *clk;
 
-	csn = kzalloc(sizeof(*csn), GFP_KERNEL);
+	csn = kzalloc_obj(*csn);
 	if (!csn)
 		return ERR_PTR(-ENOMEM);
 
@@ -144,7 +144,7 @@ struct clk * __init cpg_rpc_clk_register(const char *name,
 	struct rpc_clock *rpc;
 	struct clk *clk;
 
-	rpc = kzalloc(sizeof(*rpc), GFP_KERNEL);
+	rpc = kzalloc_obj(*rpc);
 	if (!rpc)
 		return ERR_PTR(-ENOMEM);
 
@@ -185,7 +185,7 @@ struct clk * __init cpg_rpcd2_clk_register(const char *name,
 	struct rpcd2_clock *rpcd2;
 	struct clk *clk;
 
-	rpcd2 = kzalloc(sizeof(*rpcd2), GFP_KERNEL);
+	rpcd2 = kzalloc_obj(*rpcd2);
 	if (!rpcd2)
 		return ERR_PTR(-ENOMEM);
 

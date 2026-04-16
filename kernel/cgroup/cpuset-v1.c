@@ -316,7 +316,7 @@ void cpuset1_hotplug_update_tasks(struct cpuset *cs,
 	    css_tryget_online(&cs->css)) {
 		struct cpuset_remove_tasks_struct *s;
 
-		s = kzalloc(sizeof(*s), GFP_KERNEL);
+		s = kzalloc_obj(*s);
 		if (WARN_ON_ONCE(!s)) {
 			css_put(&cs->css);
 			return;
@@ -653,7 +653,7 @@ int cpuset1_generate_sched_domains(cpumask_var_t **domains,
 		if (!doms)
 			goto done;
 
-		dattr = kmalloc(sizeof(struct sched_domain_attr), GFP_KERNEL);
+		dattr = kmalloc_obj(struct sched_domain_attr);
 		if (dattr) {
 			*dattr = SD_ATTR_INIT;
 			update_domain_attr_tree(dattr, &top_cpuset);
@@ -664,7 +664,7 @@ int cpuset1_generate_sched_domains(cpumask_var_t **domains,
 		goto done;
 	}
 
-	csa = kmalloc_array(nr_cpusets(), sizeof(cp), GFP_KERNEL);
+	csa = kmalloc_objs(cp, nr_cpusets());
 	if (!csa)
 		goto done;
 	csn = 0;
@@ -727,8 +727,7 @@ int cpuset1_generate_sched_domains(cpumask_var_t **domains,
 	 * The rest of the code, including the scheduler, can deal with
 	 * dattr==NULL case. No need to abort if alloc fails.
 	 */
-	dattr = kmalloc_array(ndoms, sizeof(struct sched_domain_attr),
-			      GFP_KERNEL);
+	dattr = kmalloc_objs(struct sched_domain_attr, ndoms);
 
 	for (nslot = 0, i = 0; i < csn; i++) {
 		nslot_update = 0;

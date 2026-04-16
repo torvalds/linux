@@ -137,7 +137,7 @@ static struct iommu_domain *sprd_iommu_domain_alloc_paging(struct device *dev)
 {
 	struct sprd_iommu_domain *dom;
 
-	dom = kzalloc(sizeof(*dom), GFP_KERNEL);
+	dom = kzalloc_obj(*dom);
 	if (!dom)
 		return NULL;
 

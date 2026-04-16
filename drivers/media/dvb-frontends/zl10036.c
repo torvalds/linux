@@ -457,7 +457,7 @@ struct dvb_frontend *zl10036_attach(struct dvb_frontend *fe,
 		return NULL;
 	}
 
-	state = kzalloc(sizeof(struct zl10036_state), GFP_KERNEL);
+	state = kzalloc_obj(struct zl10036_state);
 	if (!state)
 		return NULL;
 

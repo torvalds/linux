@@ -1618,7 +1618,7 @@ struct ipw_hardware *ipwireless_hardware_create(void)
 {
 	int i;
 	struct ipw_hardware *hw =
-		kzalloc(sizeof(struct ipw_hardware), GFP_KERNEL);
+		kzalloc_obj(struct ipw_hardware);
 
 	if (!hw)
 		return NULL;

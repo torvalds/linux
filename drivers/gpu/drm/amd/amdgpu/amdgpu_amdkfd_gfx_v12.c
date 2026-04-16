@@ -115,7 +115,7 @@ static int hqd_dump_v12(struct amdgpu_device *adev,
 		(*dump)[i++][1] = RREG32(addr);		\
 	} while (0)
 
-	*dump = kmalloc_array(HQD_N_REGS, sizeof(**dump), GFP_KERNEL);
+	*dump = kmalloc_objs(**dump, HQD_N_REGS);
 	if (*dump == NULL)
 		return -ENOMEM;
 
@@ -146,7 +146,7 @@ static int hqd_sdma_dump_v12(struct amdgpu_device *adev,
 #undef HQD_N_REGS
 #define HQD_N_REGS (last_reg - first_reg + 1)
 
-	*dump = kmalloc_array(HQD_N_REGS, sizeof(**dump), GFP_KERNEL);
+	*dump = kmalloc_objs(**dump, HQD_N_REGS);
 	if (*dump == NULL)
 		return -ENOMEM;
 

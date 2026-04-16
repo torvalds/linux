@@ -533,7 +533,7 @@ static int intel_setup_irq_remapping(struct intel_iommu *iommu)
 	if (iommu->ir_table)
 		return 0;
 
-	ir_table = kzalloc(sizeof(struct ir_table), GFP_KERNEL);
+	ir_table = kzalloc_obj(struct ir_table);
 	if (!ir_table)
 		return -ENOMEM;
 
@@ -1426,7 +1426,7 @@ static int intel_irq_remapping_alloc(struct irq_domain *domain,
 		return ret;
 
 	ret = -ENOMEM;
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		goto out_free_parent;
 
@@ -1448,7 +1448,7 @@ static int intel_irq_remapping_alloc(struct irq_domain *domain,
 		}
 
 		if (i > 0) {
-			ird = kzalloc(sizeof(*ird), GFP_KERNEL);
+			ird = kzalloc_obj(*ird);
 			if (!ird)
 				goto out_free_data;
 			/* Initialize the common data */

@@ -79,7 +79,7 @@ static DEFINE_IDA(occ_ida);
 
 static int occ_open(struct inode *inode, struct file *file)
 {
-	struct occ_client *client = kzalloc(sizeof(*client), GFP_KERNEL);
+	struct occ_client *client = kzalloc_obj(*client);
 	struct miscdevice *mdev = file->private_data;
 	struct occ *occ = to_occ(mdev);
 

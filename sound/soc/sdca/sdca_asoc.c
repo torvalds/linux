@@ -1349,7 +1349,7 @@ int sdca_asoc_set_constraints(struct device *dev, struct regmap *regmap,
 	dev_dbg(dev, "%s: set channel constraint mask: %#x\n",
 		entity->label, channel_mask);
 
-	constraint = kzalloc(sizeof(*constraint), GFP_KERNEL);
+	constraint = kzalloc_obj(*constraint);
 	if (!constraint)
 		return -ENOMEM;
 

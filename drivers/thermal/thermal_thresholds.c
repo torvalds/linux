@@ -181,7 +181,7 @@ int thermal_thresholds_add(struct thermal_zone_device *tz,
 		t->direction |= direction;
 	} else {
 
-		t = kmalloc(sizeof(*t), GFP_KERNEL);
+		t = kmalloc_obj(*t);
 		if (!t)
 			return -ENOMEM;
 

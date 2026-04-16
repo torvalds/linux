@@ -60,7 +60,7 @@ static irqreturn_t iio_simple_dummy_trigger_h(int irq, void *p)
 	 *  - A buffer at the end of the structure accessed via iio_priv()
 	 *    that is marked __aligned(IIO_DMA_MINALIGN).
 	 */
-	scan = kzalloc(sizeof(*scan), GFP_KERNEL);
+	scan = kzalloc_obj(*scan);
 	if (!scan)
 		goto done;
 

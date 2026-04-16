@@ -381,7 +381,7 @@ void dev_coredumpm_timeout(struct device *dev, struct module *owner,
 	if (!try_module_get(owner))
 		goto free;
 
-	devcd = kzalloc(sizeof(*devcd), gfp);
+	devcd = kzalloc_obj(*devcd, gfp);
 	if (!devcd)
 		goto put_module;
 

@@ -185,7 +185,7 @@ static int loop_set_wakeup_filter(struct rc_dev *dev,
 		return 0;
 
 	/* encode the specified filter and loop it back */
-	raw = kmalloc_array(max, sizeof(*raw), GFP_KERNEL);
+	raw = kmalloc_objs(*raw, max);
 	if (!raw)
 		return -ENOMEM;
 

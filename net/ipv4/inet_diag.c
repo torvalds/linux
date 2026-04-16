@@ -845,7 +845,7 @@ static int __inet_diag_dump_start(struct netlink_callback *cb, int hdrlen)
 	struct nlattr *nla;
 	int err;
 
-	cb_data = kzalloc(sizeof(*cb_data), GFP_KERNEL);
+	cb_data = kzalloc_obj(*cb_data);
 	if (!cb_data)
 		return -ENOMEM;
 

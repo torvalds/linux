@@ -362,7 +362,7 @@ int brcmf_btcoex_attach(struct brcmf_cfg80211_info *cfg)
 	struct brcmf_btcoex_info *btci;
 	brcmf_dbg(TRACE, "enter\n");
 
-	btci = kmalloc(sizeof(*btci), GFP_KERNEL);
+	btci = kmalloc_obj(*btci);
 	if (!btci)
 		return -ENOMEM;
 

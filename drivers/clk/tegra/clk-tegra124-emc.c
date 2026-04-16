@@ -197,8 +197,8 @@ static struct tegra_emc *emc_ensure_emc_driver(struct tegra_clk_emc *tegra)
 	tegra->emc_node = NULL;
 
 	tegra->emc = platform_get_drvdata(pdev);
+	put_device(&pdev->dev);
 	if (!tegra->emc) {
-		put_device(&pdev->dev);
 		pr_err("%s: cannot find EMC driver\n", __func__);
 		return NULL;
 	}
@@ -444,7 +444,6 @@ static int load_timings_from_dt(struct tegra_clk_emc *tegra,
 				u32 ram_code)
 {
 	struct emc_timing *timings_ptr;
-	struct device_node *child;
 	int child_count = of_get_child_count(node);
 	int i = 0, err;
 	size_t size;
@@ -458,12 +457,11 @@ static int load_timings_from_dt(struct tegra_clk_emc *tegra,
 	timings_ptr = tegra->timings + tegra->num_timings;
 	tegra->num_timings += child_count;
 
-	for_each_child_of_node(node, child) {
+	for_each_child_of_node_scoped(node, child) {
 		struct emc_timing *timing = timings_ptr + (i++);
 
 		err = load_one_timing_from_dt(tegra, timing, child);
 		if (err) {
-			of_node_put(child);
 			kfree(tegra->timings);
 			return err;
 		}
@@ -494,7 +492,7 @@ struct clk *tegra124_clk_register_emc(void __iomem *base, struct device_node *np
 	struct clk *clk;
 	int err;
 
-	tegra = kcalloc(1, sizeof(*tegra), GFP_KERNEL);
+	tegra = kzalloc_objs(*tegra, 1);
 	if (!tegra)
 		return ERR_PTR(-ENOMEM);
 
@@ -538,8 +536,10 @@ struct clk *tegra124_clk_register_emc(void __iomem *base, struct device_node *np
 	tegra->hw.init = &init;
 
 	clk = clk_register(NULL, &tegra->hw);
-	if (IS_ERR(clk))
+	if (IS_ERR(clk)) {
+		kfree(tegra);
 		return clk;
+	}
 
 	tegra->prev_parent = clk_hw_get_parent_by_index(
 		&tegra->hw, emc_get_parent(&tegra->hw))->clk;

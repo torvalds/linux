@@ -562,7 +562,7 @@ static struct neigh_hash_table *neigh_hash_alloc(unsigned int shift)
 	struct neigh_hash_table *ret;
 	int i;
 
-	ret = kmalloc(sizeof(*ret), GFP_ATOMIC);
+	ret = kmalloc_obj(*ret, GFP_ATOMIC);
 	if (!ret)
 		return NULL;
 
@@ -820,7 +820,8 @@ int pneigh_create(struct neigh_table *tbl, struct net *net,
 update:
 	WRITE_ONCE(n->flags, flags);
 	n->permanent = permanent;
-	WRITE_ONCE(n->protocol, protocol);
+	if (protocol)
+		WRITE_ONCE(n->protocol, protocol);
 out:
 	mutex_unlock(&tbl->phash_lock);
 	return err;

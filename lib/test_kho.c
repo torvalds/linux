@@ -211,7 +211,7 @@ static int kho_test_save(void)
 	max_mem = PAGE_ALIGN(max_mem);
 	max_nr = max_mem >> PAGE_SHIFT;
 
-	folios = kvmalloc_array(max_nr, sizeof(*state->folios), GFP_KERNEL);
+	folios = kvmalloc_objs(*state->folios, max_nr);
 	if (!folios)
 		return -ENOMEM;
 	state->folios = folios;

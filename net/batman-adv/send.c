@@ -503,7 +503,7 @@ batadv_forw_packet_alloc(struct batadv_hard_iface *if_incoming,
 		return NULL;
 	}
 
-	forw_packet = kmalloc(sizeof(*forw_packet), GFP_ATOMIC);
+	forw_packet = kmalloc_obj(*forw_packet, GFP_ATOMIC);
 	if (!forw_packet)
 		goto err;
 

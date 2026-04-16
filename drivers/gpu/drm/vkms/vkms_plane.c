@@ -56,11 +56,11 @@ vkms_plane_duplicate_state(struct drm_plane *plane)
 	struct vkms_plane_state *vkms_state;
 	struct vkms_frame_info *frame_info;
 
-	vkms_state = kzalloc(sizeof(*vkms_state), GFP_KERNEL);
+	vkms_state = kzalloc_obj(*vkms_state);
 	if (!vkms_state)
 		return NULL;
 
-	frame_info = kzalloc(sizeof(*frame_info), GFP_KERNEL);
+	frame_info = kzalloc_obj(*frame_info);
 	if (!frame_info) {
 		DRM_DEBUG_KMS("Couldn't allocate frame_info\n");
 		kfree(vkms_state);
@@ -104,7 +104,7 @@ static void vkms_plane_reset(struct drm_plane *plane)
 		plane->state = NULL; /* must be set to NULL here */
 	}
 
-	vkms_state = kzalloc(sizeof(*vkms_state), GFP_KERNEL);
+	vkms_state = kzalloc_obj(*vkms_state);
 	if (!vkms_state) {
 		DRM_ERROR("Cannot allocate vkms_plane_state\n");
 		return;

@@ -242,7 +242,7 @@ static struct resource *additional_memory_resource(phys_addr_t size)
 	struct resource *res;
 	int ret;
 
-	res = kzalloc(sizeof(*res), GFP_KERNEL);
+	res = kzalloc_obj(*res);
 	if (!res)
 		return NULL;
 

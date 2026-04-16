@@ -686,7 +686,7 @@ sun50i_iommu_domain_alloc_paging(struct device *dev)
 {
 	struct sun50i_iommu_domain *sun50i_domain;
 
-	sun50i_domain = kzalloc(sizeof(*sun50i_domain), GFP_KERNEL);
+	sun50i_domain = kzalloc_obj(*sun50i_domain);
 	if (!sun50i_domain)
 		return NULL;
 

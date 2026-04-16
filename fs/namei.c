@@ -790,8 +790,8 @@ static bool nd_alloc_stack(struct nameidata *nd)
 {
 	struct saved *p;
 
-	p= kmalloc_array(MAXSYMLINKS, sizeof(struct saved),
-			 nd->flags & LOOKUP_RCU ? GFP_ATOMIC : GFP_KERNEL);
+	p= kmalloc_objs(struct saved, MAXSYMLINKS,
+			nd->flags & LOOKUP_RCU ? GFP_ATOMIC : GFP_KERNEL);
 	if (unlikely(!p))
 		return false;
 	memcpy(p, nd->internal, sizeof(nd->internal));
@@ -3088,7 +3088,7 @@ int lookup_noperm_common(struct qstr *qname, struct dentry *base)
 	if (!len)
 		return -EACCES;
 
-	if (is_dot_dotdot(name, len))
+	if (name_is_dot_dotdot(name, len))
 		return -EACCES;
 
 	while (len--) {

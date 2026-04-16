@@ -668,7 +668,7 @@ static int sfq_change(struct Qdisc *sch, struct nlattr *opt,
 					ctl_v1->Wlog, ctl_v1->Scell_log, NULL))
 		return -EINVAL;
 	if (ctl_v1 && ctl_v1->qth_min) {
-		p = kmalloc(sizeof(*p), GFP_KERNEL);
+		p = kmalloc_obj(*p);
 		if (!p)
 			return -ENOMEM;
 	}

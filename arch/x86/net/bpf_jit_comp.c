@@ -438,17 +438,8 @@ static void emit_kcfi(u8 **pprog, u32 hash)
 
 	EMIT1_off32(0xb8, hash);			/* movl $hash, %eax	*/
 #ifdef CONFIG_CALL_PADDING
-	EMIT1(0x90);
-	EMIT1(0x90);
-	EMIT1(0x90);
-	EMIT1(0x90);
-	EMIT1(0x90);
-	EMIT1(0x90);
-	EMIT1(0x90);
-	EMIT1(0x90);
-	EMIT1(0x90);
-	EMIT1(0x90);
-	EMIT1(0x90);
+	for (int i = 0; i < CONFIG_FUNCTION_PADDING_CFI; i++)
+		EMIT1(0x90);
 #endif
 	EMIT_ENDBR();
 
@@ -3758,7 +3749,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 
 	jit_data = prog->aux->jit_data;
 	if (!jit_data) {
-		jit_data = kzalloc(sizeof(*jit_data), GFP_KERNEL);
+		jit_data = kzalloc_obj(*jit_data);
 		if (!jit_data) {
 			prog = orig_prog;
 			goto out;
@@ -3794,7 +3785,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 		padding = true;
 		goto skip_init_addrs;
 	}
-	addrs = kvmalloc_array(prog->len + 1, sizeof(*addrs), GFP_KERNEL);
+	addrs = kvmalloc_objs(*addrs, prog->len + 1);
 	if (!addrs) {
 		prog = orig_prog;
 		goto out_addrs;

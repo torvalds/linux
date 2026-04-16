@@ -511,7 +511,7 @@ static void kmalloc_oob_16(struct kunit *test)
 	ptr1 = RELOC_HIDE(kmalloc(sizeof(*ptr1) - 3, GFP_KERNEL), 0);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ptr1);
 
-	ptr2 = kmalloc(sizeof(*ptr2), GFP_KERNEL);
+	ptr2 = kmalloc_obj(*ptr2);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ptr2);
 
 	OPTIMIZER_HIDE_VAR(ptr1);
@@ -529,10 +529,10 @@ static void kmalloc_uaf_16(struct kunit *test)
 
 	KASAN_TEST_NEEDS_CHECKED_MEMINTRINSICS(test);
 
-	ptr1 = kmalloc(sizeof(*ptr1), GFP_KERNEL);
+	ptr1 = kmalloc_obj(*ptr1);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ptr1);
 
-	ptr2 = kmalloc(sizeof(*ptr2), GFP_KERNEL);
+	ptr2 = kmalloc_obj(*ptr2);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ptr2);
 	kfree(ptr2);
 
@@ -859,7 +859,7 @@ static void kasan_atomics(struct kunit *test)
 	 */
 	a1 = kzalloc(48, GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, a1);
-	a2 = kzalloc(sizeof(atomic_long_t), GFP_KERNEL);
+	a2 = kzalloc_obj(atomic_long_t);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, a2);
 
 	/* Use atomics to access the redzone. */
@@ -954,7 +954,7 @@ static void rcu_uaf(struct kunit *test)
 {
 	struct kasan_rcu_info *ptr;
 
-	ptr = kmalloc(sizeof(struct kasan_rcu_info), GFP_KERNEL);
+	ptr = kmalloc_obj(struct kasan_rcu_info);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ptr);
 
 	global_rcu_ptr = rcu_dereference_protected(
@@ -978,7 +978,7 @@ static void workqueue_uaf(struct kunit *test)
 	workqueue = create_workqueue("kasan_workqueue_test");
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, workqueue);
 
-	work = kmalloc(sizeof(struct work_struct), GFP_KERNEL);
+	work = kmalloc_obj(struct work_struct);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, work);
 
 	INIT_WORK(work, workqueue_uaf_work);

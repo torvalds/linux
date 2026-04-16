@@ -108,7 +108,7 @@ new_id_store(struct device_driver *driver, const char *buf, size_t count)
 	if (fields < 6)
 		return -EINVAL;
 
-	dynid = kzalloc(sizeof(struct pcmcia_dynid), GFP_KERNEL);
+	dynid = kzalloc_obj(struct pcmcia_dynid);
 	if (!dynid)
 		return -ENOMEM;
 
@@ -402,7 +402,7 @@ static int pcmcia_device_query(struct pcmcia_device *p_dev)
 	cistpl_vers_1_t	*vers1;
 	unsigned int i;
 
-	vers1 = kmalloc(sizeof(*vers1), GFP_KERNEL);
+	vers1 = kmalloc_obj(*vers1);
 	if (!vers1)
 		return -ENOMEM;
 
@@ -428,7 +428,7 @@ static int pcmcia_device_query(struct pcmcia_device *p_dev)
 		 * probably memory cards (from pcmcia-cs) */
 		cistpl_device_geo_t *devgeo;
 
-		devgeo = kmalloc(sizeof(*devgeo), GFP_KERNEL);
+		devgeo = kmalloc_obj(*devgeo);
 		if (!devgeo) {
 			kfree(vers1);
 			return -ENOMEM;
@@ -488,7 +488,7 @@ static struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s,
 
 	pr_debug("adding device to %d, function %d\n", s->sock, function);
 
-	p_dev = kzalloc(sizeof(struct pcmcia_device), GFP_KERNEL);
+	p_dev = kzalloc_obj(struct pcmcia_device);
 	if (!p_dev)
 		goto err_put;
 
@@ -542,7 +542,7 @@ static struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s,
 	if (!p_dev->function_config) {
 		config_t *c;
 		dev_dbg(&p_dev->dev, "creating config_t\n");
-		c = kzalloc(sizeof(struct config_t), GFP_KERNEL);
+		c = kzalloc_obj(struct config_t);
 		if (!c) {
 			mutex_unlock(&s->ops_mutex);
 			goto err_unreg;

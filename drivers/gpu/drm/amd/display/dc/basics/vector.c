@@ -94,7 +94,7 @@ struct vector *dal_vector_presized_create(
 	void *initial_value,
 	uint32_t struct_size)
 {
-	struct vector *vector = kzalloc(sizeof(struct vector), GFP_KERNEL);
+	struct vector *vector = kzalloc_obj(struct vector);
 
 	if (vector == NULL)
 		return NULL;
@@ -113,7 +113,7 @@ struct vector *dal_vector_create(
 	uint32_t capacity,
 	uint32_t struct_size)
 {
-	struct vector *vector = kzalloc(sizeof(struct vector), GFP_KERNEL);
+	struct vector *vector = kzalloc_obj(struct vector);
 
 	if (vector == NULL)
 		return NULL;

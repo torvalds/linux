@@ -492,7 +492,7 @@ static int hclge_mac_update_stats_complete(struct hclge_dev *hdev)
 	/* This may be called inside atomic sections,
 	 * so GFP_ATOMIC is more suitable here
 	 */
-	desc = kcalloc(desc_num, sizeof(struct hclge_desc), GFP_ATOMIC);
+	desc = kzalloc_objs(struct hclge_desc, desc_num, GFP_ATOMIC);
 	if (!desc)
 		return -ENOMEM;
 
@@ -2418,7 +2418,7 @@ int hclge_buffer_alloc(struct hclge_dev *hdev)
 	struct hclge_pkt_buf_alloc *pkt_buf;
 	int ret;
 
-	pkt_buf = kzalloc(sizeof(*pkt_buf), GFP_KERNEL);
+	pkt_buf = kzalloc_obj(*pkt_buf);
 	if (!pkt_buf)
 		return -ENOMEM;
 
@@ -6582,7 +6582,7 @@ static int hclge_add_fd_entry(struct hnae3_handle *handle,
 	if (ret)
 		return ret;
 
-	rule = kzalloc(sizeof(*rule), GFP_KERNEL);
+	rule = kzalloc_obj(*rule);
 	if (!rule)
 		return -ENOMEM;
 
@@ -7124,7 +7124,7 @@ static int hclge_add_fd_entry_by_arfs(struct hnae3_handle *handle, u16 queue_id,
 			return -ENOSPC;
 		}
 
-		rule = kzalloc(sizeof(*rule), GFP_ATOMIC);
+		rule = kzalloc_obj(*rule, GFP_ATOMIC);
 		if (!rule) {
 			spin_unlock_bh(&hdev->fd_rule_lock);
 			return -ENOMEM;
@@ -7410,7 +7410,7 @@ static int hclge_add_cls_flower(struct hnae3_handle *handle,
 		return ret;
 	}
 
-	rule = kzalloc(sizeof(*rule), GFP_KERNEL);
+	rule = kzalloc_obj(*rule);
 	if (!rule)
 		return -ENOMEM;
 
@@ -8578,7 +8578,7 @@ int hclge_update_mac_list(struct hclge_vport *vport,
 		return -ENOENT;
 	}
 
-	mac_node = kzalloc(sizeof(*mac_node), GFP_ATOMIC);
+	mac_node = kzalloc_obj(*mac_node, GFP_ATOMIC);
 	if (!mac_node) {
 		spin_unlock_bh(&vport->mac_list_lock);
 		return -ENOMEM;
@@ -8986,7 +8986,7 @@ static void hclge_sync_vport_mac_table(struct hclge_vport *vport,
 			list_move_tail(&mac_node->node, &tmp_del_list);
 			break;
 		case HCLGE_MAC_TO_ADD:
-			new_node = kzalloc(sizeof(*new_node), GFP_ATOMIC);
+			new_node = kzalloc_obj(*new_node, GFP_ATOMIC);
 			if (!new_node)
 				goto stop_traverse;
 			ether_addr_copy(new_node->mac_addr, mac_node->mac_addr);
@@ -9328,7 +9328,7 @@ int hclge_update_mac_node_for_dev_addr(struct hclge_vport *vport,
 
 	new_node = hclge_find_mac_node(list, new_addr);
 	if (!new_node) {
-		new_node = kzalloc(sizeof(*new_node), GFP_ATOMIC);
+		new_node = kzalloc_obj(*new_node, GFP_ATOMIC);
 		if (!new_node)
 			return -ENOMEM;
 
@@ -10093,7 +10093,7 @@ static void hclge_add_vport_vlan_table(struct hclge_vport *vport, u16 vlan_id,
 		}
 	}
 
-	vlan = kzalloc(sizeof(*vlan), GFP_KERNEL);
+	vlan = kzalloc_obj(*vlan);
 	if (!vlan) {
 		mutex_unlock(&hdev->vport_lock);
 		return;

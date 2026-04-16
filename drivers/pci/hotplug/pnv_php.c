@@ -791,7 +791,7 @@ static struct pnv_php_slot *pnv_php_alloc_slot(struct device_node *dn)
 	if (!bus)
 		return NULL;
 
-	php_slot = kzalloc(sizeof(*php_slot), GFP_KERNEL);
+	php_slot = kzalloc_obj(*php_slot);
 	if (!php_slot)
 		return NULL;
 
@@ -1028,7 +1028,7 @@ static irqreturn_t pnv_php_interrupt(int irq, void *data)
 	 * The PE is left in frozen state if the event is missed. It's
 	 * fine as the PCI devices (PE) aren't functional any more.
 	 */
-	event = kzalloc(sizeof(*event), GFP_ATOMIC);
+	event = kzalloc_obj(*event, GFP_ATOMIC);
 	if (!event) {
 		SLOT_WARN(php_slot,
 			  "PCI slot [%s] missed hotplug event 0x%04x\n",

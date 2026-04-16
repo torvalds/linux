@@ -98,11 +98,19 @@ setup_prepare()
 	h1_create
 	h2_create
 	switch_create
+
+	if [ -f /proc/sys/net/bridge/bridge-nf-call-iptables ]; then
+		sysctl_set net.bridge.bridge-nf-call-iptables 0
+	fi
 }
 
 cleanup()
 {
 	pre_cleanup
+
+	if [ -f /proc/sys/net/bridge/bridge-nf-call-iptables ]; then
+		sysctl_restore net.bridge.bridge-nf-call-iptables
+	fi
 
 	switch_destroy
 	h2_destroy

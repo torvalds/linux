@@ -979,8 +979,8 @@ static int bnxt_set_channels(struct net_device *dev,
 
 	if (bnxt_get_nr_rss_ctxs(bp, req_rx_rings) !=
 	    bnxt_get_nr_rss_ctxs(bp, bp->rx_nr_rings) &&
-	    netif_is_rxfh_configured(dev)) {
-		netdev_warn(dev, "RSS table size change required, RSS table entries must be default to proceed\n");
+	    (netif_is_rxfh_configured(dev) || bp->num_rss_ctx)) {
+		netdev_warn(dev, "RSS table size change required, RSS table entries must be default (with no additional RSS contexts present) to proceed\n");
 		return -EINVAL;
 	}
 
@@ -1371,7 +1371,7 @@ static int bnxt_add_ntuple_cls_rule(struct bnxt *bp,
 			return -EOPNOTSUPP;
 	}
 
-	new_fltr = kzalloc(sizeof(*new_fltr), GFP_KERNEL);
+	new_fltr = kzalloc_obj(*new_fltr);
 	if (!new_fltr)
 		return -ENOMEM;
 
@@ -5485,7 +5485,7 @@ void bnxt_ethtool_init(struct bnxt *bp)
 
 	test_info = bp->test_info;
 	if (!test_info) {
-		test_info = kzalloc(sizeof(*bp->test_info), GFP_KERNEL);
+		test_info = kzalloc_obj(*bp->test_info);
 		if (!test_info)
 			return;
 		bp->test_info = test_info;

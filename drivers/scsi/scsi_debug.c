@@ -1169,7 +1169,7 @@ static ssize_t sdebug_error_write(struct file *file, const char __user *ubuf,
 		return -EINVAL;
 	}
 
-	inject = kzalloc(sizeof(struct sdebug_err_inject), GFP_KERNEL);
+	inject = kzalloc_obj(struct sdebug_err_inject);
 	if (!inject) {
 		kfree(buf);
 		return -ENOMEM;
@@ -1266,7 +1266,7 @@ static int sdebug_target_alloc(struct scsi_target *starget)
 {
 	struct sdebug_target_info *targetip;
 
-	targetip = kzalloc(sizeof(struct sdebug_target_info), GFP_KERNEL);
+	targetip = kzalloc_obj(struct sdebug_target_info);
 	if (!targetip)
 		return -ENOMEM;
 
@@ -6504,8 +6504,7 @@ static int sdebug_device_create_zones(struct sdebug_dev_info *devip)
 			devip->max_open = sdeb_zbc_max_open;
 	}
 
-	devip->zstate = kcalloc(devip->nr_zones,
-				sizeof(struct sdeb_zone_state), GFP_KERNEL);
+	devip->zstate = kzalloc_objs(struct sdeb_zone_state, devip->nr_zones);
 	if (!devip->zstate)
 		return -ENOMEM;
 
@@ -6549,7 +6548,7 @@ static struct sdebug_dev_info *sdebug_device_create(
 {
 	struct sdebug_dev_info *devip;
 
-	devip = kzalloc(sizeof(*devip), flags);
+	devip = kzalloc_obj(*devip, flags);
 	if (devip) {
 		if (sdebug_uuid_ctl == 1)
 			uuid_gen(&devip->lu_name);
@@ -6649,8 +6648,7 @@ static int scsi_debug_sdev_configure(struct scsi_device *sdp,
 	if (sdebug_ptype == TYPE_TAPE) {
 		if (!devip->tape_blocks[0]) {
 			devip->tape_blocks[0] =
-				kcalloc(TAPE_UNITS, sizeof(struct tape_block),
-					GFP_KERNEL);
+				kzalloc_objs(struct tape_block, TAPE_UNITS);
 			if (!devip->tape_blocks[0])
 				return 1;
 		}
@@ -8791,7 +8789,7 @@ static int sdebug_add_store(void)
 	struct sdeb_store_info *sip = NULL;
 	struct xa_limit xal = { .max = 1 << 16, .min = 0 };
 
-	sip = kzalloc(sizeof(*sip), GFP_KERNEL);
+	sip = kzalloc_obj(*sip);
 	if (!sip)
 		return -ENOMEM;
 
@@ -8868,7 +8866,7 @@ static int sdebug_add_host_helper(int per_host_idx)
 	struct sdebug_host_info *sdbg_host;
 	struct sdebug_dev_info *sdbg_devinfo, *tmp;
 
-	sdbg_host = kzalloc(sizeof(*sdbg_host), GFP_KERNEL);
+	sdbg_host = kzalloc_obj(*sdbg_host);
 	if (!sdbg_host)
 		return -ENOMEM;
 	idx = (per_host_idx < 0) ? sdeb_first_idx : per_host_idx;

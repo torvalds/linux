@@ -381,8 +381,7 @@ add_inherited_tunnel(struct intel_atomic_state *state,
 	}
 
 	if (!state->inherited_dp_tunnels) {
-		state->inherited_dp_tunnels = kzalloc(sizeof(*state->inherited_dp_tunnels),
-						      GFP_KERNEL);
+		state->inherited_dp_tunnels = kzalloc_obj(*state->inherited_dp_tunnels);
 		if (!state->inherited_dp_tunnels)
 			return -ENOMEM;
 	}

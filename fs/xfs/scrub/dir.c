@@ -1095,7 +1095,7 @@ xchk_directory(
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return 0;
 
-	sd = kvzalloc(sizeof(struct xchk_dir), XCHK_GFP_FLAGS);
+	sd = kvzalloc_obj(struct xchk_dir, XCHK_GFP_FLAGS);
 	if (!sd)
 		return -ENOMEM;
 	sd->sc = sc;

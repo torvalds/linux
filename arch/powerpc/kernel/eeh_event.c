@@ -104,7 +104,7 @@ int __eeh_send_failure_event(struct eeh_pe *pe)
 	unsigned long flags;
 	struct eeh_event *event;
 
-	event = kzalloc(sizeof(*event), GFP_ATOMIC);
+	event = kzalloc_obj(*event, GFP_ATOMIC);
 	if (!event) {
 		pr_err("EEH: out of memory, event not handled\n");
 		return -ENOMEM;

@@ -135,7 +135,7 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
 		}
 	}
 
-	if (adev->device_type == ACPI_BUS_TYPE_DEVICE && !adev->pnp.type.backlight) {
+	if (adev->device_type == ACPI_BUS_TYPE_DEVICE) {
 		LIST_HEAD(resource_list);
 
 		count = acpi_dev_get_resources(adev, &resource_list, NULL, NULL);
@@ -145,7 +145,7 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
 		if (count > 0) {
 			struct resource_entry *rentry;
 
-			resources = kcalloc(count, sizeof(*resources), GFP_KERNEL);
+			resources = kzalloc_objs(*resources, count);
 			if (!resources) {
 				acpi_dev_free_resource_list(&resource_list);
 				return ERR_PTR(-ENOMEM);

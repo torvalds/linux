@@ -3646,7 +3646,7 @@ static void __init meson8b_clkc_init_common(struct device_node *np,
 		return;
 	}
 
-	rstc = kzalloc(sizeof(*rstc), GFP_KERNEL);
+	rstc = kzalloc_obj(*rstc);
 	if (!rstc)
 		return;
 

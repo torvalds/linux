@@ -403,7 +403,7 @@ static void __init initramfs_test_fname_pad(struct kunit *test)
 	struct test_fname_pad {
 		char padded_fname[4096 - CPIO_HDRLEN];
 		char cpio_srcbuf[CPIO_HDRLEN + PATH_MAX + 3 + sizeof(fdata)];
-	} *tbufs = kzalloc(sizeof(struct test_fname_pad), GFP_KERNEL);
+	} *tbufs = kzalloc_obj(struct test_fname_pad);
 	struct initramfs_test_cpio c[] = { {
 		.magic = "070701",
 		.ino = 1,
@@ -457,7 +457,7 @@ static void __init initramfs_test_fname_path_max(struct kunit *test)
 		char fname_oversize[PATH_MAX + 1];
 		char fname_ok[PATH_MAX];
 		char cpio_src[(CPIO_HDRLEN + PATH_MAX + 3 + sizeof(fdata)) * 2];
-	} *tbufs = kzalloc(sizeof(struct test_fname_path_max), GFP_KERNEL);
+	} *tbufs = kzalloc_obj(struct test_fname_path_max);
 	struct initramfs_test_cpio c[] = { {
 		.magic = "070701",
 		.ino = 1,

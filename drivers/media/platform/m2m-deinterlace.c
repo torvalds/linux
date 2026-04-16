@@ -835,7 +835,7 @@ static int deinterlace_open(struct file *file)
 	struct deinterlace_dev *pcdev = video_drvdata(file);
 	struct deinterlace_ctx *ctx = NULL;
 
-	ctx = kzalloc(sizeof *ctx, GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

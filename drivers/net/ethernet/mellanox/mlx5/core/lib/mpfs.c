@@ -103,7 +103,7 @@ int mlx5_mpfs_init(struct mlx5_core_dev *dev)
 	if (!MLX5_ESWITCH_MANAGER(dev) || l2table_size == 1)
 		return 0;
 
-	mpfs = kzalloc(sizeof(*mpfs), GFP_KERNEL);
+	mpfs = kzalloc_obj(*mpfs);
 	if (!mpfs)
 		return -ENOMEM;
 

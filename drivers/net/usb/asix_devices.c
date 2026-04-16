@@ -1314,7 +1314,7 @@ static int ax88178_bind(struct usbnet *dev, struct usb_interface *intf)
 		dev->rx_urb_size = 2048;
 	}
 
-	dev->driver_priv = kzalloc(sizeof(struct asix_common_private), GFP_KERNEL);
+	dev->driver_priv = kzalloc_obj(struct asix_common_private);
 	if (!dev->driver_priv)
 			return -ENOMEM;
 

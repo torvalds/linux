@@ -16,6 +16,7 @@
 
 struct dram_bw_to_min_clk_table_entry {
 	unsigned long long pre_derate_dram_bw_kbps;
+	unsigned long min_uclk_khz;
 	unsigned long min_fclk_khz;
 	unsigned long min_dcfclk_khz;
 };

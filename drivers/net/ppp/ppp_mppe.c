@@ -158,7 +158,7 @@ static void *mppe_alloc(unsigned char *options, int optlen)
 	    fips_enabled)
 		return NULL;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (state == NULL)
 		return NULL;
 

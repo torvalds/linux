@@ -163,7 +163,7 @@ static int guillemot_connect(struct gameport *gameport, struct gameport_driver *
 	int i, t;
 	int err;
 
-	guillemot = kzalloc(sizeof(*guillemot), GFP_KERNEL);
+	guillemot = kzalloc_obj(*guillemot);
 	input_dev = input_allocate_device();
 	if (!guillemot || !input_dev) {
 		err = -ENOMEM;

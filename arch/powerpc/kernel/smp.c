@@ -1172,7 +1172,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		 * Assumption: if boot_cpuid doesn't have a chip-id, then no
 		 * other CPUs, will also not have chip-id.
 		 */
-		chip_id_lookup_table = kcalloc(idx, sizeof(int), GFP_KERNEL);
+		chip_id_lookup_table = kzalloc_objs(int, idx);
 		if (chip_id_lookup_table)
 			memset(chip_id_lookup_table, -1, sizeof(int) * idx);
 	}

@@ -274,7 +274,7 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 		struct apci2032_int_private *subpriv;
 
 		dev->read_subdev = s;
-		subpriv = kzalloc(sizeof(*subpriv), GFP_KERNEL);
+		subpriv = kzalloc_obj(*subpriv);
 		if (!subpriv)
 			return -ENOMEM;
 		spin_lock_init(&subpriv->spinlock);

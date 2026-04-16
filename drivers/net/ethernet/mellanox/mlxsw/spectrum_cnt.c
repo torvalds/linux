@@ -124,8 +124,7 @@ int mlxsw_sp_counter_pool_init(struct mlxsw_sp *mlxsw_sp)
 	struct mlxsw_sp_counter_pool *pool;
 	int err;
 
-	pool = kzalloc(struct_size(pool, sub_pools, sub_pools_count),
-		       GFP_KERNEL);
+	pool = kzalloc_flex(*pool, sub_pools, sub_pools_count);
 	if (!pool)
 		return -ENOMEM;
 	mlxsw_sp->counter_pool = pool;

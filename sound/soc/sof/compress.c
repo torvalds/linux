@@ -101,7 +101,7 @@ static int sof_compr_open(struct snd_soc_component *component,
 	struct snd_sof_pcm *spcm;
 	int dir;
 
-	sstream = kzalloc(sizeof(*sstream), GFP_KERNEL);
+	sstream = kzalloc_obj(*sstream);
 	if (!sstream)
 		return -ENOMEM;
 

@@ -57,7 +57,7 @@ static struct audioreach_graph *q6apm_get_audioreach_graph(struct q6apm *apm, ui
 	if (!info)
 		return ERR_PTR(-ENODEV);
 
-	graph = kzalloc(sizeof(*graph), GFP_KERNEL);
+	graph = kzalloc_obj(*graph);
 	if (!graph)
 		return ERR_PTR(-ENOMEM);
 
@@ -220,7 +220,7 @@ int q6apm_map_memory_regions(struct q6apm_graph *graph, unsigned int dir, phys_a
 		return 0;
 	}
 
-	buf = kcalloc(periods, sizeof(struct audio_buffer), GFP_KERNEL);
+	buf = kzalloc_objs(struct audio_buffer, periods);
 	if (!buf) {
 		mutex_unlock(&graph->lock);
 		return -ENOMEM;
@@ -615,7 +615,7 @@ struct q6apm_graph *q6apm_graph_open(struct device *dev, q6apm_cb cb,
 		return ERR_CAST(ar_graph);
 	}
 
-	graph = kzalloc(sizeof(*graph), GFP_KERNEL);
+	graph = kzalloc_obj(*graph);
 	if (!graph) {
 		ret = -ENOMEM;
 		goto put_ar_graph;
@@ -715,6 +715,7 @@ static const struct snd_soc_component_driver q6apm_audio_component = {
 	.name		= APM_AUDIO_DRV_NAME,
 	.probe		= q6apm_audio_probe,
 	.remove		= q6apm_audio_remove,
+	.remove_order   = SND_SOC_COMP_ORDER_LAST,
 };
 
 static int apm_probe(gpr_device_t *gdev)

@@ -3070,7 +3070,7 @@ static int __init report_memory(void)
 	kernel_lds_init();
 
 	for (i = 0; i < pavail_ents; i++) {
-		res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+		res = kzalloc_obj(struct resource);
 
 		if (!res) {
 			pr_warn("Failed to allocate source.\n");

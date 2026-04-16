@@ -2008,7 +2008,7 @@ static int safexcel_xcbcmac_cra_init(struct crypto_tfm *tfm)
 	struct safexcel_ahash_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	safexcel_ahash_cra_init(tfm);
-	ctx->aes = kmalloc(sizeof(*ctx->aes), GFP_KERNEL);
+	ctx->aes = kmalloc_obj(*ctx->aes);
 	return ctx->aes == NULL ? -ENOMEM : 0;
 }
 

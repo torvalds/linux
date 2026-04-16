@@ -585,14 +585,12 @@ static int cs42l42_sdw_probe(struct sdw_slave *peripheral, const struct sdw_devi
 	return 0;
 }
 
-static int cs42l42_sdw_remove(struct sdw_slave *peripheral)
+static void cs42l42_sdw_remove(struct sdw_slave *peripheral)
 {
 	struct cs42l42_private *cs42l42 = dev_get_drvdata(&peripheral->dev);
 
 	cs42l42_common_remove(cs42l42);
 	pm_runtime_disable(cs42l42->dev);
-
-	return 0;
 }
 
 static const struct dev_pm_ops cs42l42_sdw_pm = {

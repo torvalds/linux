@@ -150,7 +150,7 @@ struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_init)
 	struct nfs_client *clp;
 	int err = -ENOMEM;
 
-	if ((clp = kzalloc(sizeof(*clp), GFP_KERNEL)) == NULL)
+	if ((clp = kzalloc_obj(*clp)) == NULL)
 		goto error_0;
 
 	clp->cl_minorversion = cl_init->minorversion;
@@ -1044,7 +1044,7 @@ struct nfs_server *nfs_alloc_server(void)
 {
 	struct nfs_server *server;
 
-	server = kzalloc(sizeof(struct nfs_server), GFP_KERNEL);
+	server = kzalloc_obj(struct nfs_server);
 	if (!server)
 		return NULL;
 

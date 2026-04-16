@@ -338,7 +338,7 @@ static int usb_dsbr100_probe(struct usb_interface *intf,
 	struct v4l2_device *v4l2_dev;
 	int retval;
 
-	radio = kzalloc(sizeof(struct dsbr100_device), GFP_KERNEL);
+	radio = kzalloc_obj(struct dsbr100_device);
 
 	if (!radio)
 		return -ENOMEM;

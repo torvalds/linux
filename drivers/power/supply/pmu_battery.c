@@ -160,8 +160,7 @@ static int __init pmu_bat_init(void)
 
 	for (i = 0; i < pmu_battery_count; i++) {
 		struct power_supply_config psy_cfg = {};
-		struct pmu_battery_dev *pbat = kzalloc(sizeof(*pbat),
-						       GFP_KERNEL);
+		struct pmu_battery_dev *pbat = kzalloc_obj(*pbat);
 		if (!pbat)
 			break;
 

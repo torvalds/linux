@@ -151,7 +151,7 @@ struct snd_timer_instance *snd_timer_instance_new(const char *owner)
 {
 	struct snd_timer_instance *timeri;
 
-	timeri = kzalloc(sizeof(*timeri), GFP_KERNEL);
+	timeri = kzalloc_obj(*timeri);
 	if (timeri == NULL)
 		return NULL;
 	timeri->owner = kstrdup(owner, GFP_KERNEL);
@@ -930,7 +930,7 @@ int snd_timer_new(struct snd_card *card, char *id, struct snd_timer_id *tid,
 	}
 	if (rtimer)
 		*rtimer = NULL;
-	timer = kzalloc(sizeof(*timer), GFP_KERNEL);
+	timer = kzalloc_obj(*timer);
 	if (!timer)
 		return -ENOMEM;
 	timer->tmr_class = tid->dev_class;
@@ -1197,7 +1197,7 @@ static int snd_timer_register_system(void)
 		return err;
 	strscpy(timer->name, "system timer");
 	timer->hw = snd_timer_system;
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (priv == NULL) {
 		snd_timer_free(timer);
 		return -ENOMEM;
@@ -1432,11 +1432,11 @@ static int realloc_user_queue(struct snd_timer_user *tu, int size)
 	struct snd_timer_tread64 *tqueue = NULL;
 
 	if (tu->tread) {
-		tqueue = kcalloc(size, sizeof(*tqueue), GFP_KERNEL);
+		tqueue = kzalloc_objs(*tqueue, size);
 		if (!tqueue)
 			return -ENOMEM;
 	} else {
-		queue = kcalloc(size, sizeof(*queue), GFP_KERNEL);
+		queue = kzalloc_objs(*queue, size);
 		if (!queue)
 			return -ENOMEM;
 	}
@@ -1461,7 +1461,7 @@ static int snd_timer_user_open(struct inode *inode, struct file *file)
 	if (err < 0)
 		return err;
 
-	tu = kzalloc(sizeof(*tu), GFP_KERNEL);
+	tu = kzalloc_obj(*tu);
 	if (tu == NULL)
 		return -ENOMEM;
 	spin_lock_init(&tu->qlock);
@@ -2128,7 +2128,7 @@ static int snd_utimer_create(struct snd_timer_uinfo *utimer_info,
 	if (!utimer_info || utimer_info->resolution == 0)
 		return -EINVAL;
 
-	utimer = kzalloc(sizeof(*utimer), GFP_KERNEL);
+	utimer = kzalloc_obj(*utimer);
 	if (!utimer)
 		return -ENOMEM;
 

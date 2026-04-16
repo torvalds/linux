@@ -1339,8 +1339,7 @@ static int __init ppc4xx_pciex_check_core_init(struct device_node *np)
 	count = ppc4xx_pciex_hwops->core_init(np);
 	if (count > 0) {
 		ppc4xx_pciex_ports =
-		       kcalloc(count, sizeof(struct ppc4xx_pciex_port),
-			       GFP_KERNEL);
+		       kzalloc_objs(struct ppc4xx_pciex_port, count);
 		if (ppc4xx_pciex_ports) {
 			ppc4xx_pciex_port_count = count;
 			return 0;

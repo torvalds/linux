@@ -2629,7 +2629,7 @@ static int rt1320_sdw_hw_params(struct snd_pcm_substream *substream,
 	struct sdw_port_config port_config;
 	struct sdw_port_config dmic_port_config[2];
 	struct sdw_stream_runtime *sdw_stream;
-	int retval;
+	int retval, num_channels;
 	unsigned int sampling_rate;
 
 	dev_dbg(dai->dev, "%s %s", __func__, dai->name);
@@ -2661,7 +2661,8 @@ static int rt1320_sdw_hw_params(struct snd_pcm_substream *substream,
 				dmic_port_config[1].num = 10;
 				break;
 			case RT1321_DEV_ID:
-				dmic_port_config[0].ch_mask = BIT(0) | BIT(1);
+				num_channels = params_channels(params);
+				dmic_port_config[0].ch_mask = GENMASK(num_channels - 1, 0);
 				dmic_port_config[0].num = 8;
 				break;
 			default:
@@ -2950,14 +2951,12 @@ static int rt1320_sdw_probe(struct sdw_slave *slave,
 	return rt1320_sdw_init(&slave->dev, regmap, mbq_regmap, slave);
 }
 
-static int rt1320_sdw_remove(struct sdw_slave *slave)
+static void rt1320_sdw_remove(struct sdw_slave *slave)
 {
 	struct  rt1320_sdw_priv *rt1320 = dev_get_drvdata(&slave->dev);
 
 	cancel_work_sync(&rt1320->load_dspfw_work);
 	pm_runtime_disable(&slave->dev);
-
-	return 0;
 }
 
 /*

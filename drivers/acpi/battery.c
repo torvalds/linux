@@ -1066,9 +1066,6 @@ static void acpi_battery_notify(acpi_handle handle, u32 event, void *data)
 	struct acpi_device *device = battery->device;
 	struct power_supply *old;
 
-	if (!battery)
-		return;
-
 	guard(mutex)(&battery->update_lock);
 
 	old = battery->bat;
@@ -1274,13 +1271,9 @@ fail:
 
 static void acpi_battery_remove(struct platform_device *pdev)
 {
-	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
 	struct acpi_battery *battery = platform_get_drvdata(pdev);
 
-	if (!device || !battery)
-		return;
-
-	acpi_dev_remove_notify_handler(device, ACPI_ALL_NOTIFY,
+	acpi_dev_remove_notify_handler(battery->device, ACPI_ALL_NOTIFY,
 				       acpi_battery_notify);
 
 	device_init_wakeup(&pdev->dev, false);

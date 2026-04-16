@@ -152,7 +152,7 @@ static void * r10buf_pool_alloc(gfp_t gfp_flags, void *data)
 		nalloc_rp = nalloc;
 	else
 		nalloc_rp = nalloc * 2;
-	rps = kmalloc_array(nalloc_rp, sizeof(struct resync_pages), gfp_flags);
+	rps = kmalloc_objs(struct resync_pages, nalloc_rp, gfp_flags);
 	if (!rps)
 		goto out_free_r10bio;
 
@@ -3852,14 +3852,13 @@ static struct r10conf *setup_conf(struct mddev *mddev)
 	}
 
 	err = -ENOMEM;
-	conf = kzalloc(sizeof(struct r10conf), GFP_KERNEL);
+	conf = kzalloc_obj(struct r10conf);
 	if (!conf)
 		goto out;
 
 	/* FIXME calc properly */
-	conf->mirrors = kcalloc(mddev->raid_disks + max(0, -mddev->delta_disks),
-				sizeof(struct raid10_info),
-				GFP_KERNEL);
+	conf->mirrors = kzalloc_objs(struct raid10_info,
+				     mddev->raid_disks + max(0, -mddev->delta_disks));
 	if (!conf->mirrors)
 		goto out;
 
@@ -4281,9 +4280,8 @@ static int raid10_check_reshape(struct mddev *mddev)
 	if (mddev->delta_disks > 0) {
 		/* allocate new 'mirrors' list */
 		conf->mirrors_new =
-			kcalloc(mddev->raid_disks + mddev->delta_disks,
-				sizeof(struct raid10_info),
-				GFP_KERNEL);
+			kzalloc_objs(struct raid10_info,
+				     mddev->raid_disks + mddev->delta_disks);
 		if (!conf->mirrors_new)
 			return -ENOMEM;
 	}
@@ -4918,7 +4916,7 @@ static int handle_reshape_read_error(struct mddev *mddev,
 	int idx = 0;
 	struct page **pages;
 
-	r10b = kmalloc(struct_size(r10b, devs, conf->copies), GFP_NOIO);
+	r10b = kmalloc_flex(*r10b, devs, conf->copies, GFP_NOIO);
 	if (!r10b) {
 		set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 		return -ENOMEM;

@@ -36,23 +36,19 @@
 #define dump_ep_register_set(n)			\
 	{					\
 		.name = "DEPCMDPAR2("__stringify(n)")",	\
-		.offset = DWC3_DEP_BASE(n) +	\
-			DWC3_DEPCMDPAR2,	\
+		.offset = DWC3_DEPCMDPAR2(n),	\
 	},					\
 	{					\
 		.name = "DEPCMDPAR1("__stringify(n)")",	\
-		.offset = DWC3_DEP_BASE(n) +	\
-			DWC3_DEPCMDPAR1,	\
+		.offset = DWC3_DEPCMDPAR1(n),	\
 	},					\
 	{					\
 		.name = "DEPCMDPAR0("__stringify(n)")",	\
-		.offset = DWC3_DEP_BASE(n) +	\
-			DWC3_DEPCMDPAR0,	\
+		.offset = DWC3_DEPCMDPAR0(n),	\
 	},					\
 	{					\
 		.name = "DEPCMD("__stringify(n)")",	\
-		.offset = DWC3_DEP_BASE(n) +	\
-			DWC3_DEPCMD,		\
+		.offset = DWC3_DEPCMD(n),		\
 	}
 
 
@@ -300,14 +296,14 @@ static void dwc3_host_lsp(struct seq_file *s)
 
 	reg = DWC3_GDBGLSPMUX_HOSTSELECT(sel);
 
-	dwc3_writel(dwc->regs, DWC3_GDBGLSPMUX, reg);
-	val = dwc3_readl(dwc->regs, DWC3_GDBGLSP);
+	dwc3_writel(dwc, DWC3_GDBGLSPMUX, reg);
+	val = dwc3_readl(dwc, DWC3_GDBGLSP);
 	seq_printf(s, "GDBGLSP[%d] = 0x%08x\n", sel, val);
 
 	if (dbc_enabled && sel < 256) {
 		reg |= DWC3_GDBGLSPMUX_ENDBC;
-		dwc3_writel(dwc->regs, DWC3_GDBGLSPMUX, reg);
-		val = dwc3_readl(dwc->regs, DWC3_GDBGLSP);
+		dwc3_writel(dwc, DWC3_GDBGLSPMUX, reg);
+		val = dwc3_readl(dwc, DWC3_GDBGLSP);
 		seq_printf(s, "GDBGLSP_DBC[%d] = 0x%08x\n", sel, val);
 	}
 }
@@ -320,8 +316,8 @@ static void dwc3_gadget_lsp(struct seq_file *s)
 
 	for (i = 0; i < 16; i++) {
 		reg = DWC3_GDBGLSPMUX_DEVSELECT(i);
-		dwc3_writel(dwc->regs, DWC3_GDBGLSPMUX, reg);
-		reg = dwc3_readl(dwc->regs, DWC3_GDBGLSP);
+		dwc3_writel(dwc, DWC3_GDBGLSPMUX, reg);
+		reg = dwc3_readl(dwc, DWC3_GDBGLSP);
 		seq_printf(s, "GDBGLSP[%d] = 0x%08x\n", i, reg);
 	}
 }
@@ -339,7 +335,7 @@ static int dwc3_lsp_show(struct seq_file *s, void *unused)
 		return ret;
 
 	spin_lock_irqsave(&dwc->lock, flags);
-	reg = dwc3_readl(dwc->regs, DWC3_GSTS);
+	reg = dwc3_readl(dwc, DWC3_GSTS);
 	current_mode = DWC3_GSTS_CURMOD(reg);
 
 	switch (current_mode) {
@@ -410,7 +406,7 @@ static int dwc3_mode_show(struct seq_file *s, void *unused)
 		return ret;
 
 	spin_lock_irqsave(&dwc->lock, flags);
-	reg = dwc3_readl(dwc->regs, DWC3_GCTL);
+	reg = dwc3_readl(dwc, DWC3_GCTL);
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
 	mode = DWC3_GCTL_PRTCAP(reg);
@@ -482,7 +478,7 @@ static int dwc3_testmode_show(struct seq_file *s, void *unused)
 		return ret;
 
 	spin_lock_irqsave(&dwc->lock, flags);
-	reg = dwc3_readl(dwc->regs, DWC3_DCTL);
+	reg = dwc3_readl(dwc, DWC3_DCTL);
 	reg &= DWC3_DCTL_TSTCTRL_MASK;
 	reg >>= 1;
 	spin_unlock_irqrestore(&dwc->lock, flags);
@@ -581,7 +577,7 @@ static int dwc3_link_state_show(struct seq_file *s, void *unused)
 		return ret;
 
 	spin_lock_irqsave(&dwc->lock, flags);
-	reg = dwc3_readl(dwc->regs, DWC3_GSTS);
+	reg = dwc3_readl(dwc, DWC3_GSTS);
 	if (DWC3_GSTS_CURMOD(reg) != DWC3_GSTS_CURMOD_DEVICE) {
 		seq_puts(s, "Not available\n");
 		spin_unlock_irqrestore(&dwc->lock, flags);
@@ -589,7 +585,7 @@ static int dwc3_link_state_show(struct seq_file *s, void *unused)
 		return 0;
 	}
 
-	reg = dwc3_readl(dwc->regs, DWC3_DSTS);
+	reg = dwc3_readl(dwc, DWC3_DSTS);
 	state = DWC3_DSTS_USBLNKST(reg);
 	speed = reg & DWC3_DSTS_CONNECTSPD;
 
@@ -643,14 +639,14 @@ static ssize_t dwc3_link_state_write(struct file *file,
 		return ret;
 
 	spin_lock_irqsave(&dwc->lock, flags);
-	reg = dwc3_readl(dwc->regs, DWC3_GSTS);
+	reg = dwc3_readl(dwc, DWC3_GSTS);
 	if (DWC3_GSTS_CURMOD(reg) != DWC3_GSTS_CURMOD_DEVICE) {
 		spin_unlock_irqrestore(&dwc->lock, flags);
 		pm_runtime_put_sync(dwc->dev);
 		return -EINVAL;
 	}
 
-	reg = dwc3_readl(dwc->regs, DWC3_DSTS);
+	reg = dwc3_readl(dwc, DWC3_DSTS);
 	speed = reg & DWC3_DSTS_CONNECTSPD;
 
 	if (speed < DWC3_DSTS_SUPERSPEED &&
@@ -946,10 +942,10 @@ static int dwc3_ep_info_register_show(struct seq_file *s, void *unused)
 
 	spin_lock_irqsave(&dwc->lock, flags);
 	reg = DWC3_GDBGLSPMUX_EPSELECT(dep->number);
-	dwc3_writel(dwc->regs, DWC3_GDBGLSPMUX, reg);
+	dwc3_writel(dwc, DWC3_GDBGLSPMUX, reg);
 
-	lower_32_bits = dwc3_readl(dwc->regs, DWC3_GDBGEPINFO0);
-	upper_32_bits = dwc3_readl(dwc->regs, DWC3_GDBGEPINFO1);
+	lower_32_bits = dwc3_readl(dwc, DWC3_GDBGEPINFO0);
+	upper_32_bits = dwc3_readl(dwc, DWC3_GDBGEPINFO1);
 
 	ep_info = ((u64)upper_32_bits << 32) | lower_32_bits;
 	seq_printf(s, "0x%016llx\n", ep_info);
@@ -1007,7 +1003,7 @@ void dwc3_debugfs_init(struct dwc3 *dwc)
 {
 	struct dentry		*root;
 
-	dwc->regset = kzalloc(sizeof(*dwc->regset), GFP_KERNEL);
+	dwc->regset = kzalloc_obj(*dwc->regset);
 	if (!dwc->regset)
 		return;
 

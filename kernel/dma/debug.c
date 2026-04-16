@@ -900,7 +900,7 @@ void dma_debug_add_bus(const struct bus_type *bus)
 	if (dma_debug_disabled())
 		return;
 
-	nb = kzalloc(sizeof(struct notifier_block), GFP_KERNEL);
+	nb = kzalloc_obj(struct notifier_block);
 	if (nb == NULL) {
 		pr_err("dma_debug_add_bus: out of memory\n");
 		return;

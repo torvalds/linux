@@ -872,7 +872,7 @@ static void pci_epf_test_bar_subrange_setup(struct pci_epf_test *epf_test,
 
 	sub_size = bar->size / nsub;
 
-	submap = kcalloc(nsub, sizeof(*submap), GFP_KERNEL);
+	submap = kzalloc_objs(*submap, nsub);
 	if (!submap)
 		goto err;
 

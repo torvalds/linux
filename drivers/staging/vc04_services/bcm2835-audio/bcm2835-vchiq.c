@@ -219,7 +219,7 @@ int bcm2835_audio_open(struct bcm2835_alsa_stream *alsa_stream)
 	int err;
 
 	/* Allocate memory for this instance */
-	instance = kzalloc(sizeof(*instance), GFP_KERNEL);
+	instance = kzalloc_obj(*instance);
 	if (!instance)
 		return -ENOMEM;
 	mutex_init(&instance->vchi_mutex);

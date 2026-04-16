@@ -281,7 +281,7 @@ static struct clk_hw *mtk_clk_register_mux(struct device *dev,
 	struct clk_init_data init = {};
 	int ret;
 
-	clk_mux = kzalloc(sizeof(*clk_mux), GFP_KERNEL);
+	clk_mux = kzalloc_obj(*clk_mux);
 	if (!clk_mux)
 		return ERR_PTR(-ENOMEM);
 

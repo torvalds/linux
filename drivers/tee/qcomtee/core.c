@@ -54,7 +54,7 @@ qcomtee_qtee_object_alloc(struct qcomtee_object_invoke_ctx *oic,
 	struct qcomtee *qcomtee = tee_get_drvdata(oic->ctx->teedev);
 	struct qcomtee_object *object;
 
-	object = kzalloc(sizeof(*object), GFP_KERNEL);
+	object = kzalloc_obj(*object);
 	if (!object)
 		return NULL_QCOMTEE_OBJECT;
 

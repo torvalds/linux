@@ -1288,7 +1288,7 @@ static void mpi3mr_fault_uevent_emit(struct mpi3mr_ioc *mrioc)
 	struct kobj_uevent_env *env;
 	int ret;
 
-	env = kzalloc(sizeof(*env), GFP_KERNEL);
+	env = kzalloc_obj(*env);
 	if (!env)
 		return;
 
@@ -1618,6 +1618,7 @@ retry_bring_ioc_ready:
 			ioc_info(mrioc,
 			    "successfully transitioned to %s state\n",
 			    mpi3mr_iocstate_name(ioc_state));
+			mpi3mr_clear_reset_history(mrioc);
 			return 0;
 		}
 		ioc_status = readl(&mrioc->sysif_regs->ioc_status);
@@ -1636,6 +1637,15 @@ retry_bring_ioc_ready:
 		msleep(100);
 		elapsed_time_sec = jiffies_to_msecs(jiffies - start_time)/1000;
 	} while (elapsed_time_sec < mrioc->ready_timeout);
+
+	ioc_state = mpi3mr_get_iocstate(mrioc);
+	if (ioc_state == MRIOC_STATE_READY) {
+		ioc_info(mrioc,
+		    "successfully transitioned to %s state after %llu seconds\n",
+		    mpi3mr_iocstate_name(ioc_state), elapsed_time_sec);
+		mpi3mr_clear_reset_history(mrioc);
+		return 0;
+	}
 
 out_failed:
 	elapsed_time_sec = jiffies_to_msecs(jiffies - start_time)/1000;
@@ -2110,8 +2120,8 @@ static int mpi3mr_alloc_op_reply_q_segments(struct mpi3mr_ioc *mrioc, u16 qidx)
 	op_reply_q->num_segments = DIV_ROUND_UP(op_reply_q->num_replies,
 	    op_reply_q->segment_qd);
 
-	op_reply_q->q_segments = kcalloc(op_reply_q->num_segments,
-	    sizeof(struct segments), GFP_KERNEL);
+	op_reply_q->q_segments = kzalloc_objs(struct segments,
+					      op_reply_q->num_segments);
 	if (!op_reply_q->q_segments)
 		return -ENOMEM;
 
@@ -2168,8 +2178,8 @@ static int mpi3mr_alloc_op_req_q_segments(struct mpi3mr_ioc *mrioc, u16 qidx)
 	op_req_q->num_segments = DIV_ROUND_UP(op_req_q->num_requests,
 	    op_req_q->segment_qd);
 
-	op_req_q->q_segments = kcalloc(op_req_q->num_segments,
-	    sizeof(struct segments), GFP_KERNEL);
+	op_req_q->q_segments = kzalloc_objs(struct segments,
+					    op_req_q->num_segments);
 	if (!op_req_q->q_segments)
 		return -ENOMEM;
 
@@ -2463,8 +2473,7 @@ static int mpi3mr_create_op_queues(struct mpi3mr_ioc *mrioc)
 	    num_queues);
 
 	if (!mrioc->req_qinfo) {
-		mrioc->req_qinfo = kcalloc(num_queues,
-		    sizeof(struct op_req_qinfo), GFP_KERNEL);
+		mrioc->req_qinfo = kzalloc_objs(struct op_req_qinfo, num_queues);
 		if (!mrioc->req_qinfo) {
 			retval = -1;
 			goto out_failed;
@@ -4808,21 +4817,25 @@ void mpi3mr_memset_buffers(struct mpi3mr_ioc *mrioc)
 	}
 
 	for (i = 0; i < mrioc->num_queues; i++) {
-		mrioc->op_reply_qinfo[i].qid = 0;
-		mrioc->op_reply_qinfo[i].ci = 0;
-		mrioc->op_reply_qinfo[i].num_replies = 0;
-		mrioc->op_reply_qinfo[i].ephase = 0;
-		atomic_set(&mrioc->op_reply_qinfo[i].pend_ios, 0);
-		atomic_set(&mrioc->op_reply_qinfo[i].in_use, 0);
-		mpi3mr_memset_op_reply_q_buffers(mrioc, i);
+		if (mrioc->op_reply_qinfo) {
+			mrioc->op_reply_qinfo[i].qid = 0;
+			mrioc->op_reply_qinfo[i].ci = 0;
+			mrioc->op_reply_qinfo[i].num_replies = 0;
+			mrioc->op_reply_qinfo[i].ephase = 0;
+			atomic_set(&mrioc->op_reply_qinfo[i].pend_ios, 0);
+			atomic_set(&mrioc->op_reply_qinfo[i].in_use, 0);
+			mpi3mr_memset_op_reply_q_buffers(mrioc, i);
+		}
 
-		mrioc->req_qinfo[i].ci = 0;
-		mrioc->req_qinfo[i].pi = 0;
-		mrioc->req_qinfo[i].num_requests = 0;
-		mrioc->req_qinfo[i].qid = 0;
-		mrioc->req_qinfo[i].reply_qid = 0;
-		spin_lock_init(&mrioc->req_qinfo[i].q_lock);
-		mpi3mr_memset_op_req_q_buffers(mrioc, i);
+		if (mrioc->req_qinfo) {
+			mrioc->req_qinfo[i].ci = 0;
+			mrioc->req_qinfo[i].pi = 0;
+			mrioc->req_qinfo[i].num_requests = 0;
+			mrioc->req_qinfo[i].qid = 0;
+			mrioc->req_qinfo[i].reply_qid = 0;
+			spin_lock_init(&mrioc->req_qinfo[i].q_lock);
+			mpi3mr_memset_op_req_q_buffers(mrioc, i);
+		}
 	}
 
 	atomic_set(&mrioc->pend_large_data_sz, 0);

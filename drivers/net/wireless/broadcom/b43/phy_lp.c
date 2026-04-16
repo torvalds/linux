@@ -43,7 +43,7 @@ static int b43_lpphy_op_allocate(struct b43_wldev *dev)
 {
 	struct b43_phy_lp *lpphy;
 
-	lpphy = kzalloc(sizeof(*lpphy), GFP_KERNEL);
+	lpphy = kzalloc_obj(*lpphy);
 	if (!lpphy)
 		return -ENOMEM;
 	dev->phy.lp = lpphy;

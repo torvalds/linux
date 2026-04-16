@@ -505,7 +505,7 @@ batadv_bla_get_backbone_gw(struct batadv_priv *bat_priv, const u8 *orig,
 		   "%s(): not found (%pM, %d), creating new entry\n", __func__,
 		   orig, batadv_print_vid(vid));
 
-	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
+	entry = kzalloc_obj(*entry, GFP_ATOMIC);
 	if (!entry)
 		return NULL;
 
@@ -699,7 +699,7 @@ static void batadv_bla_add_claim(struct batadv_priv *bat_priv,
 
 	/* create a new claim entry if it does not exist yet. */
 	if (!claim) {
-		claim = kzalloc(sizeof(*claim), GFP_ATOMIC);
+		claim = kzalloc_obj(*claim, GFP_ATOMIC);
 		if (!claim)
 			return;
 

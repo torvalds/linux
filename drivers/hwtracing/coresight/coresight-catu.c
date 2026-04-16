@@ -337,7 +337,7 @@ static int catu_alloc_etr_buf(struct tmc_drvdata *tmc_drvdata,
 	csdev = tmc_etr_get_catu_device(tmc_drvdata);
 	if (!csdev)
 		return -ENODEV;
-	catu_buf = kzalloc(sizeof(*catu_buf), GFP_KERNEL);
+	catu_buf = kzalloc_obj(*catu_buf);
 	if (!catu_buf)
 		return -ENOMEM;
 

@@ -259,7 +259,6 @@ static void mlx5e_ipsec_init_limits(struct mlx5e_ipsec_sa_entry *sa_entry,
 static void mlx5e_ipsec_init_macs(struct mlx5e_ipsec_sa_entry *sa_entry,
 				  struct mlx5_accel_esp_xfrm_attrs *attrs)
 {
-	struct mlx5_core_dev *mdev = mlx5e_ipsec_sa2dev(sa_entry);
 	struct mlx5e_ipsec_addr *addrs = &attrs->addrs;
 	struct net_device *netdev = sa_entry->dev;
 	struct xfrm_state *x = sa_entry->x;
@@ -276,7 +275,7 @@ static void mlx5e_ipsec_init_macs(struct mlx5e_ipsec_sa_entry *sa_entry,
 	    attrs->type != XFRM_DEV_OFFLOAD_PACKET)
 		return;
 
-	mlx5_query_mac_address(mdev, addr);
+	ether_addr_copy(addr, netdev->dev_addr);
 	switch (attrs->dir) {
 	case XFRM_DEV_OFFLOAD_IN:
 		src = attrs->dmac;
@@ -712,21 +711,20 @@ static int mlx5_ipsec_create_work(struct mlx5e_ipsec_sa_entry *sa_entry)
 		break;
 	}
 
-	work = kzalloc(sizeof(*work), GFP_KERNEL);
+	work = kzalloc_obj(*work);
 	if (!work)
 		return -ENOMEM;
 
 	switch (x->xso.type) {
 	case XFRM_DEV_OFFLOAD_CRYPTO:
-		data = kzalloc(sizeof(*sa_entry), GFP_KERNEL);
+		data = kzalloc_obj(*sa_entry);
 		if (!data)
 			goto free_work;
 
 		INIT_WORK(&work->work, mlx5e_ipsec_modify_state);
 		break;
 	case XFRM_DEV_OFFLOAD_PACKET:
-		data = kzalloc(sizeof(struct mlx5e_ipsec_netevent_data),
-			       GFP_KERNEL);
+		data = kzalloc_obj(struct mlx5e_ipsec_netevent_data);
 		if (!data)
 			goto free_work;
 
@@ -760,7 +758,7 @@ static int mlx5e_ipsec_create_dwork(struct mlx5e_ipsec_sa_entry *sa_entry)
 	    x->lft.hard_byte_limit == XFRM_INF)
 		return 0;
 
-	dwork = kzalloc(sizeof(*dwork), GFP_KERNEL);
+	dwork = kzalloc_obj(*dwork);
 	if (!dwork)
 		return -ENOMEM;
 
@@ -787,7 +785,7 @@ static int mlx5e_xfrm_add_state(struct net_device *dev,
 
 	ipsec = priv->ipsec;
 	gfp = (x->xso.flags & XFRM_DEV_OFFLOAD_FLAG_ACQ) ? GFP_ATOMIC : GFP_KERNEL;
-	sa_entry = kzalloc(sizeof(*sa_entry), gfp);
+	sa_entry = kzalloc_obj(*sa_entry, gfp);
 	if (!sa_entry)
 		return -ENOMEM;
 
@@ -989,7 +987,7 @@ void mlx5e_ipsec_init(struct mlx5e_priv *priv)
 		return;
 	}
 
-	ipsec = kzalloc(sizeof(*ipsec), GFP_KERNEL);
+	ipsec = kzalloc_obj(*ipsec);
 	if (!ipsec)
 		return;
 
@@ -1277,7 +1275,7 @@ static int mlx5e_xfrm_add_policy(struct xfrm_policy *x,
 	if (err)
 		return err;
 
-	pol_entry = kzalloc(sizeof(*pol_entry), GFP_KERNEL);
+	pol_entry = kzalloc_obj(*pol_entry);
 	if (!pol_entry)
 		return -ENOMEM;
 

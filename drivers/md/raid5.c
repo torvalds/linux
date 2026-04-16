@@ -513,7 +513,7 @@ init_stripe_shared_pages(struct stripe_head *sh, struct r5conf *conf, int disks)
 	cnt = PAGE_SIZE / conf->stripe_size;
 	nr_pages = (disks + cnt - 1) / cnt;
 
-	sh->pages = kcalloc(nr_pages, sizeof(struct page *), GFP_KERNEL);
+	sh->pages = kzalloc_objs(struct page *, nr_pages);
 	if (!sh->pages)
 		return -ENOMEM;
 	sh->nr_pages = nr_pages;
@@ -2610,7 +2610,7 @@ static int resize_stripes(struct r5conf *conf, int newsize)
 	 * is completely stalled, so now is a good time to resize
 	 * conf->disks and the scribble region
 	 */
-	ndisks = kcalloc(newsize, sizeof(struct disk_info), GFP_NOIO);
+	ndisks = kzalloc_objs(struct disk_info, newsize, GFP_NOIO);
 	if (ndisks) {
 		for (i = 0; i < conf->pool_size; i++)
 			ndisks[i] = conf->disks[i];
@@ -7267,8 +7267,8 @@ static int alloc_thread_groups(struct r5conf *conf, int cnt, int *group_cnt,
 	*group_cnt = num_possible_nodes();
 	size = sizeof(struct r5worker) * cnt;
 	workers = kcalloc(size, *group_cnt, GFP_NOIO);
-	*worker_groups = kcalloc(*group_cnt, sizeof(struct r5worker_group),
-				 GFP_NOIO);
+	*worker_groups = kzalloc_objs(struct r5worker_group, *group_cnt,
+				      GFP_NOIO);
 	if (!*worker_groups || !workers) {
 		kfree(workers);
 		kfree(*worker_groups);
@@ -7497,7 +7497,7 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 		return ERR_PTR(-EINVAL);
 	}
 
-	conf = kzalloc(sizeof(struct r5conf), GFP_KERNEL);
+	conf = kzalloc_obj(struct r5conf);
 	if (conf == NULL)
 		goto abort;
 
@@ -7508,9 +7508,7 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 #endif
 	INIT_LIST_HEAD(&conf->free_list);
 	INIT_LIST_HEAD(&conf->pending_list);
-	conf->pending_data = kcalloc(PENDING_IO_MAX,
-				     sizeof(struct r5pending_data),
-				     GFP_KERNEL);
+	conf->pending_data = kzalloc_objs(struct r5pending_data, PENDING_IO_MAX);
 	if (!conf->pending_data)
 		goto abort;
 	for (i = 0; i < PENDING_IO_MAX; i++)
@@ -7557,8 +7555,7 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 		conf->previous_raid_disks = mddev->raid_disks - mddev->delta_disks;
 	max_disks = max(conf->raid_disks, conf->previous_raid_disks);
 
-	conf->disks = kcalloc(max_disks, sizeof(struct disk_info),
-			      GFP_KERNEL);
+	conf->disks = kzalloc_objs(struct disk_info, max_disks);
 
 	if (!conf->disks)
 		goto abort;

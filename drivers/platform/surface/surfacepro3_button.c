@@ -199,7 +199,7 @@ static int surface_button_add(struct acpi_device *device)
 	if (!surface_button_check_MSHW0040(device))
 		return -ENODEV;
 
-	button = kzalloc(sizeof(struct surface_button), GFP_KERNEL);
+	button = kzalloc_obj(struct surface_button);
 	if (!button)
 		return -ENOMEM;
 

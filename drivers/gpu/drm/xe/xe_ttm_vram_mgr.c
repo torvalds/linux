@@ -64,7 +64,7 @@ static int xe_ttm_vram_mgr_new(struct ttm_resource_manager *man,
 	if (tbo->base.size >> PAGE_SHIFT > (lpfn - place->fpfn))
 		return -E2BIG; /* don't trigger eviction for the impossible */
 
-	vres = kzalloc(sizeof(*vres), GFP_KERNEL);
+	vres = kzalloc_obj(*vres);
 	if (!vres)
 		return -ENOMEM;
 
@@ -371,7 +371,7 @@ int xe_ttm_vram_mgr_alloc_sgt(struct xe_device *xe,
 	if (vres->used_visible_size < res->size)
 		return -EOPNOTSUPP;
 
-	*sgt = kmalloc(sizeof(**sgt), GFP_KERNEL);
+	*sgt = kmalloc_obj(**sgt);
 	if (!*sgt)
 		return -ENOMEM;
 

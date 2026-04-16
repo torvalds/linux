@@ -246,7 +246,7 @@ search:
 		if (new_emi == NULL) {
 			spin_unlock(&oi->ip_lock);
 
-			new_emi = kmalloc(sizeof(*new_emi), GFP_NOFS);
+			new_emi = kmalloc_obj(*new_emi, GFP_NOFS);
 			if (new_emi == NULL)
 				goto out;
 

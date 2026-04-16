@@ -154,7 +154,7 @@ static struct mctp_i2c_client *mctp_i2c_new_client(struct i2c_client *client)
 		goto err;
 	}
 
-	mcli = kzalloc(sizeof(*mcli), GFP_KERNEL);
+	mcli = kzalloc_obj(*mcli);
 	if (!mcli) {
 		rc = -ENOMEM;
 		goto err;
@@ -343,6 +343,7 @@ static int mctp_i2c_recv(struct mctp_i2c_dev *midev)
 	} else {
 		status = NET_RX_DROP;
 		spin_unlock_irqrestore(&midev->lock, flags);
+		kfree_skb(skb);
 	}
 
 	if (status == NET_RX_SUCCESS) {

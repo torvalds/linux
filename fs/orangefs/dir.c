@@ -363,8 +363,7 @@ static int orangefs_dir_iterate(struct file *file,
 static int orangefs_dir_open(struct inode *inode, struct file *file)
 {
 	struct orangefs_dir *od;
-	file->private_data = kmalloc(sizeof(struct orangefs_dir),
-	    GFP_KERNEL);
+	file->private_data = kmalloc_obj(struct orangefs_dir);
 	if (!file->private_data)
 		return -ENOMEM;
 	od = file->private_data;

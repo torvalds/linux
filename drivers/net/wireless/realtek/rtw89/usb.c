@@ -294,7 +294,7 @@ static void rtw89_usb_ops_tx_kick_off(struct rtw89_dev *rtwdev, u8 txch)
 		if (!skb)
 			break;
 
-		txcb = kmalloc(sizeof(*txcb), GFP_ATOMIC);
+		txcb = kmalloc_obj(*txcb, GFP_ATOMIC);
 		if (!txcb) {
 			rtw89_usb_tx_free_skb(rtwdev, txch, skb);
 			continue;
@@ -931,8 +931,7 @@ static int rtw89_usb_intf_init(struct rtw89_dev *rtwdev,
 	if (ret)
 		return ret;
 
-	rtwusb->vendor_req_buf = kmalloc(sizeof(*rtwusb->vendor_req_buf),
-					 GFP_KERNEL);
+	rtwusb->vendor_req_buf = kmalloc_obj(*rtwusb->vendor_req_buf);
 	if (!rtwusb->vendor_req_buf)
 		return -ENOMEM;
 

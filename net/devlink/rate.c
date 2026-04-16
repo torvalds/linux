@@ -627,7 +627,7 @@ int devlink_nl_rate_new_doit(struct sk_buff *skb, struct genl_info *info)
 	else if (rate_node == ERR_PTR(-EINVAL))
 		return -EINVAL;
 
-	rate_node = kzalloc(sizeof(*rate_node), GFP_KERNEL);
+	rate_node = kzalloc_obj(*rate_node);
 	if (!rate_node)
 		return -ENOMEM;
 
@@ -721,7 +721,7 @@ devl_rate_node_create(struct devlink *devlink, void *priv, char *node_name,
 	if (!IS_ERR(rate_node))
 		return ERR_PTR(-EEXIST);
 
-	rate_node = kzalloc(sizeof(*rate_node), GFP_KERNEL);
+	rate_node = kzalloc_obj(*rate_node);
 	if (!rate_node)
 		return ERR_PTR(-ENOMEM);
 
@@ -766,7 +766,7 @@ int devl_rate_leaf_create(struct devlink_port *devlink_port, void *priv,
 	if (WARN_ON(devlink_port->devlink_rate))
 		return -EBUSY;
 
-	devlink_rate = kzalloc(sizeof(*devlink_rate), GFP_KERNEL);
+	devlink_rate = kzalloc_obj(*devlink_rate);
 	if (!devlink_rate)
 		return -ENOMEM;
 

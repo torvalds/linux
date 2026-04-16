@@ -542,7 +542,7 @@ void iwl_mld_handle_probe_resp_data_notif(struct iwl_mld *mld,
 			 notif->noa_attr.len_low))
 		return;
 
-	new_data = kzalloc(sizeof(*new_data), GFP_KERNEL);
+	new_data = kzalloc_obj(*new_data);
 	if (!new_data)
 		return;
 

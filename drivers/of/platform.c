@@ -111,7 +111,7 @@ struct platform_device *of_device_alloc(struct device_node *np,
 
 	/* Populate the resource table */
 	if (num_reg) {
-		res = kcalloc(num_reg, sizeof(*res), GFP_KERNEL);
+		res = kzalloc_objs(*res, num_reg);
 		if (!res) {
 			platform_device_put(dev);
 			return NULL;

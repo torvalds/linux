@@ -2090,7 +2090,7 @@ static void __init gic_populate_ppi_partitions(struct device_node *gic_node)
 	if (!nr_parts)
 		goto out_put_node;
 
-	parts = kcalloc(nr_parts, sizeof(*parts), GFP_KERNEL);
+	parts = kzalloc_objs(*parts, nr_parts);
 	if (WARN_ON(!parts))
 		goto out_put_node;
 
@@ -2218,8 +2218,7 @@ static int __init gic_of_init(struct device_node *node, struct device_node *pare
 	if (of_property_read_u32(node, "#redistributor-regions", &nr_redist_regions))
 		nr_redist_regions = 1;
 
-	rdist_regs = kcalloc(nr_redist_regions, sizeof(*rdist_regs),
-			     GFP_KERNEL);
+	rdist_regs = kzalloc_objs(*rdist_regs, nr_redist_regions);
 	if (!rdist_regs) {
 		err = -ENOMEM;
 		goto out_unmap_dist;

@@ -83,7 +83,7 @@ struct pps_device *pps_register_source(struct pps_source_info *info,
 	}
 
 	/* Allocate memory for the new PPS source struct */
-	pps = kzalloc(sizeof(struct pps_device), GFP_KERNEL);
+	pps = kzalloc_obj(struct pps_device);
 	if (pps == NULL) {
 		err = -ENOMEM;
 		goto pps_register_source_exit;

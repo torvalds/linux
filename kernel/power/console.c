@@ -58,7 +58,7 @@ int pm_vt_switch_required(struct device *dev, bool required)
 		}
 	}
 
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kmalloc_obj(*entry);
 	if (!entry) {
 		ret = -ENOMEM;
 		goto out;

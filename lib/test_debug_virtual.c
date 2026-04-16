@@ -29,7 +29,7 @@ static int __init test_debug_virtual_init(void)
 
 	pr_info("PA: %pa for VA: 0x%lx\n", &pa, (unsigned long)va);
 
-	foo = kzalloc(sizeof(*foo), GFP_KERNEL);
+	foo = kzalloc_obj(*foo);
 	if (!foo)
 		return -ENOMEM;
 

@@ -79,7 +79,7 @@ nv20_gr_chan_new(struct nvkm_gr *base, struct nvkm_chan *fifoch,
 	struct nv20_gr_chan *chan;
 	int ret, i;
 
-	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
+	if (!(chan = kzalloc_obj(*chan)))
 		return -ENOMEM;
 	nvkm_object_ctor(&nv20_gr_chan, oclass, &chan->object);
 	chan->gr = gr;
@@ -334,7 +334,7 @@ nv20_gr_new_(const struct nvkm_gr_func *func, struct nvkm_device *device,
 {
 	struct nv20_gr *gr;
 
-	if (!(gr = kzalloc(sizeof(*gr), GFP_KERNEL)))
+	if (!(gr = kzalloc_obj(*gr)))
 		return -ENOMEM;
 	*pgr = &gr->base;
 

@@ -220,7 +220,7 @@ struct dm_space_map *dm_sm_disk_create(struct dm_transaction_manager *tm,
 	int r;
 	struct sm_disk *smd;
 
-	smd = kmalloc(sizeof(*smd), GFP_KERNEL);
+	smd = kmalloc_obj(*smd);
 	if (!smd)
 		return ERR_PTR(-ENOMEM);
 
@@ -254,7 +254,7 @@ struct dm_space_map *dm_sm_disk_open(struct dm_transaction_manager *tm,
 	int r;
 	struct sm_disk *smd;
 
-	smd = kmalloc(sizeof(*smd), GFP_KERNEL);
+	smd = kmalloc_obj(*smd);
 	if (!smd)
 		return ERR_PTR(-ENOMEM);
 

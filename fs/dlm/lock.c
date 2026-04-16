@@ -5050,7 +5050,7 @@ void dlm_recover_waiters_pre(struct dlm_ls *ls)
 	int wait_type, local_unlock_result, local_cancel_result;
 	int dir_nodeid;
 
-	ms_local = kmalloc(sizeof(*ms_local), GFP_KERNEL);
+	ms_local = kmalloc_obj(*ms_local);
 	if (!ms_local)
 		return;
 
@@ -6288,7 +6288,7 @@ int dlm_debug_add_lkb(struct dlm_ls *ls, uint32_t lkb_id, char *name, int len,
 	if (lkb_dflags & BIT(DLM_DFL_USER_BIT))
 		return -EOPNOTSUPP;
 
-	lksb = kzalloc(sizeof(*lksb), GFP_NOFS);
+	lksb = kzalloc_obj(*lksb, GFP_NOFS);
 	if (!lksb)
 		return -ENOMEM;
 

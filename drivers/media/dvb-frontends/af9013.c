@@ -1447,7 +1447,7 @@ static int af9013_probe(struct i2c_client *client)
 		.val_bits = 8,
 	};
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state) {
 		ret = -ENOMEM;
 		goto err;

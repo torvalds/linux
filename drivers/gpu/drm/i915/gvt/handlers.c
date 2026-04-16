@@ -2892,7 +2892,7 @@ static int handle_mmio(struct intel_gvt_mmio_table_iter *iter, u32 offset,
 			return -EEXIST;
 		}
 
-		info = kzalloc(sizeof(*info), GFP_KERNEL);
+		info = kzalloc_obj(*info);
 		if (!info)
 			return -ENOMEM;
 

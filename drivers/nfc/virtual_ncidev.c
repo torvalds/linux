@@ -135,7 +135,7 @@ static int virtual_ncidev_open(struct inode *inode, struct file *file)
 	int ret = 0;
 	struct virtual_nci_dev *vdev;
 
-	vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);
+	vdev = kzalloc_obj(*vdev);
 	if (!vdev)
 		return -ENOMEM;
 	vdev->ndev = nci_allocate_device(&virtual_nci_ops,

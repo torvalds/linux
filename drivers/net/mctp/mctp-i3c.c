@@ -259,7 +259,7 @@ __must_hold(&busdevs_lock)
 	struct mctp_i3c_device *mi = NULL;
 	int rc;
 
-	mi = kzalloc(sizeof(*mi), GFP_KERNEL);
+	mi = kzalloc_obj(*mi);
 	if (!mi) {
 		rc = -ENOMEM;
 		goto err;

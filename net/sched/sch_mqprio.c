@@ -388,8 +388,7 @@ static int mqprio_init(struct Qdisc *sch, struct nlattr *opt,
 	}
 
 	/* pre-allocate qdisc, attachment can't fail */
-	priv->qdiscs = kcalloc(dev->num_tx_queues, sizeof(priv->qdiscs[0]),
-			       GFP_KERNEL);
+	priv->qdiscs = kzalloc_objs(priv->qdiscs[0], dev->num_tx_queues);
 	if (!priv->qdiscs)
 		return -ENOMEM;
 

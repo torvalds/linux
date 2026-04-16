@@ -85,7 +85,7 @@ static void cfusbl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
 static struct cflayer *cfusbl_create(int phyid, const u8 ethaddr[ETH_ALEN],
 				      u8 braddr[ETH_ALEN])
 {
-	struct cfusbl *this = kmalloc(sizeof(struct cfusbl), GFP_ATOMIC);
+	struct cfusbl *this = kmalloc_obj(struct cfusbl, GFP_ATOMIC);
 
 	if (!this)
 		return NULL;

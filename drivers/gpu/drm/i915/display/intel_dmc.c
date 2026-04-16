@@ -1417,7 +1417,7 @@ void intel_dmc_init(struct intel_display *display)
 	 */
 	intel_dmc_runtime_pm_get(display);
 
-	dmc = kzalloc(sizeof(*dmc), GFP_KERNEL);
+	dmc = kzalloc_obj(*dmc);
 	if (!dmc)
 		return;
 
@@ -1547,7 +1547,7 @@ struct intel_dmc_snapshot *intel_dmc_snapshot_capture(struct intel_display *disp
 	if (!HAS_DMC(display))
 		return NULL;
 
-	snapshot = kzalloc(sizeof(*snapshot), GFP_ATOMIC);
+	snapshot = kzalloc_obj(*snapshot, GFP_ATOMIC);
 	if (!snapshot)
 		return NULL;
 

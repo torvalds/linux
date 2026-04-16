@@ -306,7 +306,7 @@ int gb_cap_connection_init(struct gb_connection *connection)
 	if (!connection)
 		return 0;
 
-	cap = kzalloc(sizeof(*cap), GFP_KERNEL);
+	cap = kzalloc_obj(*cap);
 	if (!cap)
 		return -ENOMEM;
 

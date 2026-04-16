@@ -200,7 +200,7 @@ static struct uvc_streaming *uvc_stream_new(struct uvc_device *dev,
 {
 	struct uvc_streaming *stream;
 
-	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
+	stream = kzalloc_obj(*stream);
 	if (stream == NULL)
 		return NULL;
 
@@ -1761,7 +1761,7 @@ static struct uvc_video_chain *uvc_alloc_chain(struct uvc_device *dev)
 {
 	struct uvc_video_chain *chain;
 
-	chain = kzalloc(sizeof(*chain), GFP_KERNEL);
+	chain = kzalloc_obj(*chain);
 	if (chain == NULL)
 		return NULL;
 
@@ -2193,7 +2193,7 @@ static int uvc_probe(struct usb_interface *intf,
 	int ret;
 
 	/* Allocate memory for the device and initialize it. */
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (dev == NULL)
 		return -ENOMEM;
 

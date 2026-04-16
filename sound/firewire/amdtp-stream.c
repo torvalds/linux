@@ -1735,8 +1735,8 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 			s->ctx_data.tx.cache.size = max_t(unsigned int, s->syt_interval * 2,
 							  queue_size * 3 / 2);
 			s->ctx_data.tx.cache.pos = 0;
-			s->ctx_data.tx.cache.descs = kcalloc(s->ctx_data.tx.cache.size,
-						sizeof(*s->ctx_data.tx.cache.descs), GFP_KERNEL);
+			s->ctx_data.tx.cache.descs = kzalloc_objs(*s->ctx_data.tx.cache.descs,
+								  s->ctx_data.tx.cache.size);
 			if (!s->ctx_data.tx.cache.descs) {
 				err = -ENOMEM;
 				goto err_context;
@@ -1756,7 +1756,8 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 			[CIP_SFC_176400] = {  0,   67 },
 		};
 
-		s->ctx_data.rx.seq.descs = kcalloc(queue_size, sizeof(*s->ctx_data.rx.seq.descs), GFP_KERNEL);
+		s->ctx_data.rx.seq.descs = kzalloc_objs(*s->ctx_data.rx.seq.descs,
+							queue_size);
 		if (!s->ctx_data.rx.seq.descs) {
 			err = -ENOMEM;
 			goto err_context;
@@ -1781,7 +1782,7 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 	// for runtime of PCM substream in the interval equivalent to the size of PCM buffer. It
 	// could take a round over queue of AMDTP packet descriptors and small loss of history. For
 	// safe, keep more 8 elements for the queue, equivalent to 1 ms.
-	descs = kcalloc(s->queue_size + 8, sizeof(*descs), GFP_KERNEL);
+	descs = kzalloc_objs(*descs, s->queue_size + 8);
 	if (!descs) {
 		err = -ENOMEM;
 		goto err_context;

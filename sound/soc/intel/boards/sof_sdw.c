@@ -763,6 +763,14 @@ static const struct dmi_system_id sof_sdw_quirk_table[] = {
 		},
 		.driver_data = (void *)(SOC_SDW_CODEC_SPKR),
 	},
+	{
+		.callback = sof_sdw_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Alienware"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "0CCD")
+		},
+		.driver_data = (void *)(SOC_SDW_CODEC_SPKR),
+	},
 	/* Pantherlake devices*/
 	{
 		.callback = sof_sdw_quirk_cb,
@@ -1251,12 +1259,12 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 	 * add one additional to act as a terminator such that code can iterate
 	 * until it hits an uninitialised DAI.
 	 */
-	sof_dais = kcalloc(num_ends + 1, sizeof(*sof_dais), GFP_KERNEL);
+	sof_dais = kzalloc_objs(*sof_dais, num_ends + 1);
 	if (!sof_dais)
 		return -ENOMEM;
 
 	/* One per endpoint, ie. each DAI on each codec/amp */
-	sof_ends = kcalloc(num_ends, sizeof(*sof_ends), GFP_KERNEL);
+	sof_ends = kzalloc_objs(*sof_ends, num_ends);
 	if (!sof_ends) {
 		ret = -ENOMEM;
 		goto err_dai;

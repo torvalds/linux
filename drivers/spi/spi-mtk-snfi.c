@@ -675,7 +675,7 @@ static int mtk_snand_ecc_init_ctx(struct nand_device *nand)
 	if (ret)
 		return ret;
 
-	ecc_cfg = kzalloc(sizeof(*ecc_cfg), GFP_KERNEL);
+	ecc_cfg = kzalloc_obj(*ecc_cfg);
 	if (!ecc_cfg)
 		return -ENOMEM;
 

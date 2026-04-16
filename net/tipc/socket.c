@@ -2233,6 +2233,8 @@ static bool tipc_sk_filter_connect(struct tipc_sock *tsk, struct sk_buff *skb,
 		if (skb_queue_empty(&sk->sk_write_queue))
 			break;
 		get_random_bytes(&delay, 2);
+		if (tsk->conn_timeout < 4)
+			tsk->conn_timeout = 4;
 		delay %= (tsk->conn_timeout / 4);
 		delay = msecs_to_jiffies(delay + 100);
 		sk_reset_timer(sk, &sk->sk_timer, jiffies + delay);
@@ -3595,7 +3597,7 @@ int __tipc_dump_start(struct netlink_callback *cb, struct net *net)
 	struct tipc_net *tn = tipc_net(net);
 
 	if (!iter) {
-		iter = kmalloc(sizeof(*iter), GFP_KERNEL);
+		iter = kmalloc_obj(*iter);
 		if (!iter)
 			return -ENOMEM;
 

@@ -230,8 +230,7 @@ struct qedf_cmd_mgr *qedf_cmd_mgr_alloc(struct qedf_ctx *qedf)
 		}
 
 		/* Allocate task parameters to pass to f/w init funcions */
-		io_req->task_params = kzalloc(sizeof(*io_req->task_params),
-					      GFP_KERNEL);
+		io_req->task_params = kzalloc_obj(*io_req->task_params);
 		if (!io_req->task_params) {
 			QEDF_ERR(&(qedf->dbg_ctx),
 				 "Failed to allocate task_params for xid=0x%x\n",
@@ -243,8 +242,7 @@ struct qedf_cmd_mgr *qedf_cmd_mgr_alloc(struct qedf_ctx *qedf)
 		 * Allocate scatter/gather list info to pass to f/w init
 		 * functions.
 		 */
-		io_req->sgl_task_params = kzalloc(
-		    sizeof(struct scsi_sgl_task_params), GFP_KERNEL);
+		io_req->sgl_task_params = kzalloc_obj(struct scsi_sgl_task_params);
 		if (!io_req->sgl_task_params) {
 			QEDF_ERR(&(qedf->dbg_ctx),
 				 "Failed to allocate sgl_task_params for xid=0x%x\n",
@@ -254,8 +252,7 @@ struct qedf_cmd_mgr *qedf_cmd_mgr_alloc(struct qedf_ctx *qedf)
 	}
 
 	/* Allocate pool of io_bdts - one for each qedf_ioreq */
-	cmgr->io_bdt_pool = kmalloc_array(num_ios, sizeof(struct io_bdt *),
-	    GFP_KERNEL);
+	cmgr->io_bdt_pool = kmalloc_objs(struct io_bdt *, num_ios);
 
 	if (!cmgr->io_bdt_pool) {
 		QEDF_WARN(&(qedf->dbg_ctx), "Failed to alloc io_bdt_pool.\n");
@@ -263,8 +260,7 @@ struct qedf_cmd_mgr *qedf_cmd_mgr_alloc(struct qedf_ctx *qedf)
 	}
 
 	for (i = 0; i < num_ios; i++) {
-		cmgr->io_bdt_pool[i] = kmalloc(sizeof(struct io_bdt),
-		    GFP_KERNEL);
+		cmgr->io_bdt_pool[i] = kmalloc_obj(struct io_bdt);
 		if (!cmgr->io_bdt_pool[i]) {
 			QEDF_WARN(&(qedf->dbg_ctx),
 				  "Failed to alloc io_bdt_pool[%d].\n", i);

@@ -99,7 +99,7 @@ int adf_ring_debugfs_add(struct adf_etr_ring_data *ring, const char *name)
 	struct adf_etr_ring_debug_entry *ring_debug;
 	char entry_name[16];
 
-	ring_debug = kzalloc(sizeof(*ring_debug), GFP_KERNEL);
+	ring_debug = kzalloc_obj(*ring_debug);
 	if (!ring_debug)
 		return -ENOMEM;
 

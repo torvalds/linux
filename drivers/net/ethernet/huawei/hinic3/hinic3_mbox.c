@@ -320,7 +320,7 @@ static int hinic3_init_func_mbox_msg_channel(struct hinic3_hwdev *hwdev)
 	int err;
 
 	mbox = hwdev->mbox;
-	mbox->func_msg = kzalloc(sizeof(*mbox->func_msg), GFP_KERNEL);
+	mbox->func_msg = kzalloc_obj(*mbox->func_msg);
 	if (!mbox->func_msg)
 		return -ENOMEM;
 
@@ -412,7 +412,7 @@ int hinic3_init_mbox(struct hinic3_hwdev *hwdev)
 	struct hinic3_mbox *mbox;
 	int err;
 
-	mbox = kzalloc(sizeof(*mbox), GFP_KERNEL);
+	mbox = kzalloc_obj(*mbox);
 	if (!mbox)
 		return -ENOMEM;
 

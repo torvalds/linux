@@ -205,7 +205,7 @@ static int userspace_ctr(struct dm_dirty_log *log, struct dm_target *ti,
 		return -EINVAL;
 	}
 
-	lc = kzalloc(sizeof(*lc), GFP_KERNEL);
+	lc = kzalloc_obj(*lc);
 	if (!lc) {
 		DMWARN("Unable to allocate userspace log context.");
 		return -ENOMEM;

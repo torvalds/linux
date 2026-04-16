@@ -289,7 +289,7 @@ static struct rockchip_gem_object *
 
 	size = round_up(size, PAGE_SIZE);
 
-	rk_obj = kzalloc(sizeof(*rk_obj), GFP_KERNEL);
+	rk_obj = kzalloc_obj(*rk_obj);
 	if (!rk_obj)
 		return ERR_PTR(-ENOMEM);
 
@@ -434,7 +434,7 @@ struct sg_table *rockchip_gem_prime_get_sg_table(struct drm_gem_object *obj)
 	if (rk_obj->pages)
 		return drm_prime_pages_to_sg(obj->dev, rk_obj->pages, rk_obj->num_pages);
 
-	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
+	sgt = kzalloc_obj(*sgt);
 	if (!sgt)
 		return ERR_PTR(-ENOMEM);
 

@@ -115,7 +115,7 @@ int snd_ice1712_akm4xxx_init(struct snd_akm4xxx *ak, const struct snd_akm4xxx *t
 	struct snd_ak4xxx_private *priv;
 
 	if (_priv != NULL) {
-		priv = kmalloc(sizeof(*priv), GFP_KERNEL);
+		priv = kmalloc_obj(*priv);
 		if (priv == NULL)
 			return -ENOMEM;
 		*priv = *_priv;

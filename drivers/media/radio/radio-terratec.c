@@ -56,7 +56,7 @@ MODULE_PARM_DESC(radio_nr, "Radio device number");
 
 static struct radio_isa_card *terratec_alloc(void)
 {
-	return kzalloc(sizeof(struct radio_isa_card), GFP_KERNEL);
+	return kzalloc_obj(struct radio_isa_card);
 }
 
 static int terratec_s_mute_volume(struct radio_isa_card *isa, bool mute, int vol)

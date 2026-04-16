@@ -873,7 +873,7 @@ static int __init register_tpacpi_subdriver(struct ibm_struct *ibm)
 
 	BUG_ON(!ibm->acpi);
 
-	ibm->acpi->driver = kzalloc(sizeof(struct acpi_driver), GFP_KERNEL);
+	ibm->acpi->driver = kzalloc_obj(struct acpi_driver);
 	if (!ibm->acpi->driver) {
 		pr_err("failed to allocate memory for ibm->acpi->driver\n");
 		return -ENOMEM;
@@ -1197,7 +1197,7 @@ static int __init tpacpi_new_rfkill(const enum tpacpi_rfk_id id,
 
 	BUG_ON(id >= TPACPI_RFK_SW_MAX || tpacpi_rfkill_switches[id]);
 
-	atp_rfk = kzalloc(sizeof(struct tpacpi_rfk), GFP_KERNEL);
+	atp_rfk = kzalloc_obj(struct tpacpi_rfk);
 	if (atp_rfk)
 		atp_rfk->rfkill = rfkill_alloc(name,
 						&tpacpi_pdev->dev,
@@ -5817,8 +5817,7 @@ static int __init led_init(struct ibm_init_struct *iibm)
 	if (led_supported == TPACPI_LED_NONE)
 		return -ENODEV;
 
-	tpacpi_leds = kcalloc(TPACPI_LED_NUMLEDS, sizeof(*tpacpi_leds),
-			      GFP_KERNEL);
+	tpacpi_leds = kzalloc_objs(*tpacpi_leds, TPACPI_LED_NUMLEDS);
 	if (!tpacpi_leds) {
 		pr_err("Out of memory for LED data\n");
 		return -ENOMEM;
@@ -9526,14 +9525,16 @@ static int tpacpi_battery_get(int what, int battery, int *ret)
 {
 	switch (what) {
 	case THRESHOLD_START:
-		if ACPI_FAILURE(tpacpi_battery_acpi_eval(GET_START, ret, battery))
+		if (!battery_info.batteries[battery].start_support ||
+		    ACPI_FAILURE(tpacpi_battery_acpi_eval(GET_START, ret, battery)))
 			return -ENODEV;
 
 		/* The value is in the low 8 bits of the response */
 		*ret = *ret & 0xFF;
 		return 0;
 	case THRESHOLD_STOP:
-		if ACPI_FAILURE(tpacpi_battery_acpi_eval(GET_STOP, ret, battery))
+		if (!battery_info.batteries[battery].stop_support ||
+		    ACPI_FAILURE(tpacpi_battery_acpi_eval(GET_STOP, ret, battery)))
 			return -ENODEV;
 		/* Value is in lower 8 bits */
 		*ret = *ret & 0xFF;

@@ -69,7 +69,6 @@ struct tegra_xusb_usb2_lane {
 	struct tegra_xusb_lane base;
 
 	u32 hs_curr_level_offset;
-	bool powered_on;
 };
 
 static inline struct tegra_xusb_usb2_lane *

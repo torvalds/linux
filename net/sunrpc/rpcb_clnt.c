@@ -737,7 +737,7 @@ void rpcb_getport_async(struct rpc_task *task)
 		goto bailout_nofree;
 	}
 
-	map = kzalloc(sizeof(struct rpcbind_args), rpc_task_gfp_mask());
+	map = kzalloc_obj(struct rpcbind_args, rpc_task_gfp_mask());
 	if (!map) {
 		status = -ENOMEM;
 		goto bailout_release_client;

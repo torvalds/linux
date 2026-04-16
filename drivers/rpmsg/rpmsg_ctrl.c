@@ -141,7 +141,7 @@ static int rpmsg_ctrldev_probe(struct rpmsg_device *rpdev)
 	struct device *dev;
 	int ret;
 
-	ctrldev = kzalloc(sizeof(*ctrldev), GFP_KERNEL);
+	ctrldev = kzalloc_obj(*ctrldev);
 	if (!ctrldev)
 		return -ENOMEM;
 

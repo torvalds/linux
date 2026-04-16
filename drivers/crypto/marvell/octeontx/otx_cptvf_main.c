@@ -31,7 +31,7 @@ static int init_worker_threads(struct otx_cptvf *cptvf)
 	struct otx_cptvf_wqe_info *cwqe_info;
 	int i;
 
-	cwqe_info = kzalloc(sizeof(*cwqe_info), GFP_KERNEL);
+	cwqe_info = kzalloc_obj(*cwqe_info);
 	if (!cwqe_info)
 		return -ENOMEM;
 
@@ -100,7 +100,7 @@ static int alloc_pending_queues(struct otx_cpt_pending_qinfo *pqinfo, u32 qlen,
 	pqinfo->num_queues = num_queues;
 
 	for_each_pending_queue(pqinfo, queue, i) {
-		queue->head = kcalloc(qlen, sizeof(*queue->head), GFP_KERNEL);
+		queue->head = kzalloc_objs(*queue->head, qlen);
 		if (!queue->head) {
 			ret = -ENOMEM;
 			goto pending_qfail;
@@ -212,7 +212,7 @@ static int alloc_command_queues(struct otx_cptvf *cptvf,
 		queue = &cqinfo->queue[i];
 		INIT_LIST_HEAD(&queue->chead);
 		do {
-			curr = kzalloc(sizeof(*curr), GFP_KERNEL);
+			curr = kzalloc_obj(*curr);
 			if (!curr)
 				goto cmd_qfail;
 

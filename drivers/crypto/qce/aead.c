@@ -762,7 +762,7 @@ static int qce_aead_register_one(const struct qce_aead_def *def, struct qce_devi
 	struct aead_alg *alg;
 	int ret;
 
-	tmpl = kzalloc(sizeof(*tmpl), GFP_KERNEL);
+	tmpl = kzalloc_obj(*tmpl);
 	if (!tmpl)
 		return -ENOMEM;
 

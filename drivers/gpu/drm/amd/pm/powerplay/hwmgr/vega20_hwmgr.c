@@ -436,7 +436,7 @@ static int vega20_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	struct amdgpu_device *adev = hwmgr->adev;
 	int result;
 
-	data = kzalloc(sizeof(struct vega20_hwmgr), GFP_KERNEL);
+	data = kzalloc_obj(struct vega20_hwmgr);
 	if (data == NULL)
 		return -ENOMEM;
 

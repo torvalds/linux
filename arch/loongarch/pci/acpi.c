@@ -101,7 +101,7 @@ static struct pci_config_window *arch_pci_ecam_create(struct device *dev,
 	if (busr->start > busr->end)
 		return ERR_PTR(-EINVAL);
 
-	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
+	cfg = kzalloc_obj(*cfg);
 	if (!cfg)
 		return ERR_PTR(-ENOMEM);
 
@@ -199,13 +199,13 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 	int domain = root->segment;
 	int busnum = root->secondary.start;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info) {
 		pr_warn("pci_bus %04x:%02x: ignored (out of memory)\n", domain, busnum);
 		return NULL;
 	}
 
-	root_ops = kzalloc(sizeof(*root_ops), GFP_KERNEL);
+	root_ops = kzalloc_obj(*root_ops);
 	if (!root_ops) {
 		kfree(info);
 		return NULL;

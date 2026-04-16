@@ -1882,7 +1882,7 @@ static int wl12xx_setup(struct wl1271 *wl)
 			wl1271_error("Invalid tcxo parameter %s", tcxo_param);
 	}
 
-	priv->rx_mem_addr = kmalloc(sizeof(*priv->rx_mem_addr), GFP_KERNEL);
+	priv->rx_mem_addr = kmalloc_obj(*priv->rx_mem_addr);
 	if (!priv->rx_mem_addr)
 		return -ENOMEM;
 

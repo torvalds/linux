@@ -275,7 +275,7 @@ static int powermate_alloc_buffers(struct usb_device *udev, struct powermate_dev
 	if (!pm->data)
 		return -1;
 
-	pm->configcr = kmalloc(sizeof(*(pm->configcr)), GFP_KERNEL);
+	pm->configcr = kmalloc_obj(*(pm->configcr));
 	if (!pm->configcr)
 		return -ENOMEM;
 
@@ -313,7 +313,7 @@ static int powermate_probe(struct usb_interface *intf, const struct usb_device_i
 		0, interface->desc.bInterfaceNumber, NULL, 0,
 		USB_CTRL_SET_TIMEOUT);
 
-	pm = kzalloc(sizeof(*pm), GFP_KERNEL);
+	pm = kzalloc_obj(*pm);
 	input_dev = input_allocate_device();
 	if (!pm || !input_dev)
 		goto fail1;

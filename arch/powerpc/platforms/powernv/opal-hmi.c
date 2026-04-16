@@ -342,7 +342,7 @@ static int opal_handle_hmi_event(struct notifier_block *nb,
 	hmi_evt = (struct OpalHMIEvent *)&hmi_msg->params[0];
 
 	/* Delay the logging of HMI events to workqueue. */
-	msg_node = kzalloc(sizeof(*msg_node), GFP_ATOMIC);
+	msg_node = kzalloc_obj(*msg_node, GFP_ATOMIC);
 	if (!msg_node) {
 		pr_err("HMI: out of memory, Opal message event not handled\n");
 		return -ENOMEM;

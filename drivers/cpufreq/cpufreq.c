@@ -1263,7 +1263,7 @@ static struct cpufreq_policy *cpufreq_policy_alloc(unsigned int cpu)
 	if (!dev)
 		return NULL;
 
-	policy = kzalloc(sizeof(*policy), GFP_KERNEL);
+	policy = kzalloc_obj(*policy);
 	if (!policy)
 		return NULL;
 

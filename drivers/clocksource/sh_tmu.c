@@ -546,8 +546,7 @@ static int sh_tmu_setup(struct sh_tmu_device *tmu, struct platform_device *pdev)
 	}
 
 	/* Allocate and setup the channels. */
-	tmu->channels = kcalloc(tmu->num_channels, sizeof(*tmu->channels),
-				GFP_KERNEL);
+	tmu->channels = kzalloc_objs(*tmu->channels, tmu->num_channels);
 	if (tmu->channels == NULL) {
 		ret = -ENOMEM;
 		goto err_unmap;
@@ -593,7 +592,7 @@ static int sh_tmu_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	tmu = kzalloc(sizeof(*tmu), GFP_KERNEL);
+	tmu = kzalloc_obj(*tmu);
 	if (tmu == NULL)
 		return -ENOMEM;
 

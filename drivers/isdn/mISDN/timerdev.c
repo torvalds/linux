@@ -47,7 +47,7 @@ mISDN_open(struct inode *ino, struct file *filep)
 
 	if (*debug & DEBUG_TIMER)
 		printk(KERN_DEBUG "%s(%p,%p)\n", __func__, ino, filep);
-	dev = kmalloc(sizeof(struct mISDNtimerdev) , GFP_KERNEL);
+	dev = kmalloc_obj(struct mISDNtimerdev);
 	if (!dev)
 		return -ENOMEM;
 	dev->next_id = 1;
@@ -179,7 +179,7 @@ misdn_add_timer(struct mISDNtimerdev *dev, int timeout)
 		wake_up_interruptible(&dev->wait);
 		id = 0;
 	} else {
-		timer = kzalloc(sizeof(struct mISDNtimer), GFP_KERNEL);
+		timer = kzalloc_obj(struct mISDNtimer);
 		if (!timer)
 			return -ENOMEM;
 		timer->dev = dev;

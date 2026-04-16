@@ -3216,7 +3216,7 @@ static int bttv_probe(struct pci_dev *dev, const struct pci_device_id *pci_id)
 	if (bttv_num == BTTV_MAX)
 		return -ENOMEM;
 	pr_info("Bt8xx card found (%d)\n", bttv_num);
-	bttvs[bttv_num] = btv = kzalloc(sizeof(*btv), GFP_KERNEL);
+	bttvs[bttv_num] = btv = kzalloc_obj(*btv);
 	if (btv == NULL) {
 		pr_err("out of memory\n");
 		return -ENOMEM;

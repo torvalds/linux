@@ -255,8 +255,7 @@ int line6_create_audio_in_urbs(struct snd_line6_pcm *line6pcm)
 	struct usb_line6 *line6 = line6pcm->line6;
 	int i;
 
-	line6pcm->in.urbs = kcalloc(line6->iso_buffers, sizeof(struct urb *),
-				    GFP_KERNEL);
+	line6pcm->in.urbs = kzalloc_objs(struct urb *, line6->iso_buffers);
 	if (line6pcm->in.urbs == NULL)
 		return -ENOMEM;
 

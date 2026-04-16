@@ -77,7 +77,7 @@ static int insert_stat(struct rb_root *root, void *stat, cmp_func_t cmp)
 	struct rb_node **new = &(root->rb_node), *parent = NULL;
 	struct stat_node *data;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 	data->stat = stat;
@@ -322,7 +322,7 @@ int register_stat_tracer(struct tracer_stat *trace)
 	}
 
 	/* Init the session */
-	session = kzalloc(sizeof(*session), GFP_KERNEL);
+	session = kzalloc_obj(*session);
 	if (!session)
 		return -ENOMEM;
 

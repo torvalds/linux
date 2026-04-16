@@ -7,6 +7,24 @@
 
 struct mm_struct;
 
+/* opaque kthread data */
+struct kthread;
+
+/*
+ * When "(p->flags & PF_KTHREAD)" is set the task is a kthread and will
+ * always remain a kthread.  For kthreads p->worker_private always
+ * points to a struct kthread.  For tasks that are not kthreads
+ * p->worker_private is used to point to other things.
+ *
+ * Return NULL for any task that is not a kthread.
+ */
+static inline struct kthread *tsk_is_kthread(struct task_struct *p)
+{
+	if (p->flags & PF_KTHREAD)
+		return p->worker_private;
+	return NULL;
+}
+
 __printf(4, 5)
 struct task_struct *kthread_create_on_node(int (*threadfn)(void *data),
 					   void *data,
@@ -98,9 +116,10 @@ void *kthread_probe_data(struct task_struct *k);
 int kthread_park(struct task_struct *k);
 void kthread_unpark(struct task_struct *k);
 void kthread_parkme(void);
-void kthread_exit(long result) __noreturn;
+#define kthread_exit(result) do_exit(result)
 void kthread_complete_and_exit(struct completion *, long) __noreturn;
 int kthreads_update_housekeeping(void);
+void kthread_do_exit(struct kthread *, long);
 
 int kthreadd(void *unused);
 extern struct task_struct *kthreadd_task;

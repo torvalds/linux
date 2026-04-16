@@ -327,7 +327,7 @@ EXPORT_SYMBOL_GPL(q6core_is_adsp_ready);
 
 static int q6core_probe(struct apr_device *adev)
 {
-	g_core = kzalloc(sizeof(*g_core), GFP_KERNEL);
+	g_core = kzalloc_obj(*g_core);
 	if (!g_core)
 		return -ENOMEM;
 

@@ -202,7 +202,7 @@ static int acpi_apd_create_device(struct acpi_device *adev,
 		return IS_ERR_OR_NULL(pdev) ? PTR_ERR(pdev) : 1;
 	}
 
-	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
+	pdata = kzalloc_obj(*pdata);
 	if (!pdata)
 		return -ENOMEM;
 

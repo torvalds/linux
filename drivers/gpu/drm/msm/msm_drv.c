@@ -247,7 +247,7 @@ static int context_init(struct drm_device *dev, struct drm_file *file)
 	static atomic_t ident = ATOMIC_INIT(0);
 	struct msm_context *ctx;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

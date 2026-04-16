@@ -183,7 +183,7 @@ static int rtas_token_define(struct kvm *kvm, char *name, u64 token)
 	if (!found)
 		return -ENOENT;
 
-	d = kzalloc(sizeof(*d), GFP_KERNEL);
+	d = kzalloc_obj(*d);
 	if (!d)
 		return -ENOMEM;
 

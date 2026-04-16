@@ -89,7 +89,7 @@ static void dpu_setup_dspp_gc(struct dpu_hw_dspp *ctx,
 	base = ctx->cap->sblk->gc.base;
 
 	if (!base) {
-		DRM_ERROR("invalid ctx %pK gc base\n", ctx);
+		DRM_ERROR("invalid ctx %p gc base\n", ctx);
 		return;
 	}
 

@@ -262,8 +262,7 @@ qcom_tzmem_pool_new(const struct qcom_tzmem_pool_config *config)
 		return ERR_PTR(-EINVAL);
 	}
 
-	struct qcom_tzmem_pool *pool __free(kfree) = kzalloc(sizeof(*pool),
-							     GFP_KERNEL);
+	struct qcom_tzmem_pool *pool __free(kfree) = kzalloc_obj(*pool);
 	if (!pool)
 		return ERR_PTR(-ENOMEM);
 

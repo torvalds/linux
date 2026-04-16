@@ -33,7 +33,6 @@ obj-$(CONFIG_PC8736x_GPIO)	+= pc8736x_gpio.o
 obj-$(CONFIG_NSC_GPIO)		+= nsc_gpio.o
 obj-$(CONFIG_TELCLOCK)		+= tlclk.o
 
-obj-$(CONFIG_MWAVE)		+= mwave/
 obj-y				+= agp/
 
 obj-$(CONFIG_HANGCHECK_TIMER)	+= hangcheck-timer.o

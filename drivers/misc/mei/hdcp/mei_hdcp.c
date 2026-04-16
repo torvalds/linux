@@ -819,7 +819,7 @@ static int mei_hdcp_probe(struct mei_cl_device *cldev,
 		goto enable_err_exit;
 	}
 
-	comp_arbiter = kzalloc(sizeof(*comp_arbiter), GFP_KERNEL);
+	comp_arbiter = kzalloc_obj(*comp_arbiter);
 	if (!comp_arbiter) {
 		ret = -ENOMEM;
 		goto err_exit;

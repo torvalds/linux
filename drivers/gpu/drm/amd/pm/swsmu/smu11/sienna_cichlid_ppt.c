@@ -60,16 +60,18 @@
 #undef pr_info
 #undef pr_debug
 
-#define FEATURE_MASK(feature) (1ULL << feature)
-#define SMC_DPM_FEATURE ( \
-	FEATURE_MASK(FEATURE_DPM_PREFETCHER_BIT) | \
-	FEATURE_MASK(FEATURE_DPM_GFXCLK_BIT)     | \
-	FEATURE_MASK(FEATURE_DPM_UCLK_BIT)	 | \
-	FEATURE_MASK(FEATURE_DPM_LINK_BIT)       | \
-	FEATURE_MASK(FEATURE_DPM_SOCCLK_BIT)     | \
-	FEATURE_MASK(FEATURE_DPM_FCLK_BIT)	 | \
-	FEATURE_MASK(FEATURE_DPM_DCEFCLK_BIT)	 | \
-	FEATURE_MASK(FEATURE_DPM_MP0CLK_BIT))
+static const struct smu_feature_bits sienna_cichlid_dpm_features = {
+	.bits = {
+		SMU_FEATURE_BIT_INIT(FEATURE_DPM_PREFETCHER_BIT),
+		SMU_FEATURE_BIT_INIT(FEATURE_DPM_GFXCLK_BIT),
+		SMU_FEATURE_BIT_INIT(FEATURE_DPM_UCLK_BIT),
+		SMU_FEATURE_BIT_INIT(FEATURE_DPM_LINK_BIT),
+		SMU_FEATURE_BIT_INIT(FEATURE_DPM_SOCCLK_BIT),
+		SMU_FEATURE_BIT_INIT(FEATURE_DPM_FCLK_BIT),
+		SMU_FEATURE_BIT_INIT(FEATURE_DPM_DCEFCLK_BIT),
+		SMU_FEATURE_BIT_INIT(FEATURE_DPM_MP0CLK_BIT)
+	}
+};
 
 #define SMU_11_0_7_GFX_BUSY_THRESHOLD 15
 
@@ -553,7 +555,7 @@ static int sienna_cichlid_tables_init(struct smu_context *smu)
 	SMU_TABLE_INIT(tables, SMU_TABLE_DRIVER_SMU_CONFIG, sizeof(DriverSmuConfigExternal_t),
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 
-	smu_table->metrics_table = kzalloc(sizeof(SmuMetricsExternal_t), GFP_KERNEL);
+	smu_table->metrics_table = kzalloc_obj(SmuMetricsExternal_t);
 	if (!smu_table->metrics_table)
 		goto err0_out;
 	smu_table->metrics_time = 0;
@@ -564,7 +566,7 @@ static int sienna_cichlid_tables_init(struct smu_context *smu)
 	if (ret)
 		goto err1_out;
 
-	smu_table->watermarks_table = kzalloc(sizeof(Watermarks_t), GFP_KERNEL);
+	smu_table->watermarks_table = kzalloc_obj(Watermarks_t);
 	if (!smu_table->watermarks_table)
 		goto err2_out;
 
@@ -919,8 +921,7 @@ static int sienna_cichlid_allocate_dpm_context(struct smu_context *smu)
 {
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 
-	smu_dpm->dpm_context = kzalloc(sizeof(struct smu_11_0_dpm_context),
-				       GFP_KERNEL);
+	smu_dpm->dpm_context = kzalloc_obj(struct smu_11_0_dpm_context);
 	if (!smu_dpm->dpm_context)
 		return -ENOMEM;
 
@@ -1534,13 +1535,14 @@ static int sienna_cichlid_display_config_changed(struct smu_context *smu)
 static bool sienna_cichlid_is_dpm_running(struct smu_context *smu)
 {
 	int ret = 0;
-	uint64_t feature_enabled;
+	struct smu_feature_bits feature_enabled;
 
 	ret = smu_cmn_get_enabled_mask(smu, &feature_enabled);
 	if (ret)
 		return false;
 
-	return !!(feature_enabled & SMC_DPM_FEATURE);
+	return smu_feature_bits_test_mask(&feature_enabled,
+					  sienna_cichlid_dpm_features.bits);
 }
 
 static int sienna_cichlid_get_fan_speed_rpm(struct smu_context *smu,
@@ -2504,7 +2506,7 @@ static int sienna_cichlid_i2c_xfer(struct i2c_adapter *i2c_adap,
 	if (!adev->pm.dpm_enabled)
 		return -EBUSY;
 
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req)
 		return -ENOMEM;
 

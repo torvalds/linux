@@ -99,7 +99,7 @@ int sdca_jack_process(struct sdca_interrupt *interrupt)
 	if (kctl) {
 		struct soc_enum *soc_enum = (struct soc_enum *)kctl->private_value;
 
-		ucontrol = kzalloc(sizeof(*ucontrol), GFP_KERNEL);
+		ucontrol = kzalloc_obj(*ucontrol);
 		if (!ucontrol)
 			return -ENOMEM;
 

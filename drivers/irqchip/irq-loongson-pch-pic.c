@@ -329,7 +329,7 @@ static int pch_pic_init(phys_addr_t addr, unsigned long size, int vec_base,
 	struct pch_pic *priv;
 	int i;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

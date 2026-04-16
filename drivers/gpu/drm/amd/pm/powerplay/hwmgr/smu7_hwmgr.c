@@ -2961,7 +2961,7 @@ static int smu7_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	struct smu7_hwmgr *data;
 	int result = 0;
 
-	data = kzalloc(sizeof(struct smu7_hwmgr), GFP_KERNEL);
+	data = kzalloc_obj(struct smu7_hwmgr);
 	if (data == NULL)
 		return -ENOMEM;
 
@@ -4652,7 +4652,7 @@ static const struct amdgpu_irq_src_funcs smu7_irq_funcs = {
 static int smu7_register_irq_handlers(struct pp_hwmgr *hwmgr)
 {
 	struct amdgpu_irq_src *source =
-		kzalloc(sizeof(struct amdgpu_irq_src), GFP_KERNEL);
+		kzalloc_obj(struct amdgpu_irq_src);
 
 	if (!source)
 		return -ENOMEM;

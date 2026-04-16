@@ -434,7 +434,7 @@ static irqreturn_t gpio_keys_gpio_isr(int irq, void *dev_id)
 			      ms_to_ktime(bdata->software_debounce),
 			      HRTIMER_MODE_REL);
 	} else {
-		mod_delayed_work(system_wq,
+		mod_delayed_work(system_dfl_wq,
 				 &bdata->work,
 				 msecs_to_jiffies(bdata->software_debounce));
 	}
@@ -616,12 +616,19 @@ static int gpio_keys_setup_key(struct platform_device *pdev,
 			break;
 		}
 	} else {
-		if (!button->irq) {
-			dev_err(dev, "Found button without gpio or irq\n");
-			return -EINVAL;
-		}
+		if (button->irq) {
+			bdata->irq = button->irq;
+		} else {
+			irq = platform_get_irq_optional(pdev, idx);
+			if (irq < 0) {
+				error = irq;
+				return dev_err_probe(dev, error,
+						     "Unable to determine IRQ# for button #%d",
+						     idx);
+			}
 
-		bdata->irq = button->irq;
+			bdata->irq = irq;
+		}
 
 		if (button->type && button->type != EV_KEY) {
 			dev_err(dev, "Only EV_KEY allowed for IRQ buttons.\n");

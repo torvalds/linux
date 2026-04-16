@@ -192,7 +192,7 @@ static int enetc4_pf_set_uc_exact_filter(struct enetc_pf *pf)
 		goto unlock_netif_addr;
 	}
 
-	mac_tbl = kcalloc(mac_cnt, sizeof(*mac_tbl), GFP_ATOMIC);
+	mac_tbl = kzalloc_objs(*mac_tbl, mac_cnt, GFP_ATOMIC);
 	if (!mac_tbl) {
 		err = -ENOMEM;
 		goto unlock_netif_addr;

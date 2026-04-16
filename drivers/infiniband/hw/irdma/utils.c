@@ -438,7 +438,7 @@ struct irdma_cqp_request *irdma_alloc_and_get_cqp_request(struct irdma_cqp *cqp,
 	}
 	spin_unlock_irqrestore(&cqp->req_lock, flags);
 	if (!cqp_request) {
-		cqp_request = kzalloc(sizeof(*cqp_request), GFP_ATOMIC);
+		cqp_request = kzalloc_obj(*cqp_request, GFP_ATOMIC);
 		if (cqp_request) {
 			cqp_request->dynamic = true;
 			if (wait)
@@ -2025,7 +2025,7 @@ int irdma_puda_create_ah(struct irdma_sc_dev *dev,
 	struct irdma_pci_f *rf = dev_to_rf(dev);
 	int err;
 
-	ah = kzalloc(sizeof(*ah), GFP_ATOMIC);
+	ah = kzalloc_obj(*ah, GFP_ATOMIC);
 	*ah_ret = ah;
 	if (!ah)
 		return -ENOMEM;
@@ -2431,7 +2431,7 @@ void irdma_generate_flush_completions(struct irdma_qp *iwqp)
 
 		spin_lock_irqsave(&iwqp->lock, flags2);
 		while (IRDMA_RING_MORE_WORK(*sq_ring)) {
-			cmpl = kzalloc(sizeof(*cmpl), GFP_ATOMIC);
+			cmpl = kzalloc_obj(*cmpl, GFP_ATOMIC);
 			if (!cmpl) {
 				spin_unlock_irqrestore(&iwqp->lock, flags2);
 				spin_unlock_irqrestore(&iwscq->lock, flags1);
@@ -2475,7 +2475,7 @@ void irdma_generate_flush_completions(struct irdma_qp *iwqp)
 
 		spin_lock_irqsave(&iwqp->lock, flags2);
 		while (IRDMA_RING_MORE_WORK(*rq_ring)) {
-			cmpl = kzalloc(sizeof(*cmpl), GFP_ATOMIC);
+			cmpl = kzalloc_obj(*cmpl, GFP_ATOMIC);
 			if (!cmpl) {
 				spin_unlock_irqrestore(&iwqp->lock, flags2);
 				spin_unlock_irqrestore(&iwrcq->lock, flags1);

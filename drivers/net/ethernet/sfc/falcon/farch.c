@@ -2701,7 +2701,7 @@ int ef4_farch_filter_table_probe(struct ef4_nic *efx)
 	struct ef4_farch_filter_table *table;
 	unsigned table_id;
 
-	state = kzalloc(sizeof(struct ef4_farch_filter_state), GFP_KERNEL);
+	state = kzalloc_obj(struct ef4_farch_filter_state);
 	if (!state)
 		return -ENOMEM;
 	efx->filter_state = state;

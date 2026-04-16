@@ -791,7 +791,7 @@ static int gb_camera_op_configure_streams(void *priv, unsigned int *nstreams,
 	if (gb_nstreams > GB_CAMERA_MAX_STREAMS)
 		return -EINVAL;
 
-	gb_streams = kcalloc(gb_nstreams, sizeof(*gb_streams), GFP_KERNEL);
+	gb_streams = kzalloc_objs(*gb_streams, gb_nstreams);
 	if (!gb_streams)
 		return -ENOMEM;
 
@@ -932,7 +932,7 @@ static ssize_t gb_camera_debugfs_configure_streams(struct gb_camera *gcam,
 		return ret;
 
 	/* For each stream to configure parse width, height and format */
-	streams = kcalloc(nstreams, sizeof(*streams), GFP_KERNEL);
+	streams = kzalloc_objs(*streams, nstreams);
 	if (!streams)
 		return -ENOMEM;
 
@@ -1244,7 +1244,7 @@ static int gb_camera_probe(struct gb_bundle *bundle,
 	if (!mgmt_cport_id || !data_cport_id)
 		return -ENODEV;
 
-	gcam = kzalloc(sizeof(*gcam), GFP_KERNEL);
+	gcam = kzalloc_obj(*gcam);
 	if (!gcam)
 		return -ENOMEM;
 

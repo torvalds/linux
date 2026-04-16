@@ -218,7 +218,7 @@ static struct hash_cell *alloc_cell(const char *name, const char *uuid,
 {
 	struct hash_cell *hc;
 
-	hc = kmalloc(sizeof(*hc), GFP_KERNEL);
+	hc = kmalloc_obj(*hc);
 	if (!hc)
 		return NULL;
 
@@ -2136,7 +2136,7 @@ static int dm_open(struct inode *inode, struct file *filp)
 	if (unlikely(r))
 		return r;
 
-	priv = filp->private_data = kmalloc(sizeof(struct dm_file), GFP_KERNEL);
+	priv = filp->private_data = kmalloc_obj(struct dm_file);
 	if (!priv)
 		return -ENOMEM;
 

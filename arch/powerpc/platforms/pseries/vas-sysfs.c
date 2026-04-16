@@ -202,7 +202,7 @@ int sysfs_add_vas_caps(struct vas_cop_feat_caps *caps)
 	int ret = 0;
 	char *name;
 
-	centry = kzalloc(sizeof(*centry), GFP_KERNEL);
+	centry = kzalloc_obj(*centry);
 	if (!centry)
 		return -ENOMEM;
 

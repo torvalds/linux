@@ -104,7 +104,7 @@ static void *stm32_dmamux_route_allocate(struct of_phandle_args *dma_spec,
 		goto err_put_pdev;
 	}
 
-	mux = kzalloc(sizeof(*mux), GFP_KERNEL);
+	mux = kzalloc_obj(*mux);
 	if (!mux) {
 		ret = -ENOMEM;
 		goto err_put_pdev;

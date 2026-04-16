@@ -158,7 +158,7 @@ static struct vrf_map_elem *vrf_map_elem_alloc(gfp_t flags)
 {
 	struct vrf_map_elem *me;
 
-	me = kmalloc(sizeof(*me), flags);
+	me = kmalloc_obj(*me, flags);
 	if (!me)
 		return NULL;
 

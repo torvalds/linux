@@ -1882,7 +1882,7 @@ static struct tegra_clk_pll *_tegra_init_pll(void __iomem *clk_base,
 {
 	struct tegra_clk_pll *pll;
 
-	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
+	pll = kzalloc_obj(*pll);
 	if (!pll)
 		return ERR_PTR(-ENOMEM);
 

@@ -175,7 +175,7 @@ int panfrost_gem_open(struct drm_gem_object *obj, struct drm_file *file_priv)
 	struct panfrost_file_priv *priv = file_priv->driver_priv;
 	struct panfrost_gem_mapping *mapping;
 
-	mapping = kzalloc(sizeof(*mapping), GFP_KERNEL);
+	mapping = kzalloc_obj(*mapping);
 	if (!mapping)
 		return -ENOMEM;
 
@@ -429,7 +429,7 @@ struct drm_gem_object *panfrost_gem_create_object(struct drm_device *dev, size_t
 	struct panfrost_device *pfdev = to_panfrost_device(dev);
 	struct panfrost_gem_object *obj;
 
-	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
+	obj = kzalloc_obj(*obj);
 	if (!obj)
 		return ERR_PTR(-ENOMEM);
 

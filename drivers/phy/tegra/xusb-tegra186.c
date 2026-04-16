@@ -302,7 +302,7 @@ tegra186_usb2_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
 	struct tegra_xusb_usb2_lane *usb2;
 	int err;
 
-	usb2 = kzalloc(sizeof(*usb2), GFP_KERNEL);
+	usb2 = kzalloc_obj(*usb2);
 	if (!usb2)
 		return ERR_PTR(-ENOMEM);
 
@@ -1031,7 +1031,7 @@ tegra186_usb2_pad_probe(struct tegra_xusb_padctl *padctl,
 	struct tegra_xusb_pad *pad;
 	int err;
 
-	usb2 = kzalloc(sizeof(*usb2), GFP_KERNEL);
+	usb2 = kzalloc_obj(*usb2);
 	if (!usb2)
 		return ERR_PTR(-ENOMEM);
 
@@ -1113,7 +1113,7 @@ tegra186_usb3_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
 	struct tegra_xusb_usb3_lane *usb3;
 	int err;
 
-	usb3 = kzalloc(sizeof(*usb3), GFP_KERNEL);
+	usb3 = kzalloc_obj(*usb3);
 	if (!usb3)
 		return ERR_PTR(-ENOMEM);
 
@@ -1417,7 +1417,7 @@ tegra186_usb3_pad_probe(struct tegra_xusb_padctl *padctl,
 	struct tegra_xusb_pad *pad;
 	int err;
 
-	usb3 = kzalloc(sizeof(*usb3), GFP_KERNEL);
+	usb3 = kzalloc_obj(*usb3);
 	if (!usb3)
 		return ERR_PTR(-ENOMEM);
 

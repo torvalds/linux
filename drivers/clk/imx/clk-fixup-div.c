@@ -97,7 +97,7 @@ struct clk_hw *imx_clk_hw_fixup_divider(const char *name, const char *parent,
 	if (!fixup)
 		return ERR_PTR(-EINVAL);
 
-	fixup_div = kzalloc(sizeof(*fixup_div), GFP_KERNEL);
+	fixup_div = kzalloc_obj(*fixup_div);
 	if (!fixup_div)
 		return ERR_PTR(-ENOMEM);
 

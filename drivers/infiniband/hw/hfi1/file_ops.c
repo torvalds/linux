@@ -158,7 +158,7 @@ static int hfi1_file_open(struct inode *inode, struct file *fp)
 
 	/* The real work is performed later in assign_ctxt() */
 
-	fd = kzalloc(sizeof(*fd), GFP_KERNEL);
+	fd = kzalloc_obj(*fd);
 
 	if (!fd || init_srcu_struct(&fd->pq_srcu))
 		goto nomem;

@@ -249,7 +249,7 @@ tape_med_state_work(struct tape_device *device, enum tape_medium_state state)
 {
 	struct tape_med_state_work_data *p;
 
-	p = kzalloc(sizeof(*p), GFP_ATOMIC);
+	p = kzalloc_obj(*p, GFP_ATOMIC);
 	if (p) {
 		INIT_WORK(&p->work, tape_med_state_work_handler);
 		p->device = tape_get_device(device);
@@ -477,7 +477,7 @@ tape_alloc_device(void)
 {
 	struct tape_device *device;
 
-	device = kzalloc(sizeof(struct tape_device), GFP_KERNEL);
+	device = kzalloc_obj(struct tape_device);
 	if (device == NULL) {
 		DBF_EXCEPTION(2, "ti:no mem\n");
 		return ERR_PTR(-ENOMEM);
@@ -678,15 +678,15 @@ tape_alloc_request(int cplength, int datasize)
 
 	DBF_LH(6, "tape_alloc_request(%d, %d)\n", cplength, datasize);
 
-	request = kzalloc(sizeof(struct tape_request), GFP_KERNEL);
+	request = kzalloc_obj(struct tape_request);
 	if (request == NULL) {
 		DBF_EXCEPTION(1, "cqra nomem\n");
 		return ERR_PTR(-ENOMEM);
 	}
 	/* allocate channel program */
 	if (cplength > 0) {
-		request->cpaddr = kcalloc(cplength, sizeof(struct ccw1),
-					  GFP_ATOMIC | GFP_DMA);
+		request->cpaddr = kzalloc_objs(struct ccw1, cplength,
+					       GFP_ATOMIC | GFP_DMA);
 		if (request->cpaddr == NULL) {
 			DBF_EXCEPTION(1, "cqra nomem\n");
 			kfree(request);

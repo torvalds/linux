@@ -90,7 +90,8 @@ jit_emit_elf(struct jit_buf_desc *jd,
 	saved_errno = errno;
 	nsinfo__mountns_exit(&nsc);
 	if (fd == -1) {
-		pr_warning("cannot create jit ELF %s: %s\n", filename, strerror(saved_errno));
+		errno = saved_errno;
+		pr_warning("cannot create jit ELF %s: %m\n", filename);
 		return -1;
 	}
 
@@ -757,7 +758,7 @@ jit_inject(struct jit_buf_desc *jd, const char *path)
 static int
 jit_detect(const char *mmap_name, pid_t pid, struct nsinfo *nsi, bool *in_pidns)
  {
-	char *p;
+	const char *p;
 	char *end = NULL;
 	pid_t pid2;
 

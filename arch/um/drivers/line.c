@@ -672,7 +672,7 @@ void register_winch_irq(int fd, int tty_fd, int pid, struct tty_port *port,
 {
 	struct winch *winch;
 
-	winch = kmalloc(sizeof(*winch), GFP_KERNEL);
+	winch = kmalloc_obj(*winch);
 	if (winch == NULL) {
 		printk(KERN_ERR "register_winch_irq - kmalloc failed\n");
 		goto cleanup;

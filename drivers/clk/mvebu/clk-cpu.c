@@ -183,11 +183,11 @@ static void __init of_cpu_clk_setup(struct device_node *node)
 		pr_warn("%s: pmu-dfs base register not set, dynamic frequency scaling not available\n",
 			__func__);
 
-	cpuclk = kcalloc(ncpus, sizeof(*cpuclk), GFP_KERNEL);
+	cpuclk = kzalloc_objs(*cpuclk, ncpus);
 	if (WARN_ON(!cpuclk))
 		goto cpuclk_out;
 
-	clks = kcalloc(ncpus, sizeof(*clks), GFP_KERNEL);
+	clks = kzalloc_objs(*clks, ncpus);
 	if (WARN_ON(!clks))
 		goto clks_out;
 

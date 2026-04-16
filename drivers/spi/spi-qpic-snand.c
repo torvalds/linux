@@ -258,7 +258,7 @@ static int qcom_spi_ecc_init_ctx_pipelined(struct nand_device *nand)
 	cwperpage = mtd->writesize / NANDC_STEP_SIZE;
 	snandc->qspi->num_cw = cwperpage;
 
-	ecc_cfg = kzalloc(sizeof(*ecc_cfg), GFP_KERNEL);
+	ecc_cfg = kzalloc_obj(*ecc_cfg);
 	if (!ecc_cfg)
 		return -ENOMEM;
 

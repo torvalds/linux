@@ -213,7 +213,7 @@ static struct clk *clk_register_flexgen(const char *name,
 	u32  xbar_shift;
 	void __iomem *xbar_reg, *fdiv_reg;
 
-	fgxbar = kzalloc(sizeof(struct flexgen), GFP_KERNEL);
+	fgxbar = kzalloc_obj(struct flexgen);
 	if (!fgxbar)
 		return ERR_PTR(-ENOMEM);
 
@@ -596,7 +596,7 @@ static void __init st_of_flexgen_setup(struct device_node *np)
 		clk_mode = data->mode;
 	}
 
-	clk_data = kzalloc(sizeof(*clk_data), GFP_KERNEL);
+	clk_data = kzalloc_obj(*clk_data);
 	if (!clk_data)
 		goto err;
 
@@ -612,12 +612,11 @@ static void __init st_of_flexgen_setup(struct device_node *np)
 	} else
 		clk_data->clk_num = data->outputs_nb;
 
-	clk_data->clks = kcalloc(clk_data->clk_num, sizeof(struct clk *),
-			GFP_KERNEL);
+	clk_data->clks = kzalloc_objs(struct clk *, clk_data->clk_num);
 	if (!clk_data->clks)
 		goto err;
 
-	rlock = kzalloc(sizeof(spinlock_t), GFP_KERNEL);
+	rlock = kzalloc_obj(spinlock_t);
 	if (!rlock)
 		goto err;
 

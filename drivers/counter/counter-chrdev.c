@@ -152,7 +152,7 @@ static int counter_set_event_node(struct counter_device *const counter,
 	/* If event is not already in the list */
 	if (&event_node->l == &counter->next_events_list) {
 		/* Allocate new event node */
-		event_node = kmalloc(sizeof(*event_node), GFP_KERNEL);
+		event_node = kmalloc_obj(*event_node);
 		if (!event_node)
 			return -ENOMEM;
 
@@ -172,7 +172,7 @@ static int counter_set_event_node(struct counter_device *const counter,
 		}
 
 	/* Allocate component node */
-	comp_node = kmalloc(sizeof(*comp_node), GFP_KERNEL);
+	comp_node = kmalloc_obj(*comp_node);
 	if (!comp_node) {
 		err = -ENOMEM;
 		goto exit_free_event_node;

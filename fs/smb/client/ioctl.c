@@ -133,7 +133,7 @@ static long smb_mnt_get_fsinfo(unsigned int xid, struct cifs_tcon *tcon,
 	int rc = 0;
 	struct smb_mnt_fs_info *fsinf;
 
-	fsinf = kzalloc(sizeof(struct smb_mnt_fs_info), GFP_KERNEL);
+	fsinf = kzalloc_obj(struct smb_mnt_fs_info);
 	if (fsinf == NULL)
 		return -ENOMEM;
 
@@ -216,7 +216,7 @@ static int cifs_shutdown(struct super_block *sb, unsigned long arg)
 	 */
 	case CIFS_GOING_FLAGS_LOGFLUSH:
 	case CIFS_GOING_FLAGS_NOLOGFLUSH:
-		sbi->mnt_cifs_flags |= CIFS_MOUNT_SHUTDOWN;
+		atomic_or(CIFS_MOUNT_SHUTDOWN, &sbi->mnt_cifs_flags);
 		goto shutdown_good;
 	default:
 		rc = -EINVAL;

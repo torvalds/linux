@@ -96,7 +96,7 @@ static int axff_init(struct hid_device *hid)
 		return -ENODEV;
 	}
 
-	axff = kzalloc(sizeof(struct axff_device), GFP_KERNEL);
+	axff = kzalloc_obj(struct axff_device);
 	if (!axff)
 		return -ENOMEM;
 

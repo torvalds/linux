@@ -501,7 +501,7 @@ struct powercap_zone *powercap_register_zone(
 			return ERR_PTR(-EINVAL);
 		memset(power_zone, 0, sizeof(*power_zone));
 	} else {
-		power_zone = kzalloc(sizeof(*power_zone), GFP_KERNEL);
+		power_zone = kzalloc_obj(*power_zone);
 		if (!power_zone)
 			return ERR_PTR(-ENOMEM);
 		power_zone->allocated = true;
@@ -529,9 +529,8 @@ struct powercap_zone *powercap_register_zone(
 	power_zone->name = kstrdup(name, GFP_KERNEL);
 	if (!power_zone->name)
 		goto err_name_alloc;
-	power_zone->constraints = kcalloc(nr_constraints,
-					  sizeof(*power_zone->constraints),
-					  GFP_KERNEL);
+	power_zone->constraints = kzalloc_objs(*power_zone->constraints,
+					       nr_constraints);
 	if (!power_zone->constraints)
 		goto err_const_alloc;
 
@@ -614,7 +613,7 @@ struct powercap_control_type *powercap_register_control_type(
 			return ERR_PTR(-EINVAL);
 		memset(control_type, 0, sizeof(*control_type));
 	} else {
-		control_type = kzalloc(sizeof(*control_type), GFP_KERNEL);
+		control_type = kzalloc_obj(*control_type);
 		if (!control_type)
 			return ERR_PTR(-ENOMEM);
 		control_type->allocated = true;

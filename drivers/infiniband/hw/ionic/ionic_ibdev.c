@@ -81,6 +81,8 @@ static int ionic_query_port(struct ib_device *ibdev, u32 port,
 		return -EINVAL;
 
 	ndev = ib_device_get_netdev(ibdev, port);
+	if (!ndev)
+		return -ENODEV;
 
 	if (netif_running(ndev) && netif_carrier_ok(ndev)) {
 		attr->state = IB_PORT_ACTIVE;

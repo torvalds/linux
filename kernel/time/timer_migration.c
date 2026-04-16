@@ -1559,8 +1559,6 @@ int tmigr_isolated_exclude_cpumask(struct cpumask *exclude_cpumask)
 	cpumask_var_t cpumask __free(free_cpumask_var) = CPUMASK_VAR_NULL;
 	int cpu;
 
-	lockdep_assert_cpus_held();
-
 	if (!works)
 		return -ENOMEM;
 	if (!alloc_cpumask_var(&cpumask, GFP_KERNEL))
@@ -1570,6 +1568,7 @@ int tmigr_isolated_exclude_cpumask(struct cpumask *exclude_cpumask)
 	 * First set previously isolated CPUs as available (unisolate).
 	 * This cpumask contains only CPUs that switched to available now.
 	 */
+	guard(cpus_read_lock)();
 	cpumask_andnot(cpumask, cpu_online_mask, exclude_cpumask);
 	cpumask_andnot(cpumask, cpumask, tmigr_available_cpumask);
 
@@ -1626,7 +1625,6 @@ static int __init tmigr_init_isolation(void)
 	cpumask_andnot(cpumask, cpu_possible_mask, housekeeping_cpumask(HK_TYPE_DOMAIN));
 
 	/* Protect against RCU torture hotplug testing */
-	guard(cpus_read_lock)();
 	return tmigr_isolated_exclude_cpumask(cpumask);
 }
 late_initcall(tmigr_init_isolation);
@@ -1766,7 +1764,7 @@ static int tmigr_setup_groups(unsigned int cpu, unsigned int node,
 	int i, top = 0, err = 0, start_lvl = 0;
 	bool root_mismatch = false;
 
-	stack = kcalloc(tmigr_hierarchy_levels, sizeof(*stack), GFP_KERNEL);
+	stack = kzalloc_objs(*stack, tmigr_hierarchy_levels);
 	if (!stack)
 		return -ENOMEM;
 
@@ -2001,7 +1999,8 @@ static int __init tmigr_init(void)
 	 */
 	tmigr_crossnode_level = cpulvl;
 
-	tmigr_level_list = kcalloc(tmigr_hierarchy_levels, sizeof(struct list_head), GFP_KERNEL);
+	tmigr_level_list = kzalloc_objs(struct list_head,
+					tmigr_hierarchy_levels);
 	if (!tmigr_level_list)
 		goto err;
 

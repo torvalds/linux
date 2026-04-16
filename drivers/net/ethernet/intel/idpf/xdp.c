@@ -47,12 +47,16 @@ static int __idpf_xdp_rxq_info_init(struct idpf_rx_queue *rxq, void *arg)
 {
 	const struct idpf_vport *vport = rxq->q_vector->vport;
 	const struct idpf_q_vec_rsrc *rsrc;
+	u32 frag_size = 0;
 	bool split;
 	int err;
 
+	if (idpf_queue_has(XSK, rxq))
+		frag_size = rxq->bufq_sets[0].bufq.truesize;
+
 	err = __xdp_rxq_info_reg(&rxq->xdp_rxq, vport->netdev, rxq->idx,
 				 rxq->q_vector->napi.napi_id,
-				 rxq->rx_buf_size);
+				 frag_size);
 	if (err)
 		return err;
 
@@ -154,7 +158,7 @@ int idpf_xdpsqs_get(const struct idpf_vport *vport)
 	if (!idpf_xdp_enabled(vport))
 		return 0;
 
-	timers = kvcalloc(vport->num_xdp_txq, sizeof(*timers), GFP_KERNEL);
+	timers = kvzalloc_objs(*timers, vport->num_xdp_txq);
 	if (!timers)
 		return -ENOMEM;
 

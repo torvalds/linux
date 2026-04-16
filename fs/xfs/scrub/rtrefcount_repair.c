@@ -709,7 +709,7 @@ xrep_rtrefcountbt(
 	if (error)
 		return error;
 
-	rr = kzalloc(sizeof(struct xrep_rtrefc), XCHK_GFP_FLAGS);
+	rr = kzalloc_obj(struct xrep_rtrefc, XCHK_GFP_FLAGS);
 	if (!rr)
 		return -ENOMEM;
 	rr->sc = sc;

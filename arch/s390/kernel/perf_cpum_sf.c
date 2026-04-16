@@ -1609,7 +1609,7 @@ static void *aux_buffer_setup(struct perf_event *event, void **pages,
 	}
 
 	/* Allocate aux_buffer struct for the event */
-	aux = kzalloc(sizeof(struct aux_buffer), GFP_KERNEL);
+	aux = kzalloc_obj(struct aux_buffer);
 	if (!aux)
 		goto no_aux;
 	sfb = &aux->sfb;

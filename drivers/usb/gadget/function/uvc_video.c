@@ -513,7 +513,7 @@ uvc_video_prep_requests(struct uvc_video *video)
 		return;
 	}
 
-	interval_duration = 2 << (video->ep->desc->bInterval - 1);
+	interval_duration = 1 << (video->ep->desc->bInterval - 1);
 	if (cdev->gadget->speed < USB_SPEED_HIGH)
 		interval_duration *= 10000;
 	else
@@ -559,7 +559,7 @@ uvc_video_alloc_requests(struct uvc_video *video)
 	uvc_video_prep_requests(video);
 
 	for (i = 0; i < video->uvc_num_requests; i++) {
-		ureq = kzalloc(sizeof(struct uvc_request), GFP_KERNEL);
+		ureq = kzalloc_obj(struct uvc_request);
 		if (ureq == NULL)
 			goto error;
 

@@ -205,7 +205,7 @@ static int xenkbd_probe(struct xenbus_device *dev,
 	struct xenkbd_info *info;
 	struct input_dev *kbd, *ptr, *mtouch;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info) {
 		xenbus_dev_fatal(dev, -ENOMEM, "allocating info structure");
 		return -ENOMEM;

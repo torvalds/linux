@@ -94,7 +94,7 @@ static int __maybe_unused exynos4x12_isp_clk_suspend(struct device *dev)
 {
 	struct samsung_clk_provider *ctx = dev_get_drvdata(dev);
 
-	samsung_clk_save(ctx->reg_base, exynos4x12_save_isp,
+	samsung_clk_save(ctx->reg_base, NULL, exynos4x12_save_isp,
 			 ARRAY_SIZE(exynos4x12_clk_isp_save));
 	return 0;
 }
@@ -103,7 +103,7 @@ static int __maybe_unused exynos4x12_isp_clk_resume(struct device *dev)
 {
 	struct samsung_clk_provider *ctx = dev_get_drvdata(dev);
 
-	samsung_clk_restore(ctx->reg_base, exynos4x12_save_isp,
+	samsung_clk_restore(ctx->reg_base, NULL, exynos4x12_save_isp,
 			    ARRAY_SIZE(exynos4x12_clk_isp_save));
 	return 0;
 }

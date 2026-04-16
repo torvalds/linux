@@ -416,7 +416,7 @@ static void mlx5_ib_qp_event(struct mlx5_core_qp *qp, int type)
 	if (!ibqp->event_handler)
 		goto out_no_handler;
 
-	qpe_work = kzalloc(sizeof(*qpe_work), GFP_ATOMIC);
+	qpe_work = kzalloc_obj(*qpe_work, GFP_ATOMIC);
 	if (!qpe_work)
 		goto out_no_handler;
 
@@ -1185,8 +1185,7 @@ static int _create_kernel_qp(struct mlx5_ib_dev *dev,
 					sizeof(*qp->sq.wr_data), GFP_KERNEL);
 	qp->rq.wrid = kvmalloc_array(qp->rq.wqe_cnt,
 				     sizeof(*qp->rq.wrid), GFP_KERNEL);
-	qp->sq.w_list = kvmalloc_array(qp->sq.wqe_cnt,
-				       sizeof(*qp->sq.w_list), GFP_KERNEL);
+	qp->sq.w_list = kvmalloc_objs(*qp->sq.w_list, qp->sq.wqe_cnt);
 	qp->sq.wqe_head = kvmalloc_array(qp->sq.wqe_cnt,
 					 sizeof(*qp->sq.wqe_head), GFP_KERNEL);
 
@@ -5488,7 +5487,7 @@ struct ib_wq *mlx5_ib_create_wq(struct ib_pd *pd,
 	dev = to_mdev(pd->device);
 	switch (init_attr->wq_type) {
 	case IB_WQT_RQ:
-		rwq = kzalloc(sizeof(*rwq), GFP_KERNEL);
+		rwq = kzalloc_obj(*rwq);
 		if (!rwq)
 			return ERR_PTR(-ENOMEM);
 		err = prepare_user_rq(pd, init_attr, udata, rwq);

@@ -507,13 +507,13 @@ static ssize_t amdgpu_ras_cper_debugfs_read(struct file *f, char __user *buf,
 	const uint8_t ring_header_size = 12;
 	struct amdgpu_ring *ring = file_inode(f)->i_private;
 	struct ras_cmd_cper_snapshot_req *snapshot_req __free(kfree) =
-		kzalloc(sizeof(struct ras_cmd_cper_snapshot_req), GFP_KERNEL);
+		kzalloc_obj(struct ras_cmd_cper_snapshot_req);
 	struct ras_cmd_cper_snapshot_rsp *snapshot_rsp __free(kfree) =
-		kzalloc(sizeof(struct ras_cmd_cper_snapshot_rsp), GFP_KERNEL);
+		kzalloc_obj(struct ras_cmd_cper_snapshot_rsp);
 	struct ras_cmd_cper_record_req *record_req __free(kfree) =
-		kzalloc(sizeof(struct ras_cmd_cper_record_req), GFP_KERNEL);
+		kzalloc_obj(struct ras_cmd_cper_record_req);
 	struct ras_cmd_cper_record_rsp *record_rsp __free(kfree) =
-		kzalloc(sizeof(struct ras_cmd_cper_record_rsp), GFP_KERNEL);
+		kzalloc_obj(struct ras_cmd_cper_record_rsp);
 	uint8_t *ring_header __free(kfree) =
 		kzalloc(ring_header_size, GFP_KERNEL);
 	uint32_t total_cper_num;
@@ -868,8 +868,6 @@ bool amdgpu_ring_sched_ready(struct amdgpu_ring *ring)
 void amdgpu_ring_reset_helper_begin(struct amdgpu_ring *ring,
 				    struct amdgpu_fence *guilty_fence)
 {
-	/* Stop the scheduler to prevent anybody else from touching the ring buffer. */
-	drm_sched_wqueue_stop(&ring->sched);
 	/* back up the non-guilty commands */
 	amdgpu_ring_backup_unprocessed_commands(ring, guilty_fence);
 }
@@ -895,8 +893,6 @@ int amdgpu_ring_reset_helper_end(struct amdgpu_ring *ring,
 			amdgpu_ring_write(ring, ring->ring_backup[i]);
 		amdgpu_ring_commit(ring);
 	}
-	/* Start the scheduler again */
-	drm_sched_wqueue_start(&ring->sched);
 	return 0;
 }
 

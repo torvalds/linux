@@ -929,7 +929,7 @@ static int falcon_mtd_probe(struct ef4_nic *efx)
 	ASSERT_RTNL();
 
 	/* Allocate space for maximum number of partitions */
-	parts = kcalloc(2, sizeof(*parts), GFP_KERNEL);
+	parts = kzalloc_objs(*parts, 2);
 	if (!parts)
 		return -ENOMEM;
 	n_parts = 0;
@@ -2180,7 +2180,7 @@ static int falcon_probe_nvconfig(struct ef4_nic *efx)
 	struct falcon_nvconfig *nvconfig;
 	int rc;
 
-	nvconfig = kmalloc(sizeof(*nvconfig), GFP_KERNEL);
+	nvconfig = kmalloc_obj(*nvconfig);
 	if (!nvconfig)
 		return -ENOMEM;
 
@@ -2289,7 +2289,7 @@ static int falcon_probe_nic(struct ef4_nic *efx)
 	efx->primary = efx; /* only one usable function per controller */
 
 	/* Allocate storage for hardware specific data */
-	nic_data = kzalloc(sizeof(*nic_data), GFP_KERNEL);
+	nic_data = kzalloc_obj(*nic_data);
 	if (!nic_data)
 		return -ENOMEM;
 	efx->nic_data = nic_data;

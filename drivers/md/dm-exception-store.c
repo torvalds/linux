@@ -204,7 +204,7 @@ int dm_exception_store_create(struct dm_target *ti, int argc, char **argv,
 		return -EINVAL;
 	}
 
-	tmp_store = kzalloc(sizeof(*tmp_store), GFP_KERNEL);
+	tmp_store = kzalloc_obj(*tmp_store);
 	if (!tmp_store) {
 		ti->error = "Exception store allocation failed";
 		return -ENOMEM;

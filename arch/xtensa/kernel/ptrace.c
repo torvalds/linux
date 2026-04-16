@@ -123,7 +123,7 @@ static int tie_get(struct task_struct *target,
 	int ret;
 	struct pt_regs *regs = task_pt_regs(target);
 	struct thread_info *ti = task_thread_info(target);
-	elf_xtregs_t *newregs = kzalloc(sizeof(elf_xtregs_t), GFP_KERNEL);
+	elf_xtregs_t *newregs = kzalloc_obj(elf_xtregs_t);
 
 	if (!newregs)
 		return -ENOMEM;
@@ -156,7 +156,7 @@ static int tie_set(struct task_struct *target,
 	int ret;
 	struct pt_regs *regs = task_pt_regs(target);
 	struct thread_info *ti = task_thread_info(target);
-	elf_xtregs_t *newregs = kzalloc(sizeof(elf_xtregs_t), GFP_KERNEL);
+	elf_xtregs_t *newregs = kzalloc_obj(elf_xtregs_t);
 
 	if (!newregs)
 		return -ENOMEM;

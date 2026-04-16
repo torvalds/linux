@@ -4207,8 +4207,7 @@ static int be_vf_setup_init(struct be_adapter *adapter)
 	struct be_vf_cfg *vf_cfg;
 	int vf;
 
-	adapter->vf_cfg = kcalloc(adapter->num_vfs, sizeof(*vf_cfg),
-				  GFP_KERNEL);
+	adapter->vf_cfg = kzalloc_objs(*vf_cfg, adapter->num_vfs);
 	if (!adapter->vf_cfg)
 		return -ENOMEM;
 
@@ -4686,13 +4685,11 @@ static int be_if_create(struct be_adapter *adapter)
 	if (!adapter->pmac_id)
 		return -ENOMEM;
 
-	adapter->mc_list = kcalloc(be_max_mc(adapter),
-				   sizeof(*adapter->mc_list), GFP_KERNEL);
+	adapter->mc_list = kzalloc_objs(*adapter->mc_list, be_max_mc(adapter));
 	if (!adapter->mc_list)
 		return -ENOMEM;
 
-	adapter->uc_list = kcalloc(be_max_uc(adapter),
-				   sizeof(*adapter->uc_list), GFP_KERNEL);
+	adapter->uc_list = kzalloc_objs(*adapter->uc_list, be_max_uc(adapter));
 	if (!adapter->uc_list)
 		return -ENOMEM;
 
@@ -5048,7 +5045,7 @@ static struct be_cmd_work *be_alloc_work(struct be_adapter *adapter,
 {
 	struct be_cmd_work *work;
 
-	work = kzalloc(sizeof(*work), GFP_ATOMIC);
+	work = kzalloc_obj(*work, GFP_ATOMIC);
 	if (!work) {
 		dev_err(&adapter->pdev->dev,
 			"be_work memory allocation failed\n");

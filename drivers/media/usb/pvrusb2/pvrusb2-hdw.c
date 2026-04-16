@@ -2367,7 +2367,7 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 		goto fail;
 	}
 
-	hdw = kzalloc(sizeof(*hdw),GFP_KERNEL);
+	hdw = kzalloc_obj(*hdw);
 	pvr2_trace(PVR2_TRACE_INIT,"pvr2_hdw_create: hdw=%p, type \"%s\"",
 		   hdw,hdw_desc->description);
 	pvr2_trace(PVR2_TRACE_INFO, "Hardware description: %s",
@@ -2424,8 +2424,7 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 
 	hdw->control_cnt = CTRLDEF_COUNT;
 	hdw->control_cnt += MPEGDEF_COUNT;
-	hdw->controls = kcalloc(hdw->control_cnt, sizeof(struct pvr2_ctrl),
-				GFP_KERNEL);
+	hdw->controls = kzalloc_objs(struct pvr2_ctrl, hdw->control_cnt);
 	if (!hdw->controls) goto fail;
 	hdw->hdw_desc = hdw_desc;
 	hdw->ir_scheme_active = hdw->hdw_desc->ir_scheme;
@@ -2450,9 +2449,8 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	}
 
 	/* Define and configure additional controls from cx2341x module. */
-	hdw->mpeg_ctrl_info = kcalloc(MPEGDEF_COUNT,
-				      sizeof(*(hdw->mpeg_ctrl_info)),
-				      GFP_KERNEL);
+	hdw->mpeg_ctrl_info = kzalloc_objs(*(hdw->mpeg_ctrl_info),
+					   MPEGDEF_COUNT);
 	if (!hdw->mpeg_ctrl_info) goto fail;
 	for (idx = 0; idx < MPEGDEF_COUNT; idx++) {
 		cptr = hdw->controls + idx + CTRLDEF_COUNT;

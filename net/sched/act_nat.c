@@ -81,7 +81,7 @@ static int tcf_nat_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 	if (err < 0)
 		goto release_idr;
 
-	nparm = kzalloc(sizeof(*nparm), GFP_KERNEL);
+	nparm = kzalloc_obj(*nparm);
 	if (!nparm) {
 		err = -ENOMEM;
 		goto release_idr;

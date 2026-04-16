@@ -71,7 +71,7 @@ static int dg_create_handle(u32 resource_id,
 
 	handle = vmci_make_handle(context_id, resource_id);
 
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kmalloc_obj(*entry);
 	if (!entry) {
 		pr_warn("Failed allocating memory for datagram entry\n");
 		return VMCI_ERROR_NO_MEM;
@@ -224,8 +224,8 @@ static int dg_dispatch_as_host(u32 context_id, struct vmci_datagram *dg)
 				return VMCI_ERROR_NO_MEM;
 			}
 
-			dg_info = kmalloc(struct_size(dg_info, msg_payload, dg->payload_size),
-					  GFP_ATOMIC);
+			dg_info = kmalloc_flex(*dg_info, msg_payload,
+					       dg->payload_size, GFP_ATOMIC);
 			if (!dg_info) {
 				atomic_dec(&delayed_dg_host_queue_size);
 				vmci_resource_put(resource);

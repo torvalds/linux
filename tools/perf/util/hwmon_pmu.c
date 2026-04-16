@@ -161,7 +161,7 @@ bool parse_hwmon_filename(const char *filename,
 			  bool *alarm)
 {
 	char fn_type[24];
-	const char **elem;
+	const char * const *elem;
 	const char *fn_item = NULL;
 	size_t fn_item_len;
 

@@ -237,7 +237,7 @@ static int ivpu_open(struct drm_device *dev, struct drm_file *file)
 	if (!drm_dev_enter(dev, &idx))
 		return -ENODEV;
 
-	file_priv = kzalloc(sizeof(*file_priv), GFP_KERNEL);
+	file_priv = kzalloc_obj(*file_priv);
 	if (!file_priv) {
 		ret = -ENOMEM;
 		goto err_dev_exit;

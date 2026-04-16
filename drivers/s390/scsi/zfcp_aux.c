@@ -344,7 +344,7 @@ struct zfcp_adapter *zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	if (!get_device(&ccw_device->dev))
 		return ERR_PTR(-ENODEV);
 
-	adapter = kzalloc(sizeof(struct zfcp_adapter), GFP_KERNEL);
+	adapter = kzalloc_obj(struct zfcp_adapter);
 	if (!adapter) {
 		put_device(&ccw_device->dev);
 		return ERR_PTR(-ENOMEM);
@@ -518,7 +518,7 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, u64 wwpn,
 		goto err_put;
 	}
 
-	port = kzalloc(sizeof(struct zfcp_port), GFP_KERNEL);
+	port = kzalloc_obj(struct zfcp_port);
 	if (!port)
 		goto err_put;
 

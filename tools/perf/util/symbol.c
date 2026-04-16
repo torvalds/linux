@@ -104,21 +104,10 @@ static enum dso_binary_type binary_type_symtab[] = {
 
 #define DSO_BINARY_TYPE__SYMTAB_CNT ARRAY_SIZE(binary_type_symtab)
 
-static bool symbol_type__filter(char __symbol_type)
+static bool symbol_type__filter(char symbol_type)
 {
-	// Since 'U' == undefined and 'u' == unique global symbol, we can't use toupper there
-	// 'N' is for debugging symbols, 'n' is a non-data, non-code, non-debug read-only section.
-	// According to 'man nm'.
-	// 'N' first seen in:
-	// ffffffff9b35d130 N __pfx__RNCINvNtNtNtCsbDUBuN8AbD4_4core4iter8adapters3map12map_try_foldjNtCs6vVzKs5jPr6_12drm_panic_qr7VersionuINtNtNtBa_3ops12control_flow11ControlFlowB10_ENcB10_0NCINvNvNtNtNtB8_6traits8iterator8Iterator4find5checkB10_NCNvMB12_B10_13from_segments0E0E0B12_
-	// a seemingly Rust mangled name
-	// Ditto for '1':
-	// root@x1:~# grep ' 1 ' /proc/kallsyms
-	// ffffffffb098bc00 1 __pfx__RNCINvNtNtNtCsfwaGRd4cjqE_4core4iter8adapters3map12map_try_foldjNtCskFudTml27HW_12drm_panic_qr7VersionuINtNtNtBa_3ops12control_flow11ControlFlowB10_ENcB10_0NCINvNvNtNtNtB8_6traits8iterator8Iterator4find5checkB10_NCNvMB12_B10_13from_segments0E0E0B12_
-	// ffffffffb098bc10 1 _RNCINvNtNtNtCsfwaGRd4cjqE_4core4iter8adapters3map12map_try_foldjNtCskFudTml27HW_12drm_panic_qr7VersionuINtNtNtBa_3ops12control_flow11ControlFlowB10_ENcB10_0NCINvNvNtNtNtB8_6traits8iterator8Iterator4find5checkB10_NCNvMB12_B10_13from_segments0E0E0B12_
-	char symbol_type = toupper(__symbol_type);
-	return symbol_type == 'T' || symbol_type == 'W' || symbol_type == 'D' || symbol_type == 'B' ||
-	       __symbol_type == 'u' || __symbol_type == 'l' || __symbol_type == 'N' || __symbol_type == '1';
+	symbol_type = toupper(symbol_type);
+	return symbol_type == 'T' || symbol_type == 'W' || symbol_type == 'D' || symbol_type == 'B';
 }
 
 static int prefix_underscores_count(const char *str)

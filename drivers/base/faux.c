@@ -133,7 +133,7 @@ struct faux_device *faux_device_create_with_groups(const char *name,
 	struct device *dev;
 	int ret;
 
-	faux_obj = kzalloc(sizeof(*faux_obj), GFP_KERNEL);
+	faux_obj = kzalloc_obj(*faux_obj);
 	if (!faux_obj)
 		return NULL;
 
@@ -234,7 +234,7 @@ int __init faux_bus_init(void)
 {
 	int ret;
 
-	faux_bus_root = kzalloc(sizeof(*faux_bus_root), GFP_KERNEL);
+	faux_bus_root = kzalloc_obj(*faux_bus_root);
 	if (!faux_bus_root)
 		return -ENOMEM;
 

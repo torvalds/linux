@@ -462,7 +462,7 @@ bool hci_setup_sync(struct hci_conn *conn, __u16 handle)
 	struct conn_handle_t *conn_handle;
 
 	if (enhanced_sync_conn_capable(conn->hdev)) {
-		conn_handle = kzalloc(sizeof(*conn_handle), GFP_KERNEL);
+		conn_handle = kzalloc_obj(*conn_handle);
 
 		if (!conn_handle)
 			return false;
@@ -726,7 +726,7 @@ static int hci_le_terminate_big(struct hci_dev *hdev, struct hci_conn *conn)
 	bt_dev_dbg(hdev, "big 0x%2.2x bis 0x%2.2x", conn->iso_qos.bcast.big,
 		   conn->iso_qos.bcast.bis);
 
-	d = kzalloc(sizeof(*d), GFP_KERNEL);
+	d = kzalloc_obj(*d);
 	if (!d)
 		return -ENOMEM;
 
@@ -777,7 +777,7 @@ static int hci_le_big_terminate(struct hci_dev *hdev, struct hci_conn *conn)
 	bt_dev_dbg(hdev, "hcon %p big 0x%2.2x sync_handle 0x%4.4x", conn,
 		   conn->iso_qos.bcast.big, conn->sync_handle);
 
-	d = kzalloc(sizeof(*d), GFP_KERNEL);
+	d = kzalloc_obj(*d);
 	if (!d)
 		return -ENOMEM;
 
@@ -960,7 +960,7 @@ static struct hci_conn *__hci_conn_add(struct hci_dev *hdev, int type,
 
 	bt_dev_dbg(hdev, "dst %pMR handle 0x%4.4x", dst, handle);
 
-	conn = kzalloc(sizeof(*conn), GFP_KERNEL);
+	conn = kzalloc_obj(*conn);
 	if (!conn)
 		return ERR_PTR(-ENOMEM);
 
@@ -1739,7 +1739,7 @@ static struct hci_link *hci_conn_link(struct hci_conn *parent,
 	if (conn->parent)
 		return NULL;
 
-	link = kzalloc(sizeof(*link), GFP_KERNEL);
+	link = kzalloc_obj(*link);
 	if (!link)
 		return NULL;
 
@@ -2781,7 +2781,7 @@ struct hci_chan *hci_chan_create(struct hci_conn *conn)
 		return NULL;
 	}
 
-	chan = kzalloc(sizeof(*chan), GFP_KERNEL);
+	chan = kzalloc_obj(*chan);
 	if (!chan)
 		return NULL;
 

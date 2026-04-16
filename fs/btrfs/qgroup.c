@@ -370,7 +370,7 @@ static bool squota_check_parent_usage(struct btrfs_fs_info *fs_info, struct btrf
 		nr_members++;
 	}
 	mismatch = (parent->excl != excl_sum || parent->rfer != rfer_sum ||
-		    parent->excl_cmpr != excl_cmpr_sum || parent->rfer_cmpr != excl_cmpr_sum);
+		    parent->excl_cmpr != excl_cmpr_sum || parent->rfer_cmpr != rfer_cmpr_sum);
 
 	WARN(mismatch,
 	     "parent squota qgroup %hu/%llu has mismatched usage from its %d members. "
@@ -495,7 +495,7 @@ int btrfs_read_qgroup_config(struct btrfs_fs_info *fs_info)
 			struct btrfs_qgroup *prealloc;
 			struct btrfs_root *tree_root = fs_info->tree_root;
 
-			prealloc = kzalloc(sizeof(*prealloc), GFP_KERNEL);
+			prealloc = kzalloc_obj(*prealloc);
 			if (!prealloc) {
 				ret = -ENOMEM;
 				goto out;
@@ -585,7 +585,7 @@ next1:
 			goto next2;
 		}
 
-		list = kzalloc(sizeof(*list), GFP_KERNEL);
+		list = kzalloc_obj(*list);
 		if (!list) {
 			ret = -ENOMEM;
 			goto out;
@@ -1140,7 +1140,7 @@ int btrfs_quota_enable(struct btrfs_fs_info *fs_info,
 
 			/* We should not have a stray @prealloc pointer. */
 			ASSERT(prealloc == NULL);
-			prealloc = kzalloc(sizeof(*prealloc), GFP_NOFS);
+			prealloc = kzalloc_obj(*prealloc, GFP_NOFS);
 			if (unlikely(!prealloc)) {
 				ret = -ENOMEM;
 				btrfs_abort_transaction(trans, ret);
@@ -1169,11 +1169,14 @@ int btrfs_quota_enable(struct btrfs_fs_info *fs_info,
 			}
 			if (ret > 0) {
 				/*
-				 * Shouldn't happen, but in case it does we
-				 * don't need to do the btrfs_next_item, just
-				 * continue.
+				 * Shouldn't happen because the key should still
+				 * be there (return 0), but in case it does it
+				 * means we have reached the end of the tree -
+				 * there are no more leaves with items that have
+				 * a key greater than or equals to @found_key,
+				 * so just stop the search loop.
 				 */
-				continue;
+				break;
 			}
 		}
 		ret = btrfs_next_item(tree_root, path);
@@ -1194,7 +1197,7 @@ out_add_root:
 	}
 
 	ASSERT(prealloc == NULL);
-	prealloc = kzalloc(sizeof(*prealloc), GFP_NOFS);
+	prealloc = kzalloc_obj(*prealloc, GFP_NOFS);
 	if (!prealloc) {
 		ret = -ENOMEM;
 		goto out_free_path;
@@ -1690,7 +1693,7 @@ int btrfs_create_qgroup(struct btrfs_trans_handle *trans, u64 qgroupid)
 		goto out;
 	}
 
-	prealloc = kzalloc(sizeof(*prealloc), GFP_NOFS);
+	prealloc = kzalloc_obj(*prealloc, GFP_NOFS);
 	if (!prealloc) {
 		ret = -ENOMEM;
 		goto out;
@@ -2144,7 +2147,7 @@ int btrfs_qgroup_trace_extent(struct btrfs_trans_handle *trans, u64 bytenr,
 
 	if (!btrfs_qgroup_full_accounting(fs_info) || bytenr == 0 || num_bytes == 0)
 		return 0;
-	record = kzalloc(sizeof(*record), GFP_NOFS);
+	record = kzalloc_obj(*record, GFP_NOFS);
 	if (!record)
 		return -ENOMEM;
 
@@ -3343,7 +3346,7 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans, u64 srcid,
 	if (!btrfs_qgroup_enabled(fs_info))
 		return 0;
 
-	prealloc = kzalloc(sizeof(*prealloc), GFP_NOFS);
+	prealloc = kzalloc_obj(*prealloc, GFP_NOFS);
 	if (!prealloc)
 		return -ENOMEM;
 
@@ -3425,16 +3428,15 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans, u64 srcid,
 		}
 		ret = 0;
 
-		qlist_prealloc = kcalloc(inherit->num_qgroups,
-					 sizeof(struct btrfs_qgroup_list *),
-					 GFP_NOFS);
+		qlist_prealloc = kzalloc_objs(struct btrfs_qgroup_list *,
+					      inherit->num_qgroups, GFP_NOFS);
 		if (!qlist_prealloc) {
 			ret = -ENOMEM;
 			goto out;
 		}
 		for (int i = 0; i < inherit->num_qgroups; i++) {
-			qlist_prealloc[i] = kzalloc(sizeof(struct btrfs_qgroup_list),
-						    GFP_NOFS);
+			qlist_prealloc[i] = kzalloc_obj(struct btrfs_qgroup_list,
+							GFP_NOFS);
 			if (!qlist_prealloc[i]) {
 				ret = -ENOMEM;
 				goto out;
@@ -4750,7 +4752,7 @@ int btrfs_qgroup_add_swapped_blocks(struct btrfs_root *subvol_root,
 		return -EUCLEAN;
 	}
 
-	block = kmalloc(sizeof(*block), GFP_NOFS);
+	block = kmalloc_obj(*block, GFP_NOFS);
 	if (!block) {
 		ret = -ENOMEM;
 		goto out;

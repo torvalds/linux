@@ -68,7 +68,7 @@ static void *gdom_info_load_or_alloc_locked(struct xarray *xa, unsigned long ind
 		return elm;
 
 	xa_unlock(xa);
-	elm = kzalloc(sizeof(struct guest_domain_mapping_info), GFP_KERNEL);
+	elm = kzalloc_obj(struct guest_domain_mapping_info);
 	xa_lock(xa);
 	if (!elm)
 		return ERR_PTR(-ENOMEM);
@@ -102,7 +102,7 @@ amd_iommu_alloc_domain_nested(struct iommufd_viommu *viommu, u32 flags,
 	if (user_data->type != IOMMU_HWPT_DATA_AMD_GUEST)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	ndom = kzalloc(sizeof(*ndom), GFP_KERNEL);
+	ndom = kzalloc_obj(*ndom);
 	if (!ndom)
 		return ERR_PTR(-ENOMEM);
 

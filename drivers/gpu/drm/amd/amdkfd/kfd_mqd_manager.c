@@ -51,7 +51,7 @@ struct kfd_mem_obj *allocate_hiq_mqd(struct mqd_manager *mm, struct queue_proper
 	struct kfd_mem_obj *mqd_mem_obj;
 	struct kfd_node *dev = mm->dev;
 
-	mqd_mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_KERNEL);
+	mqd_mem_obj = kzalloc_obj(struct kfd_mem_obj);
 	if (!mqd_mem_obj)
 		return NULL;
 
@@ -69,7 +69,7 @@ struct kfd_mem_obj *allocate_sdma_mqd(struct mqd_manager *mm,
 	struct kfd_node *dev = mm->dev;
 	uint64_t offset;
 
-	mqd_mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_KERNEL);
+	mqd_mem_obj = kzalloc_obj(struct kfd_mem_obj);
 	if (!mqd_mem_obj)
 		return NULL;
 

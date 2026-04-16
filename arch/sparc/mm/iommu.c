@@ -64,7 +64,7 @@ static void __init sbus_iommu_init(struct platform_device *op)
 	unsigned long base;
 	unsigned long tmp;
 
-	iommu = kmalloc(sizeof(struct iommu_struct), GFP_KERNEL);
+	iommu = kmalloc_obj(struct iommu_struct);
 	if (!iommu) {
 		prom_printf("Unable to allocate iommu structure\n");
 		prom_halt();

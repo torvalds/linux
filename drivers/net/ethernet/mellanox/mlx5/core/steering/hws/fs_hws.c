@@ -478,7 +478,7 @@ mlx5_fs_get_cached_hws_data(struct xarray *cache_xa, unsigned long index)
 	xa_lock(cache_xa);
 	fs_hws_data = xa_load(cache_xa, index);
 	if (!fs_hws_data) {
-		fs_hws_data = kzalloc(sizeof(*fs_hws_data), GFP_ATOMIC);
+		fs_hws_data = kzalloc_obj(*fs_hws_data, GFP_ATOMIC);
 		if (!fs_hws_data) {
 			xa_unlock(cache_xa);
 			return NULL;
@@ -759,22 +759,19 @@ static int mlx5_fs_fte_get_hws_actions(struct mlx5_flow_root_namespace *ns,
 	int num_actions = 0;
 	int err;
 
-	*ractions = kcalloc(MLX5_FLOW_CONTEXT_ACTION_MAX, sizeof(**ractions),
-			    GFP_KERNEL);
+	*ractions = kzalloc_objs(**ractions, MLX5_FLOW_CONTEXT_ACTION_MAX);
 	if (!*ractions) {
 		err = -ENOMEM;
 		goto out_err;
 	}
 
-	fs_actions = kcalloc(MLX5_FLOW_CONTEXT_ACTION_MAX,
-			     sizeof(*fs_actions), GFP_KERNEL);
+	fs_actions = kzalloc_objs(*fs_actions, MLX5_FLOW_CONTEXT_ACTION_MAX);
 	if (!fs_actions) {
 		err = -ENOMEM;
 		goto free_actions_alloc;
 	}
 
-	dest_actions = kcalloc(MLX5_FLOW_CONTEXT_ACTION_MAX,
-			       sizeof(*dest_actions), GFP_KERNEL);
+	dest_actions = kzalloc_objs(*dest_actions, MLX5_FLOW_CONTEXT_ACTION_MAX);
 	if (!dest_actions) {
 		err = -ENOMEM;
 		goto free_fs_actions_alloc;
@@ -1239,7 +1236,7 @@ mlx5_fs_get_pr_encap_pool(struct mlx5_core_dev *dev, struct xarray *pr_pools,
 	if (pr_pool)
 		return pr_pool;
 
-	pr_pool = kzalloc(sizeof(*pr_pool), GFP_KERNEL);
+	pr_pool = kzalloc_obj(*pr_pool);
 	if (!pr_pool)
 		return ERR_PTR(-ENOMEM);
 	err = mlx5_fs_hws_pr_pool_init(pr_pool, dev, size, reformat_type);
@@ -1430,7 +1427,7 @@ mlx5_fs_create_mh_pool(struct mlx5_core_dev *dev,
 	struct mlx5_fs_pool *pool;
 	int err;
 
-	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+	pool = kzalloc_obj(*pool);
 	if (!pool)
 		return ERR_PTR(-ENOMEM);
 	err = mlx5_fs_hws_mh_pool_init(pool, dev, pattern);

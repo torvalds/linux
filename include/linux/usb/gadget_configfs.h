@@ -30,7 +30,7 @@ static ssize_t __struct##_##__name##_show(struct config_item *item, char *page) 
 	CONFIGFS_ATTR(struct_name##_, _name)
 
 #define USB_CONFIG_STRING_RW_OPS(struct_in)				\
-static struct configfs_item_operations struct_in##_langid_item_ops = {	\
+static const struct configfs_item_operations struct_in##_langid_item_ops = {	\
 	.release                = struct_in##_attr_release,		\
 };									\
 									\
@@ -86,7 +86,7 @@ static void struct_in##_strings_drop(					\
 	config_item_put(item);						\
 }									\
 									\
-static struct configfs_group_operations struct_in##_strings_ops = {	\
+static const struct configfs_group_operations struct_in##_strings_ops = {	\
 	.make_group     = &struct_in##_strings_make,			\
 	.drop_item      = &struct_in##_strings_drop,			\
 };									\

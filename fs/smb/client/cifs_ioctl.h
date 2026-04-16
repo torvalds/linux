@@ -122,11 +122,3 @@ struct smb3_notify_info {
 #define CIFS_GOING_FLAGS_DEFAULT                0x0     /* going down */
 #define CIFS_GOING_FLAGS_LOGFLUSH               0x1     /* flush log but not data */
 #define CIFS_GOING_FLAGS_NOLOGFLUSH             0x2     /* don't flush log nor data */
-
-static inline bool cifs_forced_shutdown(struct cifs_sb_info *sbi)
-{
-	if (CIFS_MOUNT_SHUTDOWN & sbi->mnt_cifs_flags)
-		return true;
-	else
-		return false;
-}

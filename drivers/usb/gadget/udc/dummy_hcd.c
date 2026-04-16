@@ -666,7 +666,7 @@ static struct usb_request *dummy_alloc_request(struct usb_ep *_ep,
 	if (!_ep)
 		return NULL;
 
-	req = kzalloc(sizeof(*req), mem_flags);
+	req = kzalloc_obj(*req, mem_flags);
 	if (!req)
 		return NULL;
 	INIT_LIST_HEAD(&req->queue);
@@ -1270,7 +1270,7 @@ static int dummy_urb_enqueue(
 	unsigned long	flags;
 	int		rc;
 
-	urbp = kmalloc(sizeof *urbp, mem_flags);
+	urbp = kmalloc_obj(*urbp, mem_flags);
 	if (!urbp)
 		return -ENOMEM;
 	urbp->urb = urb;
@@ -2819,7 +2819,7 @@ static int __init dummy_hcd_init(void)
 		}
 	}
 	for (i = 0; i < mod_data.num; i++) {
-		dum[i] = kzalloc(sizeof(struct dummy), GFP_KERNEL);
+		dum[i] = kzalloc_obj(struct dummy);
 		if (!dum[i]) {
 			retval = -ENOMEM;
 			goto err_add_pdata;

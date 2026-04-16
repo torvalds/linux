@@ -74,7 +74,7 @@ static void __init dmi_add_platform_ipmi(unsigned long base_addr,
 	p.slave_addr = slave_addr;
 	p.addr_source = SI_SMBIOS;
 
-	info = kmalloc(sizeof(*info), GFP_KERNEL);
+	info = kmalloc_obj(*info);
 	if (!info) {
 		pr_warn("Could not allocate dmi info\n");
 	} else {

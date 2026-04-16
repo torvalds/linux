@@ -360,7 +360,7 @@ static int ipoib_cm_nonsrq_init_rx(struct net_device *dev, struct ib_cm_id *cm_i
 	if (!rx->rx_ring)
 		return -ENOMEM;
 
-	t = kmalloc(sizeof(*t), GFP_KERNEL);
+	t = kmalloc_obj(*t);
 	if (!t) {
 		ret = -ENOMEM;
 		goto err_free_1;
@@ -449,7 +449,7 @@ static int ipoib_cm_req_handler(struct ib_cm_id *cm_id,
 	int ret;
 
 	ipoib_dbg(priv, "REQ arrived\n");
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (!p)
 		return -ENOMEM;
 	p->dev = dev;
@@ -1304,7 +1304,7 @@ struct ipoib_cm_tx *ipoib_cm_create_tx(struct net_device *dev, struct ipoib_path
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	struct ipoib_cm_tx *tx;
 
-	tx = kzalloc(sizeof(*tx), GFP_ATOMIC);
+	tx = kzalloc_obj(*tx, GFP_ATOMIC);
 	if (!tx)
 		return NULL;
 

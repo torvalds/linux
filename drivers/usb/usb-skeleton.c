@@ -493,7 +493,7 @@ static int skel_probe(struct usb_interface *interface,
 	int retval;
 
 	/* allocate memory for our device state and initialize it */
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return -ENOMEM;
 

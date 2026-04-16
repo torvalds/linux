@@ -390,8 +390,7 @@ int gve_rx_alloc_rings_gqi(struct gve_priv *priv,
 	int err = 0;
 	int i, j;
 
-	rx = kvcalloc(cfg->qcfg_rx->max_queues, sizeof(struct gve_rx_ring),
-		      GFP_KERNEL);
+	rx = kvzalloc_objs(struct gve_rx_ring, cfg->qcfg_rx->max_queues);
 	if (!rx)
 		return -ENOMEM;
 

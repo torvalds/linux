@@ -74,7 +74,7 @@ static inline struct parallel_io *alloc_parallel(void *data)
 {
 	struct parallel_io *rv;
 
-	rv  = kmalloc(sizeof(*rv), GFP_NOFS);
+	rv = kmalloc_obj(*rv, GFP_NOFS);
 	if (rv) {
 		rv->data = data;
 		kref_init(&rv->refcnt);
@@ -461,7 +461,7 @@ static struct pnfs_layout_hdr *__bl_alloc_layout_hdr(struct inode *inode,
 	struct pnfs_block_layout *bl;
 
 	dprintk("%s enter\n", __func__);
-	bl = kzalloc(sizeof(*bl), gfp_flags);
+	bl = kzalloc_obj(*bl, gfp_flags);
 	if (!bl)
 		return NULL;
 
@@ -619,7 +619,7 @@ bl_alloc_extent(struct xdr_stream *xdr, struct pnfs_layout_hdr *lo,
 	if (!p)
 		return -EIO;
 
-	be = kzalloc(sizeof(*be), GFP_NOFS);
+	be = kzalloc_obj(*be, GFP_NOFS);
 	if (!be)
 		return -ENOMEM;
 
@@ -684,7 +684,7 @@ bl_alloc_lseg(struct pnfs_layout_hdr *lo, struct nfs4_layoutget_res *lgr,
 
 	dprintk("---> %s\n", __func__);
 
-	lseg = kzalloc(sizeof(*lseg), gfp_mask);
+	lseg = kzalloc_obj(*lseg, gfp_mask);
 	if (!lseg)
 		return ERR_PTR(-ENOMEM);
 

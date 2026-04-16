@@ -77,7 +77,7 @@ static struct ssp_msg *ssp_create_msg(u8 cmd, u16 len, u16 opt, u32 data)
 	struct ssp_msg_header h;
 	struct ssp_msg *msg;
 
-	msg = kzalloc(sizeof(*msg), GFP_KERNEL);
+	msg = kzalloc_obj(*msg);
 	if (!msg)
 		return NULL;
 

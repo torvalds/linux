@@ -73,7 +73,7 @@ static struct rs_codec *codec_init(int symsize, int gfpoly, int (*gffunc)(int),
 	int i, j, sr, root, iprim;
 	struct rs_codec *rs;
 
-	rs = kzalloc(sizeof(*rs), gfp);
+	rs = kzalloc_obj(*rs, gfp);
 	if (!rs)
 		return NULL;
 

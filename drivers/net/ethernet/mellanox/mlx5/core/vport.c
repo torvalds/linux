@@ -832,7 +832,7 @@ int mlx5_query_hca_vport_system_image_guid(struct mlx5_core_dev *dev,
 	struct mlx5_hca_vport_context *rep;
 	int err;
 
-	rep = kvzalloc(sizeof(*rep), GFP_KERNEL);
+	rep = kvzalloc_obj(*rep);
 	if (!rep)
 		return -ENOMEM;
 
@@ -851,7 +851,7 @@ int mlx5_query_hca_vport_node_guid(struct mlx5_core_dev *dev,
 	struct mlx5_hca_vport_context *rep;
 	int err;
 
-	rep = kvzalloc(sizeof(*rep), GFP_KERNEL);
+	rep = kvzalloc_obj(*rep);
 	if (!rep)
 		return -ENOMEM;
 

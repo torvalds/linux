@@ -134,7 +134,7 @@ static struct trusted_key_payload *trusted_payload_alloc(struct key *key)
 	ret = key_payload_reserve(key, sizeof(*p));
 	if (ret < 0)
 		goto err;
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (!p)
 		goto err;
 

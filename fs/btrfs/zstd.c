@@ -185,7 +185,7 @@ int zstd_alloc_workspace_manager(struct btrfs_fs_info *fs_info)
 	struct list_head *ws;
 
 	ASSERT(fs_info->compr_wsm[BTRFS_COMPRESS_ZSTD] == NULL);
-	zwsm = kzalloc(sizeof(*zwsm), GFP_KERNEL);
+	zwsm = kzalloc_obj(*zwsm);
 	if (!zwsm)
 		return -ENOMEM;
 	zstd_calc_ws_mem_sizes();
@@ -373,7 +373,7 @@ struct list_head *zstd_alloc_workspace(struct btrfs_fs_info *fs_info, int level)
 	const u32 blocksize = fs_info->sectorsize;
 	struct workspace *workspace;
 
-	workspace = kzalloc(sizeof(*workspace), GFP_KERNEL);
+	workspace = kzalloc_obj(*workspace);
 	if (!workspace)
 		return ERR_PTR(-ENOMEM);
 

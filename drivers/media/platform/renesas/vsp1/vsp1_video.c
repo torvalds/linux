@@ -565,7 +565,7 @@ static struct vsp1_pipeline *vsp1_video_pipeline_get(struct vsp1_video *video)
 	 * when the last reference is released.
 	 */
 	if (!video->rwpf->entity.pipe) {
-		pipe = kzalloc(sizeof(*pipe), GFP_KERNEL);
+		pipe = kzalloc_obj(*pipe);
 		if (!pipe)
 			return ERR_PTR(-ENOMEM);
 
@@ -720,8 +720,7 @@ static int vsp1_video_pipeline_setup_partitions(struct vsp1_pipeline *pipe)
 	}
 
 	pipe->partitions = DIV_ROUND_UP(format->width, div_size);
-	pipe->part_table = kcalloc(pipe->partitions, sizeof(*pipe->part_table),
-				   GFP_KERNEL);
+	pipe->part_table = kzalloc_objs(*pipe->part_table, pipe->partitions);
 	if (!pipe->part_table)
 		return -ENOMEM;
 
@@ -1074,7 +1073,7 @@ static int vsp1_video_open(struct file *file)
 	struct v4l2_fh *vfh;
 	int ret = 0;
 
-	vfh = kzalloc(sizeof(*vfh), GFP_KERNEL);
+	vfh = kzalloc_obj(*vfh);
 	if (vfh == NULL)
 		return -ENOMEM;
 

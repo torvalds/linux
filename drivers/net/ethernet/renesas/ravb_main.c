@@ -436,14 +436,13 @@ static int ravb_ring_init(struct net_device *ndev, int q)
 		goto error;
 
 	/* Allocate RX buffers */
-	priv->rx_buffers[q] = kcalloc(priv->num_rx_ring[q],
-				      sizeof(*priv->rx_buffers[q]), GFP_KERNEL);
+	priv->rx_buffers[q] = kzalloc_objs(*priv->rx_buffers[q],
+					   priv->num_rx_ring[q]);
 	if (!priv->rx_buffers[q])
 		goto error;
 
 	/* Allocate TX skb rings */
-	priv->tx_skb[q] = kcalloc(priv->num_tx_ring[q],
-				  sizeof(*priv->tx_skb[q]), GFP_KERNEL);
+	priv->tx_skb[q] = kzalloc_objs(*priv->tx_skb[q], priv->num_tx_ring[q]);
 	if (!priv->tx_skb[q])
 		goto error;
 
@@ -2199,7 +2198,7 @@ static netdev_tx_t ravb_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	/* TX timestamp required */
 	if (info->gptp || info->ccc_gac) {
 		if (q == RAVB_NC) {
-			ts_skb = kmalloc(sizeof(*ts_skb), GFP_ATOMIC);
+			ts_skb = kmalloc_obj(*ts_skb, GFP_ATOMIC);
 			if (!ts_skb) {
 				if (num_tx_desc > 1) {
 					desc--;

@@ -482,7 +482,7 @@ static int fsl_espi_setup(struct spi_device *spi)
 	struct fsl_espi_cs *cs = spi_get_ctldata(spi);
 
 	if (!cs) {
-		cs = kzalloc(sizeof(*cs), GFP_KERNEL);
+		cs = kzalloc_obj(*cs);
 		if (!cs)
 			return -ENOMEM;
 		spi_set_ctldata(spi, cs);

@@ -1025,7 +1025,7 @@ static int aoa_fabric_layout_probe(struct soundbus_dev *sdev)
 		goto outnodev;
 	}
 
-	ldev = kzalloc(sizeof(struct layout_dev), GFP_KERNEL);
+	ldev = kzalloc_obj(struct layout_dev);
 	if (!ldev)
 		goto outnodev;
 

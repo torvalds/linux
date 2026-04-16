@@ -1166,7 +1166,7 @@ static struct pstore_zone *psz_init_zone(enum pstore_type_id type,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	zone = kzalloc(sizeof(struct pstore_zone), GFP_KERNEL);
+	zone = kzalloc_obj(struct pstore_zone);
 	if (!zone)
 		return ERR_PTR(-ENOMEM);
 
@@ -1218,7 +1218,7 @@ static struct pstore_zone **psz_init_zones(enum pstore_type_id type,
 		return ERR_PTR(-EINVAL);
 	}
 
-	zones = kcalloc(c, sizeof(*zones), GFP_KERNEL);
+	zones = kzalloc_objs(*zones, c);
 	if (!zones) {
 		pr_err("allocate for zones %s failed\n", name);
 		return ERR_PTR(-ENOMEM);

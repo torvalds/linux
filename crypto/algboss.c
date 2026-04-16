@@ -84,7 +84,7 @@ static int cryptomgr_schedule_probe(struct crypto_larval *larval)
 	if (!try_module_get(THIS_MODULE))
 		goto err;
 
-	param = kzalloc(sizeof(*param), GFP_KERNEL);
+	param = kzalloc_obj(*param);
 	if (!param)
 		goto err_put_module;
 
@@ -195,7 +195,7 @@ static int cryptomgr_schedule_test(struct crypto_alg *alg)
 	if (!try_module_get(THIS_MODULE))
 		goto err;
 
-	param = kzalloc(sizeof(*param), GFP_KERNEL);
+	param = kzalloc_obj(*param);
 	if (!param)
 		goto err_put_module;
 

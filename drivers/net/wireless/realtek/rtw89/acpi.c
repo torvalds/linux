@@ -115,7 +115,7 @@ rtw89_acpi_evaluate_method(struct rtw89_dev *rtwdev, const char *method)
 		goto out;
 	}
 
-	data = kzalloc(struct_size(data, buf, len), GFP_KERNEL);
+	data = kzalloc_flex(*data, buf, len);
 	if (!data)
 		goto out;
 

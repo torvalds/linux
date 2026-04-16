@@ -581,7 +581,7 @@ dcmipp_byteproc_ent_init(struct device *dev, const char *entity_name,
 	int ret;
 
 	/* Allocate the byteproc struct */
-	byteproc = kzalloc(sizeof(*byteproc), GFP_KERNEL);
+	byteproc = kzalloc_obj(*byteproc);
 	if (!byteproc)
 		return ERR_PTR(-ENOMEM);
 

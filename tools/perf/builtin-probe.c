@@ -211,8 +211,7 @@ static int opt_set_target_ns(const struct option *opt __maybe_unused,
 		ns_pid = (pid_t)strtol(str, NULL, 10);
 		if (errno != 0) {
 			ret = -errno;
-			pr_warning("Failed to parse %s as a pid: %s\n", str,
-				   strerror(errno));
+			pr_warning("Failed to parse %s as a pid: %m\n", str);
 			return ret;
 		}
 		nsip = nsinfo__new(ns_pid);

@@ -1775,7 +1775,7 @@ static int m88ds3103_probe(struct i2c_client *client)
 	int ret;
 	unsigned int utmp;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev) {
 		ret = -ENOMEM;
 		goto err;

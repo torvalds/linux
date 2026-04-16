@@ -244,7 +244,7 @@ struct dma_heap *dma_heap_add(const struct dma_heap_export_info *exp_info)
 		return ERR_PTR(-EINVAL);
 	}
 
-	heap = kzalloc(sizeof(*heap), GFP_KERNEL);
+	heap = kzalloc_obj(*heap);
 	if (!heap)
 		return ERR_PTR(-ENOMEM);
 

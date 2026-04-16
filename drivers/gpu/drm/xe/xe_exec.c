@@ -162,7 +162,7 @@ int xe_exec_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	}
 
 	if (args->num_syncs) {
-		syncs = kcalloc(args->num_syncs, sizeof(*syncs), GFP_KERNEL);
+		syncs = kzalloc_objs(*syncs, args->num_syncs);
 		if (!syncs) {
 			err = -ENOMEM;
 			goto err_exec_queue;

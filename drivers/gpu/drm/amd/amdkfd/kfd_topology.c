@@ -711,7 +711,7 @@ static int kfd_build_sysfs_node_entry(struct kfd_topology_device *dev,
 
 	i = 0;
 	list_for_each_entry(mem, &dev->mem_props, list) {
-		mem->kobj = kzalloc(sizeof(struct kobject), GFP_KERNEL);
+		mem->kobj = kzalloc_obj(struct kobject);
 		if (!mem->kobj)
 			return -ENOMEM;
 		ret = kobject_init_and_add(mem->kobj, &mem_type,
@@ -732,7 +732,7 @@ static int kfd_build_sysfs_node_entry(struct kfd_topology_device *dev,
 
 	i = 0;
 	list_for_each_entry(cache, &dev->cache_props, list) {
-		cache->kobj = kzalloc(sizeof(struct kobject), GFP_KERNEL);
+		cache->kobj = kzalloc_obj(struct kobject);
 		if (!cache->kobj)
 			return -ENOMEM;
 		ret = kobject_init_and_add(cache->kobj, &cache_type,
@@ -753,7 +753,7 @@ static int kfd_build_sysfs_node_entry(struct kfd_topology_device *dev,
 
 	i = 0;
 	list_for_each_entry(iolink, &dev->io_link_props, list) {
-		iolink->kobj = kzalloc(sizeof(struct kobject), GFP_KERNEL);
+		iolink->kobj = kzalloc_obj(struct kobject);
 		if (!iolink->kobj)
 			return -ENOMEM;
 		ret = kobject_init_and_add(iolink->kobj, &iolink_type,
@@ -774,7 +774,7 @@ static int kfd_build_sysfs_node_entry(struct kfd_topology_device *dev,
 
 	i = 0;
 	list_for_each_entry(p2plink, &dev->p2p_link_props, list) {
-		p2plink->kobj = kzalloc(sizeof(struct kobject), GFP_KERNEL);
+		p2plink->kobj = kzalloc_obj(struct kobject);
 		if (!p2plink->kobj)
 			return -ENOMEM;
 		ret = kobject_init_and_add(p2plink->kobj, &iolink_type,
@@ -1381,7 +1381,7 @@ static int kfd_build_p2p_node_entry(struct kfd_topology_device *dev,
 {
 	int ret;
 
-	p2plink->kobj = kzalloc(sizeof(struct kobject), GFP_KERNEL);
+	p2plink->kobj = kzalloc_obj(struct kobject);
 	if (!p2plink->kobj)
 		return -ENOMEM;
 

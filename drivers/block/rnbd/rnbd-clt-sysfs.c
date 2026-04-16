@@ -591,7 +591,7 @@ static ssize_t rnbd_clt_map_device_store(struct kobject *kobj,
 	opt.dest_port = &port_nr;
 	opt.access_mode = &access_mode;
 	opt.nr_poll_queues = &nr_poll_queues;
-	addrs = kcalloc(ARRAY_SIZE(paths) * 2, sizeof(*addrs), GFP_KERNEL);
+	addrs = kzalloc_objs(*addrs, ARRAY_SIZE(paths) * 2);
 	if (!addrs)
 		return -ENOMEM;
 

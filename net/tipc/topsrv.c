@@ -182,7 +182,7 @@ static struct tipc_conn *tipc_conn_alloc(struct tipc_topsrv *s, struct socket *s
 	struct tipc_conn *con;
 	int ret;
 
-	con = kzalloc(sizeof(*con), GFP_ATOMIC);
+	con = kzalloc_obj(*con, GFP_ATOMIC);
 	if (!con)
 		return ERR_PTR(-ENOMEM);
 
@@ -325,7 +325,7 @@ void tipc_topsrv_queue_evt(struct net *net, int conid,
 	if (!connected(con))
 		goto err;
 
-	e = kmalloc(sizeof(*e), GFP_ATOMIC);
+	e = kmalloc_obj(*e, GFP_ATOMIC);
 	if (!e)
 		goto err;
 	e->inactive = (event == TIPC_SUBSCR_TIMEOUT);
@@ -661,7 +661,7 @@ static int tipc_topsrv_start(struct net *net)
 	struct tipc_topsrv *srv;
 	int ret;
 
-	srv = kzalloc(sizeof(*srv), GFP_ATOMIC);
+	srv = kzalloc_obj(*srv, GFP_ATOMIC);
 	if (!srv)
 		return -ENOMEM;
 

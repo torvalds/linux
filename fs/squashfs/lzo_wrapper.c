@@ -29,7 +29,7 @@ static void *lzo_init(struct squashfs_sb_info *msblk, void *buff)
 {
 	int block_size = max_t(int, msblk->block_size, SQUASHFS_METADATA_SIZE);
 
-	struct squashfs_lzo *stream = kzalloc(sizeof(*stream), GFP_KERNEL);
+	struct squashfs_lzo *stream = kzalloc_obj(*stream);
 	if (stream == NULL)
 		goto failed;
 	stream->input = vmalloc(block_size);

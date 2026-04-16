@@ -1020,7 +1020,7 @@ static void *arm_spe_pmu_setup_aux(struct perf_event *event, void **pages,
 	if (!buf)
 		return NULL;
 
-	pglist = kcalloc(nr_pages, sizeof(*pglist), GFP_KERNEL);
+	pglist = kzalloc_objs(*pglist, nr_pages);
 	if (!pglist)
 		goto out_free_buf;
 

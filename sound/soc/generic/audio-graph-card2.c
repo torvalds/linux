@@ -1305,7 +1305,7 @@ int audio_graph2_parse_of(struct simple_util_priv *priv, struct device *dev,
 	struct snd_soc_card *card = simple_priv_to_card(priv);
 	int ret;
 
-	struct link_info *li __free(kfree) = kzalloc(sizeof(*li), GFP_KERNEL);
+	struct link_info *li __free(kfree) = kzalloc_obj(*li);
 	if (!li)
 		return -ENOMEM;
 

@@ -199,7 +199,7 @@ int mlx5e_ktls_init(struct mlx5e_priv *priv)
 	if (!mlx5e_is_ktls_device(priv->mdev))
 		return 0;
 
-	tls = kzalloc(sizeof(*tls), GFP_KERNEL);
+	tls = kzalloc_obj(*tls);
 	if (!tls)
 		return -ENOMEM;
 	tls->mdev = priv->mdev;

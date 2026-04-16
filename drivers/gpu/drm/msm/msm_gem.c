@@ -1215,7 +1215,7 @@ static int msm_gem_new_impl(struct drm_device *dev, uint32_t flags,
 		return -EINVAL;
 	}
 
-	msm_obj = kzalloc(sizeof(*msm_obj), GFP_KERNEL);
+	msm_obj = kzalloc_obj(*msm_obj);
 	if (!msm_obj)
 		return -ENOMEM;
 
@@ -1301,7 +1301,7 @@ struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 	msm_obj = to_msm_bo(obj);
 	msm_gem_lock(obj);
 	msm_obj->sgt = sgt;
-	msm_obj->pages = kvmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
+	msm_obj->pages = kvmalloc_objs(struct page *, npages);
 	if (!msm_obj->pages) {
 		msm_gem_unlock(obj);
 		ret = -ENOMEM;

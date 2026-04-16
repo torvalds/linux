@@ -72,7 +72,7 @@ static int dr_send_info_pool_fill(struct mlx5dr_send_info_pool *pool)
 	int i;
 
 	for (i = 0; i < DR_SEND_INFO_POOL_SIZE; i++) {
-		pool_obj = kzalloc(sizeof(*pool_obj), GFP_KERNEL);
+		pool_obj = kzalloc_obj(*pool_obj);
 		if (!pool_obj)
 			goto clean_pool;
 
@@ -114,7 +114,7 @@ static struct mlx5dr_send_info_pool *dr_send_info_pool_create(void)
 	struct mlx5dr_send_info_pool *pool;
 	int ret;
 
-	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+	pool = kzalloc_obj(*pool);
 	if (!pool)
 		return NULL;
 
@@ -258,7 +258,7 @@ static struct mlx5dr_qp *dr_create_rc_qp(struct mlx5_core_dev *mdev,
 	void *in;
 	int err;
 
-	dr_qp = kzalloc(sizeof(*dr_qp), GFP_KERNEL);
+	dr_qp = kzalloc_obj(*dr_qp);
 	if (!dr_qp)
 		return NULL;
 
@@ -1063,7 +1063,7 @@ static struct mlx5dr_cq *dr_create_cq(struct mlx5_core_dev *mdev,
 	__be64 *pas;
 	u32 i;
 
-	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
+	cq = kzalloc_obj(*cq);
 	if (!cq)
 		return NULL;
 
@@ -1158,7 +1158,7 @@ static int dr_create_mkey(struct mlx5_core_dev *mdev, u32 pdn, u32 *mkey)
 static struct mlx5dr_mr *dr_reg_mr(struct mlx5_core_dev *mdev,
 				   u32 pdn, void *buf, size_t size)
 {
-	struct mlx5dr_mr *mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	struct mlx5dr_mr *mr = kzalloc_obj(*mr);
 	struct device *dma_device;
 	dma_addr_t dma_addr;
 	int err;
@@ -1207,7 +1207,7 @@ int mlx5dr_send_ring_alloc(struct mlx5dr_domain *dmn)
 	int size;
 	int ret;
 
-	dmn->send_ring = kzalloc(sizeof(*dmn->send_ring), GFP_KERNEL);
+	dmn->send_ring = kzalloc_obj(*dmn->send_ring);
 	if (!dmn->send_ring)
 		return -ENOMEM;
 

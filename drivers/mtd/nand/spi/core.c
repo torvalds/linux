@@ -350,7 +350,7 @@ static int spinand_ondie_ecc_init_ctx(struct nand_device *nand)
 	nand->ecc.ctx.conf.step_size = nand->ecc.requirements.step_size;
 	nand->ecc.ctx.conf.strength = nand->ecc.requirements.strength;
 
-	engine_conf = kzalloc(sizeof(*engine_conf), GFP_KERNEL);
+	engine_conf = kzalloc_obj(*engine_conf);
 	if (!engine_conf)
 		return -ENOMEM;
 

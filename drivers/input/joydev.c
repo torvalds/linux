@@ -261,7 +261,7 @@ static int joydev_open(struct inode *inode, struct file *file)
 	struct joydev_client *client;
 	int error;
 
-	client = kzalloc(sizeof(struct joydev_client), GFP_KERNEL);
+	client = kzalloc_obj(struct joydev_client);
 	if (!client)
 		return -ENOMEM;
 
@@ -921,7 +921,7 @@ static int joydev_connect(struct input_handler *handler, struct input_dev *dev,
 		return error;
 	}
 
-	joydev = kzalloc(sizeof(struct joydev), GFP_KERNEL);
+	joydev = kzalloc_obj(struct joydev);
 	if (!joydev) {
 		error = -ENOMEM;
 		goto err_free_minor;

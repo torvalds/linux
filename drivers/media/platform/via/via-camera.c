@@ -1164,7 +1164,7 @@ static int viacam_probe(struct platform_device *pdev)
 	/*
 	 * Basic structure initialization.
 	 */
-	cam = kzalloc (sizeof(struct via_camera), GFP_KERNEL);
+	cam = kzalloc_obj(struct via_camera);
 	if (cam == NULL)
 		return -ENOMEM;
 	via_cam_info = cam;

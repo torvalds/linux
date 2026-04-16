@@ -47,7 +47,7 @@ int configfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	sd_iattr = sd->s_iattr;
 	if (!sd_iattr) {
 		/* setting attributes for the first time, allocate now */
-		sd_iattr = kzalloc(sizeof(struct iattr), GFP_KERNEL);
+		sd_iattr = kzalloc_obj(struct iattr);
 		if (!sd_iattr)
 			return -ENOMEM;
 		/* assign default attributes */

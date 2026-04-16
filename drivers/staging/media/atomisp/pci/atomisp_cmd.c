@@ -2960,7 +2960,7 @@ int atomisp_set_parameters(struct video_device *vdev,
 		 * are ready, the parameters will be set to CSS.
 		 * per-frame setting only works for the main output frame.
 		 */
-		param = kvzalloc(sizeof(*param), GFP_KERNEL);
+		param = kvzalloc_obj(*param);
 		if (!param)
 			return -ENOMEM;
 		css_param = &param->params;

@@ -282,7 +282,7 @@ static int rpi_firmware_probe(struct platform_device *pdev)
 	 * Memory will be freed by rpi_firmware_delete() once all users have
 	 * released their firmware handles. Don't use devm_kzalloc() here.
 	 */
-	fw = kzalloc(sizeof(*fw), GFP_KERNEL);
+	fw = kzalloc_obj(*fw);
 	if (!fw)
 		return -ENOMEM;
 

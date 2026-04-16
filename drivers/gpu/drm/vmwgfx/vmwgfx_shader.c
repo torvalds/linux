@@ -595,7 +595,7 @@ int vmw_dx_shader_add(struct vmw_cmdbuf_res_manager *man,
 	if (!vmw_shader_id_ok(user_key, shader_type))
 		return -EINVAL;
 
-	shader = kmalloc(sizeof(*shader), GFP_KERNEL);
+	shader = kmalloc_obj(*shader);
 	if (!shader) {
 		return -ENOMEM;
 	}
@@ -696,7 +696,7 @@ static int vmw_user_shader_alloc(struct vmw_private *dev_priv,
 	struct vmw_resource *res, *tmp;
 	int ret;
 
-	ushader = kzalloc(sizeof(*ushader), GFP_KERNEL);
+	ushader = kzalloc_obj(*ushader);
 	if (unlikely(!ushader)) {
 		ret = -ENOMEM;
 		goto out;
@@ -746,7 +746,7 @@ static struct vmw_resource *vmw_shader_alloc(struct vmw_private *dev_priv,
 	struct vmw_resource *res;
 	int ret;
 
-	shader = kzalloc(sizeof(*shader), GFP_KERNEL);
+	shader = kzalloc_obj(*shader);
 	if (unlikely(!shader)) {
 		ret = -ENOMEM;
 		goto out_err;

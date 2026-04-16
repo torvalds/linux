@@ -649,7 +649,7 @@ static int dwc_pcie_register_dev(struct pci_dev *pdev)
 	if (IS_ERR(plat_dev))
 		return PTR_ERR(plat_dev);
 
-	dev_info = kzalloc(sizeof(*dev_info), GFP_KERNEL);
+	dev_info = kzalloc_obj(*dev_info);
 	if (!dev_info) {
 		platform_device_unregister(plat_dev);
 		return -ENOMEM;

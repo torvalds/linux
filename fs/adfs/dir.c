@@ -108,7 +108,7 @@ int adfs_dir_read_buffers(struct super_block *sb, u32 indaddr,
 		if (dir->bhs != dir->bh)
 			return -EINVAL;
 
-		bhs = kcalloc(num, sizeof(*bhs), GFP_KERNEL);
+		bhs = kzalloc_objs(*bhs, num);
 		if (!bhs)
 			return -ENOMEM;
 

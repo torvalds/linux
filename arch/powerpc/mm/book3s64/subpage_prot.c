@@ -221,7 +221,7 @@ SYSCALL_DEFINE3(subpage_prot, unsigned long, addr,
 		 * Allocate subpage prot table if not already done.
 		 * Do this with mmap_lock held
 		 */
-		spt = kzalloc(sizeof(struct subpage_prot_table), GFP_KERNEL);
+		spt = kzalloc_obj(struct subpage_prot_table);
 		if (!spt) {
 			err = -ENOMEM;
 			goto out;

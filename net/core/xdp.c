@@ -214,7 +214,7 @@ static int __mem_id_init_hash_table(void)
 	if (unlikely(mem_id_init))
 		return 0;
 
-	rht = kzalloc(sizeof(*rht), GFP_KERNEL);
+	rht = kzalloc_obj(*rht);
 	if (!rht)
 		return -ENOMEM;
 
@@ -297,7 +297,7 @@ static struct xdp_mem_allocator *__xdp_reg_mem_model(struct xdp_mem_info *mem,
 			return ERR_PTR(ret);
 	}
 
-	xdp_alloc = kzalloc(sizeof(*xdp_alloc), gfp);
+	xdp_alloc = kzalloc_obj(*xdp_alloc, gfp);
 	if (!xdp_alloc)
 		return ERR_PTR(-ENOMEM);
 

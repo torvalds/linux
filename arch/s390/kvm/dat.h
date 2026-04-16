@@ -572,7 +572,7 @@ static inline struct vsie_rmap *kvm_s390_mmu_cache_alloc_rmap(struct kvm_s390_mm
 {
 	if (mc->n_rmaps)
 		return mc->rmaps[--mc->n_rmaps];
-	return kzalloc(sizeof(struct vsie_rmap), GFP_KVM_S390_MMU_CACHE);
+	return kzalloc_obj(struct vsie_rmap, GFP_KVM_S390_MMU_CACHE);
 }
 
 static inline struct crst_table *crste_table_start(union crste *crstep)
@@ -920,7 +920,7 @@ static inline struct kvm_s390_mmu_cache *kvm_s390_new_mmu_cache(void)
 {
 	struct kvm_s390_mmu_cache *mc __free(kvm_s390_mmu_cache) = NULL;
 
-	mc = kzalloc(sizeof(*mc), GFP_KERNEL_ACCOUNT);
+	mc = kzalloc_obj(*mc, GFP_KERNEL_ACCOUNT);
 	if (mc && !kvm_s390_mmu_cache_topup(mc))
 		return_ptr(mc);
 	return NULL;

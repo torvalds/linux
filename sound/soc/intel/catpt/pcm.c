@@ -263,7 +263,7 @@ static int catpt_dai_startup(struct snd_pcm_substream *substream,
 
 	template = catpt_get_stream_template(substream);
 
-	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
+	stream = kzalloc_obj(*stream);
 	if (!stream)
 		return -ENOMEM;
 

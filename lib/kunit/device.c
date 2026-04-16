@@ -111,7 +111,7 @@ static struct kunit_device *kunit_device_register_internal(struct kunit *test,
 	struct kunit_device *kunit_dev;
 	int err = -ENOMEM;
 
-	kunit_dev = kzalloc(sizeof(*kunit_dev), GFP_KERNEL);
+	kunit_dev = kzalloc_obj(*kunit_dev);
 	if (!kunit_dev)
 		return ERR_PTR(err);
 

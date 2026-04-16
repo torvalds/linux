@@ -121,7 +121,7 @@ static struct cache_req *cache_rpm_request(struct rpmh_ctrlr *ctrlr,
 	if (req)
 		goto existing;
 
-	req = kzalloc(sizeof(*req), GFP_ATOMIC);
+	req = kzalloc_obj(*req, GFP_ATOMIC);
 	if (!req) {
 		req = ERR_PTR(-ENOMEM);
 		goto unlock;
@@ -225,7 +225,7 @@ int rpmh_write_async(const struct device *dev, enum rpmh_state state,
 	struct rpmh_request *rpm_msg;
 	int ret;
 
-	rpm_msg = kzalloc(sizeof(*rpm_msg), GFP_ATOMIC);
+	rpm_msg = kzalloc_obj(*rpm_msg, GFP_ATOMIC);
 	if (!rpm_msg)
 		return -ENOMEM;
 	rpm_msg->needs_free = true;

@@ -41,7 +41,7 @@
 #define FN(reg_name, field_name) \
 	hubbub2->shifts->field_name, hubbub2->masks->field_name
 
-static void dcn401_init_crb(struct hubbub *hubbub)
+void dcn401_init_crb(struct hubbub *hubbub)
 {
 	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
 
@@ -1110,7 +1110,7 @@ bool hubbub401_get_dcc_compression_cap(struct hubbub *hubbub,
 	return true;
 }
 
-static void dcn401_program_det_segments(struct hubbub *hubbub, int hubp_inst, unsigned det_buffer_size_seg)
+void dcn401_program_det_segments(struct hubbub *hubbub, int hubp_inst, unsigned det_buffer_size_seg)
 {
 	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
 
@@ -1147,7 +1147,7 @@ static void dcn401_program_det_segments(struct hubbub *hubbub, int hubp_inst, un
 	}
 }
 
-static void dcn401_program_compbuf_segments(struct hubbub *hubbub, unsigned compbuf_size_seg, bool safe_to_increase)
+void dcn401_program_compbuf_segments(struct hubbub *hubbub, unsigned compbuf_size_seg, bool safe_to_increase)
 {
 	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
 
@@ -1170,7 +1170,7 @@ static void dcn401_program_compbuf_segments(struct hubbub *hubbub, unsigned comp
 	}
 }
 
-static void dcn401_wait_for_det_update(struct hubbub *hubbub, int hubp_inst)
+void dcn401_wait_for_det_update(struct hubbub *hubbub, int hubp_inst)
 {
 	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
 
@@ -1192,7 +1192,7 @@ static void dcn401_wait_for_det_update(struct hubbub *hubbub, int hubp_inst)
 	}
 }
 
-static bool dcn401_program_arbiter(struct hubbub *hubbub, struct dml2_display_arb_regs *arb_regs, bool safe_to_lower)
+bool dcn401_program_arbiter(struct hubbub *hubbub, struct dml2_display_arb_regs *arb_regs, bool safe_to_lower)
 {
 	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
 

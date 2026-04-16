@@ -54,7 +54,7 @@ static int ocfs2_init_file_private(struct inode *inode, struct file *file)
 {
 	struct ocfs2_file_private *fp;
 
-	fp = kzalloc(sizeof(struct ocfs2_file_private), GFP_KERNEL);
+	fp = kzalloc_obj(struct ocfs2_file_private);
 	if (!fp)
 		return -ENOMEM;
 

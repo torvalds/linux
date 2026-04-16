@@ -522,7 +522,7 @@ drm_gpusvm_notifier_alloc(struct drm_gpusvm *gpusvm, unsigned long fault_addr)
 	if (gpusvm->ops->notifier_alloc)
 		notifier = gpusvm->ops->notifier_alloc();
 	else
-		notifier = kzalloc(sizeof(*notifier), GFP_KERNEL);
+		notifier = kzalloc_obj(*notifier);
 
 	if (!notifier)
 		return ERR_PTR(-ENOMEM);
@@ -629,7 +629,7 @@ drm_gpusvm_range_alloc(struct drm_gpusvm *gpusvm,
 	if (gpusvm->ops->range_alloc)
 		range = gpusvm->ops->range_alloc(gpusvm);
 	else
-		range = kzalloc(sizeof(*range), GFP_KERNEL);
+		range = kzalloc_obj(*range);
 
 	if (!range)
 		return ERR_PTR(-ENOMEM);
@@ -1150,7 +1150,7 @@ static void __drm_gpusvm_unmap_pages(struct drm_gpusvm *gpusvm,
 					       addr->dir);
 			else if (dpagemap && dpagemap->ops->device_unmap)
 				dpagemap->ops->device_unmap(dpagemap,
-							    dev, *addr);
+							    dev, addr);
 			i += 1 << addr->order;
 		}
 
@@ -1338,14 +1338,14 @@ bool drm_gpusvm_range_pages_valid(struct drm_gpusvm *gpusvm,
 EXPORT_SYMBOL_GPL(drm_gpusvm_range_pages_valid);
 
 /**
- * drm_gpusvm_range_pages_valid_unlocked() - GPU SVM range pages valid unlocked
+ * drm_gpusvm_pages_valid_unlocked() - GPU SVM pages valid unlocked
  * @gpusvm: Pointer to the GPU SVM structure
- * @range: Pointer to the GPU SVM range structure
+ * @svm_pages: Pointer to the GPU SVM pages structure
  *
- * This function determines if a GPU SVM range pages are valid. Expected be
- * called without holding gpusvm->notifier_lock.
+ * This function determines if a GPU SVM pages are valid. Expected be called
+ * without holding gpusvm->notifier_lock.
  *
- * Return: True if GPU SVM range has valid pages, False otherwise
+ * Return: True if GPU SVM pages are valid, False otherwise
  */
 static bool drm_gpusvm_pages_valid_unlocked(struct drm_gpusvm *gpusvm,
 					    struct drm_gpusvm_pages *svm_pages)
@@ -1471,7 +1471,7 @@ map_pages:
 		/* Unlock and restart mapping to allocate memory. */
 		drm_gpusvm_notifier_unlock(gpusvm);
 		svm_pages->dma_addr =
-			kvmalloc_array(npages, sizeof(*svm_pages->dma_addr), GFP_KERNEL);
+			kvmalloc_objs(*svm_pages->dma_addr, npages);
 		if (!svm_pages->dma_addr) {
 			err = -ENOMEM;
 			goto err_free;

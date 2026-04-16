@@ -39,6 +39,7 @@
 #include "dc_state_priv.h"
 #include "link_enc_cfg.h"
 #include "../hw_sequencer.h"
+#include "dio/dcn10/dcn10_dio.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -71,7 +72,11 @@ void dcn401_initialize_min_clocks(struct dc *dc)
 		 * audio corruption. Read current DISPCLK from DENTIST and request the same
 		 * freq to ensure that the timing is valid and unchanged.
 		 */
-		clocks->dispclk_khz = dc->clk_mgr->funcs->get_dispclk_from_dentist(dc->clk_mgr);
+		if (dc->clk_mgr->funcs->get_dispclk_from_dentist) {
+			clocks->dispclk_khz = dc->clk_mgr->funcs->get_dispclk_from_dentist(dc->clk_mgr);
+		} else {
+			clocks->dispclk_khz = dc->clk_mgr->boot_snapshot.dispclk * 1000;
+		}
 	}
 	clocks->ref_dtbclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].dtbclk_mhz * 1000;
 	clocks->fclk_p_state_change_support = true;
@@ -320,13 +325,13 @@ void dcn401_init_hw(struct dc *dc)
 	}
 
 	/* power AFMT HDMI memory TODO: may move to dis/en output save power*/
-	REG_WRITE(DIO_MEM_PWR_CTRL, 0);
+	if (dc->res_pool->dio && dc->res_pool->dio->funcs->mem_pwr_ctrl)
+		dc->res_pool->dio->funcs->mem_pwr_ctrl(dc->res_pool->dio, false);
 
 	if (!dc->debug.disable_clock_gate) {
 		/* enable all DCN clock gating */
-		REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0);
-
-		REG_WRITE(DCCG_GATE_DISABLE_CNTL2, 0);
+		if (dc->res_pool->dccg && dc->res_pool->dccg->funcs && dc->res_pool->dccg->funcs->allow_clock_gating)
+			dc->res_pool->dccg->funcs->allow_clock_gating(dc->res_pool->dccg, true);
 
 		REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);
 	}

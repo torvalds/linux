@@ -755,7 +755,7 @@ kfree_scale_thread(void *arg)
 		}
 
 		for (i = 0; i < kfree_alloc_num; i++) {
-			alloc_ptr = kcalloc(kfree_mult, sizeof(struct kfree_obj), GFP_KERNEL);
+			alloc_ptr = kzalloc_objs(struct kfree_obj, kfree_mult);
 			if (!alloc_ptr)
 				return -ENOMEM;
 
@@ -908,8 +908,8 @@ kfree_scale_init(void)
 			kfree_mult * sizeof(struct kfree_obj),
 			kfree_by_call_rcu);
 
-	kfree_reader_tasks = kcalloc(kfree_nrealthreads, sizeof(kfree_reader_tasks[0]),
-			       GFP_KERNEL);
+	kfree_reader_tasks = kzalloc_objs(kfree_reader_tasks[0],
+					  kfree_nrealthreads);
 	if (kfree_reader_tasks == NULL) {
 		firsterr = -ENOMEM;
 		goto unwind;
@@ -1129,8 +1129,7 @@ rcu_scale_init(void)
 			goto unwind;
 		schedule_timeout_uninterruptible(1);
 	}
-	reader_tasks = kcalloc(nrealreaders, sizeof(reader_tasks[0]),
-			       GFP_KERNEL);
+	reader_tasks = kzalloc_objs(reader_tasks[0], nrealreaders);
 	if (reader_tasks == NULL) {
 		SCALEOUT_ERRSTRING("out of memory");
 		firsterr = -ENOMEM;
@@ -1144,10 +1143,10 @@ rcu_scale_init(void)
 	}
 	while (atomic_read(&n_rcu_scale_reader_started) < nrealreaders)
 		schedule_timeout_uninterruptible(1);
-	writer_tasks = kcalloc(nrealwriters, sizeof(writer_tasks[0]), GFP_KERNEL);
+	writer_tasks = kzalloc_objs(writer_tasks[0], nrealwriters);
 	writer_durations = kcalloc(nrealwriters, sizeof(*writer_durations), GFP_KERNEL);
-	writer_n_durations = kcalloc(nrealwriters, sizeof(*writer_n_durations), GFP_KERNEL);
-	writer_done = kcalloc(nrealwriters, sizeof(writer_done[0]), GFP_KERNEL);
+	writer_n_durations = kzalloc_objs(*writer_n_durations, nrealwriters);
+	writer_done = kzalloc_objs(writer_done[0], nrealwriters);
 	if (gp_async) {
 		if (gp_async_max <= 0) {
 			pr_warn("%s: gp_async_max = %d must be greater than zero.\n",
@@ -1156,7 +1155,8 @@ rcu_scale_init(void)
 			firsterr = -EINVAL;
 			goto unwind;
 		}
-		writer_freelists = kcalloc(nrealwriters, sizeof(writer_freelists[0]), GFP_KERNEL);
+		writer_freelists = kzalloc_objs(writer_freelists[0],
+						nrealwriters);
 	}
 	if (!writer_tasks || !writer_durations || !writer_n_durations || !writer_done ||
 	    (gp_async && !writer_freelists)) {
@@ -1177,8 +1177,8 @@ rcu_scale_init(void)
 
 			init_llist_head(&wflp->ws_lhg);
 			init_llist_head(&wflp->ws_lhp);
-			wflp->ws_mblocks = kcalloc(gp_async_max, sizeof(wflp->ws_mblocks[0]),
-						   GFP_KERNEL);
+			wflp->ws_mblocks = kzalloc_objs(wflp->ws_mblocks[0],
+							gp_async_max);
 			if (!wflp->ws_mblocks) {
 				firsterr = -ENOMEM;
 				goto unwind;

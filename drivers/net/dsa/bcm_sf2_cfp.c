@@ -950,7 +950,7 @@ static int bcm_sf2_cfp_rule_set(struct dsa_switch *ds, int port,
 	if (ret == 0)
 		return -EEXIST;
 
-	rule = kzalloc(sizeof(*rule), GFP_KERNEL);
+	rule = kzalloc_obj(*rule);
 	if (!rule)
 		return -ENOMEM;
 

@@ -236,7 +236,7 @@ int imgu_css_fw_init(struct imgu_css *css)
 
 	/* Allocate and map fw binaries into IMGU */
 
-	css->binary = kcalloc(binary_nr, sizeof(*css->binary), GFP_KERNEL);
+	css->binary = kzalloc_objs(*css->binary, binary_nr);
 	if (!css->binary) {
 		r = -ENOMEM;
 		goto error_out;

@@ -2040,7 +2040,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 
 	jit_data = prog->aux->jit_data;
 	if (!jit_data) {
-		jit_data = kzalloc(sizeof(*jit_data), GFP_KERNEL);
+		jit_data = kzalloc_obj(*jit_data);
 		if (!jit_data) {
 			prog = orig_prog;
 			goto out;
@@ -2078,7 +2078,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	memset(&ctx, 0, sizeof(ctx));
 	ctx.prog = prog;
 
-	ctx.offset = kvcalloc(prog->len + 1, sizeof(int), GFP_KERNEL);
+	ctx.offset = kvzalloc_objs(int, prog->len + 1);
 	if (ctx.offset == NULL) {
 		prog = orig_prog;
 		goto out_off;
@@ -2119,7 +2119,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	extable_offset = round_up(prog_size + PLT_TARGET_SIZE, extable_align);
 	image_size = extable_offset + extable_size;
 	ro_header = bpf_jit_binary_pack_alloc(image_size, &ro_image_ptr,
-					      sizeof(u32), &header, &image_ptr,
+					      sizeof(u64), &header, &image_ptr,
 					      jit_fill_hole);
 	if (!ro_header) {
 		prog = orig_prog;

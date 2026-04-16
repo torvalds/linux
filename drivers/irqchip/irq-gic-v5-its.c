@@ -757,7 +757,7 @@ static struct gicv5_its_dev *gicv5_its_alloc_device(struct gicv5_its_chip_data *
 		return ERR_PTR(-EBUSY);
 	}
 
-	its_dev = kzalloc(sizeof(*its_dev), GFP_KERNEL);
+	its_dev = kzalloc_obj(*its_dev);
 	if (!its_dev)
 		return ERR_PTR(-ENOMEM);
 
@@ -1100,7 +1100,7 @@ static int gicv5_its_init_domain(struct gicv5_its_chip_data *its, struct irq_dom
 	};
 	struct msi_domain_info *info;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return -ENOMEM;
 
@@ -1125,7 +1125,7 @@ static int __init gicv5_its_init_bases(void __iomem *its_base, struct fwnode_han
 	bool enabled;
 	int ret;
 
-	its_node = kzalloc(sizeof(*its_node), GFP_KERNEL);
+	its_node = kzalloc_obj(*its_node);
 	if (!its_node)
 		return -ENOMEM;
 

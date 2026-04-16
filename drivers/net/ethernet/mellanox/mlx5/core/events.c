@@ -374,7 +374,7 @@ static int forward_event(struct notifier_block *nb, unsigned long event, void *d
 
 int mlx5_events_init(struct mlx5_core_dev *dev)
 {
-	struct mlx5_events *events = kzalloc(sizeof(*events), GFP_KERNEL);
+	struct mlx5_events *events = kzalloc_obj(*events);
 
 	if (!events)
 		return -ENOMEM;

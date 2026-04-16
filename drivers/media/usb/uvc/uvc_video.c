@@ -682,8 +682,7 @@ static int uvc_video_clock_init(struct uvc_clock *clock)
 	spin_lock_init(&clock->lock);
 	clock->size = 32;
 
-	clock->samples = kmalloc_array(clock->size, sizeof(*clock->samples),
-				       GFP_KERNEL);
+	clock->samples = kmalloc_objs(*clock->samples, clock->size);
 	if (clock->samples == NULL)
 		return -ENOMEM;
 

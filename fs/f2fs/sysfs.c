@@ -35,6 +35,7 @@ enum {
 #ifdef CONFIG_F2FS_FAULT_INJECTION
 	FAULT_INFO_RATE,	/* struct f2fs_fault_info */
 	FAULT_INFO_TYPE,	/* struct f2fs_fault_info */
+	FAULT_INFO_TIMEOUT,	/* struct f2fs_fault_info */
 #endif
 	RESERVED_BLOCKS,	/* struct f2fs_sb_info */
 	CPRC_INFO,	/* struct ckpt_req_control */
@@ -58,6 +59,7 @@ struct f2fs_attr {
 			 const char *buf, size_t len);
 	int struct_type;
 	int offset;
+	int size;
 	int id;
 };
 
@@ -84,7 +86,8 @@ static unsigned char *__struct_ptr(struct f2fs_sb_info *sbi, int struct_type)
 		return (unsigned char *)sbi;
 #ifdef CONFIG_F2FS_FAULT_INJECTION
 	else if (struct_type == FAULT_INFO_RATE ||
-					struct_type == FAULT_INFO_TYPE)
+		struct_type == FAULT_INFO_TYPE ||
+		struct_type == FAULT_INFO_TIMEOUT)
 		return (unsigned char *)&F2FS_OPTION(sbi).fault_info;
 #endif
 #ifdef CONFIG_F2FS_STAT_FS
@@ -344,11 +347,30 @@ static ssize_t main_blkaddr_show(struct f2fs_attr *a,
 			(unsigned long long)MAIN_BLKADDR(sbi));
 }
 
+static ssize_t __sbi_show_value(struct f2fs_attr *a,
+		struct f2fs_sb_info *sbi, char *buf,
+		unsigned char *value)
+{
+	switch (a->size) {
+	case 1:
+		return sysfs_emit(buf, "%u\n", *(u8 *)value);
+	case 2:
+		return sysfs_emit(buf, "%u\n", *(u16 *)value);
+	case 4:
+		return sysfs_emit(buf, "%u\n", *(u32 *)value);
+	case 8:
+		return sysfs_emit(buf, "%llu\n", *(u64 *)value);
+	default:
+		f2fs_bug_on(sbi, 1);
+		return sysfs_emit(buf,
+				"show sysfs node value with wrong type\n");
+	}
+}
+
 static ssize_t f2fs_sbi_show(struct f2fs_attr *a,
 			struct f2fs_sb_info *sbi, char *buf)
 {
 	unsigned char *ptr = NULL;
-	unsigned int *ui;
 
 	ptr = __struct_ptr(sbi, a->struct_type);
 	if (!ptr)
@@ -428,9 +450,30 @@ static ssize_t f2fs_sbi_show(struct f2fs_attr *a,
 				atomic_read(&sbi->cp_call_count[BACKGROUND]));
 #endif
 
-	ui = (unsigned int *)(ptr + a->offset);
+	return __sbi_show_value(a, sbi, buf, ptr + a->offset);
+}
 
-	return sysfs_emit(buf, "%u\n", *ui);
+static void __sbi_store_value(struct f2fs_attr *a,
+			struct f2fs_sb_info *sbi,
+			unsigned char *ui, unsigned long value)
+{
+	switch (a->size) {
+	case 1:
+		*(u8 *)ui = value;
+		break;
+	case 2:
+		*(u16 *)ui = value;
+		break;
+	case 4:
+		*(u32 *)ui = value;
+		break;
+	case 8:
+		*(u64 *)ui = value;
+		break;
+	default:
+		f2fs_bug_on(sbi, 1);
+		f2fs_err(sbi, "store sysfs node value with wrong type");
+	}
 }
 
 static ssize_t __sbi_store(struct f2fs_attr *a,
@@ -527,6 +570,12 @@ out:
 	if (a->struct_type == FAULT_INFO_RATE) {
 		if (f2fs_build_fault_attr(sbi, t, 0, FAULT_RATE))
 			return -EINVAL;
+		return count;
+	}
+	if (a->struct_type == FAULT_INFO_TIMEOUT) {
+		if (f2fs_build_fault_attr(sbi, 0, t, FAULT_TIMEOUT))
+			return -EINVAL;
+		f2fs_simulate_lock_timeout(sbi);
 		return count;
 	}
 #endif
@@ -749,7 +798,7 @@ out:
 		return count;
 	}
 
-	if (!strcmp(a->attr.name, "gc_pin_file_threshold")) {
+	if (!strcmp(a->attr.name, "gc_pin_file_thresh")) {
 		if (t > MAX_GC_FAILED_PINNED_FILES)
 			return -EINVAL;
 		sbi->gc_pin_file_threshold = t;
@@ -906,7 +955,36 @@ out:
 		return count;
 	}
 
-	*ui = (unsigned int)t;
+	if (!strcmp(a->attr.name, "adjust_lock_priority")) {
+		if (t >= BIT(LOCK_NAME_MAX - 1))
+			return -EINVAL;
+		sbi->adjust_lock_priority = t;
+		return count;
+	}
+
+	if (!strcmp(a->attr.name, "lock_duration_priority")) {
+		if (t < NICE_TO_PRIO(MIN_NICE) || t > NICE_TO_PRIO(MAX_NICE))
+			return -EINVAL;
+		sbi->lock_duration_priority = t;
+		return count;
+	}
+
+	if (!strcmp(a->attr.name, "critical_task_priority")) {
+		if (t < NICE_TO_PRIO(MIN_NICE) || t > NICE_TO_PRIO(MAX_NICE))
+			return -EINVAL;
+		if (!capable(CAP_SYS_NICE))
+			return -EPERM;
+		sbi->critical_task_priority = t;
+		if (sbi->cprc_info.f2fs_issue_ckpt)
+			set_user_nice(sbi->cprc_info.f2fs_issue_ckpt,
+					PRIO_TO_NICE(sbi->critical_task_priority));
+		if (sbi->gc_thread && sbi->gc_thread->f2fs_gc_task)
+			set_user_nice(sbi->gc_thread->f2fs_gc_task,
+					PRIO_TO_NICE(sbi->critical_task_priority));
+		return count;
+	}
+
+	__sbi_store_value(a, sbi, ptr + a->offset, t);
 
 	return count;
 }
@@ -1053,24 +1131,27 @@ static struct f2fs_attr f2fs_attr_sb_##_name = {		\
 	.id	= F2FS_FEATURE_##_feat,				\
 }
 
-#define F2FS_ATTR_OFFSET(_struct_type, _name, _mode, _show, _store, _offset) \
+#define F2FS_ATTR_OFFSET(_struct_type, _name, _mode, _show, _store, _offset, _size) \
 static struct f2fs_attr f2fs_attr_##_name = {			\
 	.attr = {.name = __stringify(_name), .mode = _mode },	\
 	.show	= _show,					\
 	.store	= _store,					\
 	.struct_type = _struct_type,				\
-	.offset = _offset					\
+	.offset = _offset,					\
+	.size = _size						\
 }
 
 #define F2FS_RO_ATTR(struct_type, struct_name, name, elname)	\
 	F2FS_ATTR_OFFSET(struct_type, name, 0444,		\
 		f2fs_sbi_show, NULL,				\
-		offsetof(struct struct_name, elname))
+		offsetof(struct struct_name, elname),		\
+		sizeof_field(struct struct_name, elname))
 
 #define F2FS_RW_ATTR(struct_type, struct_name, name, elname)	\
 	F2FS_ATTR_OFFSET(struct_type, name, 0644,		\
 		f2fs_sbi_show, f2fs_sbi_store,			\
-		offsetof(struct struct_name, elname))
+		offsetof(struct struct_name, elname),		\
+		sizeof_field(struct struct_name, elname))
 
 #define F2FS_GENERAL_RO_ATTR(name) \
 static struct f2fs_attr f2fs_attr_##name = __ATTR(name, 0444, name##_show, NULL)
@@ -1219,6 +1300,10 @@ F2FS_SBI_GENERAL_RW_ATTR(blkzone_alloc_policy);
 F2FS_SBI_GENERAL_RW_ATTR(carve_out);
 F2FS_SBI_GENERAL_RW_ATTR(reserved_pin_section);
 F2FS_SBI_GENERAL_RW_ATTR(bggc_io_aware);
+F2FS_SBI_GENERAL_RW_ATTR(max_lock_elapsed_time);
+F2FS_SBI_GENERAL_RW_ATTR(lock_duration_priority);
+F2FS_SBI_GENERAL_RW_ATTR(adjust_lock_priority);
+F2FS_SBI_GENERAL_RW_ATTR(critical_task_priority);
 
 /* STAT_INFO ATTR */
 #ifdef CONFIG_F2FS_STAT_FS
@@ -1232,6 +1317,7 @@ STAT_INFO_RO_ATTR(gc_background_calls, gc_call_count[BACKGROUND]);
 #ifdef CONFIG_F2FS_FAULT_INJECTION
 FAULT_INFO_GENERAL_RW_ATTR(FAULT_INFO_RATE, inject_rate);
 FAULT_INFO_GENERAL_RW_ATTR(FAULT_INFO_TYPE, inject_type);
+FAULT_INFO_GENERAL_RW_ATTR(FAULT_INFO_TIMEOUT, inject_lock_timeout);
 #endif
 
 /* RESERVED_BLOCKS ATTR */
@@ -1361,6 +1447,7 @@ static struct attribute *f2fs_attrs[] = {
 #ifdef CONFIG_F2FS_FAULT_INJECTION
 	ATTR_LIST(inject_rate),
 	ATTR_LIST(inject_type),
+	ATTR_LIST(inject_lock_timeout),
 #endif
 	ATTR_LIST(data_io_flag),
 	ATTR_LIST(node_io_flag),
@@ -1422,6 +1509,10 @@ static struct attribute *f2fs_attrs[] = {
 	ATTR_LIST(reserved_pin_section),
 	ATTR_LIST(allocate_section_hint),
 	ATTR_LIST(allocate_section_policy),
+	ATTR_LIST(max_lock_elapsed_time),
+	ATTR_LIST(lock_duration_priority),
+	ATTR_LIST(adjust_lock_priority),
+	ATTR_LIST(critical_task_priority),
 	NULL,
 };
 ATTRIBUTE_GROUPS(f2fs);

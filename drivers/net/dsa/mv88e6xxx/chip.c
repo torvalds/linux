@@ -2024,7 +2024,7 @@ static int mv88e6xxx_mst_get(struct mv88e6xxx_chip *chip, struct net_device *br,
 	if (err)
 		goto err;
 
-	mst = kzalloc(sizeof(*mst), GFP_KERNEL);
+	mst = kzalloc_obj(*mst);
 	if (!mst) {
 		err = -ENOMEM;
 		goto err;

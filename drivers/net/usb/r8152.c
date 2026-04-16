@@ -9647,7 +9647,7 @@ static u8 __rtl_get_hw_ver(struct usb_device *udev)
 	int ret;
 	int i;
 
-	tmp = kmalloc(sizeof(*tmp), GFP_KERNEL);
+	tmp = kmalloc_obj(*tmp);
 	if (!tmp)
 		return 0;
 
@@ -10054,6 +10054,7 @@ static const struct usb_device_id rtl8152_table[] = {
 	{ USB_DEVICE(VENDOR_ID_DLINK,   0xb301) },
 	{ USB_DEVICE(VENDOR_ID_DELL,    0xb097) },
 	{ USB_DEVICE(VENDOR_ID_ASUS,    0x1976) },
+	{ USB_DEVICE(VENDOR_ID_TRENDNET, 0xe02b) },
 	{}
 };
 

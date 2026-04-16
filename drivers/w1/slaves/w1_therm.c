@@ -973,8 +973,7 @@ static int w1_therm_add_slave(struct w1_slave *sl)
 	struct w1_therm_family_converter *sl_family_conv;
 
 	/* Allocate memory */
-	sl->family_data = kzalloc(sizeof(struct w1_therm_family_data),
-		GFP_KERNEL);
+	sl->family_data = kzalloc_obj(struct w1_therm_family_data);
 	if (!sl->family_data)
 		return -ENOMEM;
 

@@ -460,7 +460,7 @@ static int vmclock_miscdev_open(struct inode *inode, struct file *fp)
 {
 	struct vmclock_state *st = container_of(fp->private_data,
 						struct vmclock_state, miscdev);
-	struct vmclock_file_state *fst = kzalloc(sizeof(*fst), GFP_KERNEL);
+	struct vmclock_file_state *fst = kzalloc_obj(*fst);
 
 	if (!fst)
 		return -ENOMEM;

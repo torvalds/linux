@@ -164,7 +164,7 @@ static int __init rcar_gen2_regulator_quirk(void)
 		if (ret)	/* Skip invalid entry and continue */
 			continue;
 
-		quirk = kzalloc(sizeof(*quirk), GFP_KERNEL);
+		quirk = kzalloc_obj(*quirk);
 		if (!quirk) {
 			ret = -ENOMEM;
 			of_node_put(np);

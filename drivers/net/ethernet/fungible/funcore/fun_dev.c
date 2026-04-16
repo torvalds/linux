@@ -210,7 +210,7 @@ static int fun_init_cmd_ctx(struct fun_dev *fdev, unsigned int ntags)
 {
 	unsigned int i;
 
-	fdev->cmd_ctx = kvcalloc(ntags, sizeof(*fdev->cmd_ctx), GFP_KERNEL);
+	fdev->cmd_ctx = kvzalloc_objs(*fdev->cmd_ctx, ntags);
 	if (!fdev->cmd_ctx)
 		return -ENOMEM;
 

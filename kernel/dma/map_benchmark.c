@@ -121,7 +121,7 @@ static int do_map_benchmark(struct map_benchmark_data *map)
 	int ret = 0;
 	int i;
 
-	tsk = kmalloc_array(threads, sizeof(*tsk), GFP_KERNEL);
+	tsk = kmalloc_objs(*tsk, threads);
 	if (!tsk)
 		return -ENOMEM;
 

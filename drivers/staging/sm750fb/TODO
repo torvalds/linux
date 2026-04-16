@@ -1,6 +1,4 @@
 TODO:
-- lots of checkpatch cleanup
-- use kernel coding style
 - refine the code and remove unused code
 - Implement hardware acceleration for imageblit if image->depth > 1
 - must be ported to the atomic kms framework in the drm subsystem (which will

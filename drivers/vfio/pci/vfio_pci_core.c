@@ -61,7 +61,7 @@ int vfio_pci_eventfd_replace_locked(struct vfio_pci_core_device *vdev,
 	lockdep_assert_held(&vdev->igate);
 
 	if (ctx) {
-		new = kzalloc(sizeof(*new), GFP_KERNEL_ACCOUNT);
+		new = kzalloc_obj(*new, GFP_KERNEL_ACCOUNT);
 		if (!new)
 			return -ENOMEM;
 
@@ -175,8 +175,7 @@ static void vfio_pci_probe_mmaps(struct vfio_pci_core_device *vdev)
 			 * of the exclusive page in case that hot-add
 			 * device's bar is assigned into it.
 			 */
-			dummy_res =
-				kzalloc(sizeof(*dummy_res), GFP_KERNEL_ACCOUNT);
+			dummy_res = kzalloc_obj(*dummy_res, GFP_KERNEL_ACCOUNT);
 			if (dummy_res == NULL)
 				goto no_mmap;
 
@@ -1292,7 +1291,7 @@ static int vfio_pci_ioctl_get_pci_hot_reset_info(
 		goto header;
 	}
 
-	devices = kcalloc(count, sizeof(*devices), GFP_KERNEL);
+	devices = kzalloc_objs(*devices, count);
 	if (!devices)
 		return -ENOMEM;
 
@@ -1351,8 +1350,8 @@ vfio_pci_ioctl_pci_hot_reset_groups(struct vfio_pci_core_device *vdev,
 	if (array_count > count)
 		return -EINVAL;
 
-	group_fds = kcalloc(array_count, sizeof(*group_fds), GFP_KERNEL);
-	files = kcalloc(array_count, sizeof(*files), GFP_KERNEL);
+	group_fds = kzalloc_objs(*group_fds, array_count);
+	files = kzalloc_objs(*files, array_count);
 	if (!group_fds || !files) {
 		kfree(group_fds);
 		kfree(files);
@@ -2035,7 +2034,7 @@ static int vfio_pci_vf_init(struct vfio_pci_core_device *vdev)
 	if (!pdev->is_physfn)
 		return 0;
 
-	vdev->vf_token = kzalloc(sizeof(*vdev->vf_token), GFP_KERNEL);
+	vdev->vf_token = kzalloc_obj(*vdev->vf_token);
 	if (!vdev->vf_token)
 		return -ENOMEM;
 

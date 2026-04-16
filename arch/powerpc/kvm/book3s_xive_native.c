@@ -145,7 +145,7 @@ int kvmppc_xive_native_connect_vcpu(struct kvm_device *dev,
 	if (rc)
 		goto bail;
 
-	xc = kzalloc(sizeof(*xc), GFP_KERNEL);
+	xc = kzalloc_obj(*xc);
 	if (!xc) {
 		rc = -ENOMEM;
 		goto bail;

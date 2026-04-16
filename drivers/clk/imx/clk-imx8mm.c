@@ -303,8 +303,7 @@ static int imx8mm_clocks_probe(struct platform_device *pdev)
 	void __iomem *base;
 	int ret;
 
-	clk_hw_data = kzalloc(struct_size(clk_hw_data, hws,
-					  IMX8MM_CLK_END), GFP_KERNEL);
+	clk_hw_data = kzalloc_flex(*clk_hw_data, hws, IMX8MM_CLK_END);
 	if (WARN_ON(!clk_hw_data))
 		return -ENOMEM;
 

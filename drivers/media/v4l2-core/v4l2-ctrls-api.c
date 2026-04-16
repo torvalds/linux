@@ -431,8 +431,7 @@ int v4l2_g_ext_ctrls_common(struct v4l2_ctrl_handler *hdl,
 		return class_check(hdl, cs->which);
 
 	if (cs->count > ARRAY_SIZE(helper)) {
-		helpers = kvmalloc_array(cs->count, sizeof(helper[0]),
-					 GFP_KERNEL);
+		helpers = kvmalloc_objs(helper[0], cs->count);
 		if (!helpers)
 			return -ENOMEM;
 	}
@@ -617,8 +616,7 @@ int try_set_ext_ctrls_common(struct v4l2_fh *fh,
 		return class_check(hdl, cs->which);
 
 	if (cs->count > ARRAY_SIZE(helper)) {
-		helpers = kvmalloc_array(cs->count, sizeof(helper[0]),
-					 GFP_KERNEL);
+		helpers = kvmalloc_objs(helper[0], cs->count);
 		if (!helpers)
 			return -ENOMEM;
 	}

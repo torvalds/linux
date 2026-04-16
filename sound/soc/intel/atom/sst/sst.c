@@ -463,7 +463,7 @@ static int intel_sst_suspend(struct device *dev)
 		return -EBUSY;
 
 	/* save the memories */
-	fw_save = kzalloc(sizeof(*fw_save), GFP_KERNEL);
+	fw_save = kzalloc_obj(*fw_save);
 	if (!fw_save)
 		return -ENOMEM;
 	fw_save->iram = kvzalloc(ctx->iram_end - ctx->iram_base, GFP_KERNEL);

@@ -175,7 +175,7 @@ nfs_async_unlink(struct dentry *dentry, const struct qstr *name)
 	int status = -ENOMEM;
 	void *devname_garbage = NULL;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (data == NULL)
 		goto out;
 	data->args.name.name = kstrdup(name->name, GFP_KERNEL);
@@ -355,7 +355,7 @@ nfs_async_rename(struct inode *old_dir, struct inode *new_dir,
 	    nfs_server_capable(new_dir, NFS_CAP_MOVEABLE))
 		task_setup_data.flags |= RPC_TASK_MOVEABLE;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (data == NULL)
 		return ERR_PTR(-ENOMEM);
 	task_setup_data.task = &data->task;

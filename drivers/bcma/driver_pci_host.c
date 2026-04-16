@@ -399,7 +399,7 @@ void bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc)
 		return;
 	}
 
-	pc_host = kzalloc(sizeof(*pc_host), GFP_KERNEL);
+	pc_host = kzalloc_obj(*pc_host);
 	if (!pc_host)  {
 		bcma_err(bus, "can not allocate memory");
 		return;

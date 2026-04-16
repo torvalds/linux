@@ -560,7 +560,7 @@ static int juli_init(struct snd_ice1712 *ice)
 	struct juli_spec *spec;
 	struct snd_akm4xxx *ak;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 	ice->spec = spec;
@@ -594,7 +594,7 @@ static int juli_init(struct snd_ice1712 *ice)
 		ice->num_total_dacs = 2;
 		ice->num_total_adcs = 2;
 
-		ice->akm = kzalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
+		ice->akm = kzalloc_obj(struct snd_akm4xxx);
 		ak = ice->akm;
 		if (!ak)
 			return -ENOMEM;

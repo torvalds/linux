@@ -191,7 +191,7 @@ void amdgpu_atombios_encoder_init_backlight(struct amdgpu_encoder *amdgpu_encode
 		goto register_acpi_backlight;
 	}
 
-	pdata = kmalloc(sizeof(struct amdgpu_backlight_privdata), GFP_KERNEL);
+	pdata = kmalloc_obj(struct amdgpu_backlight_privdata);
 	if (!pdata) {
 		DRM_ERROR("Memory allocation failed\n");
 		goto error;
@@ -1980,7 +1980,7 @@ amdgpu_atombios_encoder_get_lcd_info(struct amdgpu_encoder *encoder)
 		lvds_info =
 			(union lvds_info *)(mode_info->atom_context->bios + data_offset);
 		lvds =
-		    kzalloc(sizeof(struct amdgpu_encoder_atom_dig), GFP_KERNEL);
+		    kzalloc_obj(struct amdgpu_encoder_atom_dig);
 
 		if (!lvds)
 			return NULL;
@@ -2107,7 +2107,7 @@ struct amdgpu_encoder_atom_dig *
 amdgpu_atombios_encoder_get_dig_info(struct amdgpu_encoder *amdgpu_encoder)
 {
 	int encoder_enum = (amdgpu_encoder->encoder_enum & ENUM_ID_MASK) >> ENUM_ID_SHIFT;
-	struct amdgpu_encoder_atom_dig *dig = kzalloc(sizeof(struct amdgpu_encoder_atom_dig), GFP_KERNEL);
+	struct amdgpu_encoder_atom_dig *dig = kzalloc_obj(struct amdgpu_encoder_atom_dig);
 
 	if (!dig)
 		return NULL;

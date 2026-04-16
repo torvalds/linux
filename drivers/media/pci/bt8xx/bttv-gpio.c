@@ -73,7 +73,7 @@ int bttv_sub_add_device(struct bttv_core *core, char *name)
 	struct bttv_sub_device *sub;
 	int err;
 
-	sub = kzalloc(sizeof(*sub),GFP_KERNEL);
+	sub = kzalloc_obj(*sub);
 	if (NULL == sub)
 		return -ENOMEM;
 

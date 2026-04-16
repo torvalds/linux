@@ -171,7 +171,7 @@ static int rmi_f03_register_pt(struct f03_data *f03)
 {
 	struct serio *serio;
 
-	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
+	serio = kzalloc_obj(struct serio);
 	if (!serio)
 		return -ENOMEM;
 

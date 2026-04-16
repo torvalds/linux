@@ -71,7 +71,7 @@ int queue_initialise (Queue_t *queue)
 	 * need to keep free lists or allocate this
 	 * memory.
 	 */
-	queue->alloc = q = kmalloc_array(nqueues, sizeof(QE_t), GFP_KERNEL);
+	queue->alloc = q = kmalloc_objs(QE_t, nqueues);
 	if (q) {
 		for (; nqueues; q++, nqueues--) {
 			SET_MAGIC(q, QUEUE_MAGIC_FREE);

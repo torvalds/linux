@@ -655,7 +655,7 @@ int __init ext4_init_sysfs(void)
 	if (!ext4_root)
 		return -ENOMEM;
 
-	ext4_feat = kzalloc(sizeof(*ext4_feat), GFP_KERNEL);
+	ext4_feat = kzalloc_obj(*ext4_feat);
 	if (!ext4_feat) {
 		ret = -ENOMEM;
 		goto root_err;

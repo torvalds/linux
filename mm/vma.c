@@ -15,7 +15,10 @@ struct mmap_state {
 	unsigned long end;
 	pgoff_t pgoff;
 	unsigned long pglen;
-	vm_flags_t vm_flags;
+	union {
+		vm_flags_t vm_flags;
+		vma_flags_t vma_flags;
+	};
 	struct file *file;
 	pgprot_t page_prot;
 
@@ -472,19 +475,16 @@ void remove_vma(struct vm_area_struct *vma)
  *
  * Called with the mm semaphore held.
  */
-void unmap_region(struct ma_state *mas, struct vm_area_struct *vma,
-		struct vm_area_struct *prev, struct vm_area_struct *next)
+void unmap_region(struct unmap_desc *unmap)
 {
-	struct mm_struct *mm = vma->vm_mm;
+	struct mm_struct *mm = unmap->first->vm_mm;
 	struct mmu_gather tlb;
 
 	tlb_gather_mmu(&tlb, mm);
 	update_hiwater_rss(mm);
-	unmap_vmas(&tlb, mas, vma, vma->vm_start, vma->vm_end, vma->vm_end);
-	mas_set(mas, vma->vm_end);
-	free_pgtables(&tlb, mas, vma, prev ? prev->vm_end : FIRST_USER_ADDRESS,
-		      next ? next->vm_start : USER_PGTABLES_CEILING,
-		      /* mm_wr_locked = */ true);
+	unmap_vmas(&tlb, unmap);
+	mas_set(unmap->mas, unmap->tree_reset);
+	free_pgtables(&tlb, unmap);
 	tlb_finish_mmu(&tlb);
 }
 
@@ -1256,26 +1256,32 @@ int vma_shrink(struct vma_iterator *vmi, struct vm_area_struct *vma,
 static inline void vms_clear_ptes(struct vma_munmap_struct *vms,
 		    struct ma_state *mas_detach, bool mm_wr_locked)
 {
-	struct mmu_gather tlb;
+	struct unmap_desc unmap = {
+		.mas = mas_detach,
+		.first = vms->vma,
+		/* start and end may be different if there is no prev or next vma. */
+		.pg_start = vms->unmap_start,
+		.pg_end = vms->unmap_end,
+		.vma_start = vms->start,
+		.vma_end = vms->end,
+		/*
+		 * The tree limits and reset differ from the normal case since it's a
+		 * side-tree
+		 */
+		.tree_reset = 1,
+		.tree_end = vms->vma_count,
+		/*
+		 * We can free page tables without write-locking mmap_lock because VMAs
+		 * were isolated before we downgraded mmap_lock.
+		 */
+		.mm_wr_locked = mm_wr_locked,
+	};
 
 	if (!vms->clear_ptes) /* Nothing to do */
 		return;
 
-	/*
-	 * We can free page tables without write-locking mmap_lock because VMAs
-	 * were isolated before we downgraded mmap_lock.
-	 */
 	mas_set(mas_detach, 1);
-	tlb_gather_mmu(&tlb, vms->vma->vm_mm);
-	update_hiwater_rss(vms->vma->vm_mm);
-	unmap_vmas(&tlb, mas_detach, vms->vma, vms->start, vms->end,
-		   vms->vma_count);
-
-	mas_set(mas_detach, 1);
-	/* start and end may be different if there is no prev or next vma. */
-	free_pgtables(&tlb, mas_detach, vms->vma, vms->unmap_start,
-		      vms->unmap_end, mm_wr_locked);
-	tlb_finish_mmu(&tlb);
+	unmap_region(&unmap);
 	vms->clear_ptes = false;
 }
 
@@ -2366,7 +2372,7 @@ static void set_desc_from_map(struct vm_area_desc *desc,
 
 	desc->pgoff = map->pgoff;
 	desc->vm_file = map->file;
-	desc->vm_flags = map->vm_flags;
+	desc->vma_flags = map->vma_flags;
 	desc->page_prot = map->page_prot;
 }
 
@@ -2461,13 +2467,14 @@ static int __mmap_new_file_vma(struct mmap_state *map,
 
 	error = mmap_file(vma->vm_file, vma);
 	if (error) {
+		UNMAP_STATE(unmap, vmi, vma, vma->vm_start, vma->vm_end,
+			    map->prev, map->next);
 		fput(vma->vm_file);
 		vma->vm_file = NULL;
 
 		vma_iter_set(vmi, vma->vm_end);
 		/* Undo any partial mapping done by a device driver. */
-		unmap_region(&vmi->mas, vma, map->prev, map->next);
-
+		unmap_region(&unmap);
 		return error;
 	}
 
@@ -2646,7 +2653,7 @@ static int call_mmap_prepare(struct mmap_state *map,
 		map->file_doesnt_need_get = true;
 		map->file = desc->vm_file;
 	}
-	map->vm_flags = desc->vm_flags;
+	map->vma_flags = desc->vma_flags;
 	map->page_prot = desc->page_prot;
 	/* User-defined fields. */
 	map->vm_ops = desc->vm_ops;
@@ -2819,7 +2826,7 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
 		return -EINVAL;
 
 	/* Map writable and ensure this isn't a sealed memfd. */
-	if (file && is_shared_maywrite(vm_flags)) {
+	if (file && is_shared_maywrite_vm_flags(vm_flags)) {
 		int error = mapping_map_writable(file->f_mapping);
 
 		if (error)
@@ -3049,7 +3056,7 @@ static int acct_stack_growth(struct vm_area_struct *vma,
 		return -ENOMEM;
 
 	/* mlock limit tests */
-	if (!mlock_future_ok(mm, vma->vm_flags, grow << PAGE_SHIFT))
+	if (!mlock_future_ok(mm, vma->vm_flags & VM_LOCKED, grow << PAGE_SHIFT))
 		return -ENOMEM;
 
 	/* Check to ensure the stack will not grow into a hugetlb-only region */

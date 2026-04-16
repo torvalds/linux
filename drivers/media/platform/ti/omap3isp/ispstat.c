@@ -1047,7 +1047,7 @@ int omap3isp_stat_init(struct ispstat *stat, const char *name,
 {
 	int ret;
 
-	stat->buf = kcalloc(STAT_MAX_BUFS, sizeof(*stat->buf), GFP_KERNEL);
+	stat->buf = kzalloc_objs(*stat->buf, STAT_MAX_BUFS);
 	if (!stat->buf)
 		return -ENOMEM;
 

@@ -2062,7 +2062,7 @@ struct zs_pool *zs_create_pool(const char *name)
 	struct zs_pool *pool;
 	struct size_class *prev_class = NULL;
 
-	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+	pool = kzalloc_obj(*pool);
 	if (!pool)
 		return NULL;
 
@@ -2128,7 +2128,7 @@ struct zs_pool *zs_create_pool(const char *name)
 			}
 		}
 
-		class = kzalloc(sizeof(struct size_class), GFP_KERNEL);
+		class = kzalloc_obj(struct size_class);
 		if (!class)
 			goto err;
 

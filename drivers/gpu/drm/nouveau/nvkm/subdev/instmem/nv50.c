@@ -360,7 +360,7 @@ nv50_instobj_wrap(struct nvkm_instmem *base,
 	struct nv50_instmem *imem = nv50_instmem(base);
 	struct nv50_instobj *iobj;
 
-	if (!(iobj = kzalloc(sizeof(*iobj), GFP_KERNEL)))
+	if (!(iobj = kzalloc_obj(*iobj)))
 		return -ENOMEM;
 	*pmemory = &iobj->base.memory;
 
@@ -431,7 +431,7 @@ nv50_instmem_new_(const struct nvkm_instmem_func *func,
 {
 	struct nv50_instmem *imem;
 
-	if (!(imem = kzalloc(sizeof(*imem), GFP_KERNEL)))
+	if (!(imem = kzalloc_obj(*imem)))
 		return -ENOMEM;
 	nvkm_instmem_ctor(func, device, type, inst, &imem->base);
 	INIT_LIST_HEAD(&imem->lru);

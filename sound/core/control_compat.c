@@ -82,7 +82,7 @@ static int snd_ctl_elem_info_compat(struct snd_ctl_file *ctl,
 	struct snd_card *card = ctl->card;
 	int err;
 	struct snd_ctl_elem_info *data __free(kfree) =
-		kzalloc(sizeof(*data), GFP_KERNEL);
+		kzalloc_obj(*data);
 
 	if (! data)
 		return -ENOMEM;
@@ -177,7 +177,7 @@ static int get_ctl_type(struct snd_card *card, struct snd_ctl_elem_id *id,
 		return -ENOENT;
 
 	struct snd_ctl_elem_info *info __free(kfree) =
-		kzalloc(sizeof(*info), GFP_KERNEL);
+		kzalloc_obj(*info);
 	if (info == NULL)
 		return -ENOMEM;
 	info->id = *id;
@@ -283,7 +283,7 @@ static int __ctl_elem_read_user(struct snd_card *card,
 {
 	int err, type, count;
 	struct snd_ctl_elem_value *data __free(kfree) =
-		kzalloc(sizeof(*data), GFP_KERNEL);
+		kzalloc_obj(*data);
 
 	if (data == NULL)
 		return -ENOMEM;
@@ -318,7 +318,7 @@ static int __ctl_elem_write_user(struct snd_ctl_file *file,
 	struct snd_card *card = file->card;
 	int err, type, count;
 	struct snd_ctl_elem_value *data __free(kfree) =
-		kzalloc(sizeof(*data), GFP_KERNEL);
+		kzalloc_obj(*data);
 
 	if (data == NULL)
 		return -ENOMEM;
@@ -380,7 +380,7 @@ static int snd_ctl_elem_add_compat(struct snd_ctl_file *file,
 				   int replace)
 {
 	struct snd_ctl_elem_info *data __free(kfree) =
-		kzalloc(sizeof(*data), GFP_KERNEL);
+		kzalloc_obj(*data);
 
 	if (! data)
 		return -ENOMEM;

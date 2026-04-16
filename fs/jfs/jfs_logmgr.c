@@ -1087,7 +1087,7 @@ int lmLogOpen(struct super_block *sb)
 		}
 	}
 
-	if (!(log = kzalloc(sizeof(struct jfs_log), GFP_KERNEL))) {
+	if (!(log = kzalloc_obj(struct jfs_log))) {
 		mutex_unlock(&jfs_log_mutex);
 		return -ENOMEM;
 	}
@@ -1156,7 +1156,7 @@ static int open_inline_log(struct super_block *sb)
 	struct jfs_log *log;
 	int rc;
 
-	if (!(log = kzalloc(sizeof(struct jfs_log), GFP_KERNEL)))
+	if (!(log = kzalloc_obj(struct jfs_log)))
 		return -ENOMEM;
 	INIT_LIST_HEAD(&log->sb_list);
 	init_waitqueue_head(&log->syncwait);
@@ -1190,7 +1190,7 @@ static int open_dummy_log(struct super_block *sb)
 
 	mutex_lock(&jfs_log_mutex);
 	if (!dummy_log) {
-		dummy_log = kzalloc(sizeof(struct jfs_log), GFP_KERNEL);
+		dummy_log = kzalloc_obj(struct jfs_log);
 		if (!dummy_log) {
 			mutex_unlock(&jfs_log_mutex);
 			return -ENOMEM;
@@ -1818,7 +1818,7 @@ static int lbmLogInit(struct jfs_log * log)
 			goto error;
 		buffer = page_address(page);
 		for (offset = 0; offset < PAGE_SIZE; offset += LOGPSIZE) {
-			lbuf = kmalloc(sizeof(struct lbuf), GFP_KERNEL);
+			lbuf = kmalloc_obj(struct lbuf);
 			if (lbuf == NULL) {
 				if (offset == 0)
 					__free_page(page);

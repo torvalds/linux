@@ -26,8 +26,7 @@ struct damon_sysfs_scheme_region {
 static struct damon_sysfs_scheme_region *damon_sysfs_scheme_region_alloc(
 		struct damon_region *region)
 {
-	struct damon_sysfs_scheme_region *sysfs_region = kmalloc(
-			sizeof(*sysfs_region), GFP_KERNEL);
+	struct damon_sysfs_scheme_region *sysfs_region = kmalloc_obj(*sysfs_region);
 
 	if (!sysfs_region)
 		return NULL;
@@ -138,8 +137,7 @@ struct damon_sysfs_scheme_regions {
 static struct damon_sysfs_scheme_regions *
 damon_sysfs_scheme_regions_alloc(void)
 {
-	struct damon_sysfs_scheme_regions *regions = kmalloc(sizeof(*regions),
-			GFP_KERNEL);
+	struct damon_sysfs_scheme_regions *regions = kmalloc_obj(*regions);
 
 	if (!regions)
 		return NULL;
@@ -210,7 +208,7 @@ struct damon_sysfs_stats {
 
 static struct damon_sysfs_stats *damon_sysfs_stats_alloc(void)
 {
-	return kzalloc(sizeof(struct damon_sysfs_stats), GFP_KERNEL);
+	return kzalloc_obj(struct damon_sysfs_stats);
 }
 
 static ssize_t nr_tried_show(struct kobject *kobj, struct kobj_attribute *attr,
@@ -376,7 +374,7 @@ static struct damon_sysfs_scheme_filter *damon_sysfs_scheme_filter_alloc(
 {
 	struct damon_sysfs_scheme_filter *filter;
 
-	filter = kzalloc(sizeof(struct damon_sysfs_scheme_filter), GFP_KERNEL);
+	filter = kzalloc_obj(struct damon_sysfs_scheme_filter);
 	if (filter)
 		filter->handle_layer = layer;
 	return filter;
@@ -724,7 +722,7 @@ damon_sysfs_scheme_filters_alloc(enum damos_sysfs_filter_handle_layer layer)
 {
 	struct damon_sysfs_scheme_filters *filters;
 
-	filters = kzalloc(sizeof(struct damon_sysfs_scheme_filters), GFP_KERNEL);
+	filters = kzalloc_obj(struct damon_sysfs_scheme_filters);
 	if (filters)
 		filters->handle_layer = layer;
 	return filters;
@@ -753,8 +751,8 @@ static int damon_sysfs_scheme_filters_add_dirs(
 	if (!nr_filters)
 		return 0;
 
-	filters_arr = kmalloc_array(nr_filters, sizeof(*filters_arr),
-			GFP_KERNEL | __GFP_NOWARN);
+	filters_arr = kmalloc_objs(*filters_arr, nr_filters,
+				   GFP_KERNEL | __GFP_NOWARN);
 	if (!filters_arr)
 		return -ENOMEM;
 	filters->filters_arr = filters_arr;
@@ -851,8 +849,7 @@ static struct damon_sysfs_watermarks *damon_sysfs_watermarks_alloc(
 		enum damos_wmark_metric metric, unsigned long interval_us,
 		unsigned long high, unsigned long mid, unsigned long low)
 {
-	struct damon_sysfs_watermarks *watermarks = kmalloc(
-			sizeof(*watermarks), GFP_KERNEL);
+	struct damon_sysfs_watermarks *watermarks = kmalloc_obj(*watermarks);
 
 	if (!watermarks)
 		return NULL;
@@ -1045,7 +1042,7 @@ struct damos_sysfs_quota_goal {
 
 static struct damos_sysfs_quota_goal *damos_sysfs_quota_goal_alloc(void)
 {
-	return kzalloc(sizeof(struct damos_sysfs_quota_goal), GFP_KERNEL);
+	return kzalloc_obj(struct damos_sysfs_quota_goal);
 }
 
 struct damos_sysfs_qgoal_metric_name {
@@ -1263,7 +1260,7 @@ struct damos_sysfs_quota_goals {
 
 static struct damos_sysfs_quota_goals *damos_sysfs_quota_goals_alloc(void)
 {
-	return kzalloc(sizeof(struct damos_sysfs_quota_goals), GFP_KERNEL);
+	return kzalloc_obj(struct damos_sysfs_quota_goals);
 }
 
 static void damos_sysfs_quota_goals_rm_dirs(
@@ -1289,8 +1286,8 @@ static int damos_sysfs_quota_goals_add_dirs(
 	if (!nr_goals)
 		return 0;
 
-	goals_arr = kmalloc_array(nr_goals, sizeof(*goals_arr),
-			GFP_KERNEL | __GFP_NOWARN);
+	goals_arr = kmalloc_objs(*goals_arr, nr_goals,
+				 GFP_KERNEL | __GFP_NOWARN);
 	if (!goals_arr)
 		return -ENOMEM;
 	goals->goals_arr = goals_arr;
@@ -1383,8 +1380,7 @@ struct damon_sysfs_weights {
 static struct damon_sysfs_weights *damon_sysfs_weights_alloc(unsigned int sz,
 		unsigned int nr_accesses, unsigned int age)
 {
-	struct damon_sysfs_weights *weights = kmalloc(sizeof(*weights),
-			GFP_KERNEL);
+	struct damon_sysfs_weights *weights = kmalloc_obj(*weights);
 
 	if (!weights)
 		return NULL;
@@ -1496,7 +1492,7 @@ struct damon_sysfs_quotas {
 
 static struct damon_sysfs_quotas *damon_sysfs_quotas_alloc(void)
 {
-	return kzalloc(sizeof(struct damon_sysfs_quotas), GFP_KERNEL);
+	return kzalloc_obj(struct damon_sysfs_quotas);
 }
 
 static int damon_sysfs_quotas_add_dirs(struct damon_sysfs_quotas *quotas)
@@ -1660,8 +1656,7 @@ struct damon_sysfs_access_pattern {
 static
 struct damon_sysfs_access_pattern *damon_sysfs_access_pattern_alloc(void)
 {
-	struct damon_sysfs_access_pattern *access_pattern =
-		kmalloc(sizeof(*access_pattern), GFP_KERNEL);
+	struct damon_sysfs_access_pattern *access_pattern = kmalloc_obj(*access_pattern);
 
 	if (!access_pattern)
 		return NULL;
@@ -1757,7 +1752,7 @@ struct damos_sysfs_dest {
 
 static struct damos_sysfs_dest *damos_sysfs_dest_alloc(void)
 {
-	return kzalloc(sizeof(struct damos_sysfs_dest), GFP_KERNEL);
+	return kzalloc_obj(struct damos_sysfs_dest);
 }
 
 static ssize_t id_show(
@@ -1837,7 +1832,7 @@ struct damos_sysfs_dests {
 static struct damos_sysfs_dests *
 damos_sysfs_dests_alloc(void)
 {
-	return kzalloc(sizeof(struct damos_sysfs_dests), GFP_KERNEL);
+	return kzalloc_obj(struct damos_sysfs_dests);
 }
 
 static void damos_sysfs_dests_rm_dirs(
@@ -1863,8 +1858,8 @@ static int damos_sysfs_dests_add_dirs(
 	if (!nr_dests)
 		return 0;
 
-	dests_arr = kmalloc_array(nr_dests, sizeof(*dests_arr),
-			GFP_KERNEL | __GFP_NOWARN);
+	dests_arr = kmalloc_objs(*dests_arr, nr_dests,
+				 GFP_KERNEL | __GFP_NOWARN);
 	if (!dests_arr)
 		return -ENOMEM;
 	dests->dests_arr = dests_arr;
@@ -2014,8 +2009,7 @@ static struct damos_sysfs_action_name damos_sysfs_action_names[] = {
 static struct damon_sysfs_scheme *damon_sysfs_scheme_alloc(
 		enum damos_action action, unsigned long apply_interval_us)
 {
-	struct damon_sysfs_scheme *scheme = kmalloc(sizeof(*scheme),
-				GFP_KERNEL);
+	struct damon_sysfs_scheme *scheme = kmalloc_obj(*scheme);
 
 	if (!scheme)
 		return NULL;
@@ -2376,7 +2370,7 @@ static const struct kobj_type damon_sysfs_scheme_ktype = {
 
 struct damon_sysfs_schemes *damon_sysfs_schemes_alloc(void)
 {
-	return kzalloc(sizeof(struct damon_sysfs_schemes), GFP_KERNEL);
+	return kzalloc_obj(struct damon_sysfs_schemes);
 }
 
 void damon_sysfs_schemes_rm_dirs(struct damon_sysfs_schemes *schemes)
@@ -2403,8 +2397,8 @@ static int damon_sysfs_schemes_add_dirs(struct damon_sysfs_schemes *schemes,
 	if (!nr_schemes)
 		return 0;
 
-	schemes_arr = kmalloc_array(nr_schemes, sizeof(*schemes_arr),
-			GFP_KERNEL | __GFP_NOWARN);
+	schemes_arr = kmalloc_objs(*schemes_arr, nr_schemes,
+				   GFP_KERNEL | __GFP_NOWARN);
 	if (!schemes_arr)
 		return -ENOMEM;
 	schemes->schemes_arr = schemes_arr;
@@ -2683,12 +2677,10 @@ static int damos_sysfs_add_migrate_dest(struct damos *scheme,
 	struct damos_migrate_dests *dests = &scheme->migrate_dests;
 	int i;
 
-	dests->node_id_arr = kmalloc_array(sysfs_dests->nr,
-			sizeof(*dests->node_id_arr), GFP_KERNEL);
+	dests->node_id_arr = kmalloc_objs(*dests->node_id_arr, sysfs_dests->nr);
 	if (!dests->node_id_arr)
 		return -ENOMEM;
-	dests->weight_arr = kmalloc_array(sysfs_dests->nr,
-			sizeof(*dests->weight_arr), GFP_KERNEL);
+	dests->weight_arr = kmalloc_objs(*dests->weight_arr, sysfs_dests->nr);
 	if (!dests->weight_arr)
 		/* ->node_id_arr will be freed by scheme destruction */
 		return -ENOMEM;

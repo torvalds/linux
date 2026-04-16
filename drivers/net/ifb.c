@@ -187,7 +187,7 @@ static int ifb_dev_init(struct net_device *dev)
 	struct ifb_q_private *txp;
 	int i;
 
-	txp = kcalloc(dev->num_tx_queues, sizeof(*txp), GFP_KERNEL);
+	txp = kzalloc_objs(*txp, dev->num_tx_queues);
 	if (!txp)
 		return -ENOMEM;
 	dp->tx_private = txp;

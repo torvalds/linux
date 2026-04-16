@@ -366,7 +366,7 @@ hns_roce_user_mmap_entry_insert(struct ib_ucontext *ucontext, u64 address,
 	struct hns_user_mmap_entry *entry;
 	int ret;
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return NULL;
 
@@ -1153,8 +1153,7 @@ void hns_roce_handle_device_err(struct hns_roce_dev *hr_dev)
 
 static int hns_roce_alloc_dfx_cnt(struct hns_roce_dev *hr_dev)
 {
-	hr_dev->dfx_cnt = kvcalloc(HNS_ROCE_DFX_CNT_TOTAL, sizeof(atomic64_t),
-				   GFP_KERNEL);
+	hr_dev->dfx_cnt = kvzalloc_objs(atomic64_t, HNS_ROCE_DFX_CNT_TOTAL);
 	if (!hr_dev->dfx_cnt)
 		return -ENOMEM;
 

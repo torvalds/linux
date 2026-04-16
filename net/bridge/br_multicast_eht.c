@@ -266,7 +266,7 @@ __eht_lookup_create_host(struct net_bridge_port_group *pg,
 	if (br_multicast_eht_hosts_over_limit(pg))
 		return NULL;
 
-	eht_host = kzalloc(sizeof(*eht_host), GFP_ATOMIC);
+	eht_host = kzalloc_obj(*eht_host, GFP_ATOMIC);
 	if (!eht_host)
 		return NULL;
 
@@ -313,7 +313,7 @@ __eht_lookup_create_set_entry(struct net_bridge *br,
 	if (!allow_zero_src && eht_host->num_entries >= PG_SRC_ENT_LIMIT)
 		return NULL;
 
-	set_h = kzalloc(sizeof(*set_h), GFP_ATOMIC);
+	set_h = kzalloc_obj(*set_h, GFP_ATOMIC);
 	if (!set_h)
 		return NULL;
 
@@ -360,7 +360,7 @@ __eht_lookup_create_set(struct net_bridge_port_group *pg,
 			return this;
 	}
 
-	eht_set = kzalloc(sizeof(*eht_set), GFP_ATOMIC);
+	eht_set = kzalloc_obj(*eht_set, GFP_ATOMIC);
 	if (!eht_set)
 		return NULL;
 

@@ -125,7 +125,7 @@ int optee_open(struct tee_context *ctx, bool cap_memref_null)
 	struct tee_device *teedev = ctx->teedev;
 	struct optee *optee = tee_get_drvdata(teedev);
 
-	ctxdata = kzalloc(sizeof(*ctxdata), GFP_KERNEL);
+	ctxdata = kzalloc_obj(*ctxdata);
 	if (!ctxdata)
 		return -ENOMEM;
 

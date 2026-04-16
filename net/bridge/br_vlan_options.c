@@ -43,9 +43,29 @@ bool br_vlan_opts_eq_range(const struct net_bridge_vlan *v_curr,
 	u8 range_mc_rtr = br_vlan_multicast_router(range_end);
 	u8 curr_mc_rtr = br_vlan_multicast_router(v_curr);
 
-	return v_curr->state == range_end->state &&
-	       __vlan_tun_can_enter_range(v_curr, range_end) &&
-	       curr_mc_rtr == range_mc_rtr;
+	if (v_curr->state != range_end->state)
+		return false;
+
+	if (!__vlan_tun_can_enter_range(v_curr, range_end))
+		return false;
+
+	if (curr_mc_rtr != range_mc_rtr)
+		return false;
+
+	/* Check user-visible priv_flags that affect output */
+	if ((v_curr->priv_flags ^ range_end->priv_flags) &
+	    (BR_VLFLAG_NEIGH_SUPPRESS_ENABLED | BR_VLFLAG_MCAST_ENABLED))
+		return false;
+
+#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+	if (!br_vlan_is_master(v_curr) &&
+	    !br_multicast_port_ctx_vlan_disabled(&v_curr->port_mcast_ctx) &&
+	    !br_multicast_port_ctx_options_equal(&v_curr->port_mcast_ctx,
+						 &range_end->port_mcast_ctx))
+		return false;
+#endif
+
+	return true;
 }
 
 bool br_vlan_opts_fill(struct sk_buff *skb, const struct net_bridge_vlan *v,

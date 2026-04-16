@@ -811,7 +811,7 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 	struct drm_crtc *crtc;
 	int ret;
 
-	sou = kzalloc(sizeof(*sou), GFP_KERNEL);
+	sou = kzalloc_obj(*sou);
 	if (!sou)
 		return -ENOMEM;
 

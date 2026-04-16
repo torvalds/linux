@@ -867,7 +867,7 @@ struct dcmipp_ent_device *dcmipp_bytecap_ent_init(struct device *dev,
 	int ret = 0;
 
 	/* Allocate the dcmipp_bytecap_device struct */
-	vcap = kzalloc(sizeof(*vcap), GFP_KERNEL);
+	vcap = kzalloc_obj(*vcap);
 	if (!vcap)
 		return ERR_PTR(-ENOMEM);
 

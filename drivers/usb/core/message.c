@@ -42,16 +42,19 @@ static void usb_api_blocking_completion(struct urb *urb)
 
 
 /*
- * Starts urb and waits for completion or timeout. Note that this call
- * is NOT interruptible. Many device driver i/o requests should be
- * interruptible and therefore these drivers should implement their
- * own interruptible routines.
+ * Starts urb and waits for completion or timeout.
+ * Whether or not the wait is killable depends on the flag passed in.
+ * For example, compare usb_bulk_msg() and usb_bulk_msg_killable().
+ *
+ * For non-killable waits, we enforce a maximum limit on the timeout value.
  */
-static int usb_start_wait_urb(struct urb *urb, int timeout, int *actual_length)
+static int usb_start_wait_urb(struct urb *urb, int timeout, int *actual_length,
+		bool killable)
 {
 	struct api_context ctx;
 	unsigned long expire;
 	int retval;
+	long rc;
 
 	init_completion(&ctx.done);
 	urb->context = &ctx;
@@ -60,13 +63,24 @@ static int usb_start_wait_urb(struct urb *urb, int timeout, int *actual_length)
 	if (unlikely(retval))
 		goto out;
 
-	expire = timeout ? msecs_to_jiffies(timeout) : MAX_SCHEDULE_TIMEOUT;
-	if (!wait_for_completion_timeout(&ctx.done, expire)) {
+	if (!killable && (timeout <= 0 || timeout > USB_MAX_SYNCHRONOUS_TIMEOUT))
+		timeout = USB_MAX_SYNCHRONOUS_TIMEOUT;
+	expire = (timeout > 0) ? msecs_to_jiffies(timeout) : MAX_SCHEDULE_TIMEOUT;
+	if (killable)
+		rc = wait_for_completion_killable_timeout(&ctx.done, expire);
+	else
+		rc = wait_for_completion_timeout(&ctx.done, expire);
+	if (rc <= 0) {
 		usb_kill_urb(urb);
-		retval = (ctx.status == -ENOENT ? -ETIMEDOUT : ctx.status);
+		if (ctx.status != -ENOENT)
+			retval = ctx.status;
+		else if (rc == 0)
+			retval = -ETIMEDOUT;
+		else
+			retval = rc;
 
 		dev_dbg(&urb->dev->dev,
-			"%s timed out on ep%d%s len=%u/%u\n",
+			"%s timed out or killed on ep%d%s len=%u/%u\n",
 			current->comm,
 			usb_endpoint_num(&urb->ep->desc),
 			usb_urb_dir_in(urb) ? "in" : "out",
@@ -100,7 +114,7 @@ static int usb_internal_control_msg(struct usb_device *usb_dev,
 	usb_fill_control_urb(urb, usb_dev, pipe, (unsigned char *)cmd, data,
 			     len, usb_api_blocking_completion, NULL);
 
-	retv = usb_start_wait_urb(urb, timeout, &length);
+	retv = usb_start_wait_urb(urb, timeout, &length, false);
 	if (retv < 0)
 		return retv;
 	else
@@ -117,8 +131,7 @@ static int usb_internal_control_msg(struct usb_device *usb_dev,
  * @index: USB message index value
  * @data: pointer to the data to send
  * @size: length in bytes of the data to send
- * @timeout: time in msecs to wait for the message to complete before timing
- *	out (if 0 the wait is forever)
+ * @timeout: time in msecs to wait for the message to complete before timing out
  *
  * Context: task context, might sleep.
  *
@@ -141,7 +154,7 @@ int usb_control_msg(struct usb_device *dev, unsigned int pipe, __u8 request,
 	struct usb_ctrlrequest *dr;
 	int ret;
 
-	dr = kmalloc(sizeof(struct usb_ctrlrequest), GFP_NOIO);
+	dr = kmalloc_obj(struct usb_ctrlrequest, GFP_NOIO);
 	if (!dr)
 		return -ENOMEM;
 
@@ -173,8 +186,7 @@ EXPORT_SYMBOL_GPL(usb_control_msg);
  * @index: USB message index value
  * @driver_data: pointer to the data to send
  * @size: length in bytes of the data to send
- * @timeout: time in msecs to wait for the message to complete before timing
- *	out (if 0 the wait is forever)
+ * @timeout: time in msecs to wait for the message to complete before timing out
  * @memflags: the flags for memory allocation for buffers
  *
  * Context: !in_interrupt ()
@@ -232,8 +244,7 @@ EXPORT_SYMBOL_GPL(usb_control_msg_send);
  * @index: USB message index value
  * @driver_data: pointer to the data to be filled in by the message
  * @size: length in bytes of the data to be received
- * @timeout: time in msecs to wait for the message to complete before timing
- *	out (if 0 the wait is forever)
+ * @timeout: time in msecs to wait for the message to complete before timing out
  * @memflags: the flags for memory allocation for buffers
  *
  * Context: !in_interrupt ()
@@ -304,8 +315,7 @@ EXPORT_SYMBOL_GPL(usb_control_msg_recv);
  * @len: length in bytes of the data to send
  * @actual_length: pointer to a location to put the actual length transferred
  *	in bytes
- * @timeout: time in msecs to wait for the message to complete before
- *	timing out (if 0 the wait is forever)
+ * @timeout: time in msecs to wait for the message to complete before timing out
  *
  * Context: task context, might sleep.
  *
@@ -337,8 +347,7 @@ EXPORT_SYMBOL_GPL(usb_interrupt_msg);
  * @len: length in bytes of the data to send
  * @actual_length: pointer to a location to put the actual length transferred
  *	in bytes
- * @timeout: time in msecs to wait for the message to complete before
- *	timing out (if 0 the wait is forever)
+ * @timeout: time in msecs to wait for the message to complete before timing out
  *
  * Context: task context, might sleep.
  *
@@ -385,9 +394,58 @@ int usb_bulk_msg(struct usb_device *usb_dev, unsigned int pipe,
 		usb_fill_bulk_urb(urb, usb_dev, pipe, data, len,
 				usb_api_blocking_completion, NULL);
 
-	return usb_start_wait_urb(urb, timeout, actual_length);
+	return usb_start_wait_urb(urb, timeout, actual_length, false);
 }
 EXPORT_SYMBOL_GPL(usb_bulk_msg);
+
+/**
+ * usb_bulk_msg_killable - Builds a bulk urb, sends it off and waits for completion in a killable state
+ * @usb_dev: pointer to the usb device to send the message to
+ * @pipe: endpoint "pipe" to send the message to
+ * @data: pointer to the data to send
+ * @len: length in bytes of the data to send
+ * @actual_length: pointer to a location to put the actual length transferred
+ *	in bytes
+ * @timeout: time in msecs to wait for the message to complete before
+ *	timing out (if <= 0, the wait is as long as possible)
+ *
+ * Context: task context, might sleep.
+ *
+ * This function is just like usb_blk_msg(), except that it waits in a
+ * killable state and there is no limit on the timeout length.
+ *
+ * Return:
+ * If successful, 0. Otherwise a negative error number. The number of actual
+ * bytes transferred will be stored in the @actual_length parameter.
+ *
+ */
+int usb_bulk_msg_killable(struct usb_device *usb_dev, unsigned int pipe,
+		 void *data, int len, int *actual_length, int timeout)
+{
+	struct urb *urb;
+	struct usb_host_endpoint *ep;
+
+	ep = usb_pipe_endpoint(usb_dev, pipe);
+	if (!ep || len < 0)
+		return -EINVAL;
+
+	urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!urb)
+		return -ENOMEM;
+
+	if ((ep->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
+			USB_ENDPOINT_XFER_INT) {
+		pipe = (pipe & ~(3 << 30)) | (PIPE_INTERRUPT << 30);
+		usb_fill_int_urb(urb, usb_dev, pipe, data, len,
+				usb_api_blocking_completion, NULL,
+				ep->desc.bInterval);
+	} else
+		usb_fill_bulk_urb(urb, usb_dev, pipe, data, len,
+				usb_api_blocking_completion, NULL);
+
+	return usb_start_wait_urb(urb, timeout, actual_length, true);
+}
+EXPORT_SYMBOL_GPL(usb_bulk_msg_killable);
 
 /*-------------------------------------------------------------------*/
 
@@ -526,7 +584,7 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 	}
 
 	/* initialize all the urbs we'll use */
-	io->urbs = kmalloc_array(io->entries, sizeof(*io->urbs), mem_flags);
+	io->urbs = kmalloc_objs(*io->urbs, io->entries, mem_flags);
 	if (!io->urbs)
 		goto nomem;
 
@@ -1058,7 +1116,7 @@ struct usb_device_descriptor *usb_get_device_descriptor(struct usb_device *udev)
 	struct usb_device_descriptor *desc;
 	int ret;
 
-	desc = kmalloc(sizeof(*desc), GFP_NOIO);
+	desc = kmalloc_obj(*desc, GFP_NOIO);
 	if (!desc)
 		return ERR_PTR(-ENOMEM);
 
@@ -2028,15 +2086,13 @@ int usb_set_configuration(struct usb_device *dev, int configuration)
 	n = nintf = 0;
 	if (cp) {
 		nintf = cp->desc.bNumInterfaces;
-		new_interfaces = kmalloc_array(nintf, sizeof(*new_interfaces),
-					       GFP_NOIO);
+		new_interfaces = kmalloc_objs(*new_interfaces, nintf, GFP_NOIO);
 		if (!new_interfaces)
 			return -ENOMEM;
 
 		for (; n < nintf; ++n) {
-			new_interfaces[n] = kzalloc(
-					sizeof(struct usb_interface),
-					GFP_NOIO);
+			new_interfaces[n] = kzalloc_obj(struct usb_interface,
+							GFP_NOIO);
 			if (!new_interfaces[n]) {
 				ret = -ENOMEM;
 free_interfaces:
@@ -2289,7 +2345,7 @@ int usb_driver_set_configuration(struct usb_device *udev, int config)
 {
 	struct set_config_request *req;
 
-	req = kmalloc(sizeof(*req), GFP_KERNEL);
+	req = kmalloc_obj(*req);
 	if (!req)
 		return -ENOMEM;
 	req->udev = udev;

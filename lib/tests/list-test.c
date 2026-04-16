@@ -26,10 +26,10 @@ static void list_test_list_init(struct kunit *test)
 
 	INIT_LIST_HEAD(&list2);
 
-	list4 = kzalloc(sizeof(*list4), GFP_KERNEL | __GFP_NOFAIL);
+	list4 = kzalloc_obj(*list4, GFP_KERNEL | __GFP_NOFAIL);
 	INIT_LIST_HEAD(list4);
 
-	list5 = kmalloc(sizeof(*list5), GFP_KERNEL | __GFP_NOFAIL);
+	list5 = kmalloc_obj(*list5, GFP_KERNEL | __GFP_NOFAIL);
 	memset(list5, 0xFF, sizeof(*list5));
 	INIT_LIST_HEAD(list5);
 
@@ -829,10 +829,10 @@ static void hlist_test_init(struct kunit *test)
 
 	INIT_HLIST_HEAD(&list2);
 
-	list4 = kzalloc(sizeof(*list4), GFP_KERNEL | __GFP_NOFAIL);
+	list4 = kzalloc_obj(*list4, GFP_KERNEL | __GFP_NOFAIL);
 	INIT_HLIST_HEAD(list4);
 
-	list5 = kmalloc(sizeof(*list5), GFP_KERNEL | __GFP_NOFAIL);
+	list5 = kmalloc_obj(*list5, GFP_KERNEL | __GFP_NOFAIL);
 	memset(list5, 0xFF, sizeof(*list5));
 	INIT_HLIST_HEAD(list5);
 

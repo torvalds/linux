@@ -83,7 +83,7 @@ void amdgpu_driver_unload_kms(struct drm_device *dev)
 {
 	struct amdgpu_device *adev = drm_to_adev(dev);
 
-	if (adev == NULL)
+	if (adev == NULL || !adev->num_ip_blocks)
 		return;
 
 	amdgpu_unregister_gpu_instance(adev);
@@ -942,7 +942,7 @@ out:
 		uint64_t vm_size;
 		uint32_t pcie_gen_mask, pcie_width_mask;
 
-		dev_info = kzalloc(sizeof(*dev_info), GFP_KERNEL);
+		dev_info = kzalloc_obj(*dev_info);
 		if (!dev_info)
 			return -ENOMEM;
 
@@ -1329,7 +1329,7 @@ out:
 			return -EINVAL;
 		}
 
-		caps = kzalloc(sizeof(*caps), GFP_KERNEL);
+		caps = kzalloc_obj(*caps);
 		if (!caps)
 			return -ENOMEM;
 
@@ -1445,6 +1445,7 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 {
 	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_fpriv *fpriv;
+	struct drm_exec exec;
 	int r, pasid;
 
 	/* Ensure IB tests are run on ring */
@@ -1484,7 +1485,16 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 	if (r)
 		goto error_pasid;
 
+	drm_exec_init(&exec, DRM_EXEC_IGNORE_DUPLICATES, 0);
+	drm_exec_until_all_locked(&exec) {
+		r = amdgpu_vm_lock_pd(&fpriv->vm, &exec, 0);
+		drm_exec_retry_on_contention(&exec);
+		if (unlikely(r))
+			goto error_vm;
+	}
+
 	fpriv->prt_va = amdgpu_vm_bo_add(adev, &fpriv->vm, NULL);
+	drm_exec_fini(&exec);
 	if (!fpriv->prt_va) {
 		r = -ENOMEM;
 		goto error_vm;

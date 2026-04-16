@@ -442,7 +442,7 @@ static int dasd_ioctl_read_profile(struct dasd_block *block, void __user *argp)
 	struct dasd_profile_info_t *data;
 	int rc = 0;
 
-	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	data = kmalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 
@@ -560,7 +560,7 @@ static int dasd_ioctl_information(struct dasd_block *block, void __user *argp,
 	struct dasd_information2_t *dasd_info;
 	int error;
 
-	dasd_info = kzalloc(sizeof(*dasd_info), GFP_KERNEL);
+	dasd_info = kzalloc_obj(*dasd_info);
 	if (!dasd_info)
 		return -ENOMEM;
 

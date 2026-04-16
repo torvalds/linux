@@ -119,7 +119,7 @@ static inline void local_sid_destroy_all(void)
 
 static void *kvmppc_e500_id_table_alloc(struct kvmppc_vcpu_e500 *vcpu_e500)
 {
-	vcpu_e500->idt = kzalloc(sizeof(struct vcpu_id_table), GFP_KERNEL);
+	vcpu_e500->idt = kzalloc_obj(struct vcpu_id_table);
 	return vcpu_e500->idt;
 }
 

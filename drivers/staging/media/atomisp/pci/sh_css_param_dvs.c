@@ -22,8 +22,7 @@ alloc_dvs_6axis_table(const struct ia_css_resolution *frame_res,
 	int err = 0;
 	struct ia_css_dvs_6axis_config  *dvs_config = NULL;
 
-	dvs_config = kvmalloc(sizeof(struct ia_css_dvs_6axis_config),
-			      GFP_KERNEL);
+	dvs_config = kvmalloc_obj(struct ia_css_dvs_6axis_config);
 	if (!dvs_config)	{
 		IA_CSS_ERROR("out of memory");
 		err = -ENOMEM;

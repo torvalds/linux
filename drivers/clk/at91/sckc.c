@@ -132,7 +132,7 @@ at91_clk_register_slow_osc(void __iomem *sckcr,
 	if (!sckcr || !name || !parent_data)
 		return ERR_PTR(-EINVAL);
 
-	osc = kzalloc(sizeof(*osc), GFP_KERNEL);
+	osc = kzalloc_obj(*osc);
 	if (!osc)
 		return ERR_PTR(-ENOMEM);
 
@@ -239,7 +239,7 @@ at91_clk_register_slow_rc_osc(void __iomem *sckcr,
 	if (!sckcr || !name)
 		return ERR_PTR(-EINVAL);
 
-	osc = kzalloc(sizeof(*osc), GFP_KERNEL);
+	osc = kzalloc_obj(*osc);
 	if (!osc)
 		return ERR_PTR(-ENOMEM);
 
@@ -332,7 +332,7 @@ at91_clk_register_sam9x5_slow(void __iomem *sckcr,
 	if (!sckcr || !name || !parent_hws || !num_parents)
 		return ERR_PTR(-EINVAL);
 
-	slowck = kzalloc(sizeof(*slowck), GFP_KERNEL);
+	slowck = kzalloc_obj(*slowck);
 	if (!slowck)
 		return ERR_PTR(-ENOMEM);
 
@@ -502,7 +502,7 @@ static void __init of_sam9x60_sckc_setup(struct device_node *np)
 	if (IS_ERR(slow_osc))
 		goto unregister_slow_rc;
 
-	clk_data = kzalloc(struct_size(clk_data, hws, 2), GFP_KERNEL);
+	clk_data = kzalloc_flex(*clk_data, hws, 2);
 	if (!clk_data)
 		goto unregister_slow_osc;
 
@@ -611,7 +611,7 @@ static void __init of_sama5d4_sckc_setup(struct device_node *np)
 		goto unregister_slow_rc;
 	parent_data.fw_name = xtal_name;
 
-	osc = kzalloc(sizeof(*osc), GFP_KERNEL);
+	osc = kzalloc_obj(*osc);
 	if (!osc)
 		goto unregister_slow_rc;
 

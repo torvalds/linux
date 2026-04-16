@@ -140,7 +140,7 @@ static int plff_init(struct hid_device *hid)
 			return -ENODEV;
 		}
 
-		plff = kzalloc(sizeof(struct plff_device), GFP_KERNEL);
+		plff = kzalloc_obj(struct plff_device);
 		if (!plff)
 			return -ENOMEM;
 

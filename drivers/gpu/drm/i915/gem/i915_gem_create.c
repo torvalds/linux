@@ -54,9 +54,7 @@ static int object_set_placements(struct drm_i915_gem_object *obj,
 		obj->mm.placements = &i915->mm.regions[mr->id];
 		obj->mm.n_placements = 1;
 	} else {
-		arr = kmalloc_array(n_placements,
-				    sizeof(struct intel_memory_region *),
-				    GFP_KERNEL);
+		arr = kmalloc_objs(struct intel_memory_region *, n_placements);
 		if (!arr)
 			return -ENOMEM;
 

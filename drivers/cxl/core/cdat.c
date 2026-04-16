@@ -69,7 +69,7 @@ static int cdat_dsmas_handler(union acpi_subtable_headers *header, void *arg,
 	/* Skip common header */
 	dsmas = (struct acpi_cdat_dsmas *)(hdr + 1);
 
-	dent = kzalloc(sizeof(*dent), GFP_KERNEL);
+	dent = kzalloc_obj(*dent);
 	if (!dent)
 		return -ENOMEM;
 
@@ -669,7 +669,7 @@ static int cxl_endpoint_gather_bandwidth(struct cxl_region *cxlr,
 	perf_ctx = xa_load(usp_xa, index);
 	if (!perf_ctx) {
 		struct cxl_perf_ctx *c __free(kfree) =
-			kzalloc(sizeof(*perf_ctx), GFP_KERNEL);
+			kzalloc_obj(*perf_ctx);
 
 		if (!c)
 			return -ENOMEM;
@@ -756,7 +756,7 @@ static struct xarray *cxl_switch_gather_bandwidth(struct cxl_region *cxlr,
 						  bool *gp_is_root)
 {
 	struct xarray *res_xa __free(free_perf_xa) =
-		kzalloc(sizeof(*res_xa), GFP_KERNEL);
+		kzalloc_obj(*res_xa);
 	struct access_coordinate coords[ACCESS_COORDINATE_MAX];
 	struct cxl_perf_ctx *ctx, *us_ctx;
 	unsigned long index, us_index;
@@ -795,7 +795,7 @@ static struct xarray *cxl_switch_gather_bandwidth(struct cxl_region *cxlr,
 		us_ctx = xa_load(res_xa, us_index);
 		if (!us_ctx) {
 			struct cxl_perf_ctx *n __free(kfree) =
-				kzalloc(sizeof(*n), GFP_KERNEL);
+				kzalloc_obj(*n);
 
 			if (!n)
 				return ERR_PTR(-ENOMEM);
@@ -862,7 +862,7 @@ static struct xarray *cxl_switch_gather_bandwidth(struct cxl_region *cxlr,
 static struct xarray *cxl_rp_gather_bandwidth(struct xarray *xa)
 {
 	struct xarray *hb_xa __free(free_perf_xa) =
-		kzalloc(sizeof(*hb_xa), GFP_KERNEL);
+		kzalloc_obj(*hb_xa);
 	struct cxl_perf_ctx *ctx;
 	unsigned long index;
 
@@ -879,7 +879,7 @@ static struct xarray *cxl_rp_gather_bandwidth(struct xarray *xa)
 		hb_ctx = xa_load(hb_xa, hb_index);
 		if (!hb_ctx) {
 			struct cxl_perf_ctx *n __free(kfree) =
-				kzalloc(sizeof(*n), GFP_KERNEL);
+				kzalloc_obj(*n);
 
 			if (!n)
 				return ERR_PTR(-ENOMEM);
@@ -906,7 +906,7 @@ static struct xarray *cxl_rp_gather_bandwidth(struct xarray *xa)
 static struct xarray *cxl_hb_gather_bandwidth(struct xarray *xa)
 {
 	struct xarray *mw_xa __free(free_perf_xa) =
-		kzalloc(sizeof(*mw_xa), GFP_KERNEL);
+		kzalloc_obj(*mw_xa);
 	struct cxl_perf_ctx *ctx;
 	unsigned long index;
 
@@ -928,7 +928,7 @@ static struct xarray *cxl_hb_gather_bandwidth(struct xarray *xa)
 		mw_ctx = xa_load(mw_xa, mw_index);
 		if (!mw_ctx) {
 			struct cxl_perf_ctx *n __free(kfree) =
-				kzalloc(sizeof(*n), GFP_KERNEL);
+				kzalloc_obj(*n);
 
 			if (!n)
 				return ERR_PTR(-ENOMEM);
@@ -987,7 +987,7 @@ void cxl_region_shared_upstream_bandwidth_update(struct cxl_region *cxlr)
 	lockdep_assert_held(&cxl_rwsem.dpa);
 
 	struct xarray *usp_xa __free(free_perf_xa) =
-		kzalloc(sizeof(*usp_xa), GFP_KERNEL);
+		kzalloc_obj(*usp_xa);
 
 	if (!usp_xa)
 		return;

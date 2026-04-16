@@ -64,7 +64,7 @@ psp_dev_create(struct net_device *netdev,
 		    !psd_ops->get_stats))
 		return ERR_PTR(-EINVAL);
 
-	psd = kzalloc(sizeof(*psd), GFP_KERNEL);
+	psd = kzalloc_obj(*psd);
 	if (!psd)
 		return ERR_PTR(-ENOMEM);
 
@@ -166,9 +166,46 @@ static void psp_write_headers(struct net *net, struct sk_buff *skb, __be32 spi,
 {
 	struct udphdr *uh = udp_hdr(skb);
 	struct psphdr *psph = (struct psphdr *)(uh + 1);
+	const struct sock *sk = skb->sk;
 
 	uh->dest = htons(PSP_DEFAULT_UDP_PORT);
-	uh->source = udp_flow_src_port(net, skb, 0, 0, false);
+
+	/* A bit of theory: Selection of the source port.
+	 *
+	 * We need some entropy, so that multiple flows use different
+	 * source ports for better RSS spreading at the receiver.
+	 *
+	 * We also need that all packets belonging to one TCP flow
+	 * use the same source port through their duration,
+	 * so that all these packets land in the same receive queue.
+	 *
+	 * udp_flow_src_port() is using sk_txhash, inherited from
+	 * skb_set_hash_from_sk() call in __tcp_transmit_skb().
+	 * This field is subject to reshuffling, thanks to
+	 * sk_rethink_txhash() calls in various TCP functions.
+	 *
+	 * Instead, use sk->sk_hash which is constant through
+	 * the whole flow duration.
+	 */
+	if (likely(sk)) {
+		u32 hash = sk->sk_hash;
+		int min, max;
+
+		/* These operations are cheap, no need to cache the result
+		 * in another socket field.
+		 */
+		inet_get_local_port_range(net, &min, &max);
+		/* Since this is being sent on the wire obfuscate hash a bit
+		 * to minimize possibility that any useful information to an
+		 * attacker is leaked. Only upper 16 bits are relevant in the
+		 * computation for 16 bit port value because we use a
+		 * reciprocal divide.
+		 */
+		hash ^= hash << 16;
+		uh->source = htons((((u64)hash * (max - min)) >> 32) + min);
+	} else {
+		uh->source = udp_flow_src_port(net, skb, 0, 0, false);
+	}
 	uh->check = 0;
 	uh->len = htons(udp_len);
 

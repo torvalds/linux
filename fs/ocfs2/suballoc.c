@@ -1034,7 +1034,7 @@ int ocfs2_reserve_new_metadata_blocks(struct ocfs2_super *osb,
 	int status;
 	int slot = ocfs2_get_meta_steal_slot(osb);
 
-	*ac = kzalloc(sizeof(struct ocfs2_alloc_context), GFP_KERNEL);
+	*ac = kzalloc_obj(struct ocfs2_alloc_context);
 	if (!(*ac)) {
 		status = -ENOMEM;
 		mlog_errno(status);
@@ -1105,7 +1105,7 @@ int ocfs2_reserve_new_inode(struct ocfs2_super *osb,
 	int slot = ocfs2_get_inode_steal_slot(osb);
 	u64 alloc_group;
 
-	*ac = kzalloc(sizeof(struct ocfs2_alloc_context), GFP_KERNEL);
+	*ac = kzalloc_obj(struct ocfs2_alloc_context);
 	if (!(*ac)) {
 		status = -ENOMEM;
 		mlog_errno(status);
@@ -1221,7 +1221,7 @@ static int ocfs2_reserve_clusters_with_limit(struct ocfs2_super *osb,
 	int status, ret = 0;
 	int retried = 0;
 
-	*ac = kzalloc(sizeof(struct ocfs2_alloc_context), GFP_KERNEL);
+	*ac = kzalloc_obj(struct ocfs2_alloc_context);
 	if (!(*ac)) {
 		status = -ENOMEM;
 		mlog_errno(status);
@@ -2245,7 +2245,7 @@ int ocfs2_find_new_inode_loc(struct inode *dir,
 	BUG_ON(ac->ac_bits_wanted != 1);
 	BUG_ON(ac->ac_which != OCFS2_AC_USE_INODE);
 
-	res = kzalloc(sizeof(*res), GFP_NOFS);
+	res = kzalloc_obj(*res, GFP_NOFS);
 	if (res == NULL) {
 		ret = -ENOMEM;
 		mlog_errno(ret);

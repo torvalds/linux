@@ -334,7 +334,7 @@ int amdgpu_xcp_mgr_init(struct amdgpu_device *adev, int init_mode,
 	if (!xcp_funcs || !xcp_funcs->get_ip_details)
 		return -EINVAL;
 
-	xcp_mgr = kzalloc(sizeof(*xcp_mgr), GFP_KERNEL);
+	xcp_mgr = kzalloc_obj(*xcp_mgr);
 
 	if (!xcp_mgr)
 		return -ENOMEM;
@@ -907,7 +907,7 @@ static void amdgpu_xcp_cfg_sysfs_init(struct amdgpu_device *adev)
 	if (!adev->xcp_mgr)
 		return;
 
-	xcp_cfg = kzalloc(sizeof(*xcp_cfg), GFP_KERNEL);
+	xcp_cfg = kzalloc_obj(*xcp_cfg);
 	if (!xcp_cfg)
 		return;
 	xcp_cfg->xcp_mgr = adev->xcp_mgr;

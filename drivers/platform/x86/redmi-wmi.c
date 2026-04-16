@@ -20,7 +20,10 @@
 static const struct key_entry redmi_wmi_keymap[] = {
 	{KE_KEY, 0x00000201,	{KEY_SELECTIVE_SCREENSHOT}},
 	{KE_KEY, 0x00000301,	{KEY_ALL_APPLICATIONS}},
-	{KE_KEY, 0x00001b01,	{KEY_SETUP}},
+	{KE_KEY, 0x00001b01,	{KEY_CONFIG}},
+	{KE_KEY, 0x00011b01,	{KEY_CONFIG}},
+	{KE_KEY, 0x00010101,	{KEY_SWITCHVIDEOMODE}},
+	{KE_KEY, 0x00001a01,	{KEY_REFRESH_RATE_TOGGLE}},
 
 	/* AI button has code for each position */
 	{KE_KEY, 0x00011801,	{KEY_ASSISTANT}},
@@ -31,6 +34,26 @@ static const struct key_entry redmi_wmi_keymap[] = {
 	{KE_IGNORE, 0x00800501, {}},
 	{KE_IGNORE, 0x00050501, {}},
 	{KE_IGNORE, 0x000a0501, {}},
+
+	/* Xiaomi G Command Center */
+	{KE_KEY, 0x00010a01,	{KEY_VENDOR}},
+
+	/* OEM preset power mode */
+	{KE_IGNORE, 0x00011601, {}},
+	{KE_IGNORE, 0x00021601, {}},
+	{KE_IGNORE, 0x00031601, {}},
+	{KE_IGNORE, 0x00041601, {}},
+
+	/* Fn Lock state */
+	{KE_IGNORE, 0x00000701, {}},
+	{KE_IGNORE, 0x00010701, {}},
+
+	/* Fn+`/1/2/3/4 */
+	{KE_KEY, 0x00011101, {KEY_F13}},
+	{KE_KEY, 0x00011201, {KEY_F14}},
+	{KE_KEY, 0x00011301, {KEY_F15}},
+	{KE_KEY, 0x00011401, {KEY_F16}},
+	{KE_KEY, 0x00011501, {KEY_F17}},
 
 	{KE_END}
 };

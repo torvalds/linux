@@ -396,7 +396,7 @@ vm_map_ram_test(void)
 	int i;
 
 	map_nr_pages = nr_pages > 0 ? nr_pages:1;
-	pages = kcalloc(map_nr_pages, sizeof(struct page *), GFP_KERNEL);
+	pages = kzalloc_objs(struct page *, map_nr_pages);
 	if (!pages)
 		return -1;
 
@@ -542,7 +542,7 @@ init_test_configuration(void)
 	nr_threads = clamp(nr_threads, 1, (int) USHRT_MAX);
 
 	/* Allocate the space for test instances. */
-	tdriver = kvcalloc(nr_threads, sizeof(*tdriver), GFP_KERNEL);
+	tdriver = kvzalloc_objs(*tdriver, nr_threads);
 	if (tdriver == NULL)
 		return -1;
 

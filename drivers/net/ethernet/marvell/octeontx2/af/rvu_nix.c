@@ -2455,7 +2455,7 @@ static int nix_smq_flush(struct rvu *rvu, int blkaddr,
 	}
 
 	/* XOFF all TL2s whose parent TL1 matches SMQ tree TL1 */
-	smq_flush_ctx = kzalloc(sizeof(*smq_flush_ctx), GFP_KERNEL);
+	smq_flush_ctx = kzalloc_obj(*smq_flush_ctx);
 	if (!smq_flush_ctx)
 		return -ENOMEM;
 	nix_smq_flush_fill_ctx(rvu, blkaddr, smq, smq_flush_ctx);
@@ -3373,7 +3373,7 @@ static int nix_add_mce_list_entry(struct rvu *rvu,
 
 	mce_list = &elem->mcast_mce_list;
 	for (i = 0; i < num_entry; i++) {
-		mce = kzalloc(sizeof(*mce), GFP_KERNEL);
+		mce = kzalloc_obj(*mce);
 		if (!mce)
 			goto free_mce;
 
@@ -3435,7 +3435,7 @@ static int nix_update_mce_list_entry(struct nix_mce_list *mce_list,
 		return 0;
 
 	/* Add a new one to the list, at the tail */
-	mce = kzalloc(sizeof(*mce), GFP_KERNEL);
+	mce = kzalloc_obj(*mce);
 	if (!mce)
 		return -ENOMEM;
 	mce->pcifunc = pcifunc;
@@ -6420,7 +6420,7 @@ int rvu_mbox_handler_nix_mcast_grp_create(struct rvu *rvu,
 		return err;
 
 	mcast_grp = &nix_hw->mcast_grp;
-	elem = kzalloc(sizeof(*elem), GFP_KERNEL);
+	elem = kzalloc_obj(*elem);
 	if (!elem)
 		return -ENOMEM;
 

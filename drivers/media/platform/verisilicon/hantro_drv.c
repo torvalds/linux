@@ -640,7 +640,7 @@ static int hantro_open(struct file *filp)
 	 * helper functions used here.
 	 */
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

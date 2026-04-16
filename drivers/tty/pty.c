@@ -364,8 +364,8 @@ static int pty_common_install(struct tty_driver *driver, struct tty_struct *tty,
 	if (driver->subtype != PTY_TYPE_MASTER)
 		return -EIO;
 
-	ports[0] = kmalloc(sizeof **ports, GFP_KERNEL);
-	ports[1] = kmalloc(sizeof **ports, GFP_KERNEL);
+	ports[0] = kmalloc_obj(**ports);
+	ports[1] = kmalloc_obj(**ports);
 	if (!ports[0] || !ports[1])
 		goto err;
 	if (!try_module_get(driver->other->owner)) {

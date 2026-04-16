@@ -98,7 +98,7 @@ slhc_init(int rslots, int tslots)
 	if (rslots < 0 || rslots > 255 || tslots < 0 || tslots > 255)
 		return ERR_PTR(-EINVAL);
 
-	comp = kzalloc(sizeof(struct slcompress), GFP_KERNEL);
+	comp = kzalloc_obj(struct slcompress);
 	if (! comp)
 		goto out_fail;
 

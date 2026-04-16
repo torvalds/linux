@@ -335,7 +335,7 @@ int add_iaa_compression_mode(const char *name,
 		goto out;
 	}
 
-	mode = kzalloc(sizeof(*mode), GFP_KERNEL);
+	mode = kzalloc_obj(*mode);
 	if (!mode)
 		goto out;
 
@@ -422,7 +422,7 @@ static int init_device_compression_mode(struct iaa_device *iaa_device,
 	struct iaa_device_compression_mode *device_mode;
 	int ret = -ENOMEM;
 
-	device_mode = kzalloc(sizeof(*device_mode), GFP_KERNEL);
+	device_mode = kzalloc_obj(*device_mode);
 	if (!device_mode)
 		return -ENOMEM;
 
@@ -503,7 +503,7 @@ static struct iaa_device *iaa_device_alloc(void)
 {
 	struct iaa_device *iaa_device;
 
-	iaa_device = kzalloc(sizeof(*iaa_device), GFP_KERNEL);
+	iaa_device = kzalloc_obj(*iaa_device);
 	if (!iaa_device)
 		return NULL;
 
@@ -561,7 +561,7 @@ static int add_iaa_wq(struct iaa_device *iaa_device, struct idxd_wq *wq,
 	struct device *dev = &pdev->dev;
 	struct iaa_wq *iaa_wq;
 
-	iaa_wq = kzalloc(sizeof(*iaa_wq), GFP_KERNEL);
+	iaa_wq = kzalloc_obj(*iaa_wq);
 	if (!iaa_wq)
 		return -ENOMEM;
 
@@ -718,7 +718,7 @@ static int alloc_wq_table(int max_wqs)
 
 	for (cpu = 0; cpu < nr_cpus; cpu++) {
 		entry = per_cpu_ptr(wq_table, cpu);
-		entry->wqs = kcalloc(max_wqs, sizeof(*entry->wqs), GFP_KERNEL);
+		entry->wqs = kzalloc_objs(*entry->wqs, max_wqs);
 		if (!entry->wqs) {
 			free_wq_table();
 			return -ENOMEM;

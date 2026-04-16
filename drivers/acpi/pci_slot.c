@@ -104,7 +104,7 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 			return AE_OK;
 	}
 
-	slot = kmalloc(sizeof(*slot), GFP_KERNEL);
+	slot = kmalloc_obj(*slot);
 	if (!slot)
 		return AE_OK;
 

@@ -427,7 +427,7 @@ void drm_sysfb_plane_reset(struct drm_plane *plane)
 	if (plane->state)
 		drm_sysfb_plane_state_destroy(to_drm_sysfb_plane_state(plane->state));
 
-	sysfb_plane_state = kzalloc(sizeof(*sysfb_plane_state), GFP_KERNEL);
+	sysfb_plane_state = kzalloc_obj(*sysfb_plane_state);
 	if (sysfb_plane_state)
 		__drm_gem_reset_shadow_plane(plane, &sysfb_plane_state->base);
 	else
@@ -447,7 +447,7 @@ struct drm_plane_state *drm_sysfb_plane_atomic_duplicate_state(struct drm_plane 
 		return NULL;
 	sysfb_plane_state = to_drm_sysfb_plane_state(plane_state);
 
-	new_sysfb_plane_state = kzalloc(sizeof(*new_sysfb_plane_state), GFP_KERNEL);
+	new_sysfb_plane_state = kzalloc_obj(*new_sysfb_plane_state);
 	if (!new_sysfb_plane_state)
 		return NULL;
 	new_shadow_plane_state = &new_sysfb_plane_state->base;
@@ -523,7 +523,7 @@ void drm_sysfb_crtc_reset(struct drm_crtc *crtc)
 	if (crtc->state)
 		drm_sysfb_crtc_state_destroy(to_drm_sysfb_crtc_state(crtc->state));
 
-	sysfb_crtc_state = kzalloc(sizeof(*sysfb_crtc_state), GFP_KERNEL);
+	sysfb_crtc_state = kzalloc_obj(*sysfb_crtc_state);
 	if (sysfb_crtc_state) {
 		sysfb_crtc_state->format = sysfb->fb_format;
 		__drm_atomic_helper_crtc_reset(crtc, &sysfb_crtc_state->base);
@@ -543,7 +543,7 @@ struct drm_crtc_state *drm_sysfb_crtc_atomic_duplicate_state(struct drm_crtc *cr
 	if (drm_WARN_ON(dev, !crtc_state))
 		return NULL;
 
-	new_sysfb_crtc_state = kzalloc(sizeof(*new_sysfb_crtc_state), GFP_KERNEL);
+	new_sysfb_crtc_state = kzalloc_obj(*new_sysfb_crtc_state);
 	if (!new_sysfb_crtc_state)
 		return NULL;
 

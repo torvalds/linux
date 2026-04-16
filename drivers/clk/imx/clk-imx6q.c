@@ -439,8 +439,7 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 	void __iomem *anatop_base, *base;
 	int ret;
 
-	clk_hw_data = kzalloc(struct_size(clk_hw_data, hws,
-					  IMX6QDL_CLK_END), GFP_KERNEL);
+	clk_hw_data = kzalloc_flex(*clk_hw_data, hws, IMX6QDL_CLK_END);
 	if (WARN_ON(!clk_hw_data))
 		return;
 

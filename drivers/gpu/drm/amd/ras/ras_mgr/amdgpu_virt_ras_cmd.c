@@ -195,7 +195,7 @@ static int amdgpu_virt_ras_get_cper_records(struct ras_core_context *ras_core,
 	if (!req->buf_size || !req->buf_ptr || !req->cper_num)
 		return RAS_CMD__ERROR_INVALID_INPUT_DATA;
 
-	trace = kcalloc(MAX_RECORD_PER_BATCH, sizeof(*trace), GFP_KERNEL);
+	trace = kzalloc_objs(*trace, MAX_RECORD_PER_BATCH);
 	if (!trace)
 		return RAS_CMD__ERROR_GENERIC;
 
@@ -365,7 +365,7 @@ int amdgpu_virt_ras_sw_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras_mgr *ras_mgr = amdgpu_ras_mgr_get_context(adev);
 
-	ras_mgr->virt_ras_cmd = kzalloc(sizeof(struct amdgpu_virt_ras_cmd), GFP_KERNEL);
+	ras_mgr->virt_ras_cmd = kzalloc_obj(struct amdgpu_virt_ras_cmd);
 	if (!ras_mgr->virt_ras_cmd)
 		return -ENOMEM;
 

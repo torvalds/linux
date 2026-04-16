@@ -910,7 +910,7 @@ static struct device_attribute *sysinfo_device_attr_create(int
 	 * attribute array, only for valid return types.
 	 */
 	if (!ret || ret == H_AUTHORITY || ret == H_PARAMETER) {
-		attr = kzalloc(sizeof(*attr), GFP_KERNEL);
+		attr = kzalloc_obj(*attr);
 		if (!attr)
 			return NULL;
 

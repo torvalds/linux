@@ -547,7 +547,7 @@ static int iwl_mvm_mld_alloc_sta_link(struct iwl_mvm *mvm,
 	if (rcu_access_pointer(sta->link[link_id]) == &sta->deflink) {
 		link = &mvm_sta->deflink;
 	} else {
-		link = kzalloc(sizeof(*link), GFP_KERNEL);
+		link = kzalloc_obj(*link);
 		if (!link)
 			return -ENOMEM;
 	}

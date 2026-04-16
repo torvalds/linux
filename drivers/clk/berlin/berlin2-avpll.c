@@ -184,7 +184,7 @@ int __init berlin2_avpll_vco_register(void __iomem *base,
 	struct berlin2_avpll_vco *vco;
 	struct clk_init_data init;
 
-	vco = kzalloc(sizeof(*vco), GFP_KERNEL);
+	vco = kzalloc_obj(*vco);
 	if (!vco)
 		return -ENOMEM;
 
@@ -360,7 +360,7 @@ int __init berlin2_avpll_channel_register(void __iomem *base,
 	struct berlin2_avpll_channel *ch;
 	struct clk_init_data init;
 
-	ch = kzalloc(sizeof(*ch), GFP_KERNEL);
+	ch = kzalloc_obj(*ch);
 	if (!ch)
 		return -ENOMEM;
 

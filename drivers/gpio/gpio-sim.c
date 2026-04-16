@@ -813,7 +813,7 @@ static int gpio_sim_add_hogs(struct gpio_sim_device *dev)
 		return 0;
 
 	/* Allocate one more for the sentinel. */
-	dev->hogs = kcalloc(num_hogs + 1, sizeof(*dev->hogs), GFP_KERNEL);
+	dev->hogs = kzalloc_objs(*dev->hogs, num_hogs + 1);
 	if (!dev->hogs)
 		return -ENOMEM;
 
@@ -1406,7 +1406,7 @@ gpio_sim_line_config_make_hog_item(struct config_group *group, const char *name)
 
 	guard(mutex)(&dev->lock);
 
-	hog = kzalloc(sizeof(*hog), GFP_KERNEL);
+	hog = kzalloc_obj(*hog);
 	if (!hog)
 		return ERR_PTR(-ENOMEM);
 
@@ -1467,7 +1467,7 @@ gpio_sim_bank_config_make_line_group(struct config_group *group,
 	if (gpio_sim_device_is_live(dev))
 		return ERR_PTR(-EBUSY);
 
-	line = kzalloc(sizeof(*line), GFP_KERNEL);
+	line = kzalloc_obj(*line);
 	if (!line)
 		return ERR_PTR(-ENOMEM);
 
@@ -1521,7 +1521,7 @@ gpio_sim_device_config_make_bank_group(struct config_group *group,
 	if (gpio_sim_device_is_live(dev))
 		return ERR_PTR(-EBUSY);
 
-	bank = kzalloc(sizeof(*bank), GFP_KERNEL);
+	bank = kzalloc_obj(*bank);
 	if (!bank)
 		return ERR_PTR(-ENOMEM);
 
@@ -1569,8 +1569,7 @@ gpio_sim_config_make_device_group(struct config_group *group, const char *name)
 {
 	int id;
 
-	struct gpio_sim_device *dev __free(kfree) = kzalloc(sizeof(*dev),
-							    GFP_KERNEL);
+	struct gpio_sim_device *dev __free(kfree) = kzalloc_obj(*dev);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 

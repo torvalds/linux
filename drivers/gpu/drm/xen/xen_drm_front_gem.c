@@ -47,8 +47,7 @@ static int gem_alloc_pages_array(struct xen_gem_object *xen_obj,
 				 size_t buf_size)
 {
 	xen_obj->num_pages = DIV_ROUND_UP(buf_size, PAGE_SIZE);
-	xen_obj->pages = kvmalloc_array(xen_obj->num_pages,
-					sizeof(struct page *), GFP_KERNEL);
+	xen_obj->pages = kvmalloc_objs(struct page *, xen_obj->num_pages);
 	return !xen_obj->pages ? -ENOMEM : 0;
 }
 
@@ -118,7 +117,7 @@ static struct xen_gem_object *gem_create_obj(struct drm_device *dev,
 	struct xen_gem_object *xen_obj;
 	int ret;
 
-	xen_obj = kzalloc(sizeof(*xen_obj), GFP_KERNEL);
+	xen_obj = kzalloc_obj(*xen_obj);
 	if (!xen_obj)
 		return ERR_PTR(-ENOMEM);
 

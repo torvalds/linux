@@ -2769,7 +2769,7 @@ int evergreen_cs_parse(struct radeon_cs_parser *p)
 
 	if (p->track == NULL) {
 		/* initialize tracker, we are in kms */
-		track = kzalloc(sizeof(*track), GFP_KERNEL);
+		track = kzalloc_obj(*track);
 		if (track == NULL)
 			return -ENOMEM;
 		evergreen_cs_track_init(track);

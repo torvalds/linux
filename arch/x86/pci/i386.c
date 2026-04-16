@@ -81,7 +81,7 @@ pcibios_save_fw_addr(struct pci_dev *dev, int idx, resource_size_t fw_addr)
 	map = pcibios_fwaddrmap_lookup(dev);
 	if (!map) {
 		spin_unlock_irqrestore(&pcibios_fwaddrmap_lock, flags);
-		map = kzalloc(sizeof(*map), GFP_KERNEL);
+		map = kzalloc_obj(*map);
 		if (!map)
 			return;
 

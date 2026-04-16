@@ -889,7 +889,7 @@ mountpoint:
 	}
 
 	if (!mp)
-		mp = kmalloc(sizeof(struct mountpoint), GFP_KERNEL);
+		mp = kmalloc_obj(struct mountpoint);
 	if (!mp)
 		return -ENOMEM;
 
@@ -1531,23 +1531,33 @@ static struct mount *mnt_find_id_at_reverse(struct mnt_namespace *ns, u64 mnt_id
 static void *m_start(struct seq_file *m, loff_t *pos)
 {
 	struct proc_mounts *p = m->private;
+	struct mount *mnt;
 
 	down_read(&namespace_sem);
 
-	return mnt_find_id_at(p->ns, *pos);
+	mnt = mnt_find_id_at(p->ns, *pos);
+	if (mnt)
+		*pos = mnt->mnt_id_unique;
+	return mnt;
 }
 
 static void *m_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	struct mount *next = NULL, *mnt = v;
+	struct mount *mnt = v;
 	struct rb_node *node = rb_next(&mnt->mnt_node);
 
-	++*pos;
 	if (node) {
-		next = node_to_mount(node);
+		struct mount *next = node_to_mount(node);
 		*pos = next->mnt_id_unique;
+		return next;
 	}
-	return next;
+
+	/*
+	 * No more mounts. Set pos past current mount's ID so that if
+	 * iteration restarts, mnt_find_id_at() returns NULL.
+	 */
+	*pos = mnt->mnt_id_unique + 1;
+	return NULL;
 }
 
 static void m_stop(struct seq_file *m, void *v)
@@ -2226,7 +2236,7 @@ static inline bool extend_array(struct path **res, struct path **to_free,
 
 	if (likely(n < *count))
 		return true;
-	p = kmalloc_array(new_count, sizeof(struct path), GFP_KERNEL);
+	p = kmalloc_objs(struct path, new_count);
 	if (p && *count)
 		memcpy(p, *res, *count * sizeof(struct path));
 	*count = new_count;
@@ -2791,7 +2801,8 @@ static inline void unlock_mount(struct pinned_mountpoint *m)
 }
 
 static void lock_mount_exact(const struct path *path,
-			     struct pinned_mountpoint *mp);
+			     struct pinned_mountpoint *mp, bool copy_mount,
+			     unsigned int copy_flags);
 
 #define LOCK_MOUNT_MAYBE_BENEATH(mp, path, beneath) \
 	struct pinned_mountpoint mp __cleanup(unlock_mount) = {}; \
@@ -2799,7 +2810,10 @@ static void lock_mount_exact(const struct path *path,
 #define LOCK_MOUNT(mp, path) LOCK_MOUNT_MAYBE_BENEATH(mp, (path), false)
 #define LOCK_MOUNT_EXACT(mp, path) \
 	struct pinned_mountpoint mp __cleanup(unlock_mount) = {}; \
-	lock_mount_exact((path), &mp)
+	lock_mount_exact((path), &mp, false, 0)
+#define LOCK_MOUNT_EXACT_COPY(mp, path, copy_flags) \
+	struct pinned_mountpoint mp __cleanup(unlock_mount) = {}; \
+	lock_mount_exact((path), &mp, true, (copy_flags))
 
 static int graft_tree(struct mount *mnt, const struct pinned_mountpoint *mp)
 {
@@ -3073,16 +3087,13 @@ static struct file *open_detached_copy(struct path *path, unsigned int flags)
 	return file;
 }
 
-DEFINE_FREE(put_empty_mnt_ns, struct mnt_namespace *,
-	    if (!IS_ERR_OR_NULL(_T)) free_mnt_ns(_T))
-
 static struct mnt_namespace *create_new_namespace(struct path *path, unsigned int flags)
 {
-	struct mnt_namespace *new_ns __free(put_empty_mnt_ns) = NULL;
-	struct path to_path __free(path_put) = {};
 	struct mnt_namespace *ns = current->nsproxy->mnt_ns;
 	struct user_namespace *user_ns = current_user_ns();
-	struct mount *new_ns_root;
+	struct mnt_namespace *new_ns;
+	struct mount *new_ns_root, *old_ns_root;
+	struct path to_path;
 	struct mount *mnt;
 	unsigned int copy_flags = 0;
 	bool locked = false;
@@ -3094,71 +3105,63 @@ static struct mnt_namespace *create_new_namespace(struct path *path, unsigned in
 	if (IS_ERR(new_ns))
 		return ERR_CAST(new_ns);
 
-	scoped_guard(namespace_excl) {
-		new_ns_root = clone_mnt(ns->root, ns->root->mnt.mnt_root, copy_flags);
-		if (IS_ERR(new_ns_root))
-			return ERR_CAST(new_ns_root);
+	old_ns_root = ns->root;
+	to_path.mnt = &old_ns_root->mnt;
+	to_path.dentry = old_ns_root->mnt.mnt_root;
 
-		/*
-		 * If the real rootfs had a locked mount on top of it somewhere
-		 * in the stack, lock the new mount tree as well so it can't be
-		 * exposed.
-		 */
-		mnt = ns->root;
-		while (mnt->overmount) {
-			mnt = mnt->overmount;
-			if (mnt->mnt.mnt_flags & MNT_LOCKED)
-				locked = true;
-		}
+	VFS_WARN_ON_ONCE(old_ns_root->mnt.mnt_sb->s_type != &nullfs_fs_type);
+
+	LOCK_MOUNT_EXACT_COPY(mp, &to_path, copy_flags);
+	if (IS_ERR(mp.parent)) {
+		free_mnt_ns(new_ns);
+		return ERR_CAST(mp.parent);
+	}
+	new_ns_root = mp.parent;
+
+	/*
+	 * If the real rootfs had a locked mount on top of it somewhere
+	 * in the stack, lock the new mount tree as well so it can't be
+	 * exposed.
+	 */
+	mnt = old_ns_root;
+	while (mnt->overmount) {
+		mnt = mnt->overmount;
+		if (mnt->mnt.mnt_flags & MNT_LOCKED)
+			locked = true;
 	}
 
 	/*
-	 * We dropped the namespace semaphore so we can actually lock
-	 * the copy for mounting. The copied mount isn't attached to any
-	 * mount namespace and it is thus excluded from any propagation.
-	 * So realistically we're isolated and the mount can't be
-	 * overmounted.
-	 */
-
-	/* Borrow the reference from clone_mnt(). */
-	to_path.mnt = &new_ns_root->mnt;
-	to_path.dentry = dget(new_ns_root->mnt.mnt_root);
-
-	/* Now lock for actual mounting. */
-	LOCK_MOUNT_EXACT(mp, &to_path);
-	if (unlikely(IS_ERR(mp.parent)))
-		return ERR_CAST(mp.parent);
-
-	/*
-	 * We don't emulate unshare()ing a mount namespace. We stick to the
-	 * restrictions of creating detached bind-mounts. It has a lot
-	 * saner and simpler semantics.
+	 * We don't emulate unshare()ing a mount namespace. We stick
+	 * to the restrictions of creating detached bind-mounts. It
+	 * has a lot saner and simpler semantics.
 	 */
 	mnt = __do_loopback(path, flags, copy_flags);
-	if (IS_ERR(mnt))
-		return ERR_CAST(mnt);
-
 	scoped_guard(mount_writer) {
+		if (IS_ERR(mnt)) {
+			emptied_ns = new_ns;
+			umount_tree(new_ns_root, 0);
+			return ERR_CAST(mnt);
+		}
+
 		if (locked)
 			mnt->mnt.mnt_flags |= MNT_LOCKED;
 		/*
-		 * Now mount the detached tree on top of the copy of the
-		 * real rootfs we created.
+		 * now mount the detached tree on top of the copy
+		 * of the real rootfs we created.
 		 */
 		attach_mnt(mnt, new_ns_root, mp.mp);
 		if (user_ns != ns->user_ns)
 			lock_mnt_tree(new_ns_root);
 	}
 
-	/* Add all mounts to the new namespace. */
-	for (struct mount *p = new_ns_root; p; p = next_mnt(p, new_ns_root)) {
-		mnt_add_to_ns(new_ns, p);
+	for (mnt = new_ns_root; mnt; mnt = next_mnt(mnt, new_ns_root)) {
+		mnt_add_to_ns(new_ns, mnt);
 		new_ns->nr_mounts++;
 	}
 
-	new_ns->root = real_mount(no_free_ptr(to_path.mnt));
+	new_ns->root = new_ns_root;
 	ns_tree_add_raw(new_ns);
-	return no_free_ptr(new_ns);
+	return new_ns;
 }
 
 static struct file *open_new_namespace(struct path *path, unsigned int flags)
@@ -3840,16 +3843,20 @@ static int do_new_mount(const struct path *path, const char *fstype,
 }
 
 static void lock_mount_exact(const struct path *path,
-			     struct pinned_mountpoint *mp)
+			     struct pinned_mountpoint *mp, bool copy_mount,
+			     unsigned int copy_flags)
 {
 	struct dentry *dentry = path->dentry;
 	int err;
+
+	/* Assert that inode_lock() locked the correct inode. */
+	VFS_WARN_ON_ONCE(copy_mount && !path_mounted(path));
 
 	inode_lock(dentry->d_inode);
 	namespace_lock();
 	if (unlikely(cant_mount(dentry)))
 		err = -ENOENT;
-	else if (path_overmounted(path))
+	else if (!copy_mount && path_overmounted(path))
 		err = -EBUSY;
 	else
 		err = get_mountpoint(dentry, mp);
@@ -3857,9 +3864,15 @@ static void lock_mount_exact(const struct path *path,
 		namespace_unlock();
 		inode_unlock(dentry->d_inode);
 		mp->parent = ERR_PTR(err);
-	} else {
-		mp->parent = real_mount(path->mnt);
+		return;
 	}
+
+	if (copy_mount)
+		mp->parent = clone_mnt(real_mount(path->mnt), dentry, copy_flags);
+	else
+		mp->parent = real_mount(path->mnt);
+	if (unlikely(IS_ERR(mp->parent)))
+		__unlock_mount(mp);
 }
 
 int finish_automount(struct vfsmount *__m, const struct path *path)
@@ -4187,7 +4200,7 @@ static struct mnt_namespace *alloc_mnt_ns(struct user_namespace *user_ns, bool a
 	if (!ucounts)
 		return ERR_PTR(-ENOSPC);
 
-	new_ns = kzalloc(sizeof(struct mnt_namespace), GFP_KERNEL_ACCOUNT);
+	new_ns = kzalloc_obj(struct mnt_namespace, GFP_KERNEL_ACCOUNT);
 	if (!new_ns) {
 		dec_mnt_namespaces(ucounts);
 		return ERR_PTR(-ENOMEM);
@@ -5678,6 +5691,8 @@ static int do_statmount(struct kstatmount *s, u64 mnt_id, u64 mnt_ns_id,
 
 		s->mnt = mnt_file->f_path.mnt;
 		ns = real_mount(s->mnt)->mnt_ns;
+		if (IS_ERR(ns))
+			return PTR_ERR(ns);
 		if (!ns)
 			/*
 			 * We can't set mount point and mnt_ns_id since we don't have a

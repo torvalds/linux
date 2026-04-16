@@ -506,7 +506,7 @@ int q6asm_map_memory_regions(unsigned int dir, struct audio_client *ac,
 		return 0;
 	}
 
-	buf = kcalloc(periods, sizeof(*buf), GFP_ATOMIC);
+	buf = kzalloc_objs(*buf, periods, GFP_ATOMIC);
 	if (!buf) {
 		spin_unlock_irqrestore(&ac->lock, flags);
 		return -ENOMEM;
@@ -850,7 +850,7 @@ struct audio_client *q6asm_audio_client_alloc(struct device *dev, q6asm_cb cb,
 		return ac;
 	}
 
-	ac = kzalloc(sizeof(*ac), GFP_KERNEL);
+	ac = kzalloc_obj(*ac);
 	if (!ac)
 		return ERR_PTR(-ENOMEM);
 

@@ -119,7 +119,7 @@ nvkm_therm_sensor_event(struct nvkm_therm *therm, enum nvkm_therm_thrs thrs,
 		if (active) {
 			struct work_struct *work;
 
-			work = kmalloc(sizeof(*work), GFP_ATOMIC);
+			work = kmalloc_obj(*work, GFP_ATOMIC);
 			if (work) {
 				INIT_WORK(work, nv_poweroff_work);
 				schedule_work(work);

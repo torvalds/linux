@@ -113,6 +113,7 @@ vmlinux-objs-$(CONFIG_EFI_SBAT) += $(obj)/sbat.o
 
 ifdef CONFIG_EFI_SBAT
 $(obj)/sbat.o: $(CONFIG_EFI_SBAT_FILE)
+AFLAGS_sbat.o += -I $(srctree)
 endif
 
 $(obj)/vmlinux: $(vmlinux-objs-y) $(vmlinux-libs-y) FORCE

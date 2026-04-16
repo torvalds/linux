@@ -2011,7 +2011,7 @@ void rtl_collect_scan_list(struct ieee80211_hw *hw, struct sk_buff *skb)
 	}
 
 	if (!entry) {
-		entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
+		entry = kmalloc_obj(*entry, GFP_ATOMIC);
 
 		if (!entry)
 			goto label_err;

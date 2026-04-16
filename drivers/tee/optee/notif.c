@@ -38,7 +38,7 @@ int optee_notif_wait(struct optee *optee, u_int key, u32 timeout)
 	if (key > optee->notif.max_key)
 		return -EINVAL;
 
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kmalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 	init_completion(&entry->c);

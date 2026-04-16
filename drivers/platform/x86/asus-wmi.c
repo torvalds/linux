@@ -5014,7 +5014,7 @@ static int asus_wmi_add(struct platform_device *pdev)
 	int err;
 	u32 result;
 
-	asus = kzalloc(sizeof(struct asus_wmi), GFP_KERNEL);
+	asus = kzalloc_obj(struct asus_wmi);
 	if (!asus)
 		return -ENOMEM;
 

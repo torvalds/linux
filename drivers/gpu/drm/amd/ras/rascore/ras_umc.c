@@ -199,7 +199,7 @@ int ras_umc_log_bad_bank_pending(struct ras_core_context *ras_core, struct ras_b
 	struct ras_umc *ras_umc = &ras_core->ras_umc;
 	struct ras_bank_ecc_node *ecc_node;
 
-	ecc_node = kzalloc(sizeof(*ecc_node), GFP_KERNEL);
+	ecc_node = kzalloc_obj(*ecc_node);
 	if (!ecc_node)
 		return -ENOMEM;
 
@@ -246,7 +246,7 @@ int ras_umc_log_bad_bank(struct ras_core_context *ras_core, struct ras_bank_ecc 
 	if (ret)
 		goto out;
 
-	err_rec = kzalloc(sizeof(*err_rec), GFP_KERNEL);
+	err_rec = kzalloc_obj(*err_rec);
 	if (!err_rec) {
 		ret = -ENOMEM;
 		goto out;
@@ -454,7 +454,7 @@ int ras_umc_load_bad_pages(struct ras_core_context *ras_core)
 	    ras_core->ras_eeprom.record_threshold_config == DISABLE_RETIRE_PAGE)
 		return 0;
 
-	bps = kcalloc(ras_num_recs, sizeof(*bps), GFP_KERNEL);
+	bps = kzalloc_objs(*bps, ras_num_recs);
 	if (!bps)
 		return -ENOMEM;
 
@@ -512,8 +512,7 @@ int ras_umc_handle_bad_pages(struct ras_core_context *ras_core, void *data)
 	struct eeprom_umc_record *records;
 	int count, ret;
 
-	records = kcalloc(MAX_ECC_NUM_PER_RETIREMENT,
-			  sizeof(*records), GFP_KERNEL);
+	records = kzalloc_objs(*records, MAX_ECC_NUM_PER_RETIREMENT);
 	if (!records)
 		return -ENOMEM;
 

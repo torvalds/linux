@@ -47,7 +47,7 @@ static struct i915_sw_fence *alloc_fence(void)
 {
 	struct i915_sw_fence *fence;
 
-	fence = kmalloc(sizeof(*fence), GFP_KERNEL);
+	fence = kmalloc_obj(*fence);
 	if (!fence)
 		return NULL;
 
@@ -454,7 +454,7 @@ static int test_chain(void *arg)
 	int ret, i;
 
 	/* Test a long chain of fences */
-	fences = kmalloc_array(nfences, sizeof(*fences), GFP_KERNEL);
+	fences = kmalloc_objs(*fences, nfences);
 	if (!fences)
 		return -ENOMEM;
 
@@ -639,7 +639,7 @@ static struct dma_fence *alloc_dma_fence(void)
 {
 	struct dma_fence *dma;
 
-	dma = kmalloc(sizeof(*dma), GFP_KERNEL);
+	dma = kmalloc_obj(*dma);
 	if (dma)
 		dma_fence_init(dma, &mock_fence_ops, &mock_fence_lock, 0, 0);
 

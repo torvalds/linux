@@ -52,7 +52,7 @@ static int mthca_update_rate(struct mthca_dev *dev, u8 port_num)
 	struct ib_port_attr *tprops = NULL;
 	int                  ret;
 
-	tprops = kmalloc(sizeof *tprops, GFP_KERNEL);
+	tprops = kmalloc_obj(*tprops);
 	if (!tprops)
 		return -ENOMEM;
 

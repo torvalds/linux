@@ -164,7 +164,7 @@ void *ipu6_dma_alloc(struct ipu6_bus_device *sys, size_t size,
 	unsigned int i;
 	int ret;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return NULL;
 

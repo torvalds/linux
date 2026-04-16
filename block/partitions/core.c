@@ -94,7 +94,7 @@ static struct parsed_partitions *allocate_partitions(struct gendisk *hd)
 	struct parsed_partitions *state;
 	int nr = DISK_MAX_PARTS;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state)
 		return NULL;
 

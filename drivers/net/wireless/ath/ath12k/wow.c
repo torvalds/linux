@@ -395,7 +395,7 @@ static int ath12k_wow_vif_set_wakeups(struct ath12k_link_vif *arvif,
 			struct wmi_pno_scan_req_arg *pno;
 			int ret;
 
-			pno = kzalloc(sizeof(*pno), GFP_KERNEL);
+			pno = kzalloc_obj(*pno);
 			if (!pno)
 				return -ENOMEM;
 
@@ -507,7 +507,7 @@ static int ath12k_wow_vdev_clean_nlo(struct ath12k *ar, u32 vdev_id)
 	if (!ar->nlo_enabled)
 		return 0;
 
-	pno = kzalloc(sizeof(*pno), GFP_KERNEL);
+	pno = kzalloc_obj(*pno);
 	if (!pno)
 		return -ENOMEM;
 
@@ -748,7 +748,7 @@ static int ath12k_wow_arp_ns_offload(struct ath12k *ar, bool enable)
 
 	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
-	offload = kmalloc(sizeof(*offload), GFP_KERNEL);
+	offload = kmalloc_obj(*offload);
 	if (!offload)
 		return -ENOMEM;
 

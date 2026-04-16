@@ -1272,7 +1272,7 @@ pvr_fw_object_create_and_map_common(struct pvr_device *pvr_dev, size_t size,
 	/* %DRM_PVR_BO_PM_FW_PROTECT is implicit for FW objects. */
 	flags |= DRM_PVR_BO_PM_FW_PROTECT;
 
-	fw_obj = kzalloc(sizeof(*fw_obj), GFP_KERNEL);
+	fw_obj = kzalloc_obj(*fw_obj);
 	if (!fw_obj)
 		return ERR_PTR(-ENOMEM);
 

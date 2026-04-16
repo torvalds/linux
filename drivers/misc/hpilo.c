@@ -570,7 +570,7 @@ static int ilo_open(struct inode *ip, struct file *fp)
 	hw = container_of(ip->i_cdev, struct ilo_hwinfo, cdev);
 
 	/* new ccb allocation */
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 
@@ -798,7 +798,7 @@ static int ilo_probe(struct pci_dev *pdev,
 
 	/* track global allocations for this device */
 	error = -ENOMEM;
-	ilo_hw = kzalloc(sizeof(*ilo_hw), GFP_KERNEL);
+	ilo_hw = kzalloc_obj(*ilo_hw);
 	if (!ilo_hw)
 		goto out;
 

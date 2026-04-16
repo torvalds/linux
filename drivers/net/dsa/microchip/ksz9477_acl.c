@@ -1060,7 +1060,7 @@ int ksz9477_port_acl_init(struct ksz_device *dev, int port)
 	struct ksz9477_acl_priv *acl;
 	int ret, i;
 
-	acl = kzalloc(sizeof(*acl), GFP_KERNEL);
+	acl = kzalloc_obj(*acl);
 	if (!acl)
 		return -ENOMEM;
 

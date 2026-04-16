@@ -174,7 +174,7 @@ static struct gnss_serial *ice_gnss_struct_init(struct ice_pf *pf)
 	struct kthread_worker *kworker;
 	struct gnss_serial *gnss;
 
-	gnss = kzalloc(sizeof(*gnss), GFP_KERNEL);
+	gnss = kzalloc_obj(*gnss);
 	if (!gnss)
 		return NULL;
 

@@ -1055,7 +1055,7 @@ mt7615_mac_queue_rate_update(struct mt7615_phy *phy, struct mt7615_sta *sta,
 	if (work_pending(&dev->rate_work))
 		return -EBUSY;
 
-	wrd = kzalloc(sizeof(*wrd), GFP_ATOMIC);
+	wrd = kzalloc_obj(*wrd, GFP_ATOMIC);
 	if (!wrd)
 		return -ENOMEM;
 

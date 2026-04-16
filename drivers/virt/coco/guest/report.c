@@ -428,7 +428,7 @@ static struct config_item *tsm_report_make_item(struct config_group *group,
 	if (!provider.ops)
 		return ERR_PTR(-ENXIO);
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state)
 		return ERR_PTR(-ENOMEM);
 

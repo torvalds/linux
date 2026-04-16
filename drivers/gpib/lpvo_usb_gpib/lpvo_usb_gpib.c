@@ -38,8 +38,10 @@ MODULE_DESCRIPTION("GPIB driver for LPVO usb devices");
 /*
  * Table of devices that work with this driver.
  *
- * Currently, only one device is known to be used in the
- * lpvo_usb_gpib adapter (FTDI 0403:6001).
+ * Currently, only one device is known to be used in the lpvo_usb_gpib
+ * adapter (FTDI 0403:6001) but as this device id is already handled by the
+ * ftdi_sio USB serial driver the LPVO driver must not bind to it by default.
+ *
  * If your adapter uses a different chip, insert a line
  * in the following table with proper <Vendor-id>, <Product-id>.
  *
@@ -50,7 +52,6 @@ MODULE_DESCRIPTION("GPIB driver for LPVO usb devices");
  */
 
 static const struct usb_device_id skel_table[] = {
-	{ USB_DEVICE(0x0403, 0x6001) },
 	{ }					   /* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, skel_table);
@@ -440,7 +441,7 @@ static int usb_gpib_attach(struct gpib_board *board, const struct gpib_board_con
 		return -EIO;
 	}
 
-	board->private_data = kzalloc(sizeof(struct usb_gpib_priv), GFP_KERNEL);
+	board->private_data = kzalloc_obj(struct usb_gpib_priv);
 	if (!board->private_data)
 		return -ENOMEM;
 
@@ -1864,7 +1865,7 @@ static int skel_probe(struct usb_interface *interface,
 	mutex_init(&minors_lock);   /* required for handling minor numbers table */
 
 	/* allocate memory for our device state and initialize it */
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return -ENOMEM;
 

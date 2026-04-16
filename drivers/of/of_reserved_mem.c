@@ -646,7 +646,7 @@ int of_reserved_mem_device_init_by_idx(struct device *dev,
 	if (!rmem || !rmem->ops || !rmem->ops->device_init)
 		return -EINVAL;
 
-	rd = kmalloc(sizeof(struct rmem_assigned_device), GFP_KERNEL);
+	rd = kmalloc_obj(struct rmem_assigned_device);
 	if (!rd)
 		return -ENOMEM;
 

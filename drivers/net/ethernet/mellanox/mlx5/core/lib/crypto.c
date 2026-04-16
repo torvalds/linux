@@ -293,7 +293,7 @@ mlx5_crypto_dek_bulk_create(struct mlx5_crypto_dek_pool *pool)
 	int num_deks, base_obj_id;
 	int err;
 
-	bulk = kzalloc(sizeof(*bulk), GFP_KERNEL);
+	bulk = kzalloc_obj(*bulk);
 	if (!bulk)
 		return ERR_PTR(-ENOMEM);
 
@@ -611,7 +611,7 @@ struct mlx5_crypto_dek *mlx5_crypto_dek_create(struct mlx5_crypto_dek_pool *dek_
 	int obj_offset;
 	int err;
 
-	dek = kzalloc(sizeof(*dek), GFP_KERNEL);
+	dek = kzalloc_obj(*dek);
 	if (!dek)
 		return ERR_PTR(-ENOMEM);
 
@@ -683,7 +683,7 @@ mlx5_crypto_dek_pool_create(struct mlx5_core_dev *mdev, int key_purpose)
 {
 	struct mlx5_crypto_dek_pool *pool;
 
-	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+	pool = kzalloc_obj(*pool);
 	if (!pool)
 		return ERR_PTR(-ENOMEM);
 
@@ -748,7 +748,7 @@ struct mlx5_crypto_dek_priv *mlx5_crypto_dek_init(struct mlx5_core_dev *mdev)
 	if (!MLX5_CAP_CRYPTO(mdev, log_dek_max_alloc))
 		return NULL;
 
-	dek_priv = kzalloc(sizeof(*dek_priv), GFP_KERNEL);
+	dek_priv = kzalloc_obj(*dek_priv);
 	if (!dek_priv)
 		return ERR_PTR(-ENOMEM);
 

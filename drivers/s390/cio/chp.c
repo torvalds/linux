@@ -530,7 +530,7 @@ int chp_new(struct chp_id chpid)
 	if (chp_is_registered(chpid))
 		goto out;
 
-	chp = kzalloc(sizeof(struct channel_path), GFP_KERNEL);
+	chp = kzalloc_obj(struct channel_path);
 	if (!chp) {
 		ret = -ENOMEM;
 		goto out;
@@ -593,7 +593,7 @@ struct channel_path_desc_fmt0 *chp_get_chp_desc(struct chp_id chpid)
 	chp = chpid_to_chp(chpid);
 	if (!chp)
 		return NULL;
-	desc = kmalloc(sizeof(*desc), GFP_KERNEL);
+	desc = kmalloc_obj(*desc);
 	if (!desc)
 		return NULL;
 

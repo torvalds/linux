@@ -141,7 +141,7 @@ static int cobra_connect(struct gameport *gameport, struct gameport_driver *drv)
 	int i, j;
 	int err;
 
-	cobra = kzalloc(sizeof(*cobra), GFP_KERNEL);
+	cobra = kzalloc_obj(*cobra);
 	if (!cobra)
 		return -ENOMEM;
 

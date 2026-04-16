@@ -326,7 +326,7 @@ static void qcomtee_user_object_release(struct qcomtee_object *object)
 	if (!uo->notify)
 		goto out_no_notify;
 
-	ureq = kzalloc(sizeof(*ureq), GFP_KERNEL);
+	ureq = kzalloc_obj(*ureq);
 	if (!ureq)
 		goto out_no_notify;
 
@@ -370,7 +370,7 @@ int qcomtee_user_param_to_object(struct qcomtee_object **object,
 	int err;
 
 	struct qcomtee_user_object *user_object __free(kfree) =
-		kzalloc(sizeof(*user_object), GFP_KERNEL);
+		kzalloc_obj(*user_object);
 	if (!user_object)
 		return -ENOMEM;
 

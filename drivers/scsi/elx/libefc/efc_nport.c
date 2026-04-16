@@ -82,7 +82,7 @@ efc_nport_alloc(struct efc_domain *domain, uint64_t wwpn, uint64_t wwnn,
 		}
 	}
 
-	nport = kzalloc(sizeof(*nport), GFP_ATOMIC);
+	nport = kzalloc_obj(*nport, GFP_ATOMIC);
 	if (!nport)
 		return nport;
 
@@ -756,7 +756,7 @@ efc_vport_create_spec(struct efc *efc, uint64_t wwnn, uint64_t wwpn,
 		}
 	}
 
-	vport = kzalloc(sizeof(*vport), GFP_ATOMIC);
+	vport = kzalloc_obj(*vport, GFP_ATOMIC);
 	if (!vport) {
 		spin_unlock_irqrestore(&efc->vport_lock, flags);
 		return NULL;

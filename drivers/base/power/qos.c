@@ -198,11 +198,11 @@ static int dev_pm_qos_constraints_allocate(struct device *dev)
 	struct pm_qos_constraints *c;
 	struct blocking_notifier_head *n;
 
-	qos = kzalloc(sizeof(*qos), GFP_KERNEL);
+	qos = kzalloc_obj(*qos);
 	if (!qos)
 		return -ENOMEM;
 
-	n = kcalloc(3, sizeof(*n), GFP_KERNEL);
+	n = kzalloc_objs(*n, 3);
 	if (!n) {
 		kfree(qos);
 		return -ENOMEM;
@@ -704,7 +704,7 @@ int dev_pm_qos_expose_latency_limit(struct device *dev, s32 value)
 	if (!device_is_registered(dev) || value < 0)
 		return -EINVAL;
 
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req)
 		return -ENOMEM;
 
@@ -780,7 +780,7 @@ int dev_pm_qos_expose_flags(struct device *dev, s32 val)
 	if (!device_is_registered(dev))
 		return -EINVAL;
 
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req)
 		return -ENOMEM;
 
@@ -919,7 +919,7 @@ int dev_pm_qos_update_user_latency_tolerance(struct device *dev, s32 val)
 				ret = -EINVAL;
 			goto out;
 		}
-		req = kzalloc(sizeof(*req), GFP_KERNEL);
+		req = kzalloc_obj(*req);
 		if (!req) {
 			ret = -ENOMEM;
 			goto out;

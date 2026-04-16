@@ -120,7 +120,7 @@ static int i40iw_open(struct i40e_info *cdev_info, struct i40e_client *client)
 	if (!iwdev)
 		return -ENOMEM;
 
-	iwdev->rf = kzalloc(sizeof(*rf), GFP_KERNEL);
+	iwdev->rf = kzalloc_obj(*rf);
 	if (!iwdev->rf) {
 		ib_dealloc_device(&iwdev->ibdev);
 		return -ENOMEM;

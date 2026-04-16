@@ -19,7 +19,7 @@ struct icc_node_data *qcom_icc_xlate_extended(const struct of_phandle_args *spec
 	if (IS_ERR(node))
 		return ERR_CAST(node);
 
-	ndata = kzalloc(sizeof(*ndata), GFP_KERNEL);
+	ndata = kzalloc_obj(*ndata);
 	if (!ndata)
 		return ERR_PTR(-ENOMEM);
 

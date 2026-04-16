@@ -163,7 +163,7 @@ struct nfp_nffw_info *nfp_nffw_info_open(struct nfp_cpp *cpp)
 	u32 info_ver;
 	int err;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state)
 		return ERR_PTR(-ENOMEM);
 

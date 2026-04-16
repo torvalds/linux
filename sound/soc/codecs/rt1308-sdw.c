@@ -739,11 +739,9 @@ static int rt1308_sdw_probe(struct sdw_slave *slave,
 	return rt1308_sdw_init(&slave->dev, regmap, slave);
 }
 
-static int rt1308_sdw_remove(struct sdw_slave *slave)
+static void rt1308_sdw_remove(struct sdw_slave *slave)
 {
 	pm_runtime_disable(&slave->dev);
-
-	return 0;
 }
 
 static const struct sdw_device_id rt1308_id[] = {

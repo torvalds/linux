@@ -1149,7 +1149,7 @@ static int amdgpu_discovery_sysfs_ips(struct amdgpu_device *adev,
 			 * block if not yet registered.
 			 */
 			if (!ip_hw_id) {
-				ip_hw_id = kzalloc(sizeof(*ip_hw_id), GFP_KERNEL);
+				ip_hw_id = kzalloc_obj(*ip_hw_id);
 				if (!ip_hw_id)
 					return -ENOMEM;
 				ip_hw_id->hw_id = ii;
@@ -1177,10 +1177,9 @@ static int amdgpu_discovery_sysfs_ips(struct amdgpu_device *adev,
 
 			/* Now register its instance.
 			 */
-			ip_hw_instance = kzalloc(struct_size(ip_hw_instance,
-							     base_addr,
-							     ip->num_base_address),
-						 GFP_KERNEL);
+			ip_hw_instance = kzalloc_flex(*ip_hw_instance,
+						      base_addr,
+						      ip->num_base_address);
 			if (!ip_hw_instance) {
 				DRM_ERROR("no memory for ip_hw_instance");
 				return -ENOMEM;
@@ -1255,7 +1254,7 @@ static int amdgpu_discovery_sysfs_recurse(struct amdgpu_device *adev)
 		 * amdgpu_discovery_reg_base_init().
 		 */
 
-		ip_die_entry = kzalloc(sizeof(*ip_die_entry), GFP_KERNEL);
+		ip_die_entry = kzalloc_obj(*ip_die_entry);
 		if (!ip_die_entry)
 			return -ENOMEM;
 
@@ -1287,7 +1286,7 @@ static int amdgpu_discovery_sysfs_init(struct amdgpu_device *adev)
 	if (!discovery_bin)
 		return -EINVAL;
 
-	ip_top = kzalloc(sizeof(*ip_top), GFP_KERNEL);
+	ip_top = kzalloc_obj(*ip_top);
 	if (!ip_top)
 		return -ENOMEM;
 
@@ -1931,9 +1930,7 @@ int amdgpu_discovery_get_nps_info(struct amdgpu_device *adev,
 
 	switch (le16_to_cpu(nps_info->v1.header.version_major)) {
 	case 1:
-		mem_ranges = kvcalloc(nps_info->v1.count,
-				      sizeof(*mem_ranges),
-				      GFP_KERNEL);
+		mem_ranges = kvzalloc_objs(*mem_ranges, nps_info->v1.count);
 		if (!mem_ranges)
 			return -ENOMEM;
 		*nps_type = nps_info->v1.nps_type;
@@ -2164,6 +2161,7 @@ static int amdgpu_discovery_set_psp_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(13, 0, 11):
 	case IP_VERSION(13, 0, 12):
 	case IP_VERSION(13, 0, 14):
+	case IP_VERSION(13, 0, 15):
 	case IP_VERSION(14, 0, 0):
 	case IP_VERSION(14, 0, 1):
 	case IP_VERSION(14, 0, 4):
@@ -2988,8 +2986,10 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(11, 5, 1):
 	case IP_VERSION(11, 5, 2):
 	case IP_VERSION(11, 5, 3):
-	case IP_VERSION(11, 5, 4):
 		adev->family = AMDGPU_FAMILY_GC_11_5_0;
+		break;
+	case IP_VERSION(11, 5, 4):
+		adev->family = AMDGPU_FAMILY_GC_11_5_4;
 		break;
 	case IP_VERSION(12, 0, 0):
 	case IP_VERSION(12, 0, 1):

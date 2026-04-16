@@ -29,7 +29,7 @@ struct digest_info *ipe_digest_parse(const char *valstr)
 	char *alg = NULL;
 	int rc = 0;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return ERR_PTR(-ENOMEM);
 

@@ -462,7 +462,7 @@ static u64 wcn36xx_prepare_multicast(struct ieee80211_hw *hw,
 	struct netdev_hw_addr *ha;
 
 	wcn36xx_dbg(WCN36XX_DBG_MAC, "mac prepare multicast list\n");
-	fp = kzalloc(sizeof(*fp), GFP_ATOMIC);
+	fp = kzalloc_obj(*fp, GFP_ATOMIC);
 	if (!fp) {
 		wcn36xx_err("Out of memory setting filters.\n");
 		return 0;

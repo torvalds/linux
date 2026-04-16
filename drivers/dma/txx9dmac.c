@@ -192,7 +192,7 @@ static struct txx9dmac_desc *txx9dmac_desc_alloc(struct txx9dmac_chan *dc,
 	struct txx9dmac_dev *ddev = dc->ddev;
 	struct txx9dmac_desc *desc;
 
-	desc = kzalloc(sizeof(*desc), flags);
+	desc = kzalloc_obj(*desc, flags);
 	if (!desc)
 		return NULL;
 	INIT_LIST_HEAD(&desc->tx_list);

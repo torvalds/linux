@@ -276,7 +276,7 @@ static int hyperv_root_irq_remapping_alloc(struct irq_domain *domain,
 	if (ret < 0)
 		return ret;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data) {
 		irq_domain_free_irqs_common(domain, virq, nr_irqs);
 		return -ENOMEM;

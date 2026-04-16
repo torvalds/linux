@@ -528,12 +528,12 @@ static size_t fsi_spi_max_transfer_size(struct spi_device *spi)
 	return SPI_FSI_MAX_RX_SIZE;
 }
 
-static int fsi_spi_probe(struct device *dev)
+static int fsi_spi_probe(struct fsi_device *fsi)
 {
 	int rc;
 	int num_controllers_registered = 0;
 	struct fsi2spi *bridge;
-	struct fsi_device *fsi = to_fsi_dev(dev);
+	struct device *dev = &fsi->dev;
 
 	rc = fsi_spi_check_mux(fsi, dev);
 	if (rc)
@@ -590,10 +590,9 @@ MODULE_DEVICE_TABLE(fsi, fsi_spi_ids);
 
 static struct fsi_driver fsi_spi_driver = {
 	.id_table = fsi_spi_ids,
+	.probe = fsi_spi_probe,
 	.drv = {
 		.name = "spi-fsi",
-		.bus = &fsi_bus_type,
-		.probe = fsi_spi_probe,
 	},
 };
 module_fsi_driver(fsi_spi_driver);

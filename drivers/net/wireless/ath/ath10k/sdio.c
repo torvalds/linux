@@ -246,7 +246,7 @@ static int ath10k_sdio_writesb32(struct ath10k *ar, u32 addr, u32 val)
 	__le32 *buf;
 	int ret;
 
-	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
+	buf = kzalloc_obj(*buf);
 	if (!buf)
 		return -ENOMEM;
 
@@ -1766,7 +1766,7 @@ static int ath10k_sdio_diag_read32(struct ath10k *ar, u32 address,
 	__le32 *val;
 	int ret;
 
-	val = kzalloc(sizeof(*val), GFP_KERNEL);
+	val = kzalloc_obj(*val);
 	if (!val)
 		return -ENOMEM;
 

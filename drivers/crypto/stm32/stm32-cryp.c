@@ -1498,7 +1498,7 @@ static int stm32_cryp_truncate_sg(struct scatterlist **new_sg, size_t *new_sg_le
 		return alloc_sg_len;
 
 	/* We allocate to much sg entry, but it is easier */
-	*new_sg = kmalloc_array((size_t)alloc_sg_len, sizeof(struct scatterlist), GFP_KERNEL);
+	*new_sg = kmalloc_objs(struct scatterlist, (size_t)alloc_sg_len);
 	if (!*new_sg)
 		return -ENOMEM;
 

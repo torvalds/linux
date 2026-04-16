@@ -804,7 +804,7 @@ static int speedtch_bind(struct usbatm_data *usbatm,
 		}
 	}
 
-	instance = kzalloc(sizeof(*instance), GFP_KERNEL);
+	instance = kzalloc_obj(*instance);
 
 	if (!instance) {
 		ret = -ENOMEM;

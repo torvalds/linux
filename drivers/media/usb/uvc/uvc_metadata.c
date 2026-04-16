@@ -181,7 +181,7 @@ static int uvc_meta_detect_msxu(struct uvc_device *dev)
 	 * USB requires buffers aligned in a special way, simplest way is to
 	 * make sure that query_ctrl will work is to kmalloc() them.
 	 */
-	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	data = kmalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 

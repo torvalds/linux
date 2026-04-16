@@ -163,7 +163,7 @@ static int macvlan_hash_add_source(struct macvlan_dev *vlan,
 	if (entry)
 		return 0;
 
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kmalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 
@@ -1131,7 +1131,7 @@ static int macvlan_dev_netpoll_setup(struct net_device *dev)
 	struct netpoll *netpoll;
 	int err;
 
-	netpoll = kzalloc(sizeof(*netpoll), GFP_KERNEL);
+	netpoll = kzalloc_obj(*netpoll);
 	err = -ENOMEM;
 	if (!netpoll)
 		goto out;
@@ -1249,7 +1249,7 @@ static int macvlan_port_create(struct net_device *dev)
 	if (netdev_is_rx_handler_busy(dev))
 		return -EBUSY;
 
-	port = kzalloc(sizeof(*port), GFP_KERNEL);
+	port = kzalloc_obj(*port);
 	if (port == NULL)
 		return -ENOMEM;
 
@@ -1572,6 +1572,11 @@ destroy_macvlan_port:
 		if (create)
 			macvlan_port_destroy(port->dev);
 	}
+	/* @dev might have been made visible before an error was detected.
+	 * Make sure to observe an RCU grace period before our caller
+	 * (rtnl_newlink()) frees it.
+	 */
+	synchronize_net();
 	return err;
 }
 EXPORT_SYMBOL_GPL(macvlan_common_newlink);

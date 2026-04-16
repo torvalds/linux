@@ -154,7 +154,7 @@ static struct ldt_struct *alloc_ldt_struct(unsigned int num_entries)
 	if (num_entries > LDT_ENTRIES)
 		return NULL;
 
-	new_ldt = kmalloc(sizeof(struct ldt_struct), GFP_KERNEL_ACCOUNT);
+	new_ldt = kmalloc_obj(struct ldt_struct, GFP_KERNEL_ACCOUNT);
 	if (!new_ldt)
 		return NULL;
 

@@ -132,7 +132,7 @@ static int netif_local_xmit_active(struct net_device *dev)
 	for (i = 0; i < dev->num_tx_queues; i++) {
 		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
 
-		if (READ_ONCE(txq->xmit_lock_owner) == smp_processor_id())
+		if (netif_tx_owned(txq, smp_processor_id()))
 			return 1;
 	}
 
@@ -565,7 +565,7 @@ int __netpoll_setup(struct netpoll *np, struct net_device *ndev)
 
 	npinfo = rtnl_dereference(ndev->npinfo);
 	if (!npinfo) {
-		npinfo = kmalloc(sizeof(*npinfo), GFP_KERNEL);
+		npinfo = kmalloc_obj(*npinfo);
 		if (!npinfo) {
 			err = -ENOMEM;
 			goto out;

@@ -96,7 +96,7 @@ mlx5_esw_vporttbl_get(struct mlx5_eswitch *esw, struct mlx5_vport_tbl_attr *attr
 		goto out;
 	}
 
-	e = kzalloc(sizeof(*e), GFP_KERNEL);
+	e = kzalloc_obj(*e);
 	if (!e) {
 		fdb = ERR_PTR(-ENOMEM);
 		goto err_alloc;

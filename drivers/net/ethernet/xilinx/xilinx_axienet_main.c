@@ -1542,14 +1542,13 @@ static int axienet_init_dmaengine(struct net_device *ndev)
 	lp->tx_ring_head = 0;
 	lp->rx_ring_tail = 0;
 	lp->rx_ring_head = 0;
-	lp->tx_skb_ring = kcalloc(TX_BD_NUM_MAX, sizeof(*lp->tx_skb_ring),
-				  GFP_KERNEL);
+	lp->tx_skb_ring = kzalloc_objs(*lp->tx_skb_ring, TX_BD_NUM_MAX);
 	if (!lp->tx_skb_ring) {
 		ret = -ENOMEM;
 		goto err_dma_release_rx;
 	}
 	for (i = 0; i < TX_BD_NUM_MAX; i++) {
-		skbuf_dma = kzalloc(sizeof(*skbuf_dma), GFP_KERNEL);
+		skbuf_dma = kzalloc_obj(*skbuf_dma);
 		if (!skbuf_dma) {
 			ret = -ENOMEM;
 			goto err_free_tx_skb_ring;
@@ -1557,14 +1556,13 @@ static int axienet_init_dmaengine(struct net_device *ndev)
 		lp->tx_skb_ring[i] = skbuf_dma;
 	}
 
-	lp->rx_skb_ring = kcalloc(RX_BUF_NUM_DEFAULT, sizeof(*lp->rx_skb_ring),
-				  GFP_KERNEL);
+	lp->rx_skb_ring = kzalloc_objs(*lp->rx_skb_ring, RX_BUF_NUM_DEFAULT);
 	if (!lp->rx_skb_ring) {
 		ret = -ENOMEM;
 		goto err_free_tx_skb_ring;
 	}
 	for (i = 0; i < RX_BUF_NUM_DEFAULT; i++) {
-		skbuf_dma = kzalloc(sizeof(*skbuf_dma), GFP_KERNEL);
+		skbuf_dma = kzalloc_obj(*skbuf_dma);
 		if (!skbuf_dma) {
 			ret = -ENOMEM;
 			goto err_free_rx_skb_ring;

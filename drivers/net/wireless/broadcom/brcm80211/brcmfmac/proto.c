@@ -23,7 +23,7 @@ int brcmf_proto_attach(struct brcmf_pub *drvr)
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	proto = kzalloc(sizeof(*proto), GFP_ATOMIC);
+	proto = kzalloc_obj(*proto, GFP_ATOMIC);
 	if (!proto)
 		goto fail;
 

@@ -168,9 +168,8 @@ static int __init cipso_v4_cache_init(void)
 {
 	u32 iter;
 
-	cipso_v4_cache = kcalloc(CIPSO_V4_CACHE_BUCKETS,
-				 sizeof(struct cipso_v4_map_cache_bkt),
-				 GFP_KERNEL);
+	cipso_v4_cache = kzalloc_objs(struct cipso_v4_map_cache_bkt,
+				      CIPSO_V4_CACHE_BUCKETS);
 	if (!cipso_v4_cache)
 		return -ENOMEM;
 
@@ -308,7 +307,7 @@ int cipso_v4_cache_add(const unsigned char *cipso_ptr,
 
 	cipso_ptr_len = cipso_ptr[1];
 
-	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
+	entry = kzalloc_obj(*entry, GFP_ATOMIC);
 	if (!entry)
 		return -ENOMEM;
 	entry->key = kmemdup(cipso_ptr, cipso_ptr_len, GFP_ATOMIC);

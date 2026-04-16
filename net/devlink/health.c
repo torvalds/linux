@@ -32,7 +32,7 @@ static struct devlink_fmsg *devlink_fmsg_alloc(void)
 {
 	struct devlink_fmsg *fmsg;
 
-	fmsg = kzalloc(sizeof(*fmsg), GFP_KERNEL);
+	fmsg = kzalloc_obj(*fmsg);
 	if (!fmsg)
 		return NULL;
 
@@ -119,7 +119,7 @@ __devlink_health_reporter_create(struct devlink *devlink,
 	if (WARN_ON(ops->default_burst_period && !ops->default_graceful_period))
 		return ERR_PTR(-EINVAL);
 
-	reporter = kzalloc(sizeof(*reporter), GFP_KERNEL);
+	reporter = kzalloc_obj(*reporter);
 	if (!reporter)
 		return ERR_PTR(-ENOMEM);
 
@@ -738,7 +738,7 @@ static void devlink_fmsg_nest_common(struct devlink_fmsg *fmsg, int attrtype)
 	if (fmsg->err)
 		return;
 
-	item = kzalloc(sizeof(*item), GFP_KERNEL);
+	item = kzalloc_obj(*item);
 	if (!item) {
 		fmsg->err = -ENOMEM;
 		return;

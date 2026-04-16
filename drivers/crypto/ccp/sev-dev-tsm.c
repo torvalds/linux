@@ -207,7 +207,7 @@ static int stream_alloc(struct pci_dev *pdev, struct pci_ide **ide,
 
 static struct pci_tsm *tio_pf0_probe(struct pci_dev *pdev, struct sev_device *sev)
 {
-	struct tio_dsm *dsm __free(kfree) = kzalloc(sizeof(*dsm), GFP_KERNEL);
+	struct tio_dsm *dsm __free(kfree) = kzalloc_obj(*dsm);
 	int rc;
 
 	if (!dsm)
@@ -341,7 +341,7 @@ static struct pci_tsm_ops sev_tsm_ops = {
 
 void sev_tsm_init_locked(struct sev_device *sev, void *tio_status_page)
 {
-	struct sev_tio_status *t = kzalloc(sizeof(*t), GFP_KERNEL);
+	struct sev_tio_status *t = kzalloc_obj(*t);
 	struct tsm_dev *tsmdev;
 	int ret;
 
@@ -378,9 +378,9 @@ void sev_tsm_init_locked(struct sev_device *sev, void *tio_status_page)
 	return;
 
 error_exit:
-	kfree(t);
 	pr_err("Failed to enable SEV-TIO: ret=%d en=%d initdone=%d SEV=%d\n",
 	       ret, t->tio_en, t->tio_init_done, boot_cpu_has(X86_FEATURE_SEV));
+	kfree(t);
 }
 
 void sev_tsm_uninit(struct sev_device *sev)

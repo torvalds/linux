@@ -4456,7 +4456,7 @@ static int alloc_stac_spec(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 	snd_hda_gen_spec_init(&spec->gen);

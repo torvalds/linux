@@ -551,8 +551,7 @@ int usb6fire_control_init(struct sfire_chip *chip)
 {
 	int i;
 	int ret;
-	struct control_runtime *rt = kzalloc(sizeof(struct control_runtime),
-			GFP_KERNEL);
+	struct control_runtime *rt = kzalloc_obj(struct control_runtime);
 	struct comm_runtime *comm_rt = chip->comm;
 
 	if (!rt)

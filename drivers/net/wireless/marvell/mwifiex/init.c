@@ -25,7 +25,7 @@ static int mwifiex_add_bss_prio_tbl(struct mwifiex_private *priv)
 	struct mwifiex_bss_prio_node *bss_prio;
 	struct mwifiex_bss_prio_tbl *tbl = adapter->bss_prio_tbl;
 
-	bss_prio = kzalloc(sizeof(struct mwifiex_bss_prio_node), GFP_KERNEL);
+	bss_prio = kzalloc_obj(struct mwifiex_bss_prio_node);
 	if (!bss_prio)
 		return -ENOMEM;
 

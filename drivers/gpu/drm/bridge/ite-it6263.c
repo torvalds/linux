@@ -735,7 +735,7 @@ it6263_bridge_atomic_get_input_bus_fmts(struct drm_bridge *bridge,
 	if (!it6263_is_input_bus_fmt_valid(it->lvds_data_mapping))
 		return NULL;
 
-	input_fmts = kmalloc(sizeof(*input_fmts), GFP_KERNEL);
+	input_fmts = kmalloc_obj(*input_fmts);
 	if (!input_fmts)
 		return NULL;
 

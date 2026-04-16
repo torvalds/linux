@@ -1159,7 +1159,7 @@ panthor_vm_op_ctx_prealloc_vmas(struct panthor_vm_op_ctx *op_ctx)
 	}
 
 	for (u32 i = 0; i < vma_count; i++) {
-		struct panthor_vma *vma = kzalloc(sizeof(*vma), GFP_KERNEL);
+		struct panthor_vma *vma = kzalloc_obj(*vma);
 
 		if (!vma)
 			return -ENOMEM;
@@ -1257,9 +1257,8 @@ static int panthor_vm_prepare_map_op_ctx(struct panthor_vm_op_ctx *op_ctx,
 		   ((ALIGN(va + size, 1ull << 30) - ALIGN_DOWN(va, 1ull << 30)) >> 30) +
 		   ((ALIGN(va + size, 1ull << 21) - ALIGN_DOWN(va, 1ull << 21)) >> 21);
 
-	op_ctx->rsvd_page_tables.pages = kcalloc(pt_count,
-						 sizeof(*op_ctx->rsvd_page_tables.pages),
-						 GFP_KERNEL);
+	op_ctx->rsvd_page_tables.pages = kzalloc_objs(*op_ctx->rsvd_page_tables.pages,
+						      pt_count);
 	if (!op_ctx->rsvd_page_tables.pages) {
 		ret = -ENOMEM;
 		goto err_cleanup;
@@ -1312,9 +1311,8 @@ static int panthor_vm_prepare_unmap_op_ctx(struct panthor_vm_op_ctx *op_ctx,
 		goto err_cleanup;
 
 	if (pt_count) {
-		op_ctx->rsvd_page_tables.pages = kcalloc(pt_count,
-							 sizeof(*op_ctx->rsvd_page_tables.pages),
-							 GFP_KERNEL);
+		op_ctx->rsvd_page_tables.pages = kzalloc_objs(*op_ctx->rsvd_page_tables.pages,
+							      pt_count);
 		if (!op_ctx->rsvd_page_tables.pages) {
 			ret = -ENOMEM;
 			goto err_cleanup;
@@ -1587,7 +1585,7 @@ void panthor_vm_pool_destroy(struct panthor_file *pfile)
  */
 int panthor_vm_pool_create(struct panthor_file *pfile)
 {
-	pfile->vms = kzalloc(sizeof(*pfile->vms), GFP_KERNEL);
+	pfile->vms = kzalloc_obj(*pfile->vms);
 	if (!pfile->vms)
 		return -ENOMEM;
 
@@ -2426,7 +2424,7 @@ panthor_vm_create(struct panthor_device *ptdev, bool for_mcu,
 	struct panthor_vm *vm;
 	int ret;
 
-	vm = kzalloc(sizeof(*vm), GFP_KERNEL);
+	vm = kzalloc_obj(*vm);
 	if (!vm)
 		return ERR_PTR(-ENOMEM);
 
@@ -2609,7 +2607,7 @@ panthor_vm_bind_job_create(struct drm_file *file,
 	if (vm->destroyed || vm->unusable)
 		return ERR_PTR(-EINVAL);
 
-	job = kzalloc(sizeof(*job), GFP_KERNEL);
+	job = kzalloc_obj(*job);
 	if (!job)
 		return ERR_PTR(-ENOMEM);
 

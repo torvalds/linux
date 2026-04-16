@@ -388,7 +388,7 @@ static struct sfp_bus *sfp_bus_get(const struct fwnode_handle *fwnode)
 {
 	struct sfp_bus *sfp, *new, *found = NULL;
 
-	new = kzalloc(sizeof(*new), GFP_KERNEL);
+	new = kzalloc_obj(*new);
 
 	mutex_lock(&sfp_mutex);
 

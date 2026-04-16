@@ -820,7 +820,7 @@ static void fcoe_fdmi_info(struct fc_lport *lport, struct net_device *netdev)
 
 	if (realdev->netdev_ops->ndo_fcoe_get_hbainfo) {
 		struct netdev_fcoe_hbainfo *fdmi;
-		fdmi = kzalloc(sizeof(*fdmi), GFP_KERNEL);
+		fdmi = kzalloc_obj(*fdmi);
 		if (!fdmi)
 			return;
 

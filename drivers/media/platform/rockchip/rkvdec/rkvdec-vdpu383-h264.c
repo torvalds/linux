@@ -447,7 +447,7 @@ static int rkvdec_h264_start(struct rkvdec_ctx *ctx)
 	if (ret)
 		return ret;
 
-	h264_ctx = kzalloc(sizeof(*h264_ctx), GFP_KERNEL);
+	h264_ctx = kzalloc_obj(*h264_ctx);
 	if (!h264_ctx)
 		return -ENOMEM;
 

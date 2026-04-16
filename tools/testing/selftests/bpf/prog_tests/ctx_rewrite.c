@@ -308,8 +308,10 @@ static int find_field_offset(struct btf *btf, char *pattern, regmatch_t *matches
 		return -1;
 	}
 
-	strncpy(type_str, type, type_sz);
-	strncpy(field_str, field, field_sz);
+	memcpy(type_str, type, type_sz);
+	type_str[type_sz] = '\0';
+	memcpy(field_str, field, field_sz);
+	field_str[field_sz] = '\0';
 	btf_id = btf__find_by_name(btf, type_str);
 	if (btf_id < 0) {
 		PRINT_FAIL("No BTF info for type %s\n", type_str);

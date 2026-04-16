@@ -39,8 +39,8 @@ int lima_heap_alloc(struct lima_bo *bo, struct lima_vm *vm)
 	if (bo->base.pages) {
 		pages = bo->base.pages;
 	} else {
-		pages = kvmalloc_array(bo->base.base.size >> PAGE_SHIFT,
-				       sizeof(*pages), GFP_KERNEL | __GFP_ZERO);
+		pages = kvmalloc_objs(*pages, bo->base.base.size >> PAGE_SHIFT,
+				      GFP_KERNEL | __GFP_ZERO);
 		if (!pages) {
 			dma_resv_unlock(bo->base.base.resv);
 			return -ENOMEM;
@@ -73,7 +73,7 @@ int lima_heap_alloc(struct lima_bo *bo, struct lima_vm *vm)
 		dma_unmap_sgtable(dev, bo->base.sgt, DMA_BIDIRECTIONAL, 0);
 		sg_free_table(bo->base.sgt);
 	} else {
-		bo->base.sgt = kmalloc(sizeof(*bo->base.sgt), GFP_KERNEL);
+		bo->base.sgt = kmalloc_obj(*bo->base.sgt);
 		if (!bo->base.sgt) {
 			ret = -ENOMEM;
 			goto err_out0;
@@ -226,7 +226,7 @@ struct drm_gem_object *lima_gem_create_object(struct drm_device *dev, size_t siz
 {
 	struct lima_bo *bo;
 
-	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
+	bo = kzalloc_obj(*bo);
 	if (!bo)
 		return ERR_PTR(-ENOMEM);
 

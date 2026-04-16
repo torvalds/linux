@@ -2150,7 +2150,7 @@ ipu7_isys_init(struct pci_dev *pdev, struct device *parent,
 		}
 	}
 
-	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
+	pdata = kzalloc_obj(*pdata);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
@@ -2197,7 +2197,7 @@ ipu7_psys_init(struct pci_dev *pdev, struct device *parent,
 	struct ipu7_psys_pdata *pdata;
 	int ret;
 
-	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
+	pdata = kzalloc_obj(*pdata);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
@@ -2271,7 +2271,7 @@ static int ipu7_map_fw_code_region(struct ipu7_bus_device *sys,
 
 	n_pages = PFN_UP(size);
 
-	pages = kmalloc_array(n_pages, sizeof(*pages), GFP_KERNEL);
+	pages = kmalloc_objs(*pages, n_pages);
 	if (!pages)
 		return -ENOMEM;
 

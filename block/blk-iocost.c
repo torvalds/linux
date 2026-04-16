@@ -2882,7 +2882,7 @@ static int blk_iocost_init(struct gendisk *disk)
 	struct ioc *ioc;
 	int i, cpu, ret;
 
-	ioc = kzalloc(sizeof(*ioc), GFP_KERNEL);
+	ioc = kzalloc_obj(*ioc);
 	if (!ioc)
 		return -ENOMEM;
 
@@ -2946,7 +2946,7 @@ static struct blkcg_policy_data *ioc_cpd_alloc(gfp_t gfp)
 {
 	struct ioc_cgrp *iocc;
 
-	iocc = kzalloc(sizeof(struct ioc_cgrp), gfp);
+	iocc = kzalloc_obj(struct ioc_cgrp, gfp);
 	if (!iocc)
 		return NULL;
 

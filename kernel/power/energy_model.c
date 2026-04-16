@@ -439,7 +439,7 @@ static int em_create_pd(struct device *dev, int nr_states,
 
 		cpumask_copy(em_span_cpus(pd), cpus);
 	} else {
-		pd = kzalloc(sizeof(*pd), GFP_KERNEL);
+		pd = kzalloc_obj(*pd);
 		if (!pd)
 			return -ENOMEM;
 	}

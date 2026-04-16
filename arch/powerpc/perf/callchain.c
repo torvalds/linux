@@ -103,6 +103,11 @@ perf_callchain_kernel(struct perf_callchain_entry_ctx *entry, struct pt_regs *re
 void
 perf_callchain_user(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs)
 {
+	perf_callchain_store(entry, perf_arch_instruction_pointer(regs));
+
+	if (!current->mm)
+		return;
+
 	if (!is_32bit_task())
 		perf_callchain_user_64(entry, regs);
 	else

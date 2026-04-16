@@ -141,9 +141,7 @@ static int pseries_pci_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
 	}
 
 	pdn = pci_get_pdn(pdev);
-	pdn->pe_num_map = kmalloc_array(num_vfs,
-					sizeof(*pdn->pe_num_map),
-					GFP_KERNEL);
+	pdn->pe_num_map = kmalloc_objs(*pdn->pe_num_map, num_vfs);
 	if (!pdn->pe_num_map)
 		return -ENOMEM;
 

@@ -12,6 +12,7 @@
 
 #include <linux/clk-provider.h>
 #include <linux/mod_devicetable.h>
+#include <linux/regmap.h>
 #include "clk-pll.h"
 #include "clk-cpu.h"
 
@@ -19,13 +20,25 @@
  * struct samsung_clk_provider - information about clock provider
  * @reg_base: virtual address for the register base
  * @dev: clock provider device needed for runtime PM
+ * @sysreg: syscon regmap for clock-provider sysreg controller
  * @lock: maintains exclusion between callbacks for a given clock-provider
+ * @auto_clock_gate: enable auto clk mode for all clocks in clock-provider
+ * @gate_dbg_offset: gate debug reg offset. Used for all gates in auto clk mode
+ * @option_offset: option reg offset. Enables auto mode for clock-provider
+ * @drcg_offset: dynamic root clk gate enable register offset in sysreg
+ * @memclk_offset: memclk enable register offset in sysreg
  * @clk_data: holds clock related data like clk_hw* and number of clocks
  */
 struct samsung_clk_provider {
 	void __iomem *reg_base;
 	struct device *dev;
+	struct regmap *sysreg;
 	spinlock_t lock;
+	bool auto_clock_gate;
+	u32 gate_dbg_offset;
+	u32 option_offset;
+	u32 drcg_offset;
+	u32 memclk_offset;
 	/* clk_data must be the last entry due to variable length 'hws' array */
 	struct clk_hw_onecell_data clk_data;
 };
@@ -310,6 +323,7 @@ struct samsung_cpu_clock {
 struct samsung_clock_reg_cache {
 	struct list_head node;
 	void __iomem *reg_base;
+	struct regmap *sysreg;
 	struct samsung_clk_reg_dump *rdump;
 	unsigned int rd_num;
 	const struct samsung_clk_reg_dump *rsuspend;
@@ -338,7 +352,14 @@ struct samsung_clock_reg_cache {
  * @suspend_regs: list of clock registers to set before suspend
  * @nr_suspend_regs: count of clock registers in @suspend_regs
  * @clk_name: name of the parent clock needed for CMU register access
+ * @sysreg_clk_regs: list of sysreg clock registers
+ * @nr_sysreg_clk_regs: count of clock registers in @sysreg_clk_regs
  * @manual_plls: Enable manual control for PLL clocks
+ * @auto_clock_gate: enable auto clock mode for all components in CMU
+ * @gate_dbg_offset: gate debug reg offset. Used by all gates in auto clk mode
+ * @option_offset: option reg offset. Enables auto clk mode for entire CMU
+ * @drcg_offset: dynamic root clk gate enable register offset in sysreg
+ * @memclk_offset: memclk enable register offset in sysreg
  */
 struct samsung_cmu_info {
 	const struct samsung_pll_clock *pll_clks;
@@ -364,8 +385,16 @@ struct samsung_cmu_info {
 	unsigned int nr_suspend_regs;
 	const char *clk_name;
 
+	const unsigned long *sysreg_clk_regs;
+	unsigned int nr_sysreg_clk_regs;
+
 	/* ARM64 Exynos CMUs */
 	bool manual_plls;
+	bool auto_clock_gate;
+	u32 gate_dbg_offset;
+	u32 option_offset;
+	u32 drcg_offset;
+	u32 memclk_offset;
 };
 
 struct samsung_clk_provider *samsung_clk_init(struct device *dev,
@@ -408,35 +437,56 @@ void samsung_clk_register_cpu(struct samsung_clk_provider *ctx,
 		const struct samsung_cpu_clock *list, unsigned int nr_clk);
 
 void samsung_cmu_register_clocks(struct samsung_clk_provider *ctx,
-				 const struct samsung_cmu_info *cmu);
+				 const struct samsung_cmu_info *cmu,
+				 struct device_node *np);
 struct samsung_clk_provider *samsung_cmu_register_one(
 			struct device_node *,
 			const struct samsung_cmu_info *);
 
 #ifdef CONFIG_PM_SLEEP
 void samsung_clk_extended_sleep_init(void __iomem *reg_base,
+			struct regmap *sysreg,
 			const unsigned long *rdump,
 			unsigned long nr_rdump,
 			const struct samsung_clk_reg_dump *rsuspend,
 			unsigned long nr_rsuspend);
 #else
 static inline void samsung_clk_extended_sleep_init(void __iomem *reg_base,
+			struct regmap *sysreg,
 			const unsigned long *rdump,
 			unsigned long nr_rdump,
 			const struct samsung_clk_reg_dump *rsuspend,
 			unsigned long nr_rsuspend) {}
 #endif
-#define samsung_clk_sleep_init(reg_base, rdump, nr_rdump) \
-	samsung_clk_extended_sleep_init(reg_base, rdump, nr_rdump, NULL, 0)
+#define samsung_clk_sleep_init(reg_base, sysreg, rdump, nr_rdump)	   \
+	samsung_clk_extended_sleep_init(reg_base, sysreg, rdump, nr_rdump, \
+					NULL, 0)
 
 void samsung_clk_save(void __iomem *base,
+			struct regmap *regmap,
 			struct samsung_clk_reg_dump *rd,
 			unsigned int num_regs);
 void samsung_clk_restore(void __iomem *base,
+			struct regmap *regmap,
 			const struct samsung_clk_reg_dump *rd,
 			unsigned int num_regs);
 struct samsung_clk_reg_dump *samsung_clk_alloc_reg_dump(
 			const unsigned long *rdump,
 			unsigned long nr_rdump);
+
+void samsung_en_dyn_root_clk_gating(struct device_node *np,
+				struct samsung_clk_provider *ctx,
+				const struct samsung_cmu_info *cmu,
+				bool cmu_has_pm);
+
+struct clk_hw *samsung_register_auto_gate(struct device *dev,
+		struct device_node *np, const char *name,
+		const char *parent_name, const struct clk_hw *parent_hw,
+		const struct clk_parent_data *parent_data,
+		unsigned long flags,
+		void __iomem *reg, u8 bit_idx,
+		u8 clk_gate_flags, spinlock_t *lock);
+
+bool samsung_is_auto_capable(struct device_node *np);
 
 #endif /* __SAMSUNG_CLK_H */

@@ -336,8 +336,7 @@ static int __init ps3_create_spu(struct spu *spu, void *data)
 
 	pr_debug("%s:%d spu_%d\n", __func__, __LINE__, spu->number);
 
-	spu->pdata = kzalloc(sizeof(struct spu_pdata),
-		GFP_KERNEL);
+	spu->pdata = kzalloc_obj(struct spu_pdata);
 
 	if (!spu->pdata) {
 		result = -ENOMEM;

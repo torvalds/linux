@@ -648,7 +648,7 @@ int hinic3_aeqs_init(struct hinic3_hwdev *hwdev, u16 num_aeqs,
 	u16 q_id;
 	int err;
 
-	aeqs = kzalloc(sizeof(*aeqs), GFP_KERNEL);
+	aeqs = kzalloc_obj(*aeqs);
 	if (!aeqs)
 		return -ENOMEM;
 
@@ -720,7 +720,7 @@ int hinic3_ceqs_init(struct hinic3_hwdev *hwdev, u16 num_ceqs,
 	u16 q_id;
 	int err;
 
-	ceqs = kzalloc(sizeof(*ceqs), GFP_KERNEL);
+	ceqs = kzalloc_obj(*ceqs);
 	if (!ceqs)
 		return -ENOMEM;
 

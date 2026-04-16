@@ -392,7 +392,7 @@ static int hda_ml_alloc_h2link(struct hdac_bus *bus, int index)
 	struct hdac_ext_link *hlink;
 	int ret;
 
-	h2link  = kzalloc(sizeof(*h2link), GFP_KERNEL);
+	h2link = kzalloc_obj(*h2link);
 	if (!h2link)
 		return -ENOMEM;
 

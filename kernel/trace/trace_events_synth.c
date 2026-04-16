@@ -499,9 +499,9 @@ static unsigned int trace_stack(struct synth_trace_event *entry,
 	return len;
 }
 
-static notrace void trace_event_raw_event_synth(void *__data,
-						u64 *var_ref_vals,
-						unsigned int *var_ref_idx)
+static void trace_event_raw_event_synth(void *__data,
+					u64 *var_ref_vals,
+					unsigned int *var_ref_idx)
 {
 	unsigned int i, n_u64, val_idx, len, data_size = 0;
 	struct trace_event_file *trace_file = __data;
@@ -711,7 +711,7 @@ static struct synth_field *parse_synth_field(int argc, char **argv,
 
 	*field_version = check_field_version(prefix, field_type, field_name);
 
-	field = kzalloc(sizeof(*field), GFP_KERNEL);
+	field = kzalloc_obj(*field);
 	if (!field)
 		return ERR_PTR(-ENOMEM);
 
@@ -819,7 +819,7 @@ static struct tracepoint *alloc_synth_tracepoint(char *name)
 {
 	struct tracepoint *tp;
 
-	tp = kzalloc(sizeof(*tp), GFP_KERNEL);
+	tp = kzalloc_obj(*tp);
 	if (!tp)
 		return ERR_PTR(-ENOMEM);
 
@@ -973,7 +973,7 @@ static struct synth_event *alloc_synth_event(const char *name, int n_fields,
 	unsigned int i, j, n_dynamic_fields = 0;
 	struct synth_event *event;
 
-	event = kzalloc(sizeof(*event), GFP_KERNEL);
+	event = kzalloc_obj(*event);
 	if (!event) {
 		event = ERR_PTR(-ENOMEM);
 		goto out;
@@ -986,7 +986,7 @@ static struct synth_event *alloc_synth_event(const char *name, int n_fields,
 		goto out;
 	}
 
-	event->fields = kcalloc(n_fields, sizeof(*event->fields), GFP_KERNEL);
+	event->fields = kzalloc_objs(*event->fields, n_fields);
 	if (!event->fields) {
 		free_synth_event(event);
 		event = ERR_PTR(-ENOMEM);
@@ -998,9 +998,8 @@ static struct synth_event *alloc_synth_event(const char *name, int n_fields,
 			n_dynamic_fields++;
 
 	if (n_dynamic_fields) {
-		event->dynamic_fields = kcalloc(n_dynamic_fields,
-						sizeof(*event->dynamic_fields),
-						GFP_KERNEL);
+		event->dynamic_fields = kzalloc_objs(*event->dynamic_fields,
+						     n_dynamic_fields);
 		if (!event->dynamic_fields) {
 			free_synth_event(event);
 			event = ERR_PTR(-ENOMEM);

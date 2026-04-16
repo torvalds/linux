@@ -288,6 +288,7 @@ struct stm32_dma3_chan {
 	u32 fifo_size;
 	u32 max_burst;
 	bool semaphore_mode;
+	bool semaphore_taken;
 	struct stm32_dma3_dt_conf dt_config;
 	struct dma_slave_config dma_config;
 	u8 config_set;
@@ -330,6 +331,11 @@ static inline struct stm32_dma3_swdesc *to_stm32_dma3_swdesc(struct virt_dma_des
 static struct device *chan2dev(struct stm32_dma3_chan *chan)
 {
 	return &chan->vchan.chan.dev->device;
+}
+
+static struct device *ddata2dev(struct stm32_dma3_ddata *ddata)
+{
+	return ddata->dma_dev.dev;
 }
 
 static void stm32_dma3_chan_dump_reg(struct stm32_dma3_chan *chan)
@@ -409,7 +415,7 @@ static struct stm32_dma3_swdesc *stm32_dma3_chan_desc_alloc(struct stm32_dma3_ch
 		return NULL;
 	}
 
-	swdesc = kzalloc(struct_size(swdesc, lli, count), GFP_NOWAIT);
+	swdesc = kzalloc_flex(*swdesc, lli, count, GFP_NOWAIT);
 	if (!swdesc)
 		return NULL;
 	swdesc->lli_size = count;
@@ -1063,14 +1069,53 @@ static irqreturn_t stm32_dma3_chan_irq(int irq, void *devid)
 	return IRQ_HANDLED;
 }
 
+static int stm32_dma3_get_chan_sem(struct stm32_dma3_chan *chan)
+{
+	struct stm32_dma3_ddata *ddata = to_stm32_dma3_ddata(chan);
+	u32 csemcr, ccid;
+
+	csemcr = readl_relaxed(ddata->base + STM32_DMA3_CSEMCR(chan->id));
+	/* Make an attempt to take the channel semaphore if not already taken */
+	if (!(csemcr & CSEMCR_SEM_MUTEX)) {
+		writel_relaxed(CSEMCR_SEM_MUTEX, ddata->base + STM32_DMA3_CSEMCR(chan->id));
+		csemcr = readl_relaxed(ddata->base + STM32_DMA3_CSEMCR(chan->id));
+	}
+
+	/* Check if channel is under CID1 control */
+	ccid = FIELD_GET(CSEMCR_SEM_CCID, csemcr);
+	if (!(csemcr & CSEMCR_SEM_MUTEX) || ccid != CCIDCFGR_CID1)
+		goto bad_cid;
+
+	chan->semaphore_taken = true;
+	dev_dbg(chan2dev(chan), "under CID1 control (semcr=0x%08x)\n", csemcr);
+
+	return 0;
+
+bad_cid:
+	chan->semaphore_taken = false;
+	dev_err(chan2dev(chan), "not under CID1 control (in-use by CID%d)\n", ccid);
+
+	return -EACCES;
+}
+
+static void stm32_dma3_put_chan_sem(struct stm32_dma3_chan *chan)
+{
+	struct stm32_dma3_ddata *ddata = to_stm32_dma3_ddata(chan);
+
+	if (chan->semaphore_taken) {
+		writel_relaxed(0, ddata->base + STM32_DMA3_CSEMCR(chan->id));
+		chan->semaphore_taken = false;
+		dev_dbg(chan2dev(chan), "no more under CID1 control\n");
+	}
+}
+
 static int stm32_dma3_alloc_chan_resources(struct dma_chan *c)
 {
 	struct stm32_dma3_chan *chan = to_stm32_dma3_chan(c);
 	struct stm32_dma3_ddata *ddata = to_stm32_dma3_ddata(chan);
-	u32 id = chan->id, csemcr, ccid;
 	int ret;
 
-	ret = pm_runtime_resume_and_get(ddata->dma_dev.dev);
+	ret = pm_runtime_resume_and_get(ddata2dev(ddata));
 	if (ret < 0)
 		return ret;
 
@@ -1092,16 +1137,9 @@ static int stm32_dma3_alloc_chan_resources(struct dma_chan *c)
 
 	/* Take the channel semaphore */
 	if (chan->semaphore_mode) {
-		writel_relaxed(CSEMCR_SEM_MUTEX, ddata->base + STM32_DMA3_CSEMCR(id));
-		csemcr = readl_relaxed(ddata->base + STM32_DMA3_CSEMCR(id));
-		ccid = FIELD_GET(CSEMCR_SEM_CCID, csemcr);
-		/* Check that the channel is well taken */
-		if (ccid != CCIDCFGR_CID1) {
-			dev_err(chan2dev(chan), "Not under CID1 control (in-use by CID%d)\n", ccid);
-			ret = -EPERM;
+		ret = stm32_dma3_get_chan_sem(chan);
+		if (ret)
 			goto err_pool_destroy;
-		}
-		dev_dbg(chan2dev(chan), "Under CID1 control (semcr=0x%08x)\n", csemcr);
 	}
 
 	return 0;
@@ -1111,7 +1149,7 @@ err_pool_destroy:
 	chan->lli_pool = NULL;
 
 err_put_sync:
-	pm_runtime_put_sync(ddata->dma_dev.dev);
+	pm_runtime_put_sync(ddata2dev(ddata));
 
 	return ret;
 }
@@ -1135,9 +1173,9 @@ static void stm32_dma3_free_chan_resources(struct dma_chan *c)
 
 	/* Release the channel semaphore */
 	if (chan->semaphore_mode)
-		writel_relaxed(0, ddata->base + STM32_DMA3_CSEMCR(chan->id));
+		stm32_dma3_put_chan_sem(chan);
 
-	pm_runtime_put_sync(ddata->dma_dev.dev);
+	pm_runtime_put_sync(ddata2dev(ddata));
 
 	/* Reset configuration */
 	memset(&chan->dt_config, 0, sizeof(chan->dt_config));
@@ -1204,6 +1242,10 @@ static struct dma_async_tx_descriptor *stm32_dma3_prep_dma_memcpy(struct dma_cha
 	bool prevent_refactor = !!FIELD_GET(STM32_DMA3_DT_NOPACK, chan->dt_config.tr_conf) ||
 				!!FIELD_GET(STM32_DMA3_DT_NOREFACT, chan->dt_config.tr_conf);
 
+	/* Semaphore could be lost during suspend/resume */
+	if (chan->semaphore_mode && !chan->semaphore_taken)
+		return NULL;
+
 	count = stm32_dma3_get_ll_count(chan, len, prevent_refactor);
 
 	swdesc = stm32_dma3_chan_desc_alloc(chan, count);
@@ -1263,6 +1305,10 @@ static struct dma_async_tx_descriptor *stm32_dma3_prep_slave_sg(struct dma_chan 
 	bool prevent_refactor = !!FIELD_GET(STM32_DMA3_DT_NOPACK, chan->dt_config.tr_conf) ||
 				!!FIELD_GET(STM32_DMA3_DT_NOREFACT, chan->dt_config.tr_conf);
 	int ret;
+
+	/* Semaphore could be lost during suspend/resume */
+	if (chan->semaphore_mode && !chan->semaphore_taken)
+		return NULL;
 
 	count = 0;
 	for_each_sg(sgl, sg, sg_len, i)
@@ -1349,6 +1395,10 @@ static struct dma_async_tx_descriptor *stm32_dma3_prep_dma_cyclic(struct dma_cha
 	dma_addr_t src, dst;
 	u32 count, i, ctr1, ctr2;
 	int ret;
+
+	/* Semaphore could be lost during suspend/resume */
+	if (chan->semaphore_mode && !chan->semaphore_taken)
+		return NULL;
 
 	if (!buf_len || !period_len || period_len > STM32_DMA3_MAX_BLOCK_SIZE) {
 		dev_err(chan2dev(chan), "Invalid buffer/period length\n");
@@ -1565,11 +1615,11 @@ static bool stm32_dma3_filter_fn(struct dma_chan *c, void *fn_param)
 		if (!(mask & BIT(chan->id)))
 			return false;
 
-	ret = pm_runtime_resume_and_get(ddata->dma_dev.dev);
+	ret = pm_runtime_resume_and_get(ddata2dev(ddata));
 	if (ret < 0)
 		return false;
 	semcr = readl_relaxed(ddata->base + STM32_DMA3_CSEMCR(chan->id));
-	pm_runtime_put_sync(ddata->dma_dev.dev);
+	pm_runtime_put_sync(ddata2dev(ddata));
 
 	/* Check if chan is free */
 	if (semcr & CSEMCR_SEM_MUTEX)
@@ -1591,7 +1641,7 @@ static struct dma_chan *stm32_dma3_of_xlate(struct of_phandle_args *dma_spec, st
 	struct dma_chan *c;
 
 	if (dma_spec->args_count < 3) {
-		dev_err(ddata->dma_dev.dev, "Invalid args count\n");
+		dev_err(ddata2dev(ddata), "Invalid args count\n");
 		return NULL;
 	}
 
@@ -1600,14 +1650,14 @@ static struct dma_chan *stm32_dma3_of_xlate(struct of_phandle_args *dma_spec, st
 	conf.tr_conf = dma_spec->args[2];
 
 	if (conf.req_line >= ddata->dma_requests) {
-		dev_err(ddata->dma_dev.dev, "Invalid request line\n");
+		dev_err(ddata2dev(ddata), "Invalid request line\n");
 		return NULL;
 	}
 
 	/* Request dma channel among the generic dma controller list */
 	c = dma_request_channel(mask, stm32_dma3_filter_fn, &conf);
 	if (!c) {
-		dev_err(ddata->dma_dev.dev, "No suitable channel found\n");
+		dev_err(ddata2dev(ddata), "No suitable channel found\n");
 		return NULL;
 	}
 
@@ -1620,6 +1670,7 @@ static struct dma_chan *stm32_dma3_of_xlate(struct of_phandle_args *dma_spec, st
 
 static u32 stm32_dma3_check_rif(struct stm32_dma3_ddata *ddata)
 {
+	struct device *dev = ddata2dev(ddata);
 	u32 chan_reserved, mask = 0, i, ccidcfgr, invalid_cid = 0;
 
 	/* Reserve Secure channels */
@@ -1631,7 +1682,7 @@ static u32 stm32_dma3_check_rif(struct stm32_dma3_ddata *ddata)
 	 * In case CID filtering is not configured, dma-channel-mask property can be used to
 	 * specify available DMA channels to the kernel.
 	 */
-	of_property_read_u32(ddata->dma_dev.dev->of_node, "dma-channel-mask", &mask);
+	of_property_read_u32(dev->of_node, "dma-channel-mask", &mask);
 
 	/* Reserve !CID-filtered not in dma-channel-mask, static CID != CID1, CID1 not allowed */
 	for (i = 0; i < ddata->dma_channels; i++) {
@@ -1651,7 +1702,7 @@ static u32 stm32_dma3_check_rif(struct stm32_dma3_ddata *ddata)
 				ddata->chans[i].semaphore_mode = true;
 			}
 		}
-		dev_dbg(ddata->dma_dev.dev, "chan%d: %s mode, %s\n", i,
+		dev_dbg(dev, "chan%d: %s mode, %s\n", i,
 			!(ccidcfgr & CCIDCFGR_CFEN) ? "!CID-filtered" :
 			ddata->chans[i].semaphore_mode ? "Semaphore" : "Static CID",
 			(chan_reserved & BIT(i)) ? "denied" :
@@ -1659,7 +1710,7 @@ static u32 stm32_dma3_check_rif(struct stm32_dma3_ddata *ddata)
 	}
 
 	if (invalid_cid)
-		dev_warn(ddata->dma_dev.dev, "chan%*pbl have invalid CID configuration\n",
+		dev_warn(dev, "chan%*pbl have invalid CID configuration\n",
 			 ddata->dma_channels, &invalid_cid);
 
 	return chan_reserved;
@@ -1899,8 +1950,69 @@ static int stm32_dma3_runtime_resume(struct device *dev)
 	return ret;
 }
 
+static int stm32_dma3_pm_suspend(struct device *dev)
+{
+	struct stm32_dma3_ddata *ddata = dev_get_drvdata(dev);
+	struct dma_device *dma_dev = &ddata->dma_dev;
+	struct dma_chan *c;
+	int ccr, ret;
+
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0)
+		return ret;
+
+	list_for_each_entry(c, &dma_dev->channels, device_node) {
+		struct stm32_dma3_chan *chan = to_stm32_dma3_chan(c);
+
+		ccr = readl_relaxed(ddata->base + STM32_DMA3_CCR(chan->id));
+		if (ccr & CCR_EN) {
+			dev_warn(dev, "Suspend is prevented: %s still in use by %s\n",
+				 dma_chan_name(c), dev_name(c->slave));
+			pm_runtime_put_sync(dev);
+			return -EBUSY;
+		}
+	}
+
+	pm_runtime_put_sync(dev);
+
+	pm_runtime_force_suspend(dev);
+
+	return 0;
+}
+
+static int stm32_dma3_pm_resume(struct device *dev)
+{
+	struct stm32_dma3_ddata *ddata = dev_get_drvdata(dev);
+	struct dma_device *dma_dev = &ddata->dma_dev;
+	struct dma_chan *c;
+	int ret;
+
+	ret = pm_runtime_force_resume(dev);
+	if (ret < 0)
+		return ret;
+
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * Channel semaphores need to be restored in case of registers reset during low power.
+	 * stm32_dma3_get_chan_sem() will prior check the semaphore status.
+	 */
+	list_for_each_entry(c, &dma_dev->channels, device_node) {
+		struct stm32_dma3_chan *chan = to_stm32_dma3_chan(c);
+
+		if (chan->semaphore_mode && chan->semaphore_taken)
+			stm32_dma3_get_chan_sem(chan);
+	}
+
+	pm_runtime_put_sync(dev);
+
+	return 0;
+}
+
 static const struct dev_pm_ops stm32_dma3_pm_ops = {
-	SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
+	SYSTEM_SLEEP_PM_OPS(stm32_dma3_pm_suspend, stm32_dma3_pm_resume)
 	RUNTIME_PM_OPS(stm32_dma3_runtime_suspend, stm32_dma3_runtime_resume, NULL)
 };
 
@@ -1914,12 +2026,7 @@ static struct platform_driver stm32_dma3_driver = {
 	},
 };
 
-static int __init stm32_dma3_init(void)
-{
-	return platform_driver_register(&stm32_dma3_driver);
-}
-
-subsys_initcall(stm32_dma3_init);
+module_platform_driver(stm32_dma3_driver);
 
 MODULE_DESCRIPTION("STM32 DMA3 controller driver");
 MODULE_AUTHOR("Amelie Delaunay <amelie.delaunay@foss.st.com>");

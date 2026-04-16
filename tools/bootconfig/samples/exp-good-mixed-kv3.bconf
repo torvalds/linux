@@ -1,0 +1,5 @@
+key = "value";
+key {
+	subkey1;
+	subkey2 = "foo";
+}

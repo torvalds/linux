@@ -5928,7 +5928,7 @@ again:
 			if (ret)
 				goto out;
 			if (ctx->log_new_dentries) {
-				dir_elem = kmalloc(sizeof(*dir_elem), GFP_NOFS);
+				dir_elem = kmalloc_obj(*dir_elem, GFP_NOFS);
 				if (!dir_elem) {
 					ret = -ENOMEM;
 					goto out;
@@ -6122,7 +6122,7 @@ static int add_conflicting_inode(struct btrfs_trans_handle *trans,
 			return ret;
 
 		/* Conflicting inode is a directory, so we'll log its parent. */
-		ino_elem = kmalloc(sizeof(*ino_elem), GFP_NOFS);
+		ino_elem = kmalloc_obj(*ino_elem, GFP_NOFS);
 		if (!ino_elem)
 			return -ENOMEM;
 		ino_elem->ino = ino;
@@ -6180,7 +6180,7 @@ static int add_conflicting_inode(struct btrfs_trans_handle *trans,
 
 	btrfs_add_delayed_iput(inode);
 
-	ino_elem = kmalloc(sizeof(*ino_elem), GFP_NOFS);
+	ino_elem = kmalloc_obj(*ino_elem, GFP_NOFS);
 	if (!ino_elem)
 		return -ENOMEM;
 	ino_elem->ino = ino;
@@ -6195,6 +6195,7 @@ static int log_conflicting_inodes(struct btrfs_trans_handle *trans,
 				  struct btrfs_root *root,
 				  struct btrfs_log_ctx *ctx)
 {
+	const bool orig_log_new_dentries = ctx->log_new_dentries;
 	int ret = 0;
 
 	/*
@@ -6256,7 +6257,11 @@ static int log_conflicting_inodes(struct btrfs_trans_handle *trans,
 			 * dir index key range logged for the directory. So we
 			 * must make sure the deletion is recorded.
 			 */
+			ctx->log_new_dentries = false;
 			ret = btrfs_log_inode(trans, inode, LOG_INODE_ALL, ctx);
+			if (!ret && ctx->log_new_dentries)
+				ret = log_new_dir_dentries(trans, inode, ctx);
+
 			btrfs_add_delayed_iput(inode);
 			if (ret)
 				break;
@@ -6291,6 +6296,7 @@ static int log_conflicting_inodes(struct btrfs_trans_handle *trans,
 			break;
 	}
 
+	ctx->log_new_dentries = orig_log_new_dentries;
 	ctx->logging_conflict_inodes = false;
 	if (ret)
 		free_conflicting_inodes(ctx);

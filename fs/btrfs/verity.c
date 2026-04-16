@@ -552,7 +552,7 @@ static int finish_verity(struct btrfs_inode *inode, const void *desc,
 	btrfs_set_fs_compat_ro(root->fs_info, VERITY);
 end_trans:
 	btrfs_end_transaction(trans);
-	return 0;
+	return ret;
 
 }
 

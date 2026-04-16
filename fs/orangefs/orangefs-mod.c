@@ -99,7 +99,7 @@ static int __init orangefs_init(void)
 		goto cleanup_op;
 
 	orangefs_htable_ops_in_progress =
-	    kcalloc(hash_table_size, sizeof(struct list_head), GFP_KERNEL);
+	    kzalloc_objs(struct list_head, hash_table_size);
 	if (!orangefs_htable_ops_in_progress) {
 		ret = -ENOMEM;
 		goto cleanup_inode;

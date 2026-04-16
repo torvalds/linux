@@ -769,7 +769,7 @@ static int tda18250_probe(struct i2c_client *client)
 		.volatile_table = &tda18250_volatile_table,
 	};
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev) {
 		ret = -ENOMEM;
 		goto err;

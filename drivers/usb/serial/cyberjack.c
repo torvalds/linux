@@ -101,7 +101,7 @@ static int cyberjack_port_probe(struct usb_serial_port *port)
 	struct cyberjack_private *priv;
 	int result;
 
-	priv = kmalloc(sizeof(struct cyberjack_private), GFP_KERNEL);
+	priv = kmalloc_obj(struct cyberjack_private);
 	if (!priv)
 		return -ENOMEM;
 

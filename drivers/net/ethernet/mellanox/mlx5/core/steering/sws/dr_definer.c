@@ -60,7 +60,7 @@ dr_definer_create_obj(struct mlx5dr_domain *dmn, u16 format_id,
 	struct dr_definer_object *definer_obj;
 	int ret = 0;
 
-	definer_obj = kzalloc(sizeof(*definer_obj), GFP_KERNEL);
+	definer_obj = kzalloc_obj(*definer_obj);
 	if (!definer_obj)
 		return NULL;
 

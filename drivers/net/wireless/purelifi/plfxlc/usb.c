@@ -204,7 +204,7 @@ static int __lf_x_usb_enable_rx(struct plfxlc_usb *usb)
 	int i, r;
 
 	r = -ENOMEM;
-	urbs = kcalloc(RX_URBS_COUNT, sizeof(struct urb *), GFP_KERNEL);
+	urbs = kzalloc_objs(struct urb *, RX_URBS_COUNT);
 	if (!urbs)
 		goto error;
 

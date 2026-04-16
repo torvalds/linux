@@ -1131,11 +1131,11 @@ int tegra_pmc_powergate_sequence_power_up(struct tegra_pmc *pmc,
 	if (!tegra_powergate_is_available(pmc, id))
 		return -EINVAL;
 
-	pg = kzalloc(sizeof(*pg), GFP_KERNEL);
+	pg = kzalloc_obj(*pg);
 	if (!pg)
 		return -ENOMEM;
 
-	pg->clk_rates = kzalloc(sizeof(*pg->clk_rates), GFP_KERNEL);
+	pg->clk_rates = kzalloc_obj(*pg->clk_rates);
 	if (!pg->clk_rates) {
 		kfree(pg->clks);
 		return -ENOMEM;
@@ -1341,7 +1341,7 @@ static int tegra_powergate_of_get_clks(struct tegra_powergate *pg,
 	if (count == 0)
 		return -ENODEV;
 
-	pg->clks = kcalloc(count, sizeof(clk), GFP_KERNEL);
+	pg->clks = kzalloc_objs(clk, count);
 	if (!pg->clks)
 		return -ENOMEM;
 
@@ -1402,7 +1402,7 @@ static int tegra_powergate_add(struct tegra_pmc *pmc, struct device_node *np)
 	int id, err = 0;
 	bool off;
 
-	pg = kzalloc(sizeof(*pg), GFP_KERNEL);
+	pg = kzalloc_obj(*pg);
 	if (!pg)
 		return -ENOMEM;
 

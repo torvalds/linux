@@ -2016,7 +2016,7 @@ int ext4_init_fs_context(struct fs_context *fc)
 {
 	struct ext4_fs_context *ctx;
 
-	ctx = kzalloc(sizeof(struct ext4_fs_context), GFP_KERNEL);
+	ctx = kzalloc_obj(struct ext4_fs_context);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -2496,11 +2496,11 @@ static int parse_apply_sb_mount_options(struct super_block *sb,
 	if (strscpy_pad(s_mount_opts, sbi->s_es->s_mount_opts) < 0)
 		return -E2BIG;
 
-	fc = kzalloc(sizeof(struct fs_context), GFP_KERNEL);
+	fc = kzalloc_obj(struct fs_context);
 	if (!fc)
 		return -ENOMEM;
 
-	s_ctx = kzalloc(sizeof(struct ext4_fs_context), GFP_KERNEL);
+	s_ctx = kzalloc_obj(struct ext4_fs_context);
 	if (!s_ctx)
 		goto out_free;
 
@@ -3962,7 +3962,7 @@ static int ext4_li_info_new(void)
 {
 	struct ext4_lazy_init *eli = NULL;
 
-	eli = kzalloc(sizeof(*eli), GFP_KERNEL);
+	eli = kzalloc_obj(*eli);
 	if (!eli)
 		return -ENOMEM;
 
@@ -3981,7 +3981,7 @@ static struct ext4_li_request *ext4_li_request_new(struct super_block *sb,
 {
 	struct ext4_li_request *elr;
 
-	elr = kzalloc(sizeof(*elr), GFP_KERNEL);
+	elr = kzalloc_obj(*elr);
 	if (!elr)
 		return NULL;
 
@@ -4328,7 +4328,7 @@ static struct ext4_sb_info *ext4_alloc_sbi(struct super_block *sb)
 {
 	struct ext4_sb_info *sbi;
 
-	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
+	sbi = kzalloc_obj(*sbi);
 	if (!sbi)
 		return NULL;
 
@@ -4336,7 +4336,7 @@ static struct ext4_sb_info *ext4_alloc_sbi(struct super_block *sb)
 					   NULL, NULL);
 
 	sbi->s_blockgroup_lock =
-		kzalloc(sizeof(struct blockgroup_lock), GFP_KERNEL);
+		kzalloc_obj(struct blockgroup_lock);
 
 	if (!sbi->s_blockgroup_lock)
 		goto err_out;
@@ -4879,9 +4879,7 @@ static int ext4_group_desc_init(struct super_block *sb,
 		}
 	}
 	rcu_assign_pointer(sbi->s_group_desc,
-			   kvmalloc_array(db_count,
-					  sizeof(struct buffer_head *),
-					  GFP_KERNEL));
+			   kvmalloc_objs(struct buffer_head *, db_count));
 	if (sbi->s_group_desc == NULL) {
 		ext4_msg(sb, KERN_ERR, "not enough memory");
 		return -ENOMEM;

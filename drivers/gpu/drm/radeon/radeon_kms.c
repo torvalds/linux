@@ -640,7 +640,7 @@ int radeon_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 	/* new gpu have virtual address space support */
 	if (rdev->family >= CHIP_CAYMAN) {
 
-		fpriv = kzalloc(sizeof(*fpriv), GFP_KERNEL);
+		fpriv = kzalloc_obj(*fpriv);
 		if (unlikely(!fpriv)) {
 			r = -ENOMEM;
 			goto err_suspend;

@@ -1792,7 +1792,7 @@ static int mlx5_hca_caps_alloc(struct mlx5_core_dev *dev)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(types); i++) {
-		cap = kzalloc(sizeof(*cap), GFP_KERNEL);
+		cap = kzalloc_obj(*cap);
 		if (!cap)
 			goto err;
 		type = types[i];

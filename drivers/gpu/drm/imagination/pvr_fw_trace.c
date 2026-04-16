@@ -455,7 +455,7 @@ static int fw_trace_open(struct inode *inode, struct file *file)
 	struct pvr_fw_trace_seq_data *trace_seq_data;
 	int err;
 
-	trace_seq_data = kzalloc(sizeof(*trace_seq_data), GFP_KERNEL);
+	trace_seq_data = kzalloc_obj(*trace_seq_data);
 	if (!trace_seq_data)
 		return -ENOMEM;
 

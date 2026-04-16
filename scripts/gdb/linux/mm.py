@@ -26,8 +26,179 @@ class page_ops():
             raise gdb.GdbError('Only support CONFIG_SPARSEMEM_VMEMMAP now')
         if constants.LX_CONFIG_ARM64 and utils.is_target_arch('aarch64'):
             self.ops = aarch64_page_ops()
+        elif utils.is_target_arch('x86_64') or utils.is_target_arch('x86-64'):
+            self.ops = x86_page_ops()
         else:
-            raise gdb.GdbError('Only support aarch64 now')
+            raise gdb.GdbError('Only support aarch64 and x86_64 now')
+
+class x86_page_ops():
+    def __init__(self):
+        self.struct_page_size = utils.get_page_type().sizeof
+        self.PAGE_SHIFT = constants.LX_CONFIG_PAGE_SHIFT
+        self.PAGE_SIZE = 1 << self.PAGE_SHIFT
+        self.PAGE_MASK = (~(self.PAGE_SIZE - 1)) & ((1 << 64) - 1)
+
+        self.PAGE_OFFSET = int(gdb.parse_and_eval("page_offset_base"))
+        self.VMEMMAP_START = int(gdb.parse_and_eval("vmemmap_base"))
+        self.PHYS_BASE = int(gdb.parse_and_eval("phys_base"))
+        self.START_KERNEL_map = 0xffffffff80000000
+
+        self.KERNEL_START = gdb.parse_and_eval("_text")
+        self.KERNEL_END = gdb.parse_and_eval("_end")
+
+        self.VMALLOC_START = int(gdb.parse_and_eval("vmalloc_base"))
+        if self.VMALLOC_START == 0xffffc90000000000:
+            self.VMALLOC_END = self.VMALLOC_START + (32 * 1024 * 1024 * 1024 * 1024) - 1
+        elif self.VMALLOC_START == 0xffa0000000000000:
+            self.VMALLOC_END = self.VMALLOC_START + (12800 * 1024 * 1024 * 1024 * 1024) - 1
+        else:
+            self.VMALLOC_END = self.VMALLOC_START + (12800 * 1024 * 1024 * 1024 * 1024) - 1
+
+        self.MAX_PHYSMEM_BITS = 46
+        self.SECTION_SIZE_BITS = 27
+        self.MAX_ORDER = 10
+
+        self.SECTIONS_SHIFT = self.MAX_PHYSMEM_BITS - self.SECTION_SIZE_BITS
+        self.NR_MEM_SECTIONS = 1 << self.SECTIONS_SHIFT
+        self.PFN_SECTION_SHIFT = self.SECTION_SIZE_BITS - self.PAGE_SHIFT
+        self.PAGES_PER_SECTION = 1 << self.PFN_SECTION_SHIFT
+        self.PAGE_SECTION_MASK = (~(self.PAGES_PER_SECTION - 1)) & ((1 << 64) - 1)
+
+        if constants.LX_CONFIG_SPARSEMEM_EXTREME:
+            self.SECTIONS_PER_ROOT = self.PAGE_SIZE // gdb.lookup_type("struct mem_section").sizeof
+        else:
+            self.SECTIONS_PER_ROOT = 1
+
+        self.NR_SECTION_ROOTS = DIV_ROUND_UP(self.NR_MEM_SECTIONS, self.SECTIONS_PER_ROOT)
+        self.SECTION_ROOT_MASK = self.SECTIONS_PER_ROOT - 1
+
+        try:
+            self.SECTION_HAS_MEM_MAP = 1 << int(gdb.parse_and_eval('SECTION_HAS_MEM_MAP_BIT'))
+            self.SECTION_IS_EARLY = 1 << int(gdb.parse_and_eval('SECTION_IS_EARLY_BIT'))
+        except:
+            self.SECTION_HAS_MEM_MAP = 1 << 0
+            self.SECTION_IS_EARLY = 1 << 3
+
+        self.SUBSECTION_SHIFT = 21
+        self.PAGES_PER_SUBSECTION = 1 << (self.SUBSECTION_SHIFT - self.PAGE_SHIFT)
+
+        if constants.LX_CONFIG_NUMA and constants.LX_CONFIG_NODES_SHIFT:
+            self.NODE_SHIFT = constants.LX_CONFIG_NODES_SHIFT
+        else:
+            self.NODE_SHIFT = 0
+
+        self.MAX_NUMNODES = 1 << self.NODE_SHIFT
+
+        self.vmemmap = gdb.Value(self.VMEMMAP_START).cast(utils.get_page_type().pointer())
+
+    def kasan_reset_tag(self, addr):
+        return addr
+
+    def SECTION_NR_TO_ROOT(self, sec):
+        return sec // self.SECTIONS_PER_ROOT
+
+    def __nr_to_section(self, nr):
+        root = self.SECTION_NR_TO_ROOT(nr)
+        mem_section = gdb.parse_and_eval("mem_section")
+        return mem_section[root][nr & self.SECTION_ROOT_MASK]
+
+    def pfn_to_section_nr(self, pfn):
+        return pfn >> self.PFN_SECTION_SHIFT
+
+    def section_nr_to_pfn(self, sec):
+        return sec << self.PFN_SECTION_SHIFT
+
+    def __pfn_to_section(self, pfn):
+        return self.__nr_to_section(self.pfn_to_section_nr(pfn))
+
+    def pfn_to_section(self, pfn):
+        return self.__pfn_to_section(pfn)
+
+    def subsection_map_index(self, pfn):
+        return (pfn & ~(self.PAGE_SECTION_MASK)) // self.PAGES_PER_SUBSECTION
+
+    def pfn_section_valid(self, ms, pfn):
+        if constants.LX_CONFIG_SPARSEMEM_VMEMMAP:
+            idx = self.subsection_map_index(pfn)
+            return test_bit(idx, ms['usage']['subsection_map'])
+        else:
+            return True
+
+    def valid_section(self, mem_section):
+        if mem_section != None and (mem_section['section_mem_map'] & self.SECTION_HAS_MEM_MAP):
+            return True
+        return False
+
+    def early_section(self, mem_section):
+        if mem_section != None and (mem_section['section_mem_map'] & self.SECTION_IS_EARLY):
+            return True
+        return False
+
+    def pfn_valid(self, pfn):
+        ms = None
+        if self.PHYS_PFN(self.PFN_PHYS(pfn)) != pfn:
+            return False
+        if self.pfn_to_section_nr(pfn) >= self.NR_MEM_SECTIONS:
+            return False
+        ms = self.__pfn_to_section(pfn)
+
+        if not self.valid_section(ms):
+            return False
+        return self.early_section(ms) or self.pfn_section_valid(ms, pfn)
+
+    def PFN_PHYS(self, pfn):
+        return pfn << self.PAGE_SHIFT
+
+    def PHYS_PFN(self, phys):
+        return phys >> self.PAGE_SHIFT
+
+    def __phys_to_virt(self, pa):
+        return pa + self.PAGE_OFFSET
+
+    def __virt_to_phys(self, va):
+        if va >= self.START_KERNEL_map:
+            return va - self.START_KERNEL_map + self.PHYS_BASE
+        else:
+            return va - self.PAGE_OFFSET
+
+    def virt_to_phys(self, va):
+        return self.__virt_to_phys(va)
+
+    def virt_to_page(self, va):
+        return self.pfn_to_page(self.virt_to_pfn(va))
+
+    def __pa(self, va):
+        return self.__virt_to_phys(va)
+
+    def __va(self, pa):
+        return self.__phys_to_virt(pa)
+
+    def pfn_to_kaddr(self, pfn):
+        return self.__va(pfn << self.PAGE_SHIFT)
+
+    def virt_to_pfn(self, va):
+        return self.PHYS_PFN(self.__virt_to_phys(va))
+
+    def sym_to_pfn(self, x):
+        return self.PHYS_PFN(self.__virt_to_phys(x))
+
+    def page_to_pfn(self, page):
+        return int(page.cast(utils.get_page_type().pointer()) - self.vmemmap)
+
+    def pfn_to_page(self, pfn):
+        return self.vmemmap + pfn
+
+    def page_to_phys(self, page):
+        return self.PFN_PHYS(self.page_to_pfn(page))
+
+    def page_to_virt(self, page):
+        return self.__va(self.page_to_phys(page))
+
+    def page_address(self, page):
+        return self.page_to_virt(page)
+
+    def folio_address(self, folio):
+        return self.page_address(folio['page'].address)
 
 class aarch64_page_ops():
     def __init__(self):

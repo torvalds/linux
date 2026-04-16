@@ -128,7 +128,7 @@ static int perfmon_validate_group(struct idxd_pmu *pmu,
 	struct idxd_pmu *fake_pmu;
 	int i, ret = 0, n, idx;
 
-	fake_pmu = kzalloc(sizeof(*fake_pmu), GFP_KERNEL);
+	fake_pmu = kzalloc_obj(*fake_pmu);
 	if (!fake_pmu)
 		return -ENOMEM;
 
@@ -484,7 +484,7 @@ int perfmon_pmu_init(struct idxd_device *idxd)
 	if (idxd->perfmon_offset == 0)
 		return -ENODEV;
 
-	idxd_pmu = kzalloc(sizeof(*idxd_pmu), GFP_KERNEL);
+	idxd_pmu = kzalloc_obj(*idxd_pmu);
 	if (!idxd_pmu)
 		return -ENOMEM;
 

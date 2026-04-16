@@ -563,7 +563,7 @@ struct dvb_frontend *sp8870_attach(const struct sp8870_config *config,
 	struct sp8870_state *state = NULL;
 
 	/* allocate memory for the internal state */
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state)
 		goto error;
 

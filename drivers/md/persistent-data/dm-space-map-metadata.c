@@ -772,7 +772,7 @@ struct dm_space_map *dm_sm_metadata_init(void)
 {
 	struct sm_metadata *smm;
 
-	smm = kvmalloc(sizeof(*smm), GFP_KERNEL);
+	smm = kvmalloc_obj(*smm);
 	if (!smm)
 		return ERR_PTR(-ENOMEM);
 

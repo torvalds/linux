@@ -83,7 +83,7 @@ static struct wakeup_source *wakeup_source_create(const char *name)
 	const char *ws_name;
 	int id;
 
-	ws = kzalloc(sizeof(*ws), GFP_KERNEL);
+	ws = kzalloc_obj(*ws);
 	if (!ws)
 		goto err_ws;
 

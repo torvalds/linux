@@ -324,7 +324,7 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 		new->readonly = 1;
 
 	ret = -ENOMEM;
-	new->tag_set = kzalloc(sizeof(*new->tag_set), GFP_KERNEL);
+	new->tag_set = kzalloc_obj(*new->tag_set);
 	if (!new->tag_set)
 		goto out_list_del;
 

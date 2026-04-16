@@ -172,7 +172,7 @@ nvkm_ummu_new(struct nvkm_device *device, const struct nvkm_oclass *oclass,
 	} else
 		return ret;
 
-	if (!(ummu = kzalloc(sizeof(*ummu), GFP_KERNEL)))
+	if (!(ummu = kzalloc_obj(*ummu)))
 		return -ENOMEM;
 	nvkm_object_ctor(&nvkm_ummu, oclass, &ummu->object);
 	ummu->mmu = mmu;

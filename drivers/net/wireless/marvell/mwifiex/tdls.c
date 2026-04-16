@@ -1356,7 +1356,7 @@ void mwifiex_add_auto_tdls_peer(struct mwifiex_private *priv, const u8 *mac)
 	}
 
 	/* create new TDLS peer */
-	tdls_peer = kzalloc(sizeof(*tdls_peer), GFP_ATOMIC);
+	tdls_peer = kzalloc_obj(*tdls_peer, GFP_ATOMIC);
 	if (tdls_peer) {
 		ether_addr_copy(tdls_peer->mac_addr, mac);
 		tdls_peer->tdls_status = TDLS_SETUP_INPROGRESS;

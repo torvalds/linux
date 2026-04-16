@@ -471,11 +471,29 @@ struct smu_power_context {
 	struct smu_power_gate power_gate;
 };
 
-#define SMU_FEATURE_MAX	(64)
+#define SMU_FEATURE_NUM_DEFAULT (64)
+#define SMU_FEATURE_MAX (128)
 
 struct smu_feature_bits {
 	DECLARE_BITMAP(bits, SMU_FEATURE_MAX);
 };
+
+/*
+ * Helpers for initializing smu_feature_bits statically.
+ * Use SMU_FEATURE_BIT_INIT() which automatically handles array indexing:
+ *   static const struct smu_feature_bits example = {
+ *       .bits = {
+ *           SMU_FEATURE_BIT_INIT(5),
+ *           SMU_FEATURE_BIT_INIT(10),
+ *           SMU_FEATURE_BIT_INIT(65),
+ *           SMU_FEATURE_BIT_INIT(100)
+ *       }
+ *   };
+ */
+#define SMU_FEATURE_BITS_ELEM(bit) ((bit) / BITS_PER_LONG)
+#define SMU_FEATURE_BITS_POS(bit) ((bit) % BITS_PER_LONG)
+#define SMU_FEATURE_BIT_INIT(bit) \
+	[SMU_FEATURE_BITS_ELEM(bit)] = (1UL << SMU_FEATURE_BITS_POS(bit))
 
 enum smu_feature_list {
 	SMU_FEATURE_LIST_SUPPORTED,
@@ -518,7 +536,6 @@ enum smu_reset_mode {
 enum smu_baco_state {
 	SMU_BACO_STATE_ENTER = 0,
 	SMU_BACO_STATE_EXIT,
-	SMU_BACO_STATE_NONE,
 };
 
 struct smu_baco_context {
@@ -1212,7 +1229,8 @@ struct pptable_funcs {
 	 *                    on the SMU.
 	 * &feature_mask: Enabled feature mask.
 	 */
-	int (*get_enabled_mask)(struct smu_context *smu, uint64_t *feature_mask);
+	int (*get_enabled_mask)(struct smu_context *smu,
+				struct smu_feature_bits *feature_mask);
 
 	/**
 	 * @feature_is_enabled: Test if a feature is enabled.
@@ -2042,6 +2060,12 @@ static inline bool smu_feature_bits_empty(const struct smu_feature_bits *bits,
 					  unsigned int nbits)
 {
 	return bitmap_empty(bits->bits, nbits);
+}
+
+static inline bool smu_feature_bits_full(const struct smu_feature_bits *bits,
+					 unsigned int nbits)
+{
+	return bitmap_full(bits->bits, nbits);
 }
 
 static inline void smu_feature_bits_copy(struct smu_feature_bits *dst,

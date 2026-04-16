@@ -78,7 +78,7 @@ xfs_zone_account_reclaimable(
 	struct xfs_rtgroup	*rtg,
 	uint32_t		freed)
 {
-	struct xfs_group	*xg = &rtg->rtg_group;
+	struct xfs_group	*xg = rtg_group(rtg);
 	struct xfs_mount	*mp = rtg_mount(rtg);
 	struct xfs_zone_info	*zi = mp->m_zone_info;
 	uint32_t		used = rtg_rmap(rtg)->i_used_blocks;
@@ -417,7 +417,7 @@ xfs_init_open_zone(
 {
 	struct xfs_open_zone	*oz;
 
-	oz = kzalloc(sizeof(*oz), GFP_NOFS | __GFP_NOFAIL);
+	oz = kzalloc_obj(*oz, GFP_NOFS | __GFP_NOFAIL);
 	spin_lock_init(&oz->oz_alloc_lock);
 	atomic_set(&oz->oz_ref, 1);
 	oz->oz_rtg = rtg;
@@ -759,7 +759,7 @@ xfs_zone_alloc_blocks(
 
 	trace_xfs_zone_alloc_blocks(oz, allocated, count_fsb);
 
-	*sector = xfs_gbno_to_daddr(&rtg->rtg_group, 0);
+	*sector = xfs_gbno_to_daddr(rtg_group(rtg), 0);
 	*is_seq = bdev_zone_is_seq(mp->m_rtdev_targp->bt_bdev, *sector);
 	if (!*is_seq)
 		*sector += XFS_FSB_TO_BB(mp, allocated);
@@ -1080,7 +1080,7 @@ xfs_init_zone(
 	if (write_pointer == 0) {
 		/* zone is empty */
 		atomic_inc(&zi->zi_nr_free_zones);
-		xfs_group_set_mark(&rtg->rtg_group, XFS_RTG_FREE);
+		xfs_group_set_mark(rtg_group(rtg), XFS_RTG_FREE);
 		iz->available += rtg_blocks(rtg);
 	} else if (write_pointer < rtg_blocks(rtg)) {
 		/* zone is open */
@@ -1196,7 +1196,7 @@ xfs_alloc_zone_info(
 	struct xfs_zone_info	*zi;
 	int			i;
 
-	zi = kzalloc(sizeof(*zi), GFP_KERNEL);
+	zi = kzalloc_obj(*zi);
 	if (!zi)
 		return NULL;
 	INIT_LIST_HEAD(&zi->zi_open_zones);

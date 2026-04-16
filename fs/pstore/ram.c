@@ -232,8 +232,7 @@ static ssize_t ramoops_pstore_read(struct pstore_record *record)
 			 */
 			struct persistent_ram_zone *tmp_prz, *prz_next;
 
-			tmp_prz = kzalloc(sizeof(struct persistent_ram_zone),
-					  GFP_KERNEL);
+			tmp_prz = kzalloc_obj(struct persistent_ram_zone);
 			if (!tmp_prz)
 				return -ENOMEM;
 			prz = tmp_prz;
@@ -539,7 +538,7 @@ static int ramoops_init_przs(const char *name,
 		goto fail;
 	}
 
-	prz_ar = kcalloc(*cnt, sizeof(**przs), GFP_KERNEL);
+	prz_ar = kzalloc_objs(**przs, *cnt);
 	if (!prz_ar)
 		goto fail;
 

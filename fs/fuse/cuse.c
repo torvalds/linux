@@ -362,7 +362,7 @@ static void cuse_process_init_reply(struct fuse_mount *fm,
 
 	/* devt determined, create device */
 	rc = -ENOMEM;
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		goto err_region;
 
@@ -443,7 +443,7 @@ static int cuse_send_init(struct cuse_conn *cc)
 	if (!folio)
 		goto err;
 
-	ia = kzalloc(sizeof(*ia), GFP_KERNEL);
+	ia = kzalloc_obj(*ia);
 	if (!ia)
 		goto err_free_folio;
 
@@ -505,7 +505,7 @@ static int cuse_channel_open(struct inode *inode, struct file *file)
 	int rc;
 
 	/* set up cuse_conn */
-	cc = kzalloc(sizeof(*cc), GFP_KERNEL);
+	cc = kzalloc_obj(*cc);
 	if (!cc)
 		return -ENOMEM;
 

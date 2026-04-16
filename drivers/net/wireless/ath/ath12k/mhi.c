@@ -80,7 +80,7 @@ static int ath12k_mhi_get_msi(struct ath12k_pci *ab_pci)
 	ath12k_dbg(ab, ATH12K_DBG_PCI, "Number of assigned MSI for MHI is %d, base vector is %d\n",
 		   num_vectors, base_vector);
 
-	irq = kcalloc(num_vectors, sizeof(*irq), GFP_KERNEL);
+	irq = kzalloc_objs(*irq, num_vectors);
 	if (!irq)
 		return -ENOMEM;
 

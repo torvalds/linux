@@ -49,7 +49,7 @@ static struct ttm_tt *ttm_tt_simple_create(struct ttm_buffer_object *bo, u32 pag
 {
 	struct ttm_tt *tt;
 
-	tt = kzalloc(sizeof(*tt), GFP_KERNEL);
+	tt = kzalloc_obj(*tt);
 	ttm_tt_init(tt, bo, page_flags, ttm_cached, 0);
 
 	return tt;

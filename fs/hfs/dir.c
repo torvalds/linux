@@ -148,7 +148,7 @@ static int hfs_readdir(struct file *file, struct dir_context *ctx)
 	}
 	rd = file->private_data;
 	if (!rd) {
-		rd = kmalloc(sizeof(struct hfs_readdir_data), GFP_KERNEL);
+		rd = kmalloc_obj(struct hfs_readdir_data);
 		if (!rd) {
 			err = -ENOMEM;
 			goto out;

@@ -741,7 +741,7 @@ nf_flow_offload_rule_alloc(struct net *net,
 	struct nf_flow_rule *flow_rule;
 	int err = -ENOMEM;
 
-	flow_rule = kzalloc(sizeof(*flow_rule), GFP_KERNEL);
+	flow_rule = kzalloc_obj(*flow_rule);
 	if (!flow_rule)
 		goto err_flow;
 
@@ -1022,7 +1022,7 @@ nf_flow_offload_work_alloc(struct nf_flowtable *flowtable,
 	if (test_and_set_bit(NF_FLOW_HW_PENDING, &flow->flags))
 		return NULL;
 
-	offload = kmalloc(sizeof(struct flow_offload_work), GFP_ATOMIC);
+	offload = kmalloc_obj(struct flow_offload_work, GFP_ATOMIC);
 	if (!offload) {
 		clear_bit(NF_FLOW_HW_PENDING, &flow->flags);
 		return NULL;

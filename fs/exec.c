@@ -1402,7 +1402,7 @@ static struct linux_binprm *alloc_bprm(int fd, struct filename *filename, int fl
 	if (IS_ERR(file))
 		return ERR_CAST(file);
 
-	bprm = kzalloc(sizeof(*bprm), GFP_KERNEL);
+	bprm = kzalloc_obj(*bprm);
 	if (!bprm) {
 		do_close_execat(file);
 		return ERR_PTR(-ENOMEM);

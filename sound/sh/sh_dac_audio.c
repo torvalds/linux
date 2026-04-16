@@ -306,7 +306,7 @@ static int snd_sh_dac_create(struct snd_card *card,
 
 	*rchip = NULL;
 
-	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc_obj(*chip);
 	if (chip == NULL)
 		return -ENOMEM;
 

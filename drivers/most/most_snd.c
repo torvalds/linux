@@ -542,7 +542,7 @@ static int audio_probe_channel(struct most_interface *iface, int channel_id,
 		adpt->pcm_dev_idx++;
 		goto skip_adpt_alloc;
 	}
-	adpt = kzalloc(sizeof(*adpt), GFP_KERNEL);
+	adpt = kzalloc_obj(*adpt);
 	if (!adpt)
 		return -ENOMEM;
 
@@ -574,7 +574,7 @@ skip_adpt_alloc:
 		capture_count = 1;
 		direction = SNDRV_PCM_STREAM_CAPTURE;
 	}
-	channel = kzalloc(sizeof(*channel), GFP_KERNEL);
+	channel = kzalloc_obj(*channel);
 	if (!channel) {
 		ret = -ENOMEM;
 		goto err_free_adpt;

@@ -456,7 +456,7 @@ static int vsxxxaa_connect(struct serio *serio, struct serio_driver *drv)
 	struct input_dev *input_dev;
 	int err = -ENOMEM;
 
-	mouse = kzalloc(sizeof(*mouse), GFP_KERNEL);
+	mouse = kzalloc_obj(*mouse);
 	input_dev = input_allocate_device();
 	if (!mouse || !input_dev)
 		goto fail1;

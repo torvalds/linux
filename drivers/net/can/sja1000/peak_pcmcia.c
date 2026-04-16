@@ -650,7 +650,7 @@ static int pcan_probe(struct pcmcia_device *pdev)
 		goto probe_err_1;
 	}
 
-	card = kzalloc(sizeof(struct pcan_pccard), GFP_KERNEL);
+	card = kzalloc_obj(struct pcan_pccard);
 	if (!card) {
 		err = -ENOMEM;
 		goto probe_err_2;

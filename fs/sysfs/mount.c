@@ -62,7 +62,7 @@ static int sysfs_init_fs_context(struct fs_context *fc)
 			return -EPERM;
 	}
 
-	kfc = kzalloc(sizeof(struct kernfs_fs_context), GFP_KERNEL);
+	kfc = kzalloc_obj(struct kernfs_fs_context);
 	if (!kfc)
 		return -ENOMEM;
 

@@ -60,13 +60,14 @@ int amdgpu_dm_initialize_default_pipeline(struct drm_plane *plane, struct drm_pr
 	struct drm_colorop *ops[MAX_COLOR_PIPELINE_OPS];
 	struct drm_device *dev = plane->dev;
 	struct amdgpu_device *adev = drm_to_adev(dev);
+	bool has_3dlut = adev->dm.dc->caps.color.dpp.hw_3d_lut || adev->dm.dc->caps.color.mpc.preblend;
 	int ret;
 	int i = 0;
 
 	memset(ops, 0, sizeof(ops));
 
 	/* 1D curve - DEGAM TF */
-	ops[i] = kzalloc(sizeof(*ops[0]), GFP_KERNEL);
+	ops[i] = kzalloc_obj(*ops[0]);
 	if (!ops[i]) {
 		ret = -ENOMEM;
 		goto cleanup;
@@ -83,7 +84,7 @@ int amdgpu_dm_initialize_default_pipeline(struct drm_plane *plane, struct drm_pr
 	i++;
 
 	/* Multiplier */
-	ops[i] = kzalloc(sizeof(struct drm_colorop), GFP_KERNEL);
+	ops[i] = kzalloc_obj(struct drm_colorop);
 	if (!ops[i]) {
 		ret = -ENOMEM;
 		goto cleanup;
@@ -98,7 +99,7 @@ int amdgpu_dm_initialize_default_pipeline(struct drm_plane *plane, struct drm_pr
 	i++;
 
 	/* 3x4 matrix */
-	ops[i] = kzalloc(sizeof(struct drm_colorop), GFP_KERNEL);
+	ops[i] = kzalloc_obj(struct drm_colorop);
 	if (!ops[i]) {
 		ret = -ENOMEM;
 		goto cleanup;
@@ -112,9 +113,9 @@ int amdgpu_dm_initialize_default_pipeline(struct drm_plane *plane, struct drm_pr
 
 	i++;
 
-	if (adev->dm.dc->caps.color.dpp.hw_3d_lut) {
+	if (has_3dlut) {
 		/* 1D curve - SHAPER TF */
-		ops[i] = kzalloc(sizeof(*ops[0]), GFP_KERNEL);
+		ops[i] = kzalloc_obj(*ops[0]);
 		if (!ops[i]) {
 			ret = -ENOMEM;
 			goto cleanup;
@@ -131,7 +132,7 @@ int amdgpu_dm_initialize_default_pipeline(struct drm_plane *plane, struct drm_pr
 		i++;
 
 		/* 1D LUT - SHAPER LUT */
-		ops[i] = kzalloc(sizeof(*ops[0]), GFP_KERNEL);
+		ops[i] = kzalloc_obj(*ops[0]);
 		if (!ops[i]) {
 			ret = -ENOMEM;
 			goto cleanup;
@@ -148,7 +149,7 @@ int amdgpu_dm_initialize_default_pipeline(struct drm_plane *plane, struct drm_pr
 		i++;
 
 		/* 3D LUT */
-		ops[i] = kzalloc(sizeof(*ops[0]), GFP_KERNEL);
+		ops[i] = kzalloc_obj(*ops[0]);
 		if (!ops[i]) {
 			ret = -ENOMEM;
 			goto cleanup;
@@ -166,7 +167,7 @@ int amdgpu_dm_initialize_default_pipeline(struct drm_plane *plane, struct drm_pr
 	}
 
 	/* 1D curve - BLND TF */
-	ops[i] = kzalloc(sizeof(*ops[0]), GFP_KERNEL);
+	ops[i] = kzalloc_obj(*ops[0]);
 	if (!ops[i]) {
 		ret = -ENOMEM;
 		goto cleanup;
@@ -183,7 +184,7 @@ int amdgpu_dm_initialize_default_pipeline(struct drm_plane *plane, struct drm_pr
 	i++;
 
 	/* 1D LUT - BLND LUT */
-	ops[i] = kzalloc(sizeof(struct drm_colorop), GFP_KERNEL);
+	ops[i] = kzalloc_obj(struct drm_colorop);
 	if (!ops[i]) {
 		ret = -ENOMEM;
 		goto cleanup;

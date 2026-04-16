@@ -1684,7 +1684,7 @@ static int vdec_open(struct file *file)
 	struct venus_inst *inst;
 	int ret;
 
-	inst = kzalloc(sizeof(*inst), GFP_KERNEL);
+	inst = kzalloc_obj(*inst);
 	if (!inst)
 		return -ENOMEM;
 

@@ -714,7 +714,7 @@ static struct irq_info *xen_irq_init(unsigned int irq)
 {
 	struct irq_info *info;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (info) {
 		info->irq = irq;
 		info->type = IRQT_UNBOUND;
@@ -2292,8 +2292,8 @@ void __init xen_init_IRQ(void)
 				  "xen/evtchn:prepare",
 				  xen_evtchn_cpu_prepare, xen_evtchn_cpu_dead);
 
-	evtchn_to_irq = kcalloc(EVTCHN_ROW(xen_evtchn_max_channels()),
-				sizeof(*evtchn_to_irq), GFP_KERNEL);
+	evtchn_to_irq = kzalloc_objs(*evtchn_to_irq,
+				     EVTCHN_ROW(xen_evtchn_max_channels()));
 	BUG_ON(!evtchn_to_irq);
 
 	/* No event channels are 'live' right now. */

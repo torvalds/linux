@@ -763,7 +763,7 @@ static int compute_bitstructs(struct gfs2_rgrpd *rgd)
 	if (!length)
 		return -EINVAL;
 
-	rgd->rd_bits = kcalloc(length, sizeof(struct gfs2_bitmap), GFP_NOFS);
+	rgd->rd_bits = kzalloc_objs(struct gfs2_bitmap, length, GFP_NOFS);
 	if (!rgd->rd_bits)
 		return -ENOMEM;
 
@@ -2699,8 +2699,8 @@ void gfs2_rlist_add(struct gfs2_inode *ip, struct gfs2_rgrp_list *rlist,
 	if (rlist->rl_rgrps == rlist->rl_space) {
 		new_space = rlist->rl_space + 10;
 
-		tmp = kcalloc(new_space, sizeof(struct gfs2_rgrpd *),
-			      GFP_NOFS | __GFP_NOFAIL);
+		tmp = kzalloc_objs(struct gfs2_rgrpd *, new_space,
+				   GFP_NOFS | __GFP_NOFAIL);
 
 		if (rlist->rl_rgd) {
 			memcpy(tmp, rlist->rl_rgd,
@@ -2731,9 +2731,8 @@ void gfs2_rlist_alloc(struct gfs2_rgrp_list *rlist,
 {
 	unsigned int x;
 
-	rlist->rl_ghs = kmalloc_array(rlist->rl_rgrps,
-				      sizeof(struct gfs2_holder),
-				      GFP_NOFS | __GFP_NOFAIL);
+	rlist->rl_ghs = kmalloc_objs(struct gfs2_holder, rlist->rl_rgrps,
+				     GFP_NOFS | __GFP_NOFAIL);
 	for (x = 0; x < rlist->rl_rgrps; x++)
 		gfs2_holder_init(rlist->rl_rgd[x]->rd_gl, state, flags,
 				 &rlist->rl_ghs[x]);

@@ -184,7 +184,7 @@ static int rvu_cgx_send_link_info(int cgx_id, int lmac_id, struct rvu *rvu)
 	unsigned long flags;
 	int err;
 
-	qentry = kmalloc(sizeof(*qentry), GFP_KERNEL);
+	qentry = kmalloc_obj(*qentry);
 	if (!qentry)
 		return -ENOMEM;
 
@@ -215,7 +215,7 @@ static int cgx_lmac_postevent(struct cgx_link_event *event, void *data)
 	struct rvu *rvu = data;
 
 	/* post event to the event queue */
-	qentry = kmalloc(sizeof(*qentry), GFP_ATOMIC);
+	qentry = kmalloc_obj(*qentry, GFP_ATOMIC);
 	if (!qentry)
 		return -ENOMEM;
 	qentry->link_event = *event;

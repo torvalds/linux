@@ -2389,7 +2389,7 @@ static struct cpu_hw_events *allocate_fake_cpuc(struct pmu *event_pmu)
 	struct cpu_hw_events *cpuc;
 	int cpu;
 
-	cpuc = kzalloc(sizeof(*cpuc), GFP_KERNEL);
+	cpuc = kzalloc_obj(*cpuc);
 	if (!cpuc)
 		return ERR_PTR(-ENOMEM);
 	cpuc->is_fake = 1;

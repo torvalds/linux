@@ -60,7 +60,6 @@ struct tas2781_hda_i2c_priv {
 	int (*save_calibration)(struct tas2781_hda *h);
 
 	int hda_chip_id;
-	bool skip_calibration;
 };
 
 static int tas2781_get_i2c_res(struct acpi_resource *ares, void *data)
@@ -479,8 +478,7 @@ static void tasdevice_dspfw_init(void *context)
 	/* If calibrated data occurs error, dsp will still works with default
 	 * calibrated data inside algo.
 	 */
-	if (!hda_priv->skip_calibration)
-		hda_priv->save_calibration(tas_hda);
+	hda_priv->save_calibration(tas_hda);
 }
 
 static void tasdev_fw_ready(const struct firmware *fmw, void *context)
@@ -535,7 +533,6 @@ static int tas2781_hda_bind(struct device *dev, struct device *master,
 	void *master_data)
 {
 	struct tas2781_hda *tas_hda = dev_get_drvdata(dev);
-	struct tas2781_hda_i2c_priv *hda_priv = tas_hda->hda_priv;
 	struct hda_component_parent *parent = master_data;
 	struct hda_component *comp;
 	struct hda_codec *codec;
@@ -563,14 +560,6 @@ static int tas2781_hda_bind(struct device *dev, struct device *master,
 		tas_hda->catlog_id = LENOVO;
 		break;
 	}
-
-	/*
-	 * Using ASUS ROG Xbox Ally X (RC73XA) UEFI calibration data
-	 * causes audio dropouts during playback, use fallback data
-	 * from DSP firmware as a workaround.
-	 */
-	if (codec->core.subsystem_id == 0x10431384)
-		hda_priv->skip_calibration = true;
 
 	guard(pm_runtime_active_auto)(dev);
 
@@ -643,6 +632,7 @@ static int tas2781_hda_i2c_probe(struct i2c_client *clt)
 		 */
 		device_name = "TIAS2781";
 		hda_priv->hda_chip_id = HDA_TAS2781;
+		tas_hda->priv->chip_id = TAS2781;
 		hda_priv->save_calibration = tas2781_save_calibration;
 		tas_hda->priv->global_addr = TAS2781_GLOBAL_ADDR;
 	} else if (strstarts(dev_name(&clt->dev), "i2c-TXNW2770")) {
@@ -656,6 +646,7 @@ static int tas2781_hda_i2c_probe(struct i2c_client *clt)
 			     "i2c-TXNW2781:00-tas2781-hda.0")) {
 		device_name = "TXNW2781";
 		hda_priv->hda_chip_id = HDA_TAS2781;
+		tas_hda->priv->chip_id = TAS2781;
 		hda_priv->save_calibration = tas2781_save_calibration;
 		tas_hda->priv->global_addr = TAS2781_GLOBAL_ADDR;
 	} else if (strstr(dev_name(&clt->dev), "INT8866")) {

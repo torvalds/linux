@@ -133,8 +133,7 @@ struct radeon_bo_list *radeon_vm_get_bos(struct radeon_device *rdev,
 	struct radeon_bo_list *list;
 	unsigned i, idx;
 
-	list = kvmalloc_array(vm->max_pde_used + 2,
-			     sizeof(struct radeon_bo_list), GFP_KERNEL);
+	list = kvmalloc_objs(struct radeon_bo_list, vm->max_pde_used + 2);
 	if (!list)
 		return NULL;
 
@@ -321,7 +320,7 @@ struct radeon_bo_va *radeon_vm_bo_add(struct radeon_device *rdev,
 {
 	struct radeon_bo_va *bo_va;
 
-	bo_va = kzalloc(sizeof(struct radeon_bo_va), GFP_KERNEL);
+	bo_va = kzalloc_obj(struct radeon_bo_va);
 	if (bo_va == NULL)
 		return NULL;
 
@@ -495,7 +494,7 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 	if (bo_va->it.start || bo_va->it.last) {
 		/* add a clone of the bo_va to clear the old address */
 		struct radeon_bo_va *tmp;
-		tmp = kzalloc(sizeof(struct radeon_bo_va), GFP_KERNEL);
+		tmp = kzalloc_obj(struct radeon_bo_va);
 		if (!tmp) {
 			mutex_unlock(&vm->mutex);
 			r = -ENOMEM;

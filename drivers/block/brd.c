@@ -272,7 +272,7 @@ static struct brd_device *brd_find_or_alloc_device(int i)
 		}
 	}
 
-	brd = kzalloc(sizeof(*brd), GFP_KERNEL);
+	brd = kzalloc_obj(*brd);
 	if (!brd) {
 		mutex_unlock(&brd_devices_mutex);
 		return ERR_PTR(-ENOMEM);

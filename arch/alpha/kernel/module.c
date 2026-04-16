@@ -46,7 +46,7 @@ process_reloc_for_got(Elf64_Rela *rela,
 			goto found_entry;
 		}
 
-	g = kmalloc (sizeof (*g), GFP_KERNEL);
+	g = kmalloc_obj(*g);
 	g->next = chains[r_sym].next;
 	g->r_addend = r_addend;
 	g->got_offset = *poffset;
@@ -93,7 +93,7 @@ module_frob_arch_sections(Elf64_Ehdr *hdr, Elf64_Shdr *sechdrs,
 	}
 
 	nsyms = symtab->sh_size / sizeof(Elf64_Sym);
-	chains = kcalloc(nsyms, sizeof(struct got_entry), GFP_KERNEL);
+	chains = kzalloc_objs(struct got_entry, nsyms);
 	if (!chains) {
 		printk(KERN_ERR
 		       "module %s: no memory for symbol chain buffer\n",

@@ -55,7 +55,7 @@ static int usb_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 	struct i2c_msg *pmsg;
 	int i, ret;
 
-	pstatus = kmalloc(sizeof(*pstatus), GFP_KERNEL);
+	pstatus = kmalloc_obj(*pstatus);
 	if (!pstatus)
 		return -ENOMEM;
 
@@ -123,7 +123,7 @@ static u32 usb_func(struct i2c_adapter *adapter)
 	__le32 *pfunc;
 	u32 ret;
 
-	pfunc = kmalloc(sizeof(*pfunc), GFP_KERNEL);
+	pfunc = kmalloc_obj(*pfunc);
 
 	/* get functionality from adapter */
 	if (!pfunc || usb_read(adapter, CMD_GET_FUNC, 0, 0, pfunc,
@@ -233,7 +233,7 @@ static int i2c_tiny_usb_probe(struct usb_interface *interface,
 	dev_dbg(&interface->dev, "probing usb device\n");
 
 	/* allocate memory for our device state and initialize it */
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		goto error;
 

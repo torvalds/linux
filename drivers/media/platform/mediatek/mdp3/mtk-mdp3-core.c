@@ -221,7 +221,7 @@ static int mdp_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret, i, mutex_id;
 
-	mdp = kzalloc(sizeof(*mdp), GFP_KERNEL);
+	mdp = kzalloc_obj(*mdp);
 	if (!mdp) {
 		ret = -ENOMEM;
 		goto err_return;

@@ -49,7 +49,7 @@ int cache_tag_assign(struct dmar_domain *domain, u16 did, struct device *dev,
 	struct list_head *prev;
 	unsigned long flags;
 
-	tag = kzalloc(sizeof(*tag), GFP_KERNEL);
+	tag = kzalloc_obj(*tag);
 	if (!tag)
 		return -ENOMEM;
 
@@ -123,7 +123,7 @@ static int domain_qi_batch_alloc(struct dmar_domain *domain)
 	if (domain->qi_batch)
 		goto out_unlock;
 
-	domain->qi_batch = kzalloc(sizeof(*domain->qi_batch), GFP_ATOMIC);
+	domain->qi_batch = kzalloc_obj(*domain->qi_batch, GFP_ATOMIC);
 	if (!domain->qi_batch)
 		ret = -ENOMEM;
 out_unlock:

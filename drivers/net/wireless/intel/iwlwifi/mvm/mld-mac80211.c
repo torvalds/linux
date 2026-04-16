@@ -905,7 +905,7 @@ iwl_mvm_mld_change_vif_links(struct ieee80211_hw *hw,
 
 		if (!(added & BIT(i)))
 			continue;
-		new_link[i] = kzalloc(sizeof(*new_link[i]), GFP_KERNEL);
+		new_link[i] = kzalloc_obj(*new_link[i]);
 		if (!new_link[i]) {
 			err = -ENOMEM;
 			goto free;

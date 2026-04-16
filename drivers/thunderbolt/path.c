@@ -150,7 +150,7 @@ struct tb_path *tb_path_discover(struct tb_port *src, int src_hopid,
 		num_hops++;
 	}
 
-	path = kzalloc(sizeof(*path), GFP_KERNEL);
+	path = kzalloc_obj(*path);
 	if (!path)
 		return NULL;
 
@@ -160,7 +160,7 @@ struct tb_path *tb_path_discover(struct tb_port *src, int src_hopid,
 	path->activated = true;
 	path->alloc_hopid = alloc_hopid;
 
-	path->hops = kcalloc(num_hops, sizeof(*path->hops), GFP_KERNEL);
+	path->hops = kzalloc_objs(*path->hops, num_hops);
 	if (!path->hops) {
 		kfree(path);
 		return NULL;
@@ -245,7 +245,7 @@ struct tb_path *tb_path_alloc(struct tb *tb, struct tb_port *src, int src_hopid,
 	size_t num_hops;
 	int i, ret;
 
-	path = kzalloc(sizeof(*path), GFP_KERNEL);
+	path = kzalloc_obj(*path);
 	if (!path)
 		return NULL;
 
@@ -267,7 +267,7 @@ struct tb_path *tb_path_alloc(struct tb *tb, struct tb_port *src, int src_hopid,
 	/* Each hop takes two ports */
 	num_hops = i / 2;
 
-	path->hops = kcalloc(num_hops, sizeof(*path->hops), GFP_KERNEL);
+	path->hops = kzalloc_objs(*path->hops, num_hops);
 	if (!path->hops) {
 		kfree(path);
 		return NULL;
@@ -586,7 +586,7 @@ int tb_path_activate(struct tb_path *path)
 	tb_dbg(path->tb, "%s path activation complete\n", path->name);
 	return 0;
 err:
-	tb_WARN(path->tb, "%s path activation failed\n", path->name);
+	tb_warn(path->tb, "%s path activation failed: %d\n", path->name, res);
 	return res;
 }
 

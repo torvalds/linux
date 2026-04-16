@@ -403,7 +403,7 @@ static bool rtw_usb_tx_agg_skb(struct rtw_usb *rtwusb, struct sk_buff_head *list
 	if (skb_queue_empty(list))
 		return false;
 
-	txcb = kmalloc(sizeof(*txcb), GFP_ATOMIC);
+	txcb = kmalloc_obj(*txcb, GFP_ATOMIC);
 	if (!txcb)
 		return false;
 

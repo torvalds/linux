@@ -1157,7 +1157,7 @@ static int smsc95xx_bind(struct usbnet *dev, struct usb_interface *intf)
 		return ret;
 	}
 
-	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
+	pdata = kzalloc_obj(*pdata);
 	if (!pdata)
 		return -ENOMEM;
 

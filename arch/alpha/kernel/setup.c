@@ -392,7 +392,7 @@ register_cpus(void)
 	int i;
 
 	for_each_possible_cpu(i) {
-		struct cpu *p = kzalloc(sizeof(*p), GFP_KERNEL);
+		struct cpu *p = kzalloc_obj(*p);
 		if (!p)
 			return -ENOMEM;
 		register_cpu(p, i);

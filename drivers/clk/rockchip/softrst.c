@@ -96,7 +96,7 @@ void rockchip_register_softrst_lut(struct device_node *np,
 	struct rockchip_softrst *softrst;
 	int ret;
 
-	softrst = kzalloc(sizeof(*softrst), GFP_KERNEL);
+	softrst = kzalloc_obj(*softrst);
 	if (!softrst)
 		return;
 

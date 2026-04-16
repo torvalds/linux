@@ -1593,7 +1593,7 @@ int gfs2_dir_read(struct inode *inode, struct dir_context *ctx,
 
 	error = -ENOMEM;
 	/* 96 is max number of dirents which can be stuffed into an inode */
-	darr = kmalloc_array(96, sizeof(struct gfs2_dirent *), GFP_NOFS);
+	darr = kmalloc_objs(struct gfs2_dirent *, 96, GFP_NOFS);
 	if (darr) {
 		g.pdent = (const struct gfs2_dirent **)darr;
 		g.offset = 0;

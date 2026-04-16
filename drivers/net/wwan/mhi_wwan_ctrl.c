@@ -218,7 +218,7 @@ static int mhi_wwan_ctrl_probe(struct mhi_device *mhi_dev,
 	struct mhi_wwan_dev *mhiwwan;
 	struct wwan_port *port;
 
-	mhiwwan = kzalloc(sizeof(*mhiwwan), GFP_KERNEL);
+	mhiwwan = kzalloc_obj(*mhiwwan);
 	if (!mhiwwan)
 		return -ENOMEM;
 

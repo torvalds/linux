@@ -167,6 +167,25 @@ gve_free_pending_packet(struct gve_tx_ring *tx,
 	}
 }
 
+static void gve_unmap_packet(struct device *dev,
+			     struct gve_tx_pending_packet_dqo *pkt)
+{
+	int i;
+
+	if (!pkt->num_bufs)
+		return;
+
+	/* SKB linear portion is guaranteed to be mapped */
+	dma_unmap_single(dev, dma_unmap_addr(pkt, dma[0]),
+			 dma_unmap_len(pkt, len[0]), DMA_TO_DEVICE);
+	for (i = 1; i < pkt->num_bufs; i++) {
+		netmem_dma_unmap_page_attrs(dev, dma_unmap_addr(pkt, dma[i]),
+					    dma_unmap_len(pkt, len[i]),
+					    DMA_TO_DEVICE, 0);
+	}
+	pkt->num_bufs = 0;
+}
+
 /* gve_tx_free_desc - Cleans up all pending tx requests and buffers.
  */
 static void gve_tx_clean_pending_packets(struct gve_tx_ring *tx)
@@ -176,21 +195,12 @@ static void gve_tx_clean_pending_packets(struct gve_tx_ring *tx)
 	for (i = 0; i < tx->dqo.num_pending_packets; i++) {
 		struct gve_tx_pending_packet_dqo *cur_state =
 			&tx->dqo.pending_packets[i];
-		int j;
 
-		for (j = 0; j < cur_state->num_bufs; j++) {
-			if (j == 0) {
-				dma_unmap_single(tx->dev,
-					dma_unmap_addr(cur_state, dma[j]),
-					dma_unmap_len(cur_state, len[j]),
-					DMA_TO_DEVICE);
-			} else {
-				dma_unmap_page(tx->dev,
-					dma_unmap_addr(cur_state, dma[j]),
-					dma_unmap_len(cur_state, len[j]),
-					DMA_TO_DEVICE);
-			}
-		}
+		if (tx->dqo.qpl)
+			gve_free_tx_qpl_bufs(tx, cur_state);
+		else
+			gve_unmap_packet(tx->dev, cur_state);
+
 		if (cur_state->skb) {
 			dev_consume_skb_any(cur_state->skb);
 			cur_state->skb = NULL;
@@ -266,9 +276,8 @@ static int gve_tx_qpl_buf_init(struct gve_tx_ring *tx)
 		tx->dqo.qpl->num_entries;
 	int i;
 
-	tx->dqo.tx_qpl_buf_next = kvcalloc(num_tx_qpl_bufs,
-					   sizeof(tx->dqo.tx_qpl_buf_next[0]),
-					   GFP_KERNEL);
+	tx->dqo.tx_qpl_buf_next = kvzalloc_objs(tx->dqo.tx_qpl_buf_next[0],
+						num_tx_qpl_bufs);
 	if (!tx->dqo.tx_qpl_buf_next)
 		return -ENOMEM;
 
@@ -337,9 +346,8 @@ static int gve_tx_alloc_ring_dqo(struct gve_priv *priv,
 	num_pending_packets /= 2;
 
 	tx->dqo.num_pending_packets = min_t(int, num_pending_packets, S16_MAX);
-	tx->dqo.pending_packets = kvcalloc(tx->dqo.num_pending_packets,
-					   sizeof(tx->dqo.pending_packets[0]),
-					   GFP_KERNEL);
+	tx->dqo.pending_packets = kvzalloc_objs(tx->dqo.pending_packets[0],
+						tx->dqo.num_pending_packets);
 	if (!tx->dqo.pending_packets)
 		goto err;
 
@@ -417,8 +425,7 @@ int gve_tx_alloc_rings_dqo(struct gve_priv *priv,
 		return -EINVAL;
 	}
 
-	tx = kvcalloc(cfg->qcfg->max_queues, sizeof(struct gve_tx_ring),
-		      GFP_KERNEL);
+	tx = kvzalloc_objs(struct gve_tx_ring, cfg->qcfg->max_queues);
 	if (!tx)
 		return -ENOMEM;
 
@@ -1155,22 +1162,6 @@ static void remove_from_list(struct gve_tx_ring *tx,
 	} else {
 		tx->dqo.pending_packets[next_index].prev = prev_index;
 	}
-}
-
-static void gve_unmap_packet(struct device *dev,
-			     struct gve_tx_pending_packet_dqo *pkt)
-{
-	int i;
-
-	/* SKB linear portion is guaranteed to be mapped */
-	dma_unmap_single(dev, dma_unmap_addr(pkt, dma[0]),
-			 dma_unmap_len(pkt, len[0]), DMA_TO_DEVICE);
-	for (i = 1; i < pkt->num_bufs; i++) {
-		netmem_dma_unmap_page_attrs(dev, dma_unmap_addr(pkt, dma[i]),
-					    dma_unmap_len(pkt, len[i]),
-					    DMA_TO_DEVICE, 0);
-	}
-	pkt->num_bufs = 0;
 }
 
 /* Completion types and expected behavior:

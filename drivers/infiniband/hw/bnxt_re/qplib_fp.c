@@ -688,8 +688,7 @@ int bnxt_qplib_create_srq(struct bnxt_qplib_res *res,
 	srq->start_idx = 0;
 	srq->last_idx = srq->hwq.max_elements - 1;
 	if (!srq->hwq.is_user) {
-		srq->swq = kcalloc(srq->hwq.max_elements, sizeof(*srq->swq),
-				   GFP_KERNEL);
+		srq->swq = kzalloc_objs(*srq->swq, srq->hwq.max_elements);
 		if (!srq->swq) {
 			rc = -ENOMEM;
 			goto fail;
@@ -799,7 +798,7 @@ static int bnxt_qplib_alloc_init_swq(struct bnxt_qplib_q *que)
 {
 	int indx;
 
-	que->swq = kcalloc(que->max_sw_wqe, sizeof(*que->swq), GFP_KERNEL);
+	que->swq = kzalloc_objs(*que->swq, que->max_sw_wqe);
 	if (!que->swq)
 		return -ENOMEM;
 
@@ -2096,7 +2095,7 @@ queue_err:
 	qp->wqe_cnt++;
 done:
 	if (sch_handler) {
-		nq_work = kzalloc(sizeof(*nq_work), GFP_ATOMIC);
+		nq_work = kzalloc_obj(*nq_work, GFP_ATOMIC);
 		if (nq_work) {
 			nq_work->cq = qp->scq;
 			nq_work->nq = qp->scq->nq;
@@ -2183,7 +2182,7 @@ queue_err:
 	bnxt_qplib_hwq_incr_prod(&rq->dbinfo, hwq, swq->slots);
 done:
 	if (sch_handler) {
-		nq_work = kzalloc(sizeof(*nq_work), GFP_ATOMIC);
+		nq_work = kzalloc_obj(*nq_work, GFP_ATOMIC);
 		if (nq_work) {
 			nq_work->cq = qp->rcq;
 			nq_work->nq = qp->rcq->nq;

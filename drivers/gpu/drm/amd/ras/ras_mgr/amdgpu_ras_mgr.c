@@ -299,7 +299,7 @@ static int amdgpu_ras_mgr_sw_init(struct amdgpu_ip_block *ip_block)
 	if (!con->uniras_enabled)
 		return 0;
 
-	ras_mgr = kzalloc(sizeof(*ras_mgr), GFP_KERNEL);
+	ras_mgr = kzalloc_obj(*ras_mgr);
 	if (!ras_mgr)
 		return -EINVAL;
 

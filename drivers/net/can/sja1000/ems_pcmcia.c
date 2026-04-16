@@ -165,7 +165,7 @@ static int ems_pcmcia_add_card(struct pcmcia_device *pdev, unsigned long base)
 	int err, i;
 
 	/* Allocating card structures to hold addresses, ... */
-	card = kzalloc(sizeof(struct ems_pcmcia_card), GFP_KERNEL);
+	card = kzalloc_obj(struct ems_pcmcia_card);
 	if (!card)
 		return -ENOMEM;
 

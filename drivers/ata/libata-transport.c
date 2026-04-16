@@ -758,7 +758,7 @@ struct scsi_transport_template *ata_attach_transport(void)
 	struct ata_internal *i;
 	int count;
 
-	i = kzalloc(sizeof(struct ata_internal), GFP_KERNEL);
+	i = kzalloc_obj(struct ata_internal);
 	if (!i)
 		return NULL;
 

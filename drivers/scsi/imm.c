@@ -1158,7 +1158,7 @@ static int __imm_attach(struct parport *pb)
 
 	init_waitqueue_head(&waiting);
 
-	dev = kzalloc(sizeof(imm_struct), GFP_KERNEL);
+	dev = kzalloc_obj(imm_struct);
 	if (!dev)
 		return -ENOMEM;
 

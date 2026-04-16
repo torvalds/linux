@@ -127,7 +127,7 @@ struct dma_fence *host1x_fence_create(struct host1x_syncpt *sp, u32 threshold,
 {
 	struct host1x_syncpt_fence *fence;
 
-	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
+	fence = kzalloc_obj(*fence);
 	if (!fence)
 		return ERR_PTR(-ENOMEM);
 

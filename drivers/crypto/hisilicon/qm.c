@@ -2722,7 +2722,7 @@ static int qm_hw_err_isolate(struct hisi_qm *qm)
 	if (qm->uacce->is_vf || isolate->is_isolate || !isolate->err_threshold)
 		return 0;
 
-	hw_err = kzalloc(sizeof(*hw_err), GFP_KERNEL);
+	hw_err = kzalloc_obj(*hw_err);
 	if (!hw_err)
 		return -ENOMEM;
 
@@ -3747,7 +3747,7 @@ static int hisi_qm_sort_devices(int node, struct list_head *head,
 		if (dev_node < 0)
 			dev_node = 0;
 
-		res = kzalloc(sizeof(*res), GFP_KERNEL);
+		res = kzalloc_obj(*res);
 		if (!res)
 			return -ENOMEM;
 
@@ -5767,11 +5767,11 @@ static int hisi_qp_alloc_memory(struct hisi_qm *qm)
 	size_t qp_dma_size;
 	int i, ret;
 
-	qm->qp_array = kcalloc(qm->qp_num, sizeof(struct hisi_qp), GFP_KERNEL);
+	qm->qp_array = kzalloc_objs(struct hisi_qp, qm->qp_num);
 	if (!qm->qp_array)
 		return -ENOMEM;
 
-	qm->poll_data = kcalloc(qm->qp_num, sizeof(struct hisi_qm_poll_data), GFP_KERNEL);
+	qm->poll_data = kzalloc_objs(struct hisi_qm_poll_data, qm->qp_num);
 	if (!qm->poll_data) {
 		kfree(qm->qp_array);
 		return -ENOMEM;
@@ -5836,7 +5836,7 @@ static int hisi_qm_memory_init(struct hisi_qm *qm)
 
 	if (test_bit(QM_SUPPORT_FUNC_QOS, &qm->caps)) {
 		total_func = pci_sriov_get_totalvfs(qm->pdev) + 1;
-		qm->factor = kcalloc(total_func, sizeof(struct qm_shaper_factor), GFP_KERNEL);
+		qm->factor = kzalloc_objs(struct qm_shaper_factor, total_func);
 		if (!qm->factor)
 			return -ENOMEM;
 

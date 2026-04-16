@@ -178,7 +178,7 @@ int adf_ae_init(struct adf_accel_dev *accel_dev)
 	if (!hw_device->fw_name)
 		return 0;
 
-	loader_data = kzalloc(sizeof(*loader_data), GFP_KERNEL);
+	loader_data = kzalloc_obj(*loader_data);
 	if (!loader_data)
 		return -ENOMEM;
 

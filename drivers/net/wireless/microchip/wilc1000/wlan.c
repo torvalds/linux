@@ -244,7 +244,7 @@ static int wilc_wlan_txq_add_cfg_pkt(struct wilc_vif *vif, u8 *buffer,
 		return 0;
 	}
 
-	tqe = kmalloc(sizeof(*tqe), GFP_ATOMIC);
+	tqe = kmalloc_obj(*tqe, GFP_ATOMIC);
 	if (!tqe) {
 		complete(&wilc->cfg_event);
 		return 0;
@@ -413,7 +413,7 @@ int wilc_wlan_txq_add_net_pkt(struct net_device *dev,
 		return 0;
 	}
 
-	tqe = kmalloc(sizeof(*tqe), GFP_ATOMIC);
+	tqe = kmalloc_obj(*tqe, GFP_ATOMIC);
 
 	if (!tqe) {
 		tx_complete_fn(tx_data, 0);
@@ -466,7 +466,7 @@ int wilc_wlan_txq_add_mgmt_pkt(struct net_device *dev, void *priv, u8 *buffer,
 		tx_complete_fn(priv, 0);
 		return 0;
 	}
-	tqe = kmalloc(sizeof(*tqe), GFP_ATOMIC);
+	tqe = kmalloc_obj(*tqe, GFP_ATOMIC);
 
 	if (!tqe) {
 		tx_complete_fn(priv, 0);
@@ -1209,7 +1209,7 @@ static void wilc_wlan_handle_isr_ext(struct wilc *wilc, u32 int_status)
 
 	offset += size;
 	wilc->rx_buffer_offset = offset;
-	rqe = kmalloc(sizeof(*rqe), GFP_KERNEL);
+	rqe = kmalloc_obj(*rqe);
 	if (!rqe)
 		return;
 

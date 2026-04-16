@@ -1702,7 +1702,7 @@ int venus_hfi_create(struct venus_core *core)
 	struct venus_hfi_device *hdev;
 	int ret;
 
-	hdev = kzalloc(sizeof(*hdev), GFP_KERNEL);
+	hdev = kzalloc_obj(*hdev);
 	if (!hdev)
 		return -ENOMEM;
 

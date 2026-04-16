@@ -595,13 +595,10 @@ void iwl_tt_initialize(struct iwl_priv *priv)
 
 	if (priv->lib->adv_thermal_throttle) {
 		IWL_DEBUG_TEMP(priv, "Advanced Thermal Throttling\n");
-		tt->restriction = kcalloc(IWL_TI_STATE_MAX,
-					  sizeof(struct iwl_tt_restriction),
-					  GFP_KERNEL);
-		tt->transaction = kcalloc(IWL_TI_STATE_MAX *
-					  (IWL_TI_STATE_MAX - 1),
-					  sizeof(struct iwl_tt_trans),
-					  GFP_KERNEL);
+		tt->restriction = kzalloc_objs(struct iwl_tt_restriction,
+					       IWL_TI_STATE_MAX);
+		tt->transaction = kzalloc_objs(struct iwl_tt_trans,
+					       IWL_TI_STATE_MAX * (IWL_TI_STATE_MAX - 1));
 		if (!tt->restriction || !tt->transaction) {
 			IWL_ERR(priv, "Fallback to Legacy Throttling\n");
 			priv->thermal_throttle.advanced_tt = false;

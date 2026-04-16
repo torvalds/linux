@@ -52,7 +52,7 @@ static int __init xive_irq_bitmap_add(int base, int count)
 {
 	struct xive_irq_bitmap *xibm;
 
-	xibm = kzalloc(sizeof(*xibm), GFP_KERNEL);
+	xibm = kzalloc_obj(*xibm);
 	if (!xibm)
 		return -ENOMEM;
 

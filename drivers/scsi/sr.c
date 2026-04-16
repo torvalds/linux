@@ -629,7 +629,7 @@ static int sr_probe(struct scsi_device *sdev)
 		goto fail;
 
 	error = -ENOMEM;
-	cd = kzalloc(sizeof(*cd), GFP_KERNEL);
+	cd = kzalloc_obj(*cd);
 	if (!cd)
 		goto fail;
 

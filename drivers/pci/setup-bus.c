@@ -73,7 +73,7 @@ int pci_dev_res_add_to_list(struct list_head *head, struct pci_dev *dev,
 {
 	struct pci_dev_resource *tmp;
 
-	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
+	tmp = kzalloc_obj(*tmp);
 	if (!tmp)
 		return -ENOMEM;
 
@@ -224,14 +224,21 @@ static struct resource *pbus_select_window_for_type(struct pci_bus *bus,
 
 	switch (iores_type) {
 	case IORESOURCE_IO:
-		return pci_bus_resource_n(bus, PCI_BUS_BRIDGE_IO_WINDOW);
+		win = pci_bus_resource_n(bus, PCI_BUS_BRIDGE_IO_WINDOW);
+		if (win && (win->flags & IORESOURCE_IO))
+			return win;
+		return NULL;
 
 	case IORESOURCE_MEM:
 		mmio = pci_bus_resource_n(bus, PCI_BUS_BRIDGE_MEM_WINDOW);
 		mmio_pref = pci_bus_resource_n(bus, PCI_BUS_BRIDGE_PREF_MEM_WINDOW);
 
-		if (!(type & IORESOURCE_PREFETCH) ||
-		    !(mmio_pref->flags & IORESOURCE_MEM))
+		if (mmio && !(mmio->flags & IORESOURCE_MEM))
+			mmio = NULL;
+		if (mmio_pref && !(mmio_pref->flags & IORESOURCE_MEM))
+			mmio_pref = NULL;
+
+		if (!(type & IORESOURCE_PREFETCH) || !mmio_pref)
 			return mmio;
 
 		if ((type & IORESOURCE_MEM_64) ||
@@ -343,7 +350,7 @@ static void pdev_sort_resources(struct pci_dev *dev, struct list_head *head)
 			continue;
 		}
 
-		tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
+		tmp = kzalloc_obj(*tmp);
 		if (!tmp)
 			panic("%s: kzalloc() failed!\n", __func__);
 		tmp->res = r;
@@ -1217,31 +1224,34 @@ static bool pbus_size_mem_optional(struct pci_dev *dev, int resno,
 	struct resource *res = pci_resource_n(dev, resno);
 	bool optional = pci_resource_is_optional(dev, resno);
 	resource_size_t r_size = resource_size(res);
-	struct pci_dev_resource *dev_res;
+	struct pci_dev_resource *dev_res = NULL;
 
 	if (!realloc_head)
 		return false;
 
-	if (!optional) {
-		/*
-		 * Only bridges have optional sizes in realloc_head at this
-		 * point. As res_to_dev_res() walks the entire realloc_head
-		 * list, skip calling it when known unnecessary.
-		 */
-		if (!pci_resource_is_bridge_win(resno))
-			return false;
-
+	/*
+	 * Only bridges have optional sizes in realloc_head at this
+	 * point. As res_to_dev_res() walks the entire realloc_head
+	 * list, skip calling it when known unnecessary.
+	 */
+	if (pci_resource_is_bridge_win(resno)) {
 		dev_res = res_to_dev_res(realloc_head, res);
 		if (dev_res) {
 			*children_add_size += dev_res->add_size;
 			*add_align = max(*add_align, dev_res->min_align);
 		}
-
-		return false;
 	}
 
-	/* Put SRIOV requested res to the optional list */
-	pci_dev_res_add_to_list(realloc_head, dev, res, 0, align);
+	if (!optional)
+		return false;
+
+	/*
+	 * Put requested res to the optional list if not there yet (SR-IOV,
+	 * disabled ROM). Bridge windows with an optional part are already
+	 * on the list.
+	 */
+	if (!dev_res)
+		pci_dev_res_add_to_list(realloc_head, dev, res, 0, align);
 	*children_add_size += r_size;
 	*add_align = max(align, *add_align);
 

@@ -459,7 +459,7 @@ static void st7920_primary_plane_reset(struct drm_plane *plane)
 
 	drm_WARN_ON_ONCE(plane->dev, plane->state);
 
-	st7920_state = kzalloc(sizeof(*st7920_state), GFP_KERNEL);
+	st7920_state = kzalloc_obj(*st7920_state);
 	if (!st7920_state)
 		return;
 
@@ -474,7 +474,7 @@ static struct drm_plane_state *st7920_primary_plane_duplicate_state(struct drm_p
 	if (drm_WARN_ON_ONCE(plane->dev, !plane->state))
 		return NULL;
 
-	st7920_state = kzalloc(sizeof(*st7920_state), GFP_KERNEL);
+	st7920_state = kzalloc_obj(*st7920_state);
 	if (!st7920_state)
 		return NULL;
 
@@ -581,7 +581,7 @@ static void st7920_crtc_reset(struct drm_crtc *crtc)
 
 	drm_WARN_ON_ONCE(crtc->dev, crtc->state);
 
-	st7920_state = kzalloc(sizeof(*st7920_state), GFP_KERNEL);
+	st7920_state = kzalloc_obj(*st7920_state);
 	if (!st7920_state)
 		return;
 
@@ -595,7 +595,7 @@ static struct drm_crtc_state *st7920_crtc_duplicate_state(struct drm_crtc *crtc)
 	if (drm_WARN_ON_ONCE(crtc->dev, !crtc->state))
 		return NULL;
 
-	st7920_state = kzalloc(sizeof(*st7920_state), GFP_KERNEL);
+	st7920_state = kzalloc_obj(*st7920_state);
 	if (!st7920_state)
 		return NULL;
 

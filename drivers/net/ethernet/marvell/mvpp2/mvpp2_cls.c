@@ -1367,7 +1367,7 @@ int mvpp2_ethtool_cls_rule_ins(struct mvpp2_port *port,
 	if (info->fs.location >= MVPP2_N_RFS_ENTRIES_PER_FLOW)
 		return -EINVAL;
 
-	efs = kzalloc(sizeof(*efs), GFP_KERNEL);
+	efs = kzalloc_obj(*efs);
 	if (!efs)
 		return -ENOMEM;
 
@@ -1503,8 +1503,7 @@ static int mvpp22_rss_context_create(struct mvpp2_port *port, u32 *rss_ctx)
 	if (ctx == MVPP22_N_RSS_TABLES)
 		return -EINVAL;
 
-	priv->rss_tables[ctx] = kzalloc(sizeof(*priv->rss_tables[ctx]),
-					GFP_KERNEL);
+	priv->rss_tables[ctx] = kzalloc_obj(*priv->rss_tables[ctx]);
 	if (!priv->rss_tables[ctx])
 		return -ENOMEM;
 

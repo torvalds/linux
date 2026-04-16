@@ -727,11 +727,11 @@ static int spufs_init_fs_context(struct fs_context *fc)
 	struct spufs_fs_context *ctx;
 	struct spufs_sb_info *sbi;
 
-	ctx = kzalloc(sizeof(struct spufs_fs_context), GFP_KERNEL);
+	ctx = kzalloc_obj(struct spufs_fs_context);
 	if (!ctx)
 		goto nomem;
 
-	sbi = kzalloc(sizeof(struct spufs_sb_info), GFP_KERNEL);
+	sbi = kzalloc_obj(struct spufs_sb_info);
 	if (!sbi)
 		goto nomem_ctx;
 

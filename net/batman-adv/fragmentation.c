@@ -156,7 +156,7 @@ static bool batadv_frag_insert_packet(struct batadv_orig_node *orig_node,
 	seqno = ntohs(frag_packet->seqno);
 	bucket = seqno % BATADV_FRAG_BUFFER_COUNT;
 
-	frag_entry_new = kmalloc(sizeof(*frag_entry_new), GFP_ATOMIC);
+	frag_entry_new = kmalloc_obj(*frag_entry_new, GFP_ATOMIC);
 	if (!frag_entry_new)
 		goto err;
 

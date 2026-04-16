@@ -68,8 +68,7 @@ static void erofs_fileio_rq_submit(struct erofs_fileio_rq *rq)
 
 static struct erofs_fileio_rq *erofs_fileio_rq_alloc(struct erofs_map_dev *mdev)
 {
-	struct erofs_fileio_rq *rq = kzalloc(sizeof(*rq),
-					     GFP_KERNEL | __GFP_NOFAIL);
+	struct erofs_fileio_rq *rq = kzalloc_obj(*rq, GFP_KERNEL | __GFP_NOFAIL);
 
 	bio_init(&rq->bio, NULL, rq->bvecs, ARRAY_SIZE(rq->bvecs), REQ_OP_READ);
 	rq->iocb.ki_filp = mdev->m_dif->file;

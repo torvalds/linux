@@ -181,7 +181,7 @@ nvkm_xtensa_new_(const struct nvkm_xtensa_func *func, struct nvkm_device *device
 {
 	struct nvkm_xtensa *xtensa;
 
-	if (!(xtensa = kzalloc(sizeof(*xtensa), GFP_KERNEL)))
+	if (!(xtensa = kzalloc_obj(*xtensa)))
 		return -ENOMEM;
 	xtensa->func = func;
 	xtensa->addr = addr;

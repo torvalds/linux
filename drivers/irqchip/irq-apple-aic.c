@@ -921,7 +921,7 @@ static void build_fiq_affinity(struct aic_irq_chip *ic, struct device_node *aff)
 	if (WARN_ON(n < 0))
 		return;
 
-	ic->fiq_aff[fiq] = kzalloc(sizeof(*ic->fiq_aff[fiq]), GFP_KERNEL);
+	ic->fiq_aff[fiq] = kzalloc_obj(*ic->fiq_aff[fiq]);
 	if (!ic->fiq_aff[fiq])
 		return;
 
@@ -959,7 +959,7 @@ static int __init aic_of_ic_init(struct device_node *node, struct device_node *p
 	if (WARN_ON(!regs))
 		return -EIO;
 
-	irqc = kzalloc(sizeof(*irqc), GFP_KERNEL);
+	irqc = kzalloc_obj(*irqc);
 	if (!irqc) {
 		iounmap(regs);
 		return -ENOMEM;

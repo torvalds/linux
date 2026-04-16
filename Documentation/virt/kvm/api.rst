@@ -1396,7 +1396,10 @@ or its flags may be modified, but it may not be resized.
 Memory for the region is taken starting at the address denoted by the
 field userspace_addr, which must point at user addressable memory for
 the entire memory slot size.  Any object may back this memory, including
-anonymous memory, ordinary files, and hugetlbfs.
+anonymous memory, ordinary files, and hugetlbfs.  Changes in the backing
+of the memory region are automatically reflected into the guest.
+For example, an mmap() that affects the region will be made visible
+immediately.  Another example is madvise(MADV_DROP).
 
 On architectures that support a form of address tagging, userspace_addr must
 be an untagged address.
@@ -1411,11 +1414,6 @@ writes to memory within the slot.  See KVM_GET_DIRTY_LOG ioctl to know how to
 use it.  The latter can be set, if KVM_CAP_READONLY_MEM capability allows it,
 to make a new slot read-only.  In this case, writes to this memory will be
 posted to userspace as KVM_EXIT_MMIO exits.
-
-When the KVM_CAP_SYNC_MMU capability is available, changes in the backing of
-the memory region are automatically reflected into the guest.  For example, an
-mmap() that affects the region will be made visible immediately.  Another
-example is madvise(MADV_DROP).
 
 For TDX guest, deleting/moving memory region loses guest memory contents.
 Read only region isn't supported.  Only as-id 0 is supported.
@@ -8437,115 +8435,123 @@ KVM_CHECK_EXTENSION.
 
 The valid bits in cap.args[0] are:
 
-=================================== ============================================
- KVM_X86_QUIRK_LINT0_REENABLED      By default, the reset value for the LVT
-                                    LINT0 register is 0x700 (APIC_MODE_EXTINT).
-                                    When this quirk is disabled, the reset value
-                                    is 0x10000 (APIC_LVT_MASKED).
+========================================   ================================================
+KVM_X86_QUIRK_LINT0_REENABLED              By default, the reset value for the LVT
+                                           LINT0 register is 0x700 (APIC_MODE_EXTINT).
+                                           When this quirk is disabled, the reset value
+                                           is 0x10000 (APIC_LVT_MASKED).
 
- KVM_X86_QUIRK_CD_NW_CLEARED        By default, KVM clears CR0.CD and CR0.NW on
-                                    AMD CPUs to workaround buggy guest firmware
-                                    that runs in perpetuity with CR0.CD, i.e.
-                                    with caches in "no fill" mode.
+KVM_X86_QUIRK_CD_NW_CLEARED                By default, KVM clears CR0.CD and CR0.NW on
+                                           AMD CPUs to workaround buggy guest firmware
+                                           that runs in perpetuity with CR0.CD, i.e.
+                                           with caches in "no fill" mode.
 
-                                    When this quirk is disabled, KVM does not
-                                    change the value of CR0.CD and CR0.NW.
+                                           When this quirk is disabled, KVM does not
+                                           change the value of CR0.CD and CR0.NW.
 
- KVM_X86_QUIRK_LAPIC_MMIO_HOLE      By default, the MMIO LAPIC interface is
-                                    available even when configured for x2APIC
-                                    mode. When this quirk is disabled, KVM
-                                    disables the MMIO LAPIC interface if the
-                                    LAPIC is in x2APIC mode.
+KVM_X86_QUIRK_LAPIC_MMIO_HOLE              By default, the MMIO LAPIC interface is
+                                           available even when configured for x2APIC
+                                           mode. When this quirk is disabled, KVM
+                                           disables the MMIO LAPIC interface if the
+                                           LAPIC is in x2APIC mode.
 
- KVM_X86_QUIRK_OUT_7E_INC_RIP       By default, KVM pre-increments %rip before
-                                    exiting to userspace for an OUT instruction
-                                    to port 0x7e. When this quirk is disabled,
-                                    KVM does not pre-increment %rip before
-                                    exiting to userspace.
+KVM_X86_QUIRK_OUT_7E_INC_RIP               By default, KVM pre-increments %rip before
+                                           exiting to userspace for an OUT instruction
+                                           to port 0x7e. When this quirk is disabled,
+                                           KVM does not pre-increment %rip before
+                                           exiting to userspace.
 
- KVM_X86_QUIRK_MISC_ENABLE_NO_MWAIT When this quirk is disabled, KVM sets
-                                    CPUID.01H:ECX[bit 3] (MONITOR/MWAIT) if
-                                    IA32_MISC_ENABLE[bit 18] (MWAIT) is set.
-                                    Additionally, when this quirk is disabled,
-                                    KVM clears CPUID.01H:ECX[bit 3] if
-                                    IA32_MISC_ENABLE[bit 18] is cleared.
+KVM_X86_QUIRK_MISC_ENABLE_NO_MWAIT         When this quirk is disabled, KVM sets
+                                           CPUID.01H:ECX[bit 3] (MONITOR/MWAIT) if
+                                           IA32_MISC_ENABLE[bit 18] (MWAIT) is set.
+                                           Additionally, when this quirk is disabled,
+                                           KVM clears CPUID.01H:ECX[bit 3] if
+                                           IA32_MISC_ENABLE[bit 18] is cleared.
 
- KVM_X86_QUIRK_FIX_HYPERCALL_INSN   By default, KVM rewrites guest
-                                    VMMCALL/VMCALL instructions to match the
-                                    vendor's hypercall instruction for the
-                                    system. When this quirk is disabled, KVM
-                                    will no longer rewrite invalid guest
-                                    hypercall instructions. Executing the
-                                    incorrect hypercall instruction will
-                                    generate a #UD within the guest.
+KVM_X86_QUIRK_FIX_HYPERCALL_INSN           By default, KVM rewrites guest
+                                           VMMCALL/VMCALL instructions to match the
+                                           vendor's hypercall instruction for the
+                                           system. When this quirk is disabled, KVM
+                                           will no longer rewrite invalid guest
+                                           hypercall instructions. Executing the
+                                           incorrect hypercall instruction will
+                                           generate a #UD within the guest.
 
-KVM_X86_QUIRK_MWAIT_NEVER_UD_FAULTS By default, KVM emulates MONITOR/MWAIT (if
-                                    they are intercepted) as NOPs regardless of
-                                    whether or not MONITOR/MWAIT are supported
-                                    according to guest CPUID.  When this quirk
-                                    is disabled and KVM_X86_DISABLE_EXITS_MWAIT
-                                    is not set (MONITOR/MWAIT are intercepted),
-                                    KVM will inject a #UD on MONITOR/MWAIT if
-                                    they're unsupported per guest CPUID.  Note,
-                                    KVM will modify MONITOR/MWAIT support in
-                                    guest CPUID on writes to MISC_ENABLE if
-                                    KVM_X86_QUIRK_MISC_ENABLE_NO_MWAIT is
-                                    disabled.
+KVM_X86_QUIRK_MWAIT_NEVER_UD_FAULTS        By default, KVM emulates MONITOR/MWAIT (if
+                                           they are intercepted) as NOPs regardless of
+                                           whether or not MONITOR/MWAIT are supported
+                                           according to guest CPUID.  When this quirk
+                                           is disabled and KVM_X86_DISABLE_EXITS_MWAIT
+                                           is not set (MONITOR/MWAIT are intercepted),
+                                           KVM will inject a #UD on MONITOR/MWAIT if
+                                           they're unsupported per guest CPUID.  Note,
+                                           KVM will modify MONITOR/MWAIT support in
+                                           guest CPUID on writes to MISC_ENABLE if
+                                           KVM_X86_QUIRK_MISC_ENABLE_NO_MWAIT is
+                                           disabled.
 
-KVM_X86_QUIRK_SLOT_ZAP_ALL          By default, for KVM_X86_DEFAULT_VM VMs, KVM
-                                    invalidates all SPTEs in all memslots and
-                                    address spaces when a memslot is deleted or
-                                    moved.  When this quirk is disabled (or the
-                                    VM type isn't KVM_X86_DEFAULT_VM), KVM only
-                                    ensures the backing memory of the deleted
-                                    or moved memslot isn't reachable, i.e KVM
-                                    _may_ invalidate only SPTEs related to the
-                                    memslot.
+KVM_X86_QUIRK_SLOT_ZAP_ALL                 By default, for KVM_X86_DEFAULT_VM VMs, KVM
+                                           invalidates all SPTEs in all memslots and
+                                           address spaces when a memslot is deleted or
+                                           moved.  When this quirk is disabled (or the
+                                           VM type isn't KVM_X86_DEFAULT_VM), KVM only
+                                           ensures the backing memory of the deleted
+                                           or moved memslot isn't reachable, i.e KVM
+                                           _may_ invalidate only SPTEs related to the
+                                           memslot.
 
-KVM_X86_QUIRK_STUFF_FEATURE_MSRS    By default, at vCPU creation, KVM sets the
-                                    vCPU's MSR_IA32_PERF_CAPABILITIES (0x345),
-                                    MSR_IA32_ARCH_CAPABILITIES (0x10a),
-                                    MSR_PLATFORM_INFO (0xce), and all VMX MSRs
-                                    (0x480..0x492) to the maximal capabilities
-                                    supported by KVM.  KVM also sets
-                                    MSR_IA32_UCODE_REV (0x8b) to an arbitrary
-                                    value (which is different for Intel vs.
-                                    AMD).  Lastly, when guest CPUID is set (by
-                                    userspace), KVM modifies select VMX MSR
-                                    fields to force consistency between guest
-                                    CPUID and L2's effective ISA.  When this
-                                    quirk is disabled, KVM zeroes the vCPU's MSR
-                                    values (with two exceptions, see below),
-                                    i.e. treats the feature MSRs like CPUID
-                                    leaves and gives userspace full control of
-                                    the vCPU model definition.  This quirk does
-                                    not affect VMX MSRs CR0/CR4_FIXED1 (0x487
-                                    and 0x489), as KVM does now allow them to
-                                    be set by userspace (KVM sets them based on
-                                    guest CPUID, for safety purposes).
+KVM_X86_QUIRK_STUFF_FEATURE_MSRS           By default, at vCPU creation, KVM sets the
+                                           vCPU's MSR_IA32_PERF_CAPABILITIES (0x345),
+                                           MSR_IA32_ARCH_CAPABILITIES (0x10a),
+                                           MSR_PLATFORM_INFO (0xce), and all VMX MSRs
+                                           (0x480..0x492) to the maximal capabilities
+                                           supported by KVM.  KVM also sets
+                                           MSR_IA32_UCODE_REV (0x8b) to an arbitrary
+                                           value (which is different for Intel vs.
+                                           AMD).  Lastly, when guest CPUID is set (by
+                                           userspace), KVM modifies select VMX MSR
+                                           fields to force consistency between guest
+                                           CPUID and L2's effective ISA.  When this
+                                           quirk is disabled, KVM zeroes the vCPU's MSR
+                                           values (with two exceptions, see below),
+                                           i.e. treats the feature MSRs like CPUID
+                                           leaves and gives userspace full control of
+                                           the vCPU model definition.  This quirk does
+                                           not affect VMX MSRs CR0/CR4_FIXED1 (0x487
+                                           and 0x489), as KVM does now allow them to
+                                           be set by userspace (KVM sets them based on
+                                           guest CPUID, for safety purposes).
 
-KVM_X86_QUIRK_IGNORE_GUEST_PAT      By default, on Intel platforms, KVM ignores
-                                    guest PAT and forces the effective memory
-                                    type to WB in EPT.  The quirk is not available
-                                    on Intel platforms which are incapable of
-                                    safely honoring guest PAT (i.e., without CPU
-                                    self-snoop, KVM always ignores guest PAT and
-                                    forces effective memory type to WB).  It is
-                                    also ignored on AMD platforms or, on Intel,
-                                    when a VM has non-coherent DMA devices
-                                    assigned; KVM always honors guest PAT in
-                                    such case. The quirk is needed to avoid
-                                    slowdowns on certain Intel Xeon platforms
-                                    (e.g. ICX, SPR) where self-snoop feature is
-                                    supported but UC is slow enough to cause
-                                    issues with some older guests that use
-                                    UC instead of WC to map the video RAM.
-                                    Userspace can disable the quirk to honor
-                                    guest PAT if it knows that there is no such
-                                    guest software, for example if it does not
-                                    expose a bochs graphics device (which is
-                                    known to have had a buggy driver).
-=================================== ============================================
+KVM_X86_QUIRK_IGNORE_GUEST_PAT             By default, on Intel platforms, KVM ignores
+                                           guest PAT and forces the effective memory
+                                           type to WB in EPT.  The quirk is not available
+                                           on Intel platforms which are incapable of
+                                           safely honoring guest PAT (i.e., without CPU
+                                           self-snoop, KVM always ignores guest PAT and
+                                           forces effective memory type to WB).  It is
+                                           also ignored on AMD platforms or, on Intel,
+                                           when a VM has non-coherent DMA devices
+                                           assigned; KVM always honors guest PAT in
+                                           such case. The quirk is needed to avoid
+                                           slowdowns on certain Intel Xeon platforms
+                                           (e.g. ICX, SPR) where self-snoop feature is
+                                           supported but UC is slow enough to cause
+                                           issues with some older guests that use
+                                           UC instead of WC to map the video RAM.
+                                           Userspace can disable the quirk to honor
+                                           guest PAT if it knows that there is no such
+                                           guest software, for example if it does not
+                                           expose a bochs graphics device (which is
+                                           known to have had a buggy driver).
+
+KVM_X86_QUIRK_VMCS12_ALLOW_FREEZE_IN_SMM   By default, KVM relaxes the consistency
+                                           check for GUEST_IA32_DEBUGCTL in vmcs12
+                                           to allow FREEZE_IN_SMM to be set.  When
+                                           this quirk is disabled, KVM requires this
+                                           bit to be cleared.  Note that the vmcs02
+                                           bit is still completely controlled by the
+                                           host, regardless of the quirk setting.
+========================================   ================================================
 
 7.32 KVM_CAP_MAX_VCPU_ID
 ------------------------

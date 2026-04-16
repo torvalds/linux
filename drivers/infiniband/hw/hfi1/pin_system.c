@@ -119,7 +119,7 @@ static int pin_system_pages(struct user_sdma_request *req,
 	int pinned, cleared;
 	struct page **pages;
 
-	pages = kcalloc(npages, sizeof(*pages), GFP_KERNEL);
+	pages = kzalloc_objs(*pages, npages);
 	if (!pages)
 		return -ENOMEM;
 
@@ -173,7 +173,7 @@ static int add_system_pinning(struct user_sdma_request *req,
 	struct sdma_mmu_node *node;
 	int ret;
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	node = kzalloc_obj(*node);
 	if (!node)
 		return -ENOMEM;
 

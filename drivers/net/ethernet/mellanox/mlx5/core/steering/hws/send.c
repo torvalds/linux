@@ -701,7 +701,7 @@ static int hws_send_ring_alloc_sq(struct mlx5_core_dev *mdev,
 	wq->db = &wq->db[MLX5_SND_DBR];
 
 	buf_sz = queue->num_entries * MAX_WQES_PER_RULE;
-	sq->dep_wqe = kcalloc(queue->num_entries, sizeof(*sq->dep_wqe), GFP_KERNEL);
+	sq->dep_wqe = kzalloc_objs(*sq->dep_wqe, queue->num_entries);
 	if (!sq->dep_wqe) {
 		err = -ENOMEM;
 		goto destroy_wq_cyc;
@@ -1033,9 +1033,8 @@ static int mlx5hws_send_queue_open(struct mlx5hws_context *ctx,
 	queue->num_entries = roundup_pow_of_two(queue_size);
 	queue->used_entries = 0;
 
-	queue->completed.entries = kcalloc(queue->num_entries,
-					   sizeof(queue->completed.entries[0]),
-					   GFP_KERNEL);
+	queue->completed.entries = kzalloc_objs(queue->completed.entries[0],
+						queue->num_entries);
 	if (!queue->completed.entries)
 		return -ENOMEM;
 
@@ -1094,16 +1093,14 @@ static int hws_bwc_send_queues_init(struct mlx5hws_context *ctx)
 
 	ctx->queues += bwc_queues;
 
-	ctx->bwc_send_queue_locks = kcalloc(bwc_queues,
-					    sizeof(*ctx->bwc_send_queue_locks),
-					    GFP_KERNEL);
+	ctx->bwc_send_queue_locks = kzalloc_objs(*ctx->bwc_send_queue_locks,
+						 bwc_queues);
 
 	if (!ctx->bwc_send_queue_locks)
 		return -ENOMEM;
 
-	ctx->bwc_lock_class_keys = kcalloc(bwc_queues,
-					   sizeof(*ctx->bwc_lock_class_keys),
-					   GFP_KERNEL);
+	ctx->bwc_lock_class_keys = kzalloc_objs(*ctx->bwc_lock_class_keys,
+						bwc_queues);
 	if (!ctx->bwc_lock_class_keys)
 		goto err_lock_class_keys;
 
@@ -1135,7 +1132,7 @@ int mlx5hws_send_queues_open(struct mlx5hws_context *ctx,
 	if (err)
 		return err;
 
-	ctx->send_queue = kcalloc(ctx->queues, sizeof(*ctx->send_queue), GFP_KERNEL);
+	ctx->send_queue = kzalloc_objs(*ctx->send_queue, ctx->queues);
 	if (!ctx->send_queue) {
 		err = -ENOMEM;
 		goto free_bwc_locks;

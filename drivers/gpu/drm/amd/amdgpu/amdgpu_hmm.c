@@ -265,7 +265,7 @@ struct amdgpu_hmm_range *amdgpu_hmm_range_alloc(struct amdgpu_bo *bo)
 {
 	struct amdgpu_hmm_range *range;
 
-	range = kzalloc(sizeof(*range), GFP_KERNEL);
+	range = kzalloc_obj(*range);
 	if (!range)
 		return NULL;
 

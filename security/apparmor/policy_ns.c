@@ -106,7 +106,7 @@ static struct aa_ns *alloc_ns(const char *prefix, const char *name)
 {
 	struct aa_ns *ns;
 
-	ns = kzalloc(sizeof(*ns), GFP_KERNEL);
+	ns = kzalloc_obj(*ns);
 	AA_DEBUG(DEBUG_POLICY, "%s(%p)\n", __func__, ns);
 	if (!ns)
 		return NULL;
@@ -223,6 +223,8 @@ static struct aa_ns *__aa_create_ns(struct aa_ns *parent, const char *name,
 	AA_BUG(!name);
 	AA_BUG(!mutex_is_locked(&parent->lock));
 
+	if (parent->level > MAX_NS_DEPTH)
+		return ERR_PTR(-ENOSPC);
 	ns = alloc_ns(parent->base.hname, name);
 	if (!ns)
 		return ERR_PTR(-ENOMEM);

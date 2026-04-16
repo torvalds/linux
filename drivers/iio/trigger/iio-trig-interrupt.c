@@ -48,7 +48,7 @@ static int iio_interrupt_trigger_probe(struct platform_device *pdev)
 		goto error_ret;
 	}
 
-	trig_info = kzalloc(sizeof(*trig_info), GFP_KERNEL);
+	trig_info = kzalloc_obj(*trig_info);
 	if (!trig_info) {
 		ret = -ENOMEM;
 		goto error_free_trigger;

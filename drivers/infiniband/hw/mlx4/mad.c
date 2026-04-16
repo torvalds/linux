@@ -1133,8 +1133,8 @@ static void handle_slaves_guid_change(struct mlx4_ib_dev *dev, u32 port_num,
 	if (!mlx4_is_mfunc(dev->dev) || !mlx4_is_master(dev->dev))
 		return;
 
-	in_mad  = kmalloc(sizeof *in_mad, GFP_KERNEL);
-	out_mad = kmalloc(sizeof *out_mad, GFP_KERNEL);
+	in_mad = kmalloc_obj(*in_mad);
+	out_mad = kmalloc_obj(*out_mad);
 	if (!in_mad || !out_mad)
 		goto out;
 
@@ -1612,15 +1612,11 @@ static int mlx4_ib_alloc_pv_bufs(struct mlx4_ib_demux_pv_ctx *ctx,
 
 	tun_qp = &ctx->qp[qp_type];
 
-	tun_qp->ring = kcalloc(nmbr_bufs,
-			       sizeof(struct mlx4_ib_buf),
-			       GFP_KERNEL);
+	tun_qp->ring = kzalloc_objs(struct mlx4_ib_buf, nmbr_bufs);
 	if (!tun_qp->ring)
 		return -ENOMEM;
 
-	tun_qp->tx_ring = kcalloc(nmbr_bufs,
-				  sizeof (struct mlx4_ib_tun_tx_buf),
-				  GFP_KERNEL);
+	tun_qp->tx_ring = kzalloc_objs(struct mlx4_ib_tun_tx_buf, nmbr_bufs);
 	if (!tun_qp->tx_ring) {
 		kfree(tun_qp->ring);
 		tun_qp->ring = NULL;
@@ -1958,7 +1954,7 @@ static int alloc_pv_object(struct mlx4_ib_dev *dev, int slave, int port,
 	struct mlx4_ib_demux_pv_ctx *ctx;
 
 	*ret_ctx = NULL;
-	ctx = kzalloc(sizeof (struct mlx4_ib_demux_pv_ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(struct mlx4_ib_demux_pv_ctx);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -2161,8 +2157,8 @@ static int mlx4_ib_alloc_demux_ctx(struct mlx4_ib_dev *dev,
 	int ret = 0;
 	int i;
 
-	ctx->tun = kcalloc(dev->dev->caps.sqp_demux,
-			   sizeof (struct mlx4_ib_demux_pv_ctx *), GFP_KERNEL);
+	ctx->tun = kzalloc_objs(struct mlx4_ib_demux_pv_ctx *,
+				dev->dev->caps.sqp_demux);
 	if (!ctx->tun)
 		return -ENOMEM;
 

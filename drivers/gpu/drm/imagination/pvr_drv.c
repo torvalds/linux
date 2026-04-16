@@ -1312,7 +1312,7 @@ pvr_drm_driver_open(struct drm_device *drm_dev, struct drm_file *file)
 	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
 	struct pvr_file *pvr_file;
 
-	pvr_file = kzalloc(sizeof(*pvr_file), GFP_KERNEL);
+	pvr_file = kzalloc_obj(*pvr_file);
 	if (!pvr_file)
 		return -ENOMEM;
 

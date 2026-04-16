@@ -482,7 +482,7 @@ static int cpuidle_add_state_sysfs(struct cpuidle_device *device)
 
 	/* state statistics */
 	for (i = 0; i < drv->state_count; i++) {
-		kobj = kzalloc(sizeof(struct cpuidle_state_kobj), GFP_KERNEL);
+		kobj = kzalloc_obj(struct cpuidle_state_kobj);
 		if (!kobj) {
 			ret = -ENOMEM;
 			goto error_state;
@@ -618,7 +618,7 @@ static int cpuidle_add_driver_sysfs(struct cpuidle_device *dev)
 	struct cpuidle_driver *drv = cpuidle_get_cpu_driver(dev);
 	int ret;
 
-	kdrv = kzalloc(sizeof(*kdrv), GFP_KERNEL);
+	kdrv = kzalloc_obj(*kdrv);
 	if (!kdrv)
 		return -ENOMEM;
 
@@ -712,7 +712,7 @@ int cpuidle_add_sysfs(struct cpuidle_device *dev)
 	if (!cpu_dev)
 		return -ENODEV;
 
-	kdev = kzalloc(sizeof(*kdev), GFP_KERNEL);
+	kdev = kzalloc_obj(*kdev);
 	if (!kdev)
 		return -ENOMEM;
 	kdev->dev = dev;

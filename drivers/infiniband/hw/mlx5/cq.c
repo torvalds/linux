@@ -1210,7 +1210,7 @@ static int resize_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 {
 	int err;
 
-	cq->resize_buf = kzalloc(sizeof(*cq->resize_buf), GFP_KERNEL);
+	cq->resize_buf = kzalloc_obj(*cq->resize_buf);
 	if (!cq->resize_buf)
 		return -ENOMEM;
 
@@ -1449,7 +1449,7 @@ int mlx5_ib_generate_wc(struct ib_cq *ibcq, struct ib_wc *wc)
 	struct mlx5_ib_cq *cq = to_mcq(ibcq);
 	unsigned long flags;
 
-	soft_wc = kmalloc(sizeof(*soft_wc), GFP_ATOMIC);
+	soft_wc = kmalloc_obj(*soft_wc, GFP_ATOMIC);
 	if (!soft_wc)
 		return -ENOMEM;
 

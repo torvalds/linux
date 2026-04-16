@@ -2683,7 +2683,7 @@ static void rtl_request_firmware(struct rtl8169_private *tp)
 	if (tp->rtl_fw || !tp->fw_name)
 		return;
 
-	rtl_fw = kzalloc(sizeof(*rtl_fw), GFP_KERNEL);
+	rtl_fw = kzalloc_obj(*rtl_fw);
 	if (!rtl_fw)
 		return;
 

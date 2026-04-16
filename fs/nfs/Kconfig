@@ -87,7 +87,7 @@ config NFS_V4
 	  space programs which can be found in the Linux nfs-utils package,
 	  available from http://linux-nfs.org/.
 
-	  If unsure, say Y.
+	  If unsure, say N.
 
 config NFS_SWAP
 	bool "Provide swap over NFS support"
@@ -100,6 +100,7 @@ config NFS_SWAP
 config NFS_V4_0
 	bool "NFS client support for NFSv4.0"
 	depends on NFS_V4
+	default y
 	help
 	  This option enables support for minor version 0 of the NFSv4 protocol
 	  (RFC 3530) in the kernel's NFS client.

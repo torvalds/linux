@@ -528,7 +528,7 @@ static int rkvdec_hevc_start(struct rkvdec_ctx *ctx)
 	struct rkvdec_hevc_priv_tbl *priv_tbl;
 	struct rkvdec_hevc_ctx *hevc_ctx;
 
-	hevc_ctx = kzalloc(sizeof(*hevc_ctx), GFP_KERNEL);
+	hevc_ctx = kzalloc_obj(*hevc_ctx);
 	if (!hevc_ctx)
 		return -ENOMEM;
 

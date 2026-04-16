@@ -586,8 +586,8 @@ static int nft_array_intervals_alloc(struct nft_array *array, u32 max_intervals)
 {
 	struct nft_array_interval *intervals;
 
-	intervals = kvcalloc(max_intervals, sizeof(struct nft_array_interval),
-			     GFP_KERNEL_ACCOUNT);
+	intervals = kvzalloc_objs(struct nft_array_interval, max_intervals,
+				  GFP_KERNEL_ACCOUNT);
 	if (!intervals)
 		return -ENOMEM;
 
@@ -604,7 +604,7 @@ static struct nft_array *nft_array_alloc(u32 max_intervals)
 {
 	struct nft_array *array;
 
-	array = kzalloc(sizeof(*array), GFP_KERNEL_ACCOUNT);
+	array = kzalloc_obj(*array, GFP_KERNEL_ACCOUNT);
 	if (!array)
 		return NULL;
 
@@ -861,13 +861,15 @@ static void nft_rbtree_walk(const struct nft_ctx *ctx,
 	struct nft_rbtree *priv = nft_set_priv(set);
 
 	switch (iter->type) {
-	case NFT_ITER_UPDATE:
-		lockdep_assert_held(&nft_pernet(ctx->net)->commit_mutex);
-
+	case NFT_ITER_UPDATE_CLONE:
 		if (nft_array_may_resize(set) < 0) {
 			iter->err = -ENOMEM;
 			break;
 		}
+		fallthrough;
+	case NFT_ITER_UPDATE:
+		lockdep_assert_held(&nft_pernet(ctx->net)->commit_mutex);
+
 		nft_rbtree_do_walk(ctx, set, iter);
 		break;
 	case NFT_ITER_READ:

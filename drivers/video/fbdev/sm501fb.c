@@ -1947,7 +1947,7 @@ static int sm501fb_probe(struct platform_device *pdev)
 	int ret;
 
 	/* allocate our framebuffers */
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info) {
 		dev_err(dev, "failed to allocate state\n");
 		return -ENOMEM;

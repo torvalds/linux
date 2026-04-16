@@ -209,7 +209,7 @@ nvkm_i2c_aux_new_(const struct nvkm_i2c_aux_func *func,
 		  struct nvkm_i2c_pad *pad, int id,
 		  struct nvkm_i2c_aux **paux)
 {
-	if (!(*paux = kzalloc(sizeof(**paux), GFP_KERNEL)))
+	if (!(*paux = kzalloc_obj(**paux)))
 		return -ENOMEM;
 	return nvkm_i2c_aux_ctor(func, pad, id, *paux);
 }

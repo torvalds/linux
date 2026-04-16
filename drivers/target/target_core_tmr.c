@@ -31,7 +31,7 @@ int core_tmr_alloc_req(
 {
 	struct se_tmr_req *tmr;
 
-	tmr = kzalloc(sizeof(struct se_tmr_req), gfp_flags);
+	tmr = kzalloc_obj(struct se_tmr_req, gfp_flags);
 	if (!tmr) {
 		pr_err("Unable to allocate struct se_tmr_req\n");
 		return -ENOMEM;

@@ -193,6 +193,13 @@ setup_efi_state(struct boot_params *params, unsigned long params_load_addr,
 	struct efi_info *current_ei = &boot_params.efi_info;
 	struct efi_info *ei = &params->efi_info;
 
+	if (!params->acpi_rsdp_addr) {
+		if (efi.acpi20 != EFI_INVALID_TABLE_ADDR)
+			params->acpi_rsdp_addr = efi.acpi20;
+		else if (efi.acpi != EFI_INVALID_TABLE_ADDR)
+			params->acpi_rsdp_addr = efi.acpi;
+	}
+
 	if (!efi_enabled(EFI_RUNTIME_SERVICES))
 		return 0;
 
@@ -675,7 +682,7 @@ static void *bzImage64_load(struct kimage *image, char *kernel,
 		goto out_free_params;
 
 	/* Allocate loader specific data */
-	ldata = kzalloc(sizeof(struct bzimage64_data), GFP_KERNEL);
+	ldata = kzalloc_obj(struct bzimage64_data);
 	if (!ldata) {
 		ret = -ENOMEM;
 		goto out_free_params;

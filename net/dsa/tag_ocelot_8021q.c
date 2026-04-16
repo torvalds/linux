@@ -43,7 +43,7 @@ static struct sk_buff *ocelot_defer_xmit(struct dsa_port *dp,
 	if (skb->ip_summed == CHECKSUM_PARTIAL && skb_checksum_help(skb))
 		return NULL;
 
-	xmit_work = kzalloc(sizeof(*xmit_work), GFP_ATOMIC);
+	xmit_work = kzalloc_obj(*xmit_work, GFP_ATOMIC);
 	if (!xmit_work)
 		return NULL;
 
@@ -106,7 +106,7 @@ static int ocelot_connect(struct dsa_switch *ds)
 	struct ocelot_8021q_tagger_private *priv;
 	int err;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

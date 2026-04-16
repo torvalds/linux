@@ -51,7 +51,7 @@ int dev_pm_opp_init_cpufreq_table(struct device *dev,
 	if (max_opps <= 0)
 		return max_opps ? max_opps : -ENODATA;
 
-	freq_table = kcalloc((max_opps + 1), sizeof(*freq_table), GFP_KERNEL);
+	freq_table = kzalloc_objs(*freq_table, (max_opps + 1));
 	if (!freq_table)
 		return -ENOMEM;
 

@@ -238,7 +238,7 @@ int drm_self_refresh_helper_init(struct drm_crtc *crtc)
 	if (WARN_ON(sr_data))
 		return -EINVAL;
 
-	sr_data = kzalloc(sizeof(*sr_data), GFP_KERNEL);
+	sr_data = kzalloc_obj(*sr_data);
 	if (!sr_data)
 		return -ENOMEM;
 

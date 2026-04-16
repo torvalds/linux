@@ -154,7 +154,7 @@ int mdev_device_create(struct mdev_type *type, const guid_t *uuid)
 		atomic_dec(&parent->available_instances);
 	}
 
-	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
+	mdev = kzalloc_obj(*mdev);
 	if (!mdev) {
 		mutex_unlock(&mdev_list_lock);
 		return -ENOMEM;

@@ -484,7 +484,7 @@ mptfc_register_dev(MPT_ADAPTER *ioc, int channel, FCDevicePage0_t *pg0)
 		}
 	}
 	if (new_ri) {	/* allocate one */
-		ri = kzalloc(sizeof(struct mptfc_rport_info), GFP_KERNEL);
+		ri = kzalloc_obj(struct mptfc_rport_info);
 		if (!ri)
 			return;
 		list_add_tail(&ri->list, &ioc->fc_rports);
@@ -572,7 +572,7 @@ mptfc_target_alloc(struct scsi_target *starget)
 	struct mptfc_rport_info *ri;
 	int			rc;
 
-	vtarget = kzalloc(sizeof(VirtTarget), GFP_KERNEL);
+	vtarget = kzalloc_obj(VirtTarget);
 	if (!vtarget)
 		return -ENOMEM;
 	starget->hostdata = vtarget;
@@ -650,7 +650,7 @@ mptfc_sdev_init(struct scsi_device *sdev)
 	hd = shost_priv(sdev->host);
 	ioc = hd->ioc;
 
-	vdevice = kzalloc(sizeof(VirtDevice), GFP_KERNEL);
+	vdevice = kzalloc_obj(VirtDevice);
 	if (!vdevice) {
 		printk(MYIOC_s_ERR_FMT "sdev_init kmalloc(%zd) FAILED!\n",
 				ioc->name, sizeof(VirtDevice));

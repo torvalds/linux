@@ -158,8 +158,7 @@ static int bnge_alloc_ctx_pg_tbls(struct bnge_dev *bd,
 		int nr_tbls, i;
 
 		rmem->depth = 2;
-		ctx_pg->ctx_pg_tbl = kcalloc(MAX_CTX_PAGES, sizeof(ctx_pg),
-					     GFP_KERNEL);
+		ctx_pg->ctx_pg_tbl = kzalloc_objs(ctx_pg, MAX_CTX_PAGES);
 		if (!ctx_pg->ctx_pg_tbl)
 			return -ENOMEM;
 		nr_tbls = DIV_ROUND_UP(ctx_pg->nr_pages, MAX_CTX_PAGES);
@@ -170,7 +169,7 @@ static int bnge_alloc_ctx_pg_tbls(struct bnge_dev *bd,
 		for (i = 0; i < nr_tbls; i++) {
 			struct bnge_ctx_pg_info *pg_tbl;
 
-			pg_tbl = kzalloc(sizeof(*pg_tbl), GFP_KERNEL);
+			pg_tbl = kzalloc_obj(*pg_tbl);
 			if (!pg_tbl)
 				return -ENOMEM;
 			ctx_pg->ctx_pg_tbl[i] = pg_tbl;

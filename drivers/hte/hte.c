@@ -850,7 +850,7 @@ static int hte_register_chip(struct hte_chip *chip)
 		return -EINVAL;
 	}
 
-	gdev = kzalloc(struct_size(gdev, ei, chip->nlines), GFP_KERNEL);
+	gdev = kzalloc_flex(*gdev, ei, chip->nlines);
 	if (!gdev)
 		return -ENOMEM;
 

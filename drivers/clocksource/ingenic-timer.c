@@ -286,8 +286,7 @@ static int __init ingenic_tcu_init(struct device_node *np)
 	if (IS_ERR(map))
 		return PTR_ERR(map);
 
-	tcu = kzalloc(struct_size(tcu, timers, num_possible_cpus()),
-		      GFP_KERNEL);
+	tcu = kzalloc_flex(*tcu, timers, num_possible_cpus());
 	if (!tcu)
 		return -ENOMEM;
 

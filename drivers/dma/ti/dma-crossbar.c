@@ -103,7 +103,7 @@ static void *ti_am335x_xbar_route_allocate(struct of_phandle_args *dma_spec,
 		goto out_put_pdev;
 	}
 
-	map = kzalloc(sizeof(*map), GFP_KERNEL);
+	map = kzalloc_obj(*map);
 	if (!map) {
 		of_node_put(dma_spec->np);
 		map = ERR_PTR(-ENOMEM);
@@ -260,7 +260,7 @@ static void *ti_dra7_xbar_route_allocate(struct of_phandle_args *dma_spec,
 		goto out_put_pdev;
 	}
 
-	map = kzalloc(sizeof(*map), GFP_KERNEL);
+	map = kzalloc_obj(*map);
 	if (!map) {
 		of_node_put(dma_spec->np);
 		map = ERR_PTR(-ENOMEM);
@@ -393,7 +393,7 @@ static int ti_dra7_xbar_probe(struct platform_device *pdev)
 		if (!nelm)
 			return -EINVAL;
 
-		rsv_events = kcalloc(nelm, sizeof(*rsv_events), GFP_KERNEL);
+		rsv_events = kzalloc_objs(*rsv_events, nelm);
 		if (!rsv_events)
 			return -ENOMEM;
 

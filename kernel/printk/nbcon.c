@@ -1801,7 +1801,7 @@ bool nbcon_alloc(struct console *con)
 		 */
 		con->pbufs = &printk_shared_pbufs;
 	} else {
-		con->pbufs = kmalloc(sizeof(*con->pbufs), GFP_KERNEL);
+		con->pbufs = kmalloc_obj(*con->pbufs);
 		if (!con->pbufs) {
 			con_printk(KERN_ERR, con, "failed to allocate printing buffer\n");
 			return false;

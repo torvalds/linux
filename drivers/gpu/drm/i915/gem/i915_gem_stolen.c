@@ -648,7 +648,7 @@ i915_pages_create_for_stolen(struct drm_device *dev,
 	 * dma mapping in a single scatterlist.
 	 */
 
-	st = kmalloc(sizeof(*st), GFP_KERNEL);
+	st = kmalloc_obj(*st);
 	if (st == NULL)
 		return ERR_PTR(-ENOMEM);
 
@@ -783,7 +783,7 @@ static int _i915_gem_object_stolen_init(struct intel_memory_region *mem,
 	    !(flags & I915_BO_ALLOC_GPU_ONLY))
 		return -ENOSPC;
 
-	stolen = kzalloc(sizeof(*stolen), GFP_KERNEL);
+	stolen = kzalloc_obj(*stolen);
 	if (!stolen)
 		return -ENOMEM;
 
@@ -1074,7 +1074,7 @@ static struct intel_stolen_node *i915_gem_stolen_node_alloc(struct drm_device *d
 	struct drm_i915_private *i915 = to_i915(drm);
 	struct intel_stolen_node *node;
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	node = kzalloc_obj(*node);
 	if (!node)
 		return NULL;
 

@@ -197,7 +197,7 @@ static struct rds_connection *__rds_conn_create(struct net *net,
 		conn = ERR_PTR(-ENOMEM);
 		goto out;
 	}
-	conn->c_path = kcalloc(npaths, sizeof(struct rds_conn_path), gfp);
+	conn->c_path = kzalloc_objs(struct rds_conn_path, npaths, gfp);
 	if (!conn->c_path) {
 		kmem_cache_free(rds_conn_slab, conn);
 		conn = ERR_PTR(-ENOMEM);
@@ -455,6 +455,9 @@ void rds_conn_shutdown(struct rds_conn_path *cp)
 		rcu_read_unlock();
 	}
 
+	/* we do not hold the socket lock here but it is safe because
+	 * fan-out is disabled when calling conn_slots_available()
+	 */
 	if (conn->c_trans->conn_slots_available)
 		conn->c_trans->conn_slots_available(conn, false);
 }

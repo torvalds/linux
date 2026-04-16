@@ -93,8 +93,7 @@ int blk_crypto_profile_init(struct blk_crypto_profile *profile,
 
 	/* Initialize keyslot management data. */
 
-	profile->slots = kvcalloc(num_slots, sizeof(profile->slots[0]),
-				  GFP_KERNEL);
+	profile->slots = kvzalloc_objs(profile->slots[0], num_slots);
 	if (!profile->slots)
 		goto err_destroy;
 
@@ -121,8 +120,7 @@ int blk_crypto_profile_init(struct blk_crypto_profile *profile,
 
 	profile->log_slot_ht_size = ilog2(slot_hashtable_size);
 	profile->slot_hashtable =
-		kvmalloc_array(slot_hashtable_size,
-			       sizeof(profile->slot_hashtable[0]), GFP_KERNEL);
+		kvmalloc_objs(profile->slot_hashtable[0], slot_hashtable_size);
 	if (!profile->slot_hashtable)
 		goto err_destroy;
 	for (i = 0; i < slot_hashtable_size; i++)

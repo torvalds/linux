@@ -23,7 +23,7 @@ struct rxrpc_txbuf *rxrpc_alloc_data_txbuf(struct rxrpc_call *call, size_t data_
 	size_t total, doff, jsize = sizeof(struct rxrpc_jumbo_header);
 	void *buf;
 
-	txb = kzalloc(sizeof(*txb), gfp);
+	txb = kzalloc_obj(*txb, gfp);
 	if (!txb)
 		return NULL;
 

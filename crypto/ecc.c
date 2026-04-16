@@ -98,7 +98,7 @@ struct ecc_point *ecc_alloc_point(unsigned int ndigits)
 	if (!ndigits)
 		return NULL;
 
-	p = kmalloc(sizeof(*p), GFP_KERNEL);
+	p = kmalloc_obj(*p);
 	if (!p)
 		return NULL;
 

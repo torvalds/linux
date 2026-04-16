@@ -54,7 +54,7 @@ static int __init init_atags_procfs(void)
 
 	WARN_ON(tag->hdr.tag != ATAG_NONE);
 
-	b = kmalloc(struct_size(b, data, size), GFP_KERNEL);
+	b = kmalloc_flex(*b, data, size);
 	if (!b)
 		goto nomem;
 

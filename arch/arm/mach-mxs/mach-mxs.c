@@ -387,7 +387,7 @@ static void __init mxs_machine_init(void)
 	const u32 *ocotp = mxs_get_ocotp();
 	int ret;
 
-	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
+	soc_dev_attr = kzalloc_obj(*soc_dev_attr);
 	if (!soc_dev_attr)
 		return;
 

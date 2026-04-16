@@ -1,0 +1,6 @@
+perf-util-$(CONFIG_LIBTRACEEVENT) += kvm-stat-arm64.o
+perf-util-$(CONFIG_LIBTRACEEVENT) += kvm-stat-loongarch.o
+perf-util-$(CONFIG_LIBTRACEEVENT) += kvm-stat-powerpc.o
+perf-util-$(CONFIG_LIBTRACEEVENT) += kvm-stat-riscv.o
+perf-util-$(CONFIG_LIBTRACEEVENT) += kvm-stat-s390.o
+perf-util-$(CONFIG_LIBTRACEEVENT) += kvm-stat-x86.o

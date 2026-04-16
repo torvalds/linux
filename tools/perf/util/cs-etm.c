@@ -6,7 +6,6 @@
  * Author: Mathieu Poirier <mathieu.poirier@linaro.org>
  */
 
-#include <linux/kernel.h>
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/coresight-pmu.h>
@@ -195,7 +194,7 @@ int cs_etm__get_cpu(struct cs_etm_queue *etmq, u8 trace_chan_id, int *cpu)
  *   CS_ETM_PIDFMT_CTXTID2: CONTEXTIDR_EL2 is traced.
  *   CS_ETM_PIDFMT_NONE: No context IDs
  *
- * It's possible that the two bits ETM_OPT_CTXTID and ETM_OPT_CTXTID2
+ * It's possible that the two format attributes 'contextid1' and 'contextid2'
  * are enabled at the same time when the session runs on an EL2 kernel.
  * This means the CONTEXTIDR_EL1 and CONTEXTIDR_EL2 both will be
  * recorded in the trace data, the tool will selectively use
@@ -211,15 +210,15 @@ static enum cs_etm_pid_fmt cs_etm__init_pid_fmt(u64 *metadata)
 	if (metadata[CS_ETM_MAGIC] == __perf_cs_etmv3_magic) {
 		val = metadata[CS_ETM_ETMCR];
 		/* CONTEXTIDR is traced */
-		if (val & BIT(ETM_OPT_CTXTID))
+		if (val & ETMCR_CTXTID)
 			return CS_ETM_PIDFMT_CTXTID;
 	} else {
 		val = metadata[CS_ETMV4_TRCCONFIGR];
 		/* CONTEXTIDR_EL2 is traced */
-		if (val & (BIT(ETM4_CFG_BIT_VMID) | BIT(ETM4_CFG_BIT_VMID_OPT)))
+		if (val & (TRCCONFIGR_VMID | TRCCONFIGR_VMIDOPT))
 			return CS_ETM_PIDFMT_CTXTID2;
 		/* CONTEXTIDR_EL1 is traced */
-		else if (val & BIT(ETM4_CFG_BIT_CTXTID))
+		else if (val & TRCCONFIGR_CID)
 			return CS_ETM_PIDFMT_CTXTID;
 	}
 
@@ -2915,29 +2914,21 @@ static int cs_etm__process_auxtrace_event(struct perf_session *session,
 	return 0;
 }
 
-static int cs_etm__setup_timeless_decoding(struct cs_etm_auxtrace *etm)
+static void cs_etm__setup_timeless_decoding(struct cs_etm_auxtrace *etm)
 {
-	struct evsel *evsel;
-	struct evlist *evlist = etm->session->evlist;
+	/* Take first ETM as all options will be the same for all ETMs */
+	u64 *metadata = etm->metadata[0];
 
 	/* Override timeless mode with user input from --itrace=Z */
 	if (etm->synth_opts.timeless_decoding) {
 		etm->timeless_decoding = true;
-		return 0;
+		return;
 	}
 
-	/*
-	 * Find the cs_etm evsel and look at what its timestamp setting was
-	 */
-	evlist__for_each_entry(evlist, evsel)
-		if (cs_etm__evsel_is_auxtrace(etm->session, evsel)) {
-			etm->timeless_decoding =
-				!(evsel->core.attr.config & BIT(ETM_OPT_TS));
-			return 0;
-		}
-
-	pr_err("CS ETM: Couldn't find ETM evsel\n");
-	return -EINVAL;
+	if (metadata[CS_ETM_MAGIC] == __perf_cs_etmv3_magic)
+		etm->timeless_decoding = !(metadata[CS_ETM_ETMCR] & ETMCR_TIMESTAMP_EN);
+	else
+		etm->timeless_decoding = !(metadata[CS_ETMV4_TRCCONFIGR] & TRCCONFIGR_TS);
 }
 
 /*
@@ -3086,7 +3077,7 @@ static int cs_etm__queue_aux_fragment(struct perf_session *session, off_t file_o
 
 	if (aux_offset >= auxtrace_event->offset &&
 	    aux_offset + aux_size <= auxtrace_event->offset + auxtrace_event->size) {
-		struct cs_etm_queue *etmq = etm->queues.queue_array[auxtrace_event->idx].priv;
+		struct cs_etm_queue *etmq = cs_etm__get_queue(etm, auxtrace_event->cpu);
 
 		/*
 		 * If this AUX event was inside this buffer somewhere, create a new auxtrace event
@@ -3095,6 +3086,7 @@ static int cs_etm__queue_aux_fragment(struct perf_session *session, off_t file_o
 		auxtrace_fragment.auxtrace = *auxtrace_event;
 		auxtrace_fragment.auxtrace.size = aux_size;
 		auxtrace_fragment.auxtrace.offset = aux_offset;
+		auxtrace_fragment.auxtrace.idx = etmq->queue_nr;
 		file_offset += aux_offset - auxtrace_event->offset + auxtrace_event->header.size;
 
 		pr_debug3("CS ETM: Queue buffer size: %#"PRI_lx64" offset: %#"PRI_lx64
@@ -3499,9 +3491,7 @@ int cs_etm__process_auxtrace_info_full(union perf_event *event,
 	etm->auxtrace.evsel_is_auxtrace = cs_etm__evsel_is_auxtrace;
 	session->auxtrace = &etm->auxtrace;
 
-	err = cs_etm__setup_timeless_decoding(etm);
-	if (err)
-		return err;
+	cs_etm__setup_timeless_decoding(etm);
 
 	etm->tc.time_shift = tc->time_shift;
 	etm->tc.time_mult = tc->time_mult;

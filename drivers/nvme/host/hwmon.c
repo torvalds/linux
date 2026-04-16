@@ -230,11 +230,11 @@ int nvme_hwmon_init(struct nvme_ctrl *ctrl)
 	struct device *hwmon;
 	int err;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 
-	data->log = kzalloc(sizeof(*data->log), GFP_KERNEL);
+	data->log = kzalloc_obj(*data->log);
 	if (!data->log) {
 		err = -ENOMEM;
 		goto err_free_data;

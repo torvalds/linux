@@ -257,7 +257,7 @@ static int dmap_removemapping_list(struct inode *inode, unsigned int num,
 	int ret, i = 0, nr_alloc;
 
 	nr_alloc = min_t(unsigned int, num, FUSE_REMOVEMAPPING_MAX_ENTRY);
-	remove_one = kmalloc_array(nr_alloc, sizeof(*remove_one), GFP_NOFS);
+	remove_one = kmalloc_objs(*remove_one, nr_alloc, GFP_NOFS);
 	if (!remove_one)
 		return -ENOMEM;
 
@@ -1219,7 +1219,7 @@ static int fuse_dax_mem_range_init(struct fuse_conn_dax *fcd)
 		__func__, nr_pages, nr_ranges);
 
 	for (i = 0; i < nr_ranges; i++) {
-		range = kzalloc(sizeof(struct fuse_dax_mapping), GFP_KERNEL);
+		range = kzalloc_obj(struct fuse_dax_mapping);
 		ret = -ENOMEM;
 		if (!range)
 			goto out_err;
@@ -1255,7 +1255,7 @@ int fuse_dax_conn_alloc(struct fuse_conn *fc, enum fuse_dax_mode dax_mode,
 	if (!dax_dev)
 		return 0;
 
-	fcd = kzalloc(sizeof(*fcd), GFP_KERNEL);
+	fcd = kzalloc_obj(*fcd);
 	if (!fcd)
 		return -ENOMEM;
 
@@ -1277,7 +1277,7 @@ bool fuse_dax_inode_alloc(struct super_block *sb, struct fuse_inode *fi)
 
 	fi->dax = NULL;
 	if (fc->dax) {
-		fi->dax = kzalloc(sizeof(*fi->dax), GFP_KERNEL_ACCOUNT);
+		fi->dax = kzalloc_obj(*fi->dax, GFP_KERNEL_ACCOUNT);
 		if (!fi->dax)
 			return false;
 

@@ -23,4 +23,10 @@ then
     cpupower set -b "$PERF_BIAS" > /dev/null || ESTATUS=1
 fi
 
+# apply Energy Performance Preference
+if test -n "$EPP"
+then
+    cpupower set -e "$EPP" > /dev/null || ESTATUS=1
+fi
+
 exit $ESTATUS

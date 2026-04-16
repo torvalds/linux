@@ -1554,7 +1554,7 @@ int fat_fill_super(struct super_block *sb, struct fs_context *fc,
 	 * the filesystem, since we're only just about to mount
 	 * it and have no inodes etc active!
 	 */
-	sbi = kzalloc(sizeof(struct msdos_sb_info), GFP_KERNEL);
+	sbi = kzalloc_obj(struct msdos_sb_info);
 	if (!sbi)
 		return -ENOMEM;
 	sb->s_fs_info = sbi;
@@ -1905,7 +1905,7 @@ int fat_init_fs_context(struct fs_context *fc, bool is_vfat)
 {
 	struct fat_mount_options *opts;
 
-	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
+	opts = kzalloc_obj(*opts);
 	if (!opts)
 		return -ENOMEM;
 

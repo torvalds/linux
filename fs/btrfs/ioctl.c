@@ -672,6 +672,13 @@ static noinline int create_subvol(struct mnt_idmap *idmap,
 		goto out;
 	}
 
+	/*
+	 * Subvolumes have orphans cleaned on first dentry lookup. A new
+	 * subvolume cannot have any orphans, so we should set the bit before we
+	 * add the subvolume dentry to the dentry cache, so that it is in the
+	 * same state as a subvolume after first lookup.
+	 */
+	set_bit(BTRFS_ROOT_ORPHAN_CLEANUP, &new_root->state);
 	d_instantiate_new(dentry, new_inode_args.inode);
 	new_inode_args.inode = NULL;
 
@@ -726,15 +733,14 @@ static int create_snapshot(struct btrfs_root *root, struct inode *dir,
 		return -ETXTBSY;
 	}
 
-	pending_snapshot = kzalloc(sizeof(*pending_snapshot), GFP_KERNEL);
+	pending_snapshot = kzalloc_obj(*pending_snapshot);
 	if (!pending_snapshot)
 		return -ENOMEM;
 
 	ret = get_anon_bdev(&pending_snapshot->anon_dev);
 	if (ret < 0)
 		goto free_pending;
-	pending_snapshot->root_item = kzalloc(sizeof(struct btrfs_root_item),
-			GFP_KERNEL);
+	pending_snapshot->root_item = kzalloc_obj(struct btrfs_root_item);
 	pending_snapshot->path = btrfs_alloc_path();
 	if (!pending_snapshot->root_item || !pending_snapshot->path) {
 		ret = -ENOMEM;
@@ -1958,7 +1964,7 @@ static int btrfs_ioctl_get_subvol_info(struct inode *inode, void __user *argp)
 	if (!path)
 		return -ENOMEM;
 
-	subvol_info = kzalloc(sizeof(*subvol_info), GFP_KERNEL);
+	subvol_info = kzalloc_obj(*subvol_info);
 	if (!subvol_info) {
 		btrfs_free_path(path);
 		return -ENOMEM;
@@ -3423,7 +3429,7 @@ static long btrfs_ioctl_balance(struct file *file, void __user *arg)
 		goto out_unlock;
 	}
 
-	bctl = kzalloc(sizeof(*bctl), GFP_KERNEL);
+	bctl = kzalloc_obj(*bctl);
 	if (!bctl) {
 		ret = -ENOMEM;
 		goto out_unlock;
@@ -3604,7 +3610,7 @@ static long btrfs_ioctl_qgroup_assign(struct file *file, void __user *arg)
 	}
 
 	if (sa->assign) {
-		prealloc = kzalloc(sizeof(*prealloc), GFP_KERNEL);
+		prealloc = kzalloc_obj(*prealloc);
 		if (!prealloc) {
 			ret = -ENOMEM;
 			goto out;
@@ -3853,6 +3859,25 @@ static long _btrfs_ioctl_set_received_subvol(struct file *file,
 		goto out;
 	}
 
+	received_uuid_changed = memcmp(root_item->received_uuid, sa->uuid,
+				       BTRFS_UUID_SIZE);
+
+	/*
+	 * Before we attempt to add the new received uuid, check if we have room
+	 * for it in case there's already an item. If the size of the existing
+	 * item plus this root's ID (u64) exceeds the maximum item size, we can
+	 * return here without the need to abort a transaction. If we don't do
+	 * this check, the btrfs_uuid_tree_add() call below would fail with
+	 * -EOVERFLOW and result in a transaction abort. Malicious users could
+	 * exploit this to turn the fs into RO mode.
+	 */
+	if (received_uuid_changed && !btrfs_is_empty_uuid(sa->uuid)) {
+		ret = btrfs_uuid_tree_check_overflow(fs_info, sa->uuid,
+						     BTRFS_UUID_KEY_RECEIVED_SUBVOL);
+		if (ret < 0)
+			goto out;
+	}
+
 	/*
 	 * 1 - root item
 	 * 2 - uuid items (received uuid + subvol uuid)
@@ -3868,15 +3893,12 @@ static long _btrfs_ioctl_set_received_subvol(struct file *file,
 	sa->rtime.sec = ct.tv_sec;
 	sa->rtime.nsec = ct.tv_nsec;
 
-	received_uuid_changed = memcmp(root_item->received_uuid, sa->uuid,
-				       BTRFS_UUID_SIZE);
 	if (received_uuid_changed &&
 	    !btrfs_is_empty_uuid(root_item->received_uuid)) {
 		ret = btrfs_uuid_tree_remove(trans, root_item->received_uuid,
 					  BTRFS_UUID_KEY_RECEIVED_SUBVOL,
 					  btrfs_root_id(root));
 		if (unlikely(ret && ret != -ENOENT)) {
-		        btrfs_abort_transaction(trans, ret);
 		        btrfs_end_transaction(trans);
 		        goto out;
 		}
@@ -3891,7 +3913,8 @@ static long _btrfs_ioctl_set_received_subvol(struct file *file,
 
 	ret = btrfs_update_root(trans, fs_info->tree_root,
 				&root->root_key, &root->root_item);
-	if (ret < 0) {
+	if (unlikely(ret < 0)) {
+		btrfs_abort_transaction(trans, ret);
 		btrfs_end_transaction(trans);
 		goto out;
 	}
@@ -3924,7 +3947,7 @@ static long btrfs_ioctl_set_received_subvol_32(struct file *file,
 	if (IS_ERR(args32))
 		return PTR_ERR(args32);
 
-	args64 = kmalloc(sizeof(*args64), GFP_KERNEL);
+	args64 = kmalloc_obj(*args64);
 	if (!args64) {
 		ret = -ENOMEM;
 		goto out;
@@ -4234,7 +4257,7 @@ static int _btrfs_ioctl_send(struct btrfs_root *root, void __user *argp, bool co
 		ret = copy_from_user(&args32, argp, sizeof(args32));
 		if (ret)
 			return -EFAULT;
-		arg = kzalloc(sizeof(*arg), GFP_KERNEL);
+		arg = kzalloc_obj(*arg);
 		if (!arg)
 			return -ENOMEM;
 		arg->send_fd = args32.send_fd;
@@ -4582,13 +4605,13 @@ static int btrfs_uring_read_extent(struct kiocb *iocb, struct iov_iter *iter,
 {
 	struct btrfs_inode *inode = BTRFS_I(file_inode(iocb->ki_filp));
 	struct extent_io_tree *io_tree = &inode->io_tree;
-	struct page **pages;
+	struct page **pages = NULL;
 	struct btrfs_uring_priv *priv = NULL;
 	unsigned long nr_pages;
 	int ret;
 
 	nr_pages = DIV_ROUND_UP(disk_io_size, PAGE_SIZE);
-	pages = kcalloc(nr_pages, sizeof(struct page *), GFP_NOFS);
+	pages = kzalloc_objs(struct page *, nr_pages, GFP_NOFS);
 	if (!pages)
 		return -ENOMEM;
 	ret = btrfs_alloc_page_array(nr_pages, pages, 0);
@@ -4597,7 +4620,7 @@ static int btrfs_uring_read_extent(struct kiocb *iocb, struct iov_iter *iter,
 		goto out_fail;
 	}
 
-	priv = kmalloc(sizeof(*priv), GFP_NOFS);
+	priv = kmalloc_obj(*priv, GFP_NOFS);
 	if (!priv) {
 		ret = -ENOMEM;
 		goto out_fail;
@@ -4640,6 +4663,11 @@ out_fail:
 	btrfs_unlock_extent(io_tree, start, lockend, &cached_state);
 	btrfs_inode_unlock(inode, BTRFS_ILOCK_SHARED);
 	kfree(priv);
+	for (int i = 0; i < nr_pages; i++) {
+		if (pages[i])
+			__free_page(pages[i]);
+	}
+	kfree(pages);
 	return ret;
 }
 
@@ -4682,7 +4710,7 @@ static int btrfs_uring_encoded_read(struct io_uring_cmd *cmd, unsigned int issue
 	}
 
 	if (!data) {
-		data = kzalloc(sizeof(*data), GFP_NOFS);
+		data = kzalloc_obj(*data, GFP_NOFS);
 		if (!data) {
 			ret = -ENOMEM;
 			goto out_acct;
@@ -4817,7 +4845,7 @@ static int btrfs_uring_encoded_write(struct io_uring_cmd *cmd, unsigned int issu
 	}
 
 	if (!data) {
-		data = kzalloc(sizeof(*data), GFP_NOFS);
+		data = kzalloc_obj(*data, GFP_NOFS);
 		if (!data) {
 			ret = -ENOMEM;
 			goto out_acct;

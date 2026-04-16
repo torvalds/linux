@@ -1184,7 +1184,7 @@ static struct dma_fence *etnaviv_gpu_fence_alloc(struct etnaviv_gpu *gpu)
 	 */
 	lockdep_assert_held(&gpu->lock);
 
-	f = kzalloc(sizeof(*f), GFP_KERNEL);
+	f = kzalloc_obj(*f);
 	if (!f)
 		return NULL;
 

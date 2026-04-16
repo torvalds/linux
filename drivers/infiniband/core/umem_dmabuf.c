@@ -136,7 +136,7 @@ ib_umem_dmabuf_get_with_dma_device(struct ib_device *device,
 	if (dmabuf->size < end)
 		goto out_release_dmabuf;
 
-	umem_dmabuf = kzalloc(sizeof(*umem_dmabuf), GFP_KERNEL);
+	umem_dmabuf = kzalloc_obj(*umem_dmabuf);
 	if (!umem_dmabuf) {
 		ret = ERR_PTR(-ENOMEM);
 		goto out_release_dmabuf;
@@ -218,13 +218,11 @@ ib_umem_dmabuf_get_pinned_with_dma_device(struct ib_device *device,
 
 	err = ib_umem_dmabuf_map_pages(umem_dmabuf);
 	if (err)
-		goto err_unpin;
+		goto err_release;
 	dma_resv_unlock(umem_dmabuf->attach->dmabuf->resv);
 
 	return umem_dmabuf;
 
-err_unpin:
-	dma_buf_unpin(umem_dmabuf->attach);
 err_release:
 	dma_resv_unlock(umem_dmabuf->attach->dmabuf->resv);
 	ib_umem_release(&umem_dmabuf->umem);

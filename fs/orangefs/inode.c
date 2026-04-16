@@ -184,16 +184,16 @@ static int orangefs_writepages(struct address_space *mapping,
 	int error;
 	struct folio *folio = NULL;
 
-	ow = kzalloc(sizeof(struct orangefs_writepages), GFP_KERNEL);
+	ow = kzalloc_obj(struct orangefs_writepages);
 	if (!ow)
 		return -ENOMEM;
 	ow->maxpages = orangefs_bufmap_size_query()/PAGE_SIZE;
-	ow->folios = kcalloc(ow->maxpages, sizeof(struct folio *), GFP_KERNEL);
+	ow->folios = kzalloc_objs(struct folio *, ow->maxpages);
 	if (!ow->folios) {
 		kfree(ow);
 		return -ENOMEM;
 	}
-	ow->bv = kcalloc(ow->maxpages, sizeof(struct bio_vec), GFP_KERNEL);
+	ow->bv = kzalloc_objs(struct bio_vec, ow->maxpages);
 	if (!ow->bv) {
 		kfree(ow->folios);
 		kfree(ow);
@@ -328,7 +328,7 @@ static int orangefs_write_begin(const struct kiocb *iocb,
 		}
 	}
 
-	wr = kmalloc(sizeof *wr, GFP_KERNEL);
+	wr = kmalloc_obj(*wr);
 	if (!wr)
 		return -ENOMEM;
 
@@ -644,7 +644,7 @@ vm_fault_t orangefs_page_mkwrite(struct vm_fault *vmf)
 			}
 		}
 	}
-	wr = kmalloc(sizeof *wr, GFP_KERNEL);
+	wr = kmalloc_obj(*wr);
 	if (!wr) {
 		ret = VM_FAULT_LOCKED|VM_FAULT_RETRY;
 		goto out;

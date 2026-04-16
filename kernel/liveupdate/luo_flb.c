@@ -343,7 +343,7 @@ int liveupdate_register_flb(struct liveupdate_file_handler *fh,
 	if (WARN_ON(list_empty(&ACCESS_PRIVATE(fh, list))))
 		return -EINVAL;
 
-	link = kzalloc(sizeof(*link), GFP_KERNEL);
+	link = kzalloc_obj(*link);
 	if (!link)
 		return -ENOMEM;
 

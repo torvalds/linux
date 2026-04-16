@@ -124,7 +124,7 @@ int lsdc_create_i2c_chan(struct drm_device *ddev,
 	struct lsdc_i2c *li2c;
 	int ret;
 
-	li2c = kzalloc(sizeof(*li2c), GFP_KERNEL);
+	li2c = kzalloc_obj(*li2c);
 	if (!li2c)
 		return -ENOMEM;
 

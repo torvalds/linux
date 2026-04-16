@@ -1392,7 +1392,7 @@ static void hinic_get_ethtool_stats(struct net_device *netdev,
 				sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 	}
 
-	port_stats = kzalloc(sizeof(*port_stats), GFP_KERNEL);
+	port_stats = kzalloc_obj(*port_stats);
 	if (!port_stats) {
 		memset(&data[i], 0,
 		       ARRAY_SIZE(hinic_port_stats) * sizeof(*data));

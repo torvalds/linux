@@ -556,7 +556,7 @@ static void gnttab_add_deferred(grant_ref_t ref, struct page *page)
 	gfp_t gfp = (in_atomic() || irqs_disabled()) ? GFP_ATOMIC : GFP_KERNEL;
 	uint64_t leaked, deferred;
 
-	entry = kmalloc(sizeof(*entry), gfp);
+	entry = kmalloc_obj(*entry, gfp);
 	if (!page) {
 		unsigned long gfn = gnttab_interface->read_frame(ref);
 
@@ -831,7 +831,7 @@ int gnttab_setup_auto_xlat_frames(phys_addr_t addr)
 			&addr);
 		return -ENOMEM;
 	}
-	pfn = kcalloc(max_nr_gframes, sizeof(pfn[0]), GFP_KERNEL);
+	pfn = kzalloc_objs(pfn[0], max_nr_gframes);
 	if (!pfn) {
 		memunmap(vaddr);
 		return -ENOMEM;
@@ -868,7 +868,7 @@ int gnttab_pages_set_private(int nr_pages, struct page **pages)
 #if BITS_PER_LONG < 64
 		struct xen_page_foreign *foreign;
 
-		foreign = kzalloc(sizeof(*foreign), GFP_KERNEL);
+		foreign = kzalloc_obj(*foreign);
 		if (!foreign)
 			return -ENOMEM;
 
@@ -1635,9 +1635,7 @@ int gnttab_init(void)
 	 */
 	max_nr_glist_frames = max_nr_grefs / RPP;
 
-	gnttab_list = kmalloc_array(max_nr_glist_frames,
-				    sizeof(grant_ref_t *),
-				    GFP_KERNEL);
+	gnttab_list = kmalloc_objs(grant_ref_t *, max_nr_glist_frames);
 	if (gnttab_list == NULL)
 		return -ENOMEM;
 

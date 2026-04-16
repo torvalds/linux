@@ -2,7 +2,7 @@
 /*
  * Intel Broxton SoC pinctrl/GPIO driver
  *
- * Copyright (C) 2015, 2016 Intel Corporation
+ * Copyright (C) 2015-2016 Intel Corporation
  * Author: Mika Westerberg <mika.westerberg@linux.intel.com>
  */
 

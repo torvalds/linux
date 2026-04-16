@@ -95,7 +95,7 @@ static struct landlock_details *get_current_details(void)
 	 * caller.
 	 */
 	details =
-		kzalloc(struct_size(details, exe_path, path_size), GFP_KERNEL);
+		kzalloc_flex(*details, exe_path, path_size);
 	if (!details)
 		return ERR_PTR(-ENOMEM);
 

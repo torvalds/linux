@@ -208,7 +208,7 @@ static int __xipram cfi_chip_setup(struct map_info *map,
 	if (!num_erase_regions)
 		return 0;
 
-	cfi->cfiq = kmalloc(struct_size(cfi->cfiq, EraseRegionInfo, num_erase_regions), GFP_KERNEL);
+	cfi->cfiq = kmalloc_flex(*cfi->cfiq, EraseRegionInfo, num_erase_regions);
 	if (!cfi->cfiq)
 		return 0;
 

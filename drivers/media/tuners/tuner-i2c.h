@@ -132,7 +132,7 @@ static inline int tuner_i2c_xfer_send_recv(struct tuner_i2c_props *props,
 		}							\
 	}								\
 	if (0 == __ret) {						\
-		state = kzalloc(sizeof(type), GFP_KERNEL);		\
+		state = kzalloc_obj(type);			\
 		if (NULL == state)					\
 			goto __fail;					\
 		state->i2c_props.addr = i2caddr;			\

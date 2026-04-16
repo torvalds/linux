@@ -50,6 +50,7 @@
 #include "link_hwss.h"
 #include "dpcd_defs.h"
 #include "dsc.h"
+#include "dio/dcn10/dcn10_dio.h"
 #include "dce/dmub_psr.h"
 #include "dc_dmub_srv.h"
 #include "dce/dmub_hw_lock_mgr.h"
@@ -1881,13 +1882,13 @@ void dcn10_init_hw(struct dc *dc)
 
 	/* power AFMT HDMI memory TODO: may move to dis/en output save power*/
 	if (!is_optimized_init_done)
-		REG_WRITE(DIO_MEM_PWR_CTRL, 0);
+		if (dc->res_pool->dio && dc->res_pool->dio->funcs->mem_pwr_ctrl)
+			dc->res_pool->dio->funcs->mem_pwr_ctrl(dc->res_pool->dio, false);
 
 	if (!dc->debug.disable_clock_gate) {
 		/* enable all DCN clock gating */
-		REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0);
-
-		REG_WRITE(DCCG_GATE_DISABLE_CNTL2, 0);
+		if (dc->res_pool->dccg && dc->res_pool->dccg->funcs && dc->res_pool->dccg->funcs->allow_clock_gating)
+			dc->res_pool->dccg->funcs->allow_clock_gating(dc->res_pool->dccg, true);
 
 		REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);
 	}
@@ -2398,7 +2399,7 @@ static int dcn10_align_pixel_clocks(struct dc *dc, int group_size,
 
 	DC_LOGGER_INIT(dc_ctx->logger);
 
-	hw_crtc_timing = kcalloc(MAX_PIPES, sizeof(*hw_crtc_timing), GFP_KERNEL);
+	hw_crtc_timing = kzalloc_objs(*hw_crtc_timing, MAX_PIPES);
 	if (!hw_crtc_timing)
 		return master;
 

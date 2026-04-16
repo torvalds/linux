@@ -586,7 +586,7 @@ static int applesmc_init_smcreg_try(void)
 	s->key_count = count;
 
 	if (!s->cache)
-		s->cache = kcalloc(s->key_count, sizeof(*s->cache), GFP_KERNEL);
+		s->cache = kzalloc_objs(*s->cache, s->key_count);
 	if (!s->cache)
 		return -ENOMEM;
 
@@ -1141,7 +1141,7 @@ static int applesmc_create_nodes(struct applesmc_node_group *groups, int num)
 	int ret, i;
 
 	for (grp = groups; grp->format; grp++) {
-		grp->nodes = kcalloc(num + 1, sizeof(*node), GFP_KERNEL);
+		grp->nodes = kzalloc_objs(*node, num + 1);
 		if (!grp->nodes) {
 			ret = -ENOMEM;
 			goto out;

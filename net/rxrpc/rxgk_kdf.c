@@ -213,7 +213,7 @@ struct rxgk_context *rxgk_generate_transport_key(struct rxrpc_connection *conn,
 
 	_enter("");
 
-	gk = kzalloc(sizeof(*gk), GFP_KERNEL);
+	gk = kzalloc_obj(*gk);
 	if (!gk)
 		return ERR_PTR(-ENOMEM);
 	refcount_set(&gk->usage, 1);

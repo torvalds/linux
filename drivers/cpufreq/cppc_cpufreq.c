@@ -575,7 +575,7 @@ static struct cppc_cpudata *cppc_cpufreq_get_cpu_data(unsigned int cpu)
 	struct cppc_cpudata *cpu_data;
 	int ret;
 
-	cpu_data = kzalloc(sizeof(struct cppc_cpudata), GFP_KERNEL);
+	cpu_data = kzalloc_obj(struct cppc_cpudata);
 	if (!cpu_data)
 		goto out;
 

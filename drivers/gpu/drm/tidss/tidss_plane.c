@@ -203,7 +203,7 @@ struct tidss_plane *tidss_plane_create(struct tidss_device *tidss,
 			   BIT(DRM_MODE_BLEND_COVERAGE));
 	int ret;
 
-	tplane = kzalloc(sizeof(*tplane), GFP_KERNEL);
+	tplane = kzalloc_obj(*tplane);
 	if (!tplane)
 		return ERR_PTR(-ENOMEM);
 

@@ -503,7 +503,7 @@ static int mpc_dma_alloc_chan_resources(struct dma_chan *chan)
 
 	/* Alloc descriptors for this channel */
 	for (i = 0; i < MPC_DMA_DESCRIPTORS; i++) {
-		mdesc = kzalloc(sizeof(struct mpc_dma_desc), GFP_KERNEL);
+		mdesc = kzalloc_obj(struct mpc_dma_desc);
 		if (!mdesc) {
 			dev_notice(mdma->dma.dev,
 				"Memory allocation error. Allocated only %u descriptors\n", i);

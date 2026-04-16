@@ -803,14 +803,14 @@ static int smu_early_init(struct amdgpu_ip_block *ip_block)
 	struct smu_context *smu;
 	int r;
 
-	smu = kzalloc(sizeof(struct smu_context), GFP_KERNEL);
+	smu = kzalloc_obj(struct smu_context);
 	if (!smu)
 		return -ENOMEM;
 
 	smu->adev = adev;
 	smu->pm_enabled = !!amdgpu_dpm;
 	smu->is_apu = false;
-	smu->smu_baco.state = SMU_BACO_STATE_NONE;
+	smu->smu_baco.state = SMU_BACO_STATE_EXIT;
 	smu->smu_baco.platform_support = false;
 	smu->smu_baco.maco_support = false;
 	smu->user_dpm_profile.fan_mode = -1;
@@ -1355,7 +1355,7 @@ static int smu_sw_init(struct amdgpu_ip_block *ip_block)
 	int i, ret;
 
 	smu->pool_size = adev->pm.smu_prv_buffer_size;
-	smu_feature_init(smu, SMU_FEATURE_MAX);
+	smu_feature_init(smu, SMU_FEATURE_NUM_DEFAULT);
 
 	INIT_WORK(&smu->throttling_logging_work, smu_throttling_logging_work_fn);
 	INIT_WORK(&smu->interrupt_work, smu_interrupt_work_fn);
@@ -1646,7 +1646,7 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 	uint8_t pcie_gen = 0, pcie_width = 0;
-	uint64_t features_supported;
+	struct smu_feature_bits features_supported;
 	int ret = 0;
 
 	switch (amdgpu_ip_version(adev, MP1_HWIP, 0)) {
@@ -1807,7 +1807,7 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 		return ret;
 	}
 	smu_feature_list_set_bits(smu, SMU_FEATURE_LIST_SUPPORTED,
-				  (unsigned long *)&features_supported);
+			     features_supported.bits);
 
 	if (!smu_is_dpm_running(smu))
 		dev_info(adev->dev, "dpm has been disabled\n");
@@ -2120,9 +2120,8 @@ static int smu_reset_mp1_state(struct smu_context *smu)
 	int ret = 0;
 
 	if ((!adev->in_runpm) && (!adev->in_suspend) &&
-		(!amdgpu_in_reset(adev)) && amdgpu_ip_version(adev, MP1_HWIP, 0) ==
-									IP_VERSION(13, 0, 10) &&
-		!amdgpu_device_has_display_hardware(adev))
+		(!amdgpu_in_reset(adev)) && !smu->is_apu &&
+			amdgpu_ip_version(adev, MP1_HWIP, 0) >= IP_VERSION(13, 0, 0))
 		ret = smu_set_mp1_state(smu, PP_MP1_STATE_UNLOAD);
 
 	return ret;
@@ -3152,10 +3151,19 @@ static int smu_read_sensor(void *handle,
 		*((uint32_t *)data) = pstate_table->uclk_pstate.peak * 100;
 		*size = 4;
 		break;
-	case AMDGPU_PP_SENSOR_ENABLED_SMC_FEATURES_MASK:
-		ret = smu_feature_get_enabled_mask(smu, (uint64_t *)data);
+	case AMDGPU_PP_SENSOR_ENABLED_SMC_FEATURES_MASK: {
+		struct smu_feature_bits feature_mask;
+		uint32_t features[2];
+
+		/* TBD: need to handle for > 64 bits */
+		ret = smu_feature_get_enabled_mask(smu, &feature_mask);
+		if (!ret) {
+			smu_feature_bits_to_arr32(&feature_mask, features, 64);
+			*(uint64_t *)data = *(uint64_t *)features;
+		}
 		*size = 8;
 		break;
+	}
 	case AMDGPU_PP_SENSOR_UVD_POWER:
 		*(uint32_t *)data = smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UVD_BIT) ? 1 : 0;
 		*size = 4;

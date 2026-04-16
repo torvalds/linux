@@ -6,7 +6,7 @@
 
 #include <stdlib.h>
 #include <linux/types.h>
-#include <asm/perf_regs.h>
+#include "../../../../arch/csky/include/uapi/asm/perf_regs.h"
 
 #define PERF_REGS_MASK	((1ULL << PERF_REG_CSKY_MAX) - 1)
 #define PERF_REGS_MAX	PERF_REG_CSKY_MAX

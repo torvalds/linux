@@ -72,7 +72,7 @@ struct l2addr_node {
 	int ix = MLX5_L2_ADDR_HASH(mac);                    \
 	type *ptr = NULL;                                   \
 							    \
-	ptr = kzalloc(sizeof(type), gfp);                   \
+	ptr = kzalloc_obj(type, gfp);                       \
 	if (ptr) {                                          \
 		ether_addr_copy(ptr->node.addr, mac);       \
 		hlist_add_head(&ptr->node.hlist, &(hash)[ix]);\

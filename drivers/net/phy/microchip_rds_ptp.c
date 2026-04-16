@@ -999,7 +999,7 @@ static struct mchp_rds_ptp_rx_ts
 	if (rc < 0)
 		goto error;
 
-	rx_ts = kmalloc(sizeof(*rx_ts), GFP_KERNEL);
+	rx_ts = kmalloc_obj(*rx_ts);
 	if (!rx_ts)
 		return NULL;
 

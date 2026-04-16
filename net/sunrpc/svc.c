@@ -488,7 +488,7 @@ __svc_create(struct svc_program *prog, int nprogs, struct svc_stat *stats,
 	unsigned int xdrsize;
 	unsigned int i;
 
-	if (!(serv = kzalloc(sizeof(*serv), GFP_KERNEL)))
+	if (!(serv = kzalloc_obj(*serv)))
 		return NULL;
 	serv->sv_name      = prog->pg_name;
 	serv->sv_programs  = prog;
@@ -523,8 +523,7 @@ __svc_create(struct svc_program *prog, int nprogs, struct svc_stat *stats,
 
 	serv->sv_nrpools = npools;
 	serv->sv_pools =
-		kcalloc(serv->sv_nrpools, sizeof(struct svc_pool),
-			GFP_KERNEL);
+		kzalloc_objs(struct svc_pool, serv->sv_nrpools);
 	if (!serv->sv_pools) {
 		kfree(serv);
 		return NULL;

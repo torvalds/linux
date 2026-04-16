@@ -151,7 +151,7 @@ __intel_timeline_create(struct intel_gt *gt,
 	struct intel_timeline *timeline;
 	int err;
 
-	timeline = kzalloc(sizeof(*timeline), GFP_KERNEL);
+	timeline = kzalloc_obj(*timeline);
 	if (!timeline)
 		return ERR_PTR(-ENOMEM);
 

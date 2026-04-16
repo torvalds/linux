@@ -52,6 +52,9 @@ struct mshv_vp {
 		unsigned int kicked_by_hv;
 		wait_queue_head_t vp_suspend_queue;
 	} run;
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+	struct dentry *vp_stats_dentry;
+#endif
 };
 
 #define vp_fmt(fmt) "p%lluvp%u: " fmt
@@ -79,16 +82,16 @@ enum mshv_region_type {
 
 struct mshv_mem_region {
 	struct hlist_node hnode;
-	struct kref refcount;
+	struct kref mreg_refcount;
 	u64 nr_pages;
 	u64 start_gfn;
 	u64 start_uaddr;
 	u32 hv_map_flags;
 	struct mshv_partition *partition;
-	enum mshv_region_type type;
-	struct mmu_interval_notifier mni;
-	struct mutex mutex;	/* protects region pages remapping */
-	struct page *pages[];
+	enum mshv_region_type mreg_type;
+	struct mmu_interval_notifier mreg_mni;
+	struct mutex mreg_mutex;	/* protects region pages remapping */
+	struct page *mreg_pages[];
 };
 
 struct mshv_irq_ack_notifier {
@@ -136,6 +139,10 @@ struct mshv_partition {
 	u64 isolation_type;
 	bool import_completed;
 	bool pt_initialized;
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+	struct dentry *pt_stats_dentry;
+	struct dentry *pt_vp_dentry;
+#endif
 };
 
 #define pt_fmt(fmt) "p%llu: " fmt
@@ -254,6 +261,16 @@ struct mshv_partition *mshv_partition_get(struct mshv_partition *partition);
 void mshv_partition_put(struct mshv_partition *partition);
 struct mshv_partition *mshv_partition_find(u64 partition_id) __must_hold(RCU);
 
+static inline bool is_l1vh_parent(u64 partition_id)
+{
+	return hv_l1vh_partition() && (partition_id == HV_PARTITION_ID_SELF);
+}
+
+int mshv_vp_stats_map(u64 partition_id, u32 vp_index,
+		      struct hv_stats_page **stats_pages);
+void mshv_vp_stats_unmap(u64 partition_id, u32 vp_index,
+			 struct hv_stats_page **stats_pages);
+
 /* hypercalls */
 
 int hv_call_withdraw_memory(u64 count, int node, u64 partition_id);
@@ -307,14 +324,42 @@ int hv_call_disconnect_port(u64 connection_partition_id,
 int hv_call_notify_port_ring_empty(u32 sint_index);
 int hv_map_stats_page(enum hv_stats_object_type type,
 		      const union hv_stats_object_identity *identity,
-		      void **addr);
-int hv_unmap_stats_page(enum hv_stats_object_type type, void *page_addr,
+		      struct hv_stats_page **addr);
+int hv_unmap_stats_page(enum hv_stats_object_type type,
+			struct hv_stats_page *page_addr,
 			const union hv_stats_object_identity *identity);
 int hv_call_modify_spa_host_access(u64 partition_id, struct page **pages,
 				   u64 page_struct_count, u32 host_access,
 				   u32 flags, u8 acquire);
 int hv_call_get_partition_property_ex(u64 partition_id, u64 property_code, u64 arg,
 				      void *property_value, size_t property_value_sz);
+
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+int __init mshv_debugfs_init(void);
+void mshv_debugfs_exit(void);
+
+int mshv_debugfs_partition_create(struct mshv_partition *partition);
+void mshv_debugfs_partition_remove(struct mshv_partition *partition);
+int mshv_debugfs_vp_create(struct mshv_vp *vp);
+void mshv_debugfs_vp_remove(struct mshv_vp *vp);
+#else
+static inline int __init mshv_debugfs_init(void)
+{
+	return 0;
+}
+static inline void mshv_debugfs_exit(void) { }
+
+static inline int mshv_debugfs_partition_create(struct mshv_partition *partition)
+{
+	return 0;
+}
+static inline void mshv_debugfs_partition_remove(struct mshv_partition *partition) { }
+static inline int mshv_debugfs_vp_create(struct mshv_vp *vp)
+{
+	return 0;
+}
+static inline void mshv_debugfs_vp_remove(struct mshv_vp *vp) { }
+#endif
 
 extern struct mshv_root mshv_root;
 extern enum hv_scheduler_type hv_scheduler_type;

@@ -153,7 +153,7 @@ int amdgpu_ring_mux_init(struct amdgpu_ring_mux *mux, struct amdgpu_ring *ring,
 	mux->real_ring = ring;
 	mux->num_ring_entries = 0;
 
-	mux->ring_entry = kcalloc(entry_size, sizeof(struct amdgpu_mux_entry), GFP_KERNEL);
+	mux->ring_entry = kzalloc_objs(struct amdgpu_mux_entry, entry_size);
 	if (!mux->ring_entry)
 		return -ENOMEM;
 

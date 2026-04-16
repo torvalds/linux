@@ -429,7 +429,7 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_set_master(pdev);
 
 	// Allocate the per driver initialization structure
-	adapter = kzalloc(sizeof(adapter_t), GFP_KERNEL);
+	adapter = kzalloc_obj(adapter_t);
 
 	if (adapter == NULL) {
 		con_log(CL_ANN, (KERN_WARNING
@@ -713,7 +713,7 @@ megaraid_init_mbox(adapter_t *adapter)
 	 * Allocate and initialize the init data structure for mailbox
 	 * controllers
 	 */
-	raid_dev = kzalloc(sizeof(mraid_device_t), GFP_KERNEL);
+	raid_dev = kzalloc_obj(mraid_device_t);
 	if (raid_dev == NULL) return -1;
 
 
@@ -1017,7 +1017,7 @@ megaraid_alloc_cmd_packets(adapter_t *adapter)
 	 * since the calling routine does not yet know the number of available
 	 * commands.
 	 */
-	adapter->kscb_list = kcalloc(MBOX_MAX_SCSI_CMDS, sizeof(scb_t), GFP_KERNEL);
+	adapter->kscb_list = kzalloc_objs(scb_t, MBOX_MAX_SCSI_CMDS);
 
 	if (adapter->kscb_list == NULL) {
 		con_log(CL_ANN, (KERN_WARNING
@@ -3403,7 +3403,7 @@ megaraid_cmm_register(adapter_t *adapter)
 	int		i;
 
 	// Allocate memory for the base list of scb for management module.
-	adapter->uscb_list = kcalloc(MBOX_MAX_USER_CMDS, sizeof(scb_t), GFP_KERNEL);
+	adapter->uscb_list = kzalloc_objs(scb_t, MBOX_MAX_USER_CMDS);
 
 	if (adapter->uscb_list == NULL) {
 		con_log(CL_ANN, (KERN_WARNING
@@ -3763,9 +3763,9 @@ megaraid_sysfs_alloc_resources(adapter_t *adapter)
 	mraid_device_t	*raid_dev = ADAP2RAIDDEV(adapter);
 	int		rval = 0;
 
-	raid_dev->sysfs_uioc = kmalloc(sizeof(uioc_t), GFP_KERNEL);
+	raid_dev->sysfs_uioc = kmalloc_obj(uioc_t);
 
-	raid_dev->sysfs_mbox64 = kmalloc(sizeof(mbox64_t), GFP_KERNEL);
+	raid_dev->sysfs_mbox64 = kmalloc_obj(mbox64_t);
 
 	raid_dev->sysfs_buffer = dma_alloc_coherent(&adapter->pdev->dev,
 			PAGE_SIZE, &raid_dev->sysfs_buffer_dma, GFP_KERNEL);

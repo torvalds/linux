@@ -68,7 +68,7 @@ static int dr_arg_pool_alloc_objs(struct dr_arg_pool *pool)
 	}
 
 	for (i = 0; i < num_of_objects; i++) {
-		arg_obj = kzalloc(sizeof(*arg_obj), GFP_KERNEL);
+		arg_obj = kzalloc_obj(*arg_obj);
 		if (!arg_obj) {
 			ret = -ENOMEM;
 			goto clean_arg_obj;
@@ -132,7 +132,7 @@ static struct dr_arg_pool *dr_arg_pool_create(struct mlx5dr_domain *dmn,
 {
 	struct dr_arg_pool *pool;
 
-	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+	pool = kzalloc_obj(*pool);
 	if (!pool)
 		return NULL;
 
@@ -235,7 +235,7 @@ mlx5dr_arg_mgr_create(struct mlx5dr_domain *dmn)
 	if (!mlx5dr_domain_is_support_ptrn_arg(dmn))
 		return NULL;
 
-	pool_mgr = kzalloc(sizeof(*pool_mgr), GFP_KERNEL);
+	pool_mgr = kzalloc_obj(*pool_mgr);
 	if (!pool_mgr)
 		return NULL;
 

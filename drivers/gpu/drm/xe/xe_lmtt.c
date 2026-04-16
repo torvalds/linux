@@ -64,7 +64,7 @@ static struct xe_lmtt_pt *lmtt_pt_alloc(struct xe_lmtt *lmtt, unsigned int level
 	struct xe_bo *bo;
 	int err;
 
-	pt = kzalloc(struct_size(pt, entries, num_entries), GFP_KERNEL);
+	pt = kzalloc_flex(*pt, entries, num_entries);
 	if (!pt) {
 		err = -ENOMEM;
 		goto out;

@@ -974,7 +974,7 @@ static uint32_t cail_ioreg_read(struct card_info *info, uint32_t reg)
 int radeon_atombios_init(struct radeon_device *rdev)
 {
 	struct card_info *atom_card_info =
-	    kzalloc(sizeof(struct card_info), GFP_KERNEL);
+	    kzalloc_obj(struct card_info);
 
 	if (!atom_card_info)
 		return -ENOMEM;

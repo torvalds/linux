@@ -543,7 +543,7 @@ struct dma_fence *pvr_kccb_fence_alloc(void)
 {
 	struct pvr_kccb_fence *kccb_fence;
 
-	kccb_fence = kzalloc(sizeof(*kccb_fence), GFP_KERNEL);
+	kccb_fence = kzalloc_obj(*kccb_fence);
 	if (!kccb_fence)
 		return NULL;
 

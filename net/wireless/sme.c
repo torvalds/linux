@@ -570,7 +570,7 @@ static int cfg80211_sme_connect(struct wireless_dev *wdev,
 	if (wdev->conn)
 		return -EINPROGRESS;
 
-	wdev->conn = kzalloc(sizeof(*wdev->conn), GFP_KERNEL);
+	wdev->conn = kzalloc_obj(*wdev->conn);
 	if (!wdev->conn)
 		return -ENOMEM;
 

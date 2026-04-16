@@ -1848,9 +1848,8 @@ static void __writecache_writeback_pmem(struct dm_writecache *wc, struct writeba
 		bio->bi_iter.bi_sector = read_original_sector(wc, e);
 
 		if (unlikely(max_pages > WB_LIST_INLINE))
-			wb->wc_list = kmalloc_array(max_pages, sizeof(struct wc_entry *),
-						    GFP_NOIO | __GFP_NORETRY |
-						    __GFP_NOMEMALLOC | __GFP_NOWARN);
+			wb->wc_list = kmalloc_objs(struct wc_entry *, max_pages,
+						   GFP_NOIO | __GFP_NORETRY | __GFP_NOMEMALLOC | __GFP_NOWARN);
 
 		if (likely(max_pages <= WB_LIST_INLINE) || unlikely(!wb->wc_list)) {
 			wb->wc_list = wb->wc_list_inline;
@@ -2246,7 +2245,7 @@ static int writecache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	as.argc = argc;
 	as.argv = argv;
 
-	wc = kzalloc(sizeof(struct dm_writecache), GFP_KERNEL);
+	wc = kzalloc_obj(struct dm_writecache);
 	if (!wc) {
 		ti->error = "Cannot allocate writecache structure";
 		r = -ENOMEM;

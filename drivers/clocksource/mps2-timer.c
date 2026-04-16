@@ -136,7 +136,7 @@ static int __init mps2_clockevent_init(struct device_node *np)
 		goto out_iounmap;
 	}
 
-	ce = kzalloc(sizeof(*ce), GFP_KERNEL);
+	ce = kzalloc_obj(*ce);
 	if (!ce) {
 		ret = -ENOMEM;
 		goto out_iounmap;

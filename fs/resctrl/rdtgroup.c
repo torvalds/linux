@@ -2686,7 +2686,7 @@ static int schemata_list_add(struct rdt_resource *r, enum resctrl_conf_type type
 	const char *suffix = "";
 	int ret, cl;
 
-	s = kzalloc(sizeof(*s), GFP_KERNEL);
+	s = kzalloc_obj(*s);
 	if (!s)
 		return -ENOMEM;
 
@@ -2966,7 +2966,7 @@ static int rdt_init_fs_context(struct fs_context *fc)
 {
 	struct rdt_fs_context *ctx;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -3117,7 +3117,7 @@ static struct mon_data *mon_get_kn_priv(enum resctrl_res_level rid, int domid,
 			return priv;
 	}
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return NULL;
 
@@ -3753,7 +3753,7 @@ static int mkdir_rdt_prepare(struct kernfs_node *parent_kn,
 	}
 
 	/* allocate the rdtgroup. */
-	rdtgrp = kzalloc(sizeof(*rdtgrp), GFP_KERNEL);
+	rdtgrp = kzalloc_obj(*rdtgrp);
 	if (!rdtgrp) {
 		ret = -ENOSPC;
 		rdt_last_cmd_puts("Kernel out of memory\n");

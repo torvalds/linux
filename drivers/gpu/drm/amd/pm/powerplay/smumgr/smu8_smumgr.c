@@ -758,7 +758,7 @@ static int smu8_smu_init(struct pp_hwmgr *hwmgr)
 	int ret = 0;
 	struct smu8_smumgr *smu8_smu;
 
-	smu8_smu = kzalloc(sizeof(struct smu8_smumgr), GFP_KERNEL);
+	smu8_smu = kzalloc_obj(struct smu8_smumgr);
 	if (smu8_smu == NULL)
 		return -ENOMEM;
 

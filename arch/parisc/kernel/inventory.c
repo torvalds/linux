@@ -193,7 +193,7 @@ pat_query_module(ulong pcell_loc, ulong mod_index)
 	long status;		/* PDC return value status */
 	struct parisc_device *dev;
 
-	pa_pdc_cell = kmalloc(sizeof (*pa_pdc_cell), GFP_KERNEL);
+	pa_pdc_cell = kmalloc_obj(*pa_pdc_cell);
 	if (!pa_pdc_cell)
 		panic("couldn't allocate memory for PDC_PAT_CELL!");
 
@@ -536,7 +536,7 @@ add_system_map_addresses(struct parisc_device *dev, int num_addrs,
 	long status;
 	struct pdc_system_map_addr_info addr_result;
 
-	dev->addr = kmalloc_array(num_addrs, sizeof(*dev->addr), GFP_KERNEL);
+	dev->addr = kmalloc_objs(*dev->addr, num_addrs);
 	if(!dev->addr) {
 		printk(KERN_ERR "%s %s(): memory allocation failure\n",
 		       __FILE__, __func__);

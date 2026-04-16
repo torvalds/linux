@@ -2020,8 +2020,7 @@ NCR_700_set_offset(struct scsi_target *STp, int offset)
 STATIC int
 NCR_700_sdev_init(struct scsi_device *SDp)
 {
-	SDp->hostdata = kzalloc(sizeof(struct NCR_700_Device_Parameters),
-				GFP_KERNEL);
+	SDp->hostdata = kzalloc_obj(struct NCR_700_Device_Parameters);
 
 	if (!SDp->hostdata)
 		return -ENOMEM;

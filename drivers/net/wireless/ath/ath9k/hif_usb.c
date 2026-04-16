@@ -107,7 +107,7 @@ static int hif_usb_send_regout(struct hif_device_usb *hif_dev,
 	if (urb == NULL)
 		return -ENOMEM;
 
-	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (cmd == NULL) {
 		usb_free_urb(urb);
 		return -ENOMEM;
@@ -190,7 +190,7 @@ static int hif_usb_send_mgmt(struct hif_device_usb *hif_dev,
 	if (urb == NULL)
 		return -ENOMEM;
 
-	cmd = kzalloc(sizeof(*cmd), GFP_ATOMIC);
+	cmd = kzalloc_obj(*cmd, GFP_ATOMIC);
 	if (cmd == NULL) {
 		usb_free_urb(urb);
 		return -ENOMEM;
@@ -849,7 +849,7 @@ static int ath9k_hif_usb_alloc_tx_urbs(struct hif_device_usb *hif_dev)
 	init_usb_anchor(&hif_dev->mgmt_submitted);
 
 	for (i = 0; i < MAX_TX_URB_NUM; i++) {
-		tx_buf = kzalloc(sizeof(*tx_buf), GFP_KERNEL);
+		tx_buf = kzalloc_obj(*tx_buf);
 		if (!tx_buf)
 			goto err;
 
@@ -897,7 +897,7 @@ static int ath9k_hif_usb_alloc_rx_urbs(struct hif_device_usb *hif_dev)
 
 	for (i = 0; i < MAX_RX_URB_NUM; i++) {
 
-		rx_buf = kzalloc(sizeof(*rx_buf), GFP_KERNEL);
+		rx_buf = kzalloc_obj(*rx_buf);
 		if (!rx_buf) {
 			ret = -ENOMEM;
 			goto err_rxb;
@@ -972,7 +972,7 @@ static int ath9k_hif_usb_alloc_reg_in_urbs(struct hif_device_usb *hif_dev)
 
 	for (i = 0; i < MAX_REG_IN_URB_NUM; i++) {
 
-		rx_buf = kzalloc(sizeof(*rx_buf), GFP_KERNEL);
+		rx_buf = kzalloc_obj(*rx_buf);
 		if (!rx_buf) {
 			ret = -ENOMEM;
 			goto err_rxb;
@@ -1376,7 +1376,7 @@ static int ath9k_hif_usb_probe(struct usb_interface *interface,
 	if (id->driver_info == STORAGE_DEVICE)
 		return send_eject_command(interface);
 
-	hif_dev = kzalloc(sizeof(struct hif_device_usb), GFP_KERNEL);
+	hif_dev = kzalloc_obj(struct hif_device_usb);
 	if (!hif_dev) {
 		ret = -ENOMEM;
 		goto err_alloc;

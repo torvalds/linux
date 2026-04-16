@@ -104,7 +104,7 @@ int snd_midi_event_new(int bufsize, struct snd_midi_event **rdev)
 	struct snd_midi_event *dev;
 
 	*rdev = NULL;
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (dev == NULL)
 		return -ENOMEM;
 	if (bufsize > 0) {

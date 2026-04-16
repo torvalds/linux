@@ -657,7 +657,7 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 
 	case BTTV_BOARD_TWINHAN_DST:
 		/*	DST is not a frontend driver !!!		*/
-		state = kmalloc(sizeof (struct dst_state), GFP_KERNEL);
+		state = kmalloc_obj(struct dst_state);
 		if (!state) {
 			pr_err("No memory\n");
 			break;
@@ -809,7 +809,7 @@ static int dvb_bt8xx_probe(struct bttv_sub_device *sub)
 	struct pci_dev* bttv_pci_dev;
 	int ret;
 
-	if (!(card = kzalloc(sizeof(struct dvb_bt8xx_card), GFP_KERNEL)))
+	if (!(card = kzalloc_obj(struct dvb_bt8xx_card)))
 		return -ENOMEM;
 
 	mutex_init(&card->lock);

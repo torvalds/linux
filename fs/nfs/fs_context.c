@@ -1692,7 +1692,7 @@ static int nfs_init_fs_context(struct fs_context *fc)
 {
 	struct nfs_fs_context *ctx;
 
-	ctx = kzalloc(sizeof(struct nfs_fs_context), GFP_KERNEL);
+	ctx = kzalloc_obj(struct nfs_fs_context);
 	if (unlikely(!ctx))
 		return -ENOMEM;
 

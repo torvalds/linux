@@ -205,7 +205,7 @@ struct th1520_aon_chan *th1520_aon_init(struct device *dev)
 	struct mbox_client *cl;
 	int ret;
 
-	aon_chan = kzalloc(sizeof(*aon_chan), GFP_KERNEL);
+	aon_chan = kzalloc_obj(*aon_chan);
 	if (!aon_chan)
 		return ERR_PTR(-ENOMEM);
 

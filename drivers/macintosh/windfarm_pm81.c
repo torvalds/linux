@@ -283,8 +283,7 @@ static void wf_smu_create_sys_fans(void)
 	}
 
 	/* Alloc & initialize state */
-	wf_smu_sys_fans = kmalloc(sizeof(struct wf_smu_sys_fans_state),
-				  GFP_KERNEL);
+	wf_smu_sys_fans = kmalloc_obj(struct wf_smu_sys_fans_state);
 	if (wf_smu_sys_fans == NULL) {
 		printk(KERN_WARNING "windfarm: Memory allocation error"
 		       " max fan speed\n");
@@ -419,8 +418,7 @@ static void wf_smu_create_cpu_fans(void)
 		tmax = 0x5e0000; /* 94 degree default */
 
 	/* Alloc & initialize state */
-	wf_smu_cpu_fans = kmalloc(sizeof(struct wf_smu_cpu_fans_state),
-				  GFP_KERNEL);
+	wf_smu_cpu_fans = kmalloc_obj(struct wf_smu_cpu_fans_state);
 	if (wf_smu_cpu_fans == NULL)
 		goto fail;
        	wf_smu_cpu_fans->ticks = 1;

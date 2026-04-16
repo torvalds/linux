@@ -1271,7 +1271,7 @@ static int otx2_tc_add_flow(struct otx2_nic *nic,
 	}
 
 	/* allocate memory for the new flow and it's node */
-	new_node = kzalloc(sizeof(*new_node), GFP_KERNEL);
+	new_node = kzalloc_obj(*new_node);
 	if (!new_node)
 		return -ENOMEM;
 	spin_lock_init(&new_node->lock);

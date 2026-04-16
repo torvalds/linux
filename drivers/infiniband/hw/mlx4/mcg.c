@@ -824,7 +824,7 @@ static struct mcast_group *acquire_group(struct mlx4_ib_demux_ctx *ctx,
 	if (!create)
 		return ERR_PTR(-ENOENT);
 
-	group = kzalloc(sizeof(*group), GFP_KERNEL);
+	group = kzalloc_obj(*group);
 	if (!group)
 		return ERR_PTR(-ENOMEM);
 
@@ -946,7 +946,7 @@ int mlx4_ib_mcg_multiplex_handler(struct ib_device *ibdev, int port,
 		may_create = 1;
 		fallthrough;
 	case IB_SA_METHOD_DELETE:
-		req = kzalloc(sizeof *req, GFP_KERNEL);
+		req = kzalloc_obj(*req);
 		if (!req)
 			return -ENOMEM;
 
@@ -1150,7 +1150,7 @@ void mlx4_ib_mcg_port_cleanup(struct mlx4_ib_demux_ctx *ctx, int destroy_wq)
 		return;
 	}
 
-	work = kmalloc(sizeof *work, GFP_KERNEL);
+	work = kmalloc_obj(*work);
 	if (!work) {
 		ctx->flushing = 0;
 		return;
@@ -1211,7 +1211,7 @@ static int push_deleteing_req(struct mcast_group *group, int slave)
 	if (!group->func[slave].join_state)
 		return 0;
 
-	req = kzalloc(sizeof *req, GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req)
 		return -ENOMEM;
 

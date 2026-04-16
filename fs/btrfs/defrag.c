@@ -1091,7 +1091,7 @@ add:
 		}
 
 		/* Allocate new defrag_target_range */
-		new = kmalloc(sizeof(*new), GFP_NOFS);
+		new = kmalloc_obj(*new, GFP_NOFS);
 		if (!new) {
 			btrfs_free_extent_map(em);
 			ret = -ENOMEM;
@@ -1206,7 +1206,7 @@ static int defrag_one_range(struct btrfs_inode *inode, u64 start, u32 len,
 	ASSERT(nr_pages <= CLUSTER_SIZE / PAGE_SIZE);
 	ASSERT(IS_ALIGNED(start, sectorsize) && IS_ALIGNED(len, sectorsize));
 
-	folios = kcalloc(nr_pages, sizeof(struct folio *), GFP_NOFS);
+	folios = kzalloc_objs(struct folio *, nr_pages, GFP_NOFS);
 	if (!folios)
 		return -ENOMEM;
 

@@ -692,7 +692,7 @@ int tipc_bcast_init(struct net *net)
 	struct tipc_bc_base *bb = NULL;
 	struct tipc_link *l = NULL;
 
-	bb = kzalloc(sizeof(*bb), GFP_KERNEL);
+	bb = kzalloc_obj(*bb);
 	if (!bb)
 		goto enomem;
 	tn->bcbase = bb;

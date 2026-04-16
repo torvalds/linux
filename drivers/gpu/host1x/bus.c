@@ -43,7 +43,7 @@ static int host1x_subdev_add(struct host1x_device *device,
 	struct host1x_subdev *subdev;
 	int err;
 
-	subdev = kzalloc(sizeof(*subdev), GFP_KERNEL);
+	subdev = kzalloc_obj(*subdev);
 	if (!subdev)
 		return -ENOMEM;
 
@@ -459,7 +459,7 @@ static int host1x_device_add(struct host1x *host1x,
 	struct host1x_device *device;
 	int err;
 
-	device = kzalloc(sizeof(*device), GFP_KERNEL);
+	device = kzalloc_obj(*device);
 	if (!device)
 		return -ENOMEM;
 

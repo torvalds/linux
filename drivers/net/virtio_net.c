@@ -3732,7 +3732,7 @@ static int virtnet_set_queues(struct virtnet_info *vi, u16 queue_pairs)
 		goto succ;
 	}
 
-	mq = kzalloc(sizeof(*mq), GFP_KERNEL);
+	mq = kzalloc_obj(*mq);
 	if (!mq)
 		return -ENOMEM;
 
@@ -3799,7 +3799,7 @@ static void virtnet_rx_mode_work(struct work_struct *work)
 	if (!virtio_has_feature(vi->vdev, VIRTIO_NET_F_CTRL_RX))
 		return;
 
-	promisc_allmulti = kzalloc(sizeof(*promisc_allmulti), GFP_KERNEL);
+	promisc_allmulti = kzalloc_obj(*promisc_allmulti);
 	if (!promisc_allmulti) {
 		dev_warn(&dev->dev, "Failed to set RX mode, no memory.\n");
 		return;
@@ -3885,7 +3885,7 @@ static int virtnet_vlan_rx_add_vid(struct net_device *dev,
 	__virtio16 *_vid __free(kfree) = NULL;
 	struct scatterlist sg;
 
-	_vid = kzalloc(sizeof(*_vid), GFP_KERNEL);
+	_vid = kzalloc_obj(*_vid);
 	if (!_vid)
 		return -ENOMEM;
 
@@ -3905,7 +3905,7 @@ static int virtnet_vlan_rx_kill_vid(struct net_device *dev,
 	__virtio16 *_vid __free(kfree) = NULL;
 	struct scatterlist sg;
 
-	_vid = kzalloc(sizeof(*_vid), GFP_KERNEL);
+	_vid = kzalloc_obj(*_vid);
 	if (!_vid)
 		return -ENOMEM;
 
@@ -4028,7 +4028,7 @@ static int virtnet_send_ctrl_coal_vq_cmd(struct virtnet_info *vi,
 	struct virtio_net_ctrl_coal_vq *coal_vq __free(kfree) = NULL;
 	struct scatterlist sgs;
 
-	coal_vq = kzalloc(sizeof(*coal_vq), GFP_KERNEL);
+	coal_vq = kzalloc_obj(*coal_vq);
 	if (!coal_vq)
 		return -ENOMEM;
 
@@ -4987,7 +4987,7 @@ static int virtnet_get_hw_stats(struct virtnet_info *vi,
 		qnum += 1;
 	}
 
-	req = kcalloc(qnum, sizeof(*req), GFP_KERNEL);
+	req = kzalloc_objs(*req, qnum);
 	if (!req)
 		return -ENOMEM;
 
@@ -5127,7 +5127,7 @@ static int virtnet_send_tx_notf_coal_cmds(struct virtnet_info *vi,
 	struct scatterlist sgs_tx;
 	int i;
 
-	coal_tx = kzalloc(sizeof(*coal_tx), GFP_KERNEL);
+	coal_tx = kzalloc_obj(*coal_tx);
 	if (!coal_tx)
 		return -ENOMEM;
 
@@ -5175,7 +5175,7 @@ static int virtnet_send_rx_notf_coal_cmds(struct virtnet_info *vi,
 		return 0;
 	}
 
-	coal_rx = kzalloc(sizeof(*coal_rx), GFP_KERNEL);
+	coal_rx = kzalloc_obj(*coal_rx);
 	if (!coal_rx)
 		return -ENOMEM;
 
@@ -5738,7 +5738,7 @@ static int virtnet_set_guest_offloads(struct virtnet_info *vi, u64 offloads)
 	__virtio64 *_offloads __free(kfree) = NULL;
 	struct scatterlist sg;
 
-	_offloads = kzalloc(sizeof(*_offloads), GFP_KERNEL);
+	_offloads = kzalloc_obj(*_offloads);
 	if (!_offloads)
 		return -ENOMEM;
 
@@ -5882,7 +5882,7 @@ static int virtnet_xsk_pool_enable(struct net_device *dev,
 
 	size = virtqueue_get_vring_size(rq->vq);
 
-	rq->xsk_buffs = kvcalloc(size, sizeof(*rq->xsk_buffs), GFP_KERNEL);
+	rq->xsk_buffs = kvzalloc_objs(*rq->xsk_buffs, size);
 	if (!rq->xsk_buffs)
 		return -ENOMEM;
 
@@ -6395,14 +6395,14 @@ static int virtnet_find_vqs(struct virtnet_info *vi)
 		    virtio_has_feature(vi->vdev, VIRTIO_NET_F_CTRL_VQ);
 
 	/* Allocate space for find_vqs parameters */
-	vqs = kcalloc(total_vqs, sizeof(*vqs), GFP_KERNEL);
+	vqs = kzalloc_objs(*vqs, total_vqs);
 	if (!vqs)
 		goto err_vq;
-	vqs_info = kcalloc(total_vqs, sizeof(*vqs_info), GFP_KERNEL);
+	vqs_info = kzalloc_objs(*vqs_info, total_vqs);
 	if (!vqs_info)
 		goto err_vqs_info;
 	if (!vi->big_packets || vi->mergeable_rx_bufs) {
-		ctx = kcalloc(total_vqs, sizeof(*ctx), GFP_KERNEL);
+		ctx = kzalloc_objs(*ctx, total_vqs);
 		if (!ctx)
 			goto err_ctx;
 	} else {
@@ -6460,16 +6460,16 @@ static int virtnet_alloc_queues(struct virtnet_info *vi)
 	int i;
 
 	if (vi->has_cvq) {
-		vi->ctrl = kzalloc(sizeof(*vi->ctrl), GFP_KERNEL);
+		vi->ctrl = kzalloc_obj(*vi->ctrl);
 		if (!vi->ctrl)
 			goto err_ctrl;
 	} else {
 		vi->ctrl = NULL;
 	}
-	vi->sq = kcalloc(vi->max_queue_pairs, sizeof(*vi->sq), GFP_KERNEL);
+	vi->sq = kzalloc_objs(*vi->sq, vi->max_queue_pairs);
 	if (!vi->sq)
 		goto err_sq;
-	vi->rq = kcalloc(vi->max_queue_pairs, sizeof(*vi->rq), GFP_KERNEL);
+	vi->rq = kzalloc_objs(*vi->rq, vi->max_queue_pairs);
 	if (!vi->rq)
 		goto err_rq;
 
@@ -7016,7 +7016,7 @@ static int virtnet_probe(struct virtio_device *vdev)
 		struct scatterlist sg;
 		__le64 v;
 
-		stats_cap = kzalloc(sizeof(*stats_cap), GFP_KERNEL);
+		stats_cap = kzalloc_obj(*stats_cap);
 		if (!stats_cap) {
 			rtnl_unlock();
 			err = -ENOMEM;

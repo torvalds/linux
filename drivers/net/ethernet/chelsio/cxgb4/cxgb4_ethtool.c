@@ -2250,13 +2250,11 @@ int cxgb4_init_ethtool_filters(struct adapter *adap)
 	u32 nentries, i;
 	int ret;
 
-	eth_filter = kzalloc(sizeof(*eth_filter), GFP_KERNEL);
+	eth_filter = kzalloc_obj(*eth_filter);
 	if (!eth_filter)
 		return -ENOMEM;
 
-	eth_filter_info = kcalloc(adap->params.nports,
-				  sizeof(*eth_filter_info),
-				  GFP_KERNEL);
+	eth_filter_info = kzalloc_objs(*eth_filter_info, adap->params.nports);
 	if (!eth_filter_info) {
 		ret = -ENOMEM;
 		goto free_eth_filter;

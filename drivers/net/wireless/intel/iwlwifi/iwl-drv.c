@@ -1459,7 +1459,7 @@ static int iwl_alloc_ucode_mem(struct fw_img *out, struct fw_img_parsing *img)
 {
 	struct fw_desc *sec;
 
-	sec = kcalloc(img->sec_counter, sizeof(*sec), GFP_KERNEL);
+	sec = kzalloc_objs(*sec, img->sec_counter);
 	if (!sec)
 		return -ENOMEM;
 
@@ -1622,7 +1622,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	/* dump all fw memory areas by default */
 	fw->dbg.dump_mask = 0xffffffff;
 
-	pieces = kzalloc(sizeof(*pieces), GFP_KERNEL);
+	pieces = kzalloc_obj(*pieces);
 	if (!pieces)
 		goto out_free_fw;
 
@@ -1915,7 +1915,7 @@ struct iwl_drv *iwl_drv_start(struct iwl_trans *trans)
 	struct iwl_drv *drv;
 	int ret;
 
-	drv = kzalloc(sizeof(*drv), GFP_KERNEL);
+	drv = kzalloc_obj(*drv);
 	if (!drv) {
 		ret = -ENOMEM;
 		goto err;

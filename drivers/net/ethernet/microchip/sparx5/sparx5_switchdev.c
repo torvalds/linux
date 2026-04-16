@@ -398,7 +398,7 @@ static int sparx5_switchdev_event(struct notifier_block *nb,
 	case SWITCHDEV_FDB_ADD_TO_DEVICE:
 		fallthrough;
 	case SWITCHDEV_FDB_DEL_TO_DEVICE:
-		switchdev_work = kzalloc(sizeof(*switchdev_work), GFP_ATOMIC);
+		switchdev_work = kzalloc_obj(*switchdev_work, GFP_ATOMIC);
 		if (!switchdev_work)
 			return NOTIFY_BAD;
 
@@ -465,7 +465,7 @@ static int sparx5_alloc_mdb_entry(struct sparx5 *sparx5,
 	u16 pgid_idx;
 	int err;
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 

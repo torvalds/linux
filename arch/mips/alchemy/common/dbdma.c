@@ -310,7 +310,7 @@ u32 au1xxx_dbdma_chan_alloc(u32 srcid, u32 destid,
 			 * If kmalloc fails, it is caught below same
 			 * as a channel not available.
 			 */
-			ctp = kmalloc(sizeof(chan_tab_t), GFP_ATOMIC);
+			ctp = kmalloc_obj(chan_tab_t, GFP_ATOMIC);
 			chan_tab_ptr[i] = ctp;
 			break;
 		}
@@ -412,8 +412,8 @@ u32 au1xxx_dbdma_ring_alloc(u32 chanid, int entries)
 	 * and if we try that first we are likely to not waste larger
 	 * slabs of memory.
 	 */
-	desc_base = (u32)kmalloc_array(entries, sizeof(au1x_ddma_desc_t),
-				       GFP_KERNEL|GFP_DMA);
+	desc_base = (u32) kmalloc_objs(au1x_ddma_desc_t, entries,
+				       GFP_KERNEL | GFP_DMA);
 	if (desc_base == 0)
 		return 0;
 
@@ -1057,7 +1057,7 @@ static int __init dbdma_setup(unsigned int irq, dbdev_tab_t *idtable)
 {
 	int ret;
 
-	dbdev_tab = kcalloc(DBDEV_TAB_SIZE, sizeof(dbdev_tab_t), GFP_KERNEL);
+	dbdev_tab = kzalloc_objs(dbdev_tab_t, DBDEV_TAB_SIZE);
 	if (!dbdev_tab)
 		return -ENOMEM;
 

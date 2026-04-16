@@ -96,6 +96,25 @@ static void dccg21_update_dpp_dto(struct dccg *dccg, int dpp_inst, int req_dppcl
 	dccg->pipe_dppclk_khz[dpp_inst] = req_dppclk;
 }
 
+/*
+ * On DCN21 S0i3 resume, BIOS programs MICROSECOND_TIME_BASE_DIV to
+ * 0x00120464 as a marker that golden init has already been done.
+ * dcn21_s0i3_golden_init_wa() reads this marker later in bios_golden_init()
+ * to decide whether to skip golden init.
+ *
+ * dccg2_init() unconditionally overwrites MICROSECOND_TIME_BASE_DIV to
+ * 0x00120264, destroying the marker before it can be read.
+ *
+ * Guard the call: if the S0i3 marker is present, skip dccg2_init() so the
+ * WA can function correctly. bios_golden_init() will handle init in that case.
+ */
+static void dccg21_init(struct dccg *dccg)
+{
+	if (dccg2_is_s0i3_golden_init_wa_done(dccg))
+		return;
+
+	dccg2_init(dccg);
+}
 
 static const struct dccg_funcs dccg21_funcs = {
 	.update_dpp_dto = dccg21_update_dpp_dto,
@@ -103,7 +122,11 @@ static const struct dccg_funcs dccg21_funcs = {
 	.set_fifo_errdet_ovr_en = dccg2_set_fifo_errdet_ovr_en,
 	.otg_add_pixel = dccg2_otg_add_pixel,
 	.otg_drop_pixel = dccg2_otg_drop_pixel,
-	.dccg_init = dccg2_init
+	.dccg_init = dccg21_init,
+	.refclk_setup = dccg2_refclk_setup, /* Deprecated - for backward compatibility only */
+	.allow_clock_gating = dccg2_allow_clock_gating,
+	.enable_memory_low_power = dccg2_enable_memory_low_power,
+	.is_s0i3_golden_init_wa_done = dccg2_is_s0i3_golden_init_wa_done /* Deprecated - for backward compatibility only */
 };
 
 struct dccg *dccg21_create(
@@ -112,7 +135,7 @@ struct dccg *dccg21_create(
 	const struct dccg_shift *dccg_shift,
 	const struct dccg_mask *dccg_mask)
 {
-	struct dcn_dccg *dccg_dcn = kzalloc(sizeof(*dccg_dcn), GFP_KERNEL);
+	struct dcn_dccg *dccg_dcn = kzalloc_obj(*dccg_dcn);
 	struct dccg *base;
 
 	if (dccg_dcn == NULL) {

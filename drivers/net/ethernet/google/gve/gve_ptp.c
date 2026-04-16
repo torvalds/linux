@@ -70,7 +70,7 @@ static int gve_ptp_init(struct gve_priv *priv)
 	struct gve_ptp *ptp;
 	int err;
 
-	priv->ptp = kzalloc(sizeof(*priv->ptp), GFP_KERNEL);
+	priv->ptp = kzalloc_obj(*priv->ptp);
 	if (!priv->ptp)
 		return -ENOMEM;
 

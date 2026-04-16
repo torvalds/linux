@@ -698,7 +698,7 @@ static int hfsplus_init_fs_context(struct fs_context *fc)
 {
 	struct hfsplus_sb_info *sbi;
 
-	sbi = kzalloc(sizeof(struct hfsplus_sb_info), GFP_KERNEL);
+	sbi = kzalloc_obj(struct hfsplus_sb_info);
 	if (!sbi)
 		return -ENOMEM;
 

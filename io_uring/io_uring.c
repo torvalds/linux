@@ -119,7 +119,7 @@
 static void io_queue_sqe(struct io_kiocb *req, unsigned int extra_flags);
 static void __io_req_caches_free(struct io_ring_ctx *ctx);
 
-static __read_mostly DEFINE_STATIC_KEY_FALSE(io_key_has_sqarray);
+static __read_mostly DEFINE_STATIC_KEY_DEFERRED_FALSE(io_key_has_sqarray, HZ);
 
 struct kmem_cache *req_cachep;
 static struct workqueue_struct *iou_wq __ro_after_init;
@@ -195,8 +195,8 @@ static int io_alloc_hash_table(struct io_hash_table *table, unsigned bits)
 
 	do {
 		hash_buckets = 1U << bits;
-		table->hbs = kvmalloc_array(hash_buckets, sizeof(table->hbs[0]),
-						GFP_KERNEL_ACCOUNT);
+		table->hbs = kvmalloc_objs(table->hbs[0], hash_buckets,
+					   GFP_KERNEL_ACCOUNT);
 		if (table->hbs)
 			break;
 		if (bits == 1)
@@ -226,7 +226,7 @@ static __cold struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	int hash_bits;
 	bool ret;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return NULL;
 
@@ -1330,7 +1330,7 @@ static __cold void io_drain_req(struct io_kiocb *req)
 	bool drain = req->flags & IOSQE_IO_DRAIN;
 	struct io_defer_entry *de;
 
-	de = kmalloc(sizeof(*de), GFP_KERNEL_ACCOUNT);
+	de = kmalloc_obj(*de, GFP_KERNEL_ACCOUNT);
 	if (!de) {
 		io_req_defer_failed(req, -ENOMEM);
 		return;
@@ -1745,7 +1745,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		 * well as 2 contiguous entries.
 		 */
 		if (!(ctx->flags & IORING_SETUP_SQE_MIXED) || *left < 2 ||
-		    !(ctx->cached_sq_head & (ctx->sq_entries - 1)))
+		    (unsigned)(sqe - ctx->sq_sqes) >= ctx->sq_entries - 1)
 			return io_init_fail_req(req, -EINVAL);
 		/*
 		 * A 128b operation on a mixed SQ uses two entries, so we have
@@ -1978,7 +1978,7 @@ static bool io_get_sqe(struct io_ring_ctx *ctx, const struct io_uring_sqe **sqe)
 	unsigned mask = ctx->sq_entries - 1;
 	unsigned head = ctx->cached_sq_head++ & mask;
 
-	if (static_branch_unlikely(&io_key_has_sqarray) &&
+	if (static_branch_unlikely(&io_key_has_sqarray.key) &&
 	    (!(ctx->flags & IORING_SETUP_NO_SQARRAY))) {
 		head = READ_ONCE(ctx->sq_array[head]);
 		if (unlikely(head >= ctx->sq_entries)) {
@@ -2066,6 +2066,7 @@ static void io_rings_free(struct io_ring_ctx *ctx)
 	io_free_region(ctx->user, &ctx->sq_region);
 	io_free_region(ctx->user, &ctx->ring_region);
 	ctx->rings = NULL;
+	RCU_INIT_POINTER(ctx->rings_rcu, NULL);
 	ctx->sq_sqes = NULL;
 }
 
@@ -2173,7 +2174,7 @@ static __cold void io_ring_ctx_free(struct io_ring_ctx *ctx)
 	io_rings_free(ctx);
 
 	if (!(ctx->flags & IORING_SETUP_NO_SQARRAY))
-		static_branch_dec(&io_key_has_sqarray);
+		static_branch_slow_dec_deferred(&io_key_has_sqarray);
 
 	percpu_ref_exit(&ctx->refs);
 	free_uid(ctx->user);
@@ -2398,7 +2399,7 @@ static __cold void io_ring_exit_work(struct work_struct *work)
 static __cold void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
 {
 	unsigned long index;
-	struct creds *creds;
+	struct cred *creds;
 
 	mutex_lock(&ctx->uring_lock);
 	percpu_ref_kill(&ctx->refs);
@@ -2703,6 +2704,7 @@ static __cold int io_allocate_scq_urings(struct io_ring_ctx *ctx,
 	if (ret)
 		return ret;
 	ctx->rings = rings = io_region_get_ptr(&ctx->ring_region);
+	rcu_assign_pointer(ctx->rings_rcu, rings);
 	if (!(ctx->flags & IORING_SETUP_NO_SQARRAY))
 		ctx->sq_array = (u32 *)((char *)rings + rl->sq_array_offset);
 
@@ -2946,11 +2948,10 @@ static __cold int io_uring_create(struct io_ctx_config *config)
 	ctx->clock_offset = 0;
 
 	if (!(ctx->flags & IORING_SETUP_NO_SQARRAY))
-		static_branch_inc(&io_key_has_sqarray);
+		static_branch_deferred_inc(&io_key_has_sqarray);
 
 	if ((ctx->flags & IORING_SETUP_DEFER_TASKRUN) &&
-	    !(ctx->flags & IORING_SETUP_IOPOLL) &&
-	    !(ctx->flags & IORING_SETUP_SQPOLL))
+	    !(ctx->flags & IORING_SETUP_IOPOLL))
 		ctx->task_complete = true;
 
 	if (ctx->task_complete || (ctx->flags & IORING_SETUP_IOPOLL))

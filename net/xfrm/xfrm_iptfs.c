@@ -2526,8 +2526,8 @@ static int iptfs_user_init(struct net *net, struct xfrm_state *x,
 			nla_get_u16(attrs[XFRMA_IPTFS_REORDER_WINDOW]);
 	/* saved array is for saving 1..N seq nums from wantseq */
 	if (xc->reorder_win_size) {
-		xtfs->w_saved = kcalloc(xc->reorder_win_size,
-					sizeof(*xtfs->w_saved), GFP_KERNEL);
+		xtfs->w_saved = kzalloc_objs(*xtfs->w_saved,
+					     xc->reorder_win_size);
 		if (!xtfs->w_saved) {
 			NL_SET_ERR_MSG(extack, "Cannot alloc reorder window");
 			return -ENOMEM;
@@ -2658,8 +2658,8 @@ static int iptfs_clone_state(struct xfrm_state *x, struct xfrm_state *orig)
 
 	xtfs->ra_newskb = NULL;
 	if (xtfs->cfg.reorder_win_size) {
-		xtfs->w_saved = kcalloc(xtfs->cfg.reorder_win_size,
-					sizeof(*xtfs->w_saved), GFP_KERNEL);
+		xtfs->w_saved = kzalloc_objs(*xtfs->w_saved,
+					     xtfs->cfg.reorder_win_size);
 		if (!xtfs->w_saved) {
 			kfree_sensitive(xtfs);
 			return -ENOMEM;
@@ -2677,7 +2677,7 @@ static int iptfs_init_state(struct xfrm_state *x)
 		/* We have arrived here from xfrm_state_clone() */
 		xtfs = x->mode_data;
 	} else {
-		xtfs = kzalloc(sizeof(*xtfs), GFP_KERNEL);
+		xtfs = kzalloc_obj(*xtfs);
 		if (!xtfs)
 			return -ENOMEM;
 	}

@@ -2545,7 +2545,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 		prog = tmp;
 	}
 
-	addrs = kmalloc_array(prog->len, sizeof(*addrs), GFP_KERNEL);
+	addrs = kmalloc_objs(*addrs, prog->len);
 	if (!addrs) {
 		prog = orig_prog;
 		goto out;

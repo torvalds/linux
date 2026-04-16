@@ -192,7 +192,7 @@ nv40_ram_new_(struct nvkm_fb *fb, enum nvkm_ram_type type, u64 size,
 	      struct nvkm_ram **pram)
 {
 	struct nv40_ram *ram;
-	if (!(ram = kzalloc(sizeof(*ram), GFP_KERNEL)))
+	if (!(ram = kzalloc_obj(*ram)))
 		return -ENOMEM;
 	*pram = &ram->base;
 	return nvkm_ram_ctor(&nv40_ram_func, fb, type, size, &ram->base);

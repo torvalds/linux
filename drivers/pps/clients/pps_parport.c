@@ -142,7 +142,7 @@ static void parport_attach(struct parport *port)
 		return;
 	}
 
-	device = kzalloc(sizeof(struct pps_client_pp), GFP_KERNEL);
+	device = kzalloc_obj(struct pps_client_pp);
 	if (!device) {
 		pr_err("memory allocation failed, not attaching\n");
 		return;

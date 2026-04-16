@@ -568,7 +568,7 @@ static int __kvm_gmem_create(struct kvm *kvm, loff_t size, u64 flags)
 	if (fd < 0)
 		return fd;
 
-	f = kzalloc(sizeof(*f), GFP_KERNEL);
+	f = kzalloc_obj(*f);
 	if (!f) {
 		err = -ENOMEM;
 		goto err_fd;

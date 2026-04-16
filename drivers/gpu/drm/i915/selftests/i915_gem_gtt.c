@@ -63,7 +63,7 @@ static int fake_get_pages(struct drm_i915_gem_object *obj)
 	struct scatterlist *sg;
 	typeof(obj->base.size) rem;
 
-	pages = kmalloc(sizeof(*pages), GFP);
+	pages = kmalloc_obj(*pages, GFP);
 	if (!pages)
 		return -ENOMEM;
 

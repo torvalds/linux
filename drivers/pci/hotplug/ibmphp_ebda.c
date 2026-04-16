@@ -57,7 +57,7 @@ static int ebda_rio_table(void);
 
 static struct ebda_hpc_list * __init alloc_ebda_hpc_list(void)
 {
-	return kzalloc(sizeof(struct ebda_hpc_list), GFP_KERNEL);
+	return kzalloc_obj(struct ebda_hpc_list);
 }
 
 static struct controller *alloc_ebda_hpc(u32 slot_count, u32 bus_count)
@@ -66,16 +66,16 @@ static struct controller *alloc_ebda_hpc(u32 slot_count, u32 bus_count)
 	struct ebda_hpc_slot *slots;
 	struct ebda_hpc_bus *buses;
 
-	controller = kzalloc(sizeof(struct controller), GFP_KERNEL);
+	controller = kzalloc_obj(struct controller);
 	if (!controller)
 		goto error;
 
-	slots = kcalloc(slot_count, sizeof(struct ebda_hpc_slot), GFP_KERNEL);
+	slots = kzalloc_objs(struct ebda_hpc_slot, slot_count);
 	if (!slots)
 		goto error_contr;
 	controller->slots = slots;
 
-	buses = kcalloc(bus_count, sizeof(struct ebda_hpc_bus), GFP_KERNEL);
+	buses = kzalloc_objs(struct ebda_hpc_bus, bus_count);
 	if (!buses)
 		goto error_slots;
 	controller->buses = buses;
@@ -98,12 +98,12 @@ static void free_ebda_hpc(struct controller *controller)
 
 static struct ebda_rsrc_list * __init alloc_ebda_rsrc_list(void)
 {
-	return kzalloc(sizeof(struct ebda_rsrc_list), GFP_KERNEL);
+	return kzalloc_obj(struct ebda_rsrc_list);
 }
 
 static struct ebda_pci_rsrc *alloc_ebda_pci_rsrc(void)
 {
-	return kzalloc(sizeof(struct ebda_pci_rsrc), GFP_KERNEL);
+	return kzalloc_obj(struct ebda_pci_rsrc);
 }
 
 static void __init print_bus_info(void)
@@ -352,7 +352,7 @@ int __init ibmphp_access_ebda(void)
 			debug("now enter io table ---\n");
 			debug("rio blk id: %x\n", blk_id);
 
-			rio_table_ptr = kzalloc(sizeof(struct rio_table_hdr), GFP_KERNEL);
+			rio_table_ptr = kzalloc_obj(struct rio_table_hdr);
 			if (!rio_table_ptr) {
 				rc = -ENOMEM;
 				goto out;
@@ -408,7 +408,7 @@ static int __init ebda_rio_table(void)
 
 	// we do concern about rio details
 	for (i = 0; i < rio_table_ptr->riodev_count; i++) {
-		rio_detail_ptr = kzalloc(sizeof(struct rio_detail), GFP_KERNEL);
+		rio_detail_ptr = kzalloc_obj(struct rio_detail);
 		if (!rio_detail_ptr)
 			return -ENOMEM;
 		rio_detail_ptr->rio_node_id = readb(io_mem + offset);
@@ -461,7 +461,7 @@ static int __init combine_wpg_for_chassis(void)
 	list_for_each_entry(rio_detail_ptr, &rio_vg_head, rio_detail_list) {
 		opt_rio_ptr = search_opt_vg(rio_detail_ptr->chassis_num);
 		if (!opt_rio_ptr) {
-			opt_rio_ptr = kzalloc(sizeof(struct opt_rio), GFP_KERNEL);
+			opt_rio_ptr = kzalloc_obj(struct opt_rio);
 			if (!opt_rio_ptr)
 				return -ENOMEM;
 			opt_rio_ptr->rio_type = rio_detail_ptr->rio_type;
@@ -499,7 +499,7 @@ static int combine_wpg_for_expansion(void)
 	list_for_each_entry(rio_detail_ptr, &rio_lo_head, rio_detail_list) {
 		opt_rio_lo_ptr = search_opt_lo(rio_detail_ptr->chassis_num);
 		if (!opt_rio_lo_ptr) {
-			opt_rio_lo_ptr = kzalloc(sizeof(struct opt_rio_lo), GFP_KERNEL);
+			opt_rio_lo_ptr = kzalloc_obj(struct opt_rio_lo);
 			if (!opt_rio_lo_ptr)
 				return -ENOMEM;
 			opt_rio_lo_ptr->rio_type = rio_detail_ptr->rio_type;
@@ -738,7 +738,7 @@ static int __init ebda_rsrc_controller(void)
 
 			bus_info_ptr2 = ibmphp_find_same_bus_num(slot_ptr->slot_bus_num);
 			if (!bus_info_ptr2) {
-				bus_info_ptr1 = kzalloc(sizeof(struct bus_info), GFP_KERNEL);
+				bus_info_ptr1 = kzalloc_obj(struct bus_info);
 				if (!bus_info_ptr1) {
 					rc = -ENOMEM;
 					goto error_no_slot;
@@ -840,7 +840,7 @@ static int __init ebda_rsrc_controller(void)
 
 		// register slots with hpc core as well as create linked list of ibm slot
 		for (index = 0; index < hpc_ptr->slot_count; index++) {
-			tmp_slot = kzalloc(sizeof(*tmp_slot), GFP_KERNEL);
+			tmp_slot = kzalloc_obj(*tmp_slot);
 			if (!tmp_slot) {
 				rc = -ENOMEM;
 				goto error_no_slot;

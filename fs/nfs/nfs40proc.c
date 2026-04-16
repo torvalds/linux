@@ -122,7 +122,7 @@ static int nfs4_proc_async_renew(struct nfs_client *clp, const struct cred *cred
 		return 0;
 	if (!refcount_inc_not_zero(&clp->cl_count))
 		return -EIO;
-	data = kmalloc(sizeof(*data), GFP_NOFS);
+	data = kmalloc_obj(*data, GFP_NOFS);
 	if (data == NULL) {
 		nfs_put_client(clp);
 		return -ENOMEM;
@@ -320,7 +320,7 @@ nfs4_release_lockowner(struct nfs_server *server, struct nfs4_lock_state *lsp)
 	if (clp->cl_mvops->minor_version != 0)
 		return;
 
-	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	data = kmalloc_obj(*data);
 	if (!data)
 		return;
 	data->lsp = lsp;

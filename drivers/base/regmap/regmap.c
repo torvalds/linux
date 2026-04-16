@@ -689,7 +689,7 @@ struct regmap *__regmap_init(struct device *dev,
 	if (!config)
 		goto err;
 
-	map = kzalloc(sizeof(*map), GFP_KERNEL);
+	map = kzalloc_obj(*map);
 	if (map == NULL) {
 		ret = -ENOMEM;
 		goto err;
@@ -1117,7 +1117,7 @@ skip_format_initialization:
 			}
 		}
 
-		new = kzalloc(sizeof(*new), GFP_KERNEL);
+		new = kzalloc_obj(*new);
 		if (new == NULL) {
 			ret = -ENOMEM;
 			goto err_range;
@@ -1274,7 +1274,7 @@ int regmap_field_bulk_alloc(struct regmap *regmap,
 	struct regmap_field *rf;
 	int i;
 
-	rf = kcalloc(num_fields, sizeof(*rf), GFP_KERNEL);
+	rf = kzalloc_objs(*rf, num_fields);
 	if (!rf)
 		return -ENOMEM;
 
@@ -1384,7 +1384,7 @@ EXPORT_SYMBOL_GPL(devm_regmap_field_free);
 struct regmap_field *regmap_field_alloc(struct regmap *regmap,
 		struct reg_field reg_field)
 {
-	struct regmap_field *rm_field = kzalloc(sizeof(*rm_field), GFP_KERNEL);
+	struct regmap_field *rm_field = kzalloc_obj(*rm_field);
 
 	if (!rm_field)
 		return ERR_PTR(-ENOMEM);

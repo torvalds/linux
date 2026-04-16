@@ -86,7 +86,7 @@ struct drm_gem_object *v3d_create_object(struct drm_device *dev, size_t size)
 	if (size == 0)
 		return ERR_PTR(-EINVAL);
 
-	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
+	bo = kzalloc_obj(*bo);
 	if (!bo)
 		return ERR_PTR(-ENOMEM);
 	obj = &bo->base.base;

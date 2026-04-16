@@ -1652,7 +1652,7 @@ amdgpu_connector_add(struct amdgpu_device *adev,
 		}
 	}
 
-	amdgpu_connector = kzalloc(sizeof(struct amdgpu_connector), GFP_KERNEL);
+	amdgpu_connector = kzalloc_obj(struct amdgpu_connector);
 	if (!amdgpu_connector)
 		return;
 
@@ -1673,7 +1673,7 @@ amdgpu_connector_add(struct amdgpu_device *adev,
 	}
 
 	if (is_dp_bridge) {
-		amdgpu_dig_connector = kzalloc(sizeof(struct amdgpu_connector_atom_dig), GFP_KERNEL);
+		amdgpu_dig_connector = kzalloc_obj(struct amdgpu_connector_atom_dig);
 		if (!amdgpu_dig_connector)
 			goto failed;
 		amdgpu_connector->con_priv = amdgpu_dig_connector;
@@ -1828,7 +1828,7 @@ amdgpu_connector_add(struct amdgpu_device *adev,
 			break;
 		case DRM_MODE_CONNECTOR_DVII:
 		case DRM_MODE_CONNECTOR_DVID:
-			amdgpu_dig_connector = kzalloc(sizeof(struct amdgpu_connector_atom_dig), GFP_KERNEL);
+			amdgpu_dig_connector = kzalloc_obj(struct amdgpu_connector_atom_dig);
 			if (!amdgpu_dig_connector)
 				goto failed;
 			amdgpu_connector->con_priv = amdgpu_dig_connector;
@@ -1885,7 +1885,7 @@ amdgpu_connector_add(struct amdgpu_device *adev,
 			break;
 		case DRM_MODE_CONNECTOR_HDMIA:
 		case DRM_MODE_CONNECTOR_HDMIB:
-			amdgpu_dig_connector = kzalloc(sizeof(struct amdgpu_connector_atom_dig), GFP_KERNEL);
+			amdgpu_dig_connector = kzalloc_obj(struct amdgpu_connector_atom_dig);
 			if (!amdgpu_dig_connector)
 				goto failed;
 			amdgpu_connector->con_priv = amdgpu_dig_connector;
@@ -1934,7 +1934,7 @@ amdgpu_connector_add(struct amdgpu_device *adev,
 				connector->doublescan_allowed = false;
 			break;
 		case DRM_MODE_CONNECTOR_DisplayPort:
-			amdgpu_dig_connector = kzalloc(sizeof(struct amdgpu_connector_atom_dig), GFP_KERNEL);
+			amdgpu_dig_connector = kzalloc_obj(struct amdgpu_connector_atom_dig);
 			if (!amdgpu_dig_connector)
 				goto failed;
 			amdgpu_connector->con_priv = amdgpu_dig_connector;
@@ -1983,7 +1983,7 @@ amdgpu_connector_add(struct amdgpu_device *adev,
 			connector->doublescan_allowed = false;
 			break;
 		case DRM_MODE_CONNECTOR_eDP:
-			amdgpu_dig_connector = kzalloc(sizeof(struct amdgpu_connector_atom_dig), GFP_KERNEL);
+			amdgpu_dig_connector = kzalloc_obj(struct amdgpu_connector_atom_dig);
 			if (!amdgpu_dig_connector)
 				goto failed;
 			amdgpu_connector->con_priv = amdgpu_dig_connector;
@@ -2010,7 +2010,7 @@ amdgpu_connector_add(struct amdgpu_device *adev,
 			connector->doublescan_allowed = false;
 			break;
 		case DRM_MODE_CONNECTOR_LVDS:
-			amdgpu_dig_connector = kzalloc(sizeof(struct amdgpu_connector_atom_dig), GFP_KERNEL);
+			amdgpu_dig_connector = kzalloc_obj(struct amdgpu_connector_atom_dig);
 			if (!amdgpu_dig_connector)
 				goto failed;
 			amdgpu_connector->con_priv = amdgpu_dig_connector;

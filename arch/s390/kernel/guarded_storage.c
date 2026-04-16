@@ -24,7 +24,7 @@ static int gs_enable(void)
 	struct gs_cb *gs_cb;
 
 	if (!current->thread.gs_cb) {
-		gs_cb = kzalloc(sizeof(*gs_cb), GFP_KERNEL);
+		gs_cb = kzalloc_obj(*gs_cb);
 		if (!gs_cb)
 			return -ENOMEM;
 		gs_cb->gsd = 25;
@@ -55,7 +55,7 @@ static int gs_set_bc_cb(struct gs_cb __user *u_gs_cb)
 
 	gs_cb = current->thread.gs_bc_cb;
 	if (!gs_cb) {
-		gs_cb = kzalloc(sizeof(*gs_cb), GFP_KERNEL);
+		gs_cb = kzalloc_obj(*gs_cb);
 		if (!gs_cb)
 			return -ENOMEM;
 		current->thread.gs_bc_cb = gs_cb;

@@ -28,7 +28,7 @@ static int __init livepatch_mod_init(void)
 		goto err;
 	}
 
-	patch = kzalloc(sizeof(*patch), GFP_KERNEL);
+	patch = kzalloc_obj(*patch);
 	if (!patch) {
 		ret = -ENOMEM;
 		goto err;

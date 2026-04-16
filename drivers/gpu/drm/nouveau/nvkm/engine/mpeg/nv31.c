@@ -89,7 +89,7 @@ nv31_mpeg_chan_new(struct nvkm_chan *fifoch, const struct nvkm_oclass *oclass,
 	unsigned long flags;
 	int ret = -EBUSY;
 
-	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
+	if (!(chan = kzalloc_obj(*chan)))
 		return -ENOMEM;
 	nvkm_object_ctor(&nv31_mpeg_chan, oclass, &chan->object);
 	chan->mpeg = mpeg;
@@ -277,7 +277,7 @@ nv31_mpeg_new_(const struct nv31_mpeg_func *func, struct nvkm_device *device,
 {
 	struct nv31_mpeg *mpeg;
 
-	if (!(mpeg = kzalloc(sizeof(*mpeg), GFP_KERNEL)))
+	if (!(mpeg = kzalloc_obj(*mpeg)))
 		return -ENOMEM;
 	mpeg->func = func;
 	*pmpeg = &mpeg->engine;

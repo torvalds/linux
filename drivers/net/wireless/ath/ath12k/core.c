@@ -1805,7 +1805,7 @@ static struct ath12k_hw_group *ath12k_core_hw_group_alloc(struct ath12k_base *ab
 	list_for_each_entry(ag, &ath12k_hw_group_list, list)
 		count++;
 
-	ag = kzalloc(sizeof(*ag), GFP_KERNEL);
+	ag = kzalloc_obj(*ag);
 	if (!ag)
 		return NULL;
 

@@ -476,7 +476,7 @@ mpt3sas_get_port_by_id(struct MPT3SAS_ADAPTER *ioc,
 	 * And add this object to port_table_list.
 	 */
 	if (!ioc->multipath_on_hba) {
-		port = kzalloc(sizeof(struct hba_port), GFP_ATOMIC);
+		port = kzalloc_obj(struct hba_port, GFP_ATOMIC);
 		if (!port)
 			return NULL;
 
@@ -1940,8 +1940,7 @@ scsih_target_alloc(struct scsi_target *starget)
 	unsigned long flags;
 	struct sas_rphy *rphy;
 
-	sas_target_priv_data = kzalloc(sizeof(*sas_target_priv_data),
-				       GFP_KERNEL);
+	sas_target_priv_data = kzalloc_obj(*sas_target_priv_data);
 	if (!sas_target_priv_data)
 		return -ENOMEM;
 
@@ -2109,8 +2108,7 @@ scsih_sdev_init(struct scsi_device *sdev)
 	struct _pcie_device *pcie_device;
 	unsigned long flags;
 
-	sas_device_priv_data = kzalloc(sizeof(*sas_device_priv_data),
-				       GFP_KERNEL);
+	sas_device_priv_data = kzalloc_obj(*sas_device_priv_data);
 	if (!sas_device_priv_data)
 		return -ENOMEM;
 
@@ -4470,7 +4468,7 @@ _scsih_tm_tr_send(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 
 	smid = mpt3sas_base_get_smid_hpr(ioc, ioc->tm_tr_cb_idx);
 	if (!smid) {
-		delayed_tr = kzalloc(sizeof(*delayed_tr), GFP_ATOMIC);
+		delayed_tr = kzalloc_obj(*delayed_tr, GFP_ATOMIC);
 		if (!delayed_tr)
 			goto out;
 		INIT_LIST_HEAD(&delayed_tr->list);
@@ -4568,7 +4566,7 @@ _scsih_tm_tr_complete(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 
 	smid_sas_ctrl = mpt3sas_base_get_smid(ioc, ioc->tm_sas_control_cb_idx);
 	if (!smid_sas_ctrl) {
-		delayed_sc = kzalloc(sizeof(*delayed_sc), GFP_ATOMIC);
+		delayed_sc = kzalloc_obj(*delayed_sc, GFP_ATOMIC);
 		if (!delayed_sc)
 			return _scsih_check_for_pending_tm(ioc, smid);
 		INIT_LIST_HEAD(&delayed_sc->list);
@@ -4694,7 +4692,7 @@ _scsih_tm_tr_volume_send(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 
 	smid = mpt3sas_base_get_smid_hpr(ioc, ioc->tm_tr_volume_cb_idx);
 	if (!smid) {
-		delayed_tr = kzalloc(sizeof(*delayed_tr), GFP_ATOMIC);
+		delayed_tr = kzalloc_obj(*delayed_tr, GFP_ATOMIC);
 		if (!delayed_tr)
 			return;
 		INIT_LIST_HEAD(&delayed_tr->list);
@@ -5215,7 +5213,7 @@ _scsih_check_ir_config_unhide_events(struct MPT3SAS_ADAPTER *ioc,
 		if (!volume_handle)
 			_scsih_tm_tr_send(ioc, handle);
 		else if (volume_handle == a || volume_handle == b) {
-			delayed_tr = kzalloc(sizeof(*delayed_tr), GFP_ATOMIC);
+			delayed_tr = kzalloc_obj(*delayed_tr, GFP_ATOMIC);
 			BUG_ON(!delayed_tr);
 			INIT_LIST_HEAD(&delayed_tr->list);
 			delayed_tr->handle = handle;
@@ -6378,8 +6376,7 @@ _scsih_update_vphys_after_reset(struct MPT3SAS_ADAPTER *ioc)
 				port_id = sas_iounit_pg0->PhyData[i].Port;
 				mport = mpt3sas_get_port_by_id(ioc, port_id, 1);
 				if (!mport) {
-					mport = kzalloc(
-					    sizeof(struct hba_port), GFP_KERNEL);
+					mport = kzalloc_obj(struct hba_port);
 					if (!mport)
 						break;
 					mport->port_id = port_id;
@@ -6749,8 +6746,7 @@ _scsih_sas_port_refresh(struct MPT3SAS_ADAPTER *ioc)
 	}
 	ioc->sas_hba.num_phys = num_phys;
 
-	port_table = kcalloc(ioc->sas_hba.num_phys,
-	    sizeof(struct hba_port), GFP_KERNEL);
+	port_table = kzalloc_objs(struct hba_port, ioc->sas_hba.num_phys);
 	if (!port_table)
 		return;
 
@@ -6841,7 +6837,7 @@ _scsih_alloc_vphy(struct MPT3SAS_ADAPTER *ioc, u8 port_id, u8 phy_num)
 
 	vphy = mpt3sas_get_vphy_by_phy(ioc, port, phy_num);
 	if (!vphy) {
-		vphy = kzalloc(sizeof(struct virtual_phy), GFP_KERNEL);
+		vphy = kzalloc_obj(struct virtual_phy);
 		if (!vphy)
 			return NULL;
 
@@ -6911,7 +6907,7 @@ _scsih_sas_host_refresh(struct MPT3SAS_ADAPTER *ioc)
 			    sas_iounit_pg0->PhyData[0].ControllerDevHandle);
 		port_id = sas_iounit_pg0->PhyData[i].Port;
 		if (!(mpt3sas_get_port_by_id(ioc, port_id, 0))) {
-			port = kzalloc(sizeof(struct hba_port), GFP_KERNEL);
+			port = kzalloc_obj(struct hba_port);
 			if (!port)
 				goto out;
 
@@ -7031,8 +7027,8 @@ _scsih_sas_host_add(struct MPT3SAS_ADAPTER *ioc)
 
 	ioc->sas_hba.nr_phys_allocated = max_t(u8,
 	    MPT_MAX_HBA_NUM_PHYS, num_phys);
-	ioc->sas_hba.phy = kcalloc(ioc->sas_hba.nr_phys_allocated,
-	    sizeof(struct _sas_phy), GFP_KERNEL);
+	ioc->sas_hba.phy = kzalloc_objs(struct _sas_phy,
+					ioc->sas_hba.nr_phys_allocated);
 	if (!ioc->sas_hba.phy) {
 		ioc_err(ioc, "failure at %s:%d/%s()!\n",
 			__FILE__, __LINE__, __func__);
@@ -7117,7 +7113,7 @@ _scsih_sas_host_add(struct MPT3SAS_ADAPTER *ioc)
 
 		port_id = sas_iounit_pg0->PhyData[i].Port;
 		if (!(mpt3sas_get_port_by_id(ioc, port_id, 0))) {
-			port = kzalloc(sizeof(struct hba_port), GFP_KERNEL);
+			port = kzalloc_obj(struct hba_port);
 			if (!port)
 				goto out;
 
@@ -7258,8 +7254,7 @@ _scsih_expander_add(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 	if (sas_expander)
 		return 0;
 
-	sas_expander = kzalloc(sizeof(struct _sas_node),
-	    GFP_KERNEL);
+	sas_expander = kzalloc_obj(struct _sas_node);
 	if (!sas_expander) {
 		ioc_err(ioc, "failure at %s:%d/%s()!\n",
 			__FILE__, __LINE__, __func__);
@@ -7286,8 +7281,8 @@ _scsih_expander_add(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 		rc = -1;
 		goto out_fail;
 	}
-	sas_expander->phy = kcalloc(sas_expander->num_phys,
-	    sizeof(struct _sas_phy), GFP_KERNEL);
+	sas_expander->phy = kzalloc_objs(struct _sas_phy,
+					 sas_expander->num_phys);
 	if (!sas_expander->phy) {
 		ioc_err(ioc, "failure at %s:%d/%s()!\n",
 			__FILE__, __LINE__, __func__);
@@ -7782,7 +7777,7 @@ _scsih_report_luns(struct MPT3SAS_ADAPTER *ioc, u16 handle, void *data,
 	int retries;
 
 	lun_data = NULL;
-	transfer_packet = kzalloc(sizeof(struct _scsi_io_transfer), GFP_KERNEL);
+	transfer_packet = kzalloc_obj(struct _scsi_io_transfer);
 	if (!transfer_packet) {
 
 		ioc_err(ioc, "failure at %s:%d/%s()!\n", __FILE__, __LINE__, __func__);
@@ -7869,7 +7864,7 @@ _scsih_start_unit(struct MPT3SAS_ADAPTER *ioc, u16 handle, u32 lun, u8 is_pd,
 	enum device_responsive_state rc;
 	int return_code;
 
-	transfer_packet = kzalloc(sizeof(struct _scsi_io_transfer), GFP_KERNEL);
+	transfer_packet = kzalloc_obj(struct _scsi_io_transfer);
 	if (!transfer_packet) {
 
 		pr_info("failure at %s:%d/%s()!\n", __FILE__, __LINE__, __func__);
@@ -7930,7 +7925,7 @@ _scsih_test_unit_ready(struct MPT3SAS_ADAPTER *ioc, u16 handle, u32 lun,
 	int return_code;
 	int sata_init_failure = 0;
 
-	transfer_packet = kzalloc(sizeof(struct _scsi_io_transfer), GFP_KERNEL);
+	transfer_packet = kzalloc_obj(struct _scsi_io_transfer);
 	if (!transfer_packet) {
 
 		pr_info("failure at %s:%d/%s()!\n", __FILE__, __LINE__, __func__);
@@ -8002,7 +7997,7 @@ _scsih_ata_pass_thru_idd(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 	u32 data_length;
 
 	idd_data = NULL;
-	transfer_packet = kzalloc(sizeof(struct _scsi_io_transfer), GFP_KERNEL);
+	transfer_packet = kzalloc_obj(struct _scsi_io_transfer);
 	if (!transfer_packet) {
 
 		ioc_err(ioc, "failure at %s:%d/%s()!\n", __FILE__, __LINE__, __func__);
@@ -8133,7 +8128,7 @@ _scsih_wait_for_target_to_become_ready(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 	int lun;
 	struct scsi_lun *lunp;
 
-	lun_data = kcalloc(MPT3_MAX_LUNS, sizeof(struct scsi_lun), GFP_KERNEL);
+	lun_data = kzalloc_objs(struct scsi_lun, MPT3_MAX_LUNS);
 	if (!lun_data) {
 
 		ioc_err(ioc, "failure at %s:%d/%s()!\n", __FILE__, __LINE__, __func__);
@@ -8482,8 +8477,7 @@ _scsih_add_device(struct MPT3SAS_ADAPTER *ioc, u16 handle, u8 retry_count,
 		}
 	}
 
-	sas_device = kzalloc(sizeof(struct _sas_device),
-	    GFP_KERNEL);
+	sas_device = kzalloc_obj(struct _sas_device);
 	if (!sas_device) {
 		ioc_err(ioc, "failure at %s:%d/%s()!\n",
 			__FILE__, __LINE__, __func__);
@@ -9386,7 +9380,7 @@ _scsih_pcie_add_device(struct MPT3SAS_ADAPTER *ioc, u16 handle, u8 retry_count)
 		}
 	}
 
-	pcie_device = kzalloc(sizeof(struct _pcie_device), GFP_KERNEL);
+	pcie_device = kzalloc_obj(struct _pcie_device);
 	if (!pcie_device) {
 		ioc_err(ioc, "failure at %s:%d/%s()!\n",
 			__FILE__, __LINE__, __func__);
@@ -9838,8 +9832,7 @@ _scsih_sas_enclosure_dev_status_change_event(struct MPT3SAS_ADAPTER *ioc,
 	case MPI2_EVENT_SAS_ENCL_RC_ADDED:
 		if (!enclosure_dev) {
 			enclosure_dev =
-				kzalloc(sizeof(struct _enclosure_node),
-					GFP_KERNEL);
+				kzalloc_obj(struct _enclosure_node);
 			if (!enclosure_dev) {
 				ioc_info(ioc, "failure at %s:%d/%s()!\n",
 					 __FILE__, __LINE__, __func__);
@@ -10264,7 +10257,7 @@ _scsih_sas_volume_add(struct MPT3SAS_ADAPTER *ioc,
 	if (raid_device)
 		return;
 
-	raid_device = kzalloc(sizeof(struct _raid_device), GFP_KERNEL);
+	raid_device = kzalloc_obj(struct _raid_device);
 	if (!raid_device) {
 		ioc_err(ioc, "failure at %s:%d/%s()!\n",
 			__FILE__, __LINE__, __func__);
@@ -10682,7 +10675,7 @@ _scsih_sas_ir_volume_event(struct MPT3SAS_ADAPTER *ioc,
 			break;
 		}
 
-		raid_device = kzalloc(sizeof(struct _raid_device), GFP_KERNEL);
+		raid_device = kzalloc_obj(struct _raid_device);
 		if (!raid_device) {
 			ioc_err(ioc, "failure at %s:%d/%s()!\n",
 				__FILE__, __LINE__, __func__);
@@ -11043,7 +11036,7 @@ _scsih_create_enclosure_list_after_reset(struct MPT3SAS_ADAPTER *ioc)
 	enclosure_handle = 0xFFFF;
 	do {
 		enclosure_dev =
-			kzalloc(sizeof(struct _enclosure_node), GFP_KERNEL);
+			kzalloc_obj(struct _enclosure_node);
 		if (!enclosure_dev) {
 			ioc_err(ioc, "failure at %s:%d/%s()!\n",
 				__FILE__, __LINE__, __func__);

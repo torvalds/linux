@@ -648,7 +648,7 @@ struct usb_device *usb_alloc_dev(struct usb_device *parent,
 	struct usb_hcd *usb_hcd = bus_to_hcd(bus);
 	unsigned raw_port = port1;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return NULL;
 

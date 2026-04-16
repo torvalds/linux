@@ -152,7 +152,7 @@ static int qaic_open(struct drm_device *dev, struct drm_file *file)
 		goto dev_unlock;
 	}
 
-	usr = kmalloc(sizeof(*usr), GFP_KERNEL);
+	usr = kmalloc_obj(*usr);
 	if (!usr) {
 		ret = -ENOMEM;
 		goto dev_unlock;

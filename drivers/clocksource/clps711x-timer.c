@@ -54,7 +54,7 @@ static int __init _clps711x_clkevt_init(struct clk *clock, void __iomem *base,
 	struct clock_event_device *clkevt;
 	unsigned long rate;
 
-	clkevt = kzalloc(sizeof(*clkevt), GFP_KERNEL);
+	clkevt = kzalloc_obj(*clkevt);
 	if (!clkevt)
 		return -ENOMEM;
 

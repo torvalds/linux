@@ -259,7 +259,7 @@ vsp1_dl_body_pool_create(struct vsp1_device *vsp1, unsigned int num_bodies,
 	size_t dlb_size;
 	unsigned int i;
 
-	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+	pool = kzalloc_obj(*pool);
 	if (!pool)
 		return NULL;
 
@@ -274,7 +274,7 @@ vsp1_dl_body_pool_create(struct vsp1_device *vsp1, unsigned int num_bodies,
 	dlb_size = num_entries * sizeof(struct vsp1_dl_entry) + extra_size;
 	pool->size = dlb_size * num_bodies;
 
-	pool->bodies = kcalloc(num_bodies, sizeof(*pool->bodies), GFP_KERNEL);
+	pool->bodies = kzalloc_objs(*pool->bodies, num_bodies);
 	if (!pool->bodies) {
 		kfree(pool);
 		return NULL;
@@ -434,7 +434,7 @@ vsp1_dl_cmd_pool_create(struct vsp1_device *vsp1, enum vsp1_extcmd_type type,
 	unsigned int i;
 	size_t cmd_size;
 
-	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+	pool = kzalloc_obj(*pool);
 	if (!pool)
 		return NULL;
 
@@ -443,7 +443,7 @@ vsp1_dl_cmd_pool_create(struct vsp1_device *vsp1, enum vsp1_extcmd_type type,
 	spin_lock_init(&pool->lock);
 	INIT_LIST_HEAD(&pool->free);
 
-	pool->cmds = kcalloc(num_cmds, sizeof(*pool->cmds), GFP_KERNEL);
+	pool->cmds = kzalloc_objs(*pool->cmds, num_cmds);
 	if (!pool->cmds) {
 		kfree(pool);
 		return NULL;
@@ -557,7 +557,7 @@ static struct vsp1_dl_list *vsp1_dl_list_alloc(struct vsp1_dl_manager *dlm)
 	struct vsp1_dl_list *dl;
 	size_t header_offset;
 
-	dl = kzalloc(sizeof(*dl), GFP_KERNEL);
+	dl = kzalloc_obj(*dl);
 	if (!dl)
 		return NULL;
 

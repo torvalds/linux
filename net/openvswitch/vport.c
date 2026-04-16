@@ -34,8 +34,7 @@ static struct hlist_head *dev_table;
  */
 int ovs_vport_init(void)
 {
-	dev_table = kcalloc(VPORT_HASH_BUCKETS, sizeof(struct hlist_head),
-			    GFP_KERNEL);
+	dev_table = kzalloc_objs(struct hlist_head, VPORT_HASH_BUCKETS);
 	if (!dev_table)
 		return -ENOMEM;
 

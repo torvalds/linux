@@ -322,7 +322,7 @@ int ksmbd_session_rpc_open(struct ksmbd_session *sess, char *rpc_name)
 	if (!method)
 		return -EINVAL;
 
-	entry = kzalloc(sizeof(struct ksmbd_session_rpc), KSMBD_DEFAULT_GFP);
+	entry = kzalloc_obj(struct ksmbd_session_rpc, KSMBD_DEFAULT_GFP);
 	if (!entry)
 		return -ENOMEM;
 
@@ -579,7 +579,7 @@ struct preauth_session *ksmbd_preauth_session_alloc(struct ksmbd_conn *conn,
 {
 	struct preauth_session *sess;
 
-	sess = kmalloc(sizeof(struct preauth_session), KSMBD_DEFAULT_GFP);
+	sess = kmalloc_obj(struct preauth_session, KSMBD_DEFAULT_GFP);
 	if (!sess)
 		return NULL;
 
@@ -663,7 +663,7 @@ static struct ksmbd_session *__session_create(int protocol)
 	if (protocol != CIFDS_SESSION_FLAG_SMB2)
 		return NULL;
 
-	sess = kzalloc(sizeof(struct ksmbd_session), KSMBD_DEFAULT_GFP);
+	sess = kzalloc_obj(struct ksmbd_session, KSMBD_DEFAULT_GFP);
 	if (!sess)
 		return NULL;
 

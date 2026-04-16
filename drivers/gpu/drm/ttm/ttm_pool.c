@@ -164,7 +164,7 @@ static struct page *ttm_pool_alloc_page(struct ttm_pool *pool, gfp_t gfp_flags,
 		return p;
 	}
 
-	dma = kmalloc(sizeof(*dma), GFP_KERNEL);
+	dma = kmalloc_obj(*dma);
 	if (!dma)
 		return NULL;
 
@@ -858,7 +858,7 @@ int ttm_pool_restore_and_alloc(struct ttm_pool *pool, struct ttm_tt *tt,
 		if (ctx->gfp_retry_mayfail)
 			gfp |= __GFP_RETRY_MAYFAIL;
 
-		restore = kzalloc(sizeof(*restore), gfp);
+		restore = kzalloc_obj(*restore, gfp);
 		if (!restore)
 			return -ENOMEM;
 

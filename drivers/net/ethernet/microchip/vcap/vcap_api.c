@@ -1004,7 +1004,7 @@ static struct vcap_rule_internal *vcap_dup_rule(struct vcap_rule_internal *ri,
 	struct vcap_rule_internal *duprule;
 
 	/* Allocate the client part */
-	duprule = kzalloc(sizeof(*duprule), GFP_KERNEL);
+	duprule = kzalloc_obj(*duprule);
 	if (!duprule)
 		return ERR_PTR(-ENOMEM);
 	*duprule = *ri;
@@ -1309,7 +1309,7 @@ static void vcap_rule_alloc_keyfield(struct vcap_rule_internal *ri,
 {
 	struct vcap_client_keyfield *field;
 
-	field = kzalloc(sizeof(*field), GFP_KERNEL);
+	field = kzalloc_obj(*field);
 	if (!field)
 		return;
 	INIT_LIST_HEAD(&field->ctrl.list);
@@ -1418,7 +1418,7 @@ static void vcap_rule_alloc_actionfield(struct vcap_rule_internal *ri,
 {
 	struct vcap_client_actionfield *field;
 
-	field = kzalloc(sizeof(*field), GFP_KERNEL);
+	field = kzalloc_obj(*field);
 	if (!field)
 		return;
 	INIT_LIST_HEAD(&field->ctrl.list);
@@ -2345,7 +2345,7 @@ struct vcap_rule *vcap_alloc_rule(struct vcap_control *vctrl,
 	}
 
 	/* Create a container for the rule and return it */
-	ri = kzalloc(sizeof(*ri), GFP_KERNEL);
+	ri = kzalloc_obj(*ri);
 	if (!ri) {
 		err = -ENOMEM;
 		goto out_unlock;
@@ -2689,7 +2689,7 @@ static int vcap_rule_add_key(struct vcap_rule *rule,
 		return -EINVAL;
 	}
 
-	field = kzalloc(sizeof(*field), GFP_KERNEL);
+	field = kzalloc_obj(*field);
 	if (!field)
 		return -ENOMEM;
 	memcpy(&field->data, data, sizeof(field->data));
@@ -2857,7 +2857,7 @@ static int vcap_rule_add_action(struct vcap_rule *rule,
 		return -EINVAL;
 	}
 
-	field = kzalloc(sizeof(*field), GFP_KERNEL);
+	field = kzalloc_obj(*field);
 	if (!field)
 		return -ENOMEM;
 	memcpy(&field->data, data, sizeof(field->data));
@@ -3125,7 +3125,7 @@ static int vcap_enable(struct vcap_control *vctrl, struct net_device *ndev,
 	if (!admin)
 		return -ENOENT;
 
-	eport = kzalloc(sizeof(*eport), GFP_KERNEL);
+	eport = kzalloc_obj(*eport);
 	if (!eport)
 		return -ENOMEM;
 

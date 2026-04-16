@@ -1285,7 +1285,7 @@ int ixgbe_update_link_info(struct ixgbe_hw *hw)
 	if (!(li->link_info & IXGBE_ACI_MEDIA_AVAILABLE))
 		return 0;
 
-	pcaps =	kzalloc(sizeof(*pcaps), GFP_KERNEL);
+	pcaps = kzalloc_obj(*pcaps);
 	if (!pcaps)
 		return -ENOMEM;
 

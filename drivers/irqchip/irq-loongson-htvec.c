@@ -192,7 +192,7 @@ static int htvec_init(phys_addr_t addr, unsigned long size,
 	int i;
 	struct htvec *priv;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

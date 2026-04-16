@@ -864,7 +864,7 @@ struct arm_pmu *armpmu_alloc(void)
 	struct arm_pmu *pmu;
 	int cpu;
 
-	pmu = kzalloc(sizeof(*pmu), GFP_KERNEL);
+	pmu = kzalloc_obj(*pmu);
 	if (!pmu)
 		goto out;
 

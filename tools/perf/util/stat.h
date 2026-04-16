@@ -163,7 +163,7 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 				   struct evsel *evsel,
 				   int aggr_idx,
 				   struct perf_stat_output_ctx *out);
-bool perf_stat__skip_metric_event(struct evsel *evsel, u64 ena, u64 run);
+bool perf_stat__skip_metric_event(struct evsel *evsel);
 void *perf_stat__print_shadow_stats_metricgroup(struct perf_stat_config *config,
 						struct evsel *evsel,
 						int aggr_idx,

@@ -173,8 +173,7 @@ static int pmf_set_notify(struct gpio_runtime *rt,
 		notif->gpio_private = NULL;
 	}
 	if (!old && notify) {
-		irq_client = kzalloc(sizeof(struct pmf_irq_client),
-				     GFP_KERNEL);
+		irq_client = kzalloc_obj(struct pmf_irq_client);
 		if (!irq_client)
 			return -ENOMEM;
 		irq_client->data = notif;

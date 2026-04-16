@@ -106,7 +106,7 @@ static struct mctp_test_route *mctp_route_test_alloc(void)
 {
 	struct mctp_test_route *rt;
 
-	rt = kzalloc(sizeof(*rt), GFP_KERNEL);
+	rt = kzalloc_obj(*rt);
 	if (!rt)
 		return NULL;
 

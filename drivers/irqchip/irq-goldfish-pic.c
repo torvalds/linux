@@ -61,7 +61,7 @@ static int __init goldfish_pic_of_init(struct device_node *of_node,
 	unsigned int parent_irq;
 	int ret = 0;
 
-	gfpic = kzalloc(sizeof(*gfpic), GFP_KERNEL);
+	gfpic = kzalloc_obj(*gfpic);
 	if (!gfpic) {
 		ret = -ENOMEM;
 		goto out_err;

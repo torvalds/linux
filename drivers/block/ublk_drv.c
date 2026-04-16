@@ -710,7 +710,7 @@ static DEFINE_MUTEX(ublk_ctl_mutex);
 static struct ublk_batch_fetch_cmd *
 ublk_batch_alloc_fcmd(struct io_uring_cmd *cmd)
 {
-	struct ublk_batch_fetch_cmd *fcmd = kzalloc(sizeof(*fcmd), GFP_NOIO);
+	struct ublk_batch_fetch_cmd *fcmd = kzalloc_obj(*fcmd, GFP_NOIO);
 
 	if (fcmd) {
 		fcmd->cmd = cmd;
@@ -3255,7 +3255,8 @@ static int ublk_ch_uring_cmd_local(struct io_uring_cmd *cmd,
 		unsigned int issue_flags)
 {
 	/* May point to userspace-mapped memory */
-	const struct ublksrv_io_cmd *ub_src = io_uring_sqe_cmd(cmd->sqe);
+	const struct ublksrv_io_cmd *ub_src = io_uring_sqe_cmd(cmd->sqe,
+							       struct ublksrv_io_cmd);
 	u16 buf_idx = UBLK_INVALID_BUF_IDX;
 	struct ublk_device *ub = cmd->file->private_data;
 	struct ublk_queue *ubq;
@@ -3833,7 +3834,8 @@ static int ublk_validate_batch_fetch_cmd(struct ublk_batch_io_data *data)
 static int ublk_handle_non_batch_cmd(struct io_uring_cmd *cmd,
 				     unsigned int issue_flags)
 {
-	const struct ublksrv_io_cmd *ub_cmd = io_uring_sqe_cmd(cmd->sqe);
+	const struct ublksrv_io_cmd *ub_cmd = io_uring_sqe_cmd(cmd->sqe,
+							       struct ublksrv_io_cmd);
 	struct ublk_device *ub = cmd->file->private_data;
 	unsigned tag = READ_ONCE(ub_cmd->tag);
 	unsigned q_id = READ_ONCE(ub_cmd->q_id);
@@ -3862,7 +3864,8 @@ static int ublk_handle_non_batch_cmd(struct io_uring_cmd *cmd,
 static int ublk_ch_batch_io_uring_cmd(struct io_uring_cmd *cmd,
 				       unsigned int issue_flags)
 {
-	const struct ublk_batch_io *uc = io_uring_sqe_cmd(cmd->sqe);
+	const struct ublk_batch_io *uc = io_uring_sqe_cmd(cmd->sqe,
+							  struct ublk_batch_io);
 	struct ublk_device *ub = cmd->file->private_data;
 	struct ublk_batch_io_data data = {
 		.ub  = ub,
@@ -4440,7 +4443,9 @@ static int ublk_ctrl_start_dev(struct ublk_device *ub,
 
 	/* Skip partition scan if disabled by user */
 	if (ub->dev_info.flags & UBLK_F_NO_AUTO_PART_SCAN) {
-		clear_bit(GD_SUPPRESS_PART_SCAN, &disk->state);
+		/* Not clear for unprivileged daemons, see comment above */
+		if (!ub->unprivileged_daemons)
+			clear_bit(GD_SUPPRESS_PART_SCAN, &disk->state);
 	} else {
 		/* Schedule async partition scan for trusted daemons */
 		if (!ub->unprivileged_daemons)
@@ -4610,7 +4615,7 @@ static int ublk_ctrl_add_dev(const struct ublksrv_ctrl_cmd *header)
 		goto out_unlock;
 
 	ret = -ENOMEM;
-	ub = kzalloc(struct_size(ub, queues, info.nr_hw_queues), GFP_KERNEL);
+	ub = kzalloc_flex(*ub, queues, info.nr_hw_queues);
 	if (!ub)
 		goto out_unlock;
 	mutex_init(&ub->mutex);
@@ -5003,15 +5008,22 @@ static int ublk_ctrl_get_features(const struct ublksrv_ctrl_cmd *header)
 	return 0;
 }
 
-static void ublk_ctrl_set_size(struct ublk_device *ub, const struct ublksrv_ctrl_cmd *header)
+static int ublk_ctrl_set_size(struct ublk_device *ub, const struct ublksrv_ctrl_cmd *header)
 {
 	struct ublk_param_basic *p = &ub->params.basic;
 	u64 new_size = header->data[0];
+	int ret = 0;
 
 	mutex_lock(&ub->mutex);
+	if (!ub->ub_disk) {
+		ret = -ENODEV;
+		goto out;
+	}
 	p->dev_sectors = new_size;
 	set_capacity_and_notify(ub->ub_disk, p->dev_sectors);
+out:
 	mutex_unlock(&ub->mutex);
+	return ret;
 }
 
 struct count_busy {
@@ -5253,7 +5265,8 @@ static int ublk_ctrl_uring_cmd(struct io_uring_cmd *cmd,
 		unsigned int issue_flags)
 {
 	/* May point to userspace-mapped memory */
-	const struct ublksrv_ctrl_cmd *ub_src = io_uring_sqe_cmd(cmd->sqe);
+	const struct ublksrv_ctrl_cmd *ub_src = io_uring_sqe128_cmd(cmd->sqe,
+								    struct ublksrv_ctrl_cmd);
 	struct ublksrv_ctrl_cmd header;
 	struct ublk_device *ub = NULL;
 	u32 cmd_op = cmd->cmd_op;
@@ -5331,8 +5344,7 @@ static int ublk_ctrl_uring_cmd(struct io_uring_cmd *cmd,
 		ret = ublk_ctrl_end_recovery(ub, &header);
 		break;
 	case UBLK_CMD_UPDATE_SIZE:
-		ublk_ctrl_set_size(ub, &header);
-		ret = 0;
+		ret = ublk_ctrl_set_size(ub, &header);
 		break;
 	case UBLK_CMD_QUIESCE_DEV:
 		ret = ublk_ctrl_quiesce_dev(ub, &header);

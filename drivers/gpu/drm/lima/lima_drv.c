@@ -215,7 +215,7 @@ static int lima_drm_driver_open(struct drm_device *dev, struct drm_file *file)
 	struct lima_drm_priv *priv;
 	struct lima_device *ldev = to_lima_dev(dev);
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

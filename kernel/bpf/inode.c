@@ -195,7 +195,7 @@ static struct map_iter *map_iter_alloc(struct bpf_map *map)
 {
 	struct map_iter *iter;
 
-	iter = kzalloc(sizeof(*iter), GFP_KERNEL | __GFP_NOWARN);
+	iter = kzalloc_obj(*iter, GFP_KERNEL | __GFP_NOWARN);
 	if (!iter)
 		goto error;
 
@@ -1044,7 +1044,7 @@ static int bpf_init_fs_context(struct fs_context *fc)
 {
 	struct bpf_mount_opts *opts;
 
-	opts = kzalloc(sizeof(struct bpf_mount_opts), GFP_KERNEL);
+	opts = kzalloc_obj(struct bpf_mount_opts);
 	if (!opts)
 		return -ENOMEM;
 

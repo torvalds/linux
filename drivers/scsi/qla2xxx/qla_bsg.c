@@ -2395,7 +2395,7 @@ qla2x00_do_dport_diagnostics(struct bsg_job *bsg_job)
 	    !IS_QLA28XX(vha->hw))
 		return -EPERM;
 
-	dd = kmalloc(sizeof(*dd), GFP_KERNEL);
+	dd = kmalloc_obj(*dd);
 	if (!dd) {
 		ql_log(ql_log_warn, vha, 0x70db,
 		    "Failed to allocate memory for dport.\n");
@@ -2441,7 +2441,7 @@ qla2x00_do_dport_diagnostics_v2(struct bsg_job *bsg_job)
 	if (!IS_DPORT_CAPABLE(vha->hw))
 		return -EPERM;
 
-	dd = kzalloc(sizeof(*dd), GFP_KERNEL);
+	dd = kzalloc_obj(*dd);
 	if (!dd)
 		return -ENOMEM;
 
@@ -2598,7 +2598,7 @@ qla2x00_manage_host_stats(struct bsg_job *bsg_job)
 		return -EIO;
 	}
 
-	req_data = kzalloc(sizeof(*req_data), GFP_KERNEL);
+	req_data = kzalloc_obj(*req_data);
 	if (!req_data) {
 		ql_log(ql_log_warn, vha, 0x0000, "req_data memory allocation failure.\n");
 		return -ENOMEM;
@@ -2669,7 +2669,7 @@ qla2x00_get_host_stats(struct bsg_job *bsg_job)
 		return -EIO;
 	}
 
-	req_data = kzalloc(sizeof(*req_data), GFP_KERNEL);
+	req_data = kzalloc_obj(*req_data);
 	if (!req_data) {
 		ql_log(ql_log_warn, vha, 0x0000, "req_data memory allocation failure.\n");
 		return -ENOMEM;
@@ -2776,7 +2776,7 @@ qla2x00_get_tgt_stats(struct bsg_job *bsg_job)
 		return -EIO;
 	}
 
-	req_data = kzalloc(sizeof(*req_data), GFP_KERNEL);
+	req_data = kzalloc_obj(*req_data);
 	if (!req_data) {
 		ql_log(ql_log_warn, vha, 0x0000, "req_data memory allocation failure.\n");
 		return -ENOMEM;
@@ -2859,7 +2859,7 @@ qla2x00_manage_host_port(struct bsg_job *bsg_job)
 		return -EIO;
 	}
 
-	req_data = kzalloc(sizeof(*req_data), GFP_KERNEL);
+	req_data = kzalloc_obj(*req_data);
 	if (!req_data) {
 		ql_log(ql_log_warn, vha, 0x0000, "req_data memory allocation failure.\n");
 		return -ENOMEM;

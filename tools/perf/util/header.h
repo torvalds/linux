@@ -53,6 +53,8 @@ enum {
 	HEADER_CLOCK_DATA,
 	HEADER_HYBRID_TOPOLOGY,
 	HEADER_PMU_CAPS,
+	HEADER_CPU_DOMAIN_INFO,
+	HEADER_E_MACHINE,
 	HEADER_LAST_FEATURE,
 	HEADER_FEAT_BITS	= 256,
 };
@@ -210,4 +212,7 @@ char *get_cpuid_str(struct perf_cpu cpu);
 char *get_cpuid_allow_env_override(struct perf_cpu cpu);
 
 int strcmp_cpuid_str(const char *s1, const char *s2);
+
+struct cpu_domain_map **build_cpu_domain_map(u32 *schedstat_version, u32 *max_sched_domains,
+					     u32 nr);
 #endif /* __PERF_HEADER_H */

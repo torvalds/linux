@@ -20,18 +20,12 @@
 #include <net/tcp.h>
 
 static siphash_aligned_key_t net_secret;
-static siphash_aligned_key_t ts_secret;
 
 #define EPHEMERAL_PORT_SHUFFLE_PERIOD (10 * HZ)
 
 static __always_inline void net_secret_init(void)
 {
 	net_get_random_once(&net_secret, sizeof(net_secret));
-}
-
-static __always_inline void ts_secret_init(void)
-{
-	net_get_random_once(&ts_secret, sizeof(ts_secret));
 }
 #endif
 
@@ -53,28 +47,9 @@ static u32 seq_scale(u32 seq)
 #endif
 
 #if IS_ENABLED(CONFIG_IPV6)
-u32 secure_tcpv6_ts_off(const struct net *net,
-			const __be32 *saddr, const __be32 *daddr)
-{
-	const struct {
-		struct in6_addr saddr;
-		struct in6_addr daddr;
-	} __aligned(SIPHASH_ALIGNMENT) combined = {
-		.saddr = *(struct in6_addr *)saddr,
-		.daddr = *(struct in6_addr *)daddr,
-	};
-
-	if (READ_ONCE(net->ipv4.sysctl_tcp_timestamps) != 1)
-		return 0;
-
-	ts_secret_init();
-	return siphash(&combined, offsetofend(typeof(combined), daddr),
-		       &ts_secret);
-}
-EXPORT_IPV6_MOD(secure_tcpv6_ts_off);
-
-u32 secure_tcpv6_seq(const __be32 *saddr, const __be32 *daddr,
-		     __be16 sport, __be16 dport)
+union tcp_seq_and_ts_off
+secure_tcpv6_seq_and_ts_off(const struct net *net, const __be32 *saddr,
+			    const __be32 *daddr, __be16 sport, __be16 dport)
 {
 	const struct {
 		struct in6_addr saddr;
@@ -87,14 +62,20 @@ u32 secure_tcpv6_seq(const __be32 *saddr, const __be32 *daddr,
 		.sport = sport,
 		.dport = dport
 	};
-	u32 hash;
+	union tcp_seq_and_ts_off st;
 
 	net_secret_init();
-	hash = siphash(&combined, offsetofend(typeof(combined), dport),
-		       &net_secret);
-	return seq_scale(hash);
+
+	st.hash64 = siphash(&combined, offsetofend(typeof(combined), dport),
+			    &net_secret);
+
+	if (READ_ONCE(net->ipv4.sysctl_tcp_timestamps) != 1)
+		st.ts_off = 0;
+
+	st.seq = seq_scale(st.seq);
+	return st;
 }
-EXPORT_SYMBOL(secure_tcpv6_seq);
+EXPORT_SYMBOL(secure_tcpv6_seq_and_ts_off);
 
 u64 secure_ipv6_port_ephemeral(const __be32 *saddr, const __be32 *daddr,
 			       __be16 dport)
@@ -118,33 +99,30 @@ EXPORT_SYMBOL(secure_ipv6_port_ephemeral);
 #endif
 
 #ifdef CONFIG_INET
-u32 secure_tcp_ts_off(const struct net *net, __be32 saddr, __be32 daddr)
-{
-	if (READ_ONCE(net->ipv4.sysctl_tcp_timestamps) != 1)
-		return 0;
-
-	ts_secret_init();
-	return siphash_2u32((__force u32)saddr, (__force u32)daddr,
-			    &ts_secret);
-}
-
 /* secure_tcp_seq_and_tsoff(a, b, 0, d) == secure_ipv4_port_ephemeral(a, b, d),
  * but fortunately, `sport' cannot be 0 in any circumstances. If this changes,
  * it would be easy enough to have the former function use siphash_4u32, passing
  * the arguments as separate u32.
  */
-u32 secure_tcp_seq(__be32 saddr, __be32 daddr,
-		   __be16 sport, __be16 dport)
+union tcp_seq_and_ts_off
+secure_tcp_seq_and_ts_off(const struct net *net, __be32 saddr, __be32 daddr,
+			  __be16 sport, __be16 dport)
 {
-	u32 hash;
+	u32 ports = (__force u32)sport << 16 | (__force u32)dport;
+	union tcp_seq_and_ts_off st;
 
 	net_secret_init();
-	hash = siphash_3u32((__force u32)saddr, (__force u32)daddr,
-			    (__force u32)sport << 16 | (__force u32)dport,
-			    &net_secret);
-	return seq_scale(hash);
+
+	st.hash64 = siphash_3u32((__force u32)saddr, (__force u32)daddr,
+				 ports, &net_secret);
+
+	if (READ_ONCE(net->ipv4.sysctl_tcp_timestamps) != 1)
+		st.ts_off = 0;
+
+	st.seq = seq_scale(st.seq);
+	return st;
 }
-EXPORT_SYMBOL_GPL(secure_tcp_seq);
+EXPORT_SYMBOL_GPL(secure_tcp_seq_and_ts_off);
 
 u64 secure_ipv4_port_ephemeral(__be32 saddr, __be32 daddr, __be16 dport)
 {

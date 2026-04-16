@@ -1846,7 +1846,7 @@ static struct fsck_inode *add_inode(struct ubifs_info *c,
 		return ERR_PTR(-EINVAL);
 	}
 
-	fscki = kzalloc(sizeof(struct fsck_inode), GFP_NOFS);
+	fscki = kzalloc_obj(struct fsck_inode, GFP_NOFS);
 	if (!fscki)
 		return ERR_PTR(-ENOMEM);
 
@@ -3035,7 +3035,7 @@ void ubifs_assert_failed(struct ubifs_info *c, const char *expr,
  */
 int ubifs_debugging_init(struct ubifs_info *c)
 {
-	c->dbg = kzalloc(sizeof(struct ubifs_debug_info), GFP_KERNEL);
+	c->dbg = kzalloc_obj(struct ubifs_debug_info);
 	if (!c->dbg)
 		return -ENOMEM;
 

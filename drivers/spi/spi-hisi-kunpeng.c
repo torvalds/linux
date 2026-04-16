@@ -426,7 +426,7 @@ static int hisi_spi_setup(struct spi_device *spi)
 	/* Only alloc on first setup */
 	chip = spi_get_ctldata(spi);
 	if (!chip) {
-		chip = kzalloc(sizeof(*chip), GFP_KERNEL);
+		chip = kzalloc_obj(*chip);
 		if (!chip)
 			return -ENOMEM;
 		spi_set_ctldata(spi, chip);

@@ -305,7 +305,7 @@ struct usb4_port *usb4_port_device_add(struct tb_port *port)
 	struct usb4_port *usb4;
 	int ret;
 
-	usb4 = kzalloc(sizeof(*usb4), GFP_KERNEL);
+	usb4 = kzalloc_obj(*usb4);
 	if (!usb4)
 		return ERR_PTR(-ENOMEM);
 

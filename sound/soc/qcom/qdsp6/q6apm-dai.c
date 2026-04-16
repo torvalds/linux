@@ -348,7 +348,7 @@ static int q6apm_dai_open(struct snd_soc_component *component,
 		return -EINVAL;
 	}
 
-	prtd = kzalloc(sizeof(*prtd), GFP_KERNEL);
+	prtd = kzalloc_obj(*prtd);
 	if (prtd == NULL)
 		return -ENOMEM;
 
@@ -490,7 +490,7 @@ static int q6apm_dai_compr_open(struct snd_soc_component *component,
 	if (!pdata)
 		return -EINVAL;
 
-	prtd = kzalloc(sizeof(*prtd), GFP_KERNEL);
+	prtd = kzalloc_obj(*prtd);
 	if (prtd == NULL)
 		return -ENOMEM;
 
@@ -838,6 +838,7 @@ static const struct snd_soc_component_driver q6apm_fe_dai_component = {
 	.ack		= q6apm_dai_ack,
 	.compress_ops	= &q6apm_dai_compress_ops,
 	.use_dai_pcm_id = true,
+	.remove_order   = SND_SOC_COMP_ORDER_EARLY,
 };
 
 static int q6apm_dai_probe(struct platform_device *pdev)

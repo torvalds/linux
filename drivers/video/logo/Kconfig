@@ -20,54 +20,60 @@ config FB_LOGO_EXTRA
 
 config LOGO_LINUX_MONO
 	bool "Standard black and white Linux logo"
-	default y
+
+config LOGO_LINUX_MONO_FILE
+	string "Monochrome logo .pbm file"
+	depends on LOGO_LINUX_MONO
+	default "drivers/video/logo/logo_superh_mono.pbm" if SUPERH
+	default "drivers/video/logo/logo_linux_mono.pbm"
+	help
+	  Takes a path to a monochromatic logo in the portable pixmap file
+	  format (.pbm). This defaults to the Tux penguin.
+
+	  For example, the below ImageMagick command can be used to reduce
+	  an image to black and white and convert it into a pbm file:
+
+	    magick source_image -compress none destination.pbm
 
 config LOGO_LINUX_VGA16
 	bool "Standard 16-color Linux logo"
-	default y
+
+config LOGO_LINUX_VGA16_FILE
+	string "16-color logo .ppm file"
+	depends on LOGO_LINUX_VGA16
+	default "drivers/video/logo/logo_superh_vga16.ppm" if SUPERH
+	default "drivers/video/logo/logo_linux_vga16.ppm"
+	help
+	  Takes a path to a logo in the portable pixmap file format (.ppm),
+	  using the 16 colors from the drivers/video/logo/clut_vga16.ppm
+	  palette. This defaults to the Tux penguin.
+
+	  For example, the below ImageMagick command can be used to reduce an
+	  image to the VGA 16 colors palette and convert into a ppm file:
+
+	    magick source_image -compress none \
+	      -remap drivers/video/logo/clut_vga16.ppm destination.ppm
 
 config LOGO_LINUX_CLUT224
 	bool "Standard 224-color Linux logo"
 	default y
 
-config LOGO_DEC_CLUT224
-	bool "224-color Digital Equipment Corporation Linux logo"
-	depends on MACH_DECSTATION || ALPHA
-	default y
+config LOGO_LINUX_CLUT224_FILE
+	string "224-color logo .ppm file"
+	depends on LOGO_LINUX_CLUT224
+	default "drivers/video/logo/logo_dec_clut224.ppm" if MACH_DECSTATION || ALPHA
+	default "drivers/video/logo/logo_parisc_clut224.ppm" if PARISC
+	default "drivers/video/logo/logo_sgi_clut224.ppm" if SGI_IP22 || SGI_IP27 || SGI_IP32
+	default "drivers/video/logo/logo_sun_clut224.ppm" if SPARC
+	default "drivers/video/logo/logo_superh_clut224.ppm" if SUPERH
+	default "drivers/video/logo/logo_linux_clut224.ppm"
+	help
+	  Takes a path to a 224-color logo in the portable pixmap file
+	  format (.ppm). This defaults to the Tux penguin.
 
-config LOGO_MAC_CLUT224
-	bool "224-color Macintosh Linux logo"
-	depends on MAC
-	default y
+	  For example, the below ImageMagick command can be used to reduce
+	  an image palette to 224 colors and convert it into a ppm file:
 
-config LOGO_PARISC_CLUT224
-	bool "224-color PA-RISC Linux logo"
-	depends on PARISC
-	default y
-
-config LOGO_SGI_CLUT224
-	bool "224-color SGI Linux logo"
-	depends on SGI_IP22 || SGI_IP27 || SGI_IP32
-	default y
-
-config LOGO_SUN_CLUT224
-	bool "224-color Sun Linux logo"
-	depends on SPARC
-	default y
-
-config LOGO_SUPERH_MONO
-	bool "Black and white SuperH Linux logo"
-	depends on SUPERH
-	default y
-
-config LOGO_SUPERH_VGA16
-	bool "16-color SuperH Linux logo"
-	depends on SUPERH
-	default y
-
-config LOGO_SUPERH_CLUT224
-	bool "224-color SuperH Linux logo"
-	depends on SUPERH
-	default y
+	    magick source_image -compress none -colors 224 destination.ppm
 
 endif # LOGO

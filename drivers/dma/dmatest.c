@@ -677,11 +677,11 @@ static int dmatest_func(void *data)
 
 	set_user_nice(current, 10);
 
-	srcs = kcalloc(src->cnt, sizeof(dma_addr_t), GFP_KERNEL);
+	srcs = kzalloc_objs(dma_addr_t, src->cnt);
 	if (!srcs)
 		goto err_dst;
 
-	dma_pq = kcalloc(dst->cnt, sizeof(dma_addr_t), GFP_KERNEL);
+	dma_pq = kzalloc_objs(dma_addr_t, dst->cnt);
 	if (!dma_pq)
 		goto err_srcs_array;
 
@@ -987,7 +987,7 @@ static int dmatest_add_threads(struct dmatest_info *info,
 		return -EINVAL;
 
 	for (i = 0; i < params->threads_per_chan; i++) {
-		thread = kzalloc(sizeof(struct dmatest_thread), GFP_KERNEL);
+		thread = kzalloc_obj(struct dmatest_thread);
 		if (!thread) {
 			pr_warn("No memory for %s-%s%u\n",
 				dma_chan_name(chan), op, i);
@@ -1025,7 +1025,7 @@ static int dmatest_add_channel(struct dmatest_info *info,
 	unsigned int		thread_count = 0;
 	int cnt;
 
-	dtc = kmalloc(sizeof(struct dmatest_chan), GFP_KERNEL);
+	dtc = kmalloc_obj(struct dmatest_chan);
 	if (!dtc) {
 		pr_warn("No memory for %s\n", dma_chan_name(chan));
 		return -ENOMEM;

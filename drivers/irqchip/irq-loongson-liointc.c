@@ -205,7 +205,7 @@ static int liointc_init(phys_addr_t addr, unsigned long size, int revision,
 	struct irq_domain *domain;
 	struct liointc_priv *priv;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

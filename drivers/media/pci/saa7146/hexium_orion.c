@@ -209,7 +209,7 @@ static int hexium_probe(struct saa7146_dev *dev)
 		return -EFAULT;
 	}
 
-	hexium = kzalloc(sizeof(*hexium), GFP_KERNEL);
+	hexium = kzalloc_obj(*hexium);
 	if (!hexium)
 		return -ENOMEM;
 

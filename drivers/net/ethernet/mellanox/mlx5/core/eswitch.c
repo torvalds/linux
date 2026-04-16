@@ -221,7 +221,7 @@ __esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u16 vport, bool rx_rule,
 	if (rx_rule)
 		match_header |= MLX5_MATCH_MISC_PARAMETERS;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return NULL;
 
@@ -1072,10 +1072,11 @@ static void mlx5_eswitch_event_handler_register(struct mlx5_eswitch *esw)
 
 static void mlx5_eswitch_event_handler_unregister(struct mlx5_eswitch *esw)
 {
-	if (esw->mode == MLX5_ESWITCH_OFFLOADS && mlx5_eswitch_is_funcs_handler(esw->dev))
+	if (esw->mode == MLX5_ESWITCH_OFFLOADS &&
+	    mlx5_eswitch_is_funcs_handler(esw->dev)) {
 		mlx5_eq_notifier_unregister(esw->dev, &esw->esw_funcs.nb);
-
-	flush_workqueue(esw->work_queue);
+		atomic_inc(&esw->esw_funcs.generation);
+	}
 }
 
 static void mlx5_eswitch_clear_vf_vports_info(struct mlx5_eswitch *esw)
@@ -1862,7 +1863,7 @@ int mlx5_esw_vport_alloc(struct mlx5_eswitch *esw, int index, u16 vport_num)
 	struct mlx5_vport *vport;
 	int err;
 
-	vport = kzalloc(sizeof(*vport), GFP_KERNEL);
+	vport = kzalloc_obj(*vport);
 	if (!vport)
 		return -ENOMEM;
 
@@ -2022,7 +2023,7 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 	if (!MLX5_VPORT_MANAGER(dev) && !MLX5_ESWITCH_MANAGER(dev))
 		return 0;
 
-	esw = kzalloc(sizeof(*esw), GFP_KERNEL);
+	esw = kzalloc_obj(*esw);
 	if (!esw)
 		return -ENOMEM;
 

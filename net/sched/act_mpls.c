@@ -279,7 +279,7 @@ static int tcf_mpls_init(struct net *net, struct nlattr *nla,
 
 	m = to_mpls(*a);
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (!p) {
 		err = -ENOMEM;
 		goto put_chain;

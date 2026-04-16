@@ -334,7 +334,7 @@ struct phylink_pcs *mtk_pcs_lynxi_create(struct device *dev,
 	dev_dbg(dev, "MediaTek LynxI SGMII PCS (id 0x%08x, ver 0x%04x)\n", id,
 		ver);
 
-	mpcs = kzalloc(sizeof(*mpcs), GFP_KERNEL);
+	mpcs = kzalloc_obj(*mpcs);
 	if (!mpcs)
 		return NULL;
 

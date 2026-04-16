@@ -16,7 +16,6 @@
 #include <linux/etherdevice.h>
 #include <linux/if.h>
 #include <net/ip.h>
-#include <net/netdev_queues.h>
 #include <linux/skbuff.h>
 #include <net/page_pool/helpers.h>
 
@@ -128,11 +127,11 @@ static void bnge_free_cp_desc_arr(struct bnge_cp_ring_info *cpr)
 
 static int bnge_alloc_nq_desc_arr(struct bnge_nq_ring_info *nqr, int n)
 {
-	nqr->desc_ring = kcalloc(n, sizeof(*nqr->desc_ring), GFP_KERNEL);
+	nqr->desc_ring = kzalloc_objs(*nqr->desc_ring, n);
 	if (!nqr->desc_ring)
 		return -ENOMEM;
 
-	nqr->desc_mapping = kcalloc(n, sizeof(*nqr->desc_mapping), GFP_KERNEL);
+	nqr->desc_mapping = kzalloc_objs(*nqr->desc_mapping, n);
 	if (!nqr->desc_mapping)
 		goto err_free_desc_ring;
 	return 0;
@@ -145,11 +144,11 @@ err_free_desc_ring:
 
 static int bnge_alloc_cp_desc_arr(struct bnge_cp_ring_info *cpr, int n)
 {
-	cpr->desc_ring = kcalloc(n, sizeof(*cpr->desc_ring), GFP_KERNEL);
+	cpr->desc_ring = kzalloc_objs(*cpr->desc_ring, n);
 	if (!cpr->desc_ring)
 		return -ENOMEM;
 
-	cpr->desc_mapping = kcalloc(n, sizeof(*cpr->desc_mapping), GFP_KERNEL);
+	cpr->desc_mapping = kzalloc_objs(*cpr->desc_mapping, n);
 	if (!cpr->desc_mapping)
 		goto err_free_desc_ring;
 	return 0;
@@ -288,8 +287,7 @@ static int bnge_alloc_nq_tree(struct bnge_net *bn)
 			tx = 1;
 		}
 
-		nqr->cp_ring_arr = kcalloc(cp_count, sizeof(*cpr),
-					   GFP_KERNEL);
+		nqr->cp_ring_arr = kzalloc_objs(*cpr, cp_count);
 		if (!nqr->cp_ring_arr) {
 			rc = -ENOMEM;
 			goto err_free_nq_tree;
@@ -511,21 +509,19 @@ static int bnge_alloc_tpa_info(struct bnge_net *bn)
 	for (i = 0; i < bd->rx_nr_rings; i++) {
 		struct bnge_rx_ring_info *rxr = &bn->rx_ring[i];
 
-		rxr->rx_tpa = kcalloc(bn->max_tpa, sizeof(struct bnge_tpa_info),
-				      GFP_KERNEL);
+		rxr->rx_tpa = kzalloc_objs(struct bnge_tpa_info, bn->max_tpa);
 		if (!rxr->rx_tpa)
 			goto err_free_tpa_info;
 
 		for (j = 0; j < bn->max_tpa; j++) {
 			struct rx_agg_cmp *agg;
 
-			agg = kcalloc(MAX_SKB_FRAGS, sizeof(*agg), GFP_KERNEL);
+			agg = kzalloc_objs(*agg, MAX_SKB_FRAGS);
 			if (!agg)
 				goto err_free_tpa_info;
 			rxr->rx_tpa[j].agg_arr = agg;
 		}
-		rxr->rx_tpa_idx_map = kzalloc(sizeof(*rxr->rx_tpa_idx_map),
-					      GFP_KERNEL);
+		rxr->rx_tpa_idx_map = kzalloc_obj(*rxr->rx_tpa_idx_map);
 		if (!rxr->rx_tpa_idx_map)
 			goto err_free_tpa_info;
 	}
@@ -814,8 +810,7 @@ static int bnge_alloc_vnics(struct bnge_net *bn)
 	 */
 	num_vnics = 1;
 
-	bn->vnic_info = kcalloc(num_vnics, sizeof(struct bnge_vnic_info),
-				GFP_KERNEL);
+	bn->vnic_info = kzalloc_objs(struct bnge_vnic_info, num_vnics);
 	if (!bn->vnic_info)
 		return -ENOMEM;
 
@@ -842,9 +837,7 @@ static int bnge_init_ring_grps(struct bnge_net *bn)
 	struct bnge_dev *bd = bn->bd;
 	int i;
 
-	bn->grp_info = kcalloc(bd->nq_nr_rings,
-			       sizeof(struct bnge_ring_grp_info),
-			       GFP_KERNEL);
+	bn->grp_info = kzalloc_objs(struct bnge_ring_grp_info, bd->nq_nr_rings);
 	if (!bn->grp_info)
 		return -ENOMEM;
 	for (i = 0; i < bd->nq_nr_rings; i++) {
@@ -904,9 +897,7 @@ static int bnge_alloc_core(struct bnge_net *bn)
 		nqr->ring_struct.ring_mem.flags = BNGE_RMEM_RING_PTE_FLAG;
 	}
 
-	bn->rx_ring = kcalloc(bd->rx_nr_rings,
-			      sizeof(struct bnge_rx_ring_info),
-			      GFP_KERNEL);
+	bn->rx_ring = kzalloc_objs(struct bnge_rx_ring_info, bd->rx_nr_rings);
 	if (!bn->rx_ring)
 		goto err_free_core;
 
@@ -921,9 +912,7 @@ static int bnge_alloc_core(struct bnge_net *bn)
 		bn->bnapi[i]->rx_ring = &bn->rx_ring[i];
 	}
 
-	bn->tx_ring = kcalloc(bd->tx_nr_rings,
-			      sizeof(struct bnge_tx_ring_info),
-			      GFP_KERNEL);
+	bn->tx_ring = kzalloc_objs(struct bnge_tx_ring_info, bd->tx_nr_rings);
 	if (!bn->tx_ring)
 		goto err_free_core;
 
@@ -1779,7 +1768,7 @@ static struct bnge_l2_filter *bnge_alloc_l2_filter(struct bnge_net *bn,
 	if (fltr)
 		return fltr;
 
-	fltr = kzalloc(sizeof(*fltr), gfp);
+	fltr = kzalloc_obj(*fltr, gfp);
 	if (!fltr)
 		return ERR_PTR(-ENOMEM);
 

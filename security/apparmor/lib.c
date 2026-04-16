@@ -44,6 +44,8 @@ static struct val_table_ent debug_values_table[] = {
 	{ "domain", DEBUG_DOMAIN },
 	{ "policy", DEBUG_POLICY },
 	{ "interface", DEBUG_INTERFACE },
+	{ "unpack", DEBUG_UNPACK },
+	{ "tags", DEBUG_TAGS },
 	{ NULL, 0 }
 };
 
@@ -118,18 +120,18 @@ int aa_print_debug_params(char *buffer)
 
 bool aa_resize_str_table(struct aa_str_table *t, int newsize, gfp_t gfp)
 {
-	char **n;
+	struct aa_str_table_ent *n;
 	int i;
 
 	if (t->size == newsize)
 		return true;
-	n = kcalloc(newsize, sizeof(*n), gfp);
+	n = kzalloc_objs(*n, newsize, gfp);
 	if (!n)
 		return false;
 	for (i = 0; i < min(t->size, newsize); i++)
 		n[i] = t->table[i];
 	for (; i < t->size; i++)
-		kfree_sensitive(t->table[i]);
+		kfree_sensitive(t->table[i].strs);
 	if (newsize > t->size)
 		memset(&n[t->size], 0, (newsize-t->size)*sizeof(*n));
 	kfree_sensitive(t->table);
@@ -140,10 +142,10 @@ bool aa_resize_str_table(struct aa_str_table *t, int newsize, gfp_t gfp)
 }
 
 /**
- * aa_free_str_table - free entries str table
+ * aa_destroy_str_table - free entries str table
  * @t: the string table to free  (MAYBE NULL)
  */
-void aa_free_str_table(struct aa_str_table *t)
+void aa_destroy_str_table(struct aa_str_table *t)
 {
 	int i;
 
@@ -152,7 +154,7 @@ void aa_free_str_table(struct aa_str_table *t)
 			return;
 
 		for (i = 0; i < t->size; i++)
-			kfree_sensitive(t->table[i]);
+			kfree_sensitive(t->table[i].strs);
 		kfree_sensitive(t->table);
 		t->table = NULL;
 		t->size = 0;
@@ -233,7 +235,7 @@ __counted char *aa_str_alloc(int size, gfp_t gfp)
 {
 	struct counted_str *str;
 
-	str = kmalloc(struct_size(str, name, size), gfp);
+	str = kmalloc_flex(*str, name, size, gfp);
 	if (!str)
 		return NULL;
 
@@ -478,19 +480,17 @@ bool aa_policy_init(struct aa_policy *policy, const char *prefix,
 		    const char *name, gfp_t gfp)
 {
 	char *hname;
+	size_t hname_sz;
 
+	hname_sz = (prefix ? strlen(prefix) + 2 : 0) + strlen(name) + 1;
 	/* freed by policy_free */
-	if (prefix) {
-		hname = aa_str_alloc(strlen(prefix) + strlen(name) + 3, gfp);
-		if (hname)
-			sprintf(hname, "%s//%s", prefix, name);
-	} else {
-		hname = aa_str_alloc(strlen(name) + 1, gfp);
-		if (hname)
-			strcpy(hname, name);
-	}
+	hname = aa_str_alloc(hname_sz, gfp);
 	if (!hname)
 		return false;
+	if (prefix)
+		scnprintf(hname, hname_sz, "%s//%s", prefix, name);
+	else
+		strscpy(hname, name, hname_sz);
 	policy->hname = hname;
 	/* base.name is a substring of fqname */
 	policy->name = basename(policy->hname);
@@ -512,3 +512,4 @@ void aa_policy_destroy(struct aa_policy *policy)
 	/* don't free name as its a subset of hname */
 	aa_put_str(policy->hname);
 }
+

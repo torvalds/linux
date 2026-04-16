@@ -793,7 +793,7 @@ static int ifcvf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	pci_set_master(pdev);
-	ifcvf_mgmt_dev = kzalloc(sizeof(struct ifcvf_vdpa_mgmt_dev), GFP_KERNEL);
+	ifcvf_mgmt_dev = kzalloc_obj(struct ifcvf_vdpa_mgmt_dev);
 	if (!ifcvf_mgmt_dev) {
 		IFCVF_ERR(pdev, "Failed to alloc memory for the vDPA management device\n");
 		return -ENOMEM;

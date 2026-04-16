@@ -185,8 +185,8 @@ static const struct attribute_group password_attr_group = {
 int hp_alloc_password_data(void)
 {
 	bioscfg_drv.password_instances_count = hp_get_instance_count(HP_WMI_BIOS_PASSWORD_GUID);
-	bioscfg_drv.password_data = kcalloc(bioscfg_drv.password_instances_count,
-					    sizeof(*bioscfg_drv.password_data), GFP_KERNEL);
+	bioscfg_drv.password_data = kzalloc_objs(*bioscfg_drv.password_data,
+						 bioscfg_drv.password_instances_count);
 	if (!bioscfg_drv.password_data) {
 		bioscfg_drv.password_instances_count = 0;
 		return -ENOMEM;

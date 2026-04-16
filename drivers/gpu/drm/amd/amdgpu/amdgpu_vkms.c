@@ -411,7 +411,7 @@ static struct drm_plane *amdgpu_vkms_plane_init(struct drm_device *dev,
 	struct drm_plane *plane;
 	int ret;
 
-	plane = kzalloc(sizeof(*plane), GFP_KERNEL);
+	plane = kzalloc_obj(*plane);
 	if (!plane)
 		return ERR_PTR(-ENOMEM);
 
@@ -499,8 +499,8 @@ static int amdgpu_vkms_sw_init(struct amdgpu_ip_block *ip_block)
 	int r, i;
 	struct amdgpu_device *adev = ip_block->adev;
 
-	adev->amdgpu_vkms_output = kcalloc(adev->mode_info.num_crtc,
-		sizeof(struct amdgpu_vkms_output), GFP_KERNEL);
+	adev->amdgpu_vkms_output = kzalloc_objs(struct amdgpu_vkms_output,
+						adev->mode_info.num_crtc);
 	if (!adev->amdgpu_vkms_output)
 		return -ENOMEM;
 

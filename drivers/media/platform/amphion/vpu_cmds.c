@@ -83,11 +83,11 @@ static struct vpu_cmd_t *vpu_alloc_cmd(struct vpu_inst *inst, u32 id, void *data
 	int i;
 	int ret;
 
-	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd)
 		return NULL;
 
-	cmd->pkt = kzalloc(sizeof(*cmd->pkt), GFP_KERNEL);
+	cmd->pkt = kzalloc_obj(*cmd->pkt);
 	if (!cmd->pkt) {
 		kfree(cmd);
 		return NULL;

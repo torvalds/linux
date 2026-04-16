@@ -7,6 +7,7 @@
 #include <drm/drm_device.h>
 #include <drm/drm_print.h>
 #include <linux/dma-buf.h>
+#include <linux/overflow.h>
 #include <linux/pagemap.h>
 #include <linux/vmalloc.h>
 
@@ -27,7 +28,7 @@ static struct sg_table *amdxdna_ubuf_map(struct dma_buf_attachment *attach,
 	struct sg_table *sg;
 	int ret;
 
-	sg = kzalloc(sizeof(*sg), GFP_KERNEL);
+	sg = kzalloc_obj(*sg);
 	if (!sg)
 		return ERR_PTR(-ENOMEM);
 
@@ -147,7 +148,7 @@ struct dma_buf *amdxdna_get_ubuf(struct drm_device *dev,
 	if (!can_do_mlock())
 		return ERR_PTR(-EPERM);
 
-	ubuf = kzalloc(sizeof(*ubuf), GFP_KERNEL);
+	ubuf = kzalloc_obj(*ubuf);
 	if (!ubuf)
 		return ERR_PTR(-ENOMEM);
 
@@ -155,7 +156,7 @@ struct dma_buf *amdxdna_get_ubuf(struct drm_device *dev,
 	ubuf->mm = current->mm;
 	mmgrab(ubuf->mm);
 
-	va_ent = kvcalloc(num_entries, sizeof(*va_ent), GFP_KERNEL);
+	va_ent = kvzalloc_objs(*va_ent, num_entries);
 	if (!va_ent) {
 		ret = -ENOMEM;
 		goto free_ubuf;
@@ -176,7 +177,10 @@ struct dma_buf *amdxdna_get_ubuf(struct drm_device *dev,
 			goto free_ent;
 		}
 
-		exp_info.size += va_ent[i].len;
+		if (check_add_overflow(exp_info.size, va_ent[i].len, &exp_info.size)) {
+			ret = -EINVAL;
+			goto free_ent;
+		}
 	}
 
 	ubuf->nr_pages = exp_info.size >> PAGE_SHIFT;
@@ -189,7 +193,7 @@ struct dma_buf *amdxdna_get_ubuf(struct drm_device *dev,
 		goto sub_pin_cnt;
 	}
 
-	ubuf->pages = kvmalloc_array(ubuf->nr_pages, sizeof(*ubuf->pages), GFP_KERNEL);
+	ubuf->pages = kvmalloc_objs(*ubuf->pages, ubuf->nr_pages);
 	if (!ubuf->pages) {
 		ret = -ENOMEM;
 		goto sub_pin_cnt;

@@ -441,7 +441,7 @@ struct device *tegra_soc_device_register(void)
 	struct soc_device_attribute *attr;
 	struct soc_device *dev;
 
-	attr = kzalloc(sizeof(*attr), GFP_KERNEL);
+	attr = kzalloc_obj(*attr);
 	if (!attr)
 		return NULL;
 

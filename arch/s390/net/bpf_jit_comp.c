@@ -2323,7 +2323,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 
 	jit_data = fp->aux->jit_data;
 	if (!jit_data) {
-		jit_data = kzalloc(sizeof(*jit_data), GFP_KERNEL);
+		jit_data = kzalloc_obj(*jit_data);
 		if (!jit_data) {
 			fp = orig_fp;
 			goto out;

@@ -1017,7 +1017,7 @@ static int acpi_pcc_hotkey_add(struct acpi_device *device)
 	 */
 	num_sifr++;
 
-	pcc = kzalloc(sizeof(struct pcc_acpi), GFP_KERNEL);
+	pcc = kzalloc_obj(struct pcc_acpi);
 	if (!pcc) {
 		pr_err("Couldn't allocate mem for pcc");
 		return -ENOMEM;

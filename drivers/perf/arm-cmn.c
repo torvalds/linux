@@ -1700,7 +1700,7 @@ static int arm_cmn_validate_group(struct arm_cmn *cmn, struct perf_event *event)
 	if (event->pmu != leader->pmu && !is_software_event(leader))
 		return -EINVAL;
 
-	val = kzalloc(sizeof(*val), GFP_KERNEL);
+	val = kzalloc_obj(*val);
 	if (!val)
 		return -ENOMEM;
 

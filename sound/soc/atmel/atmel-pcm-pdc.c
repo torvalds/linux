@@ -288,7 +288,7 @@ static int atmel_pcm_open(struct snd_soc_component *component,
 	if (ret < 0)
 		goto out;
 
-	prtd = kzalloc(sizeof(struct atmel_runtime_data), GFP_KERNEL);
+	prtd = kzalloc_obj(struct atmel_runtime_data);
 	if (prtd == NULL) {
 		ret = -ENOMEM;
 		goto out;

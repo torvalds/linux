@@ -265,8 +265,7 @@ static int check_base(struct daemon *daemon)
 			       daemon->base);
 			return -EACCES;
 		default:
-			pr_err("failed: can't access base '%s': %s\n",
-			       daemon->base, strerror(errno));
+			pr_err("failed: can't access base '%s': %m\n", daemon->base);
 			return -errno;
 		}
 	}
@@ -544,8 +543,7 @@ static int daemon_session__control(struct daemon_session *session,
 
 	err = writen(control, msg, len);
 	if (err != len) {
-		pr_err("failed: write to control pipe: %d (%s)\n",
-		       errno, control_path);
+		pr_err("failed: write to control pipe: %m (%s)\n", control_path);
 		goto out;
 	}
 
@@ -586,7 +584,7 @@ static int setup_server_socket(struct daemon *daemon)
 	int fd = socket(AF_UNIX, SOCK_STREAM, 0);
 
 	if (fd < 0) {
-		fprintf(stderr, "socket: %s\n", strerror(errno));
+		fprintf(stderr, "socket: %m\n");
 		return -1;
 	}
 

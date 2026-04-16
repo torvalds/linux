@@ -102,7 +102,7 @@ static int fscontext_create_fd(struct fs_context *fc, unsigned int o_flags)
 
 static int fscontext_alloc_log(struct fs_context *fc)
 {
-	fc->log.log = kzalloc(sizeof(*fc->log.log), GFP_KERNEL);
+	fc->log.log = kzalloc_obj(*fc->log.log);
 	if (!fc->log.log)
 		return -ENOMEM;
 	refcount_set(&fc->log.log->usage, 1);

@@ -687,7 +687,7 @@ static int ethtool_get_max_rxnfc_channel(struct net_device *dev, u64 *max)
 	if (rule_cnt <= 0)
 		return -EINVAL;
 
-	info = kvzalloc(struct_size(info, rule_locs, rule_cnt), GFP_KERNEL);
+	info = kvzalloc_flex(*info, rule_locs, rule_cnt);
 	if (!info)
 		return -ENOMEM;
 
@@ -770,7 +770,7 @@ static u32 ethtool_get_max_rxfh_channel(struct net_device *dev)
 	if (dev_size == 0)
 		return current_max;
 
-	rxfh.indir = kcalloc(dev_size, sizeof(rxfh.indir[0]), GFP_USER);
+	rxfh.indir = kzalloc_objs(rxfh.indir[0], dev_size, GFP_USER);
 	if (!rxfh.indir)
 		return U32_MAX;
 
@@ -841,7 +841,7 @@ int ethtool_check_rss_ctx_busy(struct net_device *dev, u32 rss_context)
 	if (rule_cnt < 0)
 		return -EINVAL;
 
-	info = kvzalloc(struct_size(info, rule_locs, rule_cnt), GFP_KERNEL);
+	info = kvzalloc_flex(*info, rule_locs, rule_cnt);
 	if (!info)
 		return -ENOMEM;
 

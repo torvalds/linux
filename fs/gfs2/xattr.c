@@ -467,7 +467,7 @@ static int gfs2_iter_unstuffed(struct gfs2_inode *ip, struct gfs2_ea_header *ea,
 	unsigned char *pos;
 	unsigned cp_size;
 
-	bh = kcalloc(nptrs, sizeof(struct buffer_head *), GFP_NOFS);
+	bh = kzalloc_objs(struct buffer_head *, nptrs, GFP_NOFS);
 	if (!bh)
 		return -ENOMEM;
 

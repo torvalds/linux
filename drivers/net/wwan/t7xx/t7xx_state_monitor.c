@@ -486,7 +486,8 @@ int t7xx_fsm_append_cmd(struct t7xx_fsm_ctl *ctl, enum t7xx_fsm_cmd_state cmd_id
 	unsigned long flags;
 	int ret;
 
-	cmd = kzalloc(sizeof(*cmd), flag & FSM_CMD_FLAG_IN_INTERRUPT ? GFP_ATOMIC : GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd,
+			  flag & FSM_CMD_FLAG_IN_INTERRUPT ? GFP_ATOMIC : GFP_KERNEL);
 	if (!cmd)
 		return -ENOMEM;
 
@@ -532,8 +533,8 @@ int t7xx_fsm_append_event(struct t7xx_fsm_ctl *ctl, enum t7xx_fsm_event_state ev
 		return -EINVAL;
 	}
 
-	event = kmalloc(struct_size(event, data, length),
-			in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
+	event = kmalloc_flex(*event, data, length,
+			     in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
 	if (!event)
 		return -ENOMEM;
 

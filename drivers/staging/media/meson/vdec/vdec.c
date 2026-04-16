@@ -132,7 +132,7 @@ vdec_queue_recycle(struct amvdec_session *sess, struct vb2_buffer *vb)
 {
 	struct amvdec_buffer *new_buf;
 
-	new_buf = kmalloc(sizeof(*new_buf), GFP_KERNEL);
+	new_buf = kmalloc_obj(*new_buf);
 	if (!new_buf)
 		return;
 	new_buf->vb = vb;
@@ -867,7 +867,7 @@ static int vdec_open(struct file *file)
 	struct amvdec_session *sess;
 	int ret;
 
-	sess = kzalloc(sizeof(*sess), GFP_KERNEL);
+	sess = kzalloc_obj(*sess);
 	if (!sess)
 		return -ENOMEM;
 

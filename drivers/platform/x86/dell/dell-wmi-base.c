@@ -80,6 +80,12 @@ static const struct dmi_system_id dell_wmi_smbios_list[] __initconst = {
 static const struct key_entry dell_wmi_keymap_type_0000[] = {
 	{ KE_IGNORE, 0x003a, { KEY_CAPSLOCK } },
 
+	/* Audio mute toggle */
+	{ KE_KEY,    0x0109, { KEY_MUTE } },
+
+	/* Mic mute toggle */
+	{ KE_KEY,    0x0150, { KEY_MICMUTE } },
+
 	/* Meta key lock */
 	{ KE_IGNORE, 0xe000, { KEY_RIGHTMETA } },
 
@@ -586,7 +592,7 @@ static void handle_dmi_entry(const struct dmi_header *dm, void *opaque)
 		return;
 	}
 
-	keymap = kcalloc(hotkey_num, sizeof(struct key_entry), GFP_KERNEL);
+	keymap = kzalloc_objs(struct key_entry, hotkey_num);
 	if (!keymap) {
 		results->err = -ENOMEM;
 		return;
@@ -656,13 +662,8 @@ static int dell_wmi_input_setup(struct wmi_device *wdev)
 		goto err_free_dev;
 	}
 
-	keymap = kcalloc(dmi_results.keymap_size +
-			 ARRAY_SIZE(dell_wmi_keymap_type_0000) +
-			 ARRAY_SIZE(dell_wmi_keymap_type_0010) +
-			 ARRAY_SIZE(dell_wmi_keymap_type_0011) +
-			 ARRAY_SIZE(dell_wmi_keymap_type_0012) +
-			 1,
-			 sizeof(struct key_entry), GFP_KERNEL);
+	keymap = kzalloc_objs(struct key_entry,
+			      dmi_results.keymap_size + ARRAY_SIZE(dell_wmi_keymap_type_0000) + ARRAY_SIZE(dell_wmi_keymap_type_0010) + ARRAY_SIZE(dell_wmi_keymap_type_0011) + ARRAY_SIZE(dell_wmi_keymap_type_0012) + 1);
 	if (!keymap) {
 		kfree(dmi_results.keymap);
 		err = -ENOMEM;
@@ -773,7 +774,7 @@ static int dell_wmi_events_set_enabled(bool enable)
 	struct calling_interface_buffer *buffer;
 	int ret;
 
-	buffer = kzalloc(sizeof(struct calling_interface_buffer), GFP_KERNEL);
+	buffer = kzalloc_obj(struct calling_interface_buffer);
 	if (!buffer)
 		return -ENOMEM;
 	buffer->cmd_class = CLASS_INFO;

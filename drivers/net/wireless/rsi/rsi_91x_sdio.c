@@ -828,7 +828,7 @@ static int rsi_init_sdio_interface(struct rsi_hw *adapter,
 	struct rsi_91x_sdiodev *rsi_91x_dev;
 	int status;
 
-	rsi_91x_dev = kzalloc(sizeof(*rsi_91x_dev), GFP_KERNEL);
+	rsi_91x_dev = kzalloc_obj(*rsi_91x_dev);
 	if (!rsi_91x_dev)
 		return -ENOMEM;
 

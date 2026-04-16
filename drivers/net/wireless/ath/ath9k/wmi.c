@@ -92,7 +92,7 @@ struct wmi *ath9k_init_wmi(struct ath9k_htc_priv *priv)
 {
 	struct wmi *wmi;
 
-	wmi = kzalloc(sizeof(struct wmi), GFP_KERNEL);
+	wmi = kzalloc_obj(struct wmi);
 	if (!wmi)
 		return NULL;
 

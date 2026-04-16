@@ -43,7 +43,7 @@ static int fill_list(unsigned int nr_pages)
 	struct range mhp_range;
 	int ret;
 
-	res = kzalloc(sizeof(*res), GFP_KERNEL);
+	res = kzalloc_obj(*res);
 	if (!res)
 		return -ENOMEM;
 
@@ -65,7 +65,7 @@ static int fill_list(unsigned int nr_pages)
 	 * re-using it by someone else.
 	 */
 	if (target_resource != &iomem_resource) {
-		tmp_res = kzalloc(sizeof(*tmp_res), GFP_KERNEL);
+		tmp_res = kzalloc_obj(*tmp_res);
 		if (!tmp_res) {
 			ret = -ENOMEM;
 			goto err_insert;
@@ -84,7 +84,7 @@ static int fill_list(unsigned int nr_pages)
 		}
 	}
 
-	pgmap = kzalloc(sizeof(*pgmap), GFP_KERNEL);
+	pgmap = kzalloc_obj(*pgmap);
 	if (!pgmap) {
 		ret = -ENOMEM;
 		goto err_pgmap;

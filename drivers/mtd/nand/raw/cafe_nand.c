@@ -678,7 +678,7 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	cafe = kzalloc(sizeof(*cafe), GFP_KERNEL);
+	cafe = kzalloc_obj(*cafe);
 	if (!cafe) {
 		err = -ENOMEM;
 		goto out_disable_device;

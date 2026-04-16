@@ -418,7 +418,7 @@ static void setup_bus_id(struct parisc_device *padev)
 static struct parisc_device * __init create_tree_node(char id,
 						      struct device *parent)
 {
-	struct parisc_device *dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	struct parisc_device *dev = kzalloc_obj(*dev);
 	if (!dev)
 		return NULL;
 

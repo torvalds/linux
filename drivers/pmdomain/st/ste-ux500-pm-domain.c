@@ -65,7 +65,7 @@ static int ux500_pm_domains_probe(struct platform_device *pdev)
 	if (!np)
 		return -ENODEV;
 
-	genpd_data = kzalloc(sizeof(*genpd_data), GFP_KERNEL);
+	genpd_data = kzalloc_obj(*genpd_data);
 	if (!genpd_data)
 		return -ENOMEM;
 

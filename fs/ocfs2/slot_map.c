@@ -385,8 +385,7 @@ static int ocfs2_map_slot_buffers(struct ocfs2_super *osb,
 
 	trace_ocfs2_map_slot_buffers(bytes, si->si_blocks);
 
-	si->si_bh = kcalloc(si->si_blocks, sizeof(struct buffer_head *),
-			    GFP_KERNEL);
+	si->si_bh = kzalloc_objs(struct buffer_head *, si->si_blocks);
 	if (!si->si_bh) {
 		status = -ENOMEM;
 		mlog_errno(status);
@@ -425,7 +424,7 @@ int ocfs2_init_slot_info(struct ocfs2_super *osb)
 	struct inode *inode = NULL;
 	struct ocfs2_slot_info *si;
 
-	si = kzalloc(struct_size(si, si_slots, osb->max_slots), GFP_KERNEL);
+	si = kzalloc_flex(*si, si_slots, osb->max_slots);
 	if (!si) {
 		status = -ENOMEM;
 		mlog_errno(status);

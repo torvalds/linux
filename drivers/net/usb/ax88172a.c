@@ -165,7 +165,7 @@ static int ax88172a_bind(struct usbnet *dev, struct usb_interface *intf)
 	if (ret)
 		return ret;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

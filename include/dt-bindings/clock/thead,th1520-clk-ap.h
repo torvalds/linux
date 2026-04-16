@@ -93,6 +93,7 @@
 #define CLK_SRAM3		83
 #define CLK_PLL_GMAC_100M	84
 #define CLK_UART_SCLK		85
+#define CLK_C910_BUS		86
 
 /* VO clocks */
 #define CLK_AXI4_VO_ACLK		0

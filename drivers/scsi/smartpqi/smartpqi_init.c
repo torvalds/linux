@@ -888,7 +888,7 @@ static int pqi_get_advanced_raid_bypass_config(struct pqi_ctrl_info *ctrl_info)
 	struct pqi_raid_path_request request;
 	struct bmic_sense_feature_buffer *buffer;
 
-	buffer = kmalloc(sizeof(*buffer), GFP_KERNEL);
+	buffer = kmalloc_obj(*buffer);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -953,7 +953,7 @@ static int pqi_flush_cache(struct pqi_ctrl_info *ctrl_info,
 	int rc;
 	struct bmic_flush_cache *flush_cache;
 
-	flush_cache = kzalloc(sizeof(*flush_cache), GFP_KERNEL);
+	flush_cache = kzalloc_obj(*flush_cache);
 	if (!flush_cache)
 		return -ENOMEM;
 
@@ -982,7 +982,7 @@ static int pqi_set_diag_rescan(struct pqi_ctrl_info *ctrl_info)
 	int rc;
 	struct bmic_diag_options *diag;
 
-	diag = kzalloc(sizeof(*diag), GFP_KERNEL);
+	diag = kzalloc_obj(*diag);
 	if (!diag)
 		return -ENOMEM;
 
@@ -1164,7 +1164,7 @@ static int pqi_report_phys_logical_luns(struct pqi_ctrl_info *ctrl_info, u8 cmd,
 	void *lun_data = NULL;
 	struct report_lun_header *report_lun_header;
 
-	report_lun_header = kmalloc(sizeof(*report_lun_header), GFP_KERNEL);
+	report_lun_header = kmalloc_obj(*report_lun_header);
 	if (!report_lun_header) {
 		rc = -ENOMEM;
 		goto out;
@@ -1252,8 +1252,8 @@ static inline int pqi_report_phys_luns(struct pqi_ctrl_info *ctrl_info, void **b
 	rpl_8byte_wwid_list = rpl_list;
 	num_physicals = get_unaligned_be32(&rpl_8byte_wwid_list->header.list_length) / sizeof(rpl_8byte_wwid_list->lun_entries[0]);
 
-	rpl_16byte_wwid_list = kmalloc(struct_size(rpl_16byte_wwid_list, lun_entries,
-						   num_physicals), GFP_KERNEL);
+	rpl_16byte_wwid_list = kmalloc_flex(*rpl_16byte_wwid_list, lun_entries,
+					    num_physicals);
 	if (!rpl_16byte_wwid_list) {
 		rc = -ENOMEM;
 		goto out_free_rpl_list;
@@ -1478,7 +1478,7 @@ static int pqi_get_raid_map(struct pqi_ctrl_info *ctrl_info,
 	u32 raid_map_size;
 	struct raid_map *raid_map;
 
-	raid_map = kmalloc(sizeof(*raid_map), GFP_KERNEL);
+	raid_map = kmalloc_obj(*raid_map);
 	if (!raid_map)
 		return -ENOMEM;
 
@@ -1616,7 +1616,7 @@ static void pqi_get_volume_status(struct pqi_ctrl_info *ctrl_info,
 	u32 volume_flags;
 	struct ciss_vpd_logical_volume_status *vpd;
 
-	vpd = kmalloc(sizeof(*vpd), GFP_KERNEL);
+	vpd = kmalloc_obj(*vpd);
 	if (!vpd)
 		goto no_buffer;
 
@@ -2447,7 +2447,7 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 		 * pqi_get_physical_disk_info() because it's a fairly large
 		 * buffer.
 		 */
-		id_phys = kmalloc(sizeof(*id_phys), GFP_KERNEL);
+		id_phys = kmalloc_obj(*id_phys);
 		if (!id_phys) {
 			dev_warn(&ctrl_info->pci_dev->dev, "%s\n",
 				out_of_memory_msg);
@@ -2472,9 +2472,7 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 
 	num_new_devices = num_physicals + num_logicals;
 
-	new_device_list = kmalloc_array(num_new_devices,
-					sizeof(*new_device_list),
-					GFP_KERNEL);
+	new_device_list = kmalloc_objs(*new_device_list, num_new_devices);
 	if (!new_device_list) {
 		dev_warn(&ctrl_info->pci_dev->dev, "%s\n", out_of_memory_msg);
 		rc = -ENOMEM;
@@ -2482,7 +2480,7 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 	}
 
 	for (i = 0; i < num_new_devices; i++) {
-		device = kzalloc(sizeof(*device), GFP_KERNEL);
+		device = kzalloc_obj(*device);
 		if (!device) {
 			dev_warn(&ctrl_info->pci_dev->dev, "%s\n",
 				out_of_memory_msg);
@@ -4751,7 +4749,7 @@ static int pqi_report_device_capability(struct pqi_ctrl_info *ctrl_info)
 	struct pqi_device_capability *capability;
 	struct pqi_iu_layer_descriptor *sop_iu_layer_descriptor;
 
-	capability = kmalloc(sizeof(*capability), GFP_KERNEL);
+	capability = kmalloc_obj(*capability);
 	if (!capability)
 		return -ENOMEM;
 
@@ -5207,8 +5205,8 @@ static int pqi_alloc_io_resources(struct pqi_ctrl_info *ctrl_info)
 	struct device *dev;
 	struct pqi_io_request *io_request;
 
-	ctrl_info->io_request_pool = kcalloc(ctrl_info->max_io_slots,
-		sizeof(ctrl_info->io_request_pool[0]), GFP_KERNEL);
+	ctrl_info->io_request_pool = kzalloc_objs(ctrl_info->io_request_pool[0],
+						  ctrl_info->max_io_slots);
 
 	if (!ctrl_info->io_request_pool) {
 		dev_err(&ctrl_info->pci_dev->dev,
@@ -7746,7 +7744,7 @@ static int pqi_get_ctrl_serial_number(struct pqi_ctrl_info *ctrl_info)
 	int rc;
 	struct bmic_sense_subsystem_info *sense_info;
 
-	sense_info = kzalloc(sizeof(*sense_info), GFP_KERNEL);
+	sense_info = kzalloc_obj(*sense_info);
 	if (!sense_info)
 		return -ENOMEM;
 
@@ -7769,7 +7767,7 @@ static int pqi_get_ctrl_product_details(struct pqi_ctrl_info *ctrl_info)
 	int rc;
 	struct bmic_identify_controller *identify;
 
-	identify = kmalloc(sizeof(*identify), GFP_KERNEL);
+	identify = kmalloc_obj(*identify);
 	if (!identify)
 		return -ENOMEM;
 

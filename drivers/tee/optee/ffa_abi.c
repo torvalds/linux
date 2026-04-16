@@ -78,7 +78,7 @@ static int optee_shm_add_ffa_handle(struct optee *optee, struct tee_shm *shm,
 	struct shm_rhash *r;
 	int rc;
 
-	r = kmalloc(sizeof(*r), GFP_KERNEL);
+	r = kmalloc_obj(*r);
 	if (!r)
 		return -ENOMEM;
 	r->shm = shm;
@@ -404,7 +404,7 @@ static const struct tee_shm_pool_ops pool_ffa_ops = {
  */
 static struct tee_shm_pool *optee_ffa_shm_pool_alloc_pages(void)
 {
-	struct tee_shm_pool *pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+	struct tee_shm_pool *pool = kzalloc_obj(*pool);
 
 	if (!pool)
 		return ERR_PTR(-ENOMEM);
@@ -697,7 +697,7 @@ static int optee_ffa_lend_protmem(struct optee *optee, struct tee_shm *protmem,
 	unsigned int n;
 	int rc;
 
-	mem_attr = kcalloc(ma_count, sizeof(*mem_attr), GFP_KERNEL);
+	mem_attr = kzalloc_objs(*mem_attr, ma_count);
 	for (n = 0; n < ma_count; n++) {
 		mem_attr[n].receiver = mem_attrs[n] & U16_MAX;
 		mem_attr[n].attrs = mem_attrs[n] >> 16;
@@ -1077,7 +1077,7 @@ static int optee_ffa_probe(struct ffa_device *ffa_dev)
 	if (sec_caps & OPTEE_FFA_SEC_CAP_ARG_OFFSET)
 		arg_cache_flags |= OPTEE_SHM_ARG_SHARED;
 
-	optee = kzalloc(sizeof(*optee), GFP_KERNEL);
+	optee = kzalloc_obj(*optee);
 	if (!optee)
 		return -ENOMEM;
 

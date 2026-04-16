@@ -87,8 +87,7 @@ struct pmc_data *pmc_data_allocate(unsigned int ncore, unsigned int nsystem,
 	unsigned int num_clks = ncore + nsystem + nperiph + ngck + npck;
 	struct pmc_data *pmc_data;
 
-	pmc_data = kzalloc(struct_size(pmc_data, hwtable, num_clks),
-			   GFP_KERNEL);
+	pmc_data = kzalloc_flex(*pmc_data, hwtable, num_clks);
 	if (!pmc_data)
 		return NULL;
 

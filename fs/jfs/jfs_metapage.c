@@ -98,7 +98,7 @@ static inline int insert_metapage(struct folio *folio, struct metapage *mp)
 
 	a = folio->private;
 	if (!a) {
-		a = kzalloc(sizeof(struct meta_anchor), GFP_NOFS);
+		a = kzalloc_obj(struct meta_anchor, GFP_NOFS);
 		if (!a)
 			return -ENOMEM;
 		folio_attach_private(folio, a);

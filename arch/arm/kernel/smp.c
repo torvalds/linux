@@ -108,7 +108,7 @@ static unsigned long get_arch_pgd(pgd_t *pgd)
 static int secondary_biglittle_prepare(unsigned int cpu)
 {
 	if (!cpu_vtable[cpu])
-		cpu_vtable[cpu] = kzalloc(sizeof(*cpu_vtable[cpu]), GFP_KERNEL);
+		cpu_vtable[cpu] = kzalloc_obj(*cpu_vtable[cpu]);
 
 	return cpu_vtable[cpu] ? 0 : -ENOMEM;
 }

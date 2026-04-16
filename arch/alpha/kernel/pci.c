@@ -220,7 +220,7 @@ static void pdev_save_srm_config(struct pci_dev *dev)
 		printed = 1;
 	}
 
-	tmp = kmalloc(sizeof(*tmp), GFP_KERNEL);
+	tmp = kmalloc_obj(*tmp);
 	if (!tmp) {
 		printk(KERN_ERR "%s: kmalloc() failed!\n", __func__);
 		return;

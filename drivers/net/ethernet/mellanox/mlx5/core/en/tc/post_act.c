@@ -42,7 +42,7 @@ mlx5e_tc_post_act_init(struct mlx5e_priv *priv, struct mlx5_fs_chains *chains,
 		goto err_check;
 	}
 
-	post_act = kzalloc(sizeof(*post_act), GFP_KERNEL);
+	post_act = kzalloc_obj(*post_act);
 	if (!post_act) {
 		err = -ENOMEM;
 		goto err_check;
@@ -86,7 +86,7 @@ mlx5e_tc_post_act_offload(struct mlx5e_post_act *post_act,
 	if (IS_ERR(post_act))
 		return PTR_ERR(post_act);
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 
@@ -117,7 +117,7 @@ mlx5e_tc_post_act_add(struct mlx5e_post_act *post_act, struct mlx5_flow_attr *po
 	if (IS_ERR(post_act))
 		return ERR_CAST(post_act);
 
-	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
+	handle = kzalloc_obj(*handle);
 	if (!handle)
 		return ERR_PTR(-ENOMEM);
 

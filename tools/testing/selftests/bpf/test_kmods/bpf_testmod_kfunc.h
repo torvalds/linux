@@ -118,6 +118,7 @@ void bpf_kfunc_call_test_mem_len_fail2(__u64 *mem, int len) __ksym;
 
 void bpf_kfunc_call_test_destructive(void) __ksym;
 void bpf_kfunc_call_test_sleepable(void) __ksym;
+int bpf_kfunc_call_test_call_rcu_tasks_trace(int *done) __ksym;
 
 void bpf_kfunc_call_test_offset(struct prog_test_ref_kfunc *p);
 struct prog_test_member *bpf_kfunc_call_memb_acquire(void);

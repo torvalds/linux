@@ -156,8 +156,7 @@ static int rxe_mr_fill_pages_from_sgt(struct rxe_mr *mr, struct sg_table *sgt)
 
 static int __alloc_mr_page_info(struct rxe_mr *mr, int num_pages)
 {
-	mr->page_info = kcalloc(num_pages, sizeof(struct rxe_mr_page),
-				GFP_KERNEL);
+	mr->page_info = kzalloc_objs(struct rxe_mr_page, num_pages);
 	if (!mr->page_info)
 		return -ENOMEM;
 

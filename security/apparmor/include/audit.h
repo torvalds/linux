@@ -119,6 +119,8 @@ struct apparmor_audit_data {
 	const char *info;
 	u32 request;
 	u32 denied;
+	u32 tags;
+
 	union {
 		/* these entries require a custom callback fn */
 		struct {

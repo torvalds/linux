@@ -127,7 +127,7 @@ nvkm_ram_wrap(struct nvkm_device *device, u64 addr, u64 size,
 		return -ENODEV;
 	ram = device->fb->ram;
 
-	if (!(vram = kzalloc(sizeof(*vram), GFP_KERNEL)))
+	if (!(vram = kzalloc_obj(*vram)))
 		return -ENOMEM;
 
 	nvkm_memory_ctor(&nvkm_vram, &vram->memory);
@@ -135,7 +135,7 @@ nvkm_ram_wrap(struct nvkm_device *device, u64 addr, u64 size,
 	vram->page = NVKM_RAM_MM_SHIFT;
 	*pmemory = &vram->memory;
 
-	vram->mn = kzalloc(sizeof(*vram->mn), GFP_KERNEL);
+	vram->mn = kzalloc_obj(*vram->mn);
 	if (!vram->mn)
 		return -ENOMEM;
 
@@ -163,7 +163,7 @@ nvkm_ram_get(struct nvkm_device *device, u8 heap, u8 type, u8 rpage, u64 size,
 	ram = device->fb->ram;
 	mm = &ram->vram;
 
-	if (!(vram = kzalloc(sizeof(*vram), GFP_KERNEL)))
+	if (!(vram = kzalloc_obj(*vram)))
 		return -ENOMEM;
 	nvkm_memory_ctor(&nvkm_vram, &vram->memory);
 	vram->ram = ram;
@@ -257,7 +257,7 @@ int
 nvkm_ram_new_(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
 	      enum nvkm_ram_type type, u64 size, struct nvkm_ram **pram)
 {
-	if (!(*pram = kzalloc(sizeof(**pram), GFP_KERNEL)))
+	if (!(*pram = kzalloc_obj(**pram)))
 		return -ENOMEM;
 	return nvkm_ram_ctor(func, fb, type, size, *pram);
 }

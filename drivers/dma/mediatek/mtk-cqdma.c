@@ -501,12 +501,12 @@ mtk_cqdma_prep_dma_memcpy(struct dma_chan *c, dma_addr_t dest,
 	 * until all the child CVDs completed.
 	 */
 	nr_vd = DIV_ROUND_UP(len, MTK_CQDMA_MAX_LEN);
-	cvd = kcalloc(nr_vd, sizeof(*cvd), GFP_NOWAIT);
+	cvd = kzalloc_objs(*cvd, nr_vd, GFP_NOWAIT);
 	if (!cvd)
 		return NULL;
 
 	for (i = 0; i < nr_vd; ++i) {
-		cvd[i] = kzalloc(sizeof(*cvd[i]), GFP_NOWAIT);
+		cvd[i] = kzalloc_obj(*cvd[i], GFP_NOWAIT);
 		if (!cvd[i]) {
 			for (; i > 0; --i)
 				kfree(cvd[i - 1]);

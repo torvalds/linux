@@ -247,7 +247,7 @@ static struct pcpu *create_and_register_pcpu(struct xenpf_pcpuinfo *info)
 	if (info->flags & XEN_PCPU_FLAGS_INVALID)
 		return ERR_PTR(-ENODEV);
 
-	pcpu = kzalloc(sizeof(struct pcpu), GFP_KERNEL);
+	pcpu = kzalloc_obj(struct pcpu);
 	if (!pcpu)
 		return ERR_PTR(-ENOMEM);
 

@@ -562,11 +562,11 @@ static int setup_virtual_dp_monitor(struct intel_vgpu *vgpu, int port_num,
 	if (drm_WARN_ON(&i915->drm, resolution >= GVT_EDID_NUM))
 		return -EINVAL;
 
-	port->edid = kzalloc(sizeof(*(port->edid)), GFP_KERNEL);
+	port->edid = kzalloc_obj(*(port->edid));
 	if (!port->edid)
 		return -ENOMEM;
 
-	port->dpcd = kzalloc(sizeof(*(port->dpcd)), GFP_KERNEL);
+	port->dpcd = kzalloc_obj(*(port->dpcd));
 	if (!port->dpcd) {
 		kfree(port->edid);
 		return -ENOMEM;

@@ -119,7 +119,7 @@ void amdgpu_pasid_free_delayed(struct dma_resv *resv,
 		return;
 	}
 
-	cb = kmalloc(sizeof(*cb), GFP_KERNEL);
+	cb = kmalloc_obj(*cb);
 	if (!cb) {
 		/* Last resort when we are OOM */
 		dma_fence_wait(fence, false);

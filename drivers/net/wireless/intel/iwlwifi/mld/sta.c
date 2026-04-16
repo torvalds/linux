@@ -539,7 +539,7 @@ iwl_mld_add_link_sta(struct iwl_mld *mld, struct ieee80211_link_sta *link_sta)
 	if (link_sta == &link_sta->sta->deflink) {
 		mld_link_sta = &mld_sta->deflink;
 	} else {
-		mld_link_sta = kzalloc(sizeof(*mld_link_sta), GFP_KERNEL);
+		mld_link_sta = kzalloc_obj(*mld_link_sta);
 		if (!mld_link_sta)
 			return -ENOMEM;
 	}
@@ -660,8 +660,7 @@ iwl_mld_alloc_dup_data(struct iwl_mld *mld, struct iwl_mld_sta *mld_sta)
 	if (mld->fw_status.in_hw_restart)
 		return 0;
 
-	dup_data = kcalloc(mld->trans->info.num_rxqs, sizeof(*dup_data),
-			   GFP_KERNEL);
+	dup_data = kzalloc_objs(*dup_data, mld->trans->info.num_rxqs);
 	if (!dup_data)
 		return -ENOMEM;
 
@@ -695,9 +694,8 @@ static void iwl_mld_alloc_mpdu_counters(struct iwl_mld *mld,
 	    sta->tdls || !ieee80211_vif_is_mld(vif))
 		return;
 
-	mld_sta->mpdu_counters = kcalloc(mld->trans->info.num_rxqs,
-					 sizeof(*mld_sta->mpdu_counters),
-					 GFP_KERNEL);
+	mld_sta->mpdu_counters = kzalloc_objs(*mld_sta->mpdu_counters,
+				              mld->trans->info.num_rxqs);
 	if (!mld_sta->mpdu_counters)
 		return;
 

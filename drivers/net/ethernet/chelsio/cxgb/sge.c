@@ -366,7 +366,7 @@ static int tx_sched_init(struct sge *sge)
 	struct sched *s;
 	int i;
 
-	s = kzalloc(sizeof (struct sched), GFP_KERNEL);
+	s = kzalloc_obj(struct sched);
 	if (!s)
 		return -ENOMEM;
 
@@ -2095,7 +2095,7 @@ static void espibug_workaround(struct timer_list *t)
  */
 struct sge *t1_sge_create(struct adapter *adapter, struct sge_params *p)
 {
-	struct sge *sge = kzalloc(sizeof(*sge), GFP_KERNEL);
+	struct sge *sge = kzalloc_obj(*sge);
 	int i;
 
 	if (!sge)

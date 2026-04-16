@@ -264,7 +264,7 @@ static int __sgx_vepc_open(struct inode *inode, struct file *file)
 {
 	struct sgx_vepc *vepc;
 
-	vepc = kzalloc(sizeof(struct sgx_vepc), GFP_KERNEL);
+	vepc = kzalloc_obj(struct sgx_vepc);
 	if (!vepc)
 		return -ENOMEM;
 	mutex_init(&vepc->lock);

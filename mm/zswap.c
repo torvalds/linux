@@ -251,7 +251,7 @@ static struct zswap_pool *zswap_pool_create(char *compressor)
 	if (!zswap_has_pool && !strcmp(compressor, ZSWAP_PARAM_UNSET))
 		return NULL;
 
-	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+	pool = kzalloc_obj(*pool);
 	if (!pool)
 		return NULL;
 
@@ -1665,7 +1665,7 @@ int zswap_swapon(int type, unsigned long nr_pages)
 	unsigned int nr, i;
 
 	nr = DIV_ROUND_UP(nr_pages, ZSWAP_ADDRESS_SPACE_PAGES);
-	trees = kvcalloc(nr, sizeof(*tree), GFP_KERNEL);
+	trees = kvzalloc_objs(*tree, nr);
 	if (!trees) {
 		pr_err("alloc failed, zswap disabled for swap type %d\n", type);
 		return -ENOMEM;

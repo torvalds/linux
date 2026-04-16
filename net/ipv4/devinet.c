@@ -209,7 +209,7 @@ static struct in_ifaddr *inet_alloc_ifa(struct in_device *in_dev)
 {
 	struct in_ifaddr *ifa;
 
-	ifa = kzalloc(sizeof(*ifa), GFP_KERNEL_ACCOUNT);
+	ifa = kzalloc_obj(*ifa, GFP_KERNEL_ACCOUNT);
 	if (!ifa)
 		return NULL;
 
@@ -270,7 +270,7 @@ static struct in_device *inetdev_init(struct net_device *dev)
 
 	ASSERT_RTNL();
 
-	in_dev = kzalloc(sizeof(*in_dev), GFP_KERNEL);
+	in_dev = kzalloc_obj(*in_dev);
 	if (!in_dev)
 		goto out;
 	memcpy(&in_dev->cnf, dev_net(dev)->ipv4.devconf_dflt,
@@ -2754,9 +2754,8 @@ static __net_init int devinet_init_net(struct net *net)
 	int i;
 
 	err = -ENOMEM;
-	net->ipv4.inet_addr_lst = kmalloc_array(IN4_ADDR_HSIZE,
-						sizeof(struct hlist_head),
-						GFP_KERNEL);
+	net->ipv4.inet_addr_lst = kmalloc_objs(struct hlist_head,
+					       IN4_ADDR_HSIZE);
 	if (!net->ipv4.inet_addr_lst)
 		goto err_alloc_hash;
 

@@ -2136,7 +2136,7 @@ static int rt73usb_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Create channel information array
 	 */
-	info = kcalloc(spec->num_channels, sizeof(*info), GFP_KERNEL);
+	info = kzalloc_objs(*info, spec->num_channels);
 	if (!info)
 		return -ENOMEM;
 

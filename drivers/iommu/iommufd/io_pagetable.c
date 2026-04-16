@@ -245,7 +245,7 @@ static struct iopt_area *iopt_area_alloc(void)
 {
 	struct iopt_area *area;
 
-	area = kzalloc(sizeof(*area), GFP_KERNEL_ACCOUNT);
+	area = kzalloc_obj(*area, GFP_KERNEL_ACCOUNT);
 	if (!area)
 		return NULL;
 	RB_CLEAR_NODE(&area->node.rb);
@@ -715,7 +715,7 @@ int iopt_get_pages(struct io_pagetable *iopt, unsigned long iova,
 		struct iopt_pages_list *elm;
 		unsigned long last = min(last_iova, iopt_area_last_iova(area));
 
-		elm = kzalloc(sizeof(*elm), GFP_KERNEL_ACCOUNT);
+		elm = kzalloc_obj(*elm, GFP_KERNEL_ACCOUNT);
 		if (!elm) {
 			rc = -ENOMEM;
 			goto err_free;
@@ -888,7 +888,7 @@ int iopt_reserve_iova(struct io_pagetable *iopt, unsigned long start,
 	    iopt_allowed_iter_first(iopt, start, last))
 		return -EADDRINUSE;
 
-	reserved = kzalloc(sizeof(*reserved), GFP_KERNEL_ACCOUNT);
+	reserved = kzalloc_obj(*reserved, GFP_KERNEL_ACCOUNT);
 	if (!reserved)
 		return -ENOMEM;
 	reserved->node.start = start;

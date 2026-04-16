@@ -1194,14 +1194,14 @@ mlx5dr_action_create_mult_dest_tbl(struct mlx5dr_domain *dmn,
 		return NULL;
 	}
 
-	hw_dests = kcalloc(num_of_dests, sizeof(*hw_dests), GFP_KERNEL);
+	hw_dests = kzalloc_objs(*hw_dests, num_of_dests);
 	if (!hw_dests)
 		return NULL;
 
 	if (unlikely(check_mul_overflow(num_of_dests, 2u, &ref_act_cnt)))
 		goto free_hw_dests;
 
-	ref_actions = kcalloc(ref_act_cnt, sizeof(*ref_actions), GFP_KERNEL);
+	ref_actions = kzalloc_objs(*ref_actions, ref_act_cnt);
 	if (!ref_actions)
 		goto free_hw_dests;
 

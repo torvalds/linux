@@ -45,7 +45,7 @@ void visl_trace_bitstream(struct visl_ctx *ctx, struct visl_run *run)
 	struct dentry *dentry;
 	char name[32];
 
-	blob  = kzalloc(sizeof(*blob), GFP_KERNEL);
+	blob = kzalloc_obj(*blob);
 	if (!blob)
 		return;
 

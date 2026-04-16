@@ -273,7 +273,7 @@ goku_alloc_request(struct usb_ep *_ep, gfp_t gfp_flags)
 
 	if (!_ep)
 		return NULL;
-	req = kzalloc(sizeof *req, gfp_flags);
+	req = kzalloc_obj(*req, gfp_flags);
 	if (!req)
 		return NULL;
 
@@ -1755,7 +1755,7 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* alloc, and start init */
-	dev = kzalloc (sizeof *dev, GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev) {
 		retval = -ENOMEM;
 		goto err;

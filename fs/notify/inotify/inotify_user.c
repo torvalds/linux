@@ -660,7 +660,7 @@ static struct fsnotify_group *inotify_new_group(unsigned int max_events)
 	if (IS_ERR(group))
 		return group;
 
-	oevent = kmalloc(sizeof(struct inotify_event_info), GFP_KERNEL_ACCOUNT);
+	oevent = kmalloc_obj(struct inotify_event_info, GFP_KERNEL_ACCOUNT);
 	if (unlikely(!oevent)) {
 		fsnotify_destroy_group(group);
 		return ERR_PTR(-ENOMEM);
