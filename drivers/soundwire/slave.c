@@ -115,6 +115,9 @@ static bool find_slave(struct sdw_bus *bus,
 	u64 addr;
 	int ret;
 
+	if (acpi_bus_get_status(adev) || !acpi_dev_ready_for_enumeration(adev))
+		return false;
+
 	ret = acpi_get_local_u64_address(adev->handle, &addr);
 	if (ret < 0)
 		return false;
