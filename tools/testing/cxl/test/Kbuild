@@ -7,6 +7,7 @@ obj-m += cxl_mock_mem.o
 obj-m += cxl_translate.o
 
 cxl_test-y := cxl.o
+cxl_test-y += hmem_test.o
 cxl_mock-y := mock.o
 cxl_mock_mem-y := mem.o
 
