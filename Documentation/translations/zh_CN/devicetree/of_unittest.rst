@@ -32,27 +32,30 @@ OF Selftest被设计用来测试提供给设备驱动开发者的接口（includ
 2. 测试数据
 ===========
 
-设备树源文件（drivers/of/unittest-data/testcases.dts）包含执行drivers/of/unittest.c
-中自动化单元测试所需的测试数据。目前，以下设备树源包含文件（.dtsi）被包含在testcases.dt中::
+设备树源文件（drivers/of/unittest-data/testcases.dtso）包含执行drivers/of/unittest.c
+中自动化单元测试所需的测试数据。目前，以下设备树源包含文件（.dtsi）被包含在testcases.dtso中::
 
     drivers/of/unittest-data/tests-interrupts.dtsi
     drivers/of/unittest-data/tests-platform.dtsi
     drivers/of/unittest-data/tests-phandle.dtsi
     drivers/of/unittest-data/tests-match.dtsi
+    drivers/of/unittest-data/tests-address.dtsi
+    drivers/of/unittest-data/tests-overlay.dtsi
+    drivers/of/unittest-data/tests-lifecycle.dtsi
 
 当内核在启用CONFIG_OF_UNITTEST的情况下被构建时，那么下面的make规则::
 
-    $(obj)/%.dtb: $(src)/%.dts FORCE
-	    $(call if_changed_dep, dtc)
+    $(obj)/%.dtbo: $(src)/%.dtso $(DTC) FORCE
+	    $(call if_changed_dep,dtc)
 
-用于将DT源文件（testcases.dts）编译成二进制blob（testcases.dtb），也被称为扁平化的DT。
+用于将DT源文件（testcases.dtso）编译成二进制blob（testcases.dtbo），也被称为扁平化的DT。
 
-之后，使用以下规则将上述二进制blob包装成一个汇编文件（testcases.dtb.S）::
+之后，使用以下规则将上述二进制blob包装成一个汇编文件（testcases.dtbo.S）::
 
-    $(obj)/%.dtb.S: $(obj)/%.dtb
-	    $(call cmd, dt_S_dtb)
+    $(obj)/%.dtbo.S: $(obj)/%.dtbo FORCE
+	    $(call if_changed,wrap_S_dtb)
 
-汇编文件被编译成一个对象文件（testcases.dtb.o），并被链接到内核镜像中。
+汇编文件被编译成一个对象文件（testcases.dtbo.o），并被链接到内核镜像中。
 
 
 2.1. 添加测试数据

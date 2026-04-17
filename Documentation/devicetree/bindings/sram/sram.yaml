@@ -34,7 +34,9 @@ properties:
         - nvidia,tegra186-sysram
         - nvidia,tegra194-sysram
         - nvidia,tegra234-sysram
+        - qcom,hawi-imem
         - qcom,kaanapali-imem
+        - qcom,milos-imem
         - qcom,rpm-msg-ram
         - rockchip,rk3288-pmu-sram
 
@@ -65,7 +67,7 @@ properties:
     type: boolean
 
 patternProperties:
-  "^([a-z0-9]*-)?sram(-section)?@[a-f0-9]+$":
+  "^([a-z0-9]+-)*sram(-section)?@[a-f0-9]+$":
     type: object
     description:
       Each child of the sram node specifies a region of reserved memory.

@@ -15,6 +15,7 @@ properties:
   compatible:
     oneOf:
       - enum:
+          - fsl,imx25-aips
           - fsl,imx51-m4if
           - fsl,imx51-tigerp
           - fsl,imx51-aipstz

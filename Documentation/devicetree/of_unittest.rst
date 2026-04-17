@@ -48,30 +48,30 @@ from 'scripts/dtc/of_unittest_expect --help'.
 3. Test-data
 ============
 
-The Device Tree Source file (drivers/of/unittest-data/testcases.dts) contains
+The Device Tree Source file (drivers/of/unittest-data/testcases.dtso) contains
 the test data required for executing the unit tests automated in
 drivers/of/unittest.c. See the content of the folder::
 
     drivers/of/unittest-data/tests-*.dtsi
 
-for the Device Tree Source Include files (.dtsi) included in testcases.dts.
+for the Device Tree Source Include files (.dtsi) included in testcases.dtso.
 
 When the kernel is built with CONFIG_OF_UNITTEST enabled, then the following make
 rule::
 
-    $(obj)/%.dtb: $(src)/%.dts FORCE
-	    $(call if_changed_dep, dtc)
+    $(obj)/%.dtbo: $(src)/%.dtso $(DTC) FORCE
+	    $(call if_changed_dep,dtc)
 
-is used to compile the DT source file (testcases.dts) into a binary blob
-(testcases.dtb), also referred as flattened DT.
+is used to compile the DT source file (testcases.dtso) into a binary blob
+(testcases.dtbo), also referred as flattened DT.
 
 After that, using the following rule the binary blob above is wrapped as an
-assembly file (testcases.dtb.S)::
+assembly file (testcases.dtbo.S)::
 
-    $(obj)/%.dtb.S: $(obj)/%.dtb
-	    $(call cmd, dt_S_dtb)
+    $(obj)/%.dtbo.S: $(obj)/%.dtbo FORCE
+	    $(call if_changed,wrap_S_dtb)
 
-The assembly file is compiled into an object file (testcases.dtb.o), and is
+The assembly file is compiled into an object file (testcases.dtbo.o), and is
 linked into the kernel image.
 
 

@@ -24,7 +24,9 @@ properties:
   compatible:
     oneOf:
       - items:
-          - const: qcom,sar2130p-spmi-pmic-arb
+          - enum:
+              - qcom,eliza-spmi-pmic-arb
+              - qcom,sar2130p-spmi-pmic-arb
           - const: qcom,x1e80100-spmi-pmic-arb
       - const: qcom,x1e80100-spmi-pmic-arb
 

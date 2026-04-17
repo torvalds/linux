@@ -640,7 +640,7 @@ static struct qcom_pdm_data *qcom_pdm_start(void)
 	struct qcom_pdm_data *data;
 	int ret, i;
 
-	match = of_match_node(qcom_pdm_domains, of_root);
+	match = of_machine_get_match(qcom_pdm_domains);
 	if (!match) {
 		pr_notice("PDM: no support for the platform, userspace daemon might be required.\n");
 		return ERR_PTR(-ENODEV);

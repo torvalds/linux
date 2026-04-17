@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/arm,vexpress-scc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ARM Versatile Express Serial Configuration Controller
+
+maintainers:
+  - Liviu Dudau <liviu.dudau@arm.com>
+  - Sudeep Holla <sudeep.holla@arm.com>
+
+description: |
+  Test chips for ARM Versatile Express platform implement SCC (Serial
+  Configuration Controller) interface, used to set initial conditions
+  for the test chip.
+
+  In some cases its registers are also mapped in normal address space
+  and can be used to obtain runtime information about the chip internals
+  (like silicon temperature sensors) and as interface to other subsystems
+  like platform configuration control and power management.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - arm,vexpress-scc,v2p-ca15_a7
+      - const: arm,vexpress-scc
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - compatible
+
+additionalProperties: false
+
+examples:
+  - |
+    bus {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        scc@7fff0000 {
+            compatible = "arm,vexpress-scc,v2p-ca15_a7", "arm,vexpress-scc";
+            reg = <0 0x7fff0000 0 0x1000>;
+            interrupts = <0 95 4>;
+        };
+    };
+...

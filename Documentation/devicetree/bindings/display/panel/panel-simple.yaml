@@ -61,8 +61,6 @@ properties:
       - auo,p238han01
         # AU Optronics Corporation 31.5" FHD (1920x1080) TFT LCD panel
       - auo,p320hvn03
-        # AU Optronics Corporation 21.5" FHD (1920x1080) color TFT LCD panel
-      - auo,t215hvn01
         # Shanghai AVIC Optoelectronics 7" 1024x600 color TFT-LCD panel
       - avic,tm070ddh03
         # BOE AV101HDT-a10 10.1" 1280x720 LVDS panel
@@ -180,8 +178,6 @@ properties:
       - innolux,g121xce-l01
         # InnoLux 15.0" G150XGE-L05 XGA (1024x768) TFT LCD panel
       - innolux,g150xge-l05
-        # InnoLux 15.6" FHD (1920x1080) TFT LCD panel
-      - innolux,g156hce-l01
         # InnoLux 13.3" FHD (1920x1080) TFT LCD panel
       - innolux,n133hse-ea1
         # InnoLux 15.6" WXGA TFT LCD panel
@@ -204,6 +200,8 @@ properties:
       - lemaker,bl035-rgb-002
         # LG 7" (800x480 pixels) TFT LCD panel
       - lg,lb070wv8
+        # LG 6.1" (1440x3120) IPS LCD panel
+      - lg,sw49410
         # Logic Technologies LT161010-2NHC 7" WVGA TFT Cap Touch Module
       - logictechno,lt161010-2nhc
         # Logic Technologies LT161010-2NHR 7" WVGA TFT Resistive Touch Module

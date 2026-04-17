@@ -291,17 +291,9 @@ static int qcom_cpufreq_ipq8064_name_version(struct device *cpu_dev,
 	ret = qcom_smem_get_soc_id(&msm_id);
 	if (ret == -ENODEV) {
 		const struct of_device_id *match;
-		struct device_node *root;
-
-		root = of_find_node_by_path("/");
-		if (!root) {
-			ret = -ENODEV;
-			goto exit;
-		}
 
 		/* Fallback to compatible match with no SMEM initialized */
-		match = of_match_node(qcom_cpufreq_ipq806x_match_list, root);
-		of_node_put(root);
+		match = of_machine_get_match(qcom_cpufreq_ipq806x_match_list);
 		if (!match) {
 			ret = -ENODEV;
 			goto exit;
@@ -647,14 +639,10 @@ MODULE_DEVICE_TABLE(of, qcom_cpufreq_match_list);
  */
 static int __init qcom_cpufreq_init(void)
 {
-	struct device_node *np __free(device_node) = of_find_node_by_path("/");
 	const struct of_device_id *match;
 	int ret;
 
-	if (!np)
-		return -ENODEV;
-
-	match = of_match_node(qcom_cpufreq_match_list, np);
+	match = of_machine_get_match(qcom_cpufreq_match_list);
 	if (!match)
 		return -ENODEV;
 

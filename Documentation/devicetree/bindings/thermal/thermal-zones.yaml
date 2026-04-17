@@ -129,63 +129,60 @@ patternProperties:
           which the thermal framework needs to take action. The actions to
           be taken are defined in another node called cooling-maps.
 
-        patternProperties:
-          "^[a-zA-Z][a-zA-Z0-9\\-_]{0,63}$":
-            type: object
+        additionalProperties:
+          type: object
+          additionalProperties: false
 
-            properties:
-              temperature:
-                $ref: /schemas/types.yaml#/definitions/int32
-                minimum: -273000
-                maximum: 200000
-                description:
-                  An integer expressing the trip temperature in millicelsius.
+          properties:
+            temperature:
+              $ref: /schemas/types.yaml#/definitions/int32
+              minimum: -273000
+              maximum: 200000
+              description:
+                An integer expressing the trip temperature in millicelsius.
 
-              hysteresis:
-                $ref: /schemas/types.yaml#/definitions/uint32
-                description:
-                  An unsigned integer expressing the hysteresis delta with
-                  respect to the trip temperature property above, also in
-                  millicelsius. Any cooling action initiated by the framework is
-                  maintained until the temperature falls below
-                  (trip temperature - hysteresis). This potentially prevents a
-                  situation where the trip gets constantly triggered soon after
-                  cooling action is removed.
+            hysteresis:
+              $ref: /schemas/types.yaml#/definitions/uint32
+              description:
+                An unsigned integer expressing the hysteresis delta with
+                respect to the trip temperature property above, also in
+                millicelsius. Any cooling action initiated by the framework is
+                maintained until the temperature falls below
+                (trip temperature - hysteresis). This potentially prevents a
+                situation where the trip gets constantly triggered soon after
+                cooling action is removed.
 
-              type:
-                $ref: /schemas/types.yaml#/definitions/string
-                enum:
-                  - active   # enable active cooling e.g. fans
-                  - passive  # enable passive cooling e.g. throttling cpu
-                  - hot      # send notification to driver
-                  - critical # send notification to driver, trigger shutdown
-                description: |
-                  There are four valid trip types: active, passive, hot,
-                  critical.
+            type:
+              $ref: /schemas/types.yaml#/definitions/string
+              enum:
+                - active   # enable active cooling e.g. fans
+                - passive  # enable passive cooling e.g. throttling cpu
+                - hot      # send notification to driver
+                - critical # send notification to driver, trigger shutdown
+              description: |
+                There are four valid trip types: active, passive, hot,
+                critical.
 
-                  The critical trip type is used to set the maximum
-                  temperature threshold above which the HW becomes
-                  unstable and underlying firmware might even trigger a
-                  reboot. Hitting the critical threshold triggers a system
-                  shutdown.
+                The critical trip type is used to set the maximum
+                temperature threshold above which the HW becomes
+                unstable and underlying firmware might even trigger a
+                reboot. Hitting the critical threshold triggers a system
+                shutdown.
 
-                  The hot trip type can be used to send a notification to
-                  the thermal driver (if a .notify callback is registered).
-                  The action to be taken is left to the driver.
+                The hot trip type can be used to send a notification to
+                the thermal driver (if a .notify callback is registered).
+                The action to be taken is left to the driver.
 
-                  The passive trip type can be used to slow down HW e.g. run
-                  the CPU, GPU, bus at a lower frequency.
+                The passive trip type can be used to slow down HW e.g. run
+                the CPU, GPU, bus at a lower frequency.
 
-                  The active trip type can be used to control other HW to
-                  help in cooling e.g. fans can be sped up or slowed down
+                The active trip type can be used to control other HW to
+                help in cooling e.g. fans can be sped up or slowed down
 
-            required:
-              - temperature
-              - hysteresis
-              - type
-            additionalProperties: false
-
-        additionalProperties: false
+          required:
+            - temperature
+            - hysteresis
+            - type
 
       cooling-maps:
         type: object

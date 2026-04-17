@@ -227,7 +227,7 @@ struct node {
 	struct node *next_sibling;
 
 	char *fullpath;
-	int basenamelen;
+	size_t basenamelen;
 
 	cell_t phandle;
 	int addr_cells, size_cells;
