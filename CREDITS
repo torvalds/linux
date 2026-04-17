@@ -71,11 +71,6 @@ D: dosfs, LILO, some fd features, ATM, various other hacks here and there
 S: Buenos Aires
 S: Argentina
 
-NTFS FILESYSTEM
-N: Anton Altaparmakov
-E: anton@tuxera.com
-D: NTFS filesystem
-
 N: Tim Alpaerts
 E: tim_alpaerts@toyota-motor-europe.com
 D: 802.2 class II logical link control layer,
@@ -85,8 +80,8 @@ S: B-2610 Wilrijk-Antwerpen
 S: Belgium
 
 N: Anton Altaparmakov
-E: aia21@cantab.net
-W: http://www-stu.christs.cam.ac.uk/~aia21/
+E: anton@tuxera.com
+W: http://www.tuxera.com/
 D: Author of new NTFS driver, various other kernel hacks.
 S: Christ's College
 S: Cambridge CB2 3BU

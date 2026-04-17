@@ -1566,15 +1566,4 @@ const struct file_operations ntfs_file_operations = {
 	.release	= ntfs_file_release,
 	.setlease	= generic_setlease,
 };
-
-#if IS_ENABLED(CONFIG_NTFS_FS)
-const struct file_operations ntfs_legacy_file_operations = {
-	.llseek		= generic_file_llseek,
-	.read_iter	= ntfs_file_read_iter,
-	.splice_read	= ntfs_file_splice_read,
-	.open		= ntfs_file_open,
-	.release	= ntfs_file_release,
-	.setlease	= generic_setlease,
-};
-#endif
 // clang-format on
