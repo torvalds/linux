@@ -11432,14 +11432,6 @@ F:	drivers/hid/hid-sensor-*
 F:	drivers/iio/*/hid-*
 F:	include/linux/hid-sensor-*
 
-HID UNIVERSAL PIDFF DRIVER
-M:	Tomasz Pakuła <tomasz.pakula.oficjalny@gmail.com>
-M:	Oleg Makarenko <oleg@makarenk.ooo>
-L:	linux-input@vger.kernel.org
-S:	Maintained
-B:	https://github.com/JacKeTUs/universal-pidff/issues
-F:	drivers/hid/hid-universal-pidff.c
-
 HID VRC-2 CAR CONTROLLER DRIVER
 M:	Marcus Folkesson <marcus.folkesson@gmail.com>
 L:	linux-input@vger.kernel.org
@@ -14554,6 +14546,17 @@ M:	Jackie Dong <xy-jackie@139.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/lenovo/wmi-hotkey-utilities.c
+
+LENOVO HID drivers
+M:	Derek J. Clark <derekjohn.clark@gmail.com>
+M:	Mark Pearson <mpearson-lenovo@squebb.ca>
+L:	linux-input@vger.kernel.org
+S:	Maintained
+F:	Documentation/ABI/testing/sysfs-driver-hid-lenovo-go
+F:	Documentation/ABI/testing/sysfs-driver-hid-lenovo-go-s
+F:	drivers/hid/hid-lenovo-go-s.c
+F:	drivers/hid/hid-lenovo-go.c
+F:	drivers/hid/hid-lenovo.c
 
 LETSKETCH HID TABLET DRIVER
 M:	Hans de Goede <hansg@kernel.org>
@@ -27491,6 +27494,15 @@ S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/hid/hid.git
 F:	Documentation/hid/hiddev.rst
 F:	drivers/hid/usbhid/
+
+USB HID PID DRIVERS (USB WHEELBASES, JOYSTICKS, RUDDERS, ...)
+M:	Tomasz Pakuła <tomasz.pakula.oficjalny@gmail.com>
+M:	Oleg Makarenko <oleg@makarenk.ooo>
+L:	linux-input@vger.kernel.org
+S:	Maintained
+B:	https://github.com/JacKeTUs/universal-pidff/issues
+F:	drivers/hid/usbhid/hid-pidff*
+F:	drivers/hid/hid-universal-pidff.c
 
 USB INTEL XHCI ROLE MUX DRIVER
 M:	Hans de Goede <hansg@kernel.org>

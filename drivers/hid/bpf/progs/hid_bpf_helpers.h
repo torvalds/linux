@@ -7,7 +7,18 @@
 
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
+#include <bpf/bpf_endian.h>
 #include <linux/errno.h>
+#include "hid_report_descriptor_helpers.h"
+
+/* Compiler attributes */
+#ifndef __packed
+#define __packed __attribute__((packed))
+#endif
+
+#ifndef __maybe_unused
+#define __maybe_unused __attribute__((__unused__))
+#endif
 
 extern __u8 *hid_bpf_get_data(struct hid_bpf_ctx *ctx,
 			      unsigned int offset,
@@ -39,6 +50,86 @@ extern int bpf_wq_set_callback(struct bpf_wq *wq,
 
 #define HID_MAX_DESCRIPTOR_SIZE	4096
 #define HID_IGNORE_EVENT	-1
+
+/**
+ * Use: _cleanup_(somefunction) struct foo *bar;
+ */
+#define _cleanup_(_x) __attribute__((cleanup(_x)))
+
+/**
+ * Use: _release_(foo) *bar;
+ *
+ * This requires foo_releasep() to be present, use DEFINE_RELEASE_CLEANUP_FUNC.
+ */
+#define _release_(_type) struct _type __attribute__((cleanup(_type##_releasep)))
+
+/**
+ * Define a cleanup function for the struct type foo with a matching
+ * foo_release(). Use:
+ * DEFINE_RELEASE_CLEANUP_FUNC(foo)
+ * _unref_(foo) struct foo *bar;
+ */
+#define DEFINE_RELEASE_CLEANUP_FUNC(_type)				\
+	static inline void _type##_releasep(struct _type **_p) {	\
+		if (*_p)						\
+			_type##_release(*_p);				\
+	}								\
+	struct __useless_struct_to_allow_trailing_semicolon__
+
+/* for being able to have a cleanup function */
+#define hid_bpf_ctx_release hid_bpf_release_context
+DEFINE_RELEASE_CLEANUP_FUNC(hid_bpf_ctx);
+
+/*
+ * Kernel-style guard macros adapted for BPF
+ * Based on include/linux/cleanup.h from the Linux kernel
+ *
+ * These provide automatic lock/unlock using __attribute__((cleanup))
+ * similar to how _release_() works for contexts.
+ */
+
+/**
+ * DEFINE_GUARD(name, type, lock, unlock):
+ *	Define a guard for automatic lock/unlock using the same pattern as _release_()
+ *	@name: identifier for the guard (e.g., bpf_spin)
+ *	@type: lock variable type (e.g., struct bpf_spin_lock)
+ *	@lock: lock function name (e.g., bpf_spin_lock)
+ *	@unlock: unlock function name (e.g., bpf_spin_unlock)
+ *
+ * guard(name):
+ *	Declare and lock in one statement - lock held until end of scope
+ *
+ * Example:
+ *	DEFINE_GUARD(bpf_spin, struct bpf_spin_lock, bpf_spin_lock, bpf_spin_unlock)
+ *
+ *	void foo(struct bpf_spin_lock *lock) {
+ *		guard(bpf_spin)(lock);
+ *		// lock held until end of scope
+ *	}
+ */
+
+/* Guard helper struct - stores lock pointer for cleanup */
+#define DEFINE_GUARD(_name, _type, _lock, _unlock)			\
+struct _name##_guard {							\
+	_type *lock;							\
+};									\
+static inline void _name##_guard_cleanup(struct _name##_guard *g) {	\
+	if (g && g->lock) 						\
+		_unlock(g->lock);					\
+}									\
+static inline struct _name##_guard _name##_guard_init(_type *l) {	\
+	if (l)								\
+		_lock(l);						\
+	return (struct _name##_guard){.lock = l};			\
+}									\
+struct __useless_struct_to_allow_trailing_semicolon__
+
+#define guard(_name) \
+	struct _name##_guard COMBINE(guard, __LINE__) __attribute__((cleanup(_name##_guard_cleanup))) = \
+		_name##_guard_init
+
+/* Define BPF spinlock guard */
+DEFINE_GUARD(bpf_spin, struct bpf_spin_lock, bpf_spin_lock, bpf_spin_unlock);
 
 /* extracted from <linux/input.h> */
 #define BUS_ANY			0x00
@@ -182,5 +273,235 @@ extern int bpf_wq_set_callback(struct bpf_wq *wq,
 #define HID_BPF_CONFIG(...)  union { \
 	_EXPAND(_ARG, __VA_ARGS__) \
 } _device_ids SEC(".hid_bpf_config")
+
+
+/* Equivalency macros for bpf_htons and friends which are
+ * Big Endian only - HID needs little endian so these are the
+ * corresponding macros for that. See bpf/bpf_endian.h
+ */
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+# define __hid_bpf_le16_to_cpu(x)		(x)
+# define __hid_bpf_le32_to_cpu(x)		(x)
+# define __hid_bpf_le64_to_cpu(x)		(x)
+# define __hid_bpf_cpu_to_le16(x)		(x)
+# define __hid_bpf_cpu_to_le32(x)		(x)
+# define __hid_bpf_cpu_to_le64(x)		(x)
+# define __hid_bpf_constant_le16_to_cpu(x)	(x)
+# define __hid_bpf_constant_le32_to_cpu(x)	(x)
+# define __hid_bpf_constant_le64_to_cpu(x)	(x)
+# define __hid_bpf_constant_cpu_to_le16(x)	(x)
+# define __hid_bpf_constant_cpu_to_le32(x)	(x)
+# define __hid_bpf_constant_cpu_to_le64(x)	(x)
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+# define __hid_bpf_le16_to_cpu(x)		__builtin_bswap16(x)
+# define __hid_bpf_le32_to_cpu(x)		__builtin_bswap32(x)
+# define __hid_bpf_le64_to_cpu(x)		__builtin_bswap64(x)
+# define __hid_bpf_cpu_to_le16(x)		__builtin_bswap16(x)
+# define __hid_bpf_cpu_to_le32(x)		__builtin_bswap32(x)
+# define __hid_bpf_cpu_to_le64(x)		__builtin_bswap64(x)
+# define __hid_bpf_constant_le16_to_cpu(x)	__bpf_swab16(x)
+# define __hid_bpf_constant_le32_to_cpu(x)	__bpf_swab32(x)
+# define __hid_bpf_constant_le64_to_cpu(x)	__bpf_swab64(x)
+# define __hid_bpf_constant_cpu_to_le16(x)	__bpf_swab16(x)
+# define __hid_bpf_constant_cpu_to_le32(x)	__bpf_swab32(x)
+# define __hid_bpf_constant_cpu_to_le64(x)	__bpf_swab64(x)
+#else
+# error "Invalid __BYTE_ORDER__"
+#endif
+
+#define hid_bpf_le16_to_cpu(x)				\
+	(__builtin_constant_p(x) ?			\
+	 __hid_bpf_constant_le16_to_cpu(x) : __hid_bpf_le16_to_cpu(x))
+
+#define hid_bpf_le32_to_cpu(x)				\
+	(__builtin_constant_p(x) ?			\
+	 __hid_bpf_constant_le32_to_cpu(x) : __hid_bpf_le32_to_cpu(x))
+
+#define hid_bpf_le64_to_cpu(x)				\
+	(__builtin_constant_p(x) ?			\
+	 __hid_bpf_constant_le64_to_cpu(x) : __hid_bpf_le64_to_cpu(x))
+
+#define hid_bpf_cpu_to_le16(x)				\
+	(__builtin_constant_p(x) ?			\
+	 __hid_bpf_constant_cpu_to_le16(x) : __hid_bpf_cpu_to_le16(x))
+
+#define hid_bpf_cpu_to_le32(x)				\
+	(__builtin_constant_p(x) ?			\
+	 __hid_bpf_constant_cpu_to_le32(x) : __hid_bpf_cpu_to_le32(x))
+
+#define hid_bpf_cpu_to_le64(x)				\
+	(__builtin_constant_p(x) ?			\
+	 __hid_bpf_constant_cpu_to_le64(x) : __hid_bpf_cpu_to_le64(x))
+
+#define hid_bpf_be16_to_cpu(x)	bpf_ntohs(x)
+#define hid_bpf_be32_to_cpu(x)	bpf_ntohl(x)
+#define hid_bpf_be64_to_cpu(x)	bpf_be64_to_cpu(x)
+#define hid_bpf_cpu_to_be16(x)	bpf_htons(x)
+#define hid_bpf_cpu_to_be32(x)	bpf_htonl(x)
+#define hid_bpf_cpu_to_be64(x)	bpf_cpu_to_be64(x)
+
+/*
+ * The following macros are helpers for exporting udev properties:
+ *
+ * EXPORT_UDEV_PROP(name, len) generates:
+ *  - a map with a single element UDEV_PROP_##name, of size len
+ *  - a const global declaration of that len: SIZEOF_##name
+ *
+ * udev_prop_ptr(name) retrieves the data pointer behind the map.
+ *
+ * UDEV_PROP_SPRINTF(name, fmt, ...) writes data into the udev property.
+ *
+ *  Can be used as such:
+ *  EXPORT_UDEV_PROP(HID_FOO, 32);
+ *
+ *  SEC("syscall")
+ *  int probe(struct hid_bpf_probe_args *ctx)
+ *  {
+ *    const char *foo = "foo";
+ *    UDEV_PROP_SPRINTF(HID_FOO, "%s", foo);
+ *
+ *    return 0;
+ *  }
+ */
+#define EXPORT_UDEV_PROP(name, len) \
+	const __u32 SIZEOF_##name = len; \
+	struct COMBINE(udev_prop, __LINE__) { \
+		__uint(type, BPF_MAP_TYPE_ARRAY); \
+		__uint(max_entries, 1); \
+		__type(key, __u32); \
+		__type(value, __u8[len]); \
+	} UDEV_PROP_##name SEC(".maps");
+
+#define udev_prop_ptr(name) \
+	bpf_map_lookup_elem(&UDEV_PROP_##name, &(__u32){0})
+
+#define UDEV_PROP_SPRINTF(name, fmt, ...) \
+	BPF_SNPRINTF(udev_prop_ptr(name), SIZEOF_##name, fmt, ##__VA_ARGS__)
+
+static inline __maybe_unused __u16 field_start_byte(struct hid_rdesc_field *field)
+{
+	return field->bits_start / 8;
+}
+
+static inline __maybe_unused __u16 field_end_byte(struct hid_rdesc_field *field)
+{
+	if (!field->bits_end)
+		return 0;
+
+	return (__u16)(field->bits_end - 1) / 8;
+}
+
+static __maybe_unused __u32 extract_bits(__u8 *buffer, const size_t size, struct hid_rdesc_field *field)
+{
+	__s32 nbits = field->bits_end - field->bits_start;
+	__u32 start = field_start_byte(field);
+	__u32 end = field_end_byte(field);
+	__u8 base_shift = field->bits_start % 8;
+
+	if (nbits <= 0 || nbits > 32 || start >= size || end >= size)
+		return 0;
+
+	/* Fast path for byte-aligned standard-sized reads */
+	if (base_shift == 0) {
+		/* 8-bit aligned read */
+		if (nbits == 8 && start < size)
+			return buffer[start];
+
+		/* 16-bit aligned read - use separate variables for verifier */
+		if (nbits == 16) {
+			__u32 off0 = start;
+			__u32 off1 = start + 1;
+
+			if (off0 < size && off1 < size) {
+				return buffer[off0] |
+				       ((__u32)buffer[off1] << 8);
+			}
+		}
+
+		/* 32-bit aligned read - use separate variables for verifier */
+		if (nbits == 32) {
+			__u32 off0 = start;
+			__u32 off1 = start + 1;
+			__u32 off2 = start + 2;
+			__u32 off3 = start + 3;
+
+			if (off0 < size && off1 < size &&
+			    off2 < size && off3 < size) {
+				return buffer[off0] |
+				       ((__u32)buffer[off1] << 8) |
+				       ((__u32)buffer[off2] << 16) |
+				       ((__u32)buffer[off3] << 24);
+			}
+		}
+	}
+
+	/* General case: bit manipulation for unaligned or non-standard sizes */
+	int mask = 0xffffffff >> (32 - nbits);
+	__u64 value = 0;
+	__u32 i;
+
+	bpf_for (i, start, end + 1) {
+		value |= (__u64)buffer[i] << ((i - start) * 8);
+	}
+
+	return (value >> base_shift) & mask;
+}
+
+#define EXTRACT_BITS(buffer, field) extract_bits(buffer, sizeof(buffer), field)
+
+/* Base macro for iterating over HID arrays with bounds checking.
+ * Follows the bpf_for pattern from libbpf.
+ */
+#define __hid_bpf_for_each_array(array, num_elements, max_elements, var)              \
+	for (                                                                          \
+		/* initialize and define destructor */                                 \
+		struct bpf_iter_num ___it __attribute__((aligned(8),                   \
+							 cleanup(bpf_iter_num_destroy))),      \
+		/* ___p pointer is necessary to call bpf_iter_num_new() *once* */      \
+				    *___p __attribute__((unused)) = (                  \
+			/* always initialize iterator; if bounds fail, iterate 0 times */ \
+			bpf_iter_num_new(&___it, 0,                                    \
+					 (num_elements) > (max_elements) ?             \
+						0 : (num_elements)),                   \
+			/* workaround for Clang bug */                                 \
+			(void)bpf_iter_num_destroy, (void *)0);                        \
+		({                                                                     \
+			/* iteration step */                                           \
+			int *___t = bpf_iter_num_next(&___it);                         \
+			int ___i;                                                      \
+			/* termination and bounds check, assign var */                 \
+			(___t && (___i = *___t, ___i >= 0 && ___i < (num_elements)) && \
+			 ((num_elements) <= (max_elements)) &&                         \
+			 (var = &(array)[___i], 1));                                   \
+		});                                                                    \
+	)
+
+/* Iterate over input reports in a descriptor */
+#define hid_bpf_for_each_input_report(descriptor, report_var) \
+	__hid_bpf_for_each_array((descriptor)->input_reports, \
+				 (descriptor)->num_input_reports, \
+				 HID_MAX_REPORTS, report_var)
+
+/* Iterate over feature reports in a descriptor */
+#define hid_bpf_for_each_feature_report(descriptor, report_var) \
+	__hid_bpf_for_each_array((descriptor)->feature_reports, \
+				 (descriptor)->num_feature_reports, \
+				 HID_MAX_REPORTS, report_var)
+
+/* Iterate over output reports in a descriptor */
+#define hid_bpf_for_each_output_report(descriptor, report_var) \
+	__hid_bpf_for_each_array((descriptor)->output_reports, \
+				 (descriptor)->num_output_reports, \
+				 HID_MAX_REPORTS, report_var)
+
+/* Iterate over fields in a report */
+#define hid_bpf_for_each_field(report, field_var) \
+	__hid_bpf_for_each_array((report)->fields, (report)->num_fields, \
+				 HID_MAX_FIELDS, field_var)
+
+/* Iterate over collections in a field */
+#define hid_bpf_for_each_collection(field, collection_var) \
+	__hid_bpf_for_each_array((field)->collections, (field)->num_collections, \
+				 HID_MAX_COLLECTIONS, collection_var)
 
 #endif /* __HID_BPF_HELPERS_H */

@@ -20,10 +20,8 @@
  *  Copyright (c) 2016 Frederik Wenigwieser <frederik.wenigwieser@gmail.com>
  */
 
-/*
- */
-
 #include <linux/acpi.h>
+#include <linux/cleanup.h>
 #include <linux/dmi.h>
 #include <linux/hid.h>
 #include <linux/module.h>
@@ -101,7 +99,6 @@ MODULE_DESCRIPTION("Asus HID Keyboard and TouchPad");
 #define QUIRK_ROG_CLAYMORE_II_KEYBOARD	BIT(12)
 #define QUIRK_ROG_ALLY_XPAD		BIT(13)
 #define QUIRK_HID_FN_LOCK		BIT(14)
-#define QUIRK_ROG_NKEY_ID1ID2_INIT	BIT(15)
 
 #define I2C_KEYBOARD_QUIRKS			(QUIRK_FIX_NOTEBOOK_REPORT | \
 						 QUIRK_NO_INIT_REPORTS | \
@@ -206,6 +203,12 @@ static const struct asus_touchpad_info medion_e1239t_tp = {
 	.contact_size = 5,
 	.max_contacts = 5,
 	.report_size = 32 /* 2 byte header + 5 * 5 + 5 byte footer */,
+};
+
+static const u8 asus_report_id_init[] = {
+	FEATURE_KBD_REPORT_ID,
+	FEATURE_KBD_LED_REPORT_ID1,
+	FEATURE_KBD_LED_REPORT_ID2
 };
 
 static void asus_report_contact_down(struct asus_drvdata *drvdat,
@@ -354,7 +357,7 @@ static int asus_event(struct hid_device *hdev, struct hid_field *field,
 		      struct hid_usage *usage, __s32 value)
 {
 	struct asus_drvdata *drvdata = hid_get_drvdata(hdev);
-	
+
 	if ((usage->hid & HID_USAGE_PAGE) == HID_UP_ASUSVENDOR &&
 	    (usage->hid & HID_USAGE) != 0x00 &&
 	    (usage->hid & HID_USAGE) != 0xff && !usage->type) {
@@ -443,21 +446,18 @@ static int asus_raw_event(struct hid_device *hdev,
 		/*
 		 * G713 and G733 send these codes on some keypresses, depending on
 		 * the key pressed it can trigger a shutdown event if not caught.
-		*/
-		if (data[0] == 0x02 && data[1] == 0x30) {
+		 */
+		if (data[0] == 0x02 && data[1] == 0x30)
 			return -1;
-		}
 	}
 
 	if (drvdata->quirks & QUIRK_ROG_CLAYMORE_II_KEYBOARD) {
 		/*
 		 * CLAYMORE II keyboard sends this packet when it goes to sleep
 		 * this causes the whole system to go into suspend.
-		*/
-
-		if(size == 2 && data[0] == 0x02 && data[1] == 0x00) {
+		 */
+		if (size == 2 && data[0] == 0x02 && data[1] == 0x00)
 			return -1;
-		}
 	}
 
 	return 0;
@@ -465,23 +465,16 @@ static int asus_raw_event(struct hid_device *hdev,
 
 static int asus_kbd_set_report(struct hid_device *hdev, const u8 *buf, size_t buf_size)
 {
-	unsigned char *dmabuf;
-	int ret;
-
-	dmabuf = kmemdup(buf, buf_size, GFP_KERNEL);
+	u8 *dmabuf __free(kfree) = kmemdup(buf, buf_size, GFP_KERNEL);
 	if (!dmabuf)
 		return -ENOMEM;
 
 	/*
 	 * The report ID should be set from the incoming buffer due to LED and key
 	 * interfaces having different pages
-	*/
-	ret = hid_hw_raw_request(hdev, buf[0], dmabuf,
-				 buf_size, HID_FEATURE_REPORT,
-				 HID_REQ_SET_REPORT);
-	kfree(dmabuf);
-
-	return ret;
+	 */
+	return hid_hw_raw_request(hdev, buf[0], dmabuf, buf_size, HID_FEATURE_REPORT,
+				  HID_REQ_SET_REPORT);
 }
 
 static int asus_kbd_init(struct hid_device *hdev, u8 report_id)
@@ -722,6 +715,21 @@ static void validate_mcu_fw_version(struct hid_device *hdev, int idProduct)
 	}
 }
 
+static bool asus_has_report_id(struct hid_device *hdev, u16 report_id)
+{
+	struct hid_report *report;
+	int t;
+
+	for (t = HID_INPUT_REPORT; t <= HID_FEATURE_REPORT; t++) {
+		list_for_each_entry(report, &hdev->report_enum[t].report_list, list) {
+			if (report->id == report_id)
+				return true;
+		}
+	}
+
+	return false;
+}
+
 static int asus_kbd_register_leds(struct hid_device *hdev)
 {
 	struct asus_drvdata *drvdata = hid_get_drvdata(hdev);
@@ -729,10 +737,6 @@ static int asus_kbd_register_leds(struct hid_device *hdev)
 	struct usb_device *udev;
 	unsigned char kbd_func;
 	int ret;
-
-	ret = asus_kbd_init(hdev, FEATURE_KBD_REPORT_ID);
-	if (ret < 0)
-		return ret;
 
 	/* Get keyboard functions */
 	ret = asus_kbd_get_functions(hdev, &kbd_func, FEATURE_KBD_REPORT_ID);
@@ -742,11 +746,6 @@ static int asus_kbd_register_leds(struct hid_device *hdev)
 	/* Check for backlight support */
 	if (!(kbd_func & SUPPORT_KBD_BACKLIGHT))
 		return -ENODEV;
-
-	if (drvdata->quirks & QUIRK_ROG_NKEY_ID1ID2_INIT) {
-		asus_kbd_init(hdev, FEATURE_KBD_LED_REPORT_ID1);
-		asus_kbd_init(hdev, FEATURE_KBD_LED_REPORT_ID2);
-	}
 
 	if (dmi_match(DMI_PRODUCT_FAMILY, "ProArt P16")) {
 		ret = asus_kbd_disable_oobe(hdev);
@@ -1163,7 +1162,8 @@ static int asus_start_multitouch(struct hid_device *hdev)
 	return 0;
 }
 
-static int __maybe_unused asus_resume(struct hid_device *hdev) {
+static int __maybe_unused asus_resume(struct hid_device *hdev)
+{
 	struct asus_drvdata *drvdata = hid_get_drvdata(hdev);
 	int ret = 0;
 
@@ -1294,8 +1294,19 @@ static int asus_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		return ret;
 	}
 
+	for (int r = 0; r < ARRAY_SIZE(asus_report_id_init); r++) {
+		if (asus_has_report_id(hdev, asus_report_id_init[r])) {
+			ret = asus_kbd_init(hdev, asus_report_id_init[r]);
+			if (ret < 0)
+				hid_warn(hdev, "Failed to initialize 0x%x: %d.\n",
+					 asus_report_id_init[r], ret);
+		}
+	}
+
+	/* Laptops keyboard backlight is always at 0x5a */
 	if (is_vendor && (drvdata->quirks & QUIRK_USE_KBD_BACKLIGHT) &&
-	    asus_kbd_register_leds(hdev))
+	    (asus_has_report_id(hdev, FEATURE_KBD_REPORT_ID)) &&
+		(asus_kbd_register_leds(hdev)))
 		hid_warn(hdev, "Failed to initialize backlight.\n");
 
 	/*
@@ -1311,22 +1322,17 @@ static int asus_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	 * were freed during registration due to no usages being mapped,
 	 * leaving drvdata->input pointing to freed memory.
 	 */
-	if (!drvdata->input || !(hdev->claimed & HID_CLAIMED_INPUT)) {
-		hid_err(hdev, "Asus input not registered\n");
-		ret = -ENOMEM;
-		goto err_stop_hw;
-	}
+	if (drvdata->input && (hdev->claimed & HID_CLAIMED_INPUT)) {
+		if (drvdata->tp)
+			drvdata->input->name = "Asus TouchPad";
+		else
+			drvdata->input->name = "Asus Keyboard";
 
-	if (drvdata->tp) {
-		drvdata->input->name = "Asus TouchPad";
-	} else {
-		drvdata->input->name = "Asus Keyboard";
-	}
-
-	if (drvdata->tp) {
-		ret = asus_start_multitouch(hdev);
-		if (ret)
-			goto err_stop_hw;
+		if (drvdata->tp) {
+			ret = asus_start_multitouch(hdev);
+			if (ret)
+				goto err_stop_hw;
+		}
 	}
 
 	return 0;
@@ -1484,10 +1490,10 @@ static const struct hid_device_id asus_devices[] = {
 	  QUIRK_USE_KBD_BACKLIGHT },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUSTEK,
 	    USB_DEVICE_ID_ASUSTEK_ROG_NKEY_KEYBOARD),
-	  QUIRK_USE_KBD_BACKLIGHT | QUIRK_ROG_NKEY_KEYBOARD | QUIRK_ROG_NKEY_ID1ID2_INIT },
+	  QUIRK_USE_KBD_BACKLIGHT | QUIRK_ROG_NKEY_KEYBOARD },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUSTEK,
 	    USB_DEVICE_ID_ASUSTEK_ROG_NKEY_KEYBOARD2),
-	  QUIRK_USE_KBD_BACKLIGHT | QUIRK_ROG_NKEY_KEYBOARD | QUIRK_HID_FN_LOCK | QUIRK_ROG_NKEY_ID1ID2_INIT },
+	  QUIRK_USE_KBD_BACKLIGHT | QUIRK_ROG_NKEY_KEYBOARD | QUIRK_HID_FN_LOCK },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUSTEK,
 	    USB_DEVICE_ID_ASUSTEK_ROG_Z13_LIGHTBAR),
 	  QUIRK_USE_KBD_BACKLIGHT | QUIRK_ROG_NKEY_KEYBOARD },
