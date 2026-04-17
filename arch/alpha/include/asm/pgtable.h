@@ -127,6 +127,17 @@ struct vm_area_struct;
 #define pgprot_noncached(prot)	(prot)
 
 /*
+ * All caching attribute macros are identity on Alpha, so the generic
+ * pgprot_modify() degenerates to tautological self-comparisons.
+ * Override it to just return newprot directly.
+ */
+#define pgprot_modify pgprot_modify
+static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
+{
+	return newprot;
+}
+
+/*
  * On certain platforms whose physical address space can overlap KSEG,
  * namely EV6 and above, we must re-twiddle the physaddr to restore the
  * correct high-order bits.

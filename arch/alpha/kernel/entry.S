@@ -10,6 +10,7 @@
 #include <asm/pal.h>
 #include <asm/errno.h>
 #include <asm/unistd.h>
+#include <linux/errno.h>
 
 	.text
 	.set noat
@@ -34,6 +35,64 @@
 	.cfi_endproc
 	.size	\func, . - \func
 .endm
+
+/*
+ * SYSCALL_SKIP_RETURN_RESTART_GATE
+ *
+ * Used when syscall dispatch is skipped (seccomp/ptrace injected nr=-1).
+ *  - Ensure we never return r0==-1 with a3==0 (success); convert to ENOSYS.
+ *  - Gate whether syscall restart is allowed by preserving restart context
+ *    only for ERESTART* returns. Result:
+ *        $26 = 0  => restart allowed
+ *        $26 = 1  => restart NOT allowed
+ *        $18 = preserved syscall nr (regs->r2) if restart allowed, else 0
+ */
+.macro  SYSCALL_SKIP_RETURN_RESTART_GATE
+	/* Fix up invalid "-1 success" return state. */
+	ldq	$19, 72($sp)		/* a3 */
+	bne	$19, 1f			/* already error => skip fixup */
+
+	ldq	$20, 0($sp)		/* r0 */
+	lda	$21, -1($31)
+	cmpeq	$20, $21, $22
+	beq	$22, 1f			/* r0 != -1 => skip fixup */
+
+
+	lda	$20, ENOSYS($31)
+	stq	$20, 0($sp)		/* r0 = ENOSYS */
+	lda	$19, 1($31)
+	stq	$19, 72($sp)		/* a3 = 1 */
+1:
+	/* Restart gating: success is never restartable here. */
+	ldq	$19, 72($sp)		/* a3 */
+	beq	$19, 3f			/* success => not restartable */
+
+	ldq	$20, 0($sp)		/* r0 (positive errno if a3==1) */
+	lda	$21, ERESTARTSYS($31)
+	cmpeq	$20, $21, $22
+	bne	$22, 2f
+	lda	$21, ERESTARTNOINTR($31)
+	cmpeq	$20, $21, $22
+	bne	$22, 2f
+	lda	$21, ERESTARTNOHAND($31)
+	cmpeq	$20, $21, $22
+	bne	$22, 2f
+	lda	$21, ERESTART_RESTARTBLOCK($31)
+	cmpeq	$20, $21, $22
+	bne	$22, 2f
+
+3:	/* Not a restart code (or success) => restart NOT allowed. */
+	addq	$31, 1, $26		/* $26=1 => restart NOT allowed */
+	mov	0, $18
+	br	4f
+
+2:	/* Restart allowed. */
+	ldq	$18, 16($sp)		/* preserved syscall nr (regs->r2) */
+	mov	$31, $26		/* $26=0 => restart allowed */
+	br	4f
+4:
+.endm
+
 
 /*
  * This defines the normal kernel pt-regs layout.
@@ -425,7 +484,7 @@ CFI_START_OSF_FRAME entDbg
 	mov	$sp, $16
 	jsr	$31, do_entDbg
 CFI_END_OSF_FRAME entDbg
-
+
 /*
  * The system call entry point is special.  Most importantly, it looks
  * like a function call to userspace as far as clobbered registers.  We
@@ -435,6 +494,17 @@ CFI_END_OSF_FRAME entDbg
  * So much for theory.  We don't take advantage of this yet.
  *
  * Note that a0-a2 are not saved by PALcode as with the other entry points.
+ *
+ * Alpha syscall ABI uses:
+ *   - r0 for return value
+ *   - r19 ("a3") as error indicator (0=success, 1=error; r0 holds errno)
+ *
+ * For seccomp/ptrace/generic syscall helpers we track the syscall
+ * number separately:
+ *   - regs->r1: current (mutable) syscall number (may be changed or set to -1)
+ *   - regs->r2: original syscall number for restart/rollback
+ *
+ * On entry PAL provides the syscall number in r0; copy it into r1/r2.
  */
 
 	.align	4
@@ -447,6 +517,10 @@ CFI_END_OSF_FRAME entDbg
 	.cfi_rel_offset	$gp, 16
 entSys:
 	SAVE_ALL
+        ldq     $1, 0($sp)          /* syscall nr from saved r0 */
+        stq     $1, 8($sp)          /* regs->r1 = shadow syscall nr */
+        stq     $1, 16($sp)         /* regs->r2 = restart syscall nr */
+
 	lda	$8, 0x3fff
 	bic	$sp, $8, $8
 	lda	$4, NR_syscalls($31)
@@ -462,15 +536,19 @@ entSys:
 	.cfi_rel_offset	$17, SP_OFF+32
 	.cfi_rel_offset	$18, SP_OFF+40
 #ifdef CONFIG_AUDITSYSCALL
-	lda     $6, _TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT
+	lda     $6, _TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | _TIF_SECCOMP
 	and     $3, $6, $3
 	bne     $3, strace
 #else
-	blbs    $3, strace		/* check for SYSCALL_TRACE in disguise */
+	lda     $6, _TIF_SYSCALL_TRACE | _TIF_SECCOMP
+	and     $3, $6, $3
+	bne     $3, strace
 #endif
 	beq	$4, 1f
 	ldq	$27, 0($5)
-1:	jsr	$26, ($27), sys_ni_syscall
+1:	ldq	$0, 8($sp)		/* syscall nr shadow (regs->r1) */
+
+	jsr	$26, ($27), sys_ni_syscall
 	ldgp	$gp, 0($26)
 	blt	$0, $syscall_error	/* the call failed */
 $ret_success:
@@ -509,15 +587,8 @@ ret_to_kernel:
 
 	.align 3
 $syscall_error:
-	/*
-	 * Some system calls (e.g., ptrace) can return arbitrary
-	 * values which might normally be mistaken as error numbers.
-	 * Those functions must zero $0 (v0) directly in the stack
-	 * frame to indicate that a negative return value wasn't an
-	 * error number..
-	 */
-	ldq	$18, 0($sp)	/* old syscall nr (zero if success) */
-	beq	$18, $ret_success
+        /* Restart syscall nr comes from saved r2 (preserved even if r0 overwritten). */
+	ldq	$18, 16($sp)	/* old syscall nr for restart */
 
 	ldq	$19, 72($sp)	/* .. and this a3 */
 	subq	$31, $0, $0	/* with error in v0 */
@@ -581,6 +652,8 @@ strace:
 	jsr	$26, syscall_trace_enter /* returns the syscall number */
 	UNDO_SWITCH_STACK
 
+	stq     $0, 8($sp)		/* regs->r1 = shadow syscall nr */
+
 	/* get the arguments back.. */
 	ldq	$16, SP_OFF+24($sp)
 	ldq	$17, SP_OFF+32($sp)
@@ -588,6 +661,11 @@ strace:
 	ldq	$19, 72($sp)
 	ldq	$20, 80($sp)
 	ldq	$21, 88($sp)
+
+	/* nr == -1: internal skip-dispatch or userspace syscall(-1)? */
+        lda     $6, -1($31)
+        cmpeq   $0, $6, $6
+	bne	$6, $strace_skip_call	/* nr == -1 => dispatch */
 
 	/* get the system call pointer.. */
 	lda	$1, NR_syscalls($31)
@@ -607,6 +685,8 @@ $strace_success:
 	stq	$31, 72($sp)		/* a3=0 => no error */
 	stq	$0, 0($sp)		/* save return value */
 
+$strace_skip_call:
+	SYSCALL_SKIP_RETURN_RESTART_GATE
 	DO_SWITCH_STACK
 	jsr	$26, syscall_trace_leave
 	UNDO_SWITCH_STACK
@@ -614,8 +694,7 @@ $strace_success:
 
 	.align	3
 $strace_error:
-	ldq	$18, 0($sp)	/* old syscall nr (zero if success) */
-	beq	$18, $strace_success
+	ldq	$18, 16($sp)	/* restart syscall nr */
 	ldq	$19, 72($sp)	/* .. and this a3 */
 
 	subq	$31, $0, $0	/* with error in v0 */
@@ -634,7 +713,7 @@ $strace_error:
 	mov	$31, $26	/* tell "ret_from_sys_call" we can restart */
 	br	ret_from_sys_call
 CFI_END_OSF_FRAME entSys
-
+
 /*
  * Save and restore the switch stack -- aka the balance of the user context.
  */
