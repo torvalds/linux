@@ -3,6 +3,7 @@
  * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
  */
 
+#include <dt-bindings/ata/ahci.h>
 #include <dt-bindings/clock/rk3568-cru.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
@@ -221,11 +222,20 @@
 			 <&cru CLK_SATA1_RXOOB>;
 		clock-names = "sata", "pmalive", "rxoob";
 		interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
-		phys = <&combphy1 PHY_TYPE_SATA>;
-		phy-names = "sata-phy";
 		ports-implemented = <0x1>;
 		power-domains = <&power RK3568_PD_PIPE>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 		status = "disabled";
+
+		sata1_port0: sata-port@0 {
+			reg = <0>;
+			hba-port-cap = <HBA_PORT_FBSCP>;
+			phys = <&combphy1 PHY_TYPE_SATA>;
+			phy-names = "sata-phy";
+			snps,rx-ts-max = <32>;
+			snps,tx-ts-max = <32>;
+		};
 	};
 
 	sata2: sata@fc800000 {
@@ -235,11 +245,20 @@
 			 <&cru CLK_SATA2_RXOOB>;
 		clock-names = "sata", "pmalive", "rxoob";
 		interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
-		phys = <&combphy2 PHY_TYPE_SATA>;
-		phy-names = "sata-phy";
 		ports-implemented = <0x1>;
 		power-domains = <&power RK3568_PD_PIPE>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 		status = "disabled";
+
+		sata2_port0: sata-port@0 {
+			reg = <0>;
+			hba-port-cap = <HBA_PORT_FBSCP>;
+			phys = <&combphy2 PHY_TYPE_SATA>;
+			phy-names = "sata-phy";
+			snps,rx-ts-max = <32>;
+			snps,tx-ts-max = <32>;
+		};
 	};
 
 	usb_host0_xhci: usb@fcc00000 {
@@ -1001,9 +1020,11 @@
 		bus-range = <0x0 0xf>;
 		clocks = <&cru ACLK_PCIE20_MST>, <&cru ACLK_PCIE20_SLV>,
 			 <&cru ACLK_PCIE20_DBI>, <&cru PCLK_PCIE20>,
-			 <&cru CLK_PCIE20_AUX_NDFT>;
+			 <&cru CLK_PCIE20_AUX_NDFT>,
+			 <&cru CLK_PCIE20_PIPE_DFT>;
 		clock-names = "aclk_mst", "aclk_slv",
-			      "aclk_dbi", "pclk", "aux";
+			      "aclk_dbi", "pclk", "aux",
+			      "pipe";
 		device_type = "pci";
 		#interrupt-cells = <1>;
 		interrupt-map-mask = <0 0 0 7>;
@@ -1102,6 +1123,52 @@
 		clock-names = "core", "ahb";
 		resets = <&cru SRST_TRNG_NS>;
 		status = "disabled";
+	};
+
+	otp: efuse@fe38c000 {
+		compatible = "rockchip,rk3568-otp";
+		reg = <0x0 0xfe38c000 0x0 0x4000>;
+		clocks = <&cru CLK_OTPC_NS_USR>, <&cru PCLK_OTPC_NS>,
+			 <&cru PCLK_OTPPHY>, <&cru CLK_OTPC_NS_SBPI>;
+		clock-names = "otp", "apb_pclk", "phy", "sbpi";
+		resets = <&cru SRST_OTPC_NS_USR>, <&cru SRST_P_OTPC_NS>,
+			 <&cru SRST_OTPPHY>, <&cru SRST_OTPC_NS_SBPI>;
+		reset-names = "otp", "apb", "phy", "sbpi";
+
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			cpu_code: cpu-code@2 {
+				reg = <0x02 0x2>;
+			};
+
+			otp_cpu_version: cpu-version@8 {
+				reg = <0x08 0x1>;
+				bits = <3 3>;
+			};
+
+			otp_id: id@a {
+				reg = <0x0a 0x10>;
+			};
+
+			cpu_leakage: cpu-leakage@1a {
+				reg = <0x1a 0x1>;
+			};
+
+			log_leakage: log-leakage@1b {
+				reg = <0x1b 0x1>;
+			};
+
+			npu_leakage: npu-leakage@1c {
+				reg = <0x1c 0x1>;
+			};
+
+			gpu_leakage: gpu-leakage@1d {
+				reg = <0x1d 0x1>;
+			};
+		};
 	};
 
 	i2s0_8ch: i2s@fe400000 {

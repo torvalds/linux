@@ -3621,7 +3621,7 @@
 			snps,axi-config = <&mgbe0_axi_setup>;
 
 			mgbe0_axi_setup: stmmac-axi-config {
-				snps,blen = <256 128 64 32>;
+				snps,blen = <256 128 64 32 0 0 0>;
 				snps,rd_osr_lmt = <63>;
 				snps,wr_osr_lmt = <63>;
 			};
@@ -3663,7 +3663,7 @@
 			snps,axi-config = <&mgbe1_axi_setup>;
 
 			mgbe1_axi_setup: stmmac-axi-config {
-				snps,blen = <256 128 64 32>;
+				snps,blen = <256 128 64 32 0 0 0>;
 				snps,rd_osr_lmt = <63>;
 				snps,wr_osr_lmt = <63>;
 			};
@@ -3705,7 +3705,7 @@
 			snps,axi-config = <&mgbe2_axi_setup>;
 
 			mgbe2_axi_setup: stmmac-axi-config {
-				snps,blen = <256 128 64 32>;
+				snps,blen = <256 128 64 32 0 0 0>;
 				snps,rd_osr_lmt = <63>;
 				snps,wr_osr_lmt = <63>;
 			};

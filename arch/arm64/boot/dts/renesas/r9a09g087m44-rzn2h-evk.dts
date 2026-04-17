@@ -14,12 +14,14 @@
 /*
  * SD0 can be connected to either eMMC (U33) or SD card slot CN21
  * Lets by default enable the eMMC, note we need the below SW settings
- * for eMMC.
+ * for eMMC. Also ensure that JP23 pins 5 and 6 are connected with a jumper
+ * to provide the SD0 power supply when using eMMC.
  * DSW5[1] = ON; DSW5[2] = ON
  * DSW17[5] = OFF; DSW17[6] = ON
  *
  * To enable SD card and disable eMMC on SDHI0 disable the below macro
- * and set the below switch setting:
+ * and set the below switch settings. Also ensure that JP23 pins 3 and 4 are
+ * connected with a jumper to provide the SD0 power supply when using an SD card.
  * DSW5[1] = OFF; DSW5[2] = ON
  * P22_6 = SD0_WP; DSW15[1] = OFF; DSW15[2] = ON
  * P22_5 = SD0_CD; DSW15[3] = OFF; DSW15[4] = ON
@@ -303,6 +305,7 @@
 };
 
 &mdio1_phy {
+	interrupts-extended = <&icu RZN2H_IRQ15 IRQ_TYPE_EDGE_FALLING>;
 	/*
 	 * PHY3 Reset Configuration:
 	 *
@@ -312,6 +315,7 @@
 };
 
 &mdio2_phy {
+	interrupts-extended = <&icu RZN2H_IRQ14 IRQ_TYPE_EDGE_FALLING>;
 	/*
 	 * PHY2 Reset Configuration:
 	 *
@@ -333,37 +337,7 @@
 	};
 
 	/*
-	 * GMAC2 Pin Configuration:
-	 *
-	 * DSW5[6] OFF - connect MDC/MDIO of Ethernet port 2 to GMAC2
-	 * DSW5[7] ON - use pins P29_1-P29_7, P30_0-P30_4, P30_7,
-	 * P31_2, P31_4 and P31_5 are used for Ethernet port 2
-	 */
-	gmac2_pins: gmac2-pins {
-		pinmux = <RZT2H_PORT_PINMUX(29, 1, 0xf)>, /* ETH2_TXCLK */
-			 <RZT2H_PORT_PINMUX(29, 2, 0xf)>, /* ETH2_TXD0 */
-			 <RZT2H_PORT_PINMUX(29, 3, 0xf)>, /* ETH2_TXD1 */
-			 <RZT2H_PORT_PINMUX(29, 4, 0xf)>, /* ETH2_TXD2 */
-			 <RZT2H_PORT_PINMUX(29, 5, 0xf)>, /* ETH2_TXD3 */
-			 <RZT2H_PORT_PINMUX(29, 6, 0xf)>, /* ETH2_TXEN */
-			 <RZT2H_PORT_PINMUX(29, 7, 0xf)>, /* ETH2_RXCLK */
-			 <RZT2H_PORT_PINMUX(30, 0, 0xf)>, /* ETH2_RXD0 */
-			 <RZT2H_PORT_PINMUX(30, 1, 0xf)>, /* ETH2_RXD1 */
-			 <RZT2H_PORT_PINMUX(30, 2, 0xf)>, /* ETH2_RXD2 */
-			 <RZT2H_PORT_PINMUX(30, 3, 0xf)>, /* ETH2_RXD3 */
-			 <RZT2H_PORT_PINMUX(30, 4, 0xf)>, /* ETH2_RXDV */
-			 <RZT2H_PORT_PINMUX(31, 2, 0xf)>, /* ETH2_TXER */
-			 <RZT2H_PORT_PINMUX(31, 1, 0xf)>, /* ETH2_RXER */
-			 <RZT2H_PORT_PINMUX(31, 4, 0xf)>, /* ETH2_CRS */
-			 <RZT2H_PORT_PINMUX(31, 5, 0xf)>, /* ETH2_COL */
-			 <RZT2H_PORT_PINMUX(30, 5, 0x10)>, /* GMAC2_MDC */
-			 <RZT2H_PORT_PINMUX(30, 6, 0x10)>, /* GMAC2_MDIO */
-			 <RZT2H_PORT_PINMUX(31, 0, 0x2)>; /* ETH2_REFCLK */
-
-	};
-
-	/*
-	 * GMAC2 Pin Configuration:
+	 * GMAC1 Pin Configuration:
 	 *
 	 * DSW5[8] ON - use pins P00_0-P00_2, P33_2-P33_7, P34_0-P34_6
 	 * for Ethernet port 3
@@ -388,7 +362,40 @@
 			 <RZT2H_PORT_PINMUX(0, 3, 0xf)>, /* ETH3_COL */
 			 <RZT2H_PORT_PINMUX(26, 1, 0x10)>, /* GMAC1_MDC */
 			 <RZT2H_PORT_PINMUX(26, 2, 0x10)>, /* GMAC1_MDIO */
-			 <RZT2H_PORT_PINMUX(34, 6, 0x2)>; /* ETH3_REFCLK */
+			 <RZT2H_PORT_PINMUX(34, 6, 0x2)>, /* ETH3_REFCLK */
+			 <RZT2H_PORT_PINMUX(17, 3, 0x0)>; /* IRQ15 */
+	};
+
+	/*
+	 * GMAC2 Pin Configuration:
+	 *
+	 * DSW5[6] OFF - connect MDC/MDIO of Ethernet port 2 to GMAC2
+	 * DSW5[7] ON - use pins P29_1-P29_7, P30_0-P30_4, P30_7,
+	 * P31_2, P31_4 and P31_5 are used for Ethernet port 2
+	 * DSW13[7] OFF; DSW13[8] ON - use pin P13_7 for IRQ14
+	 */
+	gmac2_pins: gmac2-pins {
+		pinmux = <RZT2H_PORT_PINMUX(29, 1, 0xf)>, /* ETH2_TXCLK */
+			 <RZT2H_PORT_PINMUX(29, 2, 0xf)>, /* ETH2_TXD0 */
+			 <RZT2H_PORT_PINMUX(29, 3, 0xf)>, /* ETH2_TXD1 */
+			 <RZT2H_PORT_PINMUX(29, 4, 0xf)>, /* ETH2_TXD2 */
+			 <RZT2H_PORT_PINMUX(29, 5, 0xf)>, /* ETH2_TXD3 */
+			 <RZT2H_PORT_PINMUX(29, 6, 0xf)>, /* ETH2_TXEN */
+			 <RZT2H_PORT_PINMUX(29, 7, 0xf)>, /* ETH2_RXCLK */
+			 <RZT2H_PORT_PINMUX(30, 0, 0xf)>, /* ETH2_RXD0 */
+			 <RZT2H_PORT_PINMUX(30, 1, 0xf)>, /* ETH2_RXD1 */
+			 <RZT2H_PORT_PINMUX(30, 2, 0xf)>, /* ETH2_RXD2 */
+			 <RZT2H_PORT_PINMUX(30, 3, 0xf)>, /* ETH2_RXD3 */
+			 <RZT2H_PORT_PINMUX(30, 4, 0xf)>, /* ETH2_RXDV */
+			 <RZT2H_PORT_PINMUX(31, 2, 0xf)>, /* ETH2_TXER */
+			 <RZT2H_PORT_PINMUX(31, 1, 0xf)>, /* ETH2_RXER */
+			 <RZT2H_PORT_PINMUX(31, 4, 0xf)>, /* ETH2_CRS */
+			 <RZT2H_PORT_PINMUX(31, 5, 0xf)>, /* ETH2_COL */
+			 <RZT2H_PORT_PINMUX(30, 5, 0x10)>, /* GMAC2_MDC */
+			 <RZT2H_PORT_PINMUX(30, 6, 0x10)>, /* GMAC2_MDIO */
+			 <RZT2H_PORT_PINMUX(31, 0, 0x2)>, /* ETH2_REFCLK */
+			 <RZT2H_PORT_PINMUX(13, 7, 0x0)>; /* IRQ14 */
+
 	};
 
 	/*

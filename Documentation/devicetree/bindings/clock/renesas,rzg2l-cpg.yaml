@@ -28,19 +28,30 @@ properties:
       - renesas,r9a07g044-cpg # RZ/G2{L,LC}
       - renesas,r9a07g054-cpg # RZ/V2L
       - renesas,r9a08g045-cpg # RZ/G3S
+      - renesas,r9a08g046-cpg # RZ/G3L
       - renesas,r9a09g011-cpg # RZ/V2M
 
   reg:
     maxItems: 1
 
   clocks:
-    maxItems: 1
+    minItems: 1
+    items:
+      - description: Clock source to CPG can be either from external clock
+                     input (EXCLK) or crystal oscillator (XIN/XOUT).
+      - description: ETH0 TXC clock input
+      - description: ETH0 RXC clock input
+      - description: ETH1 TXC clock input
+      - description: ETH1 RXC clock input
 
   clock-names:
-    description:
-      Clock source to CPG can be either from external clock input (EXCLK) or
-      crystal oscillator (XIN/XOUT).
-    const: extal
+    minItems: 1
+    items:
+      - const: extal
+      - const: eth0_txc_tx_clk
+      - const: eth0_rxc_rx_clk
+      - const: eth1_txc_tx_clk
+      - const: eth1_rxc_rx_clk
 
   '#clock-cells':
     description: |
@@ -73,6 +84,25 @@ required:
   - '#clock-cells'
   - '#power-domain-cells'
   - '#reset-cells'
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: renesas,r9a08g046-cpg
+    then:
+      properties:
+        clocks:
+          minItems: 5
+        clock-names:
+          minItems: 5
+    else:
+      properties:
+        clocks:
+          maxItems: 1
+        clock-names:
+          maxItems: 1
 
 additionalProperties: false
 

@@ -1093,6 +1093,52 @@
 			status = "disabled";
 		};
 
+		otp: efuse@ff930000 {
+			compatible = "rockchip,rk3562-otp";
+			reg = <0x0 0xff930000 0x0 0x4000>;
+			clocks = <&cru CLK_USER_OTPC_NS>, <&cru PCLK_OTPC_NS>,
+				 <&cru PCLK_OTPPHY>, <&cru CLK_SBPI_OTPC_NS>;
+			clock-names = "otp", "apb_pclk", "phy", "sbpi";
+			resets = <&cru SRST_USER_OTPC_NS>, <&cru SRST_P_OTPC_NS>,
+				 <&cru SRST_P_OTPPHY>, <&cru SRST_SBPI_OTPC_NS>;
+			reset-names = "otp", "apb", "phy", "sbpi";
+
+			nvmem-layout {
+				compatible = "fixed-layout";
+				#address-cells = <1>;
+				#size-cells = <1>;
+
+				cpu_code: cpu-code@2 {
+					reg = <0x02 0x2>;
+				};
+
+				otp_cpu_version: cpu-version@8 {
+					reg = <0x08 0x1>;
+					bits = <3 3>;
+				};
+
+				otp_id: id@a {
+					reg = <0x0a 0x10>;
+				};
+
+				cpu_leakage: cpu-leakage@1a {
+					reg = <0x1a 0x1>;
+				};
+
+				log_leakage: log-leakage@1b {
+					reg = <0x1b 0x1>;
+				};
+
+				npu_leakage: npu-leakage@1c {
+					reg = <0x1c 0x1>;
+				};
+
+				gpu_leakage: gpu-leakage@1d {
+					reg = <0x1d 0x1>;
+				};
+			};
+		};
+
 		dmac: dma-controller@ff990000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x0 0xff990000 0x0 0x4000>;

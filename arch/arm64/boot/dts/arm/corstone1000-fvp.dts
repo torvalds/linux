@@ -8,70 +8,46 @@
 /dts-v1/;
 
 #include "corstone1000.dtsi"
+#include "corstone1000-fvp.dtsi"
 
 / {
 	model = "ARM Corstone1000 FVP (Fixed Virtual Platform)";
 	compatible = "arm,corstone1000-fvp";
 
-	smsc: ethernet@4010000 {
-		compatible = "smsc,lan91c111";
-		reg = <0x40100000 0x10000>;
-		phy-mode = "mii";
-		interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
-		reg-io-width = <2>;
-	};
+	cpus: cpus {
+		#address-cells = <2>;
+		#size-cells = <0>;
 
-	vmmc_v3_3d: regulator-vmmc {
-		compatible = "regulator-fixed";
-		regulator-name = "vmmc_supply";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
-	};
+		cpu: cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a35";
+			reg = <0 0>;
+			enable-method = "psci";
+			next-level-cache = <&L2_0>;
+		};
 
-	sdmmc0: mmc@40300000 {
-		compatible = "arm,pl18x", "arm,primecell";
-		reg = <0x40300000 0x1000>;
-		interrupts = <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>;
-		max-frequency = <12000000>;
-		vmmc-supply = <&vmmc_v3_3d>;
-		clocks = <&smbclk>, <&refclk100mhz>;
-		clock-names = "smclk", "apb_pclk";
-	};
+		cpu1: cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a35";
+			reg = <0 0x1>;
+			enable-method = "psci";
+			next-level-cache = <&L2_0>;
+		};
 
-	sdmmc1: mmc@50000000 {
-		compatible = "arm,pl18x", "arm,primecell";
-		reg = <0x50000000 0x10000>;
-		interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
-		max-frequency = <12000000>;
-		vmmc-supply = <&vmmc_v3_3d>;
-		clocks = <&smbclk>, <&refclk100mhz>;
-		clock-names = "smclk", "apb_pclk";
-	};
-};
+		cpu2: cpu@2 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a35";
+			reg = <0 0x2>;
+			enable-method = "psci";
+			next-level-cache = <&L2_0>;
+		};
 
-&cpus {
-	cpu1: cpu@1 {
-		device_type = "cpu";
-		compatible = "arm,cortex-a35";
-		reg = <0x1>;
-		enable-method = "psci";
-		next-level-cache = <&L2_0>;
-	};
-
-	cpu2: cpu@2 {
-		device_type = "cpu";
-		compatible = "arm,cortex-a35";
-		reg = <0x2>;
-		enable-method = "psci";
-		next-level-cache = <&L2_0>;
-	};
-
-	cpu3: cpu@3 {
-		device_type = "cpu";
-		compatible = "arm,cortex-a35";
-		reg = <0x3>;
-		enable-method = "psci";
-		next-level-cache = <&L2_0>;
+		cpu3: cpu@3 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a35";
+			reg = <0 0x3>;
+			enable-method = "psci";
+			next-level-cache = <&L2_0>;
+		};
 	};
 };

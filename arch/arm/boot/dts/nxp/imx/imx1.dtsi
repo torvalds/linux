@@ -202,7 +202,7 @@
 				#clock-cells = <1>;
 			};
 
-			iomuxc: iomuxc@21c000 {
+			iomuxc: pinmux@21c000 {
 				compatible = "fsl,imx1-iomuxc";
 				reg = <0x0021c000 0x1000>;
 				#address-cells = <1>;

@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (c) 2026, Barnabas Czeman
+ */
+
+/dts-v1/;
+
+#include "msm8917-xiaomi-wingtech.dtsi"
+
+/ {
+	model = "Xiaomi Redmi Go (tiare)";
+	compatible = "xiaomi,tiare", "qcom,msm8917";
+
+	qcom,board-id = <0x1000b 1>;
+};
+
+&pm8937_l22 {
+	regulator-min-microvolt = <2850000>;
+	regulator-max-microvolt = <2850000>;
+};

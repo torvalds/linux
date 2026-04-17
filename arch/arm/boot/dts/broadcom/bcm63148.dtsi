@@ -97,7 +97,7 @@
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
-		ranges = <0 0xfffe8000 0x8000>;
+		ranges = <0 0xfffe8000 0x20000>;
 
 		/* GPIOs 0 .. 31 */
 		gpio0: gpio@100 {
@@ -196,6 +196,15 @@
 				compatible = "brcm,nandcs";
 				reg = <0>;
 			};
+		};
+
+		i2c0: i2c@3e00 {
+			compatible = "brcm,brcmper-i2c";
+			reg = <0x3e00 0x60>;
+			interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
 		};
 	};
 };

@@ -258,15 +258,9 @@
 &i2c4 {
 	stmipi: stmipi@14 {
 		compatible = "st,st-mipid02";
-		pinctrl-names = "default", "sleep";
-		pinctrl-0 = <&mco1_pins_a>;
-		pinctrl-1 = <&mco1_sleep_pins_a>;
 		reg = <0x14>;
 		clocks = <&rcc CK_MCO1>;
 		clock-names = "xclk";
-		assigned-clocks = <&rcc CK_MCO1>;
-		assigned-clock-parents = <&rcc CK_HSE>;
-		assigned-clock-rates = <24000000>;
 		VDDE-supply = <&v1v8>;
 		VDDIN-supply = <&v1v8>;
 		reset-gpios = <&gpioz 0 GPIO_ACTIVE_LOW>;

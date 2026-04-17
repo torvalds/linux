@@ -20,11 +20,6 @@
 		ds1339 = &ds1339;
 		gpio5 = &gpio5;
 		lcdif = &lcdif;
-		lcdif_23bit_pins = &tx28_lcdif_23bit_pins;
-		lcdif_24bit_pins = &lcdif_24bit_pins_a;
-		reg_can_xcvr = &reg_can_xcvr;
-		spi_gpio = &spi_gpio;
-		spi_mxs = &ssp3;
 		stk5led = &user_led;
 		usbotg = &usb0;
 	};
@@ -122,7 +117,7 @@
 	leds {
 		compatible = "gpio-leds";
 
-		user_led: user {
+		user_led: led-user {
 			label = "Heartbeat";
 			gpios = <&gpio4 10 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
@@ -280,7 +275,7 @@
 	};
 
 	polytouch: edt-ft5x06@38 {
-		compatible = "edt,edt-ft5x06";
+		compatible = "edt,edt-ft5206";
 		reg = <0x38>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&tx28_edt_ft5x06_pins>;

@@ -351,18 +351,28 @@
 };
 
 &pcie_bus_clk {
-	clock-frequency = <100000000>;
+	status = "disabled";
 };
 
 &pciec0 {
+	clocks = <&cpg CPG_MOD 319>, <&pcie_usb_clk 1>;
 	status = "okay";
 };
 
+&pciec0_rp {
+	clocks = <&pcie_usb_clk 3>;
+};
+
 &pciec1 {
+	clocks = <&cpg CPG_MOD 318>, <&pcie_usb_clk 2>;
 	status = "okay";
 
 	vpcie1v5-supply = <&pcie_1v5>;
 	vpcie3v3-supply = <&pcie_3v3>;
+};
+
+&pciec1_rp {
+	clocks = <&pcie_usb_clk 4>;
 };
 
 &pfc {
@@ -473,6 +483,15 @@
 	pinctrl-names = "default";
 
 	status = "okay";
+};
+
+&usb3_phy0 {
+	clocks = <&cpg CPG_MOD 328>, <&pcie_usb_clk 6>, <&usb_extal_clk>;
+	status = "okay";
+};
+
+&usb3s0_clk {
+	status = "disabled";
 };
 
 &xhci0 {

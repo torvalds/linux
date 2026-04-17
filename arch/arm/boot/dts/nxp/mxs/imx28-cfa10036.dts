@@ -21,7 +21,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&led_pins_cfa10036>;
 
-		power {
+		led-power {
 			gpios = <&gpio3 4 1>;
 			default-state = "on";
 		};

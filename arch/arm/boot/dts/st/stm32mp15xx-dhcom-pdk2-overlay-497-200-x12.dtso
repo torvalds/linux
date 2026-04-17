@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * Copyright (C) 2020 Marek Vasut
+ */
+/dts-v1/;
+/plugin/;
+
+#include "stm32mp15xx-dhcom-overlay-panel-dpi.dtsi"
+
+&display_bl {
+	pwms = <&pwm2 3 500000 PWM_POLARITY_INVERTED>;
+};
+
+&ltdc_dpi_out {
+	remote-endpoint = <&panel_in>;
+};
+
+&panel {
+	compatible = "dataimage,scf0700c48ggu18";
+};
+
+&panel_in {
+	remote-endpoint = <&ltdc_dpi_out>;
+};

@@ -266,6 +266,10 @@
 				interrupts = <GIC_SPI 364 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-0 = <&hsi2c5_bus>;
 				pinctrl-names = "default";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				status = "disabled";
 			};
 
@@ -305,6 +309,10 @@
 				interrupts = <GIC_SPI 365 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-0 = <&hsi2c6_bus>;
 				pinctrl-names = "default";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				status = "disabled";
 			};
 		};
@@ -328,6 +336,10 @@
 				interrupts = <GIC_SPI 368 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-0 = <&hsi2c5_bus>;
 				pinctrl-names = "default";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				status = "disabled";
 			};
 
@@ -367,6 +379,10 @@
 				interrupts = <GIC_SPI 369 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-0 = <&hsi2c8_bus>;
 				pinctrl-names = "default";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				status = "disabled";
 			};
 		};
@@ -390,6 +406,10 @@
 				interrupts = <GIC_SPI 372 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-0 = <&hsi2c9_bus>;
 				pinctrl-names = "default";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				status = "disabled";
 			};
 
@@ -429,6 +449,10 @@
 				interrupts = <GIC_SPI 373 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-0 = <&hsi2c10_bus>;
 				pinctrl-names = "default";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				status = "disabled";
 			};
 		};
@@ -452,6 +476,10 @@
 				interrupts = <GIC_SPI 376 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-0 = <&hsi2c11_bus>;
 				pinctrl-names = "default";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				status = "disabled";
 			};
 
@@ -491,6 +519,10 @@
 				interrupts = <GIC_SPI 377 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-0 = <&hsi2c12_bus>;
 				pinctrl-names = "default";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				status = "disabled";
 			};
 		};
@@ -565,6 +597,10 @@
 				interrupts = <GIC_SPI 390 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-0 = <&hsi2c13_bus>;
 				pinctrl-names = "default";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				status = "disabled";
 			};
 
@@ -604,6 +640,10 @@
 				interrupts = <GIC_SPI 391 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-0 = <&hsi2c14_bus>;
 				pinctrl-names = "default";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				status = "disabled";
 			};
 		};
@@ -627,6 +667,10 @@
 				interrupts = <GIC_SPI 394 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-0 = <&hsi2c15_bus>;
 				pinctrl-names = "default";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				status = "disabled";
 			};
 
@@ -666,6 +710,10 @@
 				interrupts = <GIC_SPI 395 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-0 = <&hsi2c16_bus>;
 				pinctrl-names = "default";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				status = "disabled";
 			};
 		};
@@ -689,6 +737,10 @@
 				interrupts = <GIC_SPI 398 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-0 = <&hsi2c17_bus>;
 				pinctrl-names = "default";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				status = "disabled";
 			};
 
@@ -728,6 +780,10 @@
 				interrupts = <GIC_SPI 399 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-0 = <&hsi2c18_bus>;
 				pinctrl-names = "default";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				status = "disabled";
 			};
 		};
@@ -751,6 +807,10 @@
 				interrupts = <GIC_SPI 402 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-0 = <&hsi2c19_bus>;
 				pinctrl-names = "default";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				status = "disabled";
 			};
 
@@ -790,6 +850,10 @@
 				interrupts = <GIC_SPI 403 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-0 = <&hsi2c20_bus>;
 				pinctrl-names = "default";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				status = "disabled";
 			};
 		};
@@ -813,6 +877,10 @@
 				interrupts = <GIC_SPI 406 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-0 = <&hsi2c21_bus>;
 				pinctrl-names = "default";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				status = "disabled";
 			};
 
@@ -852,6 +920,10 @@
 				interrupts = <GIC_SPI 407 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-0 = <&hsi2c22_bus>;
 				pinctrl-names = "default";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				status = "disabled";
 			};
 		};
@@ -875,6 +947,10 @@
 				interrupts = <GIC_SPI 410 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-0 = <&hsi2c23_bus>;
 				pinctrl-names = "default";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				status = "disabled";
 			};
 
@@ -914,6 +990,10 @@
 				interrupts = <GIC_SPI 411 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-0 = <&hsi2c24_bus>;
 				pinctrl-names = "default";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				status = "disabled";
 			};
 		};
@@ -937,6 +1017,10 @@
 				interrupts = <GIC_SPI 414 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-0 = <&hsi2c25_bus>;
 				pinctrl-names = "default";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				status = "disabled";
 			};
 
@@ -976,6 +1060,10 @@
 				interrupts = <GIC_SPI 415 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-0 = <&hsi2c26_bus>;
 				pinctrl-names = "default";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				status = "disabled";
 			};
 		};
@@ -999,6 +1087,10 @@
 				interrupts = <GIC_SPI 418 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-0 = <&hsi2c27_bus>;
 				pinctrl-names = "default";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				status = "disabled";
 			};
 
@@ -1038,6 +1130,10 @@
 				interrupts = <GIC_SPI 419 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-0 = <&hsi2c28_bus>;
 				pinctrl-names = "default";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				status = "disabled";
 			};
 		};
@@ -1061,6 +1157,10 @@
 				interrupts = <GIC_SPI 422 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-0 = <&hsi2c29_bus>;
 				pinctrl-names = "default";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				status = "disabled";
 			};
 
@@ -1100,6 +1200,10 @@
 				interrupts = <GIC_SPI 423 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-0 = <&hsi2c30_bus>;
 				pinctrl-names = "default";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				status = "disabled";
 			};
 		};
@@ -1123,6 +1227,10 @@
 				interrupts = <GIC_SPI 426 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-0 = <&hsi2c31_bus>;
 				pinctrl-names = "default";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				status = "disabled";
 			};
 
@@ -1162,6 +1270,10 @@
 				interrupts = <GIC_SPI 427 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-0 = <&hsi2c32_bus>;
 				pinctrl-names = "default";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				status = "disabled";
 			};
 		};
@@ -1180,6 +1292,10 @@
 			interrupts = <GIC_SPI 431 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-0 = <&hsi2c1_bus>;
 			pinctrl-names = "default";
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
 			status = "disabled";
 		};
 
@@ -1191,6 +1307,10 @@
 			interrupts = <GIC_SPI 432 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-0 = <&hsi2c2_bus>;
 			pinctrl-names = "default";
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
 			status = "disabled";
 		};
 
@@ -1202,6 +1322,10 @@
 			interrupts = <GIC_SPI 433 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-0 = <&hsi2c3_bus>;
 			pinctrl-names = "default";
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
 			status = "disabled";
 		};
 
@@ -1213,6 +1337,10 @@
 			interrupts = <GIC_SPI 434 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-0 = <&hsi2c4_bus>;
 			pinctrl-names = "default";
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
 			status = "disabled";
 		};
 

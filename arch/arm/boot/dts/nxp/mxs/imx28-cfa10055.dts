@@ -33,7 +33,7 @@
 			spi-max-frequency = <100000>;
 			spi-cpol;
 			spi-cpha;
-			gpios-reset = <&gpio3 30 0>;
+			reset-gpios = <&gpio3 30 0>;
 		};
 	};
 

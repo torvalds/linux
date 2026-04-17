@@ -201,7 +201,7 @@
 	 * the speed can be increased accordingly.
 	 */
 	bluetooth: bluetooth {
-		compatible = "brcm,bcm43430a1-bt"; /* muRata 1DX */
+		compatible = "brcm,bcm4329-bt"; /* muRata 1DX or 1YN */
 		max-speed = <3000000>;
 		vbat-supply = <&vcc_3v3>;
 		vddio-supply = <&vcc_3v3>;
@@ -222,7 +222,7 @@
 	status = "okay";
 
 	brcmf: wifi@1 {
-		compatible = "brcm,bcm43430a1-fmac", "brcm,bcm4329-fmac"; /* muRata 1DX */
+		compatible = "brcm,bcm4329-fmac"; /* muRata 1DX or 1YN */
 		reg = <1>;
 	};
 };

@@ -41,6 +41,12 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
+	clk32k: clock-32k {
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+		#clock-cells = <0>;
+	};
+
 	nvcc_sd1: regulator-nvcc-sd1 {
 		compatible = "regulator-fixed";
 		regulator-always-on;
@@ -58,7 +64,7 @@
 		 */
 		compatible = "gpio-gate-clock";
 		#clock-cells = <0>;
-		clock-frequency = <32768>;
+		clocks = <&clk32k>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_microsom_ti_clk>;
 		enable-gpios = <&gpio5 5 GPIO_ACTIVE_HIGH>;

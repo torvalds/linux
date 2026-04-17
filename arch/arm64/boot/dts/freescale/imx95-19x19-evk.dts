@@ -475,7 +475,7 @@
 &lpuart5 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart5>;
-	status = "disabled";
+	status = "okay";
 
 	bluetooth {
 		compatible = "nxp,88w8987-bt";

@@ -1,0 +1,167 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+
+&iomux0 {
+	spi0_fabric: mux-spi0-fabric {
+		function = "spi0";
+		groups = "spi0_fabric";
+	};
+
+	spi0_mssio: mux-spi0-mssio {
+		function = "spi0";
+		groups = "spi0_mssio";
+	};
+
+	spi1_fabric: mux-spi1-fabric {
+		function = "spi1";
+		groups = "spi1_fabric";
+	};
+
+	spi1_mssio: mux-spi1-mssio {
+		function = "spi1";
+		groups = "spi1_mssio";
+	};
+
+	i2c0_fabric: mux-i2c0-fabric {
+		function = "i2c0";
+		groups = "i2c0_fabric";
+	};
+
+	i2c0_mssio: mux-i2c0-mssio {
+		function = "i2c0";
+		groups = "i2c0_mssio";
+	};
+
+	i2c1_fabric: mux-i2c1-fabric {
+		function = "i2c1";
+		groups = "i2c1_fabric";
+	};
+
+	i2c1_mssio: mux-i2c1-mssio {
+		function = "i2c1";
+		groups = "i2c1_mssio";
+	};
+
+	can0_fabric: mux-can0-fabric {
+		function = "can0";
+		groups = "can0_fabric";
+	};
+
+	can0_mssio: mux-can0-mssio {
+		function = "can0";
+		groups = "can0_mssio";
+	};
+
+	can1_fabric: mux-can1-fabric {
+		function = "can1";
+		groups = "can1_fabric";
+	};
+
+	can1_mssio: mux-can1-mssio {
+		function = "can1";
+		groups = "can1_mssio";
+	};
+
+	qspi_fabric: mux-qspi-fabric {
+		function = "qspi";
+		groups = "qspi_fabric";
+	};
+
+	qspi_mssio: mux-qspi-mssio {
+		function = "qspi";
+		groups = "qspi_mssio";
+	};
+
+	uart0_fabric: mux-uart0-fabric {
+		function = "uart0";
+		groups = "uart0_fabric";
+	};
+
+	uart0_mssio: mux-uart0-mssio {
+		function = "uart0";
+		groups = "uart0_mssio";
+	};
+
+	uart1_fabric: mux-uart1-fabric {
+		function = "uart1";
+		groups = "uart1_fabric";
+	};
+
+	uart1_mssio: mux-uart1-mssio {
+		function = "uart1";
+		groups = "uart1_mssio";
+	};
+
+	uart2_fabric: mux-uart2-fabric {
+		function = "uart2";
+		groups = "uart2_fabric";
+	};
+
+	uart2_mssio: mux-uart2-mssio {
+		function = "uart2";
+		groups = "uart2_mssio";
+	};
+
+	uart3_fabric: mux-uart3-fabric {
+		function = "uart3";
+		groups = "uart3_fabric";
+	};
+
+	uart3_mssio: mux-uart3-mssio {
+		function = "uart3";
+		groups = "uart3_mssio";
+	};
+
+	uart4_fabric: mux-uart4-fabric {
+		function = "uart4";
+		groups = "uart4_fabric";
+	};
+
+	uart4_mssio: mux-uart4-mssio {
+		function = "uart4";
+		groups = "uart4_mssio";
+	};
+
+	mdio0_fabric: mux-mdio0-fabric {
+		function = "mdio0";
+		groups = "mdio0_fabric";
+	};
+
+	mdio0_mssio: mux-mdio0-mssio {
+		function = "mdio0";
+		groups = "mdio0_mssio";
+	};
+
+	mdio1_fabric: mux-mdio1-fabric {
+		function = "mdio1";
+		groups = "mdio1_fabric";
+	};
+
+	mdio1_mssio: mux-mdio1-mssio {
+		function = "mdio1";
+		groups = "mdio1_mssio";
+	};
+};
+
+&mssio {
+	ikrd_can1_cfg: ikrd-can1-cfg {
+		can1-pins {
+			pins = <34>, <35>, <36>;
+			function = "can";
+			bias-pull-up;
+			drive-strength = <8>;
+			power-source = <3300000>;
+			microchip,ibufmd = <0x1>;
+		};
+	};
+
+	ikrd_spi1_cfg: ikrd-spi1-cfg {
+		spi1-pins {
+			pins = <30>, <31>, <32>, <33>;
+			function = "spi";
+			bias-pull-up;
+			drive-strength = <8>;
+			power-source = <3300000>;
+			microchip,ibufmd = <0x1>;
+		};
+	};
+};

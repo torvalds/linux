@@ -30,7 +30,7 @@ properties:
               - fsl,imx93-npu
           - const: arm,ethos-u65
       - items:
-          - {}
+          - const: arm,corstone1000-ethos-u85
           - const: arm,ethos-u85
 
   reg:

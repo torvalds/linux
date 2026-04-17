@@ -26,6 +26,7 @@ dtb-$(CONFIG_ARCH_EXYNOS4) += \
 	exynos4412-trats2.dtb
 dtb-$(CONFIG_ARCH_EXYNOS5) += \
 	exynos5250-arndale.dtb \
+	exynos5250-manta.dtb \
 	exynos5250-smdk5250.dtb \
 	exynos5250-snow.dtb \
 	exynos5250-snow-rev5.dtb \

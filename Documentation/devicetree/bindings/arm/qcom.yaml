@@ -63,6 +63,21 @@ properties:
 
       - items:
           - enum:
+              - qcom,eliza-mtp
+          - const: qcom,eliza
+
+      - items:
+          - enum:
+              - qcom,glymur-crd
+          - const: qcom,glymur
+
+      - items:
+          - enum:
+              - qcom,mahua-crd
+          - const: qcom,mahua
+
+      - items:
+          - enum:
               - fairphone,fp6
           - const: qcom,milos
 
@@ -171,6 +186,7 @@ properties:
               - qcom,msm8916-mtp
               - samsung,a3u-eur
               - samsung,a5u-eur
+              - samsung,coreprimeltevzw
               - samsung,e5
               - samsung,e7
               - samsung,fortuna3g
@@ -186,6 +202,7 @@ properties:
               - samsung,serranove
               - thwc,uf896
               - thwc,ufi001c
+              - wiko,chuppito
               - wingtech,wt86518
               - wingtech,wt86528
               - wingtech,wt88047
@@ -195,6 +212,8 @@ properties:
       - items:
           - enum:
               - xiaomi,riva
+              - xiaomi,rolex
+              - xiaomi,tiare
           - const: qcom,msm8917
 
       - items:
@@ -241,6 +260,13 @@ properties:
               - arrow,apq8096-db820c
               - inforce,ifc6640
           - const: qcom,apq8096-sbc
+          - const: qcom,apq8096
+
+      - items:
+          - const: arrow,apq8096sg-db820c
+          - const: arrow,apq8096-db820c
+          - const: qcom,apq8096-sbc
+          - const: qcom,apq8096sg
           - const: qcom,apq8096
 
       - items:
@@ -299,6 +325,11 @@ properties:
 
       - items:
           - enum:
+              - qcom,ipq5210-rdp504
+          - const: qcom,ipq5210
+
+      - items:
+          - enum:
               - qcom,ipq5332-ap-mi01.2
               - qcom,ipq5332-ap-mi01.3
               - qcom,ipq5332-ap-mi01.6
@@ -326,8 +357,10 @@ properties:
       - items:
           - enum:
               - qcom,ipq9574-ap-al02-c2
+              - qcom,ipq9574-ap-al02-c2-emmc
               - qcom,ipq9574-ap-al02-c6
               - qcom,ipq9574-ap-al02-c7
+              - qcom,ipq9574-ap-al02-c7-emmc
               - qcom,ipq9574-ap-al02-c8
               - qcom,ipq9574-ap-al02-c9
           - const: qcom,ipq9574
@@ -360,6 +393,7 @@ properties:
               - qcom,qcs6490-rb3gen2
               - radxa,dragon-q6a
               - shift,otter
+              - thundercomm,minipc-g1iot
               - thundercomm,rubikpi3
           - const: qcom,qcm6490
 
@@ -385,6 +419,7 @@ properties:
       - items:
           - enum:
               - acer,aspire1
+              - ecs,liva-qc710
               - qcom,sc7180-idp
           - const: qcom,sc7180
 
@@ -882,6 +917,7 @@ properties:
 
       - items:
           - enum:
+              - arduino,monza
               - qcom,monaco-evk
               - qcom,qcs8300-ride
           - const: qcom,qcs8300
@@ -889,6 +925,7 @@ properties:
       - items:
           - enum:
               - qcom,qcs615-ride
+              - qcom,talos-evk
           - const: qcom,qcs615
           - const: qcom,sm6150
 
@@ -972,6 +1009,7 @@ properties:
               - sony,pdx201
               - xiaomi,ginkgo
               - xiaomi,laurel-sprout
+              - xiaomi,willow
           - const: qcom,sm6125
 
       - items:
@@ -1063,6 +1101,7 @@ properties:
 
       - items:
           - enum:
+              - ayaneo,pocket-s2
               - qcom,sm8650-hdk
               - qcom,sm8650-mtp
               - qcom,sm8650-qrd
@@ -1110,6 +1149,7 @@ properties:
               - dell,xps13-9345
               - hp,elitebook-ultra-g1q
               - hp,omnibook-x14
+              - lenovo,ideacentre-mini-01q8x10
               - lenovo,yoga-slim7x
               - microsoft,romulus13
               - microsoft,romulus15
@@ -1130,6 +1170,12 @@ properties:
 
       - items:
           - enum:
+              - qcom,purwa-iot-evk
+          - const: qcom,purwa-iot-som
+          - const: qcom,x1p42100
+
+      - items:
+          - enum:
               - asus,zenbook-a14-ux3407qa-lcd
               - asus,zenbook-a14-ux3407qa-oled
           - const: asus,zenbook-a14-ux3407qa
@@ -1137,6 +1183,7 @@ properties:
 
       - items:
           - enum:
+              - asus,vivobook-s15-x1p4
               - hp,omnibook-x14-fe1
               - lenovo,thinkbook-16
               - qcom,x1p42100-crd

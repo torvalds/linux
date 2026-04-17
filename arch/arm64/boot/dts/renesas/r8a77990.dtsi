@@ -1912,6 +1912,16 @@
 			iommu-map = <0 &ipmmu_hc 0 1>;
 			iommu-map-mask = <0>;
 			status = "disabled";
+
+			/* PCIe bridge, Root Port */
+			pciec0_rp: pci@0,0 {
+				#address-cells = <3>;
+				#size-cells = <2>;
+				reg = <0x0 0x0 0x0 0x0 0x0>;
+				compatible = "pciclass,0604";
+				device_type = "pci";
+				ranges;
+			};
 		};
 
 		vspb0: vsp@fe960000 {
@@ -2179,5 +2189,22 @@
 			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>,
 			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>;
 		interrupt-names = "sec-phys", "phys", "virt", "hyp-phys";
+	};
+
+	/* External USB clock - to be overridden by boards that provide it */
+	usb3s0_clk: usb3s0-clk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>;
+	};
+
+	usb3_phy0: usb-phy {
+		compatible = "usb-nop-xceiv";
+		clocks = <&usb3s0_clk>;
+		clock-names = "main_clk";
+		clock-frequency = <100000000>;
+		power-domains = <&sysc R8A77990_PD_ALWAYS_ON>;
+		#phy-cells = <0>;
+		status = "disabled";
 	};
 };

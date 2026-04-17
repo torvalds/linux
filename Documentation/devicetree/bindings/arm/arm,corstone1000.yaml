@@ -15,11 +15,11 @@ description: |+
   provides a flexible compute architecture that combines Cortex‑A and Cortex‑M
   processors.
 
-  Support for Cortex‑A32, Cortex‑A35 and Cortex‑A53 processors. Two expansion
-  systems for M-Class (or other) processors for adding sensors, connectivity,
-  video, audio and machine learning at the edge System and security IPs to build
-  a secure SoC for a range of rich IoT applications, for example gateways, smart
-  cameras and embedded systems.
+  Support for Cortex‑A32, Cortex‑A35, Cortex‑A53 and Cortex-A320 processors.
+  Two expansion systems for M-Class (or other) processors for adding sensors,
+  connectivity, video, audio and machine learning at the edge System and
+  security IPs to build a secure SoC for a range of rich IoT applications, for
+  example gateways, smart cameras and embedded systems.
 
   Integrated Secure Enclave providing hardware Root of Trust and supporting
   seamless integration of the optional CryptoCell™-312 cryptographic
@@ -39,6 +39,11 @@ properties:
           implementation of this system. See ARM ecosystems FVP's.
         items:
           - const: arm,corstone1000-fvp
+      - description: Corstone1000-A320 FVP is the Fixed Virtual Platform
+          implementation of this system with Cortex-A320 cores and Ethos-U85
+          NPU. See ARM ecosystems FVP's.
+        items:
+          - const: arm,corstone1000-a320-fvp
 
 additionalProperties: true
 

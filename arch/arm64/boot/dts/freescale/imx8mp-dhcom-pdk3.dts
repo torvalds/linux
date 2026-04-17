@@ -345,7 +345,7 @@
 
 	pinctrl_ptn5150: ptn5150grp {
 		fsl,pins = <
-			MX8MP_IOMUXC_SAI2_TXC__GPIO4_IO25		0x40000000
+			MX8MP_IOMUXC_SAI2_TXC__GPIO4_IO25		MX8MP_SION
 		>;
 	};
 };

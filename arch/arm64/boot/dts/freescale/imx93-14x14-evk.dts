@@ -25,6 +25,7 @@
 		mmc1 = &usdhc2;
 		rtc0 = &bbnsm_rtc;
 		serial0 = &lpuart1;
+		serial4 = &lpuart5;
 	};
 
 	bt_sco_codec: bt-sco-codec {
@@ -398,6 +399,17 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
 	status = "okay";
+};
+
+&lpuart5 {
+	/* BT */
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart5>;
+	status = "okay";
+
+	bluetooth {
+		compatible = "nxp,88w8987-bt";
+	};
 };
 
 &mu1 {

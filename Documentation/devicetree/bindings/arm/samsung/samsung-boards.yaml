@@ -117,6 +117,7 @@ properties:
       - description: Exynos5250 based boards
         items:
           - enum:
+              - google,manta                    # Google Manta (Nexus 10)
               - google,snow-rev5                # Google Snow Rev 5+
               - google,spring                   # Google Spring
               - insignal,arndale                # Insignal Arndale
@@ -216,7 +217,9 @@ properties:
         items:
           - enum:
               - samsung,a2corelte               # Samsung Galaxy A2 Core
+              - samsung,j5y17lte                # Samsung Galaxy J5 (2017)
               - samsung,j6lte                   # Samsung Galaxy J6
+              - samsung,j7xelte                 # Samsung Galaxy J7 (2016)
               - samsung,on7xelte                # Samsung Galaxy J7 Prime
           - const: samsung,exynos7870
 

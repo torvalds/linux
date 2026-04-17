@@ -547,6 +547,10 @@
 	};
 };
 
+&otp {
+	bootph-all;
+};
+
 /* Page 26 / 2230 Key M M.2 */
 &pcie0_clkref {
 	status = "disabled";
@@ -631,6 +635,7 @@
 	hscif0_pins: hscif0 {
 		groups = "hscif0_data", "hscif0_ctrl";
 		function = "hscif0";
+		bootph-all;
 	};
 
 	/* Page 23 / DEBUG */

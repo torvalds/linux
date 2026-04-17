@@ -907,7 +907,7 @@
 				#size-cells = <0>;
 				#power-domain-cells = <0>;
 
-				power-domain@RK3588_PD_RKVDEC0 {
+				pd_rkvdec0: power-domain@RK3588_PD_RKVDEC0 {
 					reg = <RK3588_PD_RKVDEC0>;
 					clocks = <&cru HCLK_RKVDEC0>,
 						 <&cru HCLK_VDPU_ROOT>,
@@ -917,7 +917,7 @@
 					pm_qos = <&qos_rkvdec0>;
 					#power-domain-cells = <0>;
 				};
-				power-domain@RK3588_PD_RKVDEC1 {
+				pd_rkvdec1: power-domain@RK3588_PD_RKVDEC1 {
 					reg = <RK3588_PD_RKVDEC1>;
 					clocks = <&cru HCLK_RKVDEC1>,
 						 <&cru HCLK_VDPU_ROOT>,
@@ -926,7 +926,7 @@
 					pm_qos = <&qos_rkvdec1>;
 					#power-domain-cells = <0>;
 				};
-				power-domain@RK3588_PD_VENC0 {
+				pd_venc0: power-domain@RK3588_PD_VENC0 {
 					reg = <RK3588_PD_VENC0>;
 					clocks = <&cru HCLK_RKVENC0>,
 						 <&cru ACLK_RKVENC0>;
@@ -937,7 +937,7 @@
 					#size-cells = <0>;
 					#power-domain-cells = <0>;
 
-					power-domain@RK3588_PD_VENC1 {
+				pd_venc1: power-domain@RK3588_PD_VENC1 {
 						reg = <RK3588_PD_VENC1>;
 						clocks = <&cru HCLK_RKVENC1>,
 							 <&cru HCLK_RKVENC0>,

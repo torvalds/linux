@@ -114,14 +114,10 @@
 
 	timer {
 		compatible = "arm,armv8-timer";
-		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(2) |
-					  IRQ_TYPE_LEVEL_LOW)>,
-			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(2) |
-					  IRQ_TYPE_LEVEL_LOW)>,
-			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(2) |
-					  IRQ_TYPE_LEVEL_LOW)>,
-			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(2) |
-					  IRQ_TYPE_LEVEL_LOW)>;
+		interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_PPI 14 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_PPI 11 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>;
 	};
 
 	pmu {
@@ -138,8 +134,7 @@
 			<0x0 0x06040000 0 0x40000>; /* GIC Redistributor */
 		#interrupt-cells = <3>;
 		interrupt-controller;
-		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_RAW(0xf) |
-					 IRQ_TYPE_LEVEL_LOW)>;
+		interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_LOW>;
 		its: msi-controller@6020000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;

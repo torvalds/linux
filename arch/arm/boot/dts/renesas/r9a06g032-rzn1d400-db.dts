@@ -185,6 +185,18 @@
 	};
 };
 
+&gpioirqmux {
+	interrupt-map = <89 &gic GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>, /* pin 147: phy@4 */
+			<91 &gic GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>; /* pin 149: phy@5 */
+	status = "okay";
+};
+
+&gpio2 {
+	pinctrl-0 = <&pins_gpio2>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
 &i2c2 {
 	pinctrl-0 = <&pins_i2c2>;
 	pinctrl-names = "default";
@@ -237,13 +249,13 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pins_cpld>;
 
-	pins_can0: pins_can0 {
+	pins_can0: pins-can0 {
 		pinmux = <RZN1_PINMUX(162, RZN1_FUNC_CAN)>,	/* CAN0_TXD */
 			 <RZN1_PINMUX(163, RZN1_FUNC_CAN)>;	/* CAN0_RXD */
 		drive-strength = <6>;
 	};
 
-	pins_can1: pins_can1 {
+	pins_can1: pins-can1 {
 		pinmux = <RZN1_PINMUX(109, RZN1_FUNC_CAN)>,	/* CAN1_TXD */
 			 <RZN1_PINMUX(110, RZN1_FUNC_CAN)>;	/* CAN1_RXD */
 		drive-strength = <6>;
@@ -256,7 +268,7 @@
 			 <RZN1_PINMUX(122, RZN1_FUNC_USB)>;
 	};
 
-	pins_eth3: pins_eth3 {
+	pins_eth3: pins-eth3 {
 		pinmux = <RZN1_PINMUX(36, RZN1_FUNC_CLK_ETH_MII_RGMII_RMII)>,
 			 <RZN1_PINMUX(37, RZN1_FUNC_CLK_ETH_MII_RGMII_RMII)>,
 			 <RZN1_PINMUX(38, RZN1_FUNC_CLK_ETH_MII_RGMII_RMII)>,
@@ -273,7 +285,7 @@
 		bias-disable;
 	};
 
-	pins_eth4: pins_eth4 {
+	pins_eth4: pins-eth4 {
 		pinmux = <RZN1_PINMUX(48, RZN1_FUNC_CLK_ETH_MII_RGMII_RMII)>,
 			 <RZN1_PINMUX(49, RZN1_FUNC_CLK_ETH_MII_RGMII_RMII)>,
 			 <RZN1_PINMUX(50, RZN1_FUNC_CLK_ETH_MII_RGMII_RMII)>,
@@ -290,15 +302,100 @@
 		bias-disable;
 	};
 
-	pins_i2c2: pins_i2c2 {
+	pins_gpio2: pins-gpio2 {
+		pinmux = <RZN1_PINMUX(147, RZN1_FUNC_GPIO)>,
+			 <RZN1_PINMUX(149, RZN1_FUNC_GPIO)>;
+		drive-strength = <6>;
+		bias-pull-up;
+	};
+
+	pins_i2c2: pins-i2c2 {
 		pinmux = <RZN1_PINMUX(115, RZN1_FUNC_I2C)>,
 			 <RZN1_PINMUX(116, RZN1_FUNC_I2C)>;
 		drive-strength = <12>;
 	};
 
-	pins_mdio1: pins_mdio1 {
+	pins_mdio1: pins-mdio1 {
 		pinmux = <RZN1_PINMUX(152, RZN1_FUNC_MDIO1_SWITCH)>,
 			 <RZN1_PINMUX(153, RZN1_FUNC_MDIO1_SWITCH)>;
+	};
+
+	pins_qspi0: pins-qspi0 {
+		pinmux = <RZN1_PINMUX(74, RZN1_FUNC_QSPI)>,
+			 <RZN1_PINMUX(75, RZN1_FUNC_QSPI)>,
+			 <RZN1_PINMUX(76, RZN1_FUNC_QSPI)>,
+			 <RZN1_PINMUX(77, RZN1_FUNC_QSPI)>,
+			 <RZN1_PINMUX(78, RZN1_FUNC_QSPI)>,
+			 <RZN1_PINMUX(79, RZN1_FUNC_QSPI)>;
+		bias-disable;
+	};
+};
+
+&qspi0 {
+	pinctrl-0 = <&pins_qspi0>;
+	pinctrl-names = "default";
+	status = "okay";
+	bootph-all;
+
+	flash@0 {
+		reg = <0>;
+		compatible = "jedec,spi-nor";
+		spi-max-frequency = <62500000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <4>;
+		cdns,read-delay = <1>;
+		cdns,tshsl-ns = <200>;
+		cdns,tsd2d-ns = <255>;
+		cdns,tchsh-ns = <20>;
+		cdns,tslch-ns = <20>;
+		bootph-all;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				/* 64KiB */
+				label = "spl";
+				reg = <0x0000000 0x00010000>;
+			};
+			partition@10000 {
+				/* 64KiB */
+				label = "pkgt";
+				reg = <0x0010000 0x00010000>;
+			};
+			partition@20000 {
+				/* 512KiB */
+				label = "u-boot";
+				reg = <0x0020000 0x00080000>;
+			};
+			partition@a0000 {
+				/* 64KiB */
+				label = "env";
+				reg = <0x00a0000 0x00010000>;
+			};
+			partition@b0000 {
+				/* 128KiB */
+				label = "dtb";
+				reg = <0x00b0000 0x00020000>;
+			};
+			partition@d0000 {
+				/* 1MiB */
+				label = "cm3";
+				reg = <0x00d0000 0x00100000>;
+			};
+			partition@1d0000 {
+				/* 6MiB */
+				label = "kernel";
+				reg = <0x01d0000 0x00600000>;
+			};
+			partition@7d0000 {
+				/* Remaining */
+				label = "data";
+				reg = <0x07d0000 0x1830000>;
+			};
+		};
 	};
 };
 
@@ -323,11 +420,13 @@
 		switch0phy4: ethernet-phy@4 {
 			reg = <4>;
 			micrel,led-mode = <1>;
+			interrupts-extended = <&gpio2a 25 IRQ_TYPE_LEVEL_LOW>;
 		};
 
 		switch0phy5: ethernet-phy@5 {
 			reg = <5>;
 			micrel,led-mode = <1>;
+			interrupts-extended = <&gpio2a 27 IRQ_TYPE_LEVEL_LOW>;
 		};
 	};
 };

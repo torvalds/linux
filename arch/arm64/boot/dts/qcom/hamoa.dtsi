@@ -75,6 +75,7 @@
 			next-level-cache = <&l2_0>;
 			power-domains = <&cpu_pd0>, <&scmi_dvfs 0>;
 			power-domain-names = "psci", "perf";
+			#cooling-cells = <2>;
 
 			l2_0: l2-cache {
 				compatible = "cache";
@@ -91,6 +92,7 @@
 			next-level-cache = <&l2_0>;
 			power-domains = <&cpu_pd1>, <&scmi_dvfs 0>;
 			power-domain-names = "psci", "perf";
+			#cooling-cells = <2>;
 		};
 
 		cpu2: cpu@200 {
@@ -101,6 +103,7 @@
 			next-level-cache = <&l2_0>;
 			power-domains = <&cpu_pd2>, <&scmi_dvfs 0>;
 			power-domain-names = "psci", "perf";
+			#cooling-cells = <2>;
 		};
 
 		cpu3: cpu@300 {
@@ -111,6 +114,7 @@
 			next-level-cache = <&l2_0>;
 			power-domains = <&cpu_pd3>, <&scmi_dvfs 0>;
 			power-domain-names = "psci", "perf";
+			#cooling-cells = <2>;
 		};
 
 		cpu4: cpu@10000 {
@@ -121,6 +125,7 @@
 			next-level-cache = <&l2_1>;
 			power-domains = <&cpu_pd4>, <&scmi_dvfs 1>;
 			power-domain-names = "psci", "perf";
+			#cooling-cells = <2>;
 
 			l2_1: l2-cache {
 				compatible = "cache";
@@ -137,6 +142,7 @@
 			next-level-cache = <&l2_1>;
 			power-domains = <&cpu_pd5>, <&scmi_dvfs 1>;
 			power-domain-names = "psci", "perf";
+			#cooling-cells = <2>;
 		};
 
 		cpu6: cpu@10200 {
@@ -147,6 +153,7 @@
 			next-level-cache = <&l2_1>;
 			power-domains = <&cpu_pd6>, <&scmi_dvfs 1>;
 			power-domain-names = "psci", "perf";
+			#cooling-cells = <2>;
 		};
 
 		cpu7: cpu@10300 {
@@ -157,6 +164,7 @@
 			next-level-cache = <&l2_1>;
 			power-domains = <&cpu_pd7>, <&scmi_dvfs 1>;
 			power-domain-names = "psci", "perf";
+			#cooling-cells = <2>;
 		};
 
 		cpu8: cpu@20000 {
@@ -167,6 +175,7 @@
 			next-level-cache = <&l2_2>;
 			power-domains = <&cpu_pd8>, <&scmi_dvfs 2>;
 			power-domain-names = "psci", "perf";
+			#cooling-cells = <2>;
 
 			l2_2: l2-cache {
 				compatible = "cache";
@@ -183,6 +192,7 @@
 			next-level-cache = <&l2_2>;
 			power-domains = <&cpu_pd9>, <&scmi_dvfs 2>;
 			power-domain-names = "psci", "perf";
+			#cooling-cells = <2>;
 		};
 
 		cpu10: cpu@20200 {
@@ -193,6 +203,7 @@
 			next-level-cache = <&l2_2>;
 			power-domains = <&cpu_pd10>, <&scmi_dvfs 2>;
 			power-domain-names = "psci", "perf";
+			#cooling-cells = <2>;
 		};
 
 		cpu11: cpu@20300 {
@@ -203,6 +214,7 @@
 			next-level-cache = <&l2_2>;
 			power-domains = <&cpu_pd11>, <&scmi_dvfs 2>;
 			power-domain-names = "psci", "perf";
+			#cooling-cells = <2>;
 		};
 
 		cpu-map {
@@ -835,9 +847,9 @@
 				 <0>,
 				 <0>,
 				 <0>,
-				 <0>,
-				 <0>,
-				 <0>;
+				 <&ufs_mem_phy 0>,
+				 <&ufs_mem_phy 1>,
+				 <&ufs_mem_phy 2>;
 
 			power-domains = <&rpmhpd RPMHPD_CX>;
 			#clock-cells = <1>;
@@ -3869,6 +3881,122 @@
 			status = "disabled";
 		};
 
+		ufs_mem_phy: phy@1d80000 {
+			compatible = "qcom,x1e80100-qmp-ufs-phy",
+				     "qcom,sm8550-qmp-ufs-phy";
+			reg = <0x0 0x01d80000 0x0 0x2000>;
+
+			clocks = <&rpmhcc RPMH_CXO_CLK>,
+				 <&gcc GCC_UFS_PHY_PHY_AUX_CLK>,
+				 <&tcsr TCSR_UFS_PHY_CLKREF_EN>;
+
+			clock-names = "ref",
+				      "ref_aux",
+				      "qref";
+			resets = <&ufs_mem_hc 0>;
+			reset-names = "ufsphy";
+
+			power-domains = <&gcc GCC_UFS_MEM_PHY_GDSC>;
+
+			#clock-cells = <1>;
+			#phy-cells = <0>;
+
+			status = "disabled";
+		};
+
+		ufs_mem_hc: ufshc@1d84000 {
+			compatible = "qcom,x1e80100-ufshc",
+				     "qcom,sm8550-ufshc",
+				     "qcom,ufshc";
+			reg = <0x0 0x01d84000 0x0 0x3000>;
+
+			interrupts = <GIC_SPI 265 IRQ_TYPE_LEVEL_HIGH>;
+
+			clocks = <&gcc GCC_UFS_PHY_AXI_CLK>,
+				 <&gcc GCC_AGGRE_UFS_PHY_AXI_CLK>,
+				 <&gcc GCC_UFS_PHY_AHB_CLK>,
+				 <&gcc GCC_UFS_PHY_UNIPRO_CORE_CLK>,
+				 <&rpmhcc RPMH_LN_BB_CLK3>,
+				 <&gcc GCC_UFS_PHY_TX_SYMBOL_0_CLK>,
+				 <&gcc GCC_UFS_PHY_RX_SYMBOL_0_CLK>,
+				 <&gcc GCC_UFS_PHY_RX_SYMBOL_1_CLK>;
+			clock-names = "core_clk",
+				      "bus_aggr_clk",
+				      "iface_clk",
+				      "core_clk_unipro",
+				      "ref_clk",
+				      "tx_lane0_sync_clk",
+				      "rx_lane0_sync_clk",
+				      "rx_lane1_sync_clk";
+
+			operating-points-v2 = <&ufs_opp_table>;
+
+			resets = <&gcc GCC_UFS_PHY_BCR>;
+			reset-names = "rst";
+
+			interconnects = <&aggre1_noc MASTER_UFS_MEM QCOM_ICC_TAG_ALWAYS
+					 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>,
+					<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ACTIVE_ONLY
+					 &config_noc SLAVE_UFS_MEM_CFG QCOM_ICC_TAG_ACTIVE_ONLY>;
+			interconnect-names = "ufs-ddr",
+					     "cpu-ufs";
+
+			power-domains = <&gcc GCC_UFS_PHY_GDSC>;
+			required-opps = <&rpmhpd_opp_nom>;
+
+			iommus = <&apps_smmu 0x1a0 0>;
+			dma-coherent;
+
+			lanes-per-direction = <2>;
+
+			phys = <&ufs_mem_phy>;
+			phy-names = "ufsphy";
+
+			#reset-cells = <1>;
+
+			status = "disabled";
+
+			ufs_opp_table: opp-table {
+				compatible = "operating-points-v2";
+
+				opp-75000000 {
+					opp-hz = /bits/ 64 <75000000>,
+						 /bits/ 64 <0>,
+						 /bits/ 64 <0>,
+						 /bits/ 64 <75000000>,
+						 /bits/ 64 <0>,
+						 /bits/ 64 <0>,
+						 /bits/ 64 <0>,
+						 /bits/ 64 <0>;
+					required-opps = <&rpmhpd_opp_low_svs>;
+				};
+
+				opp-150000000 {
+					opp-hz = /bits/ 64 <150000000>,
+						 /bits/ 64 <0>,
+						 /bits/ 64 <0>,
+						 /bits/ 64 <150000000>,
+						 /bits/ 64 <0>,
+						 /bits/ 64 <0>,
+						 /bits/ 64 <0>,
+						 /bits/ 64 <0>;
+					required-opps = <&rpmhpd_opp_svs>;
+				};
+
+				opp-300000000 {
+					opp-hz = /bits/ 64 <300000000>,
+						 /bits/ 64 <0>,
+						 /bits/ 64 <0>,
+						 /bits/ 64 <300000000>,
+						 /bits/ 64 <0>,
+						 /bits/ 64 <0>,
+						 /bits/ 64 <0>,
+						 /bits/ 64 <0>;
+					required-opps = <&rpmhpd_opp_nom>;
+				};
+			};
+		};
+
 		cryptobam: dma-controller@1dc4000 {
 			compatible = "qcom,bam-v1.7.4", "qcom,bam-v1.7.0";
 			reg = <0x0 0x01dc4000 0x0 0x28000>;
@@ -4714,7 +4842,7 @@
 
 			clocks = <&gcc GCC_SDCC2_AHB_CLK>,
 				 <&gcc GCC_SDCC2_APPS_CLK>,
-				 <&rpmhcc RPMH_CXO_CLK>;
+				 <&bi_tcxo_div2>;
 			clock-names = "iface", "core", "xo";
 			iommus = <&apps_smmu 0x520 0>;
 			qcom,dll-config = <0x0007642c>;
@@ -4767,7 +4895,7 @@
 
 			clocks = <&gcc GCC_SDCC4_AHB_CLK>,
 				 <&gcc GCC_SDCC4_APPS_CLK>,
-				 <&rpmhcc RPMH_CXO_CLK>;
+				 <&bi_tcxo_div2>;
 			clock-names = "iface", "core", "xo";
 			iommus = <&apps_smmu 0x160 0>;
 			qcom,dll-config = <0x0007642c>;
@@ -4908,9 +5036,9 @@
 			status = "disabled";
 		};
 
-		usb_1_ss2: usb@a0f8800 {
-			compatible = "qcom,x1e80100-dwc3", "qcom,dwc3";
-			reg = <0 0x0a0f8800 0 0x400>;
+		usb_1_ss2: usb@a000000 {
+			compatible = "qcom,x1e80100-dwc3", "qcom,snps-dwc3";
+			reg = <0 0x0a000000 0 0xfc100>;
 
 			clocks = <&gcc GCC_CFG_NOC_USB3_TERT_AXI_CLK>,
 				 <&gcc GCC_USB30_TERT_MASTER_CLK>,
@@ -4936,11 +5064,13 @@
 			assigned-clock-rates = <19200000>,
 					       <200000000>;
 
-			interrupts-extended = <&intc GIC_SPI 370 IRQ_TYPE_LEVEL_HIGH>,
+			interrupts-extended = <&intc GIC_SPI 353 IRQ_TYPE_LEVEL_HIGH>,
+					      <&intc GIC_SPI 370 IRQ_TYPE_LEVEL_HIGH>,
 					      <&pdc 58 IRQ_TYPE_EDGE_BOTH>,
 					      <&pdc 57 IRQ_TYPE_EDGE_BOTH>,
 					      <&pdc 10 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "pwr_event",
+			interrupt-names = "dwc_usb3",
+					  "pwr_event",
 					  "dp_hs_phy_irq",
 					  "dm_hs_phy_irq",
 					  "ss_phy_irq";
@@ -4959,61 +5089,47 @@
 
 			wakeup-source;
 
-			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges;
+			iommus = <&apps_smmu 0x14a0 0x0>;
+
+			phys = <&usb_1_ss2_hsphy>,
+			       <&usb_1_ss2_qmpphy QMP_USB43DP_USB3_PHY>;
+			phy-names = "usb2-phy",
+				    "usb3-phy";
+
+			snps,dis_u2_susphy_quirk;
+			snps,dis_enblslpm_quirk;
+			snps,usb3_lpm_capable;
+			snps,dis-u1-entry-quirk;
+			snps,dis-u2-entry-quirk;
+
+			dma-coherent;
 
 			status = "disabled";
 
-			usb_1_ss2_dwc3: usb@a000000 {
-				compatible = "snps,dwc3";
-				reg = <0 0x0a000000 0 0xcd00>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-				interrupts = <GIC_SPI 353 IRQ_TYPE_LEVEL_HIGH>;
+				port@0 {
+					reg = <0>;
 
-				iommus = <&apps_smmu 0x14a0 0x0>;
-
-				phys = <&usb_1_ss2_hsphy>,
-				       <&usb_1_ss2_qmpphy QMP_USB43DP_USB3_PHY>;
-				phy-names = "usb2-phy",
-				            "usb3-phy";
-
-				snps,dis_u2_susphy_quirk;
-				snps,dis_enblslpm_quirk;
-				snps,usb3_lpm_capable;
-				snps,dis-u1-entry-quirk;
-				snps,dis-u2-entry-quirk;
-
-				dma-coherent;
-
-				ports {
-					#address-cells = <1>;
-					#size-cells = <0>;
-
-					port@0 {
-						reg = <0>;
-
-						usb_1_ss2_dwc3_hs: endpoint {
-						};
+					usb_1_ss2_dwc3_hs: endpoint {
 					};
+				};
 
-					port@1 {
-						reg = <1>;
+				port@1 {
+					reg = <1>;
 
-						usb_1_ss2_dwc3_ss: endpoint {
-							remote-endpoint = <&usb_1_ss2_qmpphy_usb_ss_in>;
-						};
+					usb_1_ss2_dwc3_ss: endpoint {
+						remote-endpoint = <&usb_1_ss2_qmpphy_usb_ss_in>;
 					};
 				};
 			};
 		};
 
-		usb_2: usb@a2f8800 {
-			compatible = "qcom,x1e80100-dwc3", "qcom,dwc3";
-			reg = <0 0x0a2f8800 0 0x400>;
-			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges;
+		usb_2: usb@a200000 {
+			compatible = "qcom,x1e80100-dwc3", "qcom,snps-dwc3";
+			reg = <0 0x0a200000 0 0xfc100>;
 
 			clocks = <&gcc GCC_CFG_NOC_USB2_PRIM_AXI_CLK>,
 				 <&gcc GCC_USB20_MASTER_CLK>,
@@ -5038,10 +5154,12 @@
 					  <&gcc GCC_USB20_MASTER_CLK>;
 			assigned-clock-rates = <19200000>, <200000000>;
 
-			interrupts-extended = <&intc GIC_SPI 245 IRQ_TYPE_LEVEL_HIGH>,
+			interrupts-extended = <&intc GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+					      <&intc GIC_SPI 245 IRQ_TYPE_LEVEL_HIGH>,
 					      <&pdc 50 IRQ_TYPE_EDGE_BOTH>,
 					      <&pdc 49 IRQ_TYPE_EDGE_BOTH>;
-			interrupt-names = "pwr_event",
+			interrupt-names = "dwc_usb3",
+					  "pwr_event",
 					  "dp_hs_phy_irq",
 					  "dm_hs_phy_irq";
 
@@ -5060,31 +5178,26 @@
 			qcom,select-utmi-as-pipe-clk;
 			wakeup-source;
 
+			iommus = <&apps_smmu 0x14e0 0x0>;
+			phys = <&usb_2_hsphy>;
+			phy-names = "usb2-phy";
+			maximum-speed = "high-speed";
+			snps,dis-u1-entry-quirk;
+			snps,dis-u2-entry-quirk;
+
+			dma-coherent;
+
 			status = "disabled";
 
-			usb_2_dwc3: usb@a200000 {
-				compatible = "snps,dwc3";
-				reg = <0 0x0a200000 0 0xcd00>;
-				interrupts = <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>;
-				iommus = <&apps_smmu 0x14e0 0x0>;
-				phys = <&usb_2_hsphy>;
-				phy-names = "usb2-phy";
-				maximum-speed = "high-speed";
-				snps,dis-u1-entry-quirk;
-				snps,dis-u2-entry-quirk;
-
-				dma-coherent;
-
-				port {
-					usb_2_dwc3_hs: endpoint {
-					};
+			port {
+				usb_2_dwc3_hs: endpoint {
 				};
 			};
 		};
 
-		usb_mp: usb@a4f8800 {
-			compatible = "qcom,x1e80100-dwc3-mp", "qcom,dwc3";
-			reg = <0 0x0a4f8800 0 0x400>;
+		usb_mp: usb@a400000 {
+			compatible = "qcom,x1e80100-dwc3-mp", "qcom,snps-dwc3";
+			reg = <0 0x0a400000 0 0xfc100>;
 
 			clocks = <&gcc GCC_CFG_NOC_USB3_MP_AXI_CLK>,
 				 <&gcc GCC_USB30_MP_MASTER_CLK>,
@@ -5110,7 +5223,8 @@
 			assigned-clock-rates = <19200000>,
 					       <200000000>;
 
-			interrupts-extended = <&intc GIC_SPI 313 IRQ_TYPE_LEVEL_HIGH>,
+			interrupts-extended = <&intc GIC_SPI 307 IRQ_TYPE_LEVEL_HIGH>,
+					      <&intc GIC_SPI 313 IRQ_TYPE_LEVEL_HIGH>,
 					      <&intc GIC_SPI 314 IRQ_TYPE_LEVEL_HIGH>,
 					      <&intc GIC_SPI 309 IRQ_TYPE_LEVEL_HIGH>,
 					      <&intc GIC_SPI 312 IRQ_TYPE_LEVEL_HIGH>,
@@ -5120,7 +5234,8 @@
 					      <&pdc 53 IRQ_TYPE_EDGE_BOTH>,
 					      <&pdc 55 IRQ_TYPE_LEVEL_HIGH>,
 					      <&pdc 56 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "pwr_event_1", "pwr_event_2",
+			interrupt-names = "dwc_usb3",
+					  "pwr_event_1", "pwr_event_2",
 					  "hs_phy_1",	 "hs_phy_2",
 					  "dp_hs_phy_1", "dm_hs_phy_1",
 					  "dp_hs_phy_2", "dm_hs_phy_2",
@@ -5140,39 +5255,28 @@
 
 			wakeup-source;
 
-			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges;
+			iommus = <&apps_smmu 0x1400 0x0>;
+
+			phys = <&usb_mp_hsphy0>, <&usb_mp_qmpphy0>,
+			       <&usb_mp_hsphy1>, <&usb_mp_qmpphy1>;
+			phy-names = "usb2-0", "usb3-0",
+				    "usb2-1", "usb3-1";
+			dr_mode = "host";
+
+			snps,dis_u2_susphy_quirk;
+			snps,dis_enblslpm_quirk;
+			snps,usb3_lpm_capable;
+			snps,dis-u1-entry-quirk;
+			snps,dis-u2-entry-quirk;
+
+			dma-coherent;
 
 			status = "disabled";
-
-			usb_mp_dwc3: usb@a400000 {
-				compatible = "snps,dwc3";
-				reg = <0 0x0a400000 0 0xcd00>;
-
-				interrupts = <GIC_SPI 307 IRQ_TYPE_LEVEL_HIGH>;
-
-				iommus = <&apps_smmu 0x1400 0x0>;
-
-				phys = <&usb_mp_hsphy0>, <&usb_mp_qmpphy0>,
-				       <&usb_mp_hsphy1>, <&usb_mp_qmpphy1>;
-				phy-names = "usb2-0", "usb3-0",
-					    "usb2-1", "usb3-1";
-				dr_mode = "host";
-
-				snps,dis_u2_susphy_quirk;
-				snps,dis_enblslpm_quirk;
-				snps,usb3_lpm_capable;
-				snps,dis-u1-entry-quirk;
-				snps,dis-u2-entry-quirk;
-
-				dma-coherent;
-			};
 		};
 
-		usb_1_ss0: usb@a6f8800 {
-			compatible = "qcom,x1e80100-dwc3", "qcom,dwc3";
-			reg = <0 0x0a6f8800 0 0x400>;
+		usb_1_ss0: usb@a600000 {
+			compatible = "qcom,x1e80100-dwc3", "qcom,snps-dwc3";
+			reg = <0 0x0a600000 0 0xfc100>;
 
 			clocks = <&gcc GCC_CFG_NOC_USB3_PRIM_AXI_CLK>,
 				 <&gcc GCC_USB30_PRIM_MASTER_CLK>,
@@ -5198,11 +5302,13 @@
 			assigned-clock-rates = <19200000>,
 					       <200000000>;
 
-			interrupts-extended = <&intc GIC_SPI 371 IRQ_TYPE_LEVEL_HIGH>,
+			interrupts-extended = <&intc GIC_SPI 355 IRQ_TYPE_LEVEL_HIGH>,
+					      <&intc GIC_SPI 371 IRQ_TYPE_LEVEL_HIGH>,
 					      <&pdc 61 IRQ_TYPE_EDGE_BOTH>,
 					      <&pdc 15 IRQ_TYPE_EDGE_BOTH>,
 					      <&pdc 17 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "pwr_event",
+			interrupt-names = "dwc_usb3",
+					  "pwr_event",
 					  "dp_hs_phy_irq",
 					  "dm_hs_phy_irq",
 					  "ss_phy_irq";
@@ -5214,58 +5320,47 @@
 
 			wakeup-source;
 
-			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges;
+			iommus = <&apps_smmu 0x1420 0x0>;
+
+			phys = <&usb_1_ss0_hsphy>,
+			       <&usb_1_ss0_qmpphy QMP_USB43DP_USB3_PHY>;
+			phy-names = "usb2-phy",
+				    "usb3-phy";
+
+			snps,dis_u2_susphy_quirk;
+			snps,dis_enblslpm_quirk;
+			snps,usb3_lpm_capable;
+			snps,dis-u1-entry-quirk;
+			snps,dis-u2-entry-quirk;
+
+			dma-coherent;
 
 			status = "disabled";
 
-			usb_1_ss0_dwc3: usb@a600000 {
-				compatible = "snps,dwc3";
-				reg = <0 0x0a600000 0 0xcd00>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-				interrupts = <GIC_SPI 355 IRQ_TYPE_LEVEL_HIGH>;
+				port@0 {
+					reg = <0>;
 
-				iommus = <&apps_smmu 0x1420 0x0>;
-
-				phys = <&usb_1_ss0_hsphy>,
-				       <&usb_1_ss0_qmpphy QMP_USB43DP_USB3_PHY>;
-				phy-names = "usb2-phy",
-					    "usb3-phy";
-
-				snps,dis_u2_susphy_quirk;
-				snps,dis_enblslpm_quirk;
-				snps,usb3_lpm_capable;
-				snps,dis-u1-entry-quirk;
-				snps,dis-u2-entry-quirk;
-
-				dma-coherent;
-
-				ports {
-					#address-cells = <1>;
-					#size-cells = <0>;
-
-					port@0 {
-						reg = <0>;
-
-						usb_1_ss0_dwc3_hs: endpoint {
-						};
+					usb_1_ss0_dwc3_hs: endpoint {
 					};
+				};
 
-					port@1 {
-						reg = <1>;
+				port@1 {
+					reg = <1>;
 
-						usb_1_ss0_dwc3_ss: endpoint {
-							remote-endpoint = <&usb_1_ss0_qmpphy_usb_ss_in>;
-						};
+					usb_1_ss0_dwc3_ss: endpoint {
+						remote-endpoint = <&usb_1_ss0_qmpphy_usb_ss_in>;
 					};
 				};
 			};
 		};
 
-		usb_1_ss1: usb@a8f8800 {
-			compatible = "qcom,x1e80100-dwc3", "qcom,dwc3";
-			reg = <0 0x0a8f8800 0 0x400>;
+		usb_1_ss1: usb@a800000 {
+			compatible = "qcom,x1e80100-dwc3", "qcom,snps-dwc3";
+			reg = <0 0x0a800000 0 0xfc100>;
 
 			clocks = <&gcc GCC_CFG_NOC_USB3_SEC_AXI_CLK>,
 				 <&gcc GCC_USB30_SEC_MASTER_CLK>,
@@ -5291,11 +5386,13 @@
 			assigned-clock-rates = <19200000>,
 					       <200000000>;
 
-			interrupts-extended = <&intc GIC_SPI 372 IRQ_TYPE_LEVEL_HIGH>,
+			interrupts-extended = <&intc GIC_SPI 357 IRQ_TYPE_LEVEL_HIGH>,
+					      <&intc GIC_SPI 372 IRQ_TYPE_LEVEL_HIGH>,
 					      <&pdc 60 IRQ_TYPE_EDGE_BOTH>,
 					      <&pdc 11 IRQ_TYPE_EDGE_BOTH>,
 					      <&pdc 47 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "pwr_event",
+			interrupt-names = "dwc_usb3",
+					  "pwr_event",
 					  "dp_hs_phy_irq",
 					  "dm_hs_phy_irq",
 					  "ss_phy_irq";
@@ -5314,50 +5411,39 @@
 
 			wakeup-source;
 
-			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges;
+			iommus = <&apps_smmu 0x1460 0x0>;
+
+			phys = <&usb_1_ss1_hsphy>,
+			       <&usb_1_ss1_qmpphy QMP_USB43DP_USB3_PHY>;
+			phy-names = "usb2-phy",
+				    "usb3-phy";
+
+			snps,dis_u2_susphy_quirk;
+			snps,dis_enblslpm_quirk;
+			snps,usb3_lpm_capable;
+			snps,dis-u1-entry-quirk;
+			snps,dis-u2-entry-quirk;
+
+			dma-coherent;
 
 			status = "disabled";
 
-			usb_1_ss1_dwc3: usb@a800000 {
-				compatible = "snps,dwc3";
-				reg = <0 0x0a800000 0 0xcd00>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-				interrupts = <GIC_SPI 357 IRQ_TYPE_LEVEL_HIGH>;
+				port@0 {
+					reg = <0>;
 
-				iommus = <&apps_smmu 0x1460 0x0>;
-
-				phys = <&usb_1_ss1_hsphy>,
-				       <&usb_1_ss1_qmpphy QMP_USB43DP_USB3_PHY>;
-				phy-names = "usb2-phy",
-					    "usb3-phy";
-
-				snps,dis_u2_susphy_quirk;
-				snps,dis_enblslpm_quirk;
-				snps,usb3_lpm_capable;
-				snps,dis-u1-entry-quirk;
-				snps,dis-u2-entry-quirk;
-
-				dma-coherent;
-
-				ports {
-					#address-cells = <1>;
-					#size-cells = <0>;
-
-					port@0 {
-						reg = <0>;
-
-						usb_1_ss1_dwc3_hs: endpoint {
-						};
+					usb_1_ss1_dwc3_hs: endpoint {
 					};
+				};
 
-					port@1 {
-						reg = <1>;
+				port@1 {
+					reg = <1>;
 
-						usb_1_ss1_dwc3_ss: endpoint {
-							remote-endpoint = <&usb_1_ss1_qmpphy_usb_ss_in>;
-						};
+					usb_1_ss1_dwc3_ss: endpoint {
+						remote-endpoint = <&usb_1_ss1_qmpphy_usb_ss_in>;
 					};
 				};
 			};
@@ -5432,19 +5518,19 @@
 
 				opp-366000000 {
 					opp-hz = /bits/ 64 <366000000>;
-					required-opps = <&rpmhpd_opp_svs_l1>,
+					required-opps = <&rpmhpd_opp_svs>,
 							<&rpmhpd_opp_svs_l1>;
 				};
 
 				opp-444000000 {
 					opp-hz = /bits/ 64 <444000000>;
-					required-opps = <&rpmhpd_opp_nom>,
+					required-opps = <&rpmhpd_opp_svs_l1>,
 							<&rpmhpd_opp_nom>;
 				};
 
 				opp-481000000 {
 					opp-hz = /bits/ 64 <481000000>;
-					required-opps = <&rpmhpd_opp_turbo>,
+					required-opps = <&rpmhpd_opp_svs_l1>,
 							<&rpmhpd_opp_turbo>;
 				};
 			};
@@ -5658,8 +5744,8 @@
 				mdss_dp0_opp_table: opp-table {
 					compatible = "operating-points-v2";
 
-					opp-160000000 {
-						opp-hz = /bits/ 64 <160000000>;
+					opp-162000000 {
+						opp-hz = /bits/ 64 <162000000>;
 						required-opps = <&rpmhpd_opp_low_svs>;
 					};
 
@@ -5747,8 +5833,8 @@
 				mdss_dp1_opp_table: opp-table {
 					compatible = "operating-points-v2";
 
-					opp-160000000 {
-						opp-hz = /bits/ 64 <160000000>;
+					opp-162000000 {
+						opp-hz = /bits/ 64 <162000000>;
 						required-opps = <&rpmhpd_opp_low_svs>;
 					};
 
@@ -5835,8 +5921,8 @@
 				mdss_dp2_opp_table: opp-table {
 					compatible = "operating-points-v2";
 
-					opp-160000000 {
-						opp-hz = /bits/ 64 <160000000>;
+					opp-162000000 {
+						opp-hz = /bits/ 64 <162000000>;
 						required-opps = <&rpmhpd_opp_low_svs>;
 					};
 
@@ -5918,8 +6004,8 @@
 				mdss_dp3_opp_table: opp-table {
 					compatible = "operating-points-v2";
 
-					opp-160000000 {
-						opp-hz = /bits/ 64 <160000000>;
+					opp-162000000 {
+						opp-hz = /bits/ 64 <162000000>;
 						required-opps = <&rpmhpd_opp_low_svs>;
 					};
 
@@ -9230,7 +9316,7 @@
 			};
 		};
 
-		cpu2-0-top-thermal {
+		thermal_cpu2_0_top: cpu2-0-top-thermal {
 			thermal-sensors = <&tsens2 1>;
 
 			trips {
@@ -9242,7 +9328,7 @@
 			};
 		};
 
-		cpu2-0-btm-thermal {
+		thermal_cpu2_0_btm: cpu2-0-btm-thermal {
 			thermal-sensors = <&tsens2 2>;
 
 			trips {
@@ -9254,7 +9340,7 @@
 			};
 		};
 
-		cpu2-1-top-thermal {
+		thermal_cpu2_1_top: cpu2-1-top-thermal {
 			thermal-sensors = <&tsens2 3>;
 
 			trips {
@@ -9266,7 +9352,7 @@
 			};
 		};
 
-		cpu2-1-btm-thermal {
+		thermal_cpu2_1_btm: cpu2-1-btm-thermal {
 			thermal-sensors = <&tsens2 4>;
 
 			trips {
@@ -9278,7 +9364,7 @@
 			};
 		};
 
-		cpu2-2-top-thermal {
+		thermal_cpu2_2_top: cpu2-2-top-thermal {
 			thermal-sensors = <&tsens2 5>;
 
 			trips {
@@ -9290,7 +9376,7 @@
 			};
 		};
 
-		cpu2-2-btm-thermal {
+		thermal_cpu2_2_btm: cpu2-2-btm-thermal {
 			thermal-sensors = <&tsens2 6>;
 
 			trips {
@@ -9302,7 +9388,7 @@
 			};
 		};
 
-		cpu2-3-top-thermal {
+		thermal_cpu2_3_top: cpu2-3-top-thermal {
 			thermal-sensors = <&tsens2 7>;
 
 			trips {
@@ -9314,7 +9400,7 @@
 			};
 		};
 
-		cpu2-3-btm-thermal {
+		thermal_cpu2_3_btm: cpu2-3-btm-thermal {
 			thermal-sensors = <&tsens2 8>;
 
 			trips {
@@ -9326,7 +9412,7 @@
 			};
 		};
 
-		cpuss2-top-thermal {
+		thermal_cpuss2_top: cpuss2-top-thermal {
 			thermal-sensors = <&tsens2 9>;
 
 			trips {
@@ -9338,7 +9424,7 @@
 			};
 		};
 
-		cpuss2-btm-thermal {
+		thermal_cpuss2_btm: cpuss2-btm-thermal {
 			thermal-sensors = <&tsens2 10>;
 
 			trips {
@@ -9350,7 +9436,7 @@
 			};
 		};
 
-		aoss3-thermal {
+		thermal_aoss3: aoss3-thermal {
 			thermal-sensors = <&tsens3 0>;
 
 			trips {
@@ -9368,7 +9454,7 @@
 			};
 		};
 
-		nsp0-thermal {
+		thermal_nsp0: nsp0-thermal {
 			thermal-sensors = <&tsens3 1>;
 
 			trips {
@@ -9386,7 +9472,7 @@
 			};
 		};
 
-		nsp1-thermal {
+		thermal_nsp1: nsp1-thermal {
 			thermal-sensors = <&tsens3 2>;
 
 			trips {
@@ -9404,7 +9490,7 @@
 			};
 		};
 
-		nsp2-thermal {
+		thermal_nsp2: nsp2-thermal {
 			thermal-sensors = <&tsens3 3>;
 
 			trips {
@@ -9422,7 +9508,7 @@
 			};
 		};
 
-		nsp3-thermal {
+		thermal_nsp3: nsp3-thermal {
 			thermal-sensors = <&tsens3 4>;
 
 			trips {
@@ -9440,7 +9526,7 @@
 			};
 		};
 
-		gpuss-0-thermal {
+		thermal_gpuss_0: gpuss-0-thermal {
 			polling-delay-passive = <200>;
 
 			thermal-sensors = <&tsens3 5>;
@@ -9467,7 +9553,7 @@
 			};
 		};
 
-		gpuss-1-thermal {
+		thermal_gpuss_1: gpuss-1-thermal {
 			polling-delay-passive = <200>;
 
 			thermal-sensors = <&tsens3 6>;
@@ -9494,7 +9580,7 @@
 			};
 		};
 
-		gpuss-2-thermal {
+		thermal_gpuss_2: gpuss-2-thermal {
 			polling-delay-passive = <200>;
 
 			thermal-sensors = <&tsens3 7>;
@@ -9521,7 +9607,7 @@
 			};
 		};
 
-		gpuss-3-thermal {
+		thermal_gpuss_3: gpuss-3-thermal {
 			polling-delay-passive = <200>;
 
 			thermal-sensors = <&tsens3 8>;
@@ -9548,7 +9634,7 @@
 			};
 		};
 
-		gpuss-4-thermal {
+		thermal_gpuss_4: gpuss-4-thermal {
 			polling-delay-passive = <200>;
 
 			thermal-sensors = <&tsens3 9>;
@@ -9575,7 +9661,7 @@
 			};
 		};
 
-		gpuss-5-thermal {
+		thermal_gpuss_5: gpuss-5-thermal {
 			polling-delay-passive = <200>;
 
 			thermal-sensors = <&tsens3 10>;
@@ -9602,7 +9688,7 @@
 			};
 		};
 
-		gpuss-6-thermal {
+		thermal_gpuss_6: gpuss-6-thermal {
 			polling-delay-passive = <200>;
 
 			thermal-sensors = <&tsens3 11>;
@@ -9629,7 +9715,7 @@
 			};
 		};
 
-		gpuss-7-thermal {
+		thermal_gpuss_7: gpuss-7-thermal {
 			polling-delay-passive = <200>;
 
 			thermal-sensors = <&tsens3 12>;
@@ -9656,7 +9742,7 @@
 			};
 		};
 
-		camera0-thermal {
+		thermal_camera0: camera0-thermal {
 			thermal-sensors = <&tsens3 13>;
 
 			trips {
@@ -9674,7 +9760,7 @@
 			};
 		};
 
-		camera1-thermal {
+		thermal_camera1: camera1-thermal {
 			thermal-sensors = <&tsens3 14>;
 
 			trips {

@@ -1,0 +1,299 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
+
+/* Mahua is heavily based on Glymur, with some meaningful differences */
+#include "glymur.dtsi"
+
+/delete-node/ &bwmon_cluster2;
+/delete-node/ &cluster2_pd;
+/delete-node/ &cpu_map_cluster2;
+/delete-node/ &cpu12;
+/delete-node/ &cpu13;
+/delete-node/ &cpu14;
+/delete-node/ &cpu15;
+/delete-node/ &cpu16;
+/delete-node/ &cpu17;
+/delete-node/ &cpu_pd12;
+/delete-node/ &cpu_pd13;
+/delete-node/ &cpu_pd14;
+/delete-node/ &cpu_pd15;
+/delete-node/ &cpu_pd16;
+/delete-node/ &cpu_pd17;
+/delete-node/ &thermal_aoss_6;
+/delete-node/ &thermal_aoss_7;
+/delete-node/ &thermal_cpu_2_0_0;
+/delete-node/ &thermal_cpu_2_0_1;
+/delete-node/ &thermal_cpu_2_1_0;
+/delete-node/ &thermal_cpu_2_1_1;
+/delete-node/ &thermal_cpu_2_2_0;
+/delete-node/ &thermal_cpu_2_2_1;
+/delete-node/ &thermal_cpu_2_3_0;
+/delete-node/ &thermal_cpu_2_3_1;
+/delete-node/ &thermal_cpu_2_4_0;
+/delete-node/ &thermal_cpu_2_4_1;
+/delete-node/ &thermal_cpu_2_5_0;
+/delete-node/ &thermal_cpu_2_5_1;
+/delete-node/ &thermal_cpuillc_2_1;
+/delete-node/ &thermal_cpullc_2_0;
+/delete-node/ &thermal_ddr_2;
+/delete-node/ &thermal_gpu_3_0;
+/delete-node/ &thermal_gpu_3_1;
+/delete-node/ &thermal_gpu_3_2;
+/delete-node/ &thermal_qmx_2_0;
+/delete-node/ &thermal_qmx_2_1;
+/delete-node/ &thermal_qmx_2_2;
+/delete-node/ &thermal_qmx_2_3;
+/delete-node/ &thermal_qmx_2_4;
+/delete-node/ &thermal_video_1;
+/delete-node/ &tsens6;
+/delete-node/ &tsens7;
+
+&aggre1_noc {
+	compatible = "qcom,mahua-aggre1-noc", "qcom,glymur-aggre1-noc";
+};
+
+&aggre2_noc {
+	compatible = "qcom,mahua-aggre2-noc", "qcom,glymur-aggre2-noc";
+};
+
+&aggre3_noc {
+	compatible = "qcom,mahua-aggre3-noc", "qcom,glymur-aggre3-noc";
+};
+
+&aggre4_noc {
+	compatible = "qcom,mahua-aggre4-noc", "qcom,glymur-aggre4-noc";
+};
+
+&clk_virt {
+	compatible = "qcom,mahua-clk-virt", "qcom,glymur-clk-virt";
+};
+
+&cnoc_main {
+	compatible = "qcom,mahua-cnoc-main", "qcom,glymur-cnoc-main";
+};
+
+&config_noc {
+	compatible = "qcom,mahua-cnoc-cfg";
+};
+
+&hsc_noc {
+	compatible = "qcom,mahua-hscnoc";
+};
+
+&lpass_ag_noc {
+	compatible = "qcom,mahua-lpass-ag-noc", "qcom,glymur-lpass-ag-noc";
+};
+
+&lpass_lpiaon_noc {
+	compatible = "qcom,mahua-lpass-lpiaon-noc", "qcom,glymur-lpass-lpiaon-noc";
+};
+
+&lpass_lpicx_noc {
+	compatible = "qcom,mahua-lpass-lpicx-noc", "qcom,glymur-lpass-lpicx-noc";
+};
+
+&mc_virt {
+	compatible = "qcom,mahua-mc-virt";
+};
+
+&mmss_noc {
+	compatible = "qcom,mahua-mmss-noc", "qcom,glymur-mmss-noc";
+};
+
+&nsi_noc {
+	compatible = "qcom,mahua-nsinoc", "qcom,glymur-nsinoc";
+};
+
+&nsp_noc {
+	compatible = "qcom,mahua-nsp-noc", "qcom,glymur-nsp-noc";
+};
+
+&oobm_ss_noc {
+	compatible = "qcom,mahua-oobm-ss-noc", "qcom,glymur-oobm-ss-noc";
+};
+
+&pcie_east_anoc {
+	compatible = "qcom,mahua-pcie-east-anoc", "qcom,glymur-pcie-east-anoc";
+};
+
+&pcie_east_slv_noc {
+	compatible = "qcom,mahua-pcie-east-slv-noc", "qcom,glymur-pcie-east-slv-noc";
+};
+
+&pcie_west_anoc {
+	compatible = "qcom,mahua-pcie-west-anoc";
+	clocks = <&gcc GCC_AGGRE_NOC_PCIE_3B_WEST_SF_AXI_CLK>,
+		 <&gcc GCC_AGGRE_NOC_PCIE_4_WEST_SF_AXI_CLK>,
+		 <&gcc GCC_AGGRE_NOC_PCIE_6_WEST_SF_AXI_CLK>;
+};
+
+&pcie_west_slv_noc {
+	compatible = "qcom,mahua-pcie-west-slv-noc";
+};
+
+&system_noc {
+	compatible = "qcom,mahua-system-noc", "qcom,glymur-system-noc";
+};
+
+&thermal_camera_0 {
+	thermal-sensors = <&tsens4 9>;
+};
+
+&thermal_camera_1 {
+	thermal-sensors = <&tsens4 10>;
+};
+
+&thermal_ddr_1 {
+	thermal-sensors = <&tsens1 7>;
+};
+
+&thermal_gpu_0_0 {
+	thermal-sensors = <&tsens5 1>;
+};
+
+&thermal_gpu_0_1 {
+	thermal-sensors = <&tsens5 2>;
+};
+
+&thermal_gpu_0_2 {
+	thermal-sensors = <&tsens5 3>;
+};
+
+&thermal_gpu_1_0 {
+	thermal-sensors = <&tsens5 4>;
+};
+
+&thermal_gpu_1_1 {
+	thermal-sensors = <&tsens5 5>;
+};
+
+&thermal_gpu_1_2 {
+	thermal-sensors = <&tsens5 6>;
+};
+
+&thermal_gpu_2_0 {
+	thermal-sensors = <&tsens5 7>;
+};
+
+&thermal_gpu_2_1 {
+	thermal-sensors = <&tsens5 8>;
+};
+
+&thermal_gpu_2_2 {
+	thermal-sensors = <&tsens5 9>;
+};
+
+&thermal_gpuss_0 {
+	thermal-sensors = <&tsens5 10>;
+};
+
+&thermal_gpuss_1 {
+	thermal-sensors = <&tsens5 11>;
+};
+
+&thermal_nsphmx_0 {
+	thermal-sensors = <&tsens4 5>;
+};
+
+&thermal_nsphmx_1 {
+	thermal-sensors = <&tsens4 6>;
+};
+
+&thermal_nsphmx_2 {
+	thermal-sensors = <&tsens4 7>;
+};
+
+&thermal_nsphmx_3 {
+	thermal-sensors = <&tsens4 8>;
+};
+
+&thermal_nsphvx_0 {
+	thermal-sensors = <&tsens4 1>;
+};
+
+&thermal_nsphvx_1 {
+	thermal-sensors = <&tsens4 2>;
+};
+
+&thermal_nsphvx_2 {
+	thermal-sensors = <&tsens4 3>;
+};
+
+&thermal_nsphvx_3 {
+	thermal-sensors = <&tsens4 4>;
+};
+
+&thermal_video_0 {
+	thermal-sensors = <&tsens1 8>;
+};
+
+&thermal_zones {
+	gpuss-2-thermal {
+		thermal-sensors = <&tsens5 12>;
+
+		trips {
+			trip-point0 {
+				temperature = <90000>;
+				hysteresis = <5000>;
+				type = "hot";
+			};
+
+			gpuss-2-critical {
+				temperature = <115000>;
+				hysteresis = <1000>;
+				type = "critical";
+			};
+		};
+	};
+
+	gpuss-3-thermal {
+		thermal-sensors = <&tsens5 13>;
+
+		trips {
+			trip-point0 {
+				temperature = <90000>;
+				hysteresis = <5000>;
+				type = "hot";
+			};
+
+			gpuss-3-critical {
+				temperature = <115000>;
+				hysteresis = <1000>;
+				type = "critical";
+			};
+		};
+	};
+
+	gpuss-4-thermal {
+		thermal-sensors = <&tsens5 14>;
+
+		trips {
+			trip-point0 {
+				temperature = <90000>;
+				hysteresis = <5000>;
+				type = "hot";
+			};
+
+			gpuss-4-critical {
+				temperature = <115000>;
+				hysteresis = <1000>;
+				type = "critical";
+			};
+		};
+	};
+};
+
+&tlmm {
+	compatible = "qcom,mahua-tlmm";
+};
+
+&tsens4 {
+	#qcom,sensors = <11>;
+};
+
+&tsens5 {
+	#qcom,sensors = <15>;
+};
+

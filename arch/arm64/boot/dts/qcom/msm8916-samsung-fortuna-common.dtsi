@@ -144,14 +144,31 @@
 &blsp_i2c1 {
 	status = "okay";
 
-	muic: extcon@25 {
+	/* MUIC/extcon varies depending on model variant */
+	muic_sm5504: extcon@14 {
+		compatible = "siliconmitus,sm5504-muic";
+		reg = <0x14>;
+		interrupts-extended = <&tlmm 12 IRQ_TYPE_EDGE_FALLING>;
+		pinctrl-0 = <&muic_int_default>;
+		pinctrl-names = "default";
+		status = "disabled";
+
+		usb_con_sm5504: connector {
+			compatible = "usb-b-connector";
+			label = "micro-USB";
+			type = "micro";
+		};
+	};
+
+	muic_sm5502: extcon@25 {
 		compatible = "siliconmitus,sm5502-muic";
 		reg = <0x25>;
 		interrupts-extended = <&tlmm 12 IRQ_TYPE_EDGE_FALLING>;
 		pinctrl-0 = <&muic_int_default>;
 		pinctrl-names = "default";
+		status = "disabled";
 
-		usb_con: connector {
+		usb_con_sm5502: connector {
 			compatible = "usb-b-connector";
 			label = "micro-USB";
 			type = "micro";
@@ -298,7 +315,7 @@
 		charger: charger {
 			compatible = "richtek,rt5033-charger";
 			monitored-battery = <&battery>;
-			richtek,usb-connector = <&usb_con>;
+			status = "disabled";
 		};
 	};
 };
@@ -346,15 +363,6 @@
 		"AMIC1", "MIC BIAS External1",
 		"AMIC2", "MIC BIAS Internal2",
 		"AMIC3", "MIC BIAS External1";
-};
-
-&usb {
-	extcon = <&muic>, <&muic>;
-	status = "okay";
-};
-
-&usb_hs_phy {
-	extcon = <&muic>;
 };
 
 &venus {

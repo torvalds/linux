@@ -195,7 +195,7 @@
 				status = "disabled";
 			};
 
-			iomuxc: iomuxc@43fac000 {
+			iomuxc: pinmux@43fac000 {
 				compatible = "fsl,imx25-iomuxc";
 				reg = <0x43fac000 0x4000>;
 			};
@@ -305,7 +305,7 @@
 					status = "disabled";
 				};
 
-				tsc: tcq@50030400 {
+				tsc: touchscreen@50030400 {
 					compatible = "fsl,imx25-tcq";
 					reg = <0x50030400 0x60>;
 					interrupt-parent = <&tscadc>;

@@ -77,6 +77,7 @@
 		compatible = "usb-c-connector";
 		data-role = "host";
 		pd-disable;
+		typec-power-opmode = "default";
 		vbus-supply = <&reg_vbus>;
 
 		port {

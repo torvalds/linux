@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) 2015-2021 DH electronics GmbH
- * Copyright (C) 2018 Marek Vasut <marex@denx.de>
+ * Copyright (C) 2015-2026 DH electronics GmbH
+ * Copyright (C) 2018-2026 Marek Vasut
  */
 
 #include <dt-bindings/pwm/pwm.h>
@@ -303,7 +303,7 @@
 		};
 	};
 
-	touchscreen@49 { /* TSC2004 */
+	touch_som: touchscreen@49 { /* TSC2004 */
 		compatible = "ti,tsc2004";
 		interrupts-extended = <&gpio4 14 IRQ_TYPE_EDGE_FALLING>;
 		pinctrl-0 = <&pinctrl_tsc2004>;

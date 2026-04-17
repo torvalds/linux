@@ -1,0 +1,277 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Axis ARTPEC-9 SoC device tree source
+ *
+ * Copyright (c) 2025 Samsung Electronics Co., Ltd.
+ *             https://www.samsung.com
+ * Copyright (c) 2025  Axis Communications AB.
+ *             https://www.axis.com
+ */
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/clock/axis,artpec9-clk.h>
+
+/ {
+	compatible = "axis,artpec9";
+	interrupt-parent = <&gic>;
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	aliases {
+		pinctrl0 = &pinctrl_fsys0;
+		pinctrl1 = &pinctrl_fsys1;
+		pinctrl2 = &pinctrl_peric;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu0: cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a55";
+			reg = <0x0>;
+			enable-method = "psci";
+			cpu-idle-states = <&cpu_sleep>;
+			clocks = <&cmu_cpucl CLK_GOUT_CPUCL_CLUSTER_CPU>;
+			clock-names = "cpu";
+		};
+
+		cpu1: cpu@100 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a55";
+			reg = <0x100>;
+			enable-method = "psci";
+			cpu-idle-states = <&cpu_sleep>;
+		};
+
+		cpu2: cpu@200 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a55";
+			reg = <0x200>;
+			enable-method = "psci";
+			cpu-idle-states = <&cpu_sleep>;
+		};
+
+		cpu3: cpu@300 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a55";
+			reg = <0x300>;
+			enable-method = "psci";
+			cpu-idle-states = <&cpu_sleep>;
+		};
+
+		cpu4: cpu@400 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a55";
+			reg = <0x400>;
+			enable-method = "psci";
+			cpu-idle-states = <&cpu_sleep>;
+		};
+
+		cpu5: cpu@500 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a55";
+			reg = <0x500>;
+			enable-method = "psci";
+			cpu-idle-states = <&cpu_sleep>;
+		};
+
+		idle-states {
+			entry-method = "psci";
+
+			cpu_sleep: cpu-sleep {
+				compatible = "arm,idle-state";
+				arm,psci-suspend-param = <0x0010000>;
+				local-timer-stop;
+				entry-latency-us = <300>;
+				exit-latency-us = <1200>;
+				min-residency-us = <2000>;
+			};
+		};
+	};
+
+	fin_pll: clock-finpll {
+		compatible = "fixed-factor-clock";
+		clocks = <&osc_clk>;
+		#clock-cells = <0>;
+		clock-div = <2>;
+		clock-mult = <1>;
+		clock-output-names = "fin_pll";
+	};
+
+	osc_clk: clock-osc {
+		/* XXTI */
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-output-names = "osc_clk";
+	};
+
+	pmu {
+		compatible = "arm,cortex-a55-pmu";
+		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>, <&cpu4>, <&cpu5>;
+	};
+
+	psci {
+		compatible = "arm,psci-0.2";
+		method = "smc";
+	};
+
+	soc: soc@0 {
+		compatible = "simple-bus";
+		ranges = <0x0 0x0 0x0 0x0 0x0 0x17000000>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+
+		cmu_imem: clock-controller@10010000 {
+			compatible = "axis,artpec9-cmu-imem";
+			reg = <0x0 0x10010000 0x0 0x4000>;
+			#clock-cells = <1>;
+			clocks = <&fin_pll>,
+				 <&cmu_cmu CLK_DOUT_CMU_IMEM_ACLK>,
+				 <&cmu_cmu CLK_DOUT_CMU_IMEM_CA5>,
+				 <&cmu_cmu CLK_DOUT_CMU_IMEM_JPEG>,
+				 <&cmu_cmu CLK_DOUT_CMU_IMEM_SSS>;
+			clock-names = "fin_pll", "aclk", "ca5", "jpeg", "sss";
+		};
+
+		timer@10040000 {
+			compatible = "axis,artpec9-mct", "samsung,exynos4210-mct";
+			reg = <0x0 0x10040000 0x0 0x1000>;
+			clocks = <&fin_pll>, <&cmu_imem CLK_GOUT_IMEM_MCT0_PCLK>;
+			clock-names = "fin_pll", "mct";
+			interrupts = <GIC_SPI 455 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 456 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 457 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 458 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 459 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 460 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 461 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 462 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 463 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 464 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 465 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 466 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		gic: interrupt-controller@10400000 {
+			compatible = "arm,gic-v3";
+			reg = <0x0 0x10400000 0x0 0x00040000>,
+			      <0x0 0x10440000 0x0 0x000c0000>;
+			#interrupt-cells = <3>;
+			interrupt-controller;
+			redistributor-stride = <0x0 0x20000>;
+			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		cmu_cpucl: clock-controller@12810000 {
+			compatible = "axis,artpec9-cmu-cpucl";
+			reg = <0x0 0x12810000 0x0 0x4000>;
+			#clock-cells = <1>;
+			clocks = <&fin_pll>,
+				 <&cmu_cmu CLK_DOUT_CMU_CPUCL_SWITCH>;
+			clock-names = "fin_pll", "switch";
+		};
+
+		cmu_cmu: clock-controller@12c00000 {
+			compatible = "axis,artpec9-cmu-cmu";
+			reg = <0x0 0x12c00000 0x0 0x4000>;
+			#clock-cells = <1>;
+			clocks = <&fin_pll>;
+			clock-names = "fin_pll";
+		};
+
+		cmu_core: clock-controller@12c10000 {
+			compatible = "axis,artpec9-cmu-core";
+			reg = <0x0 0x12c10000 0x0 0x4000>;
+			#clock-cells = <1>;
+			clocks = <&fin_pll>,
+				 <&cmu_cmu CLK_DOUT_CMU_CORE_MAIN>;
+			clock-names = "fin_pll", "main";
+		};
+
+		cmu_bus: clock-controller@13410000 {
+			compatible = "axis,artpec9-cmu-bus";
+			reg = <0x0 0x13410000 0x0 0x4000>;
+			#clock-cells = <1>;
+			clocks = <&fin_pll>,
+				 <&cmu_cmu CLK_DOUT_CMU_BUS>;
+			clock-names = "fin_pll", "bus";
+		};
+
+		cmu_peri: clock-controller@14010000 {
+			compatible = "axis,artpec9-cmu-peri";
+			reg = <0x0 0x14010000 0x0 0x4000>;
+			#clock-cells = <1>;
+			clocks = <&fin_pll>,
+				 <&cmu_cmu CLK_DOUT_CMU_PERI_IP>,
+				 <&cmu_cmu CLK_DOUT_CMU_PERI_DISP>;
+			clock-names = "fin_pll", "ip", "disp";
+		};
+
+		pinctrl_peric: pinctrl@141f0000 {
+			compatible = "axis,artpec9-pinctrl";
+			reg = <0x0 0x141f0000 0x0 0x1000>;
+			interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		cmu_fsys0: clock-controller@14410000 {
+			compatible = "axis,artpec9-cmu-fsys0";
+			reg = <0x0 0x14410000 0x0 0x4000>;
+			#clock-cells = <1>;
+			clocks = <&fin_pll>,
+				 <&cmu_cmu CLK_DOUT_CMU_FSYS0_BUS>,
+				 <&cmu_cmu CLK_DOUT_CMU_FSYS0_IP>;
+			clock-names = "fin_pll", "bus", "ip";
+		};
+
+		pinctrl_fsys0: pinctrl@14430000 {
+			compatible = "axis,artpec9-pinctrl";
+			reg = <0x0 0x14430000 0x0 0x1000>;
+			interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		cmu_fsys1: clock-controller@14c10000 {
+			compatible = "axis,artpec9-cmu-fsys1";
+			reg = <0x0 0x14c10000 0x0 0x4000>;
+			#clock-cells = <1>;
+			clocks = <&fin_pll>,
+				 <&cmu_cmu CLK_DOUT_CMU_FSYS1_SCAN0>,
+				 <&cmu_cmu CLK_DOUT_CMU_FSYS1_SCAN1>,
+				 <&cmu_cmu CLK_DOUT_CMU_FSYS1_BUS>;
+			clock-names = "fin_pll", "scan0", "scan1", "bus";
+		};
+
+		pinctrl_fsys1: pinctrl@14c30000 {
+			compatible = "axis,artpec9-pinctrl";
+			reg = <0x0 0x14c30000 0x0 0x1000>;
+			interrupts = <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		pmu_system_controller: system-controller@14c40000 {
+			compatible = "axis,artpec9-pmu", "samsung,exynos7-pmu", "syscon";
+			reg = <0x0 0x14c40000 0x0 0x10000>;
+		};
+
+		serial_0: serial@14c70000 {
+			compatible = "axis,artpec9-uart", "samsung,exynos8895-uart";
+			reg = <0x0 0x14c70000 0x0 0x100>;
+			clocks = <&cmu_fsys1 CLK_GOUT_FSYS1_UART0_PCLK>,
+				 <&cmu_fsys1 CLK_GOUT_FSYS1_UART0_SCLK_UART>;
+			clock-names = "uart", "clk_uart_baud0";
+			interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&serial0_bus>;
+			samsung,uart-fifosize = <64>;
+		};
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_PPI 14 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_PPI 11 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>;
+	};
+};

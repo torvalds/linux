@@ -79,7 +79,7 @@
 				compatible = "fsl,imx35-i2c", "fsl,imx1-i2c";
 				reg = <0x43f80000 0x4000>;
 				clocks = <&clks 51>;
-				clock-names = "ipg_per";
+				clock-names = "ipg";
 				interrupts = <10>;
 				status = "disabled";
 			};
@@ -90,7 +90,7 @@
 				compatible = "fsl,imx35-i2c", "fsl,imx1-i2c";
 				reg = <0x43f84000 0x4000>;
 				clocks = <&clks 53>;
-				clock-names = "ipg_per";
+				clock-names = "ipg";
 				interrupts = <3>;
 				status = "disabled";
 			};
@@ -119,7 +119,7 @@
 				compatible = "fsl,imx35-i2c", "fsl,imx1-i2c";
 				reg = <0x43f98000 0x4000>;
 				clocks = <&clks 52>;
-				clock-names = "ipg_per";
+				clock-names = "ipg";
 				interrupts = <4>;
 				status = "disabled";
 			};
@@ -356,7 +356,7 @@
 			};
 		};
 
-		emi@80000000 { /* External Memory Interface */
+		emi-bus@80000000 { /* External Memory Interface */
 			compatible = "fsl,emi", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -393,21 +393,13 @@
 		};
 	};
 
-	usbphy {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
+	usbphy0: usb-phy0 {
+		compatible = "usb-nop-xceiv";
+		#phy-cells = <0>;
+	};
 
-		usbphy0: usb-phy@0 {
-			reg = <0>;
-			compatible = "usb-nop-xceiv";
-			#phy-cells = <0>;
-		};
-
-		usbphy1: usb-phy@1 {
-			reg = <1>;
-			compatible = "usb-nop-xceiv";
-			#phy-cells = <0>;
-		};
+	usbphy1: usb-phy1 {
+		compatible = "usb-nop-xceiv";
+		#phy-cells = <0>;
 	};
 };

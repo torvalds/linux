@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * Copyright (C) 2023 Marek Vasut
+ */
+/dts-v1/;
+/plugin/;
+
+#include "stm32mp15xx-dhcom-overlay-panel-dpi.dtsi"
+
+&display_bl {
+	pwms = <&pwm2 3 10000000 0>;
+};
+
+&i2c5 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	eeprom@50 {
+		compatible = "atmel,24c04";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
+};
+
+&ltdc_dpi_out {
+	remote-endpoint = <&panel_in>;
+};
+
+&panel {
+	compatible = "team-source-display,tst043015cmhx";
+};
+
+&panel_in {
+	remote-endpoint = <&ltdc_dpi_out>;
+};

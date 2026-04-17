@@ -8,6 +8,24 @@
 #include <dt-bindings/clock/renesas,r9a09g077-cpg-mssr.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
+/* The IRQ_NS lines start at offset 16 in the ICU interrupt space */
+#define RZT2H_IRQ0	16
+#define RZT2H_IRQ1	17
+#define RZT2H_IRQ2	18
+#define RZT2H_IRQ3	19
+#define RZT2H_IRQ4	20
+#define RZT2H_IRQ5	21
+#define RZT2H_IRQ6	22
+#define RZT2H_IRQ7	23
+#define RZT2H_IRQ8	24
+#define RZT2H_IRQ9	25
+#define RZT2H_IRQ10	26
+#define RZT2H_IRQ11	27
+#define RZT2H_IRQ12	28
+#define RZT2H_IRQ13	29
+#define RZT2H_IRQ14	30
+#define RZT2H_IRQ15	31
+
 / {
 	compatible = "renesas,r9a09g077";
 	#address-cells = <2>;
@@ -200,6 +218,10 @@
 			clocks = <&cpg CPG_CORE R9A09G077_CLK_PCLKM>,
 				 <&cpg CPG_MOD 104>;
 			clock-names = "pclk", "pclkspi";
+			dmas = <&dmac0 0x267a>, <&dmac0 0x267b>,
+			       <&dmac1 0x267a>, <&dmac1 0x267b>,
+			       <&dmac2 0x267a>, <&dmac2 0x267b>;
+			dma-names = "rx", "tx", "rx", "tx", "rx", "tx";
 			power-domains = <&cpg>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -218,6 +240,10 @@
 			clocks = <&cpg CPG_CORE R9A09G077_CLK_PCLKM>,
 				 <&cpg CPG_MOD 105>;
 			clock-names = "pclk", "pclkspi";
+			dmas = <&dmac0 0x267f>, <&dmac0 0x2680>,
+			       <&dmac1 0x267f>, <&dmac1 0x2680>,
+			       <&dmac2 0x267f>, <&dmac2 0x2680>;
+			dma-names = "rx", "tx", "rx", "tx", "rx", "tx";
 			power-domains = <&cpg>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -236,6 +262,10 @@
 			clocks = <&cpg CPG_CORE R9A09G077_CLK_PCLKM>,
 				 <&cpg CPG_MOD 106>;
 			clock-names = "pclk", "pclkspi";
+			dmas = <&dmac0 0x2684>, <&dmac0 0x2685>,
+			       <&dmac1 0x2684>, <&dmac1 0x2685>,
+			       <&dmac2 0x2684>, <&dmac2 0x2685>;
+			dma-names = "rx", "tx", "rx", "tx", "rx", "tx";
 			power-domains = <&cpg>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -254,6 +284,10 @@
 			clocks = <&cpg CPG_CORE R9A09G077_CLK_PCLKM>,
 				 <&cpg CPG_MOD 602>;
 			clock-names = "pclk", "pclkspi";
+			dmas = <&dmac0 0x2689>, <&dmac0 0x268a>,
+			       <&dmac1 0x2689>, <&dmac1 0x268a>,
+			       <&dmac2 0x2689>, <&dmac2 0x268a>;
+			dma-names = "rx", "tx", "rx", "tx", "rx", "tx";
 			power-domains = <&cpg>;
 			#address-cells = <1>;
 			#size-cells = <0>;

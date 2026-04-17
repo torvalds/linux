@@ -109,6 +109,39 @@
 				syna,clip-x-high = <1535>;
 				syna,clip-y-high = <2047>;
 			};
+
+			rmi4-f1a@1a {
+				reg = <0x1a>;
+
+				linux,keycodes = <KEY_BACK KEY_HOME KEY_MENU KEY_SEARCH>;
+			};
+		};
+	};
+
+	spi@7000dc00 {
+		dsi@2 {
+			/*
+			 * HITACHI/KOE 5" 768x1024 TX13D100VM0EAA MIPI DSI panel
+			 */
+			panel@1 {
+				compatible = "koe,tx13d100vm0eaa", "renesas,r61307";
+				reg = <1>;
+
+				reset-gpios = <&gpio TEGRA_GPIO(W, 0) GPIO_ACTIVE_LOW>;
+
+				renesas,gamma = <3>;
+				renesas,column-inversion;
+				renesas,contrast;
+
+				vcc-supply = <&vcc_3v0_lcd>;
+				iovcc-supply = <&iovcc_1v8_lcd>;
+
+				port {
+					panel_input: endpoint {
+						remote-endpoint = <&bridge_output>;
+					};
+				};
+			};
 		};
 	};
 

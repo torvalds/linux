@@ -247,7 +247,7 @@
 
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&mdss_dsi_default &mdss_te_default>;
-	pinctrl-1 = <&mdss_dsi_sleep &mdss_te_sleep>;
+	pinctrl-1 = <&mdss_dsi_sleep &mdss_te_default>;
 };
 
 &mdss_dsi0_out {
@@ -730,14 +730,7 @@
 		bias-pull-down;
 	};
 
-	mdss_te_default: mdss-te-default-state {
-		pins = "gpio10";
-		function = "mdp_vsync";
-		drive-strength = <2>;
-		bias-pull-down;
-	};
-
-	mdss_te_sleep: mdss-te-sleep-state {
+	mdss_te_default: mdss-te-state {
 		pins = "gpio10";
 		function = "mdp_vsync";
 		drive-strength = <2>;

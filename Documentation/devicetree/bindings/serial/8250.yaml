@@ -63,7 +63,9 @@ allOf:
       properties:
         compatible:
           contains:
-            const: spacemit,k1-uart
+            enum:
+              - spacemit,k1-uart
+              - spacemit,k3-uart
     then:
       properties:
         clock-names:
@@ -76,6 +78,7 @@ allOf:
           contains:
             enum:
               - spacemit,k1-uart
+              - spacemit,k3-uart
               - nxp,lpc1850-uart
     then:
       required:

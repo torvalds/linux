@@ -420,9 +420,9 @@
 					     <60>, <58>, <9>, <0>,
 					     <0>, <0>, <0>, <0>;
 				interrupt-names = "audio-adc", "audio-dac", "spdif-tx", "i2c",
-						  "saif0", "empty", "auart0-rx", "auart0-tx",
-						  "auart1-rx", "auart1-tx", "saif1", "empty",
-						  "empty", "empty", "empty", "empty";
+						  "saif0", "empty0", "auart0-rx", "auart0-tx",
+						  "auart1-rx", "auart1-tx", "saif1", "empty1",
+						  "empty2", "empty3", "empty4", "empty5";
 				#dma-cells = <1>;
 				dma-channels = <16>;
 				clocks = <&clks 16>;

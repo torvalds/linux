@@ -262,6 +262,28 @@
 		};
 	};
 
+	vreg_pcie0_1p05: regulator-pcie0-1p05v {
+		compatible = "regulator-fixed";
+		regulator-name = "PCIE0_1.05V";
+		gpio = <&pm7250b_gpios 4 GPIO_ACTIVE_HIGH>;
+		regulator-min-microvolt = <1050000>;
+		regulator-max-microvolt = <1050000>;
+		enable-active-high;
+		pinctrl-0 = <&upd_pwr_en2_state>;
+		pinctrl-names = "default";
+	};
+
+	vreg_pcie0_3p3: regulator-pcie0-3p3v-dual {
+		compatible = "regulator-fixed";
+		regulator-name = "PCIE0_3.3V_Dual";
+		gpio = <&pm7250b_gpios 1 GPIO_ACTIVE_HIGH>;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		pinctrl-0 = <&upd_pwr_en1_state>;
+		pinctrl-names = "default";
+	};
+
 	vdd_ntn_0p9: regulator-vdd-ntn-0p9 {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_NTN_0P9";
@@ -852,7 +874,7 @@
 		pinctrl-0 = <&tc9563_resx_n>;
 		pinctrl-names = "default";
 
-		pcie@1,0 {
+		pcie1_switch0_dsp1: pcie@1,0 {
 			reg = <0x20800 0x0 0x0 0x0 0x0>;
 			#address-cells = <3>;
 			#size-cells = <2>;
@@ -870,6 +892,41 @@
 			device_type = "pci";
 			ranges;
 			bus-range = <0x4 0xff>;
+
+			/* Renesas μPD720201 PCIe USB3.0 Host Controller */
+			usb-controller@0,0 {
+				compatible = "pci1912,0014";
+				reg = <0x40000 0x0 0x0 0x0 0x0>;
+
+				avdd33-supply = <&vreg_pcie0_3p3>;
+				vdd10-supply = <&vreg_pcie0_1p05>;
+				vdd33-supply = <&vreg_pcie0_3p3>;
+
+				pinctrl-0 = <&upd_hub_rst_state>;
+				pinctrl-names = "default";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				/* Genesys Logic GL3590 USB Hub Controller */
+				gl3590_2_0: hub@1 {
+					compatible = "usb5e3,610";
+					reg = <1>;
+					reset-gpios = <&tlmm 162 GPIO_ACTIVE_HIGH>;
+
+					pinctrl-0 = <&usb_hub_reset_state>;
+					pinctrl-names = "default";
+
+					peer-hub = <&gl3590_3_0>;
+				};
+
+				gl3590_3_0: hub@2 {
+					compatible = "usb5e3,625";
+					reg = <2>;
+
+					peer-hub = <&gl3590_2_0>;
+				};
+			};
 		};
 
 		pcie@3,0 {
@@ -1198,6 +1255,17 @@
 		power-source = <0>;
 	};
 
+	upd_hub_rst_state: upd-hub-rst-state {
+		pins = "gpio4";
+		function = "normal";
+
+		bias-disable;
+		input-disable;
+		output-enable;
+		output-high;
+		power-source = <0>;
+	};
+
 	tc9563_resx_n: tc9563-resx-state {
 		pins = "gpio1";
 		function = "normal";
@@ -1378,11 +1446,29 @@
 };
 
 &pm7250b_gpios {
+	upd_pwr_en1_state: upd-pwr-en1-state {
+		pins = "gpio1";
+		function = "normal";
+
+		output-enable;
+		input-disable;
+		power-source = <0>;
+	};
+
 	lt9611_rst_pin: lt9611-rst-state {
 		pins = "gpio2";
 		function = "normal";
 
 		output-high;
+		input-disable;
+		power-source = <0>;
+	};
+
+	upd_pwr_en2_state: upd-pwr-en2-state {
+		pins = "gpio4";
+		function = "normal";
+
+		output-enable;
 		input-disable;
 		power-source = <0>;
 	};
@@ -1430,6 +1516,13 @@
 		pins = "gpio91";
 		function = "gpio";
 		bias-pull-up;
+	};
+
+	usb_hub_reset_state: usb-hub-reset-state {
+		pins = "gpio162";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
 	};
 };
 

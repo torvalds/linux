@@ -354,6 +354,7 @@
 		compatible = "simple-audio-card";
 		pinctrl-0 = <&hp_det>;
 		pinctrl-names = "default";
+		simple-audio-card,aux-devs = <&aw87391_pa_l>, <&aw87391_pa_r>;
 		simple-audio-card,format = "i2s";
 		simple-audio-card,hp-det-gpios = <&gpio4 RK_PC2 GPIO_ACTIVE_HIGH>;
 		simple-audio-card,mclk-fs = <256>;
@@ -363,8 +364,10 @@
 			"MICL", "Mic Jack",
 			"Headphones", "HPOL",
 			"Headphones", "HPOR",
-			"Internal Speakers", "HPOL",
-			"Internal Speakers", "HPOR";
+			"Internal Speakers", "Left Amp OUT",
+			"Internal Speakers", "Right Amp OUT",
+			"Left Amp IN", "HPOL",
+			"Right Amp IN", "HPOR";
 		simple-audio-card,widgets =
 			"Microphone", "Mic Jack",
 			"Headphone", "Headphones",
@@ -467,6 +470,18 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-name = "vcc_wifi";
+	};
+
+	vdd_amp: regulator-vcc-amp {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio4 RK_PC3 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&vdd_amp_h>;
+		pinctrl-names = "default";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vccio_acodec>;
+		regulator-name = "vdd_amp";
 	};
 };
 
@@ -840,8 +855,22 @@
 	pinctrl-names = "default";
 	status = "okay";
 
-	/* awinic,aw87391 at 0x58 */
-	/* awinic,aw87391 at 0x5b */
+	aw87391_pa_l: audio-codec@58 {
+		compatible = "anbernic,rgds-amp", "awinic,aw87391";
+		reg = <0x58>;
+		vdd-supply = <&vdd_amp>;
+		#sound-dai-cells = <0>;
+		sound-name-prefix = "Left Amp";
+	};
+
+	aw87391_pa_r: audio-codec@5b {
+		compatible = "anbernic,rgds-amp", "awinic,aw87391";
+		reg = <0x5b>;
+		vdd-supply = <&vdd_amp>;
+		#sound-dai-cells = <0>;
+		sound-name-prefix = "Right Amp";
+	};
+
 	/* invensense,icm42607p at 0x68 */
 };
 
@@ -1011,6 +1040,13 @@
 		touch1_irq: touch1-irq {
 			rockchip,pins =
 				<0 RK_PC0 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	vdd-amp {
+		vdd_amp_h: vdd-amp-h {
+			rockchip,pins =
+				<4 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 

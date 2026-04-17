@@ -247,6 +247,13 @@
 		>;
 	};
 
+	/* Verdin SPI_1_CS as GPIO */
+	pinctrl_spi1_cs_gpio: main-gpio0-7-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x001c, PIN_OUTPUT, 7) /* (N21) OSPI0_D4.GPIO0_7 */ /* SODIMM 202 */
+		>;
+	};
+
 	/* Verdin QSPI_1_CS# as GPIO (conflict with Verdin QSPI_1 interface) */
 	pinctrl_qspi1_cs_gpio: main-gpio0-11-default-pins {
 		pinctrl-single,pins = <
@@ -767,13 +774,25 @@
 		>;
 	};
 
-	/* Verdin UART_2 */
+	/* Verdin UART_2 RX/TX */
 	pinctrl_wkup_uart0: wkup-uart0-default-pins {
 		pinctrl-single,pins = <
-			AM62PX_MCU_IOPAD(0x002c, PIN_INPUT,  0) /* (C7) WKUP_UART0_CTSn */ /* SODIMM 143 */
-			AM62PX_MCU_IOPAD(0x0030, PIN_OUTPUT, 0) /* (C6) WKUP_UART0_RTSn */ /* SODIMM 141 */
 			AM62PX_MCU_IOPAD(0x0024, PIN_INPUT,  0) /* (D8) WKUP_UART0_RXD  */ /* SODIMM 137 */
 			AM62PX_MCU_IOPAD(0x0028, PIN_OUTPUT, 0) /* (D7) WKUP_UART0_TXD  */ /* SODIMM 139 */
+		>;
+	};
+
+	/* Verdin UART_2 CTS */
+	pinctrl_wkup_uart0_cts: wkup-uart0-cts-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_MCU_IOPAD(0x002c, PIN_INPUT,  0) /* (C7) WKUP_UART0_CTSn */ /* SODIMM 143 */
+		>;
+	};
+
+	/* Verdin UART_2 RTS */
+	pinctrl_wkup_uart0_rts: wkup-uart0-rts-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_MCU_IOPAD(0x0030, PIN_OUTPUT, 0) /* (C6) WKUP_UART0_RTSn */ /* SODIMM 141 */
 		>;
 	};
 };
@@ -1410,7 +1429,9 @@
 /* Verdin UART_2 */
 &wkup_uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_wkup_uart0>;
+	pinctrl-0 = <&pinctrl_wkup_uart0>,
+		    <&pinctrl_wkup_uart0_cts>,
+		    <&pinctrl_wkup_uart0_rts>;
 	uart-has-rtscts;
 	status = "disabled";
 };

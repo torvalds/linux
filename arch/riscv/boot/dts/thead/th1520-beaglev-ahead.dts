@@ -75,6 +75,17 @@
 			label = "led5";
 		};
 	};
+
+	hdmi-connector {
+		compatible = "hdmi-connector";
+		type = "d";
+
+		port {
+			hdmi_con_in: endpoint {
+				remote-endpoint = <&hdmi_out_con>;
+			};
+		};
+	};
 };
 
 &osc {
@@ -234,6 +245,20 @@
 	bus-width = <4>;
 	max-frequency = <198000000>;
 	status = "okay";
+};
+
+&dpu {
+	status = "okay";
+};
+
+&hdmi {
+	status = "okay";
+};
+
+&hdmi_out_port {
+	hdmi_out_con: endpoint {
+		remote-endpoint = <&hdmi_con_in>;
+	};
 };
 
 &uart0 {

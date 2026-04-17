@@ -1,0 +1,149 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pci/nvidia,tegra264-pcie.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra264 PCIe controller
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+properties:
+  compatible:
+    const: nvidia,tegra264-pcie
+
+  reg:
+    description: |
+      Of the six PCIe controllers found on Tegra264, one (C0) is used for the
+      internal GPU and the other five (C1-C5) are routed to connectors such as
+      PCI or M.2 slots. Therefore the UPHY registers (XPL) exist only for C1
+      through C5, but not for C0.
+    minItems: 4
+    items:
+      - description: ECAM-compatible configuration space
+      - description: application layer registers
+      - description: transaction layer registers
+      - description: privileged transaction layer registers
+      - description: data link/physical layer registers (not available on C0)
+
+  reg-names:
+    minItems: 4
+    items:
+      - const: ecam
+      - const: xal
+      - const: xtl
+      - const: xtl-pri
+      - const: xpl
+
+  interrupts:
+    minItems: 1
+    maxItems: 4
+
+  dma-coherent: true
+
+  nvidia,bpmp:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    description: |
+      Must contain a pair of phandle (to the BPMP controller node) and
+      controller ID. The following are the controller IDs for each controller:
+
+      0: C0
+      1: C1
+      2: C2
+      3: C3
+      4: C4
+      5: C5
+    items:
+      - items:
+          - description: phandle to the BPMP controller node
+          - description: PCIe controller ID
+            maximum: 5
+
+required:
+  - interrupt-map
+  - interrupt-map-mask
+  - iommu-map
+  - msi-map
+  - nvidia,bpmp
+
+allOf:
+  - $ref: /schemas/pci/pci-host-bridge.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    bus {
+      #address-cells = <2>;
+      #size-cells = <2>;
+
+      pci@c000000 {
+        compatible = "nvidia,tegra264-pcie";
+        reg = <0xd0 0xb0000000 0x0 0x10000000>,
+              <0x00 0x0c000000 0x0 0x00004000>,
+              <0x00 0x0c004000 0x0 0x00001000>,
+              <0x00 0x0c005000 0x0 0x00001000>;
+        reg-names = "ecam", "xal", "xtl", "xtl-pri";
+        #address-cells = <3>;
+        #size-cells = <2>;
+        device_type = "pci";
+        linux,pci-domain = <0x00>;
+        #interrupt-cells = <0x1>;
+
+        interrupt-map-mask = <0x0 0x0 0x0 0x7>;
+        interrupt-map = <0x0 0x0 0x0 0x1 &gic 0x0 0x0 0x0 155 4>,
+                        <0x0 0x0 0x0 0x2 &gic 0x0 0x0 0x0 156 4>,
+                        <0x0 0x0 0x0 0x3 &gic 0x0 0x0 0x0 157 4>,
+                        <0x0 0x0 0x0 0x4 &gic 0x0 0x0 0x0 158 4>;
+
+        iommu-map = <0x0 &smmu2 0x10000 0x10000>;
+        msi-map = <0x0 &its 0x210000 0x10000>;
+        dma-coherent;
+
+        ranges = <0x81000000 0x00 0x84000000 0xd0 0x84000000 0x00 0x00200000>,
+                 <0x82000000 0x00 0x20000000 0x00 0x20000000 0x00 0x08000000>,
+                 <0xc3000000 0xd0 0xc0000000 0xd0 0xc0000000 0x07 0xc0000000>;
+        bus-range = <0x0 0xff>;
+
+        nvidia,bpmp = <&bpmp 0>;
+      };
+    };
+
+  - |
+    bus {
+      #address-cells = <2>;
+      #size-cells = <2>;
+
+      pci@8400000 {
+        compatible = "nvidia,tegra264-pcie";
+        reg = <0xa8 0xb0000000 0x0 0x10000000>,
+              <0x00 0x08400000 0x0 0x00004000>,
+              <0x00 0x08404000 0x0 0x00001000>,
+              <0x00 0x08405000 0x0 0x00001000>,
+              <0x00 0x08410000 0x0 0x00010000>;
+        reg-names = "ecam", "xal", "xtl", "xtl-pri", "xpl";
+        #address-cells = <3>;
+        #size-cells = <2>;
+        device_type = "pci";
+        linux,pci-domain = <0x01>;
+        #interrupt-cells = <1>;
+        interrupt-map-mask = <0x0 0x0 0x0 0x7>;
+        interrupt-map = <0x0 0x0 0x0 0x1 &gic 0x0 0x0 0x0 908 4>,
+                        <0x0 0x0 0x0 0x2 &gic 0x0 0x0 0x0 909 4>,
+                        <0x0 0x0 0x0 0x3 &gic 0x0 0x0 0x0 910 4>,
+                        <0x0 0x0 0x0 0x4 &gic 0x0 0x0 0x0 911 4>;
+
+        iommu-map = <0x0 &smmu1 0x10000 0x10000>;
+        msi-map = <0x0 &its 0x110000 0x10000>;
+        dma-coherent;
+
+        ranges = <0x81000000 0x00 0x84000000 0xa8 0x84000000 0x00 0x00200000>,
+                 <0x82000000 0x00 0x28000000 0x00 0x28000000 0x00 0x08000000>,
+                 <0xc3000000 0xa8 0xc0000000 0xa8 0xc0000000 0x07 0xc0000000>;
+        bus-range = <0x00 0xff>;
+
+        nvidia,bpmp = <&bpmp 1>;
+      };
+    };

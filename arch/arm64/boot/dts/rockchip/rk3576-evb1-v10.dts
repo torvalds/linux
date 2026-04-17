@@ -270,6 +270,7 @@
 		simple-audio-card,frame-master = <&masterdai>;
 		simple-audio-card,hp-det-gpios = <&gpio0 RK_PD3 GPIO_ACTIVE_LOW>;
 		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,pin-switches = "Headphones", "Speaker", "Main Mic", "Headset Mic";
 		simple-audio-card,routing =
 			"Headphone Power INL", "LOUT1",
 			"Headphone Power INR", "ROUT1",

@@ -1,0 +1,85 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * Copyright (C) 2024 Marek Vasut
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/input/linux-event-codes.h>
+
+/dts-v1/;
+/plugin/;
+
+&{/} {
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		button-1 {
+			label = "KEY2";
+			linux,code = <KEY_2>;
+			gpios = <&gpiog 10 GPIO_ACTIVE_LOW>;
+			wakeup-source;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		poll-interval = <20>;
+
+		button-0 {
+			label = "KEY1";
+			linux,code = <KEY_1>;
+			/* IRQ bank A shared with PA1 touch controller */
+			gpios = <&gpioa 4 GPIO_ACTIVE_LOW>;
+		};
+
+		button-2 {
+			label = "KEY3";
+			linux,code = <KEY_3>;
+			/* IRQ line 0 taken by PI0 / SoM RTC IRQ */
+			gpios = <&gpiod 0 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&m_can1 {
+	/* Collides with KEY2/PG10 KEY3/PD0 */
+	status = "disabled";
+};
+
+&m_can2 {
+	/* Collides with TP_CS/PE6 */
+	status = "disabled";
+};
+
+&usart2 {
+	/* Collides with TP_IRQ/PA1 */
+	status = "disabled";
+};
+
+&spi3 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	cs-gpios = <&gpiof 3 0>, <&gpioe 0 0>;
+	status = "okay";
+
+	lcd@0 {
+		compatible = "adafruit,yx240qv29", "ilitek,ili9341";
+		reg = <0>;
+		spi-max-frequency = <10000000>;
+		dc-gpios = <&gpioe 4 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpiod 3 GPIO_ACTIVE_HIGH>;
+		rotation = <90>;
+	};
+
+	tp@1 {
+		compatible = "ti,tsc2046";
+		reg = <1>;
+		interrupt-parent = <&gpioa>;
+		interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
+		pendown-gpio = <&gpioa 1 GPIO_ACTIVE_LOW>;
+		spi-max-frequency = <500000>;
+		ti,pressure-max = /bits/ 16 <255>;
+		ti,x-plate-ohms = /bits/ 16 <60>;
+	};
+};

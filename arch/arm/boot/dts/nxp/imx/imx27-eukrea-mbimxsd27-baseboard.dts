@@ -76,7 +76,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_touch>;
 		reg = <0>;
-		interrupts = <&gpio4 25 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&gpio4 25 IRQ_TYPE_LEVEL_LOW>;
 		spi-cpol;
 		spi-max-frequency = <1500000>;
 		ti,keep-vref-on;
@@ -147,113 +147,111 @@
 };
 
 &iomuxc {
-	imx27-eukrea-cpuimx27-baseboard {
-		pinctrl_cspi1: cspi1grp {
-			fsl,pins = <
-				MX27_PAD_CSPI1_MISO__CSPI1_MISO	0x0
-				MX27_PAD_CSPI1_MOSI__CSPI1_MOSI	0x0
-				MX27_PAD_CSPI1_SCLK__CSPI1_SCLK	0x0
-				MX27_PAD_CSPI1_SS0__GPIO4_28	0x0 /* CS0 */
-			>;
-		};
+	pinctrl_cspi1: cspi1grp {
+		fsl,pins = <
+			MX27_PAD_CSPI1_MISO__CSPI1_MISO	0x0
+			MX27_PAD_CSPI1_MOSI__CSPI1_MOSI	0x0
+			MX27_PAD_CSPI1_SCLK__CSPI1_SCLK	0x0
+			MX27_PAD_CSPI1_SS0__GPIO4_28	0x0 /* CS0 */
+		>;
+	};
 
-		pinctrl_backlight: backlightgrp {
-			fsl,pins = <
-				MX27_PAD_PWMO__GPIO5_5		0x0
-			>;
-		};
+	pinctrl_backlight: backlightgrp {
+		fsl,pins = <
+			MX27_PAD_PWMO__GPIO5_5		0x0
+		>;
+	};
 
-		pinctrl_gpioleds: gpioledsgrp {
-			fsl,pins = <
-				MX27_PAD_PC_PWRON__GPIO6_16	0x0
-				MX27_PAD_PC_CD2_B__GPIO6_19	0x0
-			>;
-		};
+	pinctrl_gpioleds: gpioledsgrp {
+		fsl,pins = <
+			MX27_PAD_PC_PWRON__GPIO6_16	0x0
+			MX27_PAD_PC_CD2_B__GPIO6_19	0x0
+		>;
+	};
 
-		pinctrl_imxfb: imxfbgrp {
-			fsl,pins = <
-				MX27_PAD_LD0__LD0		0x0
-				MX27_PAD_LD1__LD1		0x0
-				MX27_PAD_LD2__LD2		0x0
-				MX27_PAD_LD3__LD3		0x0
-				MX27_PAD_LD4__LD4		0x0
-				MX27_PAD_LD5__LD5		0x0
-				MX27_PAD_LD6__LD6		0x0
-				MX27_PAD_LD7__LD7		0x0
-				MX27_PAD_LD8__LD8		0x0
-				MX27_PAD_LD9__LD9		0x0
-				MX27_PAD_LD10__LD10		0x0
-				MX27_PAD_LD11__LD11		0x0
-				MX27_PAD_LD12__LD12		0x0
-				MX27_PAD_LD13__LD13		0x0
-				MX27_PAD_LD14__LD14		0x0
-				MX27_PAD_LD15__LD15		0x0
-				MX27_PAD_LD16__LD16		0x0
-				MX27_PAD_LD17__LD17		0x0
-				MX27_PAD_CONTRAST__CONTRAST	0x0
-				MX27_PAD_OE_ACD__OE_ACD		0x0
-				MX27_PAD_HSYNC__HSYNC		0x0
-				MX27_PAD_VSYNC__VSYNC		0x0
-			>;
-		};
+	pinctrl_imxfb: imxfbgrp {
+		fsl,pins = <
+			MX27_PAD_LD0__LD0		0x0
+			MX27_PAD_LD1__LD1		0x0
+			MX27_PAD_LD2__LD2		0x0
+			MX27_PAD_LD3__LD3		0x0
+			MX27_PAD_LD4__LD4		0x0
+			MX27_PAD_LD5__LD5		0x0
+			MX27_PAD_LD6__LD6		0x0
+			MX27_PAD_LD7__LD7		0x0
+			MX27_PAD_LD8__LD8		0x0
+			MX27_PAD_LD9__LD9		0x0
+			MX27_PAD_LD10__LD10		0x0
+			MX27_PAD_LD11__LD11		0x0
+			MX27_PAD_LD12__LD12		0x0
+			MX27_PAD_LD13__LD13		0x0
+			MX27_PAD_LD14__LD14		0x0
+			MX27_PAD_LD15__LD15		0x0
+			MX27_PAD_LD16__LD16		0x0
+			MX27_PAD_LD17__LD17		0x0
+			MX27_PAD_CONTRAST__CONTRAST	0x0
+			MX27_PAD_OE_ACD__OE_ACD		0x0
+			MX27_PAD_HSYNC__HSYNC		0x0
+			MX27_PAD_VSYNC__VSYNC		0x0
+		>;
+	};
 
-		pinctrl_lcdreg: lcdreggrp {
-			fsl,pins = <
-				MX27_PAD_CLS__GPIO1_25		0x0
-			>;
-		};
+	pinctrl_lcdreg: lcdreggrp {
+		fsl,pins = <
+			MX27_PAD_CLS__GPIO1_25		0x0
+		>;
+	};
 
-		pinctrl_sdhc1: sdhc1grp {
-			fsl,pins = <
-				MX27_PAD_SD1_CLK__SD1_CLK	0x0
-				MX27_PAD_SD1_CMD__SD1_CMD	0x0
-				MX27_PAD_SD1_D0__SD1_D0		0x0
-				MX27_PAD_SD1_D1__SD1_D1		0x0
-				MX27_PAD_SD1_D2__SD1_D2		0x0
-				MX27_PAD_SD1_D3__SD1_D3		0x0
-			>;
-		};
+	pinctrl_sdhc1: sdhc1grp {
+		fsl,pins = <
+			MX27_PAD_SD1_CLK__SD1_CLK	0x0
+			MX27_PAD_SD1_CMD__SD1_CMD	0x0
+			MX27_PAD_SD1_D0__SD1_D0		0x0
+			MX27_PAD_SD1_D1__SD1_D1		0x0
+			MX27_PAD_SD1_D2__SD1_D2		0x0
+			MX27_PAD_SD1_D3__SD1_D3		0x0
+		>;
+	};
 
-		pinctrl_ssi1: ssi1grp {
-			fsl,pins = <
-				MX27_PAD_SSI4_CLK__SSI4_CLK	0x0
-				MX27_PAD_SSI4_FS__SSI4_FS	0x0
-				MX27_PAD_SSI4_RXDAT__SSI4_RXDAT	0x1
-				MX27_PAD_SSI4_TXDAT__SSI4_TXDAT	0x1
-			>;
-		};
+	pinctrl_ssi1: ssi1grp {
+		fsl,pins = <
+			MX27_PAD_SSI4_CLK__SSI4_CLK	0x0
+			MX27_PAD_SSI4_FS__SSI4_FS	0x0
+			MX27_PAD_SSI4_RXDAT__SSI4_RXDAT	0x1
+			MX27_PAD_SSI4_TXDAT__SSI4_TXDAT	0x1
+		>;
+	};
 
-		pinctrl_touch: touchgrp {
-			fsl,pins = <
-				MX27_PAD_CSPI1_RDY__GPIO4_25	0x0 /* IRQ */
-			>;
-		};
+	pinctrl_touch: touchgrp {
+		fsl,pins = <
+			MX27_PAD_CSPI1_RDY__GPIO4_25	0x0 /* IRQ */
+		>;
+	};
 
-		pinctrl_uart1: uart1grp {
-			fsl,pins = <
-				MX27_PAD_UART1_TXD__UART1_TXD	0x0
-				MX27_PAD_UART1_RXD__UART1_RXD	0x0
-				MX27_PAD_UART1_CTS__UART1_CTS	0x0
-				MX27_PAD_UART1_RTS__UART1_RTS	0x0
-			>;
-		};
+	pinctrl_uart1: uart1grp {
+		fsl,pins = <
+			MX27_PAD_UART1_TXD__UART1_TXD	0x0
+			MX27_PAD_UART1_RXD__UART1_RXD	0x0
+			MX27_PAD_UART1_CTS__UART1_CTS	0x0
+			MX27_PAD_UART1_RTS__UART1_RTS	0x0
+		>;
+	};
 
-		pinctrl_uart2: uart2grp {
-			fsl,pins = <
-				MX27_PAD_UART2_TXD__UART2_TXD	0x0
-				MX27_PAD_UART2_RXD__UART2_RXD	0x0
-				MX27_PAD_UART2_CTS__UART2_CTS	0x0
-				MX27_PAD_UART2_RTS__UART2_RTS	0x0
-			>;
-		};
+	pinctrl_uart2: uart2grp {
+		fsl,pins = <
+			MX27_PAD_UART2_TXD__UART2_TXD	0x0
+			MX27_PAD_UART2_RXD__UART2_RXD	0x0
+			MX27_PAD_UART2_CTS__UART2_CTS	0x0
+			MX27_PAD_UART2_RTS__UART2_RTS	0x0
+		>;
+	};
 
-		pinctrl_uart3: uart3grp {
-			fsl,pins = <
-				MX27_PAD_UART3_TXD__UART3_TXD	0x0
-				MX27_PAD_UART3_RXD__UART3_RXD	0x0
-				MX27_PAD_UART3_CTS__UART3_CTS	0x0
-				MX27_PAD_UART3_RTS__UART3_RTS	0x0
-			>;
-		};
+	pinctrl_uart3: uart3grp {
+		fsl,pins = <
+			MX27_PAD_UART3_TXD__UART3_TXD	0x0
+			MX27_PAD_UART3_RXD__UART3_RXD	0x0
+			MX27_PAD_UART3_CTS__UART3_CTS	0x0
+			MX27_PAD_UART3_RTS__UART3_RTS	0x0
+		>;
 	};
 };

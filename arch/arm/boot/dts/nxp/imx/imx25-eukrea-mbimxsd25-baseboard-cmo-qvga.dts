@@ -43,10 +43,8 @@
 };
 
 &iomuxc {
-	imx25-eukrea-mbimxsd25-baseboard-cmo-qvga {
-		pinctrl_reg_lcd_3v3: reg_lcd_3v3 {
-			fsl,pins = <MX25_PAD_PWM__GPIO_1_26 0x80000000>;
-		};
+	pinctrl_reg_lcd_3v3: reg_lcd_3v3grp {
+		fsl,pins = <MX25_PAD_PWM__GPIO_1_26 0x80000000>;
 	};
 };
 

@@ -1,0 +1,146 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2025 PHYTEC Messtechnik GmbH
+ * Copyright (C) 2025 Pengutronix
+ *
+ * Author: Andrej Picej <andrej.picej@norik.com>
+ * Author: Marco Felsch <kernel@pengutronix.de>
+ */
+
+#include <dt-bindings/clock/imx93-clock.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include "imx93-pinfunc.h"
+
+/dts-v1/;
+/plugin/;
+
+&{/} {
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <5>;
+		power-supply = <&reg_vcc_3v3_con>;
+		pwms = <&pwm7 0 5000000 0>;
+	};
+
+	panel {
+		compatible = "edt,etm0700g0edh6";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_panel>;
+
+		backlight = <&backlight>;
+		enable-gpios = <&gpio4 29 GPIO_ACTIVE_HIGH>;
+		power-supply = <&reg_vcc_3v3_con>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&dpi_to_panel>;
+			};
+		};
+	};
+
+	/* TODO: Convert to FlexIO PWM once supported */
+	pwm7: pwm-7 {
+		compatible = "pwm-gpio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_pwm7>;
+		gpios = <&gpio4 28 GPIO_ACTIVE_HIGH>;
+		#pwm-cells = <3>;
+	};
+
+	reg_vcc_3v3_con: regulator-vcc-3v3-con {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC3V3_CON";
+		regulator-max-microvolt = <3300000>;
+		regulator-min-microvolt = <3300000>;
+	};
+};
+
+&dpi_bridge {
+	status = "okay";
+};
+
+&dpi_to_panel {
+	remote-endpoint = <&panel_in>;
+};
+
+&lcdif {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_lcdif>;
+	assigned-clocks = <&clk IMX93_CLK_VIDEO_PLL>;
+	assigned-clock-rates = <332600000>;
+	status = "okay";
+};
+
+&lpi2c2 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	touchscreen@38 {
+		compatible = "edt,edt-ft5406";
+		reg = <0x38>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_touchscreen>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <12 IRQ_TYPE_EDGE_FALLING>;
+		reset-gpios = <&gpio4 1 GPIO_ACTIVE_LOW>;
+		vcc-supply = <&reg_vcc_3v3_con>;
+		iovcc-supply = <&reg_vcc_3v3_con>;
+		touchscreen-size-x = <1792>;
+		touchscreen-size-y = <1024>;
+		wakeup-source;
+	};
+};
+
+&media_blk_ctrl {
+	status = "okay";
+};
+
+&iomuxc {
+	pinctrl_lcdif: lcdifgrp {
+		fsl,pins = <
+			MX93_PAD_GPIO_IO00__MEDIAMIX_DISP_CLK		0x50e
+			MX93_PAD_GPIO_IO01__MEDIAMIX_DISP_DE		0x50e
+			MX93_PAD_GPIO_IO02__MEDIAMIX_DISP_VSYNC		0x50e
+			MX93_PAD_GPIO_IO03__MEDIAMIX_DISP_HSYNC		0x50e
+			MX93_PAD_GPIO_IO04__MEDIAMIX_DISP_DATA00	0x50e
+			MX93_PAD_GPIO_IO05__MEDIAMIX_DISP_DATA01	0x50e
+			MX93_PAD_GPIO_IO06__MEDIAMIX_DISP_DATA02	0x50e
+			MX93_PAD_GPIO_IO07__MEDIAMIX_DISP_DATA03	0x50e
+			MX93_PAD_GPIO_IO08__MEDIAMIX_DISP_DATA04	0x50e
+			MX93_PAD_GPIO_IO09__MEDIAMIX_DISP_DATA05	0x51e
+			MX93_PAD_GPIO_IO10__MEDIAMIX_DISP_DATA06	0x50e
+			MX93_PAD_GPIO_IO11__MEDIAMIX_DISP_DATA07	0x50e
+			MX93_PAD_GPIO_IO12__MEDIAMIX_DISP_DATA08	0x50e
+			MX93_PAD_GPIO_IO13__MEDIAMIX_DISP_DATA09	0x50e
+			MX93_PAD_GPIO_IO14__MEDIAMIX_DISP_DATA10	0x50e
+			MX93_PAD_GPIO_IO15__MEDIAMIX_DISP_DATA11	0x50e
+			MX93_PAD_GPIO_IO16__MEDIAMIX_DISP_DATA12	0x506
+			MX93_PAD_GPIO_IO17__MEDIAMIX_DISP_DATA13	0x506
+			MX93_PAD_GPIO_IO18__MEDIAMIX_DISP_DATA14	0x506
+			MX93_PAD_GPIO_IO19__MEDIAMIX_DISP_DATA15	0x506
+			MX93_PAD_GPIO_IO20__MEDIAMIX_DISP_DATA16	0x506
+			MX93_PAD_GPIO_IO21__MEDIAMIX_DISP_DATA17	0x506
+		>;
+	};
+
+	pinctrl_panel: panelgrp {
+		fsl,pins = <
+			MX93_PAD_CCM_CLKO4__GPIO4_IO29			0x1133e
+		>;
+	};
+
+	pinctrl_pwm7: pwm7grp {
+		fsl,pins = <
+			MX93_PAD_CCM_CLKO3__GPIO4_IO28			0x1133e
+		>;
+	};
+
+	pinctrl_touchscreen: touchscreengrp {
+		fsl,pins = <
+			MX93_PAD_ENET1_MDIO__GPIO4_IO01			0x11e
+			MX93_PAD_ENET1_RD2__GPIO4_IO12			0x1133e
+		>;
+	};
+};
