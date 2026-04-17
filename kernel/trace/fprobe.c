@@ -450,8 +450,6 @@ static int fprobe_fgraph_entry(struct ftrace_graph_ent *trace, struct fgraph_ops
 				used += FPROBE_HEADER_SIZE_IN_LONG + size_words;
 		}
 	}
-	if (used < reserved_words)
-		memset(fgraph_data + used, 0, reserved_words - used);
 
 	/* If any exit_handler is set, data must be used. */
 	return used != 0;
