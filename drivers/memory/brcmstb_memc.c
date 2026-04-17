@@ -14,6 +14,7 @@
 
 #define REG_MEMC_CNTRLR_CONFIG		0x00
 #define  CNTRLR_CONFIG_LPDDR4_SHIFT	5
+#define  CNTRLR_CONFIG_LPDDR5_SHIFT	6
 #define  CNTRLR_CONFIG_MASK		0xf
 #define REG_MEMC_SRPD_CFG_21		0x20
 #define REG_MEMC_SRPD_CFG_20		0x34
@@ -34,14 +35,15 @@ struct brcmstb_memc {
 	u32 srpd_offset;
 };
 
-static int brcmstb_memc_uses_lpddr4(struct brcmstb_memc *memc)
+static int brcmstb_memc_uses_lpddr45(struct brcmstb_memc *memc)
 {
 	void __iomem *config = memc->ddr_ctrl + REG_MEMC_CNTRLR_CONFIG;
 	u32 reg;
 
 	reg = readl_relaxed(config) & CNTRLR_CONFIG_MASK;
 
-	return reg == CNTRLR_CONFIG_LPDDR4_SHIFT;
+	return reg == CNTRLR_CONFIG_LPDDR4_SHIFT ||
+	       reg == CNTRLR_CONFIG_LPDDR5_SHIFT;
 }
 
 static int brcmstb_memc_srpd_config(struct brcmstb_memc *memc,
@@ -95,7 +97,7 @@ static ssize_t srpd_store(struct device *dev, struct device_attribute *attr,
 	 * dynamic tuning process will also get affected by the inactivity
 	 * timeout, thus making it non functional.
 	 */
-	if (brcmstb_memc_uses_lpddr4(memc))
+	if (brcmstb_memc_uses_lpddr45(memc))
 		return -EOPNOTSUPP;
 
 	ret = kstrtouint(buf, 10, &val);

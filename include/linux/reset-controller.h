@@ -3,7 +3,10 @@
 #define _LINUX_RESET_CONTROLLER_H_
 
 #include <linux/list.h>
+#include <linux/mutex.h>
 
+struct fwnode_handle;
+struct fwnode_reference_args;
 struct reset_controller_dev;
 
 /**
@@ -35,14 +38,16 @@ struct of_phandle_args;
  * @reset_control_head: head of internal list of requested reset controls
  * @dev: corresponding driver model device struct
  * @of_node: corresponding device tree node as phandle target
- * @of_args: for reset-gpios controllers: corresponding phandle args with
- *           of_node and GPIO number complementing of_node; either this or
- *           of_node should be present
  * @of_reset_n_cells: number of cells in reset line specifiers
  * @of_xlate: translation function to translate from specifier as found in the
- *            device tree to id as given to the reset control ops, defaults
- *            to :c:func:`of_reset_simple_xlate`.
+ *            device tree to id as given to the reset control ops
+ * @fwnode: firmware node associated with this device
+ * @fwnode_reset_n_cells: number of cells in reset line specifiers
+ * @fwnode_xlate: translation function to translate from firmware specifier to
+ *                id as given to the reset control ops, defaults to
+ *                :c:func:`fwnode_reset_simple_xlate`
  * @nr_resets: number of reset controls in this reset controller device
+ * @lock: protects the reset control list from concurrent access
  */
 struct reset_controller_dev {
 	const struct reset_control_ops *ops;
@@ -51,11 +56,15 @@ struct reset_controller_dev {
 	struct list_head reset_control_head;
 	struct device *dev;
 	struct device_node *of_node;
-	const struct of_phandle_args *of_args;
 	int of_reset_n_cells;
 	int (*of_xlate)(struct reset_controller_dev *rcdev,
 			const struct of_phandle_args *reset_spec);
+	struct fwnode_handle *fwnode;
+	int fwnode_reset_n_cells;
+	int (*fwnode_xlate)(struct reset_controller_dev *rcdev,
+			    const struct fwnode_reference_args *reset_spec);
 	unsigned int nr_resets;
+	struct mutex lock;
 };
 
 #if IS_ENABLED(CONFIG_RESET_CONTROLLER)

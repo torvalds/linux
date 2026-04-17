@@ -1005,11 +1005,9 @@ static int rpcif_probe(struct platform_device *pdev)
 		return PTR_ERR(rpc->base);
 	rpc->info = of_device_get_match_data(dev);
 	rpc->regmap = devm_regmap_init(dev, NULL, rpc, rpc->info->regmap_config);
-	if (IS_ERR(rpc->regmap)) {
-		dev_err(dev, "failed to init regmap for rpcif, error %ld\n",
-			PTR_ERR(rpc->regmap));
-		return	PTR_ERR(rpc->regmap);
-	}
+	if (IS_ERR(rpc->regmap))
+		return dev_err_probe(dev, PTR_ERR(rpc->regmap),
+				     "failed to init regmap for rpcif\n");
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dirmap");
 	rpc->dirmap = devm_ioremap_resource(dev, res);

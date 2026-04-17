@@ -136,7 +136,7 @@ static bool rzv2n_regmap_writeable_reg(struct device *dev, unsigned int reg)
 	}
 }
 
-const struct rz_sysc_init_data rzv2n_sys_init_data = {
+const struct rz_sysc_init_data rzv2n_sys_init_data __initconst = {
 	.soc_id_init_data = &rzv2n_sys_soc_id_init_data,
 	.readable_reg = rzv2n_regmap_readable_reg,
 	.writeable_reg = rzv2n_regmap_writeable_reg,

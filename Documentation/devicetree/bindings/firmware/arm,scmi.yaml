@@ -146,6 +146,13 @@ properties:
       this platform. If set, the value should be non-zero.
     minimum: 1
 
+  arm,no-completion-irq:
+    type: boolean
+    description:
+      This optional property is intended for hardware that does not generate
+      completion interrupts and can be used to unconditionally enable forced
+      polling mode of operation.
+
   arm,smc-id:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
@@ -379,6 +386,9 @@ then:
     - shmem
 
 else:
+  properties:
+    arm,no-completion-irq: false
+
   if:
     properties:
       compatible:

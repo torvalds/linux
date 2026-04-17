@@ -100,7 +100,6 @@ static const u32 sp_resets[] = {
 
 struct sp_reset {
 	struct reset_controller_dev rcdev;
-	struct notifier_block notifier;
 	void __iomem *base;
 };
 
@@ -154,10 +153,9 @@ static const struct reset_control_ops sp_reset_ops = {
 	.status   = sp_reset_status,
 };
 
-static int sp_restart(struct notifier_block *nb, unsigned long mode,
-		      void *cmd)
+static int sp_restart(struct sys_off_data *data)
 {
-	struct sp_reset *reset = container_of(nb, struct sp_reset, notifier);
+	struct sp_reset *reset = data->cb_data;
 
 	sp_reset_assert(&reset->rcdev, 0);
 	sp_reset_deassert(&reset->rcdev, 0);
@@ -189,10 +187,8 @@ static int sp_reset_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	reset->notifier.notifier_call = sp_restart;
-	reset->notifier.priority = 192;
-
-	return register_restart_handler(&reset->notifier);
+	return devm_register_sys_off_handler(&pdev->dev, SYS_OFF_MODE_RESTART,
+					     192, sp_restart, reset);
 }
 
 static const struct of_device_id sp_reset_dt_ids[] = {

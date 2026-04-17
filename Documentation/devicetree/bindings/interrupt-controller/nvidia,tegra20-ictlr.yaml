@@ -35,11 +35,12 @@ properties:
       - enum:
           - nvidia,tegra20-ictlr
           - nvidia,tegra30-ictlr
+          - nvidia,tegra210-ictlr
 
   reg:
     description: Each entry is a block of 32 interrupts
     minItems: 4
-    maxItems: 5
+    maxItems: 6
 
   interrupt-controller: true
 
@@ -64,10 +65,28 @@ allOf:
       properties:
         reg:
           maxItems: 4
-    else:
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nvidia,tegra30-ictlr
+    then:
       properties:
         reg:
           minItems: 5
+          maxItems: 5
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nvidia,tegra210-ictlr
+    then:
+      properties:
+        reg:
+          minItems: 6
+          maxItems: 6
 
 examples:
   - |

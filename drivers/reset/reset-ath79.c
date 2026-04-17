@@ -15,7 +15,6 @@
 
 struct ath79_reset {
 	struct reset_controller_dev rcdev;
-	struct notifier_block restart_nb;
 	void __iomem *base;
 	spinlock_t lock;
 };
@@ -72,11 +71,9 @@ static const struct reset_control_ops ath79_reset_ops = {
 	.status = ath79_reset_status,
 };
 
-static int ath79_reset_restart_handler(struct notifier_block *nb,
-				unsigned long action, void *data)
+static int ath79_reset_restart_handler(struct sys_off_data *data)
 {
-	struct ath79_reset *ath79_reset =
-		container_of(nb, struct ath79_reset, restart_nb);
+	struct ath79_reset *ath79_reset = data->cb_data;
 
 	ath79_reset_assert(&ath79_reset->rcdev, FULL_CHIP_RESET);
 
@@ -108,10 +105,7 @@ static int ath79_reset_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	ath79_reset->restart_nb.notifier_call = ath79_reset_restart_handler;
-	ath79_reset->restart_nb.priority = 128;
-
-	err = register_restart_handler(&ath79_reset->restart_nb);
+	err = devm_register_restart_handler(&pdev->dev, ath79_reset_restart_handler, ath79_reset);
 	if (err)
 		dev_warn(&pdev->dev, "Failed to register restart handler\n");
 

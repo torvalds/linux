@@ -23,6 +23,8 @@ properties:
     oneOf:
       - items:
           - enum:
+              - qcom,glymur-pmic-glink
+              - qcom,kaanapali-pmic-glink
               - qcom,qcm6490-pmic-glink
               - qcom,sc8180x-pmic-glink
               - qcom,sc8280xp-pmic-glink

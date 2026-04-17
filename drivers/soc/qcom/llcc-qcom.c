@@ -5,7 +5,6 @@
  */
 
 #include <linux/bitfield.h>
-#include <linux/bitmap.h>
 #include <linux/bitops.h>
 #include <linux/cleanup.h>
 #include <linux/device.h>
@@ -1779,6 +1778,94 @@ static const struct llcc_slice_config sc8280xp_data[] = {
 		.bonus_ways = 0xfff,
 		.cache_mode = 0,
 		.activate_on_init = true,
+	},
+};
+
+static const struct llcc_slice_config sdm670_data[] = {
+	{
+		.usecase_id = LLCC_CPUSS,
+		.slice_id = 1,
+		.max_cap = 512,
+		.priority = 1,
+		.bonus_ways = 0xf,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.dis_cap_alloc = true,
+		.retain_on_pc = true,
+		.activate_on_init = true,
+	}, {
+		.usecase_id = LLCC_ROTATOR,
+		.slice_id = 4,
+		.max_cap = 384,
+		.priority = 2,
+		.fixed_size = true,
+		.bonus_ways = 0x0,
+		.res_ways = 0xe,
+		.cache_mode = 2,
+		.dis_cap_alloc = true,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_VOICE,
+		.slice_id = 5,
+		.max_cap = 512,
+		.priority = 1,
+		.bonus_ways = 0xf,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.dis_cap_alloc = true,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_AUDIO,
+		.slice_id = 6,
+		.max_cap = 512,
+		.priority = 1,
+		.bonus_ways = 0xf,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.dis_cap_alloc = true,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_MDM,
+		.slice_id = 8,
+		.max_cap = 512,
+		.priority = 1,
+		.bonus_ways = 0xf,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.dis_cap_alloc = true,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_GPU,
+		.slice_id = 12,
+		.max_cap = 384,
+		.priority = 1,
+		.fixed_size = true,
+		.bonus_ways = 0x0,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.dis_cap_alloc = true,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_MMUHWT,
+		.slice_id = 13,
+		.max_cap = 512,
+		.priority = 1,
+		.bonus_ways = 0xf,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.dis_cap_alloc = true,
+		.activate_on_init = true,
+	}, {
+		.usecase_id = LLCC_AUDHW,
+		.slice_id = 22,
+		.max_cap = 512,
+		.priority = 1,
+		.fixed_size = true,
+		.bonus_ways = 0xf,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.dis_cap_alloc = true,
+		.retain_on_pc = true,
 	},
 };
 
@@ -3943,7 +4030,7 @@ static const struct llcc_slice_config x1e80100_data[] = {
 static const struct llcc_edac_reg_offset llcc_v1_edac_reg_offset = {
 	.trp_ecc_error_status0 = 0x20344,
 	.trp_ecc_error_status1 = 0x20348,
-	.trp_ecc_sb_err_syn0 = 0x2304c,
+	.trp_ecc_sb_err_syn0 = 0x2034c,
 	.trp_ecc_db_err_syn0 = 0x20370,
 	.trp_ecc_error_cntr_clear = 0x20440,
 	.trp_interrupt_0_status = 0x20480,
@@ -4196,6 +4283,17 @@ static const struct qcom_llcc_config sc8280xp_cfg[] = {
 	},
 };
 
+static const struct qcom_llcc_config sdm670_cfg[] = {
+	{
+		.sct_data	= sdm670_data,
+		.size		= ARRAY_SIZE(sdm670_data),
+		.skip_llcc_cfg	= true,
+		.reg_offset	= llcc_v1_reg_offset,
+		.edac_reg_offset = &llcc_v1_edac_reg_offset,
+		.no_edac	= true,
+	},
+};
+
 static const struct qcom_llcc_config sdm845_cfg[] = {
 	{
 		.sct_data	= sdm845_data,
@@ -4364,6 +4462,11 @@ static const struct qcom_sct_config sc8280xp_cfgs = {
 	.num_config	= ARRAY_SIZE(sc8280xp_cfg),
 };
 
+static const struct qcom_sct_config sdm670_cfgs = {
+	.llcc_config	= sdm670_cfg,
+	.num_config	= ARRAY_SIZE(sdm670_cfg),
+};
+
 static const struct qcom_sct_config sdm845_cfgs = {
 	.llcc_config	= sdm845_cfg,
 	.num_config	= ARRAY_SIZE(sdm845_cfg),
@@ -4431,8 +4534,7 @@ static struct llcc_drv_data *drv_data = (void *) -EPROBE_DEFER;
 struct llcc_slice_desc *llcc_slice_getd(u32 uid)
 {
 	const struct llcc_slice_config *cfg;
-	struct llcc_slice_desc *desc;
-	u32 sz, count;
+	u32 sz, i;
 
 	if (IS_ERR(drv_data))
 		return ERR_CAST(drv_data);
@@ -4440,21 +4542,14 @@ struct llcc_slice_desc *llcc_slice_getd(u32 uid)
 	cfg = drv_data->cfg;
 	sz = drv_data->cfg_size;
 
-	for (count = 0; cfg && count < sz; count++, cfg++)
+	for (i = 0; cfg && i < sz; i++, cfg++)
 		if (cfg->usecase_id == uid)
 			break;
 
-	if (count == sz || !cfg)
+	if (i == sz)
 		return ERR_PTR(-ENODEV);
 
-	desc = kzalloc_obj(*desc);
-	if (!desc)
-		return ERR_PTR(-ENOMEM);
-
-	desc->slice_id = cfg->slice_id;
-	desc->slice_size = cfg->max_cap;
-
-	return desc;
+	return &drv_data->desc[i];
 }
 EXPORT_SYMBOL_GPL(llcc_slice_getd);
 
@@ -4465,7 +4560,7 @@ EXPORT_SYMBOL_GPL(llcc_slice_getd);
 void llcc_slice_putd(struct llcc_slice_desc *desc)
 {
 	if (!IS_ERR_OR_NULL(desc))
-		kfree(desc);
+		return;
 }
 EXPORT_SYMBOL_GPL(llcc_slice_putd);
 
@@ -4540,25 +4635,21 @@ int llcc_slice_activate(struct llcc_slice_desc *desc)
 	if (IS_ERR_OR_NULL(desc))
 		return -EINVAL;
 
-	mutex_lock(&drv_data->lock);
-	if (test_bit(desc->slice_id, drv_data->bitmap)) {
-		mutex_unlock(&drv_data->lock);
+	guard(mutex)(&drv_data->lock);
+	/* Already active; try to take another reference. */
+	if (refcount_inc_not_zero(&desc->refcount))
 		return 0;
-	}
 
 	act_ctrl_val = ACT_CTRL_OPCODE_ACTIVATE << ACT_CTRL_OPCODE_SHIFT;
-
 	ret = llcc_update_act_ctrl(desc->slice_id, act_ctrl_val,
 				  DEACTIVATE);
-	if (ret) {
-		mutex_unlock(&drv_data->lock);
+	if (ret)
 		return ret;
-	}
 
-	__set_bit(desc->slice_id, drv_data->bitmap);
-	mutex_unlock(&drv_data->lock);
+	/* Set first reference */
+	refcount_set(&desc->refcount, 1);
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(llcc_slice_activate);
 
@@ -4580,24 +4671,21 @@ int llcc_slice_deactivate(struct llcc_slice_desc *desc)
 	if (IS_ERR_OR_NULL(desc))
 		return -EINVAL;
 
-	mutex_lock(&drv_data->lock);
-	if (!test_bit(desc->slice_id, drv_data->bitmap)) {
-		mutex_unlock(&drv_data->lock);
+	guard(mutex)(&drv_data->lock);
+	/* refcount > 1, drop one ref and we’re done. */
+	if (refcount_dec_not_one(&desc->refcount))
 		return 0;
-	}
-	act_ctrl_val = ACT_CTRL_OPCODE_DEACTIVATE << ACT_CTRL_OPCODE_SHIFT;
 
+	act_ctrl_val = ACT_CTRL_OPCODE_DEACTIVATE << ACT_CTRL_OPCODE_SHIFT;
 	ret = llcc_update_act_ctrl(desc->slice_id, act_ctrl_val,
 				  ACTIVATE);
-	if (ret) {
-		mutex_unlock(&drv_data->lock);
+	if (ret)
 		return ret;
-	}
 
-	__clear_bit(desc->slice_id, drv_data->bitmap);
-	mutex_unlock(&drv_data->lock);
+	/* Finalize: atomically transition 1 -> 0 */
+	WARN_ON_ONCE(!refcount_dec_if_one(&desc->refcount));
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(llcc_slice_deactivate);
 
@@ -4638,7 +4726,7 @@ static int _qcom_llcc_cfg_program(const struct llcc_slice_config *config,
 	u32 attr1_val;
 	u32 attr0_val;
 	u32 max_cap_cacheline;
-	struct llcc_slice_desc desc;
+	struct llcc_slice_desc *desc;
 
 	attr1_val = config->cache_mode;
 	attr1_val |= config->probe_target_ways << ATTR1_PROBE_TARGET_WAYS_SHIFT;
@@ -4787,8 +4875,11 @@ static int _qcom_llcc_cfg_program(const struct llcc_slice_config *config,
 	}
 
 	if (config->activate_on_init) {
-		desc.slice_id = config->slice_id;
-		ret = llcc_slice_activate(&desc);
+		desc = llcc_slice_getd(config->usecase_id);
+		if (IS_ERR(desc))
+			return PTR_ERR(desc);
+
+		ret = llcc_slice_activate(desc);
 	}
 
 	return ret;
@@ -5101,16 +5192,16 @@ static int qcom_llcc_probe(struct platform_device *pdev)
 
 	llcc_cfg = cfg->sct_data;
 	sz = cfg->size;
-
-	for (i = 0; i < sz; i++)
-		if (llcc_cfg[i].slice_id > drv_data->max_slices)
-			drv_data->max_slices = llcc_cfg[i].slice_id;
-
-	drv_data->bitmap = devm_bitmap_zalloc(dev, drv_data->max_slices,
-					      GFP_KERNEL);
-	if (!drv_data->bitmap) {
+	drv_data->desc = devm_kcalloc(dev, sz, sizeof(struct llcc_slice_desc), GFP_KERNEL);
+	if (!drv_data->desc) {
 		ret = -ENOMEM;
 		goto err;
+	}
+
+	for (i = 0; i < sz; i++) {
+		drv_data->desc[i].slice_id = llcc_cfg[i].slice_id;
+		drv_data->desc[i].slice_size = llcc_cfg[i].max_cap;
+		refcount_set(&drv_data->desc[i].refcount, 0);
 	}
 
 	drv_data->cfg = llcc_cfg;
@@ -5160,6 +5251,7 @@ static const struct of_device_id qcom_llcc_of_match[] = {
 	{ .compatible = "qcom,sc7280-llcc", .data = &sc7280_cfgs },
 	{ .compatible = "qcom,sc8180x-llcc", .data = &sc8180x_cfgs },
 	{ .compatible = "qcom,sc8280xp-llcc", .data = &sc8280xp_cfgs },
+	{ .compatible = "qcom,sdm670-llcc", .data = &sdm670_cfgs },
 	{ .compatible = "qcom,sdm845-llcc", .data = &sdm845_cfgs },
 	{ .compatible = "qcom,sm6350-llcc", .data = &sm6350_cfgs },
 	{ .compatible = "qcom,sm7150-llcc", .data = &sm7150_cfgs },
