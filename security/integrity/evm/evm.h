@@ -20,11 +20,12 @@
 #define EVM_INIT_HMAC	0x0001
 #define EVM_INIT_X509	0x0002
 #define EVM_ALLOW_METADATA_WRITES	0x0004
+#define EVM_SIGV3_REQUIRED		0x0008
 #define EVM_SETUP_COMPLETE 0x80000000 /* userland has signaled key load */
 
 #define EVM_KEY_MASK (EVM_INIT_HMAC | EVM_INIT_X509)
 #define EVM_INIT_MASK (EVM_INIT_HMAC | EVM_INIT_X509 | EVM_SETUP_COMPLETE | \
-		       EVM_ALLOW_METADATA_WRITES)
+		       EVM_ALLOW_METADATA_WRITES | EVM_SIGV3_REQUIRED)
 
 struct xattr_list {
 	struct list_head list;

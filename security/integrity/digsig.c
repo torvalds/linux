@@ -59,7 +59,7 @@ static struct key *integrity_keyring_from_id(const unsigned int id)
 }
 
 int integrity_digsig_verify(const unsigned int id, const char *sig, int siglen,
-			    const char *digest, int digestlen)
+			    const char *digest, int digestlen, u8 algo)
 {
 	struct key *keyring;
 
@@ -76,9 +76,11 @@ int integrity_digsig_verify(const unsigned int id, const char *sig, int siglen,
 		return digsig_verify(keyring, sig + 1, siglen - 1, digest,
 				     digestlen);
 	case 2: /* regular file data hash based signature */
-	case 3: /* struct ima_file_id data based signature */
 		return asymmetric_verify(keyring, sig, siglen, digest,
-					 digestlen);
+					    digestlen);
+	case 3: /* struct ima_file_id data based signature */
+		return asymmetric_verify_v3(keyring, sig, siglen, digest,
+					    digestlen, algo);
 	}
 
 	return -EOPNOTSUPP;

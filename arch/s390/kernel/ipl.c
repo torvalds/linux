@@ -21,6 +21,7 @@
 #include <linux/crash_dump.h>
 #include <linux/debug_locks.h>
 #include <linux/vmalloc.h>
+#include <linux/secure_boot.h>
 #include <asm/asm-extable.h>
 #include <asm/machine.h>
 #include <asm/diag.h>
@@ -2385,6 +2386,11 @@ void __no_stack_protector s390_reset_system(void)
 	/* Disable lowcore protection */
 	local_ctl_clear_bit(0, CR0_LOW_ADDRESS_PROTECTION_BIT);
 	diag_amode31_ops.diag308_reset();
+}
+
+bool arch_get_secureboot(void)
+{
+	return ipl_secure_flag;
 }
 
 #ifdef CONFIG_KEXEC_FILE

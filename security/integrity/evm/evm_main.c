@@ -72,17 +72,25 @@ static struct xattr_list evm_config_default_xattrnames[] = {
 
 LIST_HEAD(evm_config_xattrnames);
 
-static int evm_fixmode __ro_after_init;
-static int __init evm_set_fixmode(char *str)
-{
-	if (strncmp(str, "fix", 3) == 0)
-		evm_fixmode = 1;
-	else
-		pr_err("invalid \"%s\" mode", str);
+static char *evm_cmdline __initdata;
+core_param(evm, evm_cmdline, charp, 0);
 
-	return 1;
+static int evm_fixmode __ro_after_init;
+static void __init evm_set_fixmode(void)
+{
+	if (!evm_cmdline)
+		return;
+
+	if (strncmp(evm_cmdline, "fix", 3) == 0) {
+		if (arch_get_secureboot()) {
+			pr_info("Secure boot enabled: ignoring evm=fix");
+			return;
+		}
+		evm_fixmode = 1;
+	} else {
+		pr_err("invalid \"%s\" mode", evm_cmdline);
+	}
 }
-__setup("evm=", evm_set_fixmode);
 
 static void __init evm_init_config(void)
 {
@@ -126,6 +134,14 @@ static bool evm_hmac_disabled(void)
 		return false;
 
 	return true;
+}
+
+static bool evm_sigv3_required(void)
+{
+	if (evm_initialized & EVM_SIGV3_REQUIRED)
+		return true;
+
+	return false;
 }
 
 static int evm_find_protected_xattrs(struct dentry *dentry)
@@ -250,6 +266,12 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 		}
 
 		hdr = (struct signature_v2_hdr *)xattr_data;
+
+		if (evm_sigv3_required() && hdr->version != 3) {
+			evm_status = INTEGRITY_FAIL;
+			goto out;
+		}
+
 		digest.hdr.algo = hdr->hash_algo;
 		rc = evm_calc_hash(dentry, xattr_name, xattr_value,
 				   xattr_value_len, xattr_data->type, &digest,
@@ -258,7 +280,8 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 			break;
 		rc = integrity_digsig_verify(INTEGRITY_KEYRING_EVM,
 					(const char *)xattr_data, xattr_len,
-					digest.digest, digest.hdr.length);
+					digest.digest, digest.hdr.length,
+					digest.hdr.algo);
 		if (!rc) {
 			if (xattr_data->type == EVM_XATTR_PORTABLE_DIGSIG) {
 				if (iint)
@@ -788,6 +811,34 @@ bool evm_revalidate_status(const char *xattr_name)
 }
 
 /**
+ * evm_fix_hmac - Calculate the HMAC and add it to security.evm for fix mode
+ * @dentry: pointer to the affected dentry which doesn't yet have security.evm
+ *          xattr
+ * @xattr_name: pointer to the affected extended attribute name
+ * @xattr_value: pointer to the new extended attribute value
+ * @xattr_value_len: pointer to the new extended attribute value length
+ *
+ * Expects to be called with i_mutex locked.
+ *
+ * Return: 0 on success, -EPERM/-ENOMEM/-EOPNOTSUPP on failure
+ */
+int evm_fix_hmac(struct dentry *dentry, const char *xattr_name,
+		 const char *xattr_value, size_t xattr_value_len)
+
+{
+	if (!evm_fixmode || !evm_revalidate_status((xattr_name)))
+		return -EPERM;
+
+	if (!(evm_initialized & EVM_INIT_HMAC))
+		return -EPERM;
+
+	if (is_unsupported_hmac_fs(dentry))
+		return -EOPNOTSUPP;
+
+	return evm_update_evmxattr(dentry, xattr_name, xattr_value, xattr_value_len);
+}
+
+/**
  * evm_inode_post_setxattr - update 'security.evm' to reflect the changes
  * @dentry: pointer to the affected dentry
  * @xattr_name: pointer to the affected extended attribute name
@@ -1118,6 +1169,8 @@ static int __init init_evm(void)
 	struct list_head *pos, *q;
 
 	evm_init_config();
+
+	evm_set_fixmode();
 
 	error = integrity_init_keyring(INTEGRITY_KEYRING_EVM);
 	if (error)

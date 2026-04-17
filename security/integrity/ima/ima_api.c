@@ -269,15 +269,20 @@ int ima_collect_measurement(struct ima_iint_cache *iint, struct file *file,
 		goto out;
 
 	/*
-	 * Detecting file change is based on i_version. On filesystems
-	 * which do not support i_version, support was originally limited
-	 * to an initial measurement/appraisal/audit, but was modified to
-	 * assume the file changed.
+	 * Detect file change based on STATX_CHANGE_COOKIE, when supported,
+	 * and fallback to detecting file change based on i_version.
+	 *
+	 * On filesystems which did not support i_version, support was
+	 * originally limited to an initial measurement/appraisal/audit,
+	 * but was later modified to assume the file changed.
 	 */
 	result = vfs_getattr_nosec(&file->f_path, &stat, STATX_CHANGE_COOKIE,
 				   AT_STATX_SYNC_AS_STAT);
 	if (!result && (stat.result_mask & STATX_CHANGE_COOKIE))
 		i_version = stat.change_cookie;
+	else if (IS_I_VERSION(real_inode))
+		i_version = inode_peek_iversion(real_inode);
+
 	hash.hdr.algo = algo;
 	hash.hdr.length = hash_digest_size[algo];
 

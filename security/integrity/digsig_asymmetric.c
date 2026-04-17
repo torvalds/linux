@@ -131,3 +131,62 @@ out:
 	pr_debug("%s() = %d\n", __func__, ret);
 	return ret;
 }
+
+/*
+ * calc_file_id_hash - calculate the hash of the ima_file_id struct data
+ * @type: xattr type [enum evm_ima_xattr_type]
+ * @algo: hash algorithm [enum hash_algo]
+ * @digest: pointer to the digest to be hashed
+ * @hash: (out) pointer to the hash
+ *
+ * IMA signature version 3 disambiguates the data that is signed by
+ * indirectly signing the hash of the ima_file_id structure data.
+ *
+ * Return 0 on success, error code otherwise.
+ */
+static int calc_file_id_hash(enum evm_ima_xattr_type type,
+			     enum hash_algo algo, const u8 *digest,
+			     struct ima_max_digest_data *hash)
+{
+	struct ima_file_id file_id = {.hash_type = type, .hash_algorithm = algo};
+	size_t digest_size = hash_digest_size[algo];
+	struct crypto_shash *tfm;
+	size_t file_id_size;
+	int rc;
+
+	if (type != IMA_VERITY_DIGSIG && type != EVM_IMA_XATTR_DIGSIG &&
+	    type != EVM_XATTR_PORTABLE_DIGSIG)
+		return -EINVAL;
+
+	tfm = crypto_alloc_shash(hash_algo_name[algo], 0, 0);
+	if (IS_ERR(tfm))
+		return PTR_ERR(tfm);
+
+	memcpy(file_id.hash, digest, digest_size);
+
+	/* Calculate the ima_file_id struct hash on the portion used. */
+	file_id_size = sizeof(file_id) - (HASH_MAX_DIGESTSIZE - digest_size);
+
+	hash->hdr.algo = algo;
+	hash->hdr.length = digest_size;
+	rc = crypto_shash_tfm_digest(tfm, (const u8 *)&file_id, file_id_size,
+				     hash->digest);
+
+	crypto_free_shash(tfm);
+	return rc;
+}
+
+int asymmetric_verify_v3(struct key *keyring, const char *sig, int siglen,
+			 const char *data, int datalen, u8 algo)
+{
+	struct signature_v2_hdr *hdr = (struct signature_v2_hdr *)sig;
+	struct ima_max_digest_data hash;
+	int rc;
+
+	rc = calc_file_id_hash(hdr->type, algo, data, &hash);
+	if (rc)
+		return -EINVAL;
+
+	return asymmetric_verify(keyring, sig, siglen, hash.digest,
+				 hash.hdr.length);
+}

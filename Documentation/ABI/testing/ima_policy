@@ -53,10 +53,7 @@ Description:
 			    where 'imasig' is the original or the signature
 				format v2.
 			    where 'modsig' is an appended signature,
-			    where 'sigv3' is the signature format v3. (Currently
-				limited to fsverity digest based signatures
-				stored in security.ima xattr. Requires
-				specifying "digest_type=verity" first.)
+			    where 'sigv3' is the signature format v3.
 
 			appraise_flag:= [check_blacklist] (deprecated)
 			Setting the check_blacklist flag is no longer necessary.
@@ -185,6 +182,11 @@ Description:
 
 			appraise func=BPRM_CHECK digest_type=verity \
 				appraise_type=sigv3
+
+		Example of a regular IMA file hash 'appraise' rule requiring
+		signature version 3 format stored in security.ima xattr.
+
+			appraise func=BPRM_CHECK appraise_type=sigv3
 
 		All of these policy rules could, for example, be constrained
 		either based on a filesystem's UUID (fsuuid) or based on LSM
