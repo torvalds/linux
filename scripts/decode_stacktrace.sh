@@ -5,9 +5,11 @@
 
 usage() {
 	echo "Usage:"
-	echo "	$0 -r <release>"
-	echo "	$0 [<vmlinux> [<base_path>|auto [<modules_path>]]]"
+	echo "	$0 [-R] -r <release>"
+	echo "	$0 [-R] [<vmlinux> [<base_path>|auto [<modules_path>]]]"
 	echo "	$0 -h"
+	echo "Options:"
+	echo "  -R: decode return address instead of caller address."
 }
 
 # Try to find a Rust demangler
@@ -33,11 +35,17 @@ fi
 READELF=${UTIL_PREFIX}readelf${UTIL_SUFFIX}
 ADDR2LINE=${UTIL_PREFIX}addr2line${UTIL_SUFFIX}
 NM=${UTIL_PREFIX}nm${UTIL_SUFFIX}
+decode_retaddr=false
 
 if [[ $1 == "-h" ]] ; then
 	usage
 	exit 0
-elif [[ $1 == "-r" ]] ; then
+elif [[ $1 == "-R" ]] ; then
+	decode_retaddr=true
+	shift 1
+fi
+
+if [[ $1 == "-r" ]] ; then
 	vmlinux=""
 	basepath="auto"
 	modpath=""
@@ -176,13 +184,23 @@ parse_symbol() {
 	# Let's start doing the math to get the exact address into the
 	# symbol. First, strip out the symbol total length.
 	local expr=${symbol%/*}
+	# Also parse the offset from symbol.
+	local offset=${expr#*+}
+	offset=$((offset))
 
 	# Now, replace the symbol name with the base address we found
 	# before.
 	expr=${expr/$name/0x$base_addr}
 
 	# Evaluate it to find the actual address
-	expr=$((expr))
+	# The stack trace shows the return address, which is the next
+	# instruction after the actual call, so as long as it's in the same
+	# symbol, subtract one from that to point the call instruction.
+	if [[ $decode_retaddr == false && $offset != 0 ]]; then
+		expr=$((expr-1))
+	else
+		expr=$((expr))
+	fi
 	local address=$(printf "%x\n" "$expr")
 
 	# Pass it to addr2line to get filename and line number

@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config XOR_BLOCKS
+	tristate
+
+# selected by architectures that provide an optimized XOR implementation
+config XOR_BLOCKS_ARCH
+	depends on XOR_BLOCKS
+	default y if ALPHA
+	default y if ARM
+	default y if ARM64
+	default y if CPU_HAS_LSX		# loongarch
+	default y if ALTIVEC			# powerpc
+	default y if RISCV_ISA_V
+	default y if SPARC
+	default y if S390
+	default y if X86_32
+	default y if X86_64
+	bool
+
+config XOR_KUNIT_TEST
+	tristate "KUnit tests for xor_gen" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	depends on XOR_BLOCKS
+	default KUNIT_ALL_TESTS
+	help
+	  Unit tests for the XOR library functions.
+
+	  This is intended to help people writing architecture-specific
+	  optimized versions.  If unsure, say N.

@@ -392,7 +392,7 @@ static void compute_syndromes(struct bch_control *bch, uint32_t *ecc,
 			for (j = 0; j < 2*t; j += 2)
 				syn[j] ^= a_pow(bch, (j+1)*(i+s));
 
-			poly ^= (1 << i);
+			poly ^= (1u << i);
 		}
 	} while (s > 0);
 
@@ -612,7 +612,7 @@ static int find_poly_deg2_roots(struct bch_control *bch, struct gf_poly *poly,
 		while (v) {
 			i = deg(v);
 			r ^= bch->xi_tab[i];
-			v ^= (1 << i);
+			v ^= (1u << i);
 		}
 		/* verify root */
 		if ((gf_sqr(bch, r)^r) == u) {
@@ -1116,7 +1116,7 @@ static void build_mod8_tables(struct bch_control *bch, const uint32_t *g)
 		for (b = 0; b < 4; b++) {
 			/* we want to compute (p(X).X^(8*b+deg(g))) mod g(X) */
 			tab = bch->mod8_tab + (b*256+i)*l;
-			data = i << (8*b);
+			data = (unsigned int)i << (8*b);
 			while (data) {
 				d = deg(data);
 				/* subtract X^d.g(X) from p(X).X^(8*b+deg(g)) */

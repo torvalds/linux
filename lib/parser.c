@@ -315,7 +315,7 @@ bool match_wildcard(const char *pattern, const char *str)
 		}
 	}
 
-	if (*p == '*')
+	while (*p == '*')
 		++p;
 	return !*p;
 }

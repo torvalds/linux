@@ -305,7 +305,6 @@ static int replay_entries_cmp(void *priv, const struct list_head *a,
 	struct ubifs_info *c = priv;
 	struct replay_entry *ra, *rb;
 
-	cond_resched();
 	if (a == b)
 		return 0;
 

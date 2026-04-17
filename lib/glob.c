@@ -1,5 +1,7 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
 #include <linux/module.h>
 #include <linux/glob.h>
+#include <linux/export.h>
 
 /*
  * The only reason this code can be compiled as a module is because the
@@ -20,7 +22,7 @@ MODULE_LICENSE("Dual MIT/GPL");
  * Pattern metacharacters are ?, *, [ and \.
  * (And, inside character classes, !, - and ].)
  *
- * This is small and simple implementation intended for device blacklists
+ * This is a small and simple implementation intended for device denylists
  * where a string is matched against a number of patterns.  Thus, it
  * does not preprocess the patterns.  It is non-recursive, and run-time
  * is at most quadratic: strlen(@str)*strlen(@pat).
@@ -45,7 +47,7 @@ bool __pure glob_match(char const *pat, char const *str)
 	 * (no exception for /), it can be easily proved that there's
 	 * never a need to backtrack multiple levels.
 	 */
-	char const *back_pat = NULL, *back_str;
+	char const *back_pat = NULL, *back_str = NULL;
 
 	/*
 	 * Loop over each token (character or class) in pat, matching
@@ -71,7 +73,7 @@ bool __pure glob_match(char const *pat, char const *str)
 			if (c == '\0')	/* No possible match */
 				return false;
 			bool match = false, inverted = (*pat == '!');
-			char const *class = pat + inverted;
+			char const *class = inverted ? pat + 1 : pat;
 			unsigned char a = *class++;
 
 			/*
@@ -94,7 +96,8 @@ bool __pure glob_match(char const *pat, char const *str)
 					class += 2;
 					/* Any special action if a > b? */
 				}
-				match |= (a <= c && c <= b);
+				if (a <= c && c <= b)
+					match = true;
 			} while ((a = *class++) != ']');
 
 			if (match == inverted)

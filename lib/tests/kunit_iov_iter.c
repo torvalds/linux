@@ -13,6 +13,9 @@
 #include <linux/uio.h>
 #include <linux/bvec.h>
 #include <linux/folio_queue.h>
+#include <linux/scatterlist.h>
+#include <linux/minmax.h>
+#include <linux/mman.h>
 #include <kunit/test.h>
 
 MODULE_DESCRIPTION("iov_iter testing");
@@ -37,12 +40,12 @@ static const struct kvec_test_range kvec_test_ranges[] = {
 
 static inline u8 pattern(unsigned long x)
 {
-	return x & 0xff;
+	return (u8)x + (u8)(x >> 8) + (u8)(x >> 16);
 }
 
 static void iov_kunit_unmap(void *data)
 {
-	vunmap(data);
+	vfree(data);
 }
 
 static void *__init iov_kunit_create_buffer(struct kunit *test,
@@ -52,18 +55,27 @@ static void *__init iov_kunit_create_buffer(struct kunit *test,
 	struct page **pages;
 	unsigned long got;
 	void *buffer;
+	unsigned int i;
 
-	pages = kunit_kcalloc(test, npages, sizeof(struct page *), GFP_KERNEL);
-        KUNIT_ASSERT_NOT_ERR_OR_NULL(test, pages);
+	pages = kzalloc_objs(struct page *, npages, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, pages);
 	*ppages = pages;
 
 	got = alloc_pages_bulk(GFP_KERNEL, npages, pages);
 	if (got != npages) {
 		release_pages(pages, got);
+		kvfree(pages);
 		KUNIT_ASSERT_EQ(test, got, npages);
 	}
+	/* Make sure that we don't get a physically contiguous buffer. */
+	for (i = 0; i < npages / 4; ++i)
+		swap(pages[i], pages[i + npages / 2]);
 
 	buffer = vmap(pages, npages, VM_MAP | VM_MAP_PUT_PAGES, PAGE_KERNEL);
+	if (buffer == NULL) {
+		release_pages(pages, got);
+		kvfree(pages);
+	}
         KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buffer);
 
 	kunit_add_action_or_reset(test, iov_kunit_unmap, buffer);
@@ -369,9 +381,6 @@ static void iov_kunit_destroy_folioq(void *data)
 
 	for (folioq = data; folioq; folioq = next) {
 		next = folioq->next;
-		for (int i = 0; i < folioq_nr_slots(folioq); i++)
-			if (folioq_folio(folioq, i))
-				folio_put(folioq_folio(folioq, i));
 		kfree(folioq);
 	}
 }
@@ -1009,6 +1018,202 @@ stop:
 	KUNIT_SUCCEED(test);
 }
 
+struct iov_kunit_iter_to_sg_data {
+	struct sg_table *sgt;
+	u8 *buffer, *scratch;
+	u8 __user *ubuf;
+	struct page **pages;
+	size_t npages;
+};
+
+static void __init
+iov_kunit_iter_unpin_sgt(void *data)
+{
+	struct sg_table *sgt = data;
+
+	for (unsigned int i = 0; i < sgt->nents; ++i)
+		unpin_user_page(sg_page(&sgt->sgl[i]));
+}
+
+static void __init
+iov_kunit_iter_to_sg_init(struct kunit *test, size_t bufsize, bool user,
+			  struct iov_kunit_iter_to_sg_data *data)
+{
+	struct page **spages;
+	struct scatterlist *sg;
+	unsigned long uaddr;
+	size_t i;
+
+	data->npages = bufsize / PAGE_SIZE;
+	sg = kunit_kmalloc_array(test, data->npages, sizeof(*sg), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, sg);
+	sg_init_table(sg, data->npages);
+	data->sgt = kunit_kzalloc(test, sizeof(*data->sgt), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, data->sgt);
+	data->sgt->orig_nents = 0;
+	data->sgt->sgl = sg;
+
+	data->buffer = NULL;
+	data->ubuf = NULL;
+	if (user) {
+		uaddr = kunit_vm_mmap(test, NULL, 0, bufsize,
+				      PROT_READ | PROT_WRITE,
+				      MAP_ANONYMOUS | MAP_PRIVATE, 0);
+		KUNIT_ASSERT_NE(test, uaddr, 0);
+		data->ubuf = (u8 __user *)uaddr;
+		for (i = 0; i < bufsize; ++i)
+			put_user(pattern(i), data->ubuf + i);
+	} else {
+		data->buffer = iov_kunit_create_buffer(test, &data->pages,
+						       data->npages);
+		for (i = 0; i < bufsize; ++i)
+			data->buffer[i] = pattern(i);
+	}
+	data->scratch = iov_kunit_create_buffer(test, &spages, data->npages);
+	memset(data->scratch, 0, bufsize);
+}
+
+static void __init
+iov_kunit_iter_to_sg_check(struct kunit *test, struct iov_iter *iter,
+			   size_t bufsize,
+			   struct iov_kunit_iter_to_sg_data *data)
+{
+	static const size_t tail = 16 * PAGE_SIZE;
+	size_t i;
+
+	KUNIT_ASSERT_LT(test, tail, bufsize);
+
+	if (iov_iter_extract_will_pin(iter))
+		kunit_add_action_or_reset(test, iov_kunit_iter_unpin_sgt,
+					  data->sgt);
+
+	i = extract_iter_to_sg(iter, bufsize, data->sgt, 0, 0);
+	KUNIT_ASSERT_EQ(test, i, 0);
+	KUNIT_ASSERT_EQ(test, data->sgt->nents, 0);
+
+	i = extract_iter_to_sg(iter, bufsize - tail, data->sgt, 1, 0);
+	KUNIT_ASSERT_LE(test, i, bufsize - tail);
+	KUNIT_ASSERT_EQ(test, data->sgt->nents, 1);
+
+	i += extract_iter_to_sg(iter, bufsize - tail - i, data->sgt,
+				data->npages - data->sgt->nents, 0);
+	KUNIT_ASSERT_EQ(test, i, bufsize - tail);
+	KUNIT_ASSERT_LE(test, data->sgt->nents, data->npages);
+
+	i += extract_iter_to_sg(iter, tail, data->sgt,
+				data->npages - data->sgt->nents, 0);
+	KUNIT_ASSERT_EQ(test, i, bufsize);
+	KUNIT_ASSERT_LE(test, data->sgt->nents, data->npages);
+
+	sg_mark_end(&data->sgt->sgl[data->sgt->nents - 1]);
+
+	i = sg_copy_to_buffer(data->sgt->sgl, data->sgt->nents,
+			      data->scratch, bufsize);
+	KUNIT_ASSERT_EQ(test, i, bufsize);
+
+	for (i = 0; i < bufsize; ++i) {
+		KUNIT_EXPECT_EQ_MSG(test, data->scratch[i], pattern(i),
+				    "at i=%zx", i);
+		if (data->scratch[i] != pattern(i))
+			break;
+	}
+
+	KUNIT_EXPECT_EQ(test, i, bufsize);
+}
+
+static void __init iov_kunit_iter_to_sg_kvec(struct kunit *test)
+{
+	struct iov_kunit_iter_to_sg_data data;
+	struct iov_iter iter;
+	struct kvec kvec;
+	size_t bufsize;
+
+	bufsize = 0x100000;
+	iov_kunit_iter_to_sg_init(test, bufsize, false, &data);
+
+	kvec.iov_base = data.buffer;
+	kvec.iov_len = bufsize;
+	iov_iter_kvec(&iter, READ, &kvec, 1, bufsize);
+
+	iov_kunit_iter_to_sg_check(test, &iter, bufsize, &data);
+}
+
+static void __init iov_kunit_iter_to_sg_bvec(struct kunit *test)
+{
+	struct iov_kunit_iter_to_sg_data data;
+	struct page *p, *can_merge = NULL;
+	size_t i, k, bufsize;
+	struct bio_vec *bvec;
+	struct iov_iter iter;
+
+	bufsize = 0x100000;
+	iov_kunit_iter_to_sg_init(test, bufsize, false, &data);
+
+	bvec = kunit_kmalloc_array(test, data.npages, sizeof(*bvec),
+				   GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, bvec);
+	k = 0;
+	for (i = 0; i < data.npages; ++i) {
+		p = data.pages[i];
+		if (p == can_merge)
+			bvec[k-1].bv_len += PAGE_SIZE;
+		else
+			bvec_set_page(&bvec[k++], p, PAGE_SIZE, 0);
+		can_merge = p + 1;
+	}
+	iov_iter_bvec(&iter, READ, bvec, k, bufsize);
+
+	iov_kunit_iter_to_sg_check(test, &iter, bufsize, &data);
+}
+
+static void __init iov_kunit_iter_to_sg_folioq(struct kunit *test)
+{
+	struct iov_kunit_iter_to_sg_data data;
+	struct folio_queue *folioq;
+	struct iov_iter iter;
+	size_t bufsize;
+
+	bufsize = 0x100000;
+	iov_kunit_iter_to_sg_init(test, bufsize, false, &data);
+
+	folioq = iov_kunit_create_folioq(test);
+	iov_kunit_load_folioq(test, &iter, READ, folioq, data.pages,
+			      data.npages);
+
+	iov_kunit_iter_to_sg_check(test, &iter, bufsize, &data);
+}
+
+static void __init iov_kunit_iter_to_sg_xarray(struct kunit *test)
+{
+	struct iov_kunit_iter_to_sg_data data;
+	struct xarray *xarray;
+	struct iov_iter iter;
+	size_t bufsize;
+
+	bufsize = 0x100000;
+	iov_kunit_iter_to_sg_init(test, bufsize, false, &data);
+
+	xarray = iov_kunit_create_xarray(test);
+	iov_kunit_load_xarray(test, &iter, READ, xarray, data.pages,
+			      data.npages);
+
+	iov_kunit_iter_to_sg_check(test, &iter, bufsize, &data);
+}
+
+static void __init iov_kunit_iter_to_sg_ubuf(struct kunit *test)
+{
+	struct iov_kunit_iter_to_sg_data data;
+	struct iov_iter iter;
+	size_t bufsize;
+
+	bufsize = 0x100000;
+	iov_kunit_iter_to_sg_init(test, bufsize, true, &data);
+
+	iov_iter_ubuf(&iter, READ, data.ubuf, bufsize);
+
+	iov_kunit_iter_to_sg_check(test, &iter, bufsize, &data);
+}
+
 static struct kunit_case __refdata iov_kunit_cases[] = {
 	KUNIT_CASE(iov_kunit_copy_to_kvec),
 	KUNIT_CASE(iov_kunit_copy_from_kvec),
@@ -1022,6 +1227,11 @@ static struct kunit_case __refdata iov_kunit_cases[] = {
 	KUNIT_CASE(iov_kunit_extract_pages_bvec),
 	KUNIT_CASE(iov_kunit_extract_pages_folioq),
 	KUNIT_CASE(iov_kunit_extract_pages_xarray),
+	KUNIT_CASE(iov_kunit_iter_to_sg_kvec),
+	KUNIT_CASE(iov_kunit_iter_to_sg_bvec),
+	KUNIT_CASE(iov_kunit_iter_to_sg_folioq),
+	KUNIT_CASE(iov_kunit_iter_to_sg_xarray),
+	KUNIT_CASE(iov_kunit_iter_to_sg_ubuf),
 	{}
 };
 

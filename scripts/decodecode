@@ -12,7 +12,6 @@ faultlinenum=1
 
 cleanup() {
 	rm -f $T $T.s $T.o $T.oo $T.aa $T.dis
-	exit 1
 }
 
 die() {
@@ -49,7 +48,7 @@ done
 
 if [ -z "$code" ]; then
 	rm $T
-	exit
+	die "Code line not found"
 fi
 
 echo $code

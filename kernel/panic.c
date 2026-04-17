@@ -801,6 +801,8 @@ EXPORT_SYMBOL(panic);
  * Documentation/admin-guide/tainted-kernels.rst, including its
  * small shell script that prints the TAINT_FLAGS_COUNT bits of
  * /proc/sys/kernel/tainted.
+ *
+ * Also, update INIT_TAINT_BUF_MAX below.
  */
 const struct taint_flag taint_flags[TAINT_FLAGS_COUNT] = {
 	TAINT_FLAG(PROPRIETARY_MODULE,		'P', 'G'),
@@ -854,15 +856,54 @@ static void print_tainted_seq(struct seq_buf *s, bool verbose)
 	}
 }
 
+/* The initial buffer can accommodate all taint flags in verbose
+ * mode, with some headroom. Once the allocator is available, the
+ * exact size is allocated dynamically; the initial buffer remains
+ * as a fallback if allocation fails.
+ *
+ * The verbose taint string currently requires up to 327 characters.
+ */
+#define INIT_TAINT_BUF_MAX 350
+
+static char init_taint_buf[INIT_TAINT_BUF_MAX] __initdata;
+static char *taint_buf __refdata = init_taint_buf;
+static size_t taint_buf_size = INIT_TAINT_BUF_MAX;
+
+static __init int alloc_taint_buf(void)
+{
+	int i;
+	char *buf;
+	size_t size = 0;
+
+	size += sizeof("Tainted: ") - 1;
+	for (i = 0; i < TAINT_FLAGS_COUNT; i++) {
+		size += 2; /* For ", " */
+		size += 4; /* For "[%c]=" */
+		size += strlen(taint_flags[i].desc);
+	}
+
+	size += 1; /* For NULL terminator */
+
+	buf = kmalloc(size, GFP_KERNEL);
+
+	if (!buf) {
+		panic("Failed to allocate taint string buffer");
+	}
+
+	taint_buf = buf;
+	taint_buf_size = size;
+
+	return 0;
+}
+postcore_initcall(alloc_taint_buf);
+
 static const char *_print_tainted(bool verbose)
 {
-	/* FIXME: what should the size be? */
-	static char buf[sizeof(taint_flags)];
 	struct seq_buf s;
 
 	BUILD_BUG_ON(ARRAY_SIZE(taint_flags) != TAINT_FLAGS_COUNT);
 
-	seq_buf_init(&s, buf, sizeof(buf));
+	seq_buf_init(&s, taint_buf, taint_buf_size);
 
 	print_tainted_seq(&s, verbose);
 

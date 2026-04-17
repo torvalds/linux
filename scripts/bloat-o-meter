@@ -18,8 +18,8 @@ group.add_argument('-c', help='categorize output based on symbol type', action='
 group.add_argument('-d', help='Show delta of Data Section', action='store_true')
 group.add_argument('-t', help='Show delta of text Section', action='store_true')
 parser.add_argument('-p', dest='prefix', help='Arch prefix for the tool being used. Useful in cross build scenarios')
-parser.add_argument('file1', help='First file to compare')
-parser.add_argument('file2', help='Second file to compare')
+parser.add_argument('file_old', help='First file to compare')
+parser.add_argument('file_new', help='Second file to compare')
 
 args = parser.parse_args()
 
@@ -86,7 +86,7 @@ def calc(oldfile, newfile, format):
 
 def print_result(symboltype, symbolformat):
     grow, shrink, add, remove, up, down, delta, old, new, otot, ntot = \
-    calc(args.file1, args.file2, symbolformat)
+    calc(args.file_old, args.file_new, symbolformat)
 
     print("add/remove: %s/%s grow/shrink: %s/%s up/down: %s/%s (%s)" % \
           (add, remove, grow, shrink, up, -down, up-down))
