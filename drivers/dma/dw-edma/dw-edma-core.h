@@ -86,6 +86,7 @@ struct dw_edma_chan {
 	u8				configured;
 
 	struct dma_slave_config		config;
+	bool				non_ll;
 };
 
 struct dw_edma_irq {
@@ -126,6 +127,8 @@ struct dw_edma_core_ops {
 	void (*start)(struct dw_edma_chunk *chunk, bool first);
 	void (*ch_config)(struct dw_edma_chan *chan);
 	void (*debugfs_on)(struct dw_edma *dw);
+	void (*ack_emulated_irq)(struct dw_edma *dw);
+	resource_size_t (*db_offset)(struct dw_edma *dw);
 };
 
 struct dw_edma_sg {
@@ -204,6 +207,21 @@ static inline
 void dw_edma_core_debugfs_on(struct dw_edma *dw)
 {
 	dw->core->debugfs_on(dw);
+}
+
+static inline int dw_edma_core_ack_emulated_irq(struct dw_edma *dw)
+{
+	if (!dw->core->ack_emulated_irq)
+		return -EOPNOTSUPP;
+
+	dw->core->ack_emulated_irq(dw);
+	return 0;
+}
+
+static inline resource_size_t
+dw_edma_core_db_offset(struct dw_edma *dw)
+{
+	return dw->core->db_offset(dw);
 }
 
 #endif /* _DW_EDMA_CORE_H */

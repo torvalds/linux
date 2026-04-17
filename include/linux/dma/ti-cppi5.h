@@ -16,8 +16,8 @@
  * struct cppi5_desc_hdr_t - Descriptor header, present in all types of
  *			     descriptors
  * @pkt_info0:		Packet info word 0 (n/a in Buffer desc)
- * @pkt_info0:		Packet info word 1 (n/a in Buffer desc)
- * @pkt_info0:		Packet info word 2 (n/a in Buffer desc)
+ * @pkt_info1:		Packet info word 1 (n/a in Buffer desc)
+ * @pkt_info2:		Packet info word 2 (n/a in Buffer desc)
  * @src_dst_tag:	Packet info word 3 (n/a in Buffer desc)
  */
 struct cppi5_desc_hdr_t {
@@ -35,7 +35,7 @@ struct cppi5_desc_hdr_t {
  * @buf_info1:		word 8: Buffer valid data length
  * @org_buf_len:	word 9: Original buffer length
  * @org_buf_ptr:	word 10/11: Original buffer pointer
- * @epib[0]:		Extended Packet Info Data (optional, 4 words), and/or
+ * @epib:		Extended Packet Info Data (optional, 4 words), and/or
  *			Protocol Specific Data (optional, 0-128 bytes in
  *			multiples of 4), and/or
  *			Other Software Data (0-N bytes, optional)
@@ -132,7 +132,7 @@ struct cppi5_desc_epib_t {
 /**
  * struct cppi5_monolithic_desc_t - Monolithic-mode packet descriptor
  * @hdr:		Descriptor header
- * @epib[0]:		Extended Packet Info Data (optional, 4 words), and/or
+ * @epib:		Extended Packet Info Data (optional, 4 words), and/or
  *			Protocol Specific Data (optional, 0-128 bytes in
  *			multiples of 4), and/or
  *			Other Software Data (0-N bytes, optional)
@@ -179,7 +179,7 @@ static inline void cppi5_desc_dump(void *desc, u32 size)
  * cppi5_desc_is_tdcm - check if the paddr indicates Teardown Complete Message
  * @paddr: Physical address of the packet popped from the ring
  *
- * Returns true if the address indicates TDCM
+ * Returns: true if the address indicates TDCM
  */
 static inline bool cppi5_desc_is_tdcm(dma_addr_t paddr)
 {
@@ -190,7 +190,7 @@ static inline bool cppi5_desc_is_tdcm(dma_addr_t paddr)
  * cppi5_desc_get_type - get descriptor type
  * @desc_hdr: packet descriptor/TR header
  *
- * Returns descriptor type:
+ * Returns: descriptor type:
  * CPPI5_INFO0_DESC_TYPE_VAL_HOST
  * CPPI5_INFO0_DESC_TYPE_VAL_MONO
  * CPPI5_INFO0_DESC_TYPE_VAL_TR
@@ -205,7 +205,7 @@ static inline u32 cppi5_desc_get_type(struct cppi5_desc_hdr_t *desc_hdr)
  * cppi5_desc_get_errflags - get Error Flags from Desc
  * @desc_hdr: packet/TR descriptor header
  *
- * Returns Error Flags from Packet/TR Descriptor
+ * Returns: Error Flags from Packet/TR Descriptor
  */
 static inline u32 cppi5_desc_get_errflags(struct cppi5_desc_hdr_t *desc_hdr)
 {
@@ -307,7 +307,7 @@ static inline void cppi5_desc_set_tags_ids(struct cppi5_desc_hdr_t *desc_hdr,
  * @psdata_size: PSDATA size
  * @sw_data_size: SWDATA size
  *
- * Returns required Host Packet Descriptor size
+ * Returns: required Host Packet Descriptor size
  * 0 - if PSDATA > CPPI5_INFO0_HDESC_PSDATA_MAX_SIZE
  */
 static inline u32 cppi5_hdesc_calc_size(bool epib, u32 psdata_size,
@@ -381,6 +381,8 @@ cppi5_hdesc_update_psdata_size(struct cppi5_host_desc_t *desc, u32 psdata_size)
 /**
  * cppi5_hdesc_get_psdata_size - get PSdata size in bytes
  * @desc: Host packet descriptor
+ *
+ * Returns: PSdata size in bytes
  */
 static inline u32 cppi5_hdesc_get_psdata_size(struct cppi5_host_desc_t *desc)
 {
@@ -398,7 +400,7 @@ static inline u32 cppi5_hdesc_get_psdata_size(struct cppi5_host_desc_t *desc)
  * cppi5_hdesc_get_pktlen - get Packet Length from HDesc
  * @desc: Host packet descriptor
  *
- * Returns Packet Length from Host Packet Descriptor
+ * Returns: Packet Length from Host Packet Descriptor
  */
 static inline u32 cppi5_hdesc_get_pktlen(struct cppi5_host_desc_t *desc)
 {
@@ -408,6 +410,7 @@ static inline u32 cppi5_hdesc_get_pktlen(struct cppi5_host_desc_t *desc)
 /**
  * cppi5_hdesc_set_pktlen - set Packet Length in HDesc
  * @desc: Host packet descriptor
+ * @pkt_len: Packet length to set
  */
 static inline void cppi5_hdesc_set_pktlen(struct cppi5_host_desc_t *desc,
 					  u32 pkt_len)
@@ -420,7 +423,7 @@ static inline void cppi5_hdesc_set_pktlen(struct cppi5_host_desc_t *desc,
  * cppi5_hdesc_get_psflags - get Protocol Specific Flags from HDesc
  * @desc: Host packet descriptor
  *
- * Returns Protocol Specific Flags from Host Packet Descriptor
+ * Returns: Protocol Specific Flags from Host Packet Descriptor
  */
 static inline u32 cppi5_hdesc_get_psflags(struct cppi5_host_desc_t *desc)
 {
@@ -431,6 +434,7 @@ static inline u32 cppi5_hdesc_get_psflags(struct cppi5_host_desc_t *desc)
 /**
  * cppi5_hdesc_set_psflags - set Protocol Specific Flags in HDesc
  * @desc: Host packet descriptor
+ * @ps_flags: Protocol Specific flags to set
  */
 static inline void cppi5_hdesc_set_psflags(struct cppi5_host_desc_t *desc,
 					   u32 ps_flags)
@@ -442,8 +446,10 @@ static inline void cppi5_hdesc_set_psflags(struct cppi5_host_desc_t *desc,
 }
 
 /**
- * cppi5_hdesc_get_errflags - get Packet Type from HDesc
+ * cppi5_hdesc_get_pkttype - get Packet Type from HDesc
  * @desc: Host packet descriptor
+ *
+ * Returns: Packet type
  */
 static inline u32 cppi5_hdesc_get_pkttype(struct cppi5_host_desc_t *desc)
 {
@@ -452,7 +458,7 @@ static inline u32 cppi5_hdesc_get_pkttype(struct cppi5_host_desc_t *desc)
 }
 
 /**
- * cppi5_hdesc_get_errflags - set Packet Type in HDesc
+ * cppi5_hdesc_set_pkttype - set Packet Type in HDesc
  * @desc: Host packet descriptor
  * @pkt_type: Packet Type
  */
@@ -501,7 +507,7 @@ static inline void cppi5_hdesc_reset_to_original(struct cppi5_host_desc_t *desc)
 /**
  * cppi5_hdesc_link_hbdesc - link Host Buffer Descriptor to HDesc
  * @desc: Host Packet Descriptor
- * @buf_desc: Host Buffer Descriptor physical address
+ * @hbuf_desc: Host Buffer Descriptor physical address
  *
  * add and link Host Buffer Descriptor to HDesc
  */
@@ -527,7 +533,7 @@ static inline void cppi5_hdesc_reset_hbdesc(struct cppi5_host_desc_t *desc)
  * cppi5_hdesc_epib_present -  check if EPIB present
  * @desc_hdr: packet descriptor/TR header
  *
- * Returns true if EPIB present in the packet
+ * Returns: true if EPIB present in the packet
  */
 static inline bool cppi5_hdesc_epib_present(struct cppi5_desc_hdr_t *desc_hdr)
 {
@@ -538,7 +544,7 @@ static inline bool cppi5_hdesc_epib_present(struct cppi5_desc_hdr_t *desc_hdr)
  * cppi5_hdesc_get_psdata -  Get pointer on PSDATA
  * @desc: Host packet descriptor
  *
- * Returns pointer on PSDATA in HDesc.
+ * Returns: pointer on PSDATA in HDesc.
  * NULL - if ps_data placed at the start of data buffer.
  */
 static inline void *cppi5_hdesc_get_psdata(struct cppi5_host_desc_t *desc)
@@ -568,7 +574,7 @@ static inline void *cppi5_hdesc_get_psdata(struct cppi5_host_desc_t *desc)
  * cppi5_hdesc_get_swdata -  Get pointer on swdata
  * @desc: Host packet descriptor
  *
- * Returns pointer on SWDATA in HDesc.
+ * Returns: pointer on SWDATA in HDesc.
  * NOTE. It's caller responsibility to be sure hdesc actually has swdata.
  */
 static inline void *cppi5_hdesc_get_swdata(struct cppi5_host_desc_t *desc)
@@ -648,6 +654,7 @@ enum cppi5_tr_types {
 	CPPI5_TR_TYPE11,
 	/* type12-14: Reserved */
 	CPPI5_TR_TYPE15 = 15,
+	/* private: */
 	CPPI5_TR_TYPE_MAX
 };
 
@@ -673,6 +680,7 @@ enum cppi5_tr_event_size {
 	CPPI5_TR_EVENT_SIZE_ICNT1_DEC,
 	CPPI5_TR_EVENT_SIZE_ICNT2_DEC,
 	CPPI5_TR_EVENT_SIZE_ICNT3_DEC,
+	/* private: */
 	CPPI5_TR_EVENT_SIZE_MAX
 };
 
@@ -690,6 +698,7 @@ enum cppi5_tr_trigger {
 	CPPI5_TR_TRIGGER_GLOBAL0,
 	CPPI5_TR_TRIGGER_GLOBAL1,
 	CPPI5_TR_TRIGGER_LOCAL_EVENT,
+	/* private: */
 	CPPI5_TR_TRIGGER_MAX
 };
 
@@ -711,6 +720,7 @@ enum cppi5_tr_trigger_type {
 	CPPI5_TR_TRIGGER_TYPE_ICNT2_DEC,
 	CPPI5_TR_TRIGGER_TYPE_ICNT3_DEC,
 	CPPI5_TR_TRIGGER_TYPE_ALL,
+	/* private: */
 	CPPI5_TR_TRIGGER_TYPE_MAX
 };
 
@@ -815,7 +825,7 @@ struct cppi5_tr_type3_t {
  *			destination
  * @dicnt1:		Total loop iteration count for level 1 for destination
  * @dicnt2:		Total loop iteration count for level 2 for destination
- * @sicnt3:		Total loop iteration count for level 3 (outermost) for
+ * @dicnt3:		Total loop iteration count for level 3 (outermost) for
  *			destination
  */
 struct cppi5_tr_type15_t {
@@ -887,6 +897,7 @@ enum cppi5_tr_resp_status_type {
 	CPPI5_TR_RESPONSE_STATUS_UNSUPPORTED_ERR,
 	CPPI5_TR_RESPONSE_STATUS_TRANSFER_EXCEPTION,
 	CPPI5_TR_RESPONSE_STATUS__TEARDOWN_FLUSH,
+	/* private: */
 	CPPI5_TR_RESPONSE_STATUS_MAX
 };
 
@@ -903,6 +914,7 @@ enum cppi5_tr_resp_status_submission {
 	CPPI5_TR_RESPONSE_STATUS_SUBMISSION_ICNT0,
 	CPPI5_TR_RESPONSE_STATUS_SUBMISSION_FIFO_FULL,
 	CPPI5_TR_RESPONSE_STATUS_SUBMISSION_OWN,
+	/* private: */
 	CPPI5_TR_RESPONSE_STATUS_SUBMISSION_MAX
 };
 
@@ -931,6 +943,7 @@ enum cppi5_tr_resp_status_unsupported {
 	CPPI5_TR_RESPONSE_STATUS_UNSUPPORTED_DFMT,
 	CPPI5_TR_RESPONSE_STATUS_UNSUPPORTED_SECTR,
 	CPPI5_TR_RESPONSE_STATUS_UNSUPPORTED_AMODE_SPECIFIC,
+	/* private: */
 	CPPI5_TR_RESPONSE_STATUS_UNSUPPORTED_MAX
 };
 
@@ -939,7 +952,7 @@ enum cppi5_tr_resp_status_unsupported {
  * @tr_count: number of TR records
  * @tr_size: Nominal size of TR record (max) [16, 32, 64, 128]
  *
- * Returns required TR Descriptor size
+ * Returns: required TR Descriptor size
  */
 static inline size_t cppi5_trdesc_calc_size(u32 tr_count, u32 tr_size)
 {
@@ -955,7 +968,7 @@ static inline size_t cppi5_trdesc_calc_size(u32 tr_count, u32 tr_size)
 
 /**
  * cppi5_trdesc_init - Init TR Descriptor
- * @desc: TR Descriptor
+ * @desc_hdr: TR Descriptor
  * @tr_count: number of TR records
  * @tr_size: Nominal size of TR record (max) [16, 32, 64, 128]
  * @reload_idx: Absolute index to jump to on the 2nd and following passes
@@ -1044,7 +1057,7 @@ static inline void cppi5_tr_set_trigger(cppi5_tr_flags_t *flags,
 }
 
 /**
- * cppi5_tr_cflag_set - Update the Configuration specific flags
+ * cppi5_tr_csf_set - Update the Configuration specific flags
  * @flags: Pointer to the TR's flags
  * @csf: Configuration specific flags
  *

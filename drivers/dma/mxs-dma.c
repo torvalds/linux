@@ -744,20 +744,19 @@ static int mxs_dma_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	const struct mxs_dma_type *dma_type;
+	struct device *dev = &pdev->dev;
 	struct mxs_dma_engine *mxs_dma;
 	int ret, i;
 
-	mxs_dma = devm_kzalloc(&pdev->dev, sizeof(*mxs_dma), GFP_KERNEL);
+	mxs_dma = devm_kzalloc(dev, sizeof(*mxs_dma), GFP_KERNEL);
 	if (!mxs_dma)
 		return -ENOMEM;
 
 	ret = of_property_read_u32(np, "dma-channels", &mxs_dma->nr_channels);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to read dma-channels\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to read dma-channels\n");
 
-	dma_type = (struct mxs_dma_type *)of_device_get_match_data(&pdev->dev);
+	dma_type = (struct mxs_dma_type *)of_device_get_match_data(dev);
 	mxs_dma->type = dma_type->type;
 	mxs_dma->dev_id = dma_type->id;
 
@@ -765,7 +764,7 @@ static int mxs_dma_probe(struct platform_device *pdev)
 	if (IS_ERR(mxs_dma->base))
 		return PTR_ERR(mxs_dma->base);
 
-	mxs_dma->clk = devm_clk_get(&pdev->dev, NULL);
+	mxs_dma->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(mxs_dma->clk))
 		return PTR_ERR(mxs_dma->clk);
 
@@ -795,10 +794,10 @@ static int mxs_dma_probe(struct platform_device *pdev)
 		return ret;
 
 	mxs_dma->pdev = pdev;
-	mxs_dma->dma_device.dev = &pdev->dev;
+	mxs_dma->dma_device.dev = dev;
 
 	/* mxs_dma gets 65535 bytes maximum sg size */
-	dma_set_max_seg_size(mxs_dma->dma_device.dev, MAX_XFER_BYTES);
+	dma_set_max_seg_size(dev, MAX_XFER_BYTES);
 
 	mxs_dma->dma_device.device_alloc_chan_resources = mxs_dma_alloc_chan_resources;
 	mxs_dma->dma_device.device_free_chan_resources = mxs_dma_free_chan_resources;
@@ -815,18 +814,15 @@ static int mxs_dma_probe(struct platform_device *pdev)
 	mxs_dma->dma_device.device_issue_pending = mxs_dma_enable_chan;
 
 	ret = dmaenginem_async_device_register(&mxs_dma->dma_device);
-	if (ret) {
-		dev_err(mxs_dma->dma_device.dev, "unable to register\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "unable to register\n");
 
-	ret = of_dma_controller_register(np, mxs_dma_xlate, mxs_dma);
-	if (ret) {
-		dev_err(mxs_dma->dma_device.dev,
-			"failed to register controller\n");
-	}
+	ret = devm_of_dma_controller_register(dev, np, mxs_dma_xlate, mxs_dma);
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "failed to register controller\n");
 
-	dev_info(mxs_dma->dma_device.dev, "initialized\n");
+	dev_info(dev, "initialized\n");
 
 	return 0;
 }
@@ -840,3 +836,6 @@ static struct platform_driver mxs_dma_driver = {
 };
 
 builtin_platform_driver(mxs_dma_driver);
+
+MODULE_DESCRIPTION("MXS DMA driver");
+MODULE_LICENSE("GPL");

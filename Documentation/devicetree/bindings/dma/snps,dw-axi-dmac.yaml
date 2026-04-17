@@ -21,6 +21,7 @@ properties:
       - enum:
           - snps,axi-dma-1.01a
           - intel,kmb-axi-dma
+          - sophgo,cv1800b-axi-dma
           - starfive,jh7110-axi-dma
           - starfive,jh8100-axi-dma
       - items:
@@ -67,6 +68,8 @@ properties:
     maximum: 8
 
   dma-noncoherent: true
+
+  dma-coherent: true
 
   resets:
     minItems: 1

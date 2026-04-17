@@ -8,6 +8,9 @@
 
 /**
  * enum spi_transfer_cmd - spi transfer commands
+ * @SPI_TX: SPI peripheral TX command
+ * @SPI_RX: SPI peripheral RX command
+ * @SPI_DUPLEX: SPI peripheral Duplex command
  */
 enum spi_transfer_cmd {
 	SPI_TX = 1,
@@ -64,7 +67,7 @@ enum i2c_op {
  * @set_config: set peripheral config
  * @rx_len: receive length for buffer
  * @op: i2c cmd
- * @muli-msg: is part of multi i2c r-w msgs
+ * @multi_msg: is part of multi i2c r-w msgs
  */
 struct gpi_i2c_config {
 	u8 set_config;

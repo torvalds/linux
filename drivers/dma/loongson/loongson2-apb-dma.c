@@ -17,8 +17,8 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-#include "dmaengine.h"
-#include "virt-dma.h"
+#include "../dmaengine.h"
+#include "../virt-dma.h"
 
 /* Global Configuration Register */
 #define LDMA_ORDER_ERG		0x0
@@ -461,12 +461,11 @@ static int ls2x_dma_slave_config(struct dma_chan *chan,
 static void ls2x_dma_issue_pending(struct dma_chan *chan)
 {
 	struct ls2x_dma_chan *lchan = to_ldma_chan(chan);
-	unsigned long flags;
 
-	spin_lock_irqsave(&lchan->vchan.lock, flags);
+	guard(spinlock_irqsave)(&lchan->vchan.lock);
+
 	if (vchan_issue_pending(&lchan->vchan) && !lchan->desc)
 		ls2x_dma_start_transfer(lchan);
-	spin_unlock_irqrestore(&lchan->vchan.lock, flags);
 }
 
 /*
@@ -478,19 +477,18 @@ static void ls2x_dma_issue_pending(struct dma_chan *chan)
 static int ls2x_dma_terminate_all(struct dma_chan *chan)
 {
 	struct ls2x_dma_chan *lchan = to_ldma_chan(chan);
-	unsigned long flags;
 	LIST_HEAD(head);
 
-	spin_lock_irqsave(&lchan->vchan.lock, flags);
-	/* Setting stop cmd */
-	ls2x_dma_write_cmd(lchan, LDMA_STOP);
-	if (lchan->desc) {
-		vchan_terminate_vdesc(&lchan->desc->vdesc);
-		lchan->desc = NULL;
-	}
+	scoped_guard(spinlock_irqsave, &lchan->vchan.lock) {
+		/* Setting stop cmd */
+		ls2x_dma_write_cmd(lchan, LDMA_STOP);
+		if (lchan->desc) {
+			vchan_terminate_vdesc(&lchan->desc->vdesc);
+			lchan->desc = NULL;
+		}
 
-	vchan_get_all_descriptors(&lchan->vchan, &head);
-	spin_unlock_irqrestore(&lchan->vchan.lock, flags);
+		vchan_get_all_descriptors(&lchan->vchan, &head);
+	}
 
 	vchan_dma_desc_free_list(&lchan->vchan, &head);
 	return 0;
@@ -511,14 +509,13 @@ static void ls2x_dma_synchronize(struct dma_chan *chan)
 static int ls2x_dma_pause(struct dma_chan *chan)
 {
 	struct ls2x_dma_chan *lchan = to_ldma_chan(chan);
-	unsigned long flags;
 
-	spin_lock_irqsave(&lchan->vchan.lock, flags);
+	guard(spinlock_irqsave)(&lchan->vchan.lock);
+
 	if (lchan->desc && lchan->desc->status == DMA_IN_PROGRESS) {
 		ls2x_dma_write_cmd(lchan, LDMA_STOP);
 		lchan->desc->status = DMA_PAUSED;
 	}
-	spin_unlock_irqrestore(&lchan->vchan.lock, flags);
 
 	return 0;
 }
@@ -526,14 +523,13 @@ static int ls2x_dma_pause(struct dma_chan *chan)
 static int ls2x_dma_resume(struct dma_chan *chan)
 {
 	struct ls2x_dma_chan *lchan = to_ldma_chan(chan);
-	unsigned long flags;
 
-	spin_lock_irqsave(&lchan->vchan.lock, flags);
+	guard(spinlock_irqsave)(&lchan->vchan.lock);
+
 	if (lchan->desc && lchan->desc->status == DMA_PAUSED) {
 		lchan->desc->status = DMA_IN_PROGRESS;
 		ls2x_dma_write_cmd(lchan, LDMA_START);
 	}
-	spin_unlock_irqrestore(&lchan->vchan.lock, flags);
 
 	return 0;
 }
@@ -550,22 +546,22 @@ static irqreturn_t ls2x_dma_isr(int irq, void *dev_id)
 	struct ls2x_dma_chan *lchan = dev_id;
 	struct ls2x_dma_desc *desc;
 
-	spin_lock(&lchan->vchan.lock);
-	desc = lchan->desc;
-	if (desc) {
-		if (desc->cyclic) {
-			vchan_cyclic_callback(&desc->vdesc);
-		} else {
-			desc->status = DMA_COMPLETE;
-			vchan_cookie_complete(&desc->vdesc);
-			ls2x_dma_start_transfer(lchan);
-		}
+	scoped_guard(spinlock, &lchan->vchan.lock) {
+		desc = lchan->desc;
+		if (desc) {
+			if (desc->cyclic) {
+				vchan_cyclic_callback(&desc->vdesc);
+			} else {
+				desc->status = DMA_COMPLETE;
+				vchan_cookie_complete(&desc->vdesc);
+				ls2x_dma_start_transfer(lchan);
+			}
 
-		/* ls2x_dma_start_transfer() updates lchan->desc */
-		if (!lchan->desc)
-			ls2x_dma_write_cmd(lchan, LDMA_STOP);
+			/* ls2x_dma_start_transfer() updates lchan->desc */
+			if (!lchan->desc)
+				ls2x_dma_write_cmd(lchan, LDMA_STOP);
+		}
 	}
-	spin_unlock(&lchan->vchan.lock);
 
 	return IRQ_HANDLED;
 }
@@ -616,17 +612,13 @@ static int ls2x_dma_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(priv->regs),
 				     "devm_platform_ioremap_resource failed.\n");
 
-	priv->dma_clk = devm_clk_get(&pdev->dev, NULL);
+	priv->dma_clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(priv->dma_clk))
-		return dev_err_probe(dev, PTR_ERR(priv->dma_clk), "devm_clk_get failed.\n");
-
-	ret = clk_prepare_enable(priv->dma_clk);
-	if (ret)
-		return dev_err_probe(dev, ret, "clk_prepare_enable failed.\n");
+		return dev_err_probe(dev, PTR_ERR(priv->dma_clk), "Couldn't start the clock.\n");
 
 	ret = ls2x_dma_chan_init(pdev, priv);
 	if (ret)
-		goto disable_clk;
+		return ret;
 
 	ddev = &priv->ddev;
 	ddev->dev = dev;
@@ -650,25 +642,18 @@ static int ls2x_dma_probe(struct platform_device *pdev)
 	ddev->dst_addr_widths = LDMA_SLAVE_BUSWIDTHS;
 	ddev->directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
 
-	ret = dma_async_device_register(&priv->ddev);
+	ret = dmaenginem_async_device_register(&priv->ddev);
 	if (ret < 0)
-		goto disable_clk;
+		return dev_err_probe(dev, ret, "Failed to register DMA engine device.\n");
 
 	ret = of_dma_controller_register(dev->of_node, of_dma_xlate_by_chan_id, priv);
 	if (ret < 0)
-		goto unregister_dmac;
+		return dev_err_probe(dev, ret, "Failed to register dma controller.\n");
 
 	platform_set_drvdata(pdev, priv);
 
 	dev_info(dev, "Loongson LS2X APB DMA driver registered successfully.\n");
 	return 0;
-
-unregister_dmac:
-	dma_async_device_unregister(&priv->ddev);
-disable_clk:
-	clk_disable_unprepare(priv->dma_clk);
-
-	return ret;
 }
 
 /*
@@ -677,11 +662,7 @@ disable_clk:
  */
 static void ls2x_dma_remove(struct platform_device *pdev)
 {
-	struct ls2x_dma_priv *priv = platform_get_drvdata(pdev);
-
 	of_dma_controller_free(pdev->dev.of_node);
-	dma_async_device_unregister(&priv->ddev);
-	clk_disable_unprepare(priv->dma_clk);
 }
 
 static const struct of_device_id ls2x_dma_of_match_table[] = {
