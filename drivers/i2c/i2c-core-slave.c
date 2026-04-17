@@ -89,7 +89,7 @@ int i2c_slave_event(struct i2c_client *client,
 	int ret = client->slave_cb(client, event, val);
 
 	if (trace_i2c_slave_enabled())
-		trace_i2c_slave(client, event, val, ret);
+		trace_call__i2c_slave(client, event, val, ret);
 
 	return ret;
 }

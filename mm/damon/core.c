@@ -2510,7 +2510,7 @@ static void damos_trace_stat(struct damon_ctx *c, struct damos *s)
 			break;
 		sidx++;
 	}
-	trace_damos_stat_after_apply_interval(cidx, sidx, &s->stat);
+	trace_call__damos_stat_after_apply_interval(cidx, sidx, &s->stat);
 }
 
 static void kdamond_apply_schemes(struct damon_ctx *c)

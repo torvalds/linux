@@ -5943,7 +5943,7 @@ static __printf(2, 3) void dump_line(struct seq_buf *s, const char *fmt, ...)
 		vscnprintf(line_buf, sizeof(line_buf), fmt, args);
 		va_end(args);
 
-		trace_sched_ext_dump(line_buf);
+		trace_call__sched_ext_dump(line_buf);
 	}
 #endif
 	/* @s may be zero sized and seq_buf triggers WARN if so */

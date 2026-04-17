@@ -1721,7 +1721,7 @@ static int t_show_filters(struct seq_file *m, void *v)
 
 	len = get_call_len(call);
 
-	seq_printf(m, "%s:%s%*.s%s\n", call->class->system,
+	seq_printf(m, "%s:%s%*s%s\n", call->class->system,
 		   trace_event_name(call), len, "", filter->filter_string);
 
 	return 0;
@@ -1753,7 +1753,7 @@ static int t_show_triggers(struct seq_file *m, void *v)
 	len = get_call_len(call);
 
 	list_for_each_entry_rcu(data, &file->triggers, list) {
-		seq_printf(m, "%s:%s%*.s", call->class->system,
+		seq_printf(m, "%s:%s%*s", call->class->system,
 			   trace_event_name(call), len, "");
 
 		data->cmd_ops->print(m, data);
@@ -2187,12 +2187,12 @@ static int trace_format_open(struct inode *inode, struct file *file)
 static ssize_t
 event_id_read(struct file *filp, char __user *ubuf, size_t cnt, loff_t *ppos)
 {
-	int id = (long)event_file_data(filp);
+	/* id is directly in i_private and available for inode's lifetime. */
+	int id = (long)file_inode(filp)->i_private;
 	char buf[32];
 	int len;
 
-	if (unlikely(!id))
-		return -ENODEV;
+	WARN_ON(!id);
 
 	len = sprintf(buf, "%d\n", id);
 
@@ -2250,12 +2250,8 @@ event_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
 
 	mutex_lock(&event_mutex);
 	file = event_file_file(filp);
-	if (file) {
-		if (file->flags & EVENT_FILE_FL_FREED)
-			err = -ENODEV;
-		else
-			err = apply_event_filter(file, buf);
-	}
+	if (file)
+		err = apply_event_filter(file, buf);
 	mutex_unlock(&event_mutex);
 
 	kfree(buf);
@@ -3687,20 +3683,27 @@ static struct boot_triggers {
 } bootup_triggers[MAX_BOOT_TRIGGERS];
 
 static char bootup_trigger_buf[COMMAND_LINE_SIZE];
+static int boot_trigger_buf_len;
 static int nr_boot_triggers;
 
 static __init int setup_trace_triggers(char *str)
 {
 	char *trigger;
 	char *buf;
+	int len = boot_trigger_buf_len;
 	int i;
 
-	strscpy(bootup_trigger_buf, str, COMMAND_LINE_SIZE);
+	if (len >= COMMAND_LINE_SIZE)
+		return 1;
+
+	strscpy(bootup_trigger_buf + len, str, COMMAND_LINE_SIZE - len);
 	trace_set_ring_buffer_expanded(NULL);
 	disable_tracing_selftest("running event triggers");
 
-	buf = bootup_trigger_buf;
-	for (i = 0; i < MAX_BOOT_TRIGGERS; i++) {
+	buf = bootup_trigger_buf + len;
+	boot_trigger_buf_len += strlen(buf) + 1;
+
+	for (i = nr_boot_triggers; i < MAX_BOOT_TRIGGERS; i++) {
 		trigger = strsep(&buf, ",");
 		if (!trigger)
 			break;

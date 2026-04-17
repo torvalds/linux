@@ -723,12 +723,13 @@ void print_function_args(struct trace_seq *s, unsigned long *args,
 {
 	const struct btf_param *param;
 	const struct btf_type *t;
+	const struct btf_enum *enums;
 	const char *param_name;
 	char name[KSYM_NAME_LEN];
 	unsigned long arg;
 	struct btf *btf;
 	s32 tid, nr = 0;
-	int a, p, x;
+	int a, p, x, i;
 	u16 encode;
 
 	trace_seq_printf(s, "(");
@@ -782,6 +783,15 @@ void print_function_args(struct trace_seq *s, unsigned long *args,
 			break;
 		case BTF_KIND_ENUM:
 			trace_seq_printf(s, "%ld", arg);
+			enums = btf_enum(t);
+			for (i = 0; i < btf_vlen(t); i++) {
+				if (arg == enums[i].val) {
+					trace_seq_printf(s, " [%s]",
+							 btf_name_by_offset(btf,
+							 enums[i].name_off));
+					break;
+				}
+			}
 			break;
 		default:
 			/* This does not handle complex arguments */
