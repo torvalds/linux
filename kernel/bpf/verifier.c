@@ -3497,6 +3497,11 @@ static int insn_stack_access_flags(int frameno, int spi)
 	return INSN_F_STACK_ACCESS | (spi << INSN_F_SPI_SHIFT) | frameno;
 }
 
+static void mark_indirect_target(struct bpf_verifier_env *env, int idx)
+{
+	env->insn_aux_data[idx].indirect_target = true;
+}
+
 #define LR_FRAMENO_BITS	3
 #define LR_SPI_BITS	6
 #define LR_ENTRY_BITS	(LR_SPI_BITS + LR_FRAMENO_BITS + 1)
@@ -4544,6 +4549,9 @@ static int map_kptr_match_type(struct bpf_verifier_env *env,
 	int perm_flags;
 	const char *reg_name = "";
 
+	if (base_type(reg->type) != PTR_TO_BTF_ID)
+		goto bad_type;
+
 	if (btf_is_kernel(reg->btf)) {
 		perm_flags = PTR_MAYBE_NULL | PTR_TRUSTED | MEM_RCU;
 
@@ -4556,7 +4564,7 @@ static int map_kptr_match_type(struct bpf_verifier_env *env,
 			perm_flags |= MEM_PERCPU;
 	}
 
-	if (base_type(reg->type) != PTR_TO_BTF_ID || (type_flag(reg->type) & ~perm_flags))
+	if (type_flag(reg->type) & ~perm_flags)
 		goto bad_type;
 
 	/* We need to verify reg->type and reg->btf, before accessing reg->btf */
@@ -17545,12 +17553,14 @@ static int check_indirect_jump(struct bpf_verifier_env *env, struct bpf_insn *in
 	}
 
 	for (i = 0; i < n - 1; i++) {
+		mark_indirect_target(env, env->gotox_tmp_buf->items[i]);
 		other_branch = push_stack(env, env->gotox_tmp_buf->items[i],
 					  env->insn_idx, env->cur_state->speculative);
 		if (IS_ERR(other_branch))
 			return PTR_ERR(other_branch);
 	}
 	env->insn_idx = env->gotox_tmp_buf->items[n-1];
+	mark_indirect_target(env, env->insn_idx);
 	return INSN_IDX_UPDATED;
 }
 
@@ -20155,6 +20165,14 @@ skip_full_check:
 
 	adjust_btf_func(env);
 
+	/* extension progs temporarily inherit the attach_type of their targets
+	   for verification purposes, so set it back to zero before returning
+	 */
+	if (env->prog->type == BPF_PROG_TYPE_EXT)
+		env->prog->expected_attach_type = 0;
+
+	env->prog = __bpf_prog_select_runtime(env, env->prog, &ret);
+
 err_release_maps:
 	if (ret)
 		release_insn_arrays(env);
@@ -20165,12 +20183,6 @@ err_release_maps:
 		release_maps(env);
 	if (!env->prog->aux->used_btfs)
 		release_btfs(env);
-
-	/* extension progs temporarily inherit the attach_type of their targets
-	   for verification purposes, so set it back to zero before returning
-	 */
-	if (env->prog->type == BPF_PROG_TYPE_EXT)
-		env->prog->expected_attach_type = 0;
 
 	*prog = env->prog;
 

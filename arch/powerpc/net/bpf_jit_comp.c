@@ -162,7 +162,7 @@ static void priv_stack_check_guard(void __percpu *priv_stack_ptr, int alloc_size
 	}
 }
 
-struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
+struct bpf_prog *bpf_int_jit_compile(struct bpf_verifier_env *env, struct bpf_prog *fp)
 {
 	u32 proglen;
 	u32 alloclen;
@@ -177,9 +177,6 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 	void __percpu *priv_stack_ptr = NULL;
 	struct bpf_binary_header *fhdr = NULL;
 	struct bpf_binary_header *hdr = NULL;
-	struct bpf_prog *org_fp = fp;
-	struct bpf_prog *tmp_fp = NULL;
-	bool bpf_blinded = false;
 	bool extra_pass = false;
 	u8 *fimage = NULL;
 	u32 *fcode_base = NULL;
@@ -187,24 +184,13 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 	u32 fixup_len;
 
 	if (!fp->jit_requested)
-		return org_fp;
-
-	tmp_fp = bpf_jit_blind_constants(org_fp);
-	if (IS_ERR(tmp_fp))
-		return org_fp;
-
-	if (tmp_fp != org_fp) {
-		bpf_blinded = true;
-		fp = tmp_fp;
-	}
+		return fp;
 
 	jit_data = fp->aux->jit_data;
 	if (!jit_data) {
 		jit_data = kzalloc_obj(*jit_data);
-		if (!jit_data) {
-			fp = org_fp;
-			goto out;
-		}
+		if (!jit_data)
+			return fp;
 		fp->aux->jit_data = jit_data;
 	}
 
@@ -219,10 +205,8 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 		priv_stack_alloc_size = round_up(fp->aux->stack_depth, 16) +
 							2 * PRIV_STACK_GUARD_SZ;
 		priv_stack_ptr = __alloc_percpu_gfp(priv_stack_alloc_size, 16, GFP_KERNEL);
-		if (!priv_stack_ptr) {
-			fp = org_fp;
+		if (!priv_stack_ptr)
 			goto out_priv_stack;
-		}
 
 		priv_stack_init_guard(priv_stack_ptr, priv_stack_alloc_size);
 		fp->aux->priv_stack_ptr = priv_stack_ptr;
@@ -249,10 +233,8 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 	}
 
 	addrs = kcalloc(flen + 1, sizeof(*addrs), GFP_KERNEL);
-	if (addrs == NULL) {
-		fp = org_fp;
-		goto out_addrs;
-	}
+	if (addrs == NULL)
+		goto out_err;
 
 	memset(&cgctx, 0, sizeof(struct codegen_context));
 	bpf_jit_init_reg_mapping(&cgctx);
@@ -279,11 +261,9 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 	}
 
 	/* Scouting faux-generate pass 0 */
-	if (bpf_jit_build_body(fp, NULL, NULL, &cgctx, addrs, 0, false)) {
+	if (bpf_jit_build_body(fp, NULL, NULL, &cgctx, addrs, 0, false))
 		/* We hit something illegal or unsupported. */
-		fp = org_fp;
-		goto out_addrs;
-	}
+		goto out_err;
 
 	/*
 	 * If we have seen a tail call, we need a second pass.
@@ -294,10 +274,8 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 	 */
 	if (cgctx.seen & SEEN_TAILCALL || !is_offset_in_branch_range((long)cgctx.idx * 4)) {
 		cgctx.idx = 0;
-		if (bpf_jit_build_body(fp, NULL, NULL, &cgctx, addrs, 0, false)) {
-			fp = org_fp;
-			goto out_addrs;
-		}
+		if (bpf_jit_build_body(fp, NULL, NULL, &cgctx, addrs, 0, false))
+			goto out_err;
 	}
 
 	bpf_jit_realloc_regs(&cgctx);
@@ -318,10 +296,8 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 
 	fhdr = bpf_jit_binary_pack_alloc(alloclen, &fimage, 4, &hdr, &image,
 					      bpf_jit_fill_ill_insns);
-	if (!fhdr) {
-		fp = org_fp;
-		goto out_addrs;
-	}
+	if (!fhdr)
+		goto out_err;
 
 	if (extable_len)
 		fp->aux->extable = (void *)fimage + FUNCTION_DESCR_SIZE + proglen + fixup_len;
@@ -340,8 +316,7 @@ skip_init_ctx:
 				       extra_pass)) {
 			bpf_arch_text_copy(&fhdr->size, &hdr->size, sizeof(hdr->size));
 			bpf_jit_binary_pack_free(fhdr, hdr);
-			fp = org_fp;
-			goto out_addrs;
+			goto out_err;
 		}
 		bpf_jit_build_epilogue(code_base, &cgctx);
 
@@ -363,15 +338,16 @@ skip_init_ctx:
 	((u64 *)image)[1] = local_paca->kernel_toc;
 #endif
 
+	if (!fp->is_func || extra_pass) {
+		if (bpf_jit_binary_pack_finalize(fhdr, hdr))
+			goto out_err;
+	}
+
 	fp->bpf_func = (void *)fimage;
 	fp->jited = 1;
 	fp->jited_len = cgctx.idx * 4 + FUNCTION_DESCR_SIZE;
 
 	if (!fp->is_func || extra_pass) {
-		if (bpf_jit_binary_pack_finalize(fhdr, hdr)) {
-			fp = org_fp;
-			goto out_addrs;
-		}
 		bpf_prog_fill_jited_linfo(fp, addrs);
 		/*
 		 * On ABI V1, executable code starts after the function
@@ -398,11 +374,15 @@ out_priv_stack:
 		jit_data->hdr = hdr;
 	}
 
-out:
-	if (bpf_blinded)
-		bpf_jit_prog_release_other(fp, fp == org_fp ? tmp_fp : org_fp);
-
 	return fp;
+
+out_err:
+	if (extra_pass) {
+		fp->bpf_func = NULL;
+		fp->jited = 0;
+		fp->jited_len = 0;
+	}
+	goto out_addrs;
 }
 
 /*

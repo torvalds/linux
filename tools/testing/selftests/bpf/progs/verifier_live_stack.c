@@ -2647,3 +2647,196 @@ __naked void spill_join_with_imprecise_off(void)
 	"exit;"
 	::: __clobber_all);
 }
+
+/*
+ * Same as spill_join_with_multi_off but the write is BPF_ST (store
+ * immediate) instead of BPF_STX. BPF_ST goes through
+ * clear_stack_for_all_offs() rather than spill_to_stack(), and that
+ * path also needs to join instead of overwriting.
+ *
+ *   fp-8  = &fp-24
+ *   fp-16 = &fp-32
+ *   r1 = fp-8 or fp-16 (two offsets from branch)
+ *   *(u64 *)(r1 + 0) = 0        -- BPF_ST with immediate
+ *   r0 = *(u64 *)(r10 - 16)     -- fill from fp-16
+ *   r0 = *(u64 *)(r0 + 0)       -- deref: should produce use
+ */
+SEC("socket")
+__log_level(2)
+__failure
+__msg("15: (7a) *(u64 *)(r1 +0) = 0	fp-8: fp0-24 -> fp0-24|fp0+0	fp-16: fp0-32 -> fp0-32|fp0+0")
+__msg("17: (79) r0 = *(u64 *)(r0 +0)         ; use: fp0-32")
+__naked void st_imm_join_with_multi_off(void)
+{
+	asm volatile (
+	"*(u64 *)(r10 - 24) = 0;"
+	"*(u64 *)(r10 - 32) = 0;"
+	"r1 = r10;"
+	"r1 += -24;"
+	"*(u64 *)(r10 - 8) = r1;"
+	"r1 = r10;"
+	"r1 += -32;"
+	"*(u64 *)(r10 - 16) = r1;"
+	/* create r1 with two candidate offsets: fp-8 or fp-16 */
+	"call %[bpf_get_prandom_u32];"
+	"if r0 == 0 goto 1f;"
+	"r1 = r10;"
+	"r1 += -8;"
+	"goto 2f;"
+"1:"
+	"r1 = r10;"
+	"r1 += -16;"
+"2:"
+	/* BPF_ST: store immediate through multi-offset r1 */
+	"*(u64 *)(r1 + 0) = 0;"
+	/* read back fp-16 and deref */
+	"r0 = *(u64 *)(r10 - 16);"
+	"r0 = *(u64 *)(r0 + 0);"
+	"r0 = 0;"
+	"exit;"
+	:: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+/*
+ * Check that BPF_ST with a known offset fully overwrites stack slot
+ * from the arg tracking point of view.
+ */
+SEC("socket")
+__log_level(2)
+__success
+__msg("5: (7a) *(u64 *)(r1 +0) = 0	fp-8: fp0-16 -> _{{$}}")
+__naked void st_imm_join_with_single_off(void)
+{
+	asm volatile (
+	"r2 = r10;"
+	"r2 += -16;"
+	"*(u64 *)(r10 - 8) = r2;"
+	"r1 = r10;"
+	"r1 += -8;"
+	"*(u64 *)(r1 + 0) = 0;"
+	"r0 = 0;"
+	"exit;"
+	::: __clobber_all);
+}
+
+/*
+ * Same as spill_join_with_imprecise_off but the write is BPF_ST.
+ * Use "r2 = -8; r1 += r2" to make arg tracking lose offset
+ * precision while the main verifier keeps r1 as fixed-offset.
+ *
+ *   fp-8  = &fp-24
+ *   fp-16 = &fp-32
+ *   r1 = fp-8 (imprecise to arg tracking)
+ *   *(u64 *)(r1 + 0) = 0        -- BPF_ST with immediate
+ *   r0 = *(u64 *)(r10 - 16)     -- fill from fp-16
+ *   r0 = *(u64 *)(r0 + 0)       -- deref: should produce use
+ */
+SEC("socket")
+__log_level(2)
+__success
+__msg("13: (79) r0 = *(u64 *)(r0 +0)         ; use: fp0-32")
+__naked void st_imm_join_with_imprecise_off(void)
+{
+	asm volatile (
+	"*(u64 *)(r10 - 24) = 0;"
+	"*(u64 *)(r10 - 32) = 0;"
+	"r1 = r10;"
+	"r1 += -24;"
+	"*(u64 *)(r10 - 8) = r1;"
+	"r1 = r10;"
+	"r1 += -32;"
+	"*(u64 *)(r10 - 16) = r1;"
+	/* r1 = fp-8 but arg tracking sees off_cnt == 0 */
+	"r1 = r10;"
+	"r2 = -8;"
+	"r1 += r2;"
+	/* store immediate through imprecise r1 */
+	"*(u64 *)(r1 + 0) = 0;"
+	/* read back fp-16 */
+	"r0 = *(u64 *)(r10 - 16);"
+	/* deref: should produce use */
+	"r0 = *(u64 *)(r0 + 0);"
+	"r0 = 0;"
+	"exit;"
+	::: __clobber_all);
+}
+
+/*
+ * Test that spilling through an ARG_IMPRECISE pointer joins with
+ * existing at_stack values. Subprog receives r1 = fp0-24 and
+ * r2 = map_value, creates an ARG_IMPRECISE pointer by joining caller
+ * and callee FP on two branches.
+ *
+ * Setup: callee spills &fp1-16 to fp1-8 (precise, tracked).
+ * Then writes map_value through ARG_IMPRECISE r1 — on path A
+ * this hits fp1-8, on path B it hits caller stack.
+ * Since spill_to_stack is skipped for ARG_IMPRECISE dst,
+ * fp1-8 tracking isn't joined with none.
+ *
+ * Expected after the imprecise write:
+ * - arg tracking should show fp1-8 = fp1-16|fp1+0 (joined with none)
+ * - read from fp1-8 and deref should produce use for fp1-16
+ * - write through it should NOT produce def for fp1-16
+ */
+SEC("socket")
+__log_level(2)
+__success
+__msg("26: (79) r0 = *(u64 *)(r10 -8) // r1=IMP3 r6=fp0-24 r7=fp1-16 fp-8=fp1-16|fp1+0")
+__naked void imprecise_dst_spill_join(void)
+{
+	asm volatile (
+	"*(u64 *)(r10 - 24) = 0;"
+	/* map lookup for a valid non-FP pointer */
+	"*(u32 *)(r10 - 32) = 0;"
+	"r1 = %[map] ll;"
+	"r2 = r10;"
+	"r2 += -32;"
+	"call %[bpf_map_lookup_elem];"
+	"if r0 == 0 goto 1f;"
+	/* r1 = &caller_fp-24, r2 = map_value */
+	"r1 = r10;"
+	"r1 += -24;"
+	"r2 = r0;"
+	"call imprecise_dst_spill_join_sub;"
+"1:"
+	"r0 = 0;"
+	"exit;"
+	:: __imm_addr(map),
+	   __imm(bpf_map_lookup_elem)
+	: __clobber_all);
+}
+
+static __used __naked void imprecise_dst_spill_join_sub(void)
+{
+	asm volatile (
+	/* r6 = &caller_fp-24 (frame=0), r8 = map_value */
+	"r6 = r1;"
+	"r8 = r2;"
+	/* spill &fp1-16 to fp1-8: at_stack[0] = fp1-16 */
+	"*(u64 *)(r10 - 16) = 0;"
+	"r7 = r10;"
+	"r7 += -16;"
+	"*(u64 *)(r10 - 8) = r7;"
+	/* branch to create ARG_IMPRECISE pointer */
+	"call %[bpf_get_prandom_u32];"
+	/* path B: r1 = caller fp-24 (frame=0) */
+	"r1 = r6;"
+	"if r0 == 0 goto 1f;"
+	/* path A: r1 = callee fp-8 (frame=1) */
+	"r1 = r10;"
+	"r1 += -8;"
+"1:"
+	/* r1 = ARG_IMPRECISE{mask=BIT(0)|BIT(1)}.
+	 * Write map_value (non-FP) through r1. On path A this overwrites fp1-8.
+	 * Should join at_stack[0] with none: fp1-16|fp1+0.
+	 */
+	"*(u64 *)(r1 + 0) = r8;"
+	/* read fp1-8: should be fp1-16|fp1+0 (joined) */
+	"r0 = *(u64 *)(r10 - 8);"
+	"*(u64 *)(r0 + 0) = 42;"
+	"r0 = 0;"
+	"exit;"
+	:: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
