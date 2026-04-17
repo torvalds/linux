@@ -232,17 +232,19 @@ static void zynqmp_r5_mb_rx_cb(struct mbox_client *cl, void *msg)
 
 	ipi = container_of(cl, struct mbox_info, mbox_cl);
 
-	/* copy data from ipi buffer to r5_core */
+	/* copy data from ipi buffer to r5_core if IPI is buffered. */
 	ipi_msg = (struct zynqmp_ipi_message *)msg;
-	buf_msg = (struct zynqmp_ipi_message *)ipi->rx_mc_buf;
-	len = ipi_msg->len;
-	if (len > IPI_BUF_LEN_MAX) {
-		dev_warn(cl->dev, "msg size exceeded than %d\n",
-			 IPI_BUF_LEN_MAX);
-		len = IPI_BUF_LEN_MAX;
+	if (ipi_msg) {
+		buf_msg = (struct zynqmp_ipi_message *)ipi->rx_mc_buf;
+		len = ipi_msg->len;
+		if (len > IPI_BUF_LEN_MAX) {
+			dev_warn(cl->dev, "msg size exceeded than %d\n",
+				 IPI_BUF_LEN_MAX);
+			len = IPI_BUF_LEN_MAX;
+		}
+		buf_msg->len = len;
+		memcpy(buf_msg->data, ipi_msg->data, len);
 	}
-	buf_msg->len = len;
-	memcpy(buf_msg->data, ipi_msg->data, len);
 
 	/* received and processed interrupt ack */
 	if (mbox_send_message(ipi->rx_chan, NULL) < 0)
@@ -264,6 +266,10 @@ static struct mbox_info *zynqmp_r5_setup_mbox(struct device *cdev)
 {
 	struct mbox_client *mbox_cl;
 	struct mbox_info *ipi;
+
+	if (!of_property_present(dev_of_node(cdev), "mboxes") ||
+	    !of_property_present(dev_of_node(cdev), "mbox-names"))
+		return NULL;
 
 	ipi = kzalloc_obj(*ipi);
 	if (!ipi)
@@ -1005,7 +1011,7 @@ static int zynqmp_r5_get_sram_banks(struct zynqmp_r5_core *r5_core)
 		}
 
 		/* Get SRAM device address */
-		ret = of_property_read_reg(sram_np, i, &abs_addr, &size);
+		ret = of_property_read_reg(sram_np, 0, &abs_addr, &size);
 		if (ret) {
 			dev_err(dev, "failed to get reg property\n");
 			goto fail_sram_get;
@@ -1484,6 +1490,8 @@ static void zynqmp_r5_remoteproc_shutdown(struct platform_device *pdev)
 			dev_err(cluster->dev, "failed to %s rproc %d\n",
 				rproc_state_str, rproc->index);
 		}
+
+		zynqmp_r5_free_mbox(r5_core->ipi);
 	}
 }
 

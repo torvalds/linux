@@ -173,35 +173,16 @@ static int keystone_rproc_start(struct rproc *rproc)
 
 	INIT_WORK(&ksproc->workqueue, handle_event);
 
-	ret = request_irq(ksproc->irq_ring, keystone_rproc_vring_interrupt, 0,
-			  dev_name(ksproc->dev), ksproc);
-	if (ret) {
-		dev_err(ksproc->dev, "failed to enable vring interrupt, ret = %d\n",
-			ret);
-		goto out;
-	}
-
-	ret = request_irq(ksproc->irq_fault, keystone_rproc_exception_interrupt,
-			  0, dev_name(ksproc->dev), ksproc);
-	if (ret) {
-		dev_err(ksproc->dev, "failed to enable exception interrupt, ret = %d\n",
-			ret);
-		goto free_vring_irq;
-	}
+	enable_irq(ksproc->irq_ring);
+	enable_irq(ksproc->irq_fault);
 
 	ret = keystone_rproc_dsp_boot(ksproc, rproc->bootaddr);
-	if (ret)
-		goto free_exc_irq;
+	if (ret) {
+		flush_work(&ksproc->workqueue);
+		return ret;
+	}
 
 	return 0;
-
-free_exc_irq:
-	free_irq(ksproc->irq_fault, ksproc);
-free_vring_irq:
-	free_irq(ksproc->irq_ring, ksproc);
-	flush_work(&ksproc->workqueue);
-out:
-	return ret;
 }
 
 /*
@@ -215,8 +196,8 @@ static int keystone_rproc_stop(struct rproc *rproc)
 	struct keystone_rproc *ksproc = rproc->priv;
 
 	keystone_rproc_dsp_reset(ksproc);
-	free_irq(ksproc->irq_fault, ksproc);
-	free_irq(ksproc->irq_ring, ksproc);
+	disable_irq(ksproc->irq_fault);
+	disable_irq(ksproc->irq_ring);
 	flush_work(&ksproc->workqueue);
 
 	return 0;
@@ -427,10 +408,18 @@ static int keystone_rproc_probe(struct platform_device *pdev)
 	ksproc->irq_ring = platform_get_irq_byname(pdev, "vring");
 	if (ksproc->irq_ring < 0)
 		return ksproc->irq_ring;
+	ret = devm_request_irq(dev, ksproc->irq_ring, keystone_rproc_vring_interrupt,
+			       IRQF_NO_AUTOEN, dev_name(dev), ksproc);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to request vring interrupt\n");
 
 	ksproc->irq_fault = platform_get_irq_byname(pdev, "exception");
 	if (ksproc->irq_fault < 0)
 		return ksproc->irq_fault;
+	ret = devm_request_irq(dev, ksproc->irq_fault, keystone_rproc_exception_interrupt,
+			       IRQF_NO_AUTOEN, dev_name(dev), ksproc);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to enable exception interrupt\n");
 
 	ksproc->kick_gpio = devm_gpiod_get(dev, "kick", GPIOD_ASIS);
 	ret = PTR_ERR_OR_ZERO(ksproc->kick_gpio);

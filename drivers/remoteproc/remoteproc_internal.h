@@ -218,7 +218,7 @@ bool rproc_u64_fit_in_size_t(u64 val)
 	if (sizeof(size_t) == sizeof(u64))
 		return true;
 
-	return (val <= (size_t) -1);
+	return val <= SIZE_MAX;
 }
 
 #endif /* REMOTEPROC_INTERNAL_H */
