@@ -14,15 +14,19 @@
 #define HSIC_ENABLE	BIT(7)
 #define PLL_BYPASS	BIT(4)
 
+struct mmp3_hsic_data {
+	void __iomem *base;
+};
+
 static int mmp3_hsic_phy_init(struct phy *phy)
 {
-	void __iomem *base = (void __iomem *)phy_get_drvdata(phy);
+	struct mmp3_hsic_data *mmp3 = phy_get_drvdata(phy);
 	u32 hsic_ctrl;
 
-	hsic_ctrl = readl_relaxed(base + HSIC_CTRL);
+	hsic_ctrl = readl_relaxed(mmp3->base + HSIC_CTRL);
 	hsic_ctrl |= HSIC_ENABLE;
 	hsic_ctrl |= PLL_BYPASS;
-	writel_relaxed(hsic_ctrl, base + HSIC_CTRL);
+	writel_relaxed(hsic_ctrl, mmp3->base + HSIC_CTRL);
 
 	return 0;
 }
@@ -41,13 +45,17 @@ MODULE_DEVICE_TABLE(of, mmp3_hsic_phy_of_match);
 static int mmp3_hsic_phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct mmp3_hsic_data *mmp3;
 	struct phy_provider *provider;
-	void __iomem *base;
 	struct phy *phy;
 
-	base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
+	mmp3 = devm_kzalloc(dev, sizeof(*mmp3), GFP_KERNEL);
+	if (!mmp3)
+		return -ENOMEM;
+
+	mmp3->base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
+	if (IS_ERR(mmp3->base))
+		return PTR_ERR(mmp3->base);
 
 	phy = devm_phy_create(dev, NULL, &mmp3_hsic_phy_ops);
 	if (IS_ERR(phy)) {
@@ -55,7 +63,7 @@ static int mmp3_hsic_phy_probe(struct platform_device *pdev)
 		return PTR_ERR(phy);
 	}
 
-	phy_set_drvdata(phy, (void *)base);
+	phy_set_drvdata(phy, mmp3);
 	provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
 	if (IS_ERR(provider)) {
 		dev_err(dev, "failed to register PHY provider\n");
