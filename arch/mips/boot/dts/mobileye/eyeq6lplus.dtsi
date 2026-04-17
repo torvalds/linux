@@ -1,0 +1,170 @@
+// SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+/*
+ * Copyright 2025 Mobileye Vision Technologies Ltd.
+ */
+
+#include <dt-bindings/interrupt-controller/mips-gic.h>
+
+#include <dt-bindings/clock/mobileye,eyeq6lplus-clk.h>
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <2>;
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "img,i6500";
+			reg = <0>;
+			clocks = <&olb EQ6LPC_CPU_OCC>;
+		};
+	};
+
+	cpu_intc: interrupt-controller {
+		compatible = "mti,cpu-interrupt-controller";
+		interrupt-controller;
+		#address-cells = <0>;
+		#interrupt-cells = <1>;
+	};
+
+	coherency-manager {
+		compatible = "mobileye,eyeq6-cm";
+	};
+
+	xtal: clock-30000000 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <30000000>;
+	};
+
+	soc: soc {
+		compatible = "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		olb: system-controller@e8400000 {
+			compatible = "mobileye,eyeq6lplus-olb", "syscon";
+			reg = <0 0xe8400000 0x0 0x80000>;
+			#reset-cells = <2>;
+			#clock-cells = <1>;
+			clocks = <&xtal>;
+			clock-names = "ref";
+		};
+
+		ospi: spi@e8800000 {
+			compatible = "mobileye,eyeq5-ospi", "cdns,qspi-nor";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0 0xe8800000 0x0 0x100000>,
+			      <0 0xb0000000 0x0 0x30000000>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SHARED 10 IRQ_TYPE_LEVEL_HIGH>;
+			cdns,fifo-depth = <128>;
+			cdns,fifo-width = <4>;
+			cdns,trigger-address = <0x00000000>;
+			clocks  = <&olb EQ6LPC_PER_OSPI>;
+			status = "disabled";
+		};
+
+		spi0: spi@eac0d000 {
+			compatible = "snps,dw-apb-ssi";
+			reg = <0 0xeac0d000 0x0 0x1000>;
+			clocks = <&olb EQ6LPC_PER_SPI>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SHARED 11 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&olb 0 0>;
+			reset-names = "spi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		spi1: spi@eac0e000 {
+			compatible = "snps,dw-apb-ssi";
+			reg = <0 0xeac0e000 0x0 0x1000>;
+			spi-slave;
+			clocks = <&olb EQ6LPC_PER_SPI>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SHARED 12 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&olb 0 1>;
+			reset-names = "spi";
+			#address-cells = <0>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		uart0: serial@eac10000 {
+			compatible = "snps,dw-apb-uart";
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			clocks = <&olb EQ6LPC_PER_UART>;
+			clock-frequency = <15625000>;
+			reg = <0 0xeac10000 0x0 0x1000>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SHARED 8 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&olb 0 2>;
+			status = "disabled";
+		};
+
+		i2c0: i2c@eac11000 {
+			compatible = "mobileye,eyeq6lplus-i2c", "snps,designware-i2c";
+			reg = <0 0xeac11000 0x0 0x1000>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SHARED 6 IRQ_TYPE_LEVEL_HIGH>;
+			clock-frequency = <400000>;
+			clocks = <&olb EQ6LPC_PER_I2C_SER>;
+			resets = <&olb 0 3>;
+			i2c-sda-hold-time-ns = <50>;
+			status = "disabled";
+		};
+
+		i2c1: i2c@eac12000 {
+			compatible = "mobileye,eyeq6lplus-i2c", "snps,designware-i2c";
+			reg = <0 0xeac12000 0x0 0x1000>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SHARED 7 IRQ_TYPE_LEVEL_HIGH>;
+			clock-frequency = <400000>;
+			clocks = <&olb EQ6LPC_PER_I2C_SER>;
+			resets = <&olb 0 4>;
+			i2c-sda-hold-time-ns = <50>;
+			status = "disabled";
+		};
+
+		gpio: gpio@eac14000 {
+			compatible = "snps,dw-apb-gpio";
+			reg = <0x0 0xeac14000 0x0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			resets = <&olb 0 13>;
+			porta: gpio-port@0 {
+				compatible = "snps,dw-apb-gpio-port";
+				gpio-controller;
+				#gpio-cells = <2>;
+				snps,nr-gpios = <32>;
+				gpio-ranges = <&olb 0 0 32>;
+				reg = <0>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				interrupt-parent = <&gic>;
+				interrupts = <GIC_SHARED 13 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		gic: interrupt-controller@f0920000 {
+			compatible = "mti,gic";
+			reg = <0x0 0xf0920000 0x0 0x20000>;
+			interrupt-controller;
+			#interrupt-cells = <3>;
+			interrupt-parent = <&cpu_intc>;
+			timer {
+				compatible = "mti,gic-timer";
+				interrupts = <GIC_LOCAL 1 IRQ_TYPE_NONE>;
+				clocks = <&olb EQ6LPC_CPU_OCC>;
+			};
+		};
+	};
+};
+
+#include "eyeq6lplus-pins.dtsi"

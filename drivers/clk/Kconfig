@@ -236,9 +236,9 @@ config COMMON_CLK_EP93XX
 
 config COMMON_CLK_EYEQ
 	bool "Clock driver for the Mobileye EyeQ platform"
-	depends on MACH_EYEQ5 || MACH_EYEQ6H || COMPILE_TEST
+	depends on EYEQ || COMPILE_TEST
 	select AUXILIARY_BUS
-	default MACH_EYEQ5 || MACH_EYEQ6H
+	default EYEQ
 	help
 	  This driver provides clocks found on Mobileye EyeQ5, EyeQ6L and Eye6H
 	  SoCs. Controllers live in shared register regions called OLB. Driver
