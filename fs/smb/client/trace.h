@@ -670,8 +670,99 @@ DEFINE_EVENT(smb3_fd_err_class, smb3_##name,    \
 	TP_ARGS(xid, fid, tid, sesid, rc))
 
 DEFINE_SMB3_FD_ERR_EVENT(flush_err);
-DEFINE_SMB3_FD_ERR_EVENT(lock_err);
 DEFINE_SMB3_FD_ERR_EVENT(close_err);
+
+DECLARE_EVENT_CLASS(smb3_lock_class,
+	TP_PROTO(unsigned int xid,
+		__u64	fid,
+		__u32	tid,
+		__u64	sesid,
+		__u64	offset,
+		__u64	len,
+		__u32	flags,
+		__u32	num_lock,
+		int	rc),
+	TP_ARGS(xid, fid, tid, sesid, offset, len, flags, num_lock, rc),
+	TP_STRUCT__entry(
+		__field(unsigned int, xid)
+		__field(__u64, fid)
+		__field(__u32, tid)
+		__field(__u64, sesid)
+		__field(__u64, offset)
+		__field(__u64, len)
+		__field(__u32, flags)
+		__field(__u32, num_lock)
+		__field(int, rc)
+	),
+	TP_fast_assign(
+		__entry->xid = xid;
+		__entry->fid = fid;
+		__entry->tid = tid;
+		__entry->sesid = sesid;
+		__entry->offset = offset;
+		__entry->len = len;
+		__entry->flags = flags;
+		__entry->num_lock = num_lock;
+		__entry->rc = rc;
+	),
+	TP_printk("xid=%u sid=0x%llx tid=0x%x fid=0x%llx offset=0x%llx len=0x%llx flags=0x%x num_lock=%u rc=%d",
+		__entry->xid, __entry->sesid, __entry->tid, __entry->fid,
+		__entry->offset, __entry->len, __entry->flags, __entry->num_lock,
+		__entry->rc)
+)
+
+#define DEFINE_SMB3_LOCK_EVENT(name)          \
+DEFINE_EVENT(smb3_lock_class, smb3_##name,    \
+	TP_PROTO(unsigned int xid,		\
+		__u64	fid,			\
+		__u32	tid,			\
+		__u64	sesid,			\
+		__u64	offset,			\
+		__u64	len,			\
+		__u32	flags,			\
+		__u32	num_lock,		\
+		int	rc),			\
+	TP_ARGS(xid, fid, tid, sesid, offset, len, flags, num_lock, rc))
+
+DEFINE_SMB3_LOCK_EVENT(lock_enter);
+DEFINE_SMB3_LOCK_EVENT(lock_done);
+DEFINE_SMB3_LOCK_EVENT(lock_err);
+DEFINE_SMB3_LOCK_EVENT(lock_cached);
+
+TRACE_EVENT(smb3_lock_conflict,
+	TP_PROTO(__u64 fid,
+		__u64 req_offset,
+		__u64 req_len,
+		__u8 req_type,
+		__u64 conf_offset,
+		__u64 conf_len,
+		__u16 conf_type,
+		__u32 conf_pid),
+	TP_ARGS(fid, req_offset, req_len, req_type, conf_offset, conf_len, conf_type, conf_pid),
+	TP_STRUCT__entry(
+		__field(__u64, fid)
+		__field(__u64, req_offset)
+		__field(__u64, req_len)
+		__field(__u8, req_type)
+		__field(__u64, conf_offset)
+		__field(__u64, conf_len)
+		__field(__u16, conf_type)
+		__field(__u32, conf_pid)
+	),
+	TP_fast_assign(
+		__entry->fid = fid;
+		__entry->req_offset = req_offset;
+		__entry->req_len = req_len;
+		__entry->req_type = req_type;
+		__entry->conf_offset = conf_offset;
+		__entry->conf_len = conf_len;
+		__entry->conf_type = conf_type;
+		__entry->conf_pid = conf_pid;
+	),
+	TP_printk("fid=0x%llx req=[0x%llx:0x%llx] type=0x%x conflicts with [0x%llx:0x%llx] type=0x%x pid=%u",
+		__entry->fid, __entry->req_offset, __entry->req_len, __entry->req_type,
+		__entry->conf_offset, __entry->conf_len, __entry->conf_type, __entry->conf_pid)
+);
 
 /*
  * For handle based query/set info calls
@@ -1230,8 +1321,9 @@ DECLARE_EVENT_CLASS(smb3_open_done_class,
 		__u32	tid,
 		__u64	sesid,
 		int	create_options,
-		int	desired_access),
-	TP_ARGS(xid, fid, tid, sesid, create_options, desired_access),
+		int	desired_access,
+		__u8	oplock),
+	TP_ARGS(xid, fid, tid, sesid, create_options, desired_access, oplock),
 	TP_STRUCT__entry(
 		__field(unsigned int, xid)
 		__field(__u64, fid)
@@ -1239,6 +1331,7 @@ DECLARE_EVENT_CLASS(smb3_open_done_class,
 		__field(__u64, sesid)
 		__field(int, create_options)
 		__field(int, desired_access)
+		__field(__u8, oplock)
 	),
 	TP_fast_assign(
 		__entry->xid = xid;
@@ -1247,10 +1340,11 @@ DECLARE_EVENT_CLASS(smb3_open_done_class,
 		__entry->sesid = sesid;
 		__entry->create_options = create_options;
 		__entry->desired_access = desired_access;
+		__entry->oplock = oplock;
 	),
-	TP_printk("xid=%u sid=0x%llx tid=0x%x fid=0x%llx cr_opts=0x%x des_access=0x%x",
+	TP_printk("xid=%u sid=0x%llx tid=0x%x fid=0x%llx cr_opts=0x%x des_access=0x%x oplock=0x%x",
 		__entry->xid, __entry->sesid, __entry->tid, __entry->fid,
-		__entry->create_options, __entry->desired_access)
+		__entry->create_options, __entry->desired_access, __entry->oplock)
 )
 
 #define DEFINE_SMB3_OPEN_DONE_EVENT(name)        \
@@ -1260,11 +1354,63 @@ DEFINE_EVENT(smb3_open_done_class, smb3_##name,  \
 		__u32	tid,			\
 		__u64	sesid,			\
 		int	create_options,		\
-		int	desired_access),	\
-	TP_ARGS(xid, fid, tid, sesid, create_options, desired_access))
+		int	desired_access,		\
+		__u8	oplock),		\
+	TP_ARGS(xid, fid, tid, sesid, create_options, desired_access, oplock))
 
 DEFINE_SMB3_OPEN_DONE_EVENT(open_done);
 DEFINE_SMB3_OPEN_DONE_EVENT(posix_mkdir_done);
+
+TRACE_EVENT(smb3_open_cached,
+	TP_PROTO(unsigned int xid,
+		__u32 tid,
+		__u64 sesid,
+		__u64 fid,
+		unsigned int oflags,
+		unsigned int cflags),
+	TP_ARGS(xid, tid, sesid, fid, oflags, cflags),
+	TP_STRUCT__entry(
+		__field(unsigned int, xid)
+		__field(__u32, tid)
+		__field(__u64, sesid)
+		__field(__u64, fid)
+		__field(unsigned int, oflags)
+		__field(unsigned int, cflags)
+	),
+	TP_fast_assign(
+		__entry->xid = xid;
+		__entry->tid = tid;
+		__entry->sesid = sesid;
+		__entry->fid = fid;
+		__entry->oflags = oflags;
+		__entry->cflags = cflags;
+	),
+	TP_printk("xid=%u sid=0x%llx tid=0x%x fid=0x%llx oflags=0x%x cflags=0x%x",
+		__entry->xid, __entry->sesid, __entry->tid, __entry->fid,
+		__entry->oflags, __entry->cflags)
+);
+
+TRACE_EVENT(smb3_close_cached,
+	TP_PROTO(__u32 tid,
+		__u64 sesid,
+		__u64 fid,
+		unsigned long delay_jiffies),
+	TP_ARGS(tid, sesid, fid, delay_jiffies),
+	TP_STRUCT__entry(
+		__field(__u32, tid)
+		__field(__u64, sesid)
+		__field(__u64, fid)
+		__field(unsigned long, delay_jiffies)
+	),
+	TP_fast_assign(
+		__entry->tid = tid;
+		__entry->sesid = sesid;
+		__entry->fid = fid;
+		__entry->delay_jiffies = delay_jiffies;
+	),
+	TP_printk("sid=0x%llx tid=0x%x fid=0x%llx delay_jiffies=%lu",
+		__entry->sesid, __entry->tid, __entry->fid, __entry->delay_jiffies)
+);
 
 
 DECLARE_EVENT_CLASS(smb3_lease_done_class,

@@ -10,6 +10,7 @@
 #define _CIFSFS_H
 
 #include <linux/hash.h>
+#include <linux/dcache.h>
 
 #define ROOT_I 2
 
@@ -149,17 +150,11 @@ struct dentry *cifs_smb3_do_mount(struct file_system_type *fs_type, int flags,
 
 char *cifs_silly_fullpath(struct dentry *dentry);
 
-#define CIFS_TMPNAME_PREFIX        ".__smbfile_tmp"
-#define CIFS_TMPNAME_PREFIX_LEN    ((int)sizeof(CIFS_TMPNAME_PREFIX) - 1)
-#define CIFS_TMPNAME_COUNTER_LEN   ((int)sizeof(cifs_tmpcounter) * 2)
-#define CIFS_TMPNAME_LEN \
-	(CIFS_TMPNAME_PREFIX_LEN + CIFS_TMPNAME_COUNTER_LEN)
+#define CIFS_TMPNAME_PREFIX	".__smbfile_tmp"
+#define CIFS_TMPNAME_LEN	(DNAME_INLINE_LEN - 1)
 
-#define CIFS_SILLYNAME_PREFIX	    ".__smbfile_silly"
-#define CIFS_SILLYNAME_PREFIX_LEN  ((int)sizeof(CIFS_SILLYNAME_PREFIX) - 1)
-#define CIFS_SILLYNAME_COUNTER_LEN ((int)sizeof(cifs_sillycounter) * 2)
-#define CIFS_SILLYNAME_LEN \
-	(CIFS_SILLYNAME_PREFIX_LEN + CIFS_SILLYNAME_COUNTER_LEN)
+#define CIFS_SILLYNAME_PREFIX	".__smbfile_silly"
+#define CIFS_SILLYNAME_LEN	(DNAME_INLINE_LEN - 1)
 
 #ifdef CONFIG_CIFS_NFSD_EXPORT
 extern const struct export_operations cifs_export_ops;
