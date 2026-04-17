@@ -361,7 +361,8 @@ static bool use_intel_pmu(void)
  */
 static bool use_amd_pmu(void)
 {
-	return host_cpu_is_amd && kvm_cpu_family() >= 0x17;
+	return (host_cpu_is_amd && kvm_cpu_family() >= 0x17) ||
+	       host_cpu_is_hygon;
 }
 
 /*

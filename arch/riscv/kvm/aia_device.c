@@ -11,7 +11,7 @@
 #include <linux/irqchip/riscv-imsic.h>
 #include <linux/kvm_host.h>
 #include <linux/uaccess.h>
-#include <linux/cpufeature.h>
+#include <asm/kvm_isa.h>
 
 static int aia_create(struct kvm_device *dev, u32 type)
 {
@@ -23,7 +23,7 @@ static int aia_create(struct kvm_device *dev, u32 type)
 	if (irqchip_in_kernel(kvm))
 		return -EEXIST;
 
-	if (!riscv_isa_extension_available(NULL, SSAIA))
+	if (kvm_riscv_isa_check_host(SSAIA))
 		return -ENODEV;
 
 	ret = -EBUSY;

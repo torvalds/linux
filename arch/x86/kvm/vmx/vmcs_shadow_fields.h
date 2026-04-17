@@ -1,6 +1,6 @@
 #if !defined(SHADOW_FIELD_RO) && !defined(SHADOW_FIELD_RW)
-BUILD_BUG_ON(1)
-#endif
+#error Must #define at least one of SHADOW_FIELD_RO or SHADOW_FIELD_RW
+#else
 
 #ifndef SHADOW_FIELD_RO
 #define SHADOW_FIELD_RO(x, y)
@@ -74,6 +74,7 @@ SHADOW_FIELD_RW(HOST_GS_BASE, host_gs_base)
 /* 64-bit */
 SHADOW_FIELD_RO(GUEST_PHYSICAL_ADDRESS, guest_physical_address)
 SHADOW_FIELD_RO(GUEST_PHYSICAL_ADDRESS_HIGH, guest_physical_address)
+#endif
 
 #undef SHADOW_FIELD_RO
 #undef SHADOW_FIELD_RW

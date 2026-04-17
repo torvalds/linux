@@ -83,6 +83,8 @@
 #define LOONGARCH_CSR_PRMD		0x1
 #define LOONGARCH_CSR_EUEN		0x2
 #define LOONGARCH_CSR_ECFG		0x4
+#define  ECFGB_PMU			10
+#define  ECFGF_PMU			(BIT_ULL(ECFGB_PMU))
 #define  ECFGB_TIMER			11
 #define  ECFGF_TIMER			(BIT_ULL(ECFGB_TIMER))
 #define LOONGARCH_CSR_ESTAT		0x5  /* Exception status */
@@ -90,6 +92,7 @@
 #define  CSR_ESTAT_EXC_WIDTH		6
 #define  CSR_ESTAT_EXC			(0x3f << CSR_ESTAT_EXC_SHIFT)
 #define    EXCCODE_INT			0    /* Interrupt */
+#define	     INT_PMI			10   /* PMU interrupt */
 #define      INT_TI			11   /* Timer interrupt*/
 #define LOONGARCH_CSR_ERA		0x6  /* ERA */
 #define LOONGARCH_CSR_BADV		0x7  /* Bad virtual address */
@@ -127,6 +130,17 @@
 #define LOONGARCH_CSR_TLBREHI		0x8e
 #define  CSR_TLBREHI_PS_SHIFT		0
 #define  CSR_TLBREHI_PS			(0x3fUL << CSR_TLBREHI_PS_SHIFT)
+
+#define read_cpucfg(reg)			\
+({						\
+	register unsigned long __v;		\
+	__asm__ __volatile__(			\
+		"cpucfg %0, %1\n\t"		\
+		: "=r" (__v)			\
+		: "r" (reg)			\
+		: "memory");			\
+	 __v;					\
+})
 
 #define csr_read(csr)				\
 ({						\
@@ -178,6 +192,7 @@ struct handlers {
 	handler_fn exception_handlers[VECTOR_NUM];
 };
 
+void loongarch_vcpu_setup(struct kvm_vcpu *vcpu);
 void vm_init_descriptor_tables(struct kvm_vm *vm);
 void vm_install_exception_handler(struct kvm_vm *vm, int vector, handler_fn handler);
 

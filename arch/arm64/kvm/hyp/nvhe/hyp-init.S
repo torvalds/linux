@@ -173,9 +173,8 @@ SYM_CODE_END(___kvm_hyp_init)
  * x0: struct kvm_nvhe_init_params PA
  */
 SYM_CODE_START(kvm_hyp_cpu_entry)
-	mov	x1, #1				// is_cpu_on = true
+	ldr	x29, =__kvm_host_psci_cpu_on_entry
 	b	__kvm_hyp_init_cpu
-SYM_CODE_END(kvm_hyp_cpu_entry)
 
 /*
  * PSCI CPU_SUSPEND / SYSTEM_SUSPEND entry point
@@ -183,32 +182,17 @@ SYM_CODE_END(kvm_hyp_cpu_entry)
  * x0: struct kvm_nvhe_init_params PA
  */
 SYM_CODE_START(kvm_hyp_cpu_resume)
-	mov	x1, #0				// is_cpu_on = false
-	b	__kvm_hyp_init_cpu
-SYM_CODE_END(kvm_hyp_cpu_resume)
+	ldr	x29, =__kvm_host_psci_cpu_resume_entry
 
-/*
- * Common code for CPU entry points. Initializes EL2 state and
- * installs the hypervisor before handing over to a C handler.
- *
- * x0: struct kvm_nvhe_init_params PA
- * x1: bool is_cpu_on
- */
-SYM_CODE_START_LOCAL(__kvm_hyp_init_cpu)
+SYM_INNER_LABEL(__kvm_hyp_init_cpu, SYM_L_LOCAL)
 	mov	x28, x0				// Stash arguments
-	mov	x29, x1
 
 	/* Check that the core was booted in EL2. */
 	mrs	x0, CurrentEL
 	cmp	x0, #CurrentEL_EL2
-	b.eq	2f
+	b.ne	1f
 
-	/* The core booted in EL1. KVM cannot be initialized on it. */
-1:	wfe
-	wfi
-	b	1b
-
-2:	msr	SPsel, #1			// We want to use SP_EL{1,2}
+	msr	SPsel, #1			// We want to use SP_EL2
 
 	init_el2_hcr	0
 
@@ -218,11 +202,16 @@ SYM_CODE_START_LOCAL(__kvm_hyp_init_cpu)
 	mov	x0, x28
 	bl	___kvm_hyp_init			// Clobbers x0..x2
 
-	/* Leave idmap. */
-	mov	x0, x29
-	ldr	x1, =kvm_host_psci_cpu_entry
-	br	x1
-SYM_CODE_END(__kvm_hyp_init_cpu)
+	/* Leave idmap -- using BLR is OK, LR is restored from host context */
+	blr	x29
+
+	// The core booted in EL1, or the C code unexpectedly returned.
+	// Either way, KVM cannot be initialized on it.
+1:	wfe
+	wfi
+	b	1b
+SYM_CODE_END(kvm_hyp_cpu_resume)
+SYM_CODE_END(kvm_hyp_cpu_entry)
 
 SYM_CODE_START(__kvm_handle_stub_hvc)
 	/*

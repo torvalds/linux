@@ -271,11 +271,11 @@ void kvm_check_vpid(struct kvm_vcpu *vcpu)
 		 * memory with new address is changed on other VCPUs.
 		 */
 		set_gcsr_llbctl(CSR_LLBCTL_WCLLB);
-	}
 
-	/* Restore GSTAT(0x50).vpid */
-	vpid = (vcpu->arch.vpid & vpid_mask) << CSR_GSTAT_GID_SHIFT;
-	change_csr_gstat(vpid_mask << CSR_GSTAT_GID_SHIFT, vpid);
+		/* Restore GSTAT(0x50).vpid */
+		vpid = (vcpu->arch.vpid & vpid_mask) << CSR_GSTAT_GID_SHIFT;
+		change_csr_gstat(vpid_mask << CSR_GSTAT_GID_SHIFT, vpid);
+	}
 }
 
 void kvm_init_vmcs(struct kvm *kvm)
@@ -416,6 +416,12 @@ static int kvm_loongarch_env_init(void)
 
 	/* Register LoongArch PCH-PIC interrupt controller interface. */
 	ret = kvm_loongarch_register_pch_pic_device();
+	if (ret)
+		return ret;
+
+	/* Register LoongArch DMSINTC interrupt contrroller interface */
+	if (cpu_has_msgint)
+		ret = kvm_loongarch_register_dmsintc_device();
 
 	return ret;
 }

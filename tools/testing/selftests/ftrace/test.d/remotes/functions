@@ -24,12 +24,21 @@ setup_remote_test()
 
 assert_loaded()
 {
-	grep -q "(loaded)" buffer_size_kb
+	grep -q "(loaded)" buffer_size_kb || return 1
 }
 
 assert_unloaded()
 {
-	grep -q "(unloaded)" buffer_size_kb
+	grep -q "(unloaded)" buffer_size_kb || return 1
+}
+
+reload_remote()
+{
+	echo 0 > tracing_on
+	clear_trace
+	assert_unloaded
+	echo 1 > tracing_on
+	assert_loaded
 }
 
 dump_trace_pipe()
@@ -79,10 +88,12 @@ get_cpu_ids()
     sed -n 's/^processor\s*:\s*\([0-9]\+\).*/\1/p' /proc/cpuinfo
 }
 
-get_page_size() {
+get_page_size()
+{
     sed -ne 's/^.*data.*size:\([0-9][0-9]*\).*/\1/p' events/header_page
 }
 
-get_selftest_event_size() {
+get_selftest_event_size()
+{
     sed -ne 's/^.*field:.*;.*size:\([0-9][0-9]*\);.*/\1/p' events/*/selftest/format | awk '{s+=$1} END {print s}'
 }

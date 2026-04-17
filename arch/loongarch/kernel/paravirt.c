@@ -10,9 +10,9 @@
 #include <asm/paravirt.h>
 
 static int has_steal_clock;
-static DEFINE_PER_CPU(struct kvm_steal_time, steal_time) __aligned(64);
-static DEFINE_STATIC_KEY_FALSE(virt_preempt_key);
+DEFINE_STATIC_KEY_FALSE(virt_preempt_key);
 DEFINE_STATIC_KEY_FALSE(virt_spin_lock_key);
+DEFINE_PER_CPU(struct kvm_steal_time, steal_time) __aligned(64);
 
 static bool steal_acc = true;
 
@@ -260,18 +260,6 @@ static int pv_time_cpu_down_prepare(unsigned int cpu)
 
 	return 0;
 }
-
-bool vcpu_is_preempted(int cpu)
-{
-	struct kvm_steal_time *src;
-
-	if (!static_branch_unlikely(&virt_preempt_key))
-		return false;
-
-	src = &per_cpu(steal_time, cpu);
-	return !!(src->preempted & KVM_VCPU_PREEMPTED);
-}
-EXPORT_SYMBOL(vcpu_is_preempted);
 #endif
 
 static void pv_cpu_reboot(void *unused)

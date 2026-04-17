@@ -13,6 +13,7 @@
 #include <linux/nospec.h>
 #include <linux/uaccess.h>
 #include <asm/cpufeature.h>
+#include <asm/kvm_isa.h>
 
 #ifdef CONFIG_FPU
 void kvm_riscv_vcpu_fp_reset(struct kvm_vcpu *vcpu)
@@ -60,17 +61,17 @@ void kvm_riscv_vcpu_guest_fp_restore(struct kvm_cpu_context *cntx,
 void kvm_riscv_vcpu_host_fp_save(struct kvm_cpu_context *cntx)
 {
 	/* No need to check host sstatus as it can be modified outside */
-	if (riscv_isa_extension_available(NULL, d))
+	if (!kvm_riscv_isa_check_host(D))
 		__kvm_riscv_fp_d_save(cntx);
-	else if (riscv_isa_extension_available(NULL, f))
+	else if (!kvm_riscv_isa_check_host(F))
 		__kvm_riscv_fp_f_save(cntx);
 }
 
 void kvm_riscv_vcpu_host_fp_restore(struct kvm_cpu_context *cntx)
 {
-	if (riscv_isa_extension_available(NULL, d))
+	if (!kvm_riscv_isa_check_host(D))
 		__kvm_riscv_fp_d_restore(cntx);
-	else if (riscv_isa_extension_available(NULL, f))
+	else if (!kvm_riscv_isa_check_host(F))
 		__kvm_riscv_fp_f_restore(cntx);
 }
 #endif

@@ -21,6 +21,8 @@
 
 extern bool host_cpu_is_intel;
 extern bool host_cpu_is_amd;
+extern bool host_cpu_is_hygon;
+extern bool host_cpu_is_amd_compatible;
 extern uint64_t guest_tsc_khz;
 
 #ifndef MAX_NR_CPUID_ENTRIES
@@ -717,6 +719,11 @@ static inline bool this_cpu_is_amd(void)
 	return this_cpu_vendor_string_is("AuthenticAMD");
 }
 
+static inline bool this_cpu_is_hygon(void)
+{
+	return this_cpu_vendor_string_is("HygonGenuine");
+}
+
 static inline uint32_t __this_cpu_has(uint32_t function, uint32_t index,
 				      uint8_t reg, uint8_t lo, uint8_t hi)
 {
@@ -1381,6 +1388,11 @@ static inline bool kvm_is_unrestricted_guest_enabled(void)
 static inline bool kvm_is_ignore_msrs(void)
 {
 	return get_kvm_param_bool("ignore_msrs");
+}
+
+static inline bool kvm_is_lbrv_enabled(void)
+{
+	return !!get_kvm_amd_param_integer("lbrv");
 }
 
 uint64_t *vm_get_pte(struct kvm_vm *vm, uint64_t vaddr);

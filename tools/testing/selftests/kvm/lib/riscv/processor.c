@@ -566,3 +566,8 @@ unsigned long riscv64_get_satp_mode(void)
 
 	return val;
 }
+
+bool kvm_arch_has_default_irqchip(void)
+{
+	return kvm_check_cap(KVM_CAP_IRQCHIP);
+}

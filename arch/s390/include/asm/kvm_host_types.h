@@ -137,8 +137,7 @@ struct mcck_volatile_info {
 struct kvm_s390_sie_block {
 	atomic_t cpuflags;		/* 0x0000 */
 	__u32 : 1;			/* 0x0004 */
-	__u32 prefix : 18;
-	__u32 : 1;
+	__u32 prefix : 19;
 	__u32 ibc : 12;
 	__u8	reserved08[4];		/* 0x0008 */
 #define PROG_IN_SIE (1<<0)

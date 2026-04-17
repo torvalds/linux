@@ -956,6 +956,9 @@ static int __must_check __deliver_service(struct kvm_vcpu *vcpu)
 		set_bit(IRQ_PEND_EXT_SERVICE, &fi->masked_irqs);
 	spin_unlock(&fi->lock);
 
+	if (!ext.ext_params)
+		return 0;
+
 	VCPU_EVENT(vcpu, 4, "deliver: sclp parameter 0x%x",
 		   ext.ext_params);
 	vcpu->stat.deliver_service_signal++;

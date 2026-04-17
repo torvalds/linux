@@ -40,7 +40,8 @@
 #include <asm/irq_remapping.h>
 #include <asm/kvm_page_track.h>
 #include <asm/kvm_vcpu_regs.h>
-#include <asm/reboot.h>
+#include <asm/virt.h>
+
 #include <hyperv/hvhdk.h>
 
 #define __KVM_HAVE_ARCH_VCPU_DEBUGFS
@@ -1098,6 +1099,21 @@ struct kvm_vcpu_arch {
 	 */
 	bool pdptrs_from_userspace;
 
+	/*
+	 * Set if an emulated nested VM-Enter to L2 is pending completion.  KVM
+	 * must not synthesize a VM-Exit to L1 before entering L2, as VM-Exits
+	 * can only occur at instruction boundaries.  The only exception is
+	 * VMX's "notify" exits, which exist in large part to break the CPU out
+	 * of infinite ucode loops, but can corrupt vCPU state in the process!
+	 *
+	 * For all intents and purposes, this is a boolean, but it's tracked as
+	 * a u8 so that KVM can detect when userspace may have stuffed vCPU
+	 * state and generated an architecturally-impossible VM-Exit.
+	 */
+#define KVM_NESTED_RUN_PENDING			1
+#define KVM_NESTED_RUN_PENDING_UNTRUSTED	2
+	u8 nested_run_pending;
+
 #if IS_ENABLED(CONFIG_HYPERV)
 	hpa_t hv_root_tdp;
 #endif
@@ -1261,7 +1277,7 @@ struct kvm_x86_pmu_event_filter {
 	__u32 nr_excludes;
 	__u64 *includes;
 	__u64 *excludes;
-	__u64 events[];
+	__u64 events[] __counted_by(nevents);
 };
 
 enum kvm_apicv_inhibit {
@@ -1433,6 +1449,7 @@ struct kvm_arch {
 	struct kvm_pit *vpit;
 #endif
 	atomic_t vapics_in_nmi_mode;
+
 	struct mutex apic_map_lock;
 	struct kvm_apic_map __rcu *apic_map;
 	atomic_t apic_map_dirty;
@@ -1440,8 +1457,22 @@ struct kvm_arch {
 	bool apic_access_memslot_enabled;
 	bool apic_access_memslot_inhibited;
 
-	/* Protects apicv_inhibit_reasons */
+	/*
+	 * Force apicv_update_lock and apicv_nr_irq_window_req to reside in a
+	 * dedicated cacheline.  They are write-mostly, whereas most everything
+	 * else in kvm_arch is read-mostly.  Note that apicv_inhibit_reasons is
+	 * read-mostly: toggling VM-wide inhibits is rare; _checking_ for
+	 * inhibits is common.
+	 */
+	____cacheline_aligned
+	/*
+	 * Protects apicv_inhibit_reasons and apicv_nr_irq_window_req (with an
+	 * asterisk, see kvm_inc_or_dec_irq_window_inhibit() for details).
+	 */
 	struct rw_semaphore apicv_update_lock;
+	atomic_t apicv_nr_irq_window_req;
+	____cacheline_aligned
+
 	unsigned long apicv_inhibit_reasons;
 
 	gpa_t wall_clock;
@@ -2097,9 +2128,6 @@ void kvm_zap_gfn_range(struct kvm *kvm, gfn_t gfn_start, gfn_t gfn_end);
 
 int load_pdptrs(struct kvm_vcpu *vcpu, unsigned long cr3);
 
-int emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa,
-			  const void *val, int bytes);
-
 extern bool tdp_enabled;
 
 u64 vcpu_tsc_khz(struct kvm_vcpu *vcpu);
@@ -2314,6 +2342,18 @@ static inline void kvm_clear_apicv_inhibit(struct kvm *kvm,
 					   enum kvm_apicv_inhibit reason)
 {
 	kvm_set_or_clear_apicv_inhibit(kvm, reason, false);
+}
+
+void kvm_inc_or_dec_irq_window_inhibit(struct kvm *kvm, bool inc);
+
+static inline void kvm_inc_apicv_irq_window_req(struct kvm *kvm)
+{
+	kvm_inc_or_dec_irq_window_inhibit(kvm, true);
+}
+
+static inline void kvm_dec_apicv_irq_window_req(struct kvm *kvm)
+{
+	kvm_inc_or_dec_irq_window_inhibit(kvm, false);
 }
 
 int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa, u64 error_code,

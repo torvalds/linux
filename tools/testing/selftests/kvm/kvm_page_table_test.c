@@ -261,9 +261,6 @@ static struct kvm_vm *pre_init_before_test(enum vm_guest_mode mode, void *arg)
 				       guest_page_size;
 	else
 		guest_test_phys_mem = p->phys_offset;
-#ifdef __s390x__
-	alignment = max(0x100000UL, alignment);
-#endif
 	guest_test_phys_mem = align_down(guest_test_phys_mem, alignment);
 
 	/* Set up the shared data structure test_args */

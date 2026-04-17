@@ -248,7 +248,7 @@ int main(int argc, char *argv[])
 	 * drops writes, AMD does not).  Account for the errata when checking
 	 * that KVM reads back what was written.
 	 */
-	x.has_xavic_errata = host_cpu_is_amd &&
+	x.has_xavic_errata = host_cpu_is_amd_compatible &&
 			     get_kvm_amd_param_bool("avic");
 
 	vcpu_clear_cpuid_feature(x.vcpu, X86_FEATURE_X2APIC);

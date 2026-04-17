@@ -25,6 +25,28 @@
 #define GICV5_HWIRQ_TYPE_SPI		UL(0x3)
 
 /*
+ * Architected PPIs
+ */
+#define GICV5_ARCH_PPI_S_DB_PPI		0x0
+#define GICV5_ARCH_PPI_RL_DB_PPI	0x1
+#define GICV5_ARCH_PPI_NS_DB_PPI	0x2
+#define GICV5_ARCH_PPI_SW_PPI		0x3
+#define GICV5_ARCH_PPI_HACDBSIRQ	0xf
+#define GICV5_ARCH_PPI_CNTHVS		0x13
+#define GICV5_ARCH_PPI_CNTHPS		0x14
+#define GICV5_ARCH_PPI_PMBIRQ		0x15
+#define GICV5_ARCH_PPI_COMMIRQ		0x16
+#define GICV5_ARCH_PPI_PMUIRQ		0x17
+#define GICV5_ARCH_PPI_CTIIRQ		0x18
+#define GICV5_ARCH_PPI_GICMNT		0x19
+#define GICV5_ARCH_PPI_CNTHP		0x1a
+#define GICV5_ARCH_PPI_CNTV		0x1b
+#define GICV5_ARCH_PPI_CNTHV		0x1c
+#define GICV5_ARCH_PPI_CNTPS		0x1d
+#define GICV5_ARCH_PPI_CNTP		0x1e
+#define GICV5_ARCH_PPI_TRBIRQ		0x1f
+
+/*
  * Tables attributes
  */
 #define GICV5_NO_READ_ALLOC		0b0
@@ -364,6 +386,11 @@ struct gicv5_irs_chip_data *gicv5_irs_lookup_by_spi_id(u32 spi_id);
 int gicv5_spi_irq_set_type(struct irq_data *d, unsigned int type);
 int gicv5_irs_iste_alloc(u32 lpi);
 void gicv5_irs_syncr(void);
+
+/* Embedded in kvm.arch */
+struct gicv5_vpe {
+	bool			resident;
+};
 
 struct gicv5_its_devtab_cfg {
 	union {
