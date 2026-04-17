@@ -36,9 +36,9 @@ bool __init cmdline_has_extra_options(void);
  * The checksum will be used with the BOOTCONFIG_MAGIC and the size for
  * embedding the bootconfig in the initrd image.
  */
-static inline __init uint32_t xbc_calc_checksum(void *data, uint32_t size)
+static inline __init uint32_t xbc_calc_checksum(const void *data, uint32_t size)
 {
-	unsigned char *p = data;
+	const unsigned char *p = data;
 	uint32_t ret = 0;
 
 	while (size--)
@@ -66,7 +66,7 @@ struct xbc_node {
 
 /* Node tree access raw APIs */
 struct xbc_node * __init xbc_root_node(void);
-int __init xbc_node_index(struct xbc_node *node);
+uint16_t __init xbc_node_index(struct xbc_node *node);
 struct xbc_node * __init xbc_node_get_parent(struct xbc_node *node);
 struct xbc_node * __init xbc_node_get_child(struct xbc_node *node);
 struct xbc_node * __init xbc_node_get_next(struct xbc_node *node);
