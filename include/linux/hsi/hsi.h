@@ -271,7 +271,7 @@ struct hsi_controller {
 	struct module		*owner;
 	unsigned int		id;
 	unsigned int		num_ports;
-	struct hsi_port		**port;
+	struct hsi_port		*port[] __counted_by(num_ports);
 };
 
 #define to_hsi_controller(dev) container_of(dev, struct hsi_controller, device)
