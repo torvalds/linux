@@ -10,5 +10,6 @@ to securely construct and execute RPCs inside device firmware.
    :maxdepth: 1
 
    fwctl
+   bnxt_fwctl
    fwctl-cxl
    pds_fwctl

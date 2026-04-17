@@ -10604,6 +10604,12 @@ F:	drivers/fwctl/
 F:	include/linux/fwctl.h
 F:	include/uapi/fwctl/
 
+FWCTL BNXT DRIVER
+M:	Pavan Chebbi <pavan.chebbi@broadcom.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	drivers/fwctl/bnxt/
+
 FWCTL MLX5 DRIVER
 M:	Saeed Mahameed <saeedm@nvidia.com>
 R:	Itay Avraham <itayavr@nvidia.com>

@@ -22,16 +22,41 @@
 #include <linux/auxiliary_bus.h>
 #include <net/netdev_lock.h>
 #include <linux/bnxt/hsi.h>
+#include <linux/bnxt/ulp.h>
 
 #include "bnxt.h"
 #include "bnxt_hwrm.h"
-#include "bnxt_ulp.h"
 
 static DEFINE_IDA(bnxt_aux_dev_ids);
 
+struct bnxt_aux_device {
+	const char *name;
+};
+
+static void bnxt_auxdev_set_state(struct bnxt *bp, int idx, int state)
+{
+	bp->auxdev_state[idx] = state;
+}
+
+static bool bnxt_auxdev_is_init(struct bnxt *bp, int idx)
+{
+	return (bp->auxdev_state[idx] == BNXT_ADEV_STATE_INIT);
+}
+
+static bool bnxt_auxdev_is_active(struct bnxt *bp, int idx)
+{
+	return (bp->auxdev_state[idx] == BNXT_ADEV_STATE_ADD);
+}
+
+static struct bnxt_aux_device bnxt_aux_devices[__BNXT_AUXDEV_MAX] = {{
+	.name		= "rdma",
+}, {
+	.name		= "fwctl",
+}};
+
 static void bnxt_fill_msix_vecs(struct bnxt *bp, struct bnxt_msix_entry *ent)
 {
-	struct bnxt_en_dev *edev = bp->edev;
+	struct bnxt_en_dev *edev = bp->edev[BNXT_AUXDEV_RDMA];
 	int num_msix, i;
 
 	if (!edev->ulp_tbl->msix_requested) {
@@ -51,61 +76,75 @@ static void bnxt_fill_msix_vecs(struct bnxt *bp, struct bnxt_msix_entry *ent)
 
 int bnxt_get_ulp_msix_num(struct bnxt *bp)
 {
-	if (bp->edev)
-		return bp->edev->ulp_num_msix_vec;
+	struct bnxt_en_dev *edev = bp->edev[BNXT_AUXDEV_RDMA];
+
+	if (edev)
+		return edev->ulp_num_msix_vec;
 	return 0;
 }
 
 void bnxt_set_ulp_msix_num(struct bnxt *bp, int num)
 {
-	if (bp->edev)
-		bp->edev->ulp_num_msix_vec = num;
+	struct bnxt_en_dev *edev = bp->edev[BNXT_AUXDEV_RDMA];
+
+	if (edev)
+		edev->ulp_num_msix_vec = num;
 }
 
 int bnxt_get_ulp_msix_num_in_use(struct bnxt *bp)
 {
-	if (bnxt_ulp_registered(bp->edev))
-		return bp->edev->ulp_num_msix_vec;
+	struct bnxt_en_dev *edev = bp->edev[BNXT_AUXDEV_RDMA];
+
+	if (bnxt_ulp_registered(edev))
+		return edev->ulp_num_msix_vec;
 	return 0;
 }
 
 int bnxt_get_ulp_stat_ctxs(struct bnxt *bp)
 {
-	if (bp->edev)
-		return bp->edev->ulp_num_ctxs;
+	struct bnxt_en_dev *edev = bp->edev[BNXT_AUXDEV_RDMA];
+
+	if (edev)
+		return edev->ulp_num_ctxs;
 	return 0;
 }
 
 void bnxt_set_ulp_stat_ctxs(struct bnxt *bp, int num_ulp_ctx)
 {
-	if (bp->edev)
-		bp->edev->ulp_num_ctxs = num_ulp_ctx;
+	struct bnxt_en_dev *edev = bp->edev[BNXT_AUXDEV_RDMA];
+
+	if (edev)
+		edev->ulp_num_ctxs = num_ulp_ctx;
 }
 
 int bnxt_get_ulp_stat_ctxs_in_use(struct bnxt *bp)
 {
-	if (bnxt_ulp_registered(bp->edev))
-		return bp->edev->ulp_num_ctxs;
+	struct bnxt_en_dev *edev = bp->edev[BNXT_AUXDEV_RDMA];
+
+	if (bnxt_ulp_registered(edev))
+		return edev->ulp_num_ctxs;
 	return 0;
 }
 
 void bnxt_set_dflt_ulp_stat_ctxs(struct bnxt *bp)
 {
-	if (bp->edev) {
-		bp->edev->ulp_num_ctxs = BNXT_MIN_ROCE_STAT_CTXS;
+	struct bnxt_en_dev *edev = bp->edev[BNXT_AUXDEV_RDMA];
+
+	if (edev) {
+		edev->ulp_num_ctxs = BNXT_MIN_ROCE_STAT_CTXS;
 		/* Reserve one additional stat_ctx for PF0 (except
 		 * on 1-port NICs) as it also creates one stat_ctx
 		 * for PF1 in case of RoCE bonding.
 		 */
 		if (BNXT_PF(bp) && !bp->pf.port_id &&
 		    bp->port_count > 1)
-			bp->edev->ulp_num_ctxs++;
+			edev->ulp_num_ctxs++;
 
 		/* Reserve one additional stat_ctx when the device is capable
 		 * of supporting port mirroring on RDMA device.
 		 */
 		if (BNXT_MIRROR_ON_ROCE_CAP(bp))
-			bp->edev->ulp_num_ctxs++;
+			edev->ulp_num_ctxs++;
 	}
 }
 
@@ -141,7 +180,7 @@ int bnxt_register_dev(struct bnxt_en_dev *edev,
 
 	edev->ulp_tbl->msix_requested = bnxt_get_ulp_msix_num(bp);
 
-	bnxt_fill_msix_vecs(bp, bp->edev->msix_entries);
+	bnxt_fill_msix_vecs(bp, edev->msix_entries);
 exit:
 	mutex_unlock(&edev->en_dev_lock);
 	netdev_unlock(dev);
@@ -227,20 +266,32 @@ EXPORT_SYMBOL(bnxt_send_msg);
 
 void bnxt_ulp_stop(struct bnxt *bp)
 {
-	struct bnxt_aux_priv *aux_priv = bp->aux_priv;
-	struct bnxt_en_dev *edev = bp->edev;
+	int i;
 
-	if (!edev)
-		return;
-
-	mutex_lock(&edev->en_dev_lock);
-	if (!bnxt_ulp_registered(edev) ||
-	    (edev->flags & BNXT_EN_FLAG_ULP_STOPPED))
-		goto ulp_stop_exit;
-
-	edev->flags |= BNXT_EN_FLAG_ULP_STOPPED;
-	if (aux_priv) {
+	mutex_lock(&bp->auxdev_lock);
+	for (i = 0; i < __BNXT_AUXDEV_MAX; i++) {
+		struct bnxt_aux_priv *aux_priv;
 		struct auxiliary_device *adev;
+		struct bnxt_en_dev *edev;
+
+		if (!bnxt_auxdev_is_active(bp, i))
+			continue;
+
+		aux_priv = bp->aux_priv[i];
+		edev = bp->edev[i];
+		mutex_lock(&edev->en_dev_lock);
+		if (i == BNXT_AUXDEV_FWCTL) {
+			edev->flags |= BNXT_EN_FLAG_ULP_STOPPED;
+			mutex_unlock(&edev->en_dev_lock);
+			continue;
+		}
+		if (!bnxt_ulp_registered(edev) ||
+		    (edev->flags & BNXT_EN_FLAG_ULP_STOPPED)) {
+			mutex_unlock(&edev->en_dev_lock);
+			continue;
+		}
+
+		edev->flags |= BNXT_EN_FLAG_ULP_STOPPED;
 
 		adev = &aux_priv->aux_dev;
 		if (adev->dev.driver) {
@@ -251,29 +302,35 @@ void bnxt_ulp_stop(struct bnxt *bp)
 			edev->en_state = bp->state;
 			adrv->suspend(adev, pm);
 		}
+		mutex_unlock(&edev->en_dev_lock);
 	}
-ulp_stop_exit:
-	mutex_unlock(&edev->en_dev_lock);
+	mutex_unlock(&bp->auxdev_lock);
 }
 
-void bnxt_ulp_start(struct bnxt *bp, int err)
+void bnxt_ulp_start(struct bnxt *bp)
 {
-	struct bnxt_aux_priv *aux_priv = bp->aux_priv;
-	struct bnxt_en_dev *edev = bp->edev;
+	int i;
 
-	if (!edev || err)
-		return;
-
-	mutex_lock(&edev->en_dev_lock);
-	if (!bnxt_ulp_registered(edev) ||
-	    !(edev->flags & BNXT_EN_FLAG_ULP_STOPPED))
-		goto ulp_start_exit;
-
-	if (edev->ulp_tbl->msix_requested)
-		bnxt_fill_msix_vecs(bp, edev->msix_entries);
-
-	if (aux_priv) {
+	mutex_lock(&bp->auxdev_lock);
+	for (i = 0; i < __BNXT_AUXDEV_MAX; i++) {
+		struct bnxt_aux_priv *aux_priv;
 		struct auxiliary_device *adev;
+		struct bnxt_en_dev *edev;
+
+		if (!bnxt_auxdev_is_active(bp, i))
+			continue;
+
+		aux_priv = bp->aux_priv[i];
+		edev = bp->edev[i];
+		mutex_lock(&edev->en_dev_lock);
+		if (i == BNXT_AUXDEV_FWCTL || !bnxt_ulp_registered(edev) ||
+		    !(edev->flags & BNXT_EN_FLAG_ULP_STOPPED)) {
+			goto clear_flag_continue;
+		}
+
+		if (edev->ulp_tbl->msix_requested)
+			bnxt_fill_msix_vecs(bp, edev->msix_entries);
+
 
 		adev = &aux_priv->aux_dev;
 		if (adev->dev.driver) {
@@ -283,22 +340,23 @@ void bnxt_ulp_start(struct bnxt *bp, int err)
 			edev->en_state = bp->state;
 			adrv->resume(adev);
 		}
+clear_flag_continue:
+		edev->flags &= ~BNXT_EN_FLAG_ULP_STOPPED;
+		mutex_unlock(&edev->en_dev_lock);
 	}
-ulp_start_exit:
-	edev->flags &= ~BNXT_EN_FLAG_ULP_STOPPED;
-	mutex_unlock(&edev->en_dev_lock);
+	mutex_unlock(&bp->auxdev_lock);
 }
 
 void bnxt_ulp_irq_stop(struct bnxt *bp)
 {
-	struct bnxt_en_dev *edev = bp->edev;
+	struct bnxt_en_dev *edev = bp->edev[BNXT_AUXDEV_RDMA];
 	struct bnxt_ulp_ops *ops;
 	bool reset = false;
 
 	if (!edev)
 		return;
 
-	if (bnxt_ulp_registered(bp->edev)) {
+	if (bnxt_ulp_registered(edev)) {
 		struct bnxt_ulp *ulp = edev->ulp_tbl;
 
 		if (!ulp->msix_requested)
@@ -315,13 +373,13 @@ void bnxt_ulp_irq_stop(struct bnxt *bp)
 
 void bnxt_ulp_irq_restart(struct bnxt *bp, int err)
 {
-	struct bnxt_en_dev *edev = bp->edev;
+	struct bnxt_en_dev *edev = bp->edev[BNXT_AUXDEV_RDMA];
 	struct bnxt_ulp_ops *ops;
 
 	if (!edev)
 		return;
 
-	if (bnxt_ulp_registered(bp->edev)) {
+	if (bnxt_ulp_registered(edev)) {
 		struct bnxt_ulp *ulp = edev->ulp_tbl;
 		struct bnxt_msix_entry *ent = NULL;
 
@@ -346,7 +404,7 @@ void bnxt_ulp_irq_restart(struct bnxt *bp, int err)
 void bnxt_ulp_async_events(struct bnxt *bp, struct hwrm_async_event_cmpl *cmpl)
 {
 	u16 event_id = le16_to_cpu(cmpl->event_id);
-	struct bnxt_en_dev *edev = bp->edev;
+	struct bnxt_en_dev *edev = bp->edev[BNXT_AUXDEV_RDMA];
 	struct bnxt_ulp_ops *ops;
 	struct bnxt_ulp *ulp;
 
@@ -387,18 +445,21 @@ void bnxt_register_async_events(struct bnxt_en_dev *edev,
 }
 EXPORT_SYMBOL(bnxt_register_async_events);
 
-void bnxt_rdma_aux_device_uninit(struct bnxt *bp)
+void bnxt_aux_devices_uninit(struct bnxt *bp)
 {
 	struct bnxt_aux_priv *aux_priv;
 	struct auxiliary_device *adev;
+	int idx;
 
-	/* Skip if no auxiliary device init was done. */
-	if (!bp->aux_priv)
-		return;
-
-	aux_priv = bp->aux_priv;
-	adev = &aux_priv->aux_dev;
-	auxiliary_device_uninit(adev);
+	mutex_lock(&bp->auxdev_lock);
+	for (idx = 0; idx < __BNXT_AUXDEV_MAX; idx++) {
+		if (bnxt_auxdev_is_init(bp, idx)) {
+			aux_priv = bp->aux_priv[idx];
+			adev = &aux_priv->aux_dev;
+			auxiliary_device_uninit(adev);
+		}
+	}
+	mutex_unlock(&bp->auxdev_lock);
 }
 
 static void bnxt_aux_dev_release(struct device *dev)
@@ -407,20 +468,25 @@ static void bnxt_aux_dev_release(struct device *dev)
 		container_of(dev, struct bnxt_aux_priv, aux_dev.dev);
 	struct bnxt *bp = netdev_priv(aux_priv->edev->net);
 
-	ida_free(&bnxt_aux_dev_ids, aux_priv->id);
 	kfree(aux_priv->edev->ulp_tbl);
-	bp->edev = NULL;
+	bp->edev[aux_priv->id] = NULL;
 	kfree(aux_priv->edev);
+	bp->aux_priv[aux_priv->id] = NULL;
 	kfree(aux_priv);
-	bp->aux_priv = NULL;
 }
 
-void bnxt_rdma_aux_device_del(struct bnxt *bp)
+void bnxt_aux_devices_del(struct bnxt *bp)
 {
-	if (!bp->edev)
-		return;
+	int idx;
 
-	auxiliary_device_delete(&bp->aux_priv->aux_dev);
+	mutex_lock(&bp->auxdev_lock);
+	for (idx = 0; idx < __BNXT_AUXDEV_MAX; idx++) {
+		if (bnxt_auxdev_is_active(bp, idx)) {
+			auxiliary_device_delete(&bp->aux_priv[idx]->aux_dev);
+			bnxt_auxdev_set_state(bp, idx, BNXT_ADEV_STATE_INIT);
+		}
+	}
+	mutex_unlock(&bp->auxdev_lock);
 }
 
 static void bnxt_set_edev_info(struct bnxt_en_dev *edev, struct bnxt *bp)
@@ -450,83 +516,106 @@ static void bnxt_set_edev_info(struct bnxt_en_dev *edev, struct bnxt *bp)
 	edev->bar0 = bp->bar0;
 }
 
-void bnxt_rdma_aux_device_add(struct bnxt *bp)
+void bnxt_aux_devices_add(struct bnxt *bp)
 {
 	struct auxiliary_device *aux_dev;
-	int rc;
+	int rc, idx;
 
-	if (!bp->edev)
-		return;
-
-	aux_dev = &bp->aux_priv->aux_dev;
-	rc = auxiliary_device_add(aux_dev);
-	if (rc) {
-		netdev_warn(bp->dev, "Failed to add auxiliary device for ROCE\n");
-		auxiliary_device_uninit(aux_dev);
-		bp->flags &= ~BNXT_FLAG_ROCE_CAP;
+	mutex_lock(&bp->auxdev_lock);
+	for (idx = 0; idx < __BNXT_AUXDEV_MAX; idx++) {
+		if (bnxt_auxdev_is_init(bp, idx)) {
+			aux_dev = &bp->aux_priv[idx]->aux_dev;
+			rc = auxiliary_device_add(aux_dev);
+			if (rc) {
+				netdev_warn(bp->dev, "Failed to add auxiliary device for auxdev type %d\n",
+					    idx);
+				auxiliary_device_uninit(aux_dev);
+				if (idx == BNXT_AUXDEV_RDMA)
+					bp->flags &= ~BNXT_FLAG_ROCE_CAP;
+				continue;
+			}
+			bnxt_auxdev_set_state(bp, idx, BNXT_ADEV_STATE_ADD);
+		}
 	}
+	mutex_unlock(&bp->auxdev_lock);
 }
 
-void bnxt_rdma_aux_device_init(struct bnxt *bp)
+void bnxt_aux_devices_init(struct bnxt *bp)
 {
 	struct auxiliary_device *aux_dev;
 	struct bnxt_aux_priv *aux_priv;
 	struct bnxt_en_dev *edev;
 	struct bnxt_ulp *ulp;
-	int rc;
+	int rc, idx;
 
-	if (!(bp->flags & BNXT_FLAG_ROCE_CAP))
-		return;
+	mutex_lock(&bp->auxdev_lock);
+	for (idx = 0; idx < __BNXT_AUXDEV_MAX; idx++) {
+		bnxt_auxdev_set_state(bp, idx, BNXT_ADEV_STATE_NONE);
 
-	aux_priv = kzalloc_obj(*bp->aux_priv);
-	if (!aux_priv)
-		goto exit;
+		if (idx == BNXT_AUXDEV_RDMA &&
+		    !(bp->flags & BNXT_FLAG_ROCE_CAP))
+			continue;
 
-	aux_priv->id = ida_alloc(&bnxt_aux_dev_ids, GFP_KERNEL);
-	if (aux_priv->id < 0) {
-		netdev_warn(bp->dev,
-			    "ida alloc failed for ROCE auxiliary device\n");
-		kfree(aux_priv);
-		goto exit;
-	}
+		aux_priv = kzalloc_obj(*aux_priv);
+		if (!aux_priv)
+			goto next_auxdev;
 
-	aux_dev = &aux_priv->aux_dev;
-	aux_dev->id = aux_priv->id;
-	aux_dev->name = "rdma";
-	aux_dev->dev.parent = &bp->pdev->dev;
-	aux_dev->dev.release = bnxt_aux_dev_release;
+		aux_dev = &aux_priv->aux_dev;
+		aux_dev->id = bp->auxdev_id;
+		aux_dev->name = bnxt_aux_devices[idx].name;
+		aux_dev->dev.parent = &bp->pdev->dev;
+		aux_dev->dev.release = bnxt_aux_dev_release;
 
-	rc = auxiliary_device_init(aux_dev);
-	if (rc) {
-		ida_free(&bnxt_aux_dev_ids, aux_priv->id);
-		kfree(aux_priv);
-		goto exit;
-	}
-	bp->aux_priv = aux_priv;
+		rc = auxiliary_device_init(aux_dev);
+		if (rc) {
+			kfree(aux_priv);
+			goto next_auxdev;
+		}
+		bp->aux_priv[idx] = aux_priv;
 
-	/* From this point, all cleanup will happen via the .release callback &
-	 * any error unwinding will need to include a call to
-	 * auxiliary_device_uninit.
-	 */
-	edev = kzalloc_obj(*edev);
-	if (!edev)
-		goto aux_dev_uninit;
+		/* From this point, all cleanup will happen via the .release
+		 * callback & any error unwinding will need to include a call
+		 * to auxiliary_device_uninit.
+		 */
+		edev = kzalloc_obj(*edev);
+		if (!edev)
+			goto aux_dev_uninit;
 
-	aux_priv->edev = edev;
+		aux_priv->edev = edev;
+		bnxt_set_edev_info(edev, bp);
 
-	ulp = kzalloc_obj(*ulp);
-	if (!ulp)
-		goto aux_dev_uninit;
+		ulp = kzalloc_obj(*ulp);
+		if (!ulp)
+			goto aux_dev_uninit;
 
-	edev->ulp_tbl = ulp;
-	bp->edev = edev;
-	bnxt_set_edev_info(edev, bp);
-	bp->ulp_num_msix_want = bnxt_set_dflt_ulp_msix(bp);
+		edev->ulp_tbl = ulp;
+		bp->edev[idx] = edev;
+		if (idx == BNXT_AUXDEV_RDMA)
+			bp->ulp_num_msix_want = bnxt_set_dflt_ulp_msix(bp);
+		aux_priv->id = idx;
+		bnxt_auxdev_set_state(bp, idx, BNXT_ADEV_STATE_INIT);
 
-	return;
-
+		continue;
 aux_dev_uninit:
-	auxiliary_device_uninit(aux_dev);
-exit:
-	bp->flags &= ~BNXT_FLAG_ROCE_CAP;
+		auxiliary_device_uninit(aux_dev);
+next_auxdev:
+		if (idx == BNXT_AUXDEV_RDMA)
+			bp->flags &= ~BNXT_FLAG_ROCE_CAP;
+	}
+	mutex_unlock(&bp->auxdev_lock);
+}
+
+int bnxt_auxdev_id_alloc(struct bnxt *bp)
+{
+	bp->auxdev_id = ida_alloc(&bnxt_aux_dev_ids, GFP_KERNEL);
+	if (bp->auxdev_id < 0)
+		return bp->auxdev_id;
+
+	return 0;
+}
+
+void bnxt_auxdev_id_free(struct bnxt *bp, int id)
+{
+	if (bp->auxdev_id >= 0)
+		ida_free(&bnxt_aux_dev_ids, id);
 }
