@@ -811,9 +811,6 @@ static long bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 			goto reset_unlock;
 		}
 
-		/* Poison pointer on error instead of return for backward compatibility */
-		bpf_prog_assoc_struct_ops(prog, &st_map->map);
-
 		link = kzalloc_obj(*link, GFP_USER);
 		if (!link) {
 			bpf_prog_put(prog);
@@ -823,6 +820,9 @@ static long bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 		bpf_link_init(&link->link, BPF_LINK_TYPE_STRUCT_OPS,
 			      &bpf_struct_ops_link_lops, prog, prog->expected_attach_type);
 		*plink++ = &link->link;
+
+		/* Poison pointer on error instead of return for backward compatibility */
+		bpf_prog_assoc_struct_ops(prog, &st_map->map);
 
 		ksym = kzalloc_obj(*ksym, GFP_USER);
 		if (!ksym) {
@@ -906,6 +906,7 @@ static long bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 reset_unlock:
 	bpf_struct_ops_map_free_ksyms(st_map);
 	bpf_struct_ops_map_free_image(st_map);
+	bpf_struct_ops_map_dissoc_progs(st_map);
 	bpf_struct_ops_map_put_progs(st_map);
 	memset(uvalue, 0, map->value_size);
 	memset(kvalue, 0, map->value_size);
