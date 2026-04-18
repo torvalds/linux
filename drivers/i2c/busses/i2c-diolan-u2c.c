@@ -427,12 +427,6 @@ static const struct usb_device_id diolan_u2c_table[] = {
 
 MODULE_DEVICE_TABLE(usb, diolan_u2c_table);
 
-static void diolan_u2c_free(struct i2c_diolan_u2c *dev)
-{
-	usb_put_dev(dev->usb_dev);
-	kfree(dev);
-}
-
 static int diolan_u2c_probe(struct usb_interface *interface,
 			    const struct usb_device_id *id)
 {
@@ -453,7 +447,7 @@ static int diolan_u2c_probe(struct usb_interface *interface,
 	dev->ep_out = hostif->endpoint[0].desc.bEndpointAddress;
 	dev->ep_in = hostif->endpoint[1].desc.bEndpointAddress;
 
-	dev->usb_dev = usb_get_dev(interface_to_usbdev(interface));
+	dev->usb_dev = interface_to_usbdev(interface);
 	dev->interface = interface;
 
 	/* save our data pointer in this interface device */
@@ -488,7 +482,7 @@ static int diolan_u2c_probe(struct usb_interface *interface,
 
 error_free:
 	usb_set_intfdata(interface, NULL);
-	diolan_u2c_free(dev);
+	kfree(dev);
 error:
 	return ret;
 }
@@ -499,7 +493,7 @@ static void diolan_u2c_disconnect(struct usb_interface *interface)
 
 	i2c_del_adapter(&dev->adapter);
 	usb_set_intfdata(interface, NULL);
-	diolan_u2c_free(dev);
+	kfree(dev);
 
 	dev_dbg(&interface->dev, "disconnected\n");
 }
