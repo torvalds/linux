@@ -24,7 +24,7 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
 
 #include <linux/pinctrl/consumer.h>
@@ -1381,7 +1381,8 @@ unapply_mux_setting:
 	goto restore_old_state;
 
 unapply_new_state:
-	dev_err(p->dev, "Error applying setting, reverse things back\n");
+	dev_err_probe(p->dev, ret,
+		      "Error applying setting, reverse things back\n");
 
 	/*
 	 * All we can do here is pinmux_disable_setting.
@@ -2022,7 +2023,7 @@ static void pinctrl_init_device_debugfs(struct pinctrl_dev *pctldev)
 	device_root = debugfs_create_dir(debugfs_name, debugfs_root);
 	pctldev->device_root = device_root;
 
-	if (IS_ERR(device_root) || !device_root) {
+	if (IS_ERR_OR_NULL(device_root)) {
 		pr_warn("failed to create debugfs directory for %s\n",
 			dev_name(pctldev->dev));
 		return;

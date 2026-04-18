@@ -34,6 +34,9 @@ struct rtd_pin_config_desc {
 	unsigned int smt_offset;
 	unsigned int power_offset;
 	unsigned int curr_type;
+	unsigned int input_volt_offset;
+	unsigned int slew_rate_offset;
+	unsigned int hvil_offset;
 };
 
 struct rtd_pin_sconfig_desc {
@@ -45,6 +48,16 @@ struct rtd_pin_sconfig_desc {
 	unsigned int ndrive_maskbits;
 	unsigned int pdrive_offset;
 	unsigned int pdrive_maskbits;
+};
+
+struct rtd_reg_range {
+	unsigned int offset;
+	size_t len;
+};
+
+struct rtd_pin_range {
+	const struct rtd_reg_range *ranges;
+	const int num_ranges;
 };
 
 struct rtd_pin_desc {
@@ -85,6 +98,40 @@ struct rtd_pin_reg_list {
 		.curr_type = _curr_type, \
 	}
 
+#define RTK_PIN_CONFIG_V2(_name, _reg_off, _base_bit, _pud_en_off, \
+			  _pud_sel_off, _curr_off, _smt_off, _pow_off, _input_volt_off, \
+			  _curr_type) \
+	{ \
+		.name = # _name, \
+		.reg_offset = _reg_off, \
+		.base_bit = _base_bit, \
+		.pud_en_offset = _pud_en_off, \
+		.pud_sel_offset = _pud_sel_off, \
+		.curr_offset = _curr_off, \
+		.smt_offset = _smt_off, \
+		.power_offset = _pow_off, \
+		.input_volt_offset = _input_volt_off, \
+		.curr_type = _curr_type, \
+	}
+
+#define RTK_PIN_CONFIG_I2C(_name, _reg_off, _base_bit, _pud_en_off, \
+			   _pud_sel_off, _curr_off, _smt_off, _hvil_off, _sr_off, _pow_off, \
+			   _input_volt_off, _curr_type) \
+	{ \
+		.name = # _name, \
+		.reg_offset = _reg_off, \
+		.base_bit = _base_bit, \
+		.pud_en_offset = _pud_en_off, \
+		.pud_sel_offset = _pud_sel_off, \
+		.curr_offset = _curr_off, \
+		.smt_offset = _smt_off, \
+		.hvil_offset = _hvil_off, \
+		.slew_rate_offset = _sr_off, \
+		.power_offset = _pow_off, \
+		.input_volt_offset = _input_volt_off, \
+		.curr_type = _curr_type, \
+	}
+
 #define RTK_PIN_SCONFIG(_name, _reg_off, _d_offset, _d_mask, \
 			_n_offset, _n_mask, _p_offset, _p_mask) \
 	{ \
@@ -119,6 +166,9 @@ struct rtd_pinctrl_desc {
 	unsigned int num_sconfigs;
 	struct rtd_pin_reg_list *lists;
 	unsigned int num_regs;
+	const struct rtd_pin_range *pin_range;
 };
 
 int rtd_pinctrl_probe(struct platform_device *pdev, const struct rtd_pinctrl_desc *desc);
+
+extern const struct dev_pm_ops realtek_pinctrl_pm_ops;

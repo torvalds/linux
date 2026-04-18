@@ -16,7 +16,7 @@ struct platform_device;
 /**
  * struct s32_pin_group - describes an S32 pin group
  * @data: generic data describes group name, number of pins, and a pin array in
-	this group.
+ *	this group.
  * @pin_sss: an array of source signal select configs paired with pin array.
  */
 struct s32_pin_group {

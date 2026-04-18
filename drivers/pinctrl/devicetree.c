@@ -175,7 +175,7 @@ static int dt_to_map_one_config(struct pinctrl *p,
 		 * return.
 		 */
 		dev_info(p->dev,
-			 "there is not valid maps for state %s\n", statename);
+			 "there are no valid maps for state %s\n", statename);
 		return 0;
 	}
 

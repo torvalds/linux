@@ -38,6 +38,10 @@ properties:
           - enum:
               - marvell,pxa1908-padconf
           - const: pinconf-single
+      - items:
+          - enum:
+              - brcm,bcm7038-padconf
+          - const: pinctrl-single
 
   reg:
     maxItems: 1

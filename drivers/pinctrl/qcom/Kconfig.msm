@@ -15,6 +15,16 @@ config PINCTRL_APQ8084
 	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
 	  Qualcomm TLMM block found in the Qualcomm APQ8084 platform.
 
+config PINCTRL_ELIZA
+	tristate "Qualcomm Technologies Inc Eliza pin controller driver"
+	depends on ARM64 || COMPILE_TEST
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+	  Qualcomm Technologies Inc Top Level Mode Multiplexer block (TLMM)
+	  block found on the Qualcomm Technologies Inc Eliza platform.
+	  Say Y here to compile statically, or M here to compile it as a module.
+	  If unsure, say N.
+
 config PINCTRL_GLYMUR
 	tristate "Qualcomm Technologies Inc Glymur pin controller driver"
 	depends on ARM64 || COMPILE_TEST
@@ -22,6 +32,16 @@ config PINCTRL_GLYMUR
 	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
 	  Qualcomm Technologies Inc Top Level Mode Multiplexer block (TLMM)
 	  block found on the Qualcomm Technologies Inc Glymur platform.
+	  Say Y here to compile statically, or M here to compile it as a module.
+	  If unsure, say N.
+
+config PINCTRL_HAWI
+	tristate "Qualcomm Technologies Inc Hawi pin controller driver"
+	depends on ARM64 || COMPILE_TEST
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+	  Qualcomm Technologies Inc Top Level Mode Multiplexer block (TLMM)
+	  block found on the Qualcomm Technologies Inc Hawi platform.
 	  Say Y here to compile statically, or M here to compile it as a module.
 	  If unsure, say N.
 
@@ -47,6 +67,14 @@ config PINCTRL_IPQ8064
 	help
 	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
 	  Qualcomm TLMM block found in the Qualcomm IPQ8064 platform.
+
+config PINCTRL_IPQ5210
+	tristate "Qualcomm Technologies Inc IPQ5210 pin controller driver"
+	depends on ARM64 || COMPILE_TEST
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+	  Qualcomm Technologies Inc TLMM block found on the Qualcomm
+	  Technologies Inc IPQ5210 platform.
 
 config PINCTRL_IPQ5332
 	tristate "Qualcomm Technologies Inc IPQ5332 pin controller driver"

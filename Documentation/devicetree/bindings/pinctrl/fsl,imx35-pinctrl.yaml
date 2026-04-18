@@ -20,6 +20,7 @@ properties:
   compatible:
     oneOf:
       - enum:
+          - fsl,imx25-iomuxc
           - fsl,imx35-iomuxc
           - fsl,imx51-iomuxc
           - fsl,imx53-iomuxc
