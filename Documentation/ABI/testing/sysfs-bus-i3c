@@ -172,3 +172,23 @@ Description:
 		the automatic retries. Exist only when I3C constroller supports
 		this retry on nack feature.
 
+What:		/sys/bus/i3c/devices/i3c-<bus-id>/do_daa
+KernelVersion:  7.0
+Contact:	linux-i3c@vger.kernel.org
+Description:
+		Write-only attribute that triggers a Dynamic Address Assignment
+		(DAA) procedure which discovers new I3C devices on the bus.
+		Writing a boolean true value (1, y, yes, true, on) to this
+		attribute causes the master controller to perform DAA, which
+		includes broadcasting an ENTDAA (Enter Dynamic Address Assignment)
+		Common Command Code (CCC) on the bus. Writing a false value
+		returns -EINVAL.
+
+		This is useful for discovering I3C devices that were not present
+		during initial bus initialization and are unable to issue
+		Hot-Join. Only devices without a currently assigned dynamic address
+		will respond to the ENTDAA broadcast and be assigned addresses.
+
+		Note that this mechanism is distinct from Hot-Join, since this is
+		controller-initiated discovery, while Hot-Join is device-initiated
+		method to provoke controller discovery procedure.
