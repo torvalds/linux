@@ -44,10 +44,6 @@ static inline void free_bootmem_page(struct page *page)
 {
 	enum bootmem_type type = bootmem_type(page);
 
-	/*
-	 * The reserve_bootmem_region sets the reserved flag on bootmem
-	 * pages.
-	 */
 	VM_BUG_ON_PAGE(page_ref_count(page) != 2, page);
 
 	if (type == SECTION_INFO || type == MIX_SECTION_INFO)

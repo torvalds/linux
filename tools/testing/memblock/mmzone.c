@@ -11,10 +11,6 @@ struct pglist_data *next_online_pgdat(struct pglist_data *pgdat)
 	return NULL;
 }
 
-void reserve_bootmem_region(phys_addr_t start, phys_addr_t end, int nid)
-{
-}
-
 void atomic_long_set(atomic_long_t *v, long i)
 {
 }
