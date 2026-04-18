@@ -187,6 +187,16 @@ config SSIF_IPMI_BMC
 	  The driver implements the BMC side of the SMBus system
 	  interface (SSIF).
 
+config SSIF_IPMI_BMC_KUNIT_TEST
+	bool "KUnit tests for SSIF IPMI BMC driver" if !KUNIT_ALL_TESTS
+	depends on KUNIT=y
+	depends on SSIF_IPMI_BMC
+	default KUNIT_ALL_TESTS
+	help
+	  This option builds unit tests that exercise the SSIF BMC state
+	  machine, including request handling, response transmission,
+	  and error paths such as aborted or truncated transfers.
+
 config IPMB_DEVICE_INTERFACE
 	tristate 'IPMB Interface handler'
 	depends on I2C
