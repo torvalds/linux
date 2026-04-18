@@ -180,7 +180,13 @@ static int journal_wait_on_commit_record(journal_t *journal,
 /* Send all the data buffers related to an inode */
 int jbd2_submit_inode_data(journal_t *journal, struct jbd2_inode *jinode)
 {
-	if (!jinode || !(jinode->i_flags & JI_WRITE_DATA))
+	unsigned long flags;
+
+	if (!jinode)
+		return 0;
+
+	flags = READ_ONCE(jinode->i_flags);
+	if (!(flags & JI_WRITE_DATA))
 		return 0;
 
 	trace_jbd2_submit_inode_data(jinode->i_vfs_inode);
@@ -191,12 +197,30 @@ EXPORT_SYMBOL(jbd2_submit_inode_data);
 
 int jbd2_wait_inode_data(journal_t *journal, struct jbd2_inode *jinode)
 {
-	if (!jinode || !(jinode->i_flags & JI_WAIT_DATA) ||
-		!jinode->i_vfs_inode || !jinode->i_vfs_inode->i_mapping)
+	struct address_space *mapping;
+	struct inode *inode;
+	unsigned long flags;
+	loff_t start_byte, end_byte;
+
+	if (!jinode)
+		return 0;
+
+	flags = READ_ONCE(jinode->i_flags);
+	if (!(flags & JI_WAIT_DATA))
+		return 0;
+
+	inode = jinode->i_vfs_inode;
+	if (!inode)
+		return 0;
+
+	mapping = inode->i_mapping;
+	if (!mapping)
+		return 0;
+
+	if (!jbd2_jinode_get_dirty_range(jinode, &start_byte, &end_byte))
 		return 0;
 	return filemap_fdatawait_range_keep_errors(
-		jinode->i_vfs_inode->i_mapping, jinode->i_dirty_start,
-		jinode->i_dirty_end);
+		mapping, start_byte, end_byte);
 }
 EXPORT_SYMBOL(jbd2_wait_inode_data);
 
@@ -218,7 +242,8 @@ static int journal_submit_data_buffers(journal_t *journal,
 	list_for_each_entry(jinode, &commit_transaction->t_inode_list, i_list) {
 		if (!(jinode->i_flags & JI_WRITE_DATA))
 			continue;
-		jinode->i_flags |= JI_COMMIT_RUNNING;
+		WRITE_ONCE(jinode->i_flags,
+			   jinode->i_flags | JI_COMMIT_RUNNING);
 		spin_unlock(&journal->j_list_lock);
 		/* submit the inode data buffers. */
 		trace_jbd2_submit_inode_data(jinode->i_vfs_inode);
@@ -229,7 +254,8 @@ static int journal_submit_data_buffers(journal_t *journal,
 		}
 		spin_lock(&journal->j_list_lock);
 		J_ASSERT(jinode->i_transaction == commit_transaction);
-		jinode->i_flags &= ~JI_COMMIT_RUNNING;
+		WRITE_ONCE(jinode->i_flags,
+			   jinode->i_flags & ~JI_COMMIT_RUNNING);
 		smp_mb();
 		wake_up_bit(&jinode->i_flags, __JI_COMMIT_RUNNING);
 	}
@@ -240,10 +266,13 @@ static int journal_submit_data_buffers(journal_t *journal,
 int jbd2_journal_finish_inode_data_buffers(struct jbd2_inode *jinode)
 {
 	struct address_space *mapping = jinode->i_vfs_inode->i_mapping;
+	loff_t start_byte, end_byte;
+
+	if (!jbd2_jinode_get_dirty_range(jinode, &start_byte, &end_byte))
+		return 0;
 
 	return filemap_fdatawait_range_keep_errors(mapping,
-						   jinode->i_dirty_start,
-						   jinode->i_dirty_end);
+						   start_byte, end_byte);
 }
 
 /*
@@ -262,7 +291,7 @@ static int journal_finish_inode_data_buffers(journal_t *journal,
 	list_for_each_entry(jinode, &commit_transaction->t_inode_list, i_list) {
 		if (!(jinode->i_flags & JI_WAIT_DATA))
 			continue;
-		jinode->i_flags |= JI_COMMIT_RUNNING;
+		WRITE_ONCE(jinode->i_flags, jinode->i_flags | JI_COMMIT_RUNNING);
 		spin_unlock(&journal->j_list_lock);
 		/* wait for the inode data buffers writeout. */
 		if (journal->j_finish_inode_data_buffers) {
@@ -272,7 +301,7 @@ static int journal_finish_inode_data_buffers(journal_t *journal,
 		}
 		cond_resched();
 		spin_lock(&journal->j_list_lock);
-		jinode->i_flags &= ~JI_COMMIT_RUNNING;
+		WRITE_ONCE(jinode->i_flags, jinode->i_flags & ~JI_COMMIT_RUNNING);
 		smp_mb();
 		wake_up_bit(&jinode->i_flags, __JI_COMMIT_RUNNING);
 	}
@@ -288,8 +317,8 @@ static int journal_finish_inode_data_buffers(journal_t *journal,
 				&jinode->i_transaction->t_inode_list);
 		} else {
 			jinode->i_transaction = NULL;
-			jinode->i_dirty_start = 0;
-			jinode->i_dirty_end = 0;
+			WRITE_ONCE(jinode->i_dirty_start_page, 0);
+			WRITE_ONCE(jinode->i_dirty_end_page, 0);
 		}
 	}
 	spin_unlock(&journal->j_list_lock);
