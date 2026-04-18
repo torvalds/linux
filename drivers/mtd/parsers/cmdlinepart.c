@@ -50,9 +50,9 @@
 
 struct cmdline_mtd_partition {
 	struct cmdline_mtd_partition *next;
-	char *mtd_id;
 	int num_parts;
 	struct mtd_partition *parts;
+	char mtd_id[];
 };
 
 /* mtdpart_setup() parses into here */
@@ -289,7 +289,6 @@ static int mtdpart_setup_real(char *s)
 		/* enter results */
 		this_mtd->parts = parts;
 		this_mtd->num_parts = num_parts;
-		this_mtd->mtd_id = (char*)(this_mtd + 1);
 		strscpy(this_mtd->mtd_id, mtd_id, mtd_id_len + 1);
 
 		/* link into chain */

@@ -21,18 +21,6 @@
 #include <asm/div64.h>
 
 /*
- * Our storage structure:
- * Subdev points to an array of pointers to struct mtd_info objects
- * which is allocated along with this structure
- *
- */
-struct mtd_concat {
-	struct mtd_info mtd;
-	int num_subdev;
-	struct mtd_info **subdev;
-};
-
-/*
  * how to calculate the size required for the above structure,
  * including the pointer array subdev points to:
  */
@@ -639,7 +627,6 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 				   const char *name)
 {				/* name for the new device   */
 	int i;
-	size_t size;
 	struct mtd_concat *concat;
 	struct mtd_info *subdev_master = NULL;
 	uint32_t max_erasesize, curr_erasesize;
@@ -652,15 +639,13 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 	printk(KERN_NOTICE "into device \"%s\"\n", name);
 
 	/* allocate the device structure */
-	size = SIZEOF_STRUCT_MTD_CONCAT(num_devs);
-	concat = kzalloc(size, GFP_KERNEL);
+	concat = kzalloc_flex(*concat, subdev, num_devs, GFP_KERNEL);
 	if (!concat) {
 		printk
 		    ("memory allocation error while creating concatenated device \"%s\"\n",
 		     name);
 		return NULL;
 	}
-	concat->subdev = (struct mtd_info **) (concat + 1);
 
 	/*
 	 * Set up the new "super" device's MTD object structure, check for

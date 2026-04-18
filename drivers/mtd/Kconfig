@@ -206,6 +206,15 @@ config MTD_PARTITIONED_MASTER
 	  the parent of the partition device be the master device, rather than
 	  what lies behind the master.
 
+config MTD_VIRT_CONCAT
+	bool "Virtual concatenated MTD devices"
+	depends on MTD_PARTITIONED_MASTER
+	help
+	  The driver enables the creation of virtual MTD device by
+	  concatenating multiple physical MTD devices into a single
+	  entity. This allows for the creation of partitions larger than
+	  the individual physical chips, extending across chip boundaries.
+
 source "drivers/mtd/chips/Kconfig"
 
 source "drivers/mtd/maps/Kconfig"

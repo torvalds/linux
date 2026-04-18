@@ -19,7 +19,6 @@ obj-$(CONFIG_MTD_TSUNAMI)	+= tsunami_flash.o
 obj-$(CONFIG_MTD_PXA2XX)	+= pxa2xx-flash.o
 obj-$(CONFIG_MTD_PHYSMAP)	+= physmap.o
 physmap-y			:= physmap-core.o
-physmap-$(CONFIG_MTD_PHYSMAP_BT1_ROM) += physmap-bt1-rom.o
 physmap-$(CONFIG_MTD_PHYSMAP_VERSATILE) += physmap-versatile.o
 physmap-$(CONFIG_MTD_PHYSMAP_GEMINI) += physmap-gemini.o
 physmap-$(CONFIG_MTD_PHYSMAP_IXP4XX) += physmap-ixp4xx.o
