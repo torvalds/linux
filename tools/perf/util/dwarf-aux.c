@@ -303,6 +303,33 @@ Dwarf_Die *die_get_real_type(Dwarf_Die *vr_die, Dwarf_Die *die_mem)
 	return vr_die;
 }
 
+/**
+ * die_get_pointer_type - Get a pointer/array type die
+ * @type_die: a DIE of a type
+ * @die_mem: where to store a type DIE
+ *
+ * Get a pointer/array type DIE from @type_die. If the type is a typedef or
+ * qualifier (const, volatile, etc.), follow the chain to find the underlying
+ * pointer type.
+ */
+Dwarf_Die *die_get_pointer_type(Dwarf_Die *type_die, Dwarf_Die *die_mem)
+{
+	int tag;
+
+	do {
+		tag = dwarf_tag(type_die);
+		if (tag == DW_TAG_pointer_type || tag == DW_TAG_array_type)
+			return type_die;
+		if (tag != DW_TAG_typedef && tag != DW_TAG_const_type &&
+		    tag != DW_TAG_restrict_type && tag != DW_TAG_volatile_type &&
+		    tag != DW_TAG_shared_type)
+			return NULL;
+		type_die = die_get_type(type_die, die_mem);
+	} while (type_die);
+
+	return NULL;
+}
+
 /* Get attribute and translate it as a udata */
 static int die_get_attr_udata(Dwarf_Die *tp_die, unsigned int attr_name,
 			      Dwarf_Word *result)
@@ -1378,6 +1405,8 @@ struct find_var_data {
 	Dwarf_Addr addr;
 	/* Target register */
 	unsigned reg;
+	/* Access data type */
+	Dwarf_Die type;
 	/* Access offset, set for global data */
 	int offset;
 	/* True if the current register is the frame base */
@@ -1390,9 +1419,23 @@ struct find_var_data {
 static bool match_var_offset(Dwarf_Die *die_mem, struct find_var_data *data,
 			     s64 addr_offset, s64 addr_type, bool is_pointer)
 {
-	Dwarf_Die type_die;
 	Dwarf_Word size;
+	Dwarf_Die ptr_die;
+	Dwarf_Die *ptr_type;
 	s64 offset = addr_offset - addr_type;
+
+	if (offset < 0)
+		return false;
+
+	if (__die_get_real_type(die_mem, &data->type) == NULL)
+		return false;
+
+	ptr_type = die_get_pointer_type(&data->type, &ptr_die);
+	if (is_pointer && ptr_type) {
+		/* Get the target type of the pointer */
+		if (__die_get_real_type(ptr_type, &data->type) == NULL)
+			return false;
+	}
 
 	if (offset == 0) {
 		/* Update offset relative to the start of the variable */
@@ -1400,19 +1443,7 @@ static bool match_var_offset(Dwarf_Die *die_mem, struct find_var_data *data,
 		return true;
 	}
 
-	if (offset < 0)
-		return false;
-
-	if (die_get_real_type(die_mem, &type_die) == NULL)
-		return false;
-
-	if (is_pointer && dwarf_tag(&type_die) == DW_TAG_pointer_type) {
-		/* Get the target type of the pointer */
-		if (die_get_real_type(&type_die, &type_die) == NULL)
-			return false;
-	}
-
-	if (dwarf_aggregate_size(&type_die, &size) < 0)
+	if (dwarf_aggregate_size(&data->type, &size) < 0)
 		return false;
 
 	if ((u64)offset >= size)
@@ -1529,7 +1560,7 @@ static int __die_find_var_reg_cb(Dwarf_Die *die_mem, void *arg)
  * when the variable is in the stack.
  */
 Dwarf_Die *die_find_variable_by_reg(Dwarf_Die *sc_die, Dwarf_Addr pc, int reg,
-				    int *poffset, bool is_fbreg,
+				    Dwarf_Die *type_die, int *poffset, bool is_fbreg,
 				    Dwarf_Die *die_mem)
 {
 	struct find_var_data data = {
@@ -1541,8 +1572,10 @@ Dwarf_Die *die_find_variable_by_reg(Dwarf_Die *sc_die, Dwarf_Addr pc, int reg,
 	Dwarf_Die *result;
 
 	result = die_find_child(sc_die, __die_find_var_reg_cb, &data, die_mem);
-	if (result)
+	if (result) {
 		*poffset = data.offset;
+		*type_die = data.type;
+	}
 	return result;
 }
 
@@ -1586,7 +1619,8 @@ static int __die_find_var_addr_cb(Dwarf_Die *die_mem, void *arg)
  * This is usually for global variables.
  */
 Dwarf_Die *die_find_variable_by_addr(Dwarf_Die *sc_die, Dwarf_Addr addr,
-				     Dwarf_Die *die_mem, int *offset)
+				     Dwarf_Die *die_mem, Dwarf_Die *type_die,
+				     int *offset)
 {
 	struct find_var_data data = {
 		.addr = addr,
@@ -1594,8 +1628,10 @@ Dwarf_Die *die_find_variable_by_addr(Dwarf_Die *sc_die, Dwarf_Addr addr,
 	Dwarf_Die *result;
 
 	result = die_find_child(sc_die, __die_find_var_addr_cb, &data, die_mem);
-	if (result)
+	if (result) {
 		*offset = data.offset;
+		*type_die = data.type;
+	}
 	return result;
 }
 
@@ -1605,10 +1641,11 @@ static int __die_collect_vars_cb(Dwarf_Die *die_mem, void *arg)
 	Dwarf_Die type_die;
 	int tag = dwarf_tag(die_mem);
 	Dwarf_Attribute attr;
-	Dwarf_Addr base, start, end;
+	Dwarf_Addr base, start, end = 0;
 	Dwarf_Op *ops;
 	size_t nops;
 	struct die_var_type *vt;
+	ptrdiff_t off;
 
 	if (tag != DW_TAG_variable && tag != DW_TAG_formal_parameter)
 		return DIE_FIND_CB_SIBLING;
@@ -1616,39 +1653,40 @@ static int __die_collect_vars_cb(Dwarf_Die *die_mem, void *arg)
 	if (dwarf_attr(die_mem, DW_AT_location, &attr) == NULL)
 		return DIE_FIND_CB_SIBLING;
 
-	/*
-	 * Only collect the first location as it can reconstruct the
-	 * remaining state by following the instructions.
-	 * start = 0 means it covers the whole range.
-	 */
-	if (dwarf_getlocations(&attr, 0, &base, &start, &end, &ops, &nops) <= 0)
-		return DIE_FIND_CB_SIBLING;
-
-	if (!check_allowed_ops(ops, nops))
-		return DIE_FIND_CB_SIBLING;
-
 	if (__die_get_real_type(die_mem, &type_die) == NULL)
 		return DIE_FIND_CB_SIBLING;
 
-	vt = malloc(sizeof(*vt));
-	if (vt == NULL)
-		return DIE_FIND_CB_END;
+	/*
+	 * Collect all location entries as variables may have different
+	 * locations across different address ranges.
+	 */
+	off = 0;
+	while ((off = dwarf_getlocations(&attr, off, &base, &start, &end, &ops, &nops)) > 0) {
+		if (!check_allowed_ops(ops, nops))
+			continue;
 
-	/* Usually a register holds the value of a variable */
-	vt->is_reg_var_addr = false;
+		vt = malloc(sizeof(*vt));
+		if (vt == NULL)
+			return DIE_FIND_CB_END;
 
-	if (((ops->atom >= DW_OP_breg0 && ops->atom <= DW_OP_breg31) ||
-	      ops->atom == DW_OP_bregx || ops->atom == DW_OP_fbreg) &&
-	      !is_breg_access_indirect(ops, nops))
-		/* The register contains an address of the variable. */
-		vt->is_reg_var_addr = true;
+		/* Usually a register holds the value of a variable */
+		vt->is_reg_var_addr = false;
 
-	vt->die_off = dwarf_dieoffset(&type_die);
-	vt->addr = start;
-	vt->reg = reg_from_dwarf_op(ops);
-	vt->offset = offset_from_dwarf_op(ops);
-	vt->next = *var_types;
-	*var_types = vt;
+		if (((ops->atom >= DW_OP_breg0 && ops->atom <= DW_OP_breg31) ||
+		      ops->atom == DW_OP_bregx || ops->atom == DW_OP_fbreg) &&
+		      !is_breg_access_indirect(ops, nops))
+			/* The register contains an address of the variable. */
+			vt->is_reg_var_addr = true;
+
+		vt->die_off = dwarf_dieoffset(&type_die);
+		vt->addr = start;
+		vt->end = end;
+		vt->has_range = (end != 0 || start != 0);
+		vt->reg = reg_from_dwarf_op(ops);
+		vt->offset = offset_from_dwarf_op(ops);
+		vt->next = *var_types;
+		*var_types = vt;
+	}
 
 	return DIE_FIND_CB_SIBLING;
 }
@@ -1707,6 +1745,8 @@ static int __die_collect_global_vars_cb(Dwarf_Die *die_mem, void *arg)
 
 	vt->die_off = dwarf_dieoffset(&type_die);
 	vt->addr = ops->number;
+	vt->end = 0;
+	vt->has_range = false;
 	vt->reg = -1;
 	vt->offset = 0;
 	vt->next = *var_types;
@@ -2091,12 +2131,27 @@ Dwarf_Die *die_get_member_type(Dwarf_Die *type_die, int offset,
 
 		tag = dwarf_tag(&mb_type);
 
-		if (tag == DW_TAG_structure_type || tag == DW_TAG_union_type) {
+		if (tag == DW_TAG_structure_type || tag == DW_TAG_union_type ||
+		    tag == DW_TAG_array_type) {
 			Dwarf_Word loc;
 
 			/* Update offset for the start of the member struct */
 			if (die_get_data_member_location(member, &loc) == 0)
 				offset -= loc;
+		}
+
+		/* Handle array types: resolve to the element type by one level */
+		if (tag == DW_TAG_array_type) {
+			Dwarf_Word size;
+
+			if (die_get_real_type(&mb_type, &mb_type) == NULL)
+				return NULL;
+
+			if (dwarf_aggregate_size(&mb_type, &size) < 0)
+				return NULL;
+
+			offset = offset % size;
+			tag = dwarf_tag(&mb_type);
 		}
 	}
 	*die_mem = mb_type;

@@ -274,6 +274,10 @@ Repeat mmap() invocation this number of times.
 --cycles::
 Use perf's cpu-cycles event instead of gettimeofday syscall.
 
+-t::
+--threads=<NUM>::
+Create multiple threads to call mmap/munmap concurrently.
+
 SUITES FOR 'numa'
 ~~~~~~~~~~~~~~~~~
 *mem*::

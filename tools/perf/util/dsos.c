@@ -6,7 +6,6 @@
 #include "vdso.h"
 #include "namespaces.h"
 #include <errno.h>
-#include <libgen.h>
 #include <stdlib.h>
 #include <string.h>
 #include <symbol.h> // filename__read_build_id
@@ -196,6 +195,9 @@ static struct dso *__dsos__find_by_longname_id(struct dsos *dsos,
 
 int __dsos__add(struct dsos *dsos, struct dso *dso)
 {
+	if (!dso)
+		return -EINVAL;
+
 	if (dsos->cnt == dsos->allocated) {
 		unsigned int to_allocate = 2;
 		struct dso **temp;
@@ -294,34 +296,21 @@ struct dso *dsos__find(struct dsos *dsos, const char *name, bool cmp_short)
 
 static void dso__set_basename(struct dso *dso)
 {
-	char *base, *lname;
+	bool allocated = false;
+	const char *base;
 	int tid;
 
 	if (perf_pid_map_tid(dso__long_name(dso), &tid)) {
-		if (asprintf(&base, "[JIT] tid %d", tid) < 0)
+		char *jitname;
+
+		if (asprintf(&jitname, "[JIT] tid %d", tid) < 0)
 			return;
+		allocated = true;
+		base = jitname;
 	} else {
-	      /*
-	       * basename() may modify path buffer, so we must pass
-               * a copy.
-               */
-		lname = strdup(dso__long_name(dso));
-		if (!lname)
-			return;
-
-		/*
-		 * basename() may return a pointer to internal
-		 * storage which is reused in subsequent calls
-		 * so copy the result.
-		 */
-		base = strdup(basename(lname));
-
-		free(lname);
-
-		if (!base)
-			return;
+		base = perf_basename(dso__long_name(dso));
 	}
-	dso__set_short_name(dso, base, true);
+	dso__set_short_name(dso, base, allocated);
 }
 
 static struct dso *__dsos__addnew_id(struct dsos *dsos, const char *name, const struct dso_id *id)

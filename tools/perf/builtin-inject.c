@@ -133,7 +133,7 @@ struct perf_inject {
 	struct perf_file_section secs[HEADER_FEAT_BITS];
 	struct guest_session	guest_session;
 	struct strlist		*known_build_ids;
-	const struct evsel	*mmap_evsel;
+	struct evsel		*mmap_evsel;
 	struct ip_callchain	*raw_callchain;
 };
 
@@ -270,9 +270,8 @@ static s64 perf_event__repipe_auxtrace(const struct perf_tool *tool,
 	inject->have_auxtrace = true;
 
 	if (!inject->output.is_pipe) {
-		off_t offset;
+		off_t offset = perf_data__seek(&inject->output, 0, SEEK_CUR);
 
-		offset = lseek(inject->output.file.fd, 0, SEEK_CUR);
 		if (offset == -1)
 			return -errno;
 		ret = auxtrace_index__auxtrace_event(&session->auxtrace_index,
@@ -519,7 +518,7 @@ static struct dso *findnew_dso(int pid, int tid, const char *filename,
  * processing mmap events. If not stashed, search the evlist for the first mmap
  * gathering event.
  */
-static const struct evsel *inject__mmap_evsel(struct perf_inject *inject)
+static struct evsel *inject__mmap_evsel(struct perf_inject *inject)
 {
 	struct evsel *pos;
 
@@ -1023,7 +1022,6 @@ int perf_event__inject_buildid(const struct perf_tool *tool, union perf_event *e
 
 	sample__for_each_callchain_node(thread, evsel, sample, PERF_MAX_STACK_DEPTH,
 					/*symbols=*/false, mark_dso_hit_callback, &args);
-
 	thread__put(thread);
 repipe:
 	perf_event__repipe(tool, event, sample, machine);
@@ -1087,6 +1085,7 @@ static int perf_inject__sched_stat(const struct perf_tool *tool,
 	struct perf_sample sample_sw;
 	struct perf_inject *inject = container_of(tool, struct perf_inject, tool);
 	u32 pid = evsel__intval(evsel, sample, "pid");
+	int ret;
 
 	list_for_each_entry(ent, &inject->samples, node) {
 		if (pid == ent->tid)
@@ -1103,7 +1102,9 @@ found:
 	perf_event__synthesize_sample(event_sw, evsel->core.attr.sample_type,
 				      evsel->core.attr.read_format, &sample_sw);
 	build_id__mark_dso_hit(tool, event_sw, &sample_sw, evsel, machine);
-	return perf_event__repipe(tool, event_sw, &sample_sw, machine);
+	ret = perf_event__repipe(tool, event_sw, &sample_sw, machine);
+	perf_sample__exit(&sample_sw);
+	return ret;
 }
 #endif
 
@@ -1429,6 +1430,7 @@ static int synthesize_build_id(struct perf_inject *inject, struct dso *dso, pid_
 {
 	struct machine *machine = perf_session__findnew_machine(inject->session, machine_pid);
 	struct perf_sample synth_sample = {
+		.evsel	   = inject__mmap_evsel(inject),
 		.pid	   = -1,
 		.tid	   = -1,
 		.time	   = -1,
@@ -1648,6 +1650,7 @@ static int guest_session__fetch(struct guest_session *gs)
 	size_t hdr_sz = sizeof(*hdr);
 	ssize_t ret;
 
+	perf_sample__init(&gs->ev.sample, /*all=*/false);
 	buf = gs->ev.event_buf;
 	if (!buf) {
 		buf = malloc(PERF_SAMPLE_MAX_SIZE);
@@ -1745,18 +1748,24 @@ static int guest_session__inject_events(struct guest_session *gs, u64 timestamp)
 		if (!gs->fetched) {
 			ret = guest_session__fetch(gs);
 			if (ret)
-				return ret;
+				break;
 			gs->fetched = true;
 		}
 
 		ev = gs->ev.event;
 		sample = &gs->ev.sample;
 
-		if (!ev->header.size)
-			return 0; /* EOF */
-
-		if (sample->time > timestamp)
-			return 0;
+		if (!ev->header.size) {
+			/* EOF */
+			perf_sample__exit(&gs->ev.sample);
+			gs->fetched = false;
+			ret = 0;
+			break;
+		}
+		if (sample->time > timestamp) {
+			ret = 0;
+			break;
+		}
 
 		/* Change cpumode to guest */
 		cpumode = ev->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
@@ -1779,12 +1788,14 @@ static int guest_session__inject_events(struct guest_session *gs, u64 timestamp)
 
 		if (id_hdr_size & 7) {
 			pr_err("Bad id_hdr_size %u\n", id_hdr_size);
-			return -EINVAL;
+			ret = -EINVAL;
+			break;
 		}
 
 		if (ev->header.size & 7) {
 			pr_err("Bad event size %u\n", ev->header.size);
-			return -EINVAL;
+			ret = -EINVAL;
+			break;
 		}
 
 		/* Remove guest id sample */
@@ -1792,14 +1803,16 @@ static int guest_session__inject_events(struct guest_session *gs, u64 timestamp)
 
 		if (ev->header.size & 7) {
 			pr_err("Bad raw event size %u\n", ev->header.size);
-			return -EINVAL;
+			ret = -EINVAL;
+			break;
 		}
 
 		guest_id = guest_session__lookup_id(gs, id);
 		if (!guest_id) {
 			pr_err("Guest event with unknown id %llu\n",
 			       (unsigned long long)id);
-			return -EINVAL;
+			ret = -EINVAL;
+			break;
 		}
 
 		/* Change to host ID to avoid conflicting ID values */
@@ -1819,19 +1832,28 @@ static int guest_session__inject_events(struct guest_session *gs, u64 timestamp)
 		/* New id sample with new ID and CPU */
 		ret = evlist__append_id_sample(inject->session->evlist, ev, sample);
 		if (ret)
-			return ret;
+			break;
 
 		if (ev->header.size & 7) {
 			pr_err("Bad new event size %u\n", ev->header.size);
-			return -EINVAL;
+			ret = -EINVAL;
+			break;
 		}
-
-		gs->fetched = false;
 
 		ret = output_bytes(inject, ev, ev->header.size);
 		if (ret)
-			return ret;
+			break;
+
+		/* Reset for next guest session event fetch. */
+		perf_sample__exit(sample);
+		gs->fetched = false;
 	}
+	if (ret && gs->fetched) {
+		/* Clear saved sample state on error. */
+		perf_sample__exit(&gs->ev.sample);
+		gs->fetched = false;
+	}
+	return ret;
 }
 
 static int guest_session__flush_events(struct guest_session *gs)
@@ -2134,6 +2156,7 @@ static bool keep_feat(struct perf_inject *inject, int feat)
 	case HEADER_HYBRID_TOPOLOGY:
 	case HEADER_PMU_CAPS:
 	case HEADER_CPU_DOMAIN_INFO:
+	case HEADER_CLN_SIZE:
 		return true;
 	/* Information that can be updated */
 	case HEADER_BUILD_ID:
@@ -2479,12 +2502,12 @@ int cmd_inject(int argc, const char **argv)
 		.output = {
 			.path = "-",
 			.mode = PERF_DATA_MODE_WRITE,
-			.use_stdio = true,
+			.file.use_stdio = true,
 		},
 	};
 	struct perf_data data = {
 		.mode = PERF_DATA_MODE_READ,
-		.use_stdio = true,
+		.file.use_stdio = true,
 	};
 	int ret;
 	const char *known_build_ids = NULL;

@@ -4,6 +4,7 @@
  */
 
 #include <linux/string.h>
+#include <linux/zalloc.h>
 #include <errno.h>
 #include <inttypes.h>
 #include "color.h"
@@ -182,7 +183,9 @@ static int powerpc_vpadtl_sample(struct powerpc_vpadtl_entry *record,
 {
 	struct perf_sample sample;
 	union perf_event event;
+	int ret;
 
+	perf_sample__init(&sample, /*all=*/true);
 	sample.ip = be64_to_cpu(record->srr0);
 	sample.period = 1;
 	sample.cpu = cpu;
@@ -198,12 +201,12 @@ static int powerpc_vpadtl_sample(struct powerpc_vpadtl_entry *record,
 	event.sample.header.misc = sample.cpumode;
 	event.sample.header.size = sizeof(struct perf_event_header);
 
-	if (perf_session__deliver_synth_event(vpa->session, &event, &sample)) {
+	ret = perf_session__deliver_synth_event(vpa->session, &event, &sample);
+	if (ret)
 		pr_debug("Failed to create sample for dtl entry\n");
-		return -1;
-	}
 
-	return 0;
+	perf_sample__exit(&sample);
+	return ret;
 }
 
 static int powerpc_vpadtl_get_buffer(struct powerpc_vpadtl_queue *vpaq)

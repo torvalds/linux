@@ -90,7 +90,7 @@ void cpu_map__set_affinity(const struct perf_cpu_map *cpumap)
 	int cpu_set_size = get_cpu_set_size();
 	unsigned long *cpuset = bitmap_zalloc(cpu_set_size * 8);
 	struct perf_cpu cpu;
-	int idx;
+	unsigned int idx;
 
 	if (!cpuset)
 		return;

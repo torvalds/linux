@@ -7,13 +7,14 @@
  * Written by Hitoshi Mitake <mitake@dcl.info.waseda.ac.jp>
  */
 
-#include "debug.h"
+#include "bench.h"
 #include "../perf-sys.h"
 #include <subcmd/parse-options.h>
-#include "../util/header.h"
-#include "../util/cloexec.h"
-#include "../util/string2.h"
-#include "bench.h"
+#include "util/cloexec.h"
+#include "util/debug.h"
+#include "util/header.h"
+#include "util/stat.h"
+#include "util/string2.h"
 #include "mem-memcpy-arch.h"
 #include "mem-memset-arch.h"
 
@@ -26,6 +27,7 @@
 #include <errno.h>
 #include <linux/time64.h>
 #include <linux/log2.h>
+#include <pthread.h>
 
 #define K 1024
 
@@ -41,6 +43,7 @@ static unsigned int	nr_loops	= 1;
 static bool		use_cycles;
 static int		cycles_fd;
 static unsigned int	seed;
+static unsigned int	nr_threads	= 1;
 
 static const struct option bench_common_options[] = {
 	OPT_STRING('s', "size", &size_str, "1MB",
@@ -121,6 +124,8 @@ static struct perf_event_attr cycle_attr = {
 	.config		= PERF_COUNT_HW_CPU_CYCLES
 };
 
+static struct stats stats;
+
 static int init_cycles(void)
 {
 	cycles_fd = sys_perf_event_open(&cycle_attr, getpid(), -1, -1, perf_event_open_cloexec_flag());
@@ -174,18 +179,18 @@ static void clock_accum(union bench_clock *a, union bench_clock *b)
 
 static double timeval2double(struct timeval *ts)
 {
-	return (double)ts->tv_sec + (double)ts->tv_usec / (double)USEC_PER_SEC;
+	return ((double)ts->tv_sec + (double)ts->tv_usec / (double)USEC_PER_SEC) / nr_threads;
 }
 
 #define print_bps(x) do {						\
 		if (x < K)						\
-			printf(" %14lf bytes/sec\n", x);		\
+			printf(" %14lf bytes/sec", x);			\
 		else if (x < K * K)					\
-			printf(" %14lfd KB/sec\n", x / K);		\
+			printf(" %14lfd KB/sec", x / K);		\
 		else if (x < K * K * K)					\
-			printf(" %14lf MB/sec\n", x / K / K);		\
+			printf(" %14lf MB/sec", x / K / K);		\
 		else							\
-			printf(" %14lf GB/sec\n", x / K / K / K);	\
+			printf(" %14lf GB/sec", x / K / K / K);	\
 	} while (0)
 
 static void __bench_mem_function(struct bench_mem_info *info, struct bench_params *p,
@@ -196,6 +201,7 @@ static void __bench_mem_function(struct bench_mem_info *info, struct bench_param
 	union bench_clock rt = { 0 };
 	void *src = NULL, *dst = NULL;
 
+	init_stats(&stats);
 	printf("# function '%s' (%s)\n", r->name, r->desc);
 
 	if (r->fn.init && r->fn.init(info, p, &src, &dst))
@@ -210,11 +216,16 @@ static void __bench_mem_function(struct bench_mem_info *info, struct bench_param
 	switch (bench_format) {
 	case BENCH_FORMAT_DEFAULT:
 		if (use_cycles) {
-			printf(" %14lf cycles/byte\n", (double)rt.cycles/(double)p->size_total);
+			printf(" %14lf cycles/byte", (double)rt.cycles/(double)p->size_total);
 		} else {
 			result_bps = (double)p->size_total/timeval2double(&rt.tv);
 			print_bps(result_bps);
 		}
+		if (nr_threads > 1) {
+			printf("/thread\t( +- %6.2f%% )",
+			       rel_stddev_stats(stddev_stats(&stats), avg_stats(&stats)));
+		}
+		printf("\n");
 		break;
 
 	case BENCH_FORMAT_SIMPLE:
@@ -388,7 +399,7 @@ static void mem_free(struct bench_mem_info *info __maybe_unused,
 	*dst = *src = NULL;
 }
 
-struct function memcpy_functions[] = {
+static struct function memcpy_functions[] = {
 	{ .name		= "default",
 	  .desc		= "Default memcpy() provided by glibc",
 	  .fn.init	= mem_alloc,
@@ -494,16 +505,27 @@ static void mmap_page_touch(void *dst, size_t size, unsigned int page_shift, boo
 	}
 }
 
-static int do_mmap(const struct function *r, struct bench_params *p,
-		  void *src __maybe_unused, void *dst __maybe_unused,
-		  union bench_clock *accum)
+struct mmap_data {
+	pthread_t id;
+	const struct function *func;
+	struct bench_params *params;
+	union bench_clock result;
+	unsigned int seed;
+	int error;
+};
+
+static void *do_mmap_thread(void *arg)
 {
+	struct mmap_data *data = arg;
+	const struct function *r = data->func;
+	struct bench_params *p = data->params;
 	union bench_clock start, end, diff;
 	mmap_op_t fn = r->fn.mmap_op;
 	bool populate = strcmp(r->name, "populate") == 0;
+	void *dst;
 
-	if (p->seed)
-		srand(p->seed);
+	if (data->seed)
+		srand(data->seed);
 
 	for (unsigned int i = 0; i < p->nr_loops; i++) {
 		clock_get(&start);
@@ -514,16 +536,59 @@ static int do_mmap(const struct function *r, struct bench_params *p,
 		fn(dst, p->size, p->page_shift, p->seed);
 		clock_get(&end);
 		diff = clock_diff(&start, &end);
-		clock_accum(accum, &diff);
+		clock_accum(&data->result, &diff);
 
 		bench_munmap(dst, p->size);
 	}
 
-	return 0;
+	return data;
 out:
-	printf("# Memory allocation failed - maybe size (%s) %s?\n", size_str,
-			p->page_shift != PAGE_SHIFT_4KB ? "has insufficient hugepages" : "is too large");
-	return -1;
+	data->error = -ENOMEM;
+	return NULL;
+}
+
+static int do_mmap(const struct function *r, struct bench_params *p,
+		  void *src __maybe_unused, void *dst __maybe_unused,
+		  union bench_clock *accum)
+{
+	struct mmap_data *data;
+	int error = 0;
+
+	data = calloc(nr_threads, sizeof(*data));
+	if (!data) {
+		printf("# Failed to allocate thread resources\n");
+		return -1;
+	}
+
+	for (unsigned int i = 0; i < nr_threads; i++) {
+		data[i].func = r;
+		data[i].params = p;
+		if (p->seed)
+			data[i].seed = p->seed + i;
+
+		if (pthread_create(&data[i].id, NULL, do_mmap_thread, &data[i]) < 0)
+			data[i].error = -errno;
+	}
+
+	for (unsigned int i = 0; i < nr_threads; i++) {
+		union bench_clock *t = &data[i].result;
+
+		pthread_join(data[i].id, NULL);
+
+		clock_accum(accum, t);
+		if (use_cycles)
+			update_stats(&stats, t->cycles);
+		else
+			update_stats(&stats, t->tv.tv_sec * 1e6 + t->tv.tv_usec);
+		error |= data[i].error;
+	}
+	free(data);
+
+	if (error) {
+		printf("# Memory allocation failed - maybe size (%s) %s?\n", size_str,
+		       p->page_shift != PAGE_SHIFT_4KB ? "has insufficient hugepages" : "is too large");
+	}
+	return error ? -1 : 0;
 }
 
 static const char * const bench_mem_mmap_usage[] = {
@@ -548,6 +613,8 @@ int bench_mem_mmap(int argc, const char **argv)
 	static const struct option bench_mmap_options[] = {
 		OPT_UINTEGER('r', "randomize", &seed,
 			    "Seed to randomize page access offset."),
+		OPT_UINTEGER('t', "threads", &nr_threads,
+			    "Number of threads to run concurrently (default: 1)."),
 		OPT_PARENT(bench_common_options),
 		OPT_END()
 	};

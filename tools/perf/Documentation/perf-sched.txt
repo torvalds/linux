@@ -437,8 +437,11 @@ OPTIONS for 'perf sched timehist'
     Show all scheduling events followed by a summary by thread with min,
     max, and average run times (in sec) and relative stddev.
 
---symfs=<directory>::
-    Look for files with symbols relative to this directory.
+--symfs=<directory[,layout]>::
+        Look for files with symbols relative to this directory. The optional
+        layout can be 'hierarchy' (default, matches full path) or 'flat'
+        (only matches base name). This is useful when debug files are stored
+        in a flat directory structure.
 
 -V::
 --cpu-visual::

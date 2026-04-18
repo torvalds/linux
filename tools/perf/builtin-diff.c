@@ -113,7 +113,7 @@ enum {
 	COMPUTE_STREAM,	/* After COMPUTE_MAX to avoid use current compute arrays */
 };
 
-const char *compute_names[COMPUTE_MAX] = {
+static const char *compute_names[COMPUTE_MAX] = {
 	[COMPUTE_DELTA] = "delta",
 	[COMPUTE_DELTA_ABS] = "delta-abs",
 	[COMPUTE_RATIO] = "ratio",
@@ -382,7 +382,7 @@ static void block_hist_free(void *he)
 	free(bh);
 }
 
-struct hist_entry_ops block_hist_ops = {
+static struct hist_entry_ops block_hist_ops = {
 	.new    = block_hist_zalloc,
 	.free   = block_hist_free,
 };
@@ -1280,8 +1280,7 @@ static const struct option options[] = {
 	OPT_STRING_NOEMPTY('t', "field-separator", &symbol_conf.field_sep, "separator",
 		   "separator for columns, no spaces will be added between "
 		   "columns '.' is reserved."),
-	OPT_CALLBACK(0, "symfs", NULL, "directory",
-		     "Look for files with symbols relative to this directory",
+	OPT_CALLBACK(0, "symfs", NULL, "directory[,layout]", SYMFS_HELP,
 		     symbol__config_symfs),
 	OPT_UINTEGER('o', "order", &sort_compute, "Specify compute sorting."),
 	OPT_CALLBACK(0, "percentage", NULL, "relative|absolute",
@@ -1353,7 +1352,7 @@ static int cycles_printf(struct hist_entry *he, struct hist_entry *pair,
 	/*
 	 * Avoid printing the warning "addr2line_init failed for ..."
 	 */
-	symbol_conf.disable_add2line_warn = true;
+	symbol_conf.addr2line_disable_warn = true;
 
 	bi = block_he->block_info;
 
@@ -1892,7 +1891,7 @@ static int data_init(int argc, const char **argv)
 		return -EINVAL;
 	}
 
-	data__files = zalloc(sizeof(*data__files) * data__files_cnt);
+	data__files = calloc(data__files_cnt, sizeof(*data__files));
 	if (!data__files)
 		return -ENOMEM;
 
@@ -1987,7 +1986,7 @@ int cmd_diff(int argc, const char **argv)
 
 	if (compute == COMPUTE_STREAM) {
 		symbol_conf.show_branchflag_count = true;
-		symbol_conf.disable_add2line_warn = true;
+		symbol_conf.addr2line_disable_warn = true;
 		callchain_param.mode = CHAIN_FLAT;
 		callchain_param.key = CCKEY_SRCLINE;
 		callchain_param.branch_callstack = 1;

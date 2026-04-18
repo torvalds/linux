@@ -40,7 +40,6 @@
 #include "util/perf_api_probe.h"
 #include "util/trigger.h"
 #include "util/perf-hooks.h"
-#include "util/cpu-set-sched.h"
 #include "util/synthetic-events.h"
 #include "util/time-utils.h"
 #include "util/units.h"
@@ -56,6 +55,7 @@
 #include "asm/bug.h"
 #include "perf.h"
 #include "cputopo.h"
+#include "dwarf-regs.h"
 
 #include <errno.h>
 #include <inttypes.h>
@@ -453,7 +453,7 @@ static int record__aio_pushfn(struct mmap *map, void *to, void *buf, size_t size
 static int record__aio_push(struct record *rec, struct mmap *map, off_t *off)
 {
 	int ret, idx;
-	int trace_fd = rec->session->data->file.fd;
+	int trace_fd = perf_data__fd(rec->session->data);
 	struct record_aio aio = { .rec = rec, .size = 0 };
 
 	/*
@@ -1070,12 +1070,12 @@ static int record__thread_data_init_maps(struct record_thread *thread_data, stru
 		thread_data->nr_mmaps = bitmap_weight(thread_data->mask->maps.bits,
 						      thread_data->mask->maps.nbits);
 	if (mmap) {
-		thread_data->maps = zalloc(thread_data->nr_mmaps * sizeof(struct mmap *));
+		thread_data->maps = calloc(thread_data->nr_mmaps, sizeof(struct mmap *));
 		if (!thread_data->maps)
 			return -ENOMEM;
 	}
 	if (overwrite_mmap) {
-		thread_data->overwrite_maps = zalloc(thread_data->nr_mmaps * sizeof(struct mmap *));
+		thread_data->overwrite_maps = calloc(thread_data->nr_mmaps, sizeof(struct mmap *));
 		if (!thread_data->overwrite_maps) {
 			zfree(&thread_data->maps);
 			return -ENOMEM;
@@ -1220,7 +1220,7 @@ static int record__alloc_thread_data(struct record *rec, struct evlist *evlist)
 	int t, ret;
 	struct record_thread *thread_data;
 
-	rec->thread_data = zalloc(rec->nr_threads * sizeof(*(rec->thread_data)));
+	rec->thread_data = calloc(rec->nr_threads, sizeof(*(rec->thread_data)));
 	if (!rec->thread_data) {
 		pr_err("Failed to allocate thread data\n");
 		return -ENOMEM;
@@ -1640,7 +1640,7 @@ static int record__mmap_read_evlist(struct record *rec, struct evlist *evlist,
 	int rc = 0;
 	int nr_mmaps;
 	struct mmap **maps;
-	int trace_fd = rec->data.file.fd;
+	int trace_fd = perf_data__fd(&rec->data);
 	off_t off = 0;
 
 	if (!evlist)
@@ -1845,10 +1845,12 @@ record__finish_output(struct record *rec)
 	}
 
 	rec->session->header.data_size += rec->bytes_written;
-	data->file.size = lseek(perf_data__fd(data), 0, SEEK_CUR);
+	data->file.size = perf_data__seek(data, 0, SEEK_CUR);
 	if (record__threads_enabled(rec)) {
-		for (i = 0; i < data->dir.nr; i++)
-			data->dir.files[i].size = lseek(data->dir.files[i].fd, 0, SEEK_CUR);
+		for (i = 0; i < data->dir.nr; i++) {
+			data->dir.files[i].size =
+				perf_data_file__seek(&data->dir.files[i], 0, SEEK_CUR);
+		}
 	}
 
 	/* Buildid scanning disabled or build ID in kernel and synthesized map events. */
@@ -2976,64 +2978,31 @@ out_delete_session:
 	return status;
 }
 
-static void callchain_debug(struct callchain_param *callchain)
-{
-	static const char *str[CALLCHAIN_MAX] = { "NONE", "FP", "DWARF", "LBR" };
-
-	pr_debug("callchain: type %s\n", str[callchain->record_mode]);
-
-	if (callchain->record_mode == CALLCHAIN_DWARF)
-		pr_debug("callchain: stack dump size %d\n",
-			 callchain->dump_size);
-}
-
-int record_opts__parse_callchain(struct record_opts *record,
-				 struct callchain_param *callchain,
-				 const char *arg, bool unset)
-{
-	int ret;
-	callchain->enabled = !unset;
-
-	/* --no-call-graph */
-	if (unset) {
-		callchain->record_mode = CALLCHAIN_NONE;
-		pr_debug("callchain: disabled\n");
-		return 0;
-	}
-
-	ret = parse_callchain_record_opt(arg, callchain);
-	if (!ret) {
-		/* Enable data address sampling for DWARF unwind. */
-		if (callchain->record_mode == CALLCHAIN_DWARF &&
-		    !record->record_data_mmap_set)
-			record->record_data_mmap = true;
-		callchain_debug(callchain);
-	}
-
-	return ret;
-}
-
-int record_parse_callchain_opt(const struct option *opt,
+static int record_parse_callchain_opt(const struct option *opt,
 			       const char *arg,
 			       int unset)
 {
 	return record_opts__parse_callchain(opt->value, &callchain_param, arg, unset);
 }
 
-int record_callchain_opt(const struct option *opt,
-			 const char *arg __maybe_unused,
-			 int unset __maybe_unused)
+static int record_callchain_opt(const struct option *opt,
+				const char *arg __maybe_unused,
+				int unset)
 {
-	struct callchain_param *callchain = opt->value;
+	/*
+	 * The -g option only sets the callchain if not already configured by
+	 * .perfconfig. It does, however, enable it.
+	 */
+	if (callchain_param.record_mode != CALLCHAIN_NONE) {
+		callchain_param.enabled = true;
+		return 0;
+	}
 
-	callchain->enabled = true;
-
-	if (callchain->record_mode == CALLCHAIN_NONE)
-		callchain->record_mode = CALLCHAIN_FP;
-
-	callchain_debug(callchain);
-	return 0;
+	return record_opts__parse_callchain(opt->value, &callchain_param,
+					    EM_HOST != EM_S390 ? "fp" : "dwarf",
+					    unset);
 }
+
 
 static int perf_record_config(const char *var, const char *value, void *cb)
 {
@@ -3526,7 +3495,7 @@ static struct option __record_options[] = {
 	OPT_CALLBACK(0, "mmap-flush", &record.opts, "number",
 		     "Minimal number of bytes that is extracted from mmap data pages (default: 1)",
 		     record__mmap_flush_parse),
-	OPT_CALLBACK_NOOPT('g', NULL, &callchain_param,
+	OPT_CALLBACK_NOOPT('g', NULL, &record.opts,
 			   NULL, "enables call-graph recording" ,
 			   &record_callchain_opt),
 	OPT_CALLBACK(0, "call-graph", &record.opts,
@@ -3696,7 +3665,7 @@ struct option *record_options = __record_options;
 static int record__mmap_cpu_mask_init(struct mmap_cpu_mask *mask, struct perf_cpu_map *cpus)
 {
 	struct perf_cpu cpu;
-	int idx;
+	unsigned int idx;
 
 	if (cpu_map__is_dummy(cpus))
 		return 0;
@@ -3743,7 +3712,7 @@ static int record__alloc_thread_masks(struct record *rec, int nr_threads, int nr
 {
 	int t, ret;
 
-	rec->thread_masks = zalloc(nr_threads * sizeof(*(rec->thread_masks)));
+	rec->thread_masks = calloc(nr_threads, sizeof(*(rec->thread_masks)));
 	if (!rec->thread_masks) {
 		pr_err("Failed to allocate thread masks\n");
 		return -ENOMEM;
@@ -3953,7 +3922,7 @@ static int record__init_thread_numa_masks(struct record *rec, struct perf_cpu_ma
 		return -ENOMEM;
 	}
 
-	spec = zalloc(topo->nr * sizeof(char *));
+	spec = calloc(topo->nr, sizeof(char *));
 	if (!spec) {
 		pr_err("Failed to allocate NUMA spec\n");
 		ret = -ENOMEM;
@@ -4131,8 +4100,11 @@ int cmd_record(int argc, const char **argv)
 
 	perf_debuginfod_setup(&record.debuginfod);
 
-	/* Make system wide (-a) the default target. */
-	if (!argc && target__none(&rec->opts.target))
+	/*
+	 * Use system wide (-a) for the default target (ie. when no
+	 * workload). User ID filtering also implies system-wide.
+	 */
+	if ((!argc && target__none(&rec->opts.target)) || rec->uid_str)
 		rec->opts.target.system_wide = true;
 
 	if (nr_cgroups && !rec->opts.target.system_wide) {
@@ -4310,7 +4282,8 @@ int cmd_record(int argc, const char **argv)
 		record.opts.tail_synthesize = true;
 
 	if (rec->evlist->core.nr_entries == 0) {
-		struct evlist *def_evlist = evlist__new_default();
+		struct evlist *def_evlist = evlist__new_default(&rec->opts.target,
+								callchain_param.enabled);
 
 		if (!def_evlist)
 			goto out;
@@ -4339,9 +4312,6 @@ int cmd_record(int argc, const char **argv)
 		err = parse_uid_filter(rec->evlist, uid);
 		if (err)
 			goto out;
-
-		/* User ID filtering implies system wide. */
-		rec->opts.target.system_wide = true;
 	}
 
 	/* Enable ignoring missing threads when -p option is defined. */

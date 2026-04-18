@@ -23,7 +23,7 @@ static const char * const config_usage[] = {
 	NULL
 };
 
-enum actions {
+static enum actions {
 	ACTION_LIST = 1
 } actions;
 

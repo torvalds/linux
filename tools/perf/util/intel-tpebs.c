@@ -22,7 +22,6 @@
 #include "tool.h"
 #include "cpumap.h"
 #include "metricgroup.h"
-#include "stat.h"
 #include <sys/stat.h>
 #include <sys/file.h>
 #include <errno.h>
@@ -217,15 +216,6 @@ static int process_sample_event(const struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
-static int process_feature_event(const struct perf_tool *tool __maybe_unused,
-				 struct perf_session *session,
-				 union perf_event *event)
-{
-	if (event->feat.feat_id < HEADER_LAST_FEATURE)
-		return perf_event__process_feature(session, event);
-	return 0;
-}
-
 static void *__sample_reader(void *arg __maybe_unused)
 {
 	struct perf_session *session;
@@ -238,7 +228,7 @@ static void *__sample_reader(void *arg __maybe_unused)
 
 	perf_tool__init(&tool, /*ordered_events=*/false);
 	tool.sample = process_sample_event;
-	tool.feature = process_feature_event;
+	tool.feature = perf_event__process_feature;
 	tool.attr = perf_event__process_attr;
 
 	session = perf_session__new(&data, &tool);

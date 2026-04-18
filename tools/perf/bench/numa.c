@@ -32,7 +32,6 @@
 #include <linux/kernel.h>
 #include <linux/time64.h>
 #include <linux/numa.h>
-#include <linux/zalloc.h>
 
 #include "../util/header.h"
 #include "../util/mutex.h"
@@ -166,7 +165,7 @@ static struct global_info	*g = NULL;
 static int parse_cpus_opt(const struct option *opt, const char *arg, int unset);
 static int parse_nodes_opt(const struct option *opt, const char *arg, int unset);
 
-struct params p0;
+static struct params p0;
 
 static const struct option options[] = {
 	OPT_INTEGER('p', "nr_proc"	, &p0.nr_proc,		"number of processes"),
@@ -980,10 +979,8 @@ static int count_process_nodes(int process_nr)
 	int nodes;
 	int n, t;
 
-	node_present = (char *)malloc(g->p.nr_nodes * sizeof(char));
+	node_present = calloc(g->p.nr_nodes, sizeof(char));
 	BUG_ON(!node_present);
-	for (nodes = 0; nodes < g->p.nr_nodes; nodes++)
-		node_present[nodes] = 0;
 
 	for (t = 0; t < g->p.nr_threads; t++) {
 		struct thread_data *td;
@@ -1090,10 +1087,8 @@ static void calc_convergence(double runtime_ns_max, double *convergence)
 	if (!g->p.show_convergence && !g->p.measure_convergence)
 		return;
 
-	nodes = (int *)malloc(g->p.nr_nodes * sizeof(int));
+	nodes = calloc(g->p.nr_nodes, sizeof(int));
 	BUG_ON(!nodes);
-	for (node = 0; node < g->p.nr_nodes; node++)
-		nodes[node] = 0;
 
 	loops_done_min = -1;
 	loops_done_max = 0;
@@ -1423,7 +1418,7 @@ static void worker_process(int process_nr)
 	bind_to_memnode(td->bind_node);
 	bind_to_cpumask(td->bind_cpumask);
 
-	pthreads = zalloc(g->p.nr_threads * sizeof(pthread_t));
+	pthreads = calloc(g->p.nr_threads, sizeof(pthread_t));
 	process_data = setup_private_data(g->p.bytes_process);
 
 	if (g->p.show_details >= 3) {
@@ -1629,7 +1624,7 @@ static int __bench_numa(const char *name)
 	if (init())
 		return -1;
 
-	pids = zalloc(g->p.nr_proc * sizeof(*pids));
+	pids = calloc(g->p.nr_proc, sizeof(*pids));
 	pid = -1;
 
 	if (g->p.serialize_startup) {

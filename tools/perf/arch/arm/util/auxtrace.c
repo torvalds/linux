@@ -8,7 +8,7 @@
 #include <errno.h>
 #include <stdbool.h>
 #include <linux/coresight-pmu.h>
-#include <linux/zalloc.h>
+#include <stdlib.h>
 #include <api/fs/fs.h>
 
 #include "../../../util/auxtrace.h"
@@ -27,7 +27,7 @@ static struct perf_pmu **find_all_arm_spe_pmus(int *nr_spes, int *err)
 	/* arm_spe_xxxxxxxxx\0 */
 	char arm_spe_pmu_name[sizeof(ARM_SPE_PMU_NAME) + 10];
 
-	arm_spe_pmus = zalloc(sizeof(struct perf_pmu *) * nr_cpus);
+	arm_spe_pmus = calloc(nr_cpus, sizeof(struct perf_pmu *));
 	if (!arm_spe_pmus) {
 		pr_err("spes alloc failed\n");
 		*err = -ENOMEM;
@@ -79,7 +79,7 @@ static struct perf_pmu **find_all_hisi_ptt_pmus(int *nr_ptts, int *err)
 	if (!(*nr_ptts))
 		goto out;
 
-	hisi_ptt_pmus = zalloc(sizeof(struct perf_pmu *) * (*nr_ptts));
+	hisi_ptt_pmus = calloc((*nr_ptts), sizeof(struct perf_pmu *));
 	if (!hisi_ptt_pmus) {
 		pr_err("hisi_ptt alloc failed\n");
 		*err = -ENOMEM;

@@ -1,0 +1,642 @@
+[
+    {
+        "ArchStdEvent": "SW_INCR",
+        "PublicDescription": "This event counts software writes to the PMSWINC_EL0 (software PMU increment) register. The PMSWINC_EL0 register is a manually updated counter for use by application software.\nThis event could be used to measure any user program event, such as accesses to a particular data structure (by writing to the PMSWINC_EL0 register each time the data structure is accessed).\nTo use the PMSWINC_EL0 register and event, developers must insert instructions that write to the PMSWINC_EL0 register into the source code.\nSince the SW_INCR event records writes to the PMSWINC_EL0 register, there is no need to do a Read/Increment/Write sequence to the PMSWINC_EL0 register."
+    },
+    {
+        "ArchStdEvent": "TRB_WRAP",
+        "PublicDescription": "This event is generated each time the trace buffer current Write pointer is wrapped to the trace buffer base pointer."
+    },
+    {
+        "ArchStdEvent": "TRCEXTOUT0",
+        "PublicDescription": "Trace unit external output 0."
+    },
+    {
+        "ArchStdEvent": "TRCEXTOUT1",
+        "PublicDescription": "Trace unit external output 1."
+    },
+    {
+        "ArchStdEvent": "TRCEXTOUT2",
+        "PublicDescription": "Trace unit external output 2."
+    },
+    {
+        "ArchStdEvent": "TRCEXTOUT3",
+        "PublicDescription": "Trace unit external output 3."
+    },
+    {
+        "ArchStdEvent": "CTI_TRIGOUT4",
+        "PublicDescription": "Cross-trigger Interface output trigger 4."
+    },
+    {
+        "ArchStdEvent": "CTI_TRIGOUT5",
+        "PublicDescription": "Cross-trigger Interface output trigger 5."
+    },
+    {
+        "ArchStdEvent": "CTI_TRIGOUT6",
+        "PublicDescription": "Cross-trigger Interface output trigger 6."
+    },
+    {
+        "ArchStdEvent": "CTI_TRIGOUT7",
+        "PublicDescription": "Cross-trigger Interface output trigger 7."
+    },
+    {
+        "EventCode": "0x00e1",
+        "EventName": "L1I_PRFM_REQ_DROP",
+        "PublicDescription": "L1 I-cache software prefetch dropped."
+    },
+    {
+        "EventCode": "0x0100",
+        "EventName": "L1_PF_REFILL",
+        "PublicDescription": "L1 prefetch requests, refilled to L1 cache."
+    },
+    {
+        "EventCode": "0x0120",
+        "EventName": "FLUSH",
+        "PublicDescription": "This event counts both the CT flush and BX flush. The BR_MIS_PRED counts the BX flushes. So the FLUSH-BR_MIS_PRED gives the CT flushes."
+    },
+    {
+        "EventCode": "0x0121",
+        "EventName": "FLUSH_MEM",
+        "PublicDescription": "Flushes due to memory hazards. This only includes CT flushes."
+    },
+    {
+        "EventCode": "0x0122",
+        "EventName": "FLUSH_BAD_BRANCH",
+        "PublicDescription": "Flushes due to bad predicted branch. This only includes CT flushes."
+    },
+    {
+        "EventCode": "0x0123",
+        "EventName": "FLUSH_STDBYPASS",
+        "PublicDescription": "Flushes due to bad predecode. This only includes CT flushes."
+    },
+    {
+        "EventCode": "0x0124",
+        "EventName": "FLUSH_ISB",
+        "PublicDescription": "Flushes due to ISB or similar side-effects. This only includes CT flushes."
+    },
+    {
+        "EventCode": "0x0125",
+        "EventName": "FLUSH_OTHER",
+        "PublicDescription": "Flushes due to other hazards. This only includes CT flushes."
+    },
+    {
+        "EventCode": "0x0126",
+        "EventName": "STORE_STREAM",
+        "PublicDescription": "Stored lines in streaming no-Write-allocate mode."
+    },
+    {
+        "EventCode": "0x0127",
+        "EventName": "NUKE_RAR",
+        "PublicDescription": "Load/Store nuke due to Read-after-Read ordering hazard."
+    },
+    {
+        "EventCode": "0x0128",
+        "EventName": "NUKE_RAW",
+        "PublicDescription": "Load/Store nuke due to Read-after-Write ordering hazard."
+    },
+    {
+        "EventCode": "0x0129",
+        "EventName": "L1_PF_GEN_PAGE",
+        "PublicDescription": "Load/Store prefetch to L1 generated, Page mode."
+    },
+    {
+        "EventCode": "0x012a",
+        "EventName": "L1_PF_GEN_STRIDE",
+        "PublicDescription": "Load/Store prefetch to L1 generated, stride mode."
+    },
+    {
+        "EventCode": "0x012b",
+        "EventName": "L2_PF_GEN_LD",
+        "PublicDescription": "Load prefetch to L2 generated."
+    },
+    {
+        "EventCode": "0x012d",
+        "EventName": "LS_PF_TRAIN_TABLE_ALLOC",
+        "PublicDescription": "LS prefetch train table entry allocated."
+    },
+    {
+        "EventCode": "0x0130",
+        "EventName": "LS_PF_GEN_TABLE_ALLOC",
+        "PublicDescription": "This event counts the number of cycles with at least one table allocation, for L2 hardware prefetches (including the software PRFM instructions that are converted into hardware prefetches due to D-TLB miss).\nLS prefetch gen table allocation (for L2 prefetches)."
+    },
+    {
+        "EventCode": "0x0131",
+        "EventName": "LS_PF_GEN_TABLE_ALLOC_PF_PEND",
+        "PublicDescription": "This event counts the number of cycles in which at least one hardware prefetch is dropped due to the inability to identify a victim when the generation table is full. The hardware prefetch considered here includes the software PRFM that is converted into hardware prefetches due to D-TLB miss."
+    },
+    {
+        "EventCode": "0x0132",
+        "EventName": "TBW",
+        "PublicDescription": "Tablewalks."
+    },
+    {
+        "EventCode": "0x0134",
+        "EventName": "S1L2_HIT",
+        "PublicDescription": "Translation cache hit on S1L2 walk cache entry."
+    },
+    {
+        "EventCode": "0x0135",
+        "EventName": "S1L1_HIT",
+        "PublicDescription": "Translation cache hit on S1L1 walk cache entry."
+    },
+    {
+        "EventCode": "0x0136",
+        "EventName": "S1L0_HIT",
+        "PublicDescription": "Translation cache hit on S1L0 walk cache entry."
+    },
+    {
+        "EventCode": "0x0137",
+        "EventName": "S2L2_HIT",
+        "PublicDescription": "Translation cache hit for S2L2 IPA walk cache entry."
+    },
+    {
+        "EventCode": "0x0138",
+        "EventName": "IPA_REQ",
+        "PublicDescription": "Translation cache lookups for IPA to PA entries."
+    },
+    {
+        "EventCode": "0x0139",
+        "EventName": "IPA_REFILL",
+        "PublicDescription": "Translation cache refills for IPA to PA entries."
+    },
+    {
+        "EventCode": "0x013a",
+        "EventName": "S1_FLT",
+        "PublicDescription": "Stage1 tablewalk fault."
+    },
+    {
+        "EventCode": "0x013b",
+        "EventName": "S2_FLT",
+        "PublicDescription": "Stage2 tablewalk fault."
+    },
+    {
+        "EventCode": "0x013c",
+        "EventName": "COLT_REFILL",
+        "PublicDescription": "Aggregated page refill."
+    },
+    {
+        "EventCode": "0x0145",
+        "EventName": "L1_PF_HIT",
+        "PublicDescription": "L1 prefetch requests, hitting in L1 cache."
+    },
+    {
+        "EventCode": "0x0146",
+        "EventName": "L1_PF",
+        "PublicDescription": "L1 prefetch requests."
+    },
+    {
+        "EventCode": "0x0147",
+        "EventName": "CACHE_LS_REFILL",
+        "PublicDescription": "L2 D-cache refill, Load/Store."
+    },
+    {
+        "EventCode": "0x0148",
+        "EventName": "CACHE_PF",
+        "PublicDescription": "L2 prefetch requests."
+    },
+    {
+        "EventCode": "0x0149",
+        "EventName": "CACHE_PF_HIT",
+        "PublicDescription": "L2 prefetch requests, hitting in L2 cache."
+    },
+    {
+        "EventCode": "0x0150",
+        "EventName": "UNUSED_PF",
+        "PublicDescription": "L2 unused prefetch."
+    },
+    {
+        "EventCode": "0x0151",
+        "EventName": "PFT_SENT",
+        "PublicDescription": "L2 prefetch TGT sent.\nNote that PFT_SENT != PFT_USEFUL + PFT_DROP. There may be PFT_SENT for which the accesses resulted in a SLC hit."
+    },
+    {
+        "EventCode": "0x0152",
+        "EventName": "PFT_USEFUL",
+        "PublicDescription": "L2 prefetch TGT useful."
+    },
+    {
+        "EventCode": "0x0153",
+        "EventName": "PFT_DROP",
+        "PublicDescription": "L2 prefetch TGT dropped."
+    },
+    {
+        "EventCode": "0x0162",
+        "EventName": "LRQ_FULL",
+        "PublicDescription": "This event counts the number of cycles the LRQ is full."
+    },
+    {
+        "EventCode": "0x0163",
+        "EventName": "FETCH_FQ_EMPTY",
+        "PublicDescription": "Fetch Queue empty cycles."
+    },
+    {
+        "EventCode": "0x0164",
+        "EventName": "FPG2",
+        "PublicDescription": "Forward progress guarantee. Medium range livelock triggered."
+    },
+    {
+        "EventCode": "0x0165",
+        "EventName": "FPG",
+        "PublicDescription": "Forward progress guarantee. Tofu global livelock buster is triggered."
+    },
+    {
+        "EventCode": "0x0172",
+        "EventName": "DEADBLOCK",
+        "PublicDescription": "Write-back evictions converted to dataless EVICT.\nThe victim line is deemed deadblock if the likeliness of a reuse is low. The Core uses dataless evict to evict a deadblock; and it uses an evict with data to evict an L2 line that is not a deadblock."
+    },
+    {
+        "EventCode": "0x0173",
+        "EventName": "PF_PRQ_ALLOC_PF_PEND",
+        "PublicDescription": "L1 prefetch prq allocation (replacing pending)."
+    },
+    {
+        "EventCode": "0x0178",
+        "EventName": "FETCH_ICACHE_INSTR",
+        "PublicDescription": "Instructions fetched from I-cache."
+    },
+    {
+        "EventCode": "0x017b",
+        "EventName": "NEAR_CAS",
+        "PublicDescription": "Near atomics: compare and swap."
+    },
+    {
+        "EventCode": "0x017c",
+        "EventName": "NEAR_CAS_PASS",
+        "PublicDescription": "Near atomics: compare and swap pass."
+    },
+    {
+        "EventCode": "0x017d",
+        "EventName": "FAR_CAS",
+        "PublicDescription": "Far atomics: compare and swap."
+    },
+    {
+        "EventCode": "0x0186",
+        "EventName": "L2_BTB_RELOAD_MAIN_BTB",
+        "PublicDescription": "Number of completed L1 BTB update initiated by L2 BTB hit which swap branch information between L1 BTB and L2 BTB."
+    },
+    {
+        "EventCode": "0x018f",
+        "EventName": "L1_PF_GEN_MCMC",
+        "PublicDescription": "Load/Store prefetch to L1 generated, MCMC."
+    },
+    {
+        "EventCode": "0x0190",
+        "EventName": "PF_MODE_0_CYCLES",
+        "PublicDescription": "Number of cycles in which the hardware prefetcher is in the most aggressive mode."
+    },
+    {
+        "EventCode": "0x0191",
+        "EventName": "PF_MODE_1_CYCLES",
+        "PublicDescription": "Number of cycles in which the hardware prefetcher is in the more aggressive mode."
+    },
+    {
+        "EventCode": "0x0192",
+        "EventName": "PF_MODE_2_CYCLES",
+        "PublicDescription": "Number of cycles in which the hardware prefetcher is in the less aggressive mode."
+    },
+    {
+        "EventCode": "0x0193",
+        "EventName": "PF_MODE_3_CYCLES",
+        "PublicDescription": "Number of cycles in which the hardware prefetcher is in the most conservative mode."
+    },
+    {
+        "EventCode": "0x0194",
+        "EventName": "TXREQ_LIMIT_MAX_CYCLES",
+        "PublicDescription": "Number of cycles in which the dynamic TXREQ limit is the L2_TQ_SIZE."
+    },
+    {
+        "EventCode": "0x0195",
+        "EventName": "TXREQ_LIMIT_3QUARTER_CYCLES",
+        "PublicDescription": "Number of cycles in which the dynamic TXREQ limit is between 3/4 of the L2_TQ_SIZE and the L2_TQ_SIZE-1."
+    },
+    {
+        "EventCode": "0x0196",
+        "EventName": "TXREQ_LIMIT_HALF_CYCLES",
+        "PublicDescription": "Number of cycles in which the dynamic TXREQ limit is between 1/2 of the L2_TQ_SIZE and 3/4 of the L2_TQ_SIZE."
+    },
+    {
+        "EventCode": "0x0197",
+        "EventName": "TXREQ_LIMIT_1QUARTER_CYCLES",
+        "PublicDescription": "Number of cycles in which the dynamic TXREQ limit is between 1/4 of the L2_TQ_SIZE and 1/2 of the L2_TQ_SIZE."
+    },
+    {
+        "EventCode": "0x019d",
+        "EventName": "PREFETCH_LATE_CMC",
+        "PublicDescription": "LS/readclean or LS/readunique lookup hit on TQ entry allocated by CMC prefetch request."
+    },
+    {
+        "EventCode": "0x019e",
+        "EventName": "PREFETCH_LATE_BO",
+        "PublicDescription": "LS/readclean or LS/readunique lookup hit on TQ entry allocated by BO prefetch request."
+    },
+    {
+        "EventCode": "0x019f",
+        "EventName": "PREFETCH_LATE_STRIDE",
+        "PublicDescription": "LS/readclean or LS/readunique lookup hit on TQ entry allocated by STRIDE prefetch request."
+    },
+    {
+        "EventCode": "0x01a0",
+        "EventName": "PREFETCH_LATE_SPATIAL",
+        "PublicDescription": "LS/readclean or LS/readunique lookup hit on TQ entry allocated by SPATIAL prefetch request."
+    },
+    {
+        "EventCode": "0x01a2",
+        "EventName": "PREFETCH_LATE_TBW",
+        "PublicDescription": "LS/readclean or LS/readunique lookup hit on TQ entry allocated by TBW prefetch request."
+    },
+    {
+        "EventCode": "0x01a3",
+        "EventName": "PREFETCH_LATE_PAGE",
+        "PublicDescription": "LS/readclean or LS/readunique lookup hit on TQ entry allocated by PAGE prefetch request."
+    },
+    {
+        "EventCode": "0x01a4",
+        "EventName": "PREFETCH_LATE_GSMS",
+        "PublicDescription": "LS/readclean or LS/readunique lookup hit on TQ entry allocated by GSMS prefetch request."
+    },
+    {
+        "EventCode": "0x01a5",
+        "EventName": "PREFETCH_LATE_SIP_CONS",
+        "PublicDescription": "LS/readclean or LS/readunique lookup hit on TQ entry allocated by SIP_CONS prefetch request."
+    },
+    {
+        "EventCode": "0x01a6",
+        "EventName": "PREFETCH_REFILL_CMC",
+        "PublicDescription": "PF/prefetch or PF/readclean request from CMC pf engine filled the L2 cache."
+    },
+    {
+        "EventCode": "0x01a7",
+        "EventName": "PREFETCH_REFILL_BO",
+        "PublicDescription": "PF/prefetch or PF/readclean request from BO pf engine filled the L2 cache."
+    },
+    {
+        "EventCode": "0x01a8",
+        "EventName": "PREFETCH_REFILL_STRIDE",
+        "PublicDescription": "PF/prefetch or PF/readclean request from STRIDE pf engine filled the L2 cache."
+    },
+    {
+        "EventCode": "0x01a9",
+        "EventName": "PREFETCH_REFILL_SPATIAL",
+        "PublicDescription": "PF/prefetch or PF/readclean request from SPATIAL pf engine filled the L2 cache."
+    },
+    {
+        "EventCode": "0x01ab",
+        "EventName": "PREFETCH_REFILL_TBW",
+        "PublicDescription": "PF/prefetch or PF/readclean request from TBW pf engine filled the L2 cache."
+    },
+    {
+        "EventCode": "0x01ac",
+        "EventName": "PREFETCH_REFILL_PAGE",
+        "PublicDescription": "PF/prefetch or PF/readclean request from PAGE pf engine filled the L2 cache."
+    },
+    {
+        "EventCode": "0x01ad",
+        "EventName": "PREFETCH_REFILL_GSMS",
+        "PublicDescription": "PF/prefetch or PF/readclean request from GSMS pf engine filled the L2 cache."
+    },
+    {
+        "EventCode": "0x01ae",
+        "EventName": "PREFETCH_REFILL_SIP_CONS",
+        "PublicDescription": "PF/prefetch or PF/readclean request from SIP_CONS pf engine filled the L2 cache."
+    },
+    {
+        "EventCode": "0x01af",
+        "EventName": "CACHE_HIT_LINE_PF_CMC",
+        "PublicDescription": "LS/readclean or LS/readunique lookup hit in L2 cache on line filled by CMC prefetch request."
+    },
+    {
+        "EventCode": "0x01b0",
+        "EventName": "CACHE_HIT_LINE_PF_BO",
+        "PublicDescription": "LS/readclean or LS/readunique lookup hit in L2 cache on line filled by BO prefetch request."
+    },
+    {
+        "EventCode": "0x01b1",
+        "EventName": "CACHE_HIT_LINE_PF_STRIDE",
+        "PublicDescription": "LS/readclean or LS/readunique lookup hit in L2 cache on line filled by STRIDE prefetch request."
+    },
+    {
+        "EventCode": "0x01b2",
+        "EventName": "CACHE_HIT_LINE_PF_SPATIAL",
+        "PublicDescription": "LS/readclean or LS/readunique lookup hit in L2 cache on line filled by SPATIAL prefetch request."
+    },
+    {
+        "EventCode": "0x01b4",
+        "EventName": "CACHE_HIT_LINE_PF_TBW",
+        "PublicDescription": "LS/readclean or LS/readunique lookup hit in L2 cache on line filled by TBW prefetch request."
+    },
+    {
+        "EventCode": "0x01b5",
+        "EventName": "CACHE_HIT_LINE_PF_PAGE",
+        "PublicDescription": "LS/readclean or LS/readunique lookup hit in L2 cache on line filled by PAGE prefetch request."
+    },
+    {
+        "EventCode": "0x01b6",
+        "EventName": "CACHE_HIT_LINE_PF_GSMS",
+        "PublicDescription": "LS/readclean or LS/readunique lookup hit in L2 cache on line filled by GSMS prefetch request."
+    },
+    {
+        "EventCode": "0x01b7",
+        "EventName": "CACHE_HIT_LINE_PF_SIP_CONS",
+        "PublicDescription": "LS/readclean or LS/readunique lookup hit in L2 cache on line filled by SIP_CONS prefetch request."
+    },
+    {
+        "EventCode": "0x01ba",
+        "EventName": "PREFETCH_LATE_STORE_ISSUE",
+        "PublicDescription": "This event counts the number of demand requests that matches a Store-issue prefetcher's pending refill request. These are called late prefetch requests and are still counted as useful prefetcher requests for the sake of accuracy and coverage measurements."
+    },
+    {
+        "EventCode": "0x01bb",
+        "EventName": "PREFETCH_LATE_STORE_STRIDE",
+        "PublicDescription": "This event counts the number of demand requests that matches a Store-stride prefetcher's pending refill request. These are called late prefetch requests and are still counted as useful prefetcher requests for the sake of accuracy and coverage measurements."
+    },
+    {
+        "EventCode": "0x01bc",
+        "EventName": "PREFETCH_LATE_PC_OFFSET",
+        "PublicDescription": "This event counts the number of demand requests that matches a PC-offset prefetcher's pending refill request. These are called late prefetch requests and are still counted as useful prefetcher requests for the sake of accuracy and coverage measurements."
+    },
+    {
+        "EventCode": "0x01bd",
+        "EventName": "PREFETCH_LATE_IFUPF",
+        "PublicDescription": "This event counts the number of demand requests that matches a IFU prefetcher's pending refill request. These are called late prefetch requests and are still counted as useful prefetcher requests for the sake of accuracy and coverage measurements."
+    },
+    {
+        "EventCode": "0x01be",
+        "EventName": "PREFETCH_REFILL_STORE_ISSUE",
+        "PublicDescription": "This event counts the number of cache refills due to Store-Issue prefetcher."
+    },
+    {
+        "EventCode": "0x01bf",
+        "EventName": "PREFETCH_REFILL_STORE_STRIDE",
+        "PublicDescription": "This event counts the number of cache refills due to Store-stride prefetcher."
+    },
+    {
+        "EventCode": "0x01c0",
+        "EventName": "PREFETCH_REFILL_PC_OFFSET",
+        "PublicDescription": "This event counts the number of cache refills due to PC-offset prefetcher."
+    },
+    {
+        "EventCode": "0x01c1",
+        "EventName": "PREFETCH_REFILL_IFUPF",
+        "PublicDescription": "This event counts the number of cache refills due to IFU prefetcher."
+    },
+    {
+        "EventCode": "0x01c2",
+        "EventName": "CACHE_HIT_LINE_PF_STORE_ISSUE",
+        "PublicDescription": "This event counts the number of first hit to a cache line filled by Store-issue prefetcher."
+    },
+    {
+        "EventCode": "0x01c3",
+        "EventName": "CACHE_HIT_LINE_PF_STORE_STRIDE",
+        "PublicDescription": "This event counts the number of first hit to a cache line filled by Store-stride prefetcher."
+    },
+    {
+        "EventCode": "0x01c4",
+        "EventName": "CACHE_HIT_LINE_PF_PC_OFFSET",
+        "PublicDescription": "This event counts the number of first hit to a cache line filled by PC-offset prefetcher."
+    },
+    {
+        "EventCode": "0x01c5",
+        "EventName": "CACHE_HIT_LINE_PF_IFUPF",
+        "PublicDescription": "This event counts the number of first hit to a cache line filled by IFU prefetcher."
+    },
+    {
+        "EventCode": "0x01c6",
+        "EventName": "L2_PF_GEN_ST_ISSUE",
+        "PublicDescription": "Store-issue prefetch to L2 generated."
+    },
+    {
+        "EventCode": "0x01c7",
+        "EventName": "L2_PF_GEN_ST_STRIDE",
+        "PublicDescription": "Store-stride prefetch to L2 generated"
+    },
+    {
+        "EventCode": "0x01cb",
+        "EventName": "L2_TQ_OUTSTANDING",
+        "PublicDescription": "Outstanding tracker count, per cycle.\nThis event increments by the number of valid entries pertaining to this thread in the L2TQ, in each cycle.\nThis event can be used to calculate the occupancy of L2TQ by dividing this by the CPU_CYCLES event. The L2TQ queue tracks the outstanding Read, Write and Snoop transactions. The Read transaction and the Write transaction entries are attributable to PE, whereas the Snoop transactions are not always attributable to PE."
+    },
+    {
+        "EventCode": "0x01cc",
+        "EventName": "TXREQ_LIMIT_COUNT_CYCLES",
+        "PublicDescription": "This event increments by the dynamic TXREQ value, in each cycle.\nThis is a companion event of TXREQ_LIMIT_MAX_CYCLES, TXREQ_LIMIT_3QUARTER_CYCLES, TXREQ_LIMIT_HALF_CYCLES, and TXREQ_LIMIT_1QUARTER_CYCLES."
+    },
+    {
+        "EventCode": "0x01ce",
+        "EventName": "L3DPRFM_TO_L2PRQ_CONVERTED",
+        "PublicDescription": "This event counts the number of Converted-L3D-PRFMs. These are indeed L3D PRFM and activities around these PRFM are counted by the L3D_CACHE_PRFM, L3D_CACHE_REFILL_PRFM and L3D_CACHE_REFILL Events."
+    },
+    {
+        "EventCode": "0x01d2",
+        "EventName": "DVM_TLBI_RCVD",
+        "PublicDescription": "This event counts the number of TLBI DVM message received over CHI interface, for *this* Core."
+    },
+    {
+        "EventCode": "0x01d6",
+        "EventName": "DSB_COMMITING_LOCAL_TLBI",
+        "PublicDescription": "This event counts the number of DSB that are retired and committed at least one local TLBI instruction. This event increments no more than once (in a cycle) even if the DSB commits multiple local TLBI instruction."
+    },
+    {
+        "EventCode": "0x01d7",
+        "EventName": "DSB_COMMITING_BROADCAST_TLBI",
+        "PublicDescription": "This event counts the number of DSB that are retired and committed at least one broadcast TLBI instruction. This event increments no more than once (in a cycle) even if the DSB commits multiple broadcast TLBI instruction."
+    },
+    {
+        "EventCode": "0x01eb",
+        "EventName": "L1DPRFM_L2DPRFM_TO_L2PRQ_CONVERTED",
+        "PublicDescription": "This event counts the number of Converted-L1D-PRFMs and Converted-L2D-PRFM.\nActivities involving the Converted-L1D-PRFM are counted by the L1D_CACHE_PRFM. However they are *not* counted by the L1D_CACHE_REFILL_PRFM, and L1D_CACHE_REFILL, as these Converted-L1D-PRFM are treated as L2 D hardware prefetches. Activities around the Converted-L1D-PRFMs and Converted-L2D-PRFMs are counted by the L2D_CACHE_PRFM, L2D_CACHE_REFILL_PRFM and L2D_CACHE_REFILL Events."
+    },
+    {
+        "EventCode": "0x01ec",
+        "EventName": "PREFETCH_LATE_CONVERTED_PRFM",
+        "PublicDescription": "This event counts the number of demand requests that matches a Converted-L1D-PRFM or Converted-L2D-PRFM pending refill request at L2 D-cache. These are called late prefetch requests and are still counted as useful prefetcher requests for the sake of accuracy and coverage measurements.\nNote that this event is not counted by the L2D_CACHE_HIT_RWL1PRF_LATE_HWPRF, though the Converted-L1D-PRFM or Converted-L2D-PRFM are replayed by the L2PRQ."
+    },
+    {
+        "EventCode": "0x01ed",
+        "EventName": "PREFETCH_REFILL_CONVERTED_PRFM",
+        "PublicDescription": "This event counts the number of L2 D-cache refills due to Converted-L1D-PRFM or Converted-L2D-PRFM.\nNote : L2D_CACHE_REFILL_PRFM is inclusive of PREFETCH_REFILL_PRFM_CONVERTED, where both the PREFETCH_REFILL_PRFM_CONVERTED and the L2D_CACHE_REFILL_PRFM increment when L2 D-cache refills due to Converted-L1D-PRFM or Converted-L2D-PRFM."
+    },
+    {
+        "EventCode": "0x01ee",
+        "EventName": "CACHE_HIT_LINE_PF_CONVERTED_PRFM",
+        "PublicDescription": "This event counts the number of first hit to a cache line filled by Converted-L1D-PRFM or Converted-L2D-PRFM.\nNote that L2D_CACHE_HIT_RWL1PRF_FPRFM is inclusive of CACHE_HIT_LINE_PF_CONVERTED_PRFM, where both the CACHE_HIT_LINE_PF_CONVERTED_PRFM and the L2D_CACHE_HIT_RWL1PRF_FPRFM increment on a first hit to L2 D-cache filled by Converted-L1D-PRFM or Converted-L2D-PRFM."
+    },
+    {
+        "EventCode": "0x01f0",
+        "EventName": "TMS_ST_TO_SMT_LATENCY",
+        "PublicDescription": "This event counts the number of CPU cycles spent on TMS for ST-to-SMT switch.\nThis event is counted by both the threads - This event in both threads increment during TMS for ST-to-SMT switch."
+    },
+    {
+        "EventCode": "0x01f1",
+        "EventName": "TMS_SMT_TO_ST_LATENCY",
+        "PublicDescription": "This event counts the number of CPU cycles spent on TMS for SMT-to-ST switch. The count also includes the CPU cycles spend due to an aborted SMT-to-ST TMS attempt.\nThis event is counted only by the thread that is not in WFI."
+    },
+    {
+        "EventCode": "0x01f2",
+        "EventName": "TMS_ST_TO_SMT_COUNT",
+        "PublicDescription": "This event counts the number of completed TMS from ST-to-SMT.\nThis event is counted only by the active thread (the one that is not in WFI).\nNote: When an active thread enters the Debug state in ST-Full resource mode, it is switched to SMT mode. This is because the inactive thread cannot wake up while the other thread remains in the Debug state. To prEvent this issue, threads operating in ST-Full resource mode are transitioned to SMT mode upon entering Debug state. This event count will also reflect such switches from ST to SMT mode.\n(Also see the (NV_CPUACTLR14_EL1.chka_prEvent_st_tx_to_smt_when_tx_in_debug_state bit to disable this behavior.)"
+    },
+    {
+        "EventCode": "0x01f3",
+        "EventName": "TMS_SMT_TO_ST_COUNT",
+        "PublicDescription": "This event counts the number of completed TMS from SMT-to-ST.\nThis event is counted only by the thread that is not in WFI."
+    },
+    {
+        "EventCode": "0x01f4",
+        "EventName": "TMS_SMT_TO_ST_COUNT_ABRT",
+        "PublicDescription": "This event counts the number of aborted TMS from SMT-to-ST.\nThis event is counted only by the thread that is not in WFI."
+    },
+    {
+        "EventCode": "0x0202",
+        "EventName": "L0I_CACHE_RD",
+        "PublicDescription": "This event counts the number of predict blocks serviced out of L0 I-cache.\nNote: The L0 I-cache performs at most 4 L0 I look-up in a cycle. Two of which are to service PB from L0 I. And the other two to refill L0 I-cache from L1 I. This event count only the L0 I-cache lookup pertaining to servicing the PB from L0 I."
+    },
+    {
+        "EventCode": "0x0203",
+        "EventName": "L0I_CACHE_REFILL",
+        "PublicDescription": "This event counts the number of L0I cache refill from L1 I-cache."
+    },
+    {
+        "EventCode": "0x0207",
+        "EventName": "INTR_LATENCY",
+        "PublicDescription": "This event counts the number of cycles elapsed between when an Interrupt is recognized (after masking) to when a uop associated with the first instruction in the destination exception level is allocated. If there is some other flush condition that pre-empts the Interrupt, then the cycles counted terminates early at the first instruction executed after that flush. In the event of dropped Interrupts (when an Interrupt is deasserted before it is taken), this counter measures the number of cycles that elapse from the moment an Interrupt is recognized (post-masking) until the Interrupt is dropped or deasserted.\nNote that\n* IESB(Implicit Error Synchronization Barrier) is an internal mop, so the latency of an implicit IESB mop executed before the Interrupt taken is included in the Interrupt latency count.\n* Nukes or TMS sequence within the window are also counted by the Interrupt latency Event.\n* A SMT to ST TMS will be aborted on detecting the wake condition for the WFI thread. The Interrupt latency count includes any additional penalty for an aborted TMS."
+    },
+    {
+        "EventCode": "0x021c",
+        "EventName": "CWT_ALLOC_ENTRY",
+        "PublicDescription": "Cache Way Tracker Allocate entry."
+    },
+    {
+        "EventCode": "0x021d",
+        "EventName": "CWT_ALLOC_LINE",
+        "PublicDescription": "Cache Way Tracker Allocate line."
+    },
+    {
+        "EventCode": "0x021e",
+        "EventName": "CWT_HIT",
+        "PublicDescription": "Cache Way Tracker hit."
+    },
+    {
+        "EventCode": "0x021f",
+        "EventName": "CWT_HIT_TAG",
+        "PublicDescription": "Cache Way Tracker hit when ITAG lookup suppressed."
+    },
+    {
+        "EventCode": "0x0220",
+        "EventName": "CWT_REPLAY_TAG",
+        "PublicDescription": "Cache Way Tracker causes ITAG replay due to miss when ITAG lookup suppressed."
+    },
+    {
+        "EventCode": "0x0250",
+        "EventName": "GPT_REQ",
+        "PublicDescription": "GPT lookup."
+    },
+    {
+        "EventCode": "0x0251",
+        "EventName": "GPT_WC_HIT",
+        "PublicDescription": "GPT lookup hit in Walk cache."
+    },
+    {
+        "EventCode": "0x0252",
+        "EventName": "GPT_PG_HIT",
+        "PublicDescription": "GPT lookup hit in TLB."
+    }
+]

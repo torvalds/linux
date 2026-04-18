@@ -153,11 +153,17 @@ int symbol__disassemble_llvm(const char *filename, struct symbol *sym,
 					  /*get_op_info=*/NULL, symbol_lookup_callback);
 	} else {
 		char triplet[64];
+		const char *features = NULL;
 
 		scnprintf(triplet, sizeof(triplet), "%s-linux-gnu",
 			  args->arch->name);
-		disasm = LLVMCreateDisasm(triplet, &storage, /*tag_type=*/0,
-					  /*get_op_info=*/NULL, symbol_lookup_callback);
+		if (args->arch->id.e_machine == EM_AARCH64)
+			features = "+all";
+		disasm = LLVMCreateDisasmCPUFeatures(triplet, /*cpu=*/"",
+						     features, &storage,
+						     /*tag_type=*/0,
+						     /*get_op_info=*/NULL,
+						     symbol_lookup_callback);
 	}
 
 	if (disasm == NULL)

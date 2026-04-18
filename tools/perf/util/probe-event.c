@@ -11,7 +11,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <libgen.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -229,7 +228,7 @@ static int convert_exec_to_group(const char *exec, char **result)
 	if (!exec_copy)
 		return -ENOMEM;
 
-	ptr1 = basename(exec_copy);
+	ptr1 = (char *)perf_basename(exec_copy);
 	if (!ptr1) {
 		ret = -EINVAL;
 		goto out;
@@ -1850,7 +1849,7 @@ int parse_perf_probe_command(const char *cmd, struct perf_probe_event *pev)
 
 	/* Copy arguments and ensure return probe has no C argument */
 	pev->nargs = argc - 1;
-	pev->args = zalloc(sizeof(struct perf_probe_arg) * pev->nargs);
+	pev->args = calloc(pev->nargs, sizeof(struct perf_probe_arg));
 	if (pev->args == NULL) {
 		ret = -ENOMEM;
 		goto out;
@@ -2000,7 +1999,7 @@ int parse_probe_trace_command(const char *cmd, struct probe_trace_event *tev)
 	}
 
 	tev->nargs = argc - 2;
-	tev->args = zalloc(sizeof(struct probe_trace_arg) * tev->nargs);
+	tev->args = calloc(tev->nargs, sizeof(struct probe_trace_arg));
 	if (tev->args == NULL) {
 		ret = -ENOMEM;
 		goto out;
@@ -2373,7 +2372,7 @@ static int convert_to_perf_probe_event(struct probe_trace_event *tev,
 
 	/* Convert trace_arg to probe_arg */
 	pev->nargs = tev->nargs;
-	pev->args = zalloc(sizeof(struct perf_probe_arg) * pev->nargs);
+	pev->args = calloc(pev->nargs, sizeof(struct perf_probe_arg));
 	if (pev->args == NULL)
 		return -ENOMEM;
 	for (i = 0; i < tev->nargs && ret >= 0; i++) {
@@ -2480,7 +2479,7 @@ int perf_probe_event__copy(struct perf_probe_event *dst,
 	if (perf_probe_point__copy(&dst->point, &src->point) < 0)
 		goto out_err;
 
-	dst->args = zalloc(sizeof(struct perf_probe_arg) * src->nargs);
+	dst->args = calloc(src->nargs, sizeof(struct perf_probe_arg));
 	if (!dst->args)
 		goto out_err;
 	dst->nargs = src->nargs;
@@ -3179,7 +3178,7 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 	}
 
 	/* Setup result trace-probe-events */
-	*tevs = zalloc(sizeof(*tev) * num_matched_functions);
+	*tevs = calloc(num_matched_functions, sizeof(*tev));
 	if (!*tevs) {
 		ret = -ENOMEM;
 		goto out;
@@ -3251,8 +3250,7 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 		tev->uprobes = pev->uprobes;
 		tev->nargs = pev->nargs;
 		if (tev->nargs) {
-			tev->args = zalloc(sizeof(struct probe_trace_arg) *
-					   tev->nargs);
+			tev->args = calloc(tev->nargs, sizeof(struct probe_trace_arg));
 			if (tev->args == NULL)
 				goto nomem_out;
 		}
@@ -3363,7 +3361,7 @@ static int try_to_find_absolute_address(struct perf_probe_event *pev,
 	}
 
 	tev->nargs = pev->nargs;
-	tev->args = zalloc(sizeof(struct probe_trace_arg) * tev->nargs);
+	tev->args = calloc(tev->nargs, sizeof(struct probe_trace_arg));
 	if (!tev->args)
 		goto errout;
 
@@ -3549,7 +3547,7 @@ static int find_probe_trace_events_from_cache(struct perf_probe_event *pev,
 		goto out;
 	}
 
-	*tevs = zalloc(ret * sizeof(*tev));
+	*tevs = calloc(ret, sizeof(*tev));
 	if (!*tevs) {
 		ret = -ENOMEM;
 		goto out;

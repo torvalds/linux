@@ -372,10 +372,8 @@ static bool get_plt_sizes(struct dso *dso, GElf_Ehdr *ehdr, GElf_Shdr *shdr_plt,
 		*plt_entry_size = 12;
 		return true;
 	case EM_AARCH64:
-		*plt_header_size = 32;
-		*plt_entry_size = 16;
-		return true;
 	case EM_LOONGARCH:
+	case EM_RISCV:
 		*plt_header_size = 32;
 		*plt_entry_size = 16;
 		return true;
@@ -1054,15 +1052,15 @@ void symsrc__destroy(struct symsrc *ss)
 	close(ss->fd);
 }
 
-bool elf__needs_adjust_symbols(GElf_Ehdr ehdr)
+static bool elf__needs_adjust_symbols(const GElf_Ehdr *ehdr)
 {
 	/*
 	 * Usually vmlinux is an ELF file with type ET_EXEC for most
 	 * architectures; except Arm64 kernel is linked with option
 	 * '-share', so need to check type ET_DYN.
 	 */
-	return ehdr.e_type == ET_EXEC || ehdr.e_type == ET_REL ||
-	       ehdr.e_type == ET_DYN;
+	return ehdr->e_type == ET_EXEC || ehdr->e_type == ET_REL ||
+	       ehdr->e_type == ET_DYN;
 }
 
 static Elf *read_gnu_debugdata(struct dso *dso, Elf *elf, const char *name, int *fd_ret)
@@ -1235,7 +1233,7 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 	if (dso__kernel(dso) == DSO_SPACE__USER)
 		ss->adjust_symbols = true;
 	else
-		ss->adjust_symbols = elf__needs_adjust_symbols(ehdr);
+		ss->adjust_symbols = elf__needs_adjust_symbols(&ehdr);
 
 	ss->name   = strdup(name);
 	if (!ss->name) {
@@ -1356,8 +1354,12 @@ static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
 	char dso_name[PATH_MAX];
 
 	/* Adjust symbol to map to file offset */
-	if (adjust_kernel_syms)
-		sym->st_value -= shdr->sh_addr - shdr->sh_offset;
+	if (adjust_kernel_syms) {
+		if (dso__rel(dso))
+			sym->st_value += shdr->sh_offset;
+		else
+			sym->st_value -= shdr->sh_addr - shdr->sh_offset;
+	}
 
 	if (strcmp(section_name, (dso__short_name(curr_dso) + dso__short_name_len(dso))) == 0)
 		return 0;

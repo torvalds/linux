@@ -15,6 +15,7 @@
 #include <unistd.h>
 #include <linux/unistd.h>
 #include <linux/kcmp.h>
+#include <linux/string.h>
 #include <linux/zalloc.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
@@ -129,11 +130,6 @@ static struct drm_pmu *add_drm_pmu(struct list_head *pmus, char *line, size_t li
 }
 
 
-static bool starts_with(const char *str, const char *prefix)
-{
-	return !strncmp(prefix, str, strlen(prefix));
-}
-
 static int add_event(struct drm_pmu_event **events, int *num_events,
 		     const char *line, enum drm_pmu_unit unit, const char *desc)
 {
@@ -174,7 +170,7 @@ static int read_drm_pmus_cb(void *args, int fdinfo_dir_fd, const char *fd_name)
 	}
 
 	while (io__getline(&io, &line, &line_len) > 0) {
-		if (starts_with(line, "drm-driver:")) {
+		if (strstarts(line, "drm-driver:")) {
 			drm = add_drm_pmu(pmus, line, line_len);
 			if (!drm)
 				break;
@@ -184,59 +180,59 @@ static int read_drm_pmus_cb(void *args, int fdinfo_dir_fd, const char *fd_name)
 		 * Note the string matching below is alphabetical, with more
 		 * specific matches appearing before less specific.
 		 */
-		if (starts_with(line, "drm-active-")) {
+		if (strstarts(line, "drm-active-")) {
 			add_event(&events, &num_events, line, DRM_PMU_UNIT_BYTES,
 				  "Total memory active in one or more engines");
 			continue;
 		}
-		if (starts_with(line, "drm-cycles-")) {
+		if (strstarts(line, "drm-cycles-")) {
 			add_event(&events, &num_events, line, DRM_PMU_UNIT_CYCLES,
 				"Busy cycles");
 			continue;
 		}
-		if (starts_with(line, "drm-engine-capacity-")) {
+		if (strstarts(line, "drm-engine-capacity-")) {
 			add_event(&events, &num_events, line, DRM_PMU_UNIT_CAPACITY,
 				"Engine capacity");
 			continue;
 		}
-		if (starts_with(line, "drm-engine-")) {
+		if (strstarts(line, "drm-engine-")) {
 			add_event(&events, &num_events, line, DRM_PMU_UNIT_NS,
 				  "Utilization in ns");
 			continue;
 		}
-		if (starts_with(line, "drm-maxfreq-")) {
+		if (strstarts(line, "drm-maxfreq-")) {
 			add_event(&events, &num_events, line, DRM_PMU_UNIT_HZ,
 				  "Maximum frequency");
 			continue;
 		}
-		if (starts_with(line, "drm-purgeable-")) {
+		if (strstarts(line, "drm-purgeable-")) {
 			add_event(&events, &num_events, line, DRM_PMU_UNIT_BYTES,
 				  "Size of resident and purgeable memory buffers");
 			continue;
 		}
-		if (starts_with(line, "drm-resident-")) {
+		if (strstarts(line, "drm-resident-")) {
 			add_event(&events, &num_events, line, DRM_PMU_UNIT_BYTES,
 				  "Size of resident memory buffers");
 			continue;
 		}
-		if (starts_with(line, "drm-shared-")) {
+		if (strstarts(line, "drm-shared-")) {
 			add_event(&events, &num_events, line, DRM_PMU_UNIT_BYTES,
 				  "Size of shared memory buffers");
 			continue;
 		}
-		if (starts_with(line, "drm-total-cycles-")) {
+		if (strstarts(line, "drm-total-cycles-")) {
 			add_event(&events, &num_events, line, DRM_PMU_UNIT_BYTES,
 				  "Total busy cycles");
 			continue;
 		}
-		if (starts_with(line, "drm-total-")) {
+		if (strstarts(line, "drm-total-")) {
 			add_event(&events, &num_events, line, DRM_PMU_UNIT_BYTES,
 				  "Size of shared and private memory");
 			continue;
 		}
-		if (verbose > 1 && starts_with(line, "drm-") &&
-		    !starts_with(line, "drm-client-id:") &&
-		    !starts_with(line, "drm-pdev:"))
+		if (verbose > 1 && strstarts(line, "drm-") &&
+		    !strstarts(line, "drm-client-id:") &&
+		    !strstarts(line, "drm-pdev:"))
 			pr_debug("Unhandled DRM PMU fdinfo line match '%s'\n", line);
 	}
 	if (drm) {
@@ -261,7 +257,7 @@ bool drm_pmu__have_event(const struct perf_pmu *pmu, const char *name)
 {
 	struct drm_pmu *drm = container_of(pmu, struct drm_pmu, pmu);
 
-	if (!starts_with(name, "drm-"))
+	if (!strstarts(name, "drm-"))
 		return false;
 
 	for (int i = 0; i < drm->num_events; i++) {

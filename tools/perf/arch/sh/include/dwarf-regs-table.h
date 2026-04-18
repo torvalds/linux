@@ -2,7 +2,7 @@
 #ifdef DEFINE_DWARF_REGSTR_TABLE
 /* This is included in perf/util/dwarf-regs.c */
 
-const char * const sh_regstr_tbl[] = {
+static const char * const sh_regstr_tbl[] = {
 	"r0",
 	"r1",
 	"r2",

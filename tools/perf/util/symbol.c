@@ -26,7 +26,6 @@
 #include "demangle-rust-v0.h"
 #include "dso.h"
 #include "util.h" // lsdir()
-#include "debug.h"
 #include "event.h"
 #include "machine.h"
 #include "map.h"
@@ -66,9 +65,11 @@ struct symbol_conf symbol_conf = {
 	.time_quantum		= 100 * NSEC_PER_MSEC, /* 100ms */
 	.show_hist_headers	= true,
 	.symfs			= "",
+	.symfs_layout_flat	= false,
 	.event_group		= true,
 	.inline_name		= true,
 	.res_sample		= 0,
+	.addr2line_timeout_ms	= 5 * 1000,
 };
 
 struct map_list_node {
@@ -2363,7 +2364,8 @@ static int setup_parallelism_bitmap(void)
 {
 	struct perf_cpu_map *map;
 	struct perf_cpu cpu;
-	int i, err = -1;
+	unsigned int i;
+	int err = -1;
 
 	if (symbol_conf.parallelism_list_str == NULL)
 		return 0;
@@ -2491,16 +2493,42 @@ int symbol__config_symfs(const struct option *opt __maybe_unused,
 			 const char *dir, int unset __maybe_unused)
 {
 	char *bf = NULL;
+	const char *layout_str;
+	char *dir_copy;
 	int ret;
 
-	symbol_conf.symfs = strdup(dir);
-	if (symbol_conf.symfs == NULL)
-		return -ENOMEM;
+	layout_str = strrchr(dir, ',');
+	if (layout_str) {
+		size_t dir_len = layout_str - dir;
+
+		dir_copy = strndup(dir, dir_len);
+		if (dir_copy == NULL)
+			return -ENOMEM;
+
+		symbol_conf.symfs = dir_copy;
+
+		layout_str++;
+		if (!strcmp(layout_str, "flat"))
+			symbol_conf.symfs_layout_flat = true;
+		else if (!strcmp(layout_str, "hierarchy"))
+			symbol_conf.symfs_layout_flat = false;
+		else {
+			pr_err("Invalid layout: '%s', use 'hierarchy' or 'flat'\n",
+			       layout_str);
+			free(dir_copy);
+			return -EINVAL;
+		}
+	} else {
+		symbol_conf.symfs = strdup(dir);
+		if (symbol_conf.symfs == NULL)
+			return -ENOMEM;
+		symbol_conf.symfs_layout_flat = false;
+	}
 
 	/* skip the locally configured cache if a symfs is given, and
 	 * config buildid dir to symfs/.debug
 	 */
-	ret = asprintf(&bf, "%s/%s", dir, ".debug");
+	ret = asprintf(&bf, "%s/%s", symbol_conf.symfs, ".debug");
 	if (ret < 0)
 		return -ENOMEM;
 

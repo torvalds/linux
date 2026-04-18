@@ -149,7 +149,6 @@ endif
 perf-util-y += cs-etm-base.o
 
 perf-util-y += parse-branch-options.o
-perf-util-y += dump-insn.o
 perf-util-y += parse-regs-options.o
 perf-util-y += parse-sublevel-options.o
 perf-util-y += term.o
@@ -171,7 +170,6 @@ perf-util-y += mutex.o
 perf-util-y += sharded_mutex.o
 perf-util-y += intel-tpebs.o
 
-perf-util-$(CONFIG_LIBBPF) += bpf_map.o
 perf-util-$(CONFIG_PERF_BPF_SKEL) += bpf_counter.o
 perf-util-$(CONFIG_PERF_BPF_SKEL) += bpf_counter_cgroup.o
 perf-util-$(CONFIG_PERF_BPF_SKEL) += bpf_ftrace.o

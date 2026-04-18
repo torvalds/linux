@@ -1513,9 +1513,24 @@
         "BriefDescription": "Level 2 data cache refill, software preload"
     },
     {
+        "EventCode": "0x8150",
+        "EventName": "L3D_CACHE_RW",
+        "BriefDescription": "Level 3 data cache demand access."
+    },
+    {
+        "EventCode": "0x8151",
+        "EventName": "L3D_CACHE_PRFM",
+        "BriefDescription": "Level 3 data cache software prefetch"
+    },
+    {
         "EventCode": "0x8152",
         "EventName": "L3D_CACHE_MISS",
         "BriefDescription": "Level 3 data cache demand access miss"
+    },
+    {
+        "EventCode": "0x8153",
+        "EventName": "L3D_CACHE_REFILL_PRFM",
+        "BriefDescription": "Level 3 data cache refill, software prefetch."
     },
     {
         "EventCode": "0x8154",
@@ -1526,6 +1541,11 @@
         "EventCode": "0x8155",
         "EventName": "L2D_CACHE_HWPRF",
         "BriefDescription": "Level 2 data cache hardware prefetch."
+    },
+    {
+        "EventCode": "0x8156",
+        "EventName": "L3D_CACHE_HWPRF",
+        "BriefDescription": "Level 3 data cache hardware prefetch."
     },
     {
         "EventCode": "0x8158",
@@ -1683,6 +1703,11 @@
         "BriefDescription": "Level 2 data cache refill, hardware prefetch."
     },
     {
+        "EventCode": "0x81BE",
+        "EventName": "L3D_CACHE_REFILL_HWPRF",
+        "BriefDescription": "Level 3 data cache refill, hardware prefetch."
+    },
+    {
         "EventCode": "0x81C0",
         "EventName": "L1I_CACHE_HIT_RD",
         "BriefDescription": "Level 1 instruction cache demand fetch hit."
@@ -1713,9 +1738,29 @@
         "BriefDescription": "Level 1 instruction cache demand fetch first hit, fetched by software preload"
     },
     {
+        "EventCode": "0x81DC",
+        "EventName": "L1D_CACHE_HIT_RW_FPRFM",
+        "BriefDescription": "Level 1 data cache demand access first hit, fetched by software prefetch."
+    },
+    {
         "EventCode": "0x81E0",
         "EventName": "L1I_CACHE_HIT_RD_FHWPRF",
         "BriefDescription": "Level 1 instruction cache demand fetch first hit, fetched by hardware prefetcher"
+    },
+    {
+        "EventCode": "0x81EC",
+        "EventName": "L1D_CACHE_HIT_RW_FHWPRF",
+        "BriefDescription": "Level 1 data cache demand access first hit, fetched by hardware prefetcher."
+    },
+    {
+        "EventCode": "0x81F0",
+        "EventName": "L1I_CACHE_HIT_RD_FPRF",
+        "BriefDescription": "Level 1 instruction cache demand fetch first hit, fetched by prefetch."
+    },
+    {
+        "EventCode": "0x81FC",
+        "EventName": "L1D_CACHE_HIT_RW_FPRF",
+        "BriefDescription": "Level 1 data cache demand access first hit, fetched by prefetch."
     },
     {
         "EventCode": "0x8200",
@@ -1768,9 +1813,24 @@
         "BriefDescription": "Level 1 instruction cache demand fetch line-fill buffer first hit, recently fetched by software preload"
     },
     {
+        "EventCode": "0x825C",
+        "EventName": "L1D_LFB_HIT_RW_FPRFM",
+        "BriefDescription": "Level 1 data cache demand access line-fill buffer first hit, recently fetched by software prefetch."
+    },
+    {
         "EventCode": "0x8260",
         "EventName": "L1I_LFB_HIT_RD_FHWPRF",
         "BriefDescription": "Level 1 instruction cache demand fetch line-fill buffer first hit, recently fetched by hardware prefetcher"
+    },
+    {
+        "EventCode": "0x826C",
+        "EventName": "L1D_LFB_HIT_RW_FHWPRF",
+        "BriefDescription": "Level 1 data cache demand access line-fill buffer first hit, recently fetched by hardware prefetcher."
+    },
+    {
+        "EventCode": "0x827C",
+        "EventName": "L1D_LFB_HIT_RW_FPRF",
+        "BriefDescription": "Level 1 data cache demand access line-fill buffer first hit, recently fetched by prefetch."
     },
     {
         "EventCode": "0x8280",
@@ -1806,6 +1866,11 @@
         "EventCode": "0x829A",
         "EventName": "LL_CACHE_REFILL",
         "BriefDescription": "Last level cache refill"
+    },
+    {
+        "EventCode": "0x828E",
+        "EventName": "L3D_CACHE_REFILL_PRF",
+        "BriefDescription": "Level 3 data cache refill, prefetch."
     },
     {
         "EventCode": "0x8320",
@@ -1873,6 +1938,16 @@
         "BriefDescription": "Floating-point operation speculatively_executed, smallest type is 8-bit floating-point."
     },
     {
+        "EventCode": "0x8480",
+        "EventName": "FP_SP_FIXED_MIN_OPS_SPEC",
+        "BriefDescription": "Non-scalable element arithmetic operations speculatively executed, smallest type is single-precision floating-point."
+    },
+    {
+        "EventCode": "0x8482",
+        "EventName": "FP_HP_FIXED_MIN_OPS_SPEC",
+        "BriefDescription": "Non-scalable element arithmetic operations speculatively executed, smallest type is half-precision floating-point."
+    },
+    {
         "EventCode": "0x8483",
         "EventName": "FP_BF16_FIXED_MIN_OPS_SPEC",
         "BriefDescription": "Non-scalable element arithmetic operations speculatively executed, smallest type is BFloat16 floating-point."
@@ -1881,6 +1956,16 @@
         "EventCode": "0x8484",
         "EventName": "FP_FP8_FIXED_MIN_OPS_SPEC",
         "BriefDescription": "Non-scalable element arithmetic operations speculatively executed, smallest type is 8-bit floating-point."
+    },
+    {
+        "EventCode": "0x8488",
+        "EventName": "FP_SP_SCALE_MIN_OPS_SPEC",
+        "BriefDescription": "Scalable element arithmetic operations speculatively executed, smallest type is single-precision floating-point."
+    },
+    {
+        "EventCode": "0x848A",
+        "EventName": "FP_HP_SCALE_MIN_OPS_SPEC",
+        "BriefDescription": "Scalable element arithmetic operations speculatively executed, smallest type is half-precision floating-point."
     },
     {
         "EventCode": "0x848B",

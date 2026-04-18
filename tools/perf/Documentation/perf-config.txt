@@ -210,6 +210,12 @@ core.*::
 		Sets a timeout (in milliseconds) for parsing /proc/<pid>/maps files.
 		Can be overridden by the --proc-map-timeout option on supported
 		subcommands. The default timeout is 500ms.
+	addr2line-disable-warn::
+		When set to 'true' disable all warnings from 'addr2line' output.
+		Default setting is 'false' to show these warnings.
+	addr2line-timeout::
+		Sets a timeout (in milliseconds) for parsing 'addr2line'
+		output.  The default timeout is 5s.
 
 tui.*, gtk.*::
 	Subcommands that can be configured here are 'top', 'report' and 'annotate'.

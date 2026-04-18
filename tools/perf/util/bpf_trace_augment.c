@@ -60,7 +60,7 @@ int augmented_syscalls__create_bpf_output(struct evlist *evlist)
 void augmented_syscalls__setup_bpf_output(void)
 {
 	struct perf_cpu cpu;
-	int i;
+	unsigned int i;
 
 	if (bpf_output == NULL)
 		return;

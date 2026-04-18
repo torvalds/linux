@@ -1,0 +1,45 @@
+[
+    {
+        "ArchStdEvent": "BR_MIS_PRED",
+        "PublicDescription": "This event counts branches which are speculatively executed and mispredicted."
+    },
+    {
+        "ArchStdEvent": "BR_PRED",
+        "PublicDescription": "This event counts all speculatively executed branches."
+    },
+    {
+        "EventCode": "0x017e",
+        "EventName": "BR_PRED_BTB_CTX_UPDATE",
+        "PublicDescription": "Branch context table update."
+    },
+    {
+        "EventCode": "0x0188",
+        "EventName": "BR_MIS_PRED_DIR_RESOLVED",
+        "PublicDescription": "Number of branch misprediction due to direction misprediction."
+    },
+    {
+        "EventCode": "0x0189",
+        "EventName": "BR_MIS_PRED_DIR_UNCOND_RESOLVED",
+        "PublicDescription": "Number of branch misprediction due to direction misprediction for unconditional branches."
+    },
+    {
+        "EventCode": "0x018a",
+        "EventName": "BR_MIS_PRED_DIR_UNCOND_DIRECT_RESOLVED",
+        "PublicDescription": "Number of branch misprediction due to direction misprediction for unconditional direct branches."
+    },
+    {
+        "EventCode": "0x018b",
+        "EventName": "BR_PRED_MULTI_RESOLVED",
+        "PublicDescription": "Number of resolved branch which made prediction by polymorphic indirect predictor."
+    },
+    {
+        "EventCode": "0x018c",
+        "EventName": "BR_MIS_PRED_MULTI_RESOLVED",
+        "PublicDescription": "Number of branch misprediction which made prediction by polymorphic indirect predictor."
+    },
+    {
+        "EventCode": "0x01e4",
+        "EventName": "BR_RGN_RECLAIM",
+        "PublicDescription": "This event counts the Indirect predictor entries flushed by region reclamation."
+    }
+]

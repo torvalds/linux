@@ -1,0 +1,78 @@
+[
+    {
+        "ArchStdEvent": "FP_HP_SPEC",
+        "PublicDescription": "This event counts speculatively executed half precision floating point operations."
+    },
+    {
+        "ArchStdEvent": "FP_SP_SPEC",
+        "PublicDescription": "This event counts speculatively executed single precision floating point operations."
+    },
+    {
+        "ArchStdEvent": "FP_DP_SPEC",
+        "PublicDescription": "This event counts speculatively executed double precision floating point operations."
+    },
+    {
+        "ArchStdEvent": "FP_SCALE_OPS_SPEC",
+        "PublicDescription": "This event counts speculatively executed scalable single precision floating point operations."
+    },
+    {
+        "ArchStdEvent": "FP_FIXED_OPS_SPEC",
+        "PublicDescription": "This event counts speculatively executed non-scalable single precision floating point operations."
+    },
+    {
+        "ArchStdEvent": "FP_HP_SCALE_OPS_SPEC",
+        "PublicDescription": "This event increments by v for each speculatively executed scalable element arithmetic operation, due to an instruction where the largest type was half-precision floating-point, where v is a value such that (v*(VL/128)) is the number of arithmetic operations carried out by the operation or instruction which causes the counter to increment.\nThis event does not count operations that are counted by FP_FIXED_OPS_SPEC or FP_SCALE2_OPS_SPEC."
+    },
+    {
+        "ArchStdEvent": "FP_HP_FIXED_OPS_SPEC",
+        "PublicDescription": "This event increments by v for each speculatively executed non-scalable element arithmetic operation, due to an instruction where the largest type was half-precision floating-point, where v is the number of arithmetic operations carried out by the operation or which instruction causes the event to increment.\nThis event does not count operations that are counted by FP_SCALE_OPS_SPEC or FP_SCALE2_OPS_SPEC."
+    },
+    {
+        "ArchStdEvent": "FP_SP_SCALE_OPS_SPEC",
+        "PublicDescription": "This event increments by v for each speculatively executed scalable element arithmetic operation, due to an instruction where the largest type was single-precision floating-point, where v is a value such that (v*(VL/128)) is the number of arithmetic operations carried out by the operation or instruction which causes the event to increment.\nThis event does not count operations that are counted by FP_FIXED_OPS_SPEC or FP_SCALE2_OPS_SPEC."
+    },
+    {
+        "ArchStdEvent": "FP_SP_FIXED_OPS_SPEC",
+        "PublicDescription": "This event increments by v for each speculatively executed non-scalable element arithmetic operation, due to an instruction where the largest type was single-precision floating-point, where v is the number of arithmetic operations carried out by the operation or instruction which causes the event to increment.\nThis event does not count operations that are counted by FP_SCALE_OPS_SPEC or FP_SCALE2_OPS_SPEC."
+    },
+    {
+        "ArchStdEvent": "FP_DP_SCALE_OPS_SPEC",
+        "PublicDescription": "This event increments by v for each speculatively executed scalable element arithmetic operation, due to an instruction where the largest type was double-precision floating-point, where v is a value such that (v*(VL/128)) is the number of arithmetic operations carried out by the operation or instruction which causes the event to increment.\nThis event does not count operations that are counted by FP_FIXED_OPS_SPEC or FP_SCALE2_OPS_SPEC."
+    },
+    {
+        "ArchStdEvent": "FP_DP_FIXED_OPS_SPEC",
+        "PublicDescription": "This event increments by v for each speculatively executed non-scalable element arithmetic operation, due to an instruction where the largest type was double-precision floating-point, where v is the number of arithmetic operations carried out by the operation or instruction which causes the event to increment.\nThis event does not count operations that are counted by FP_SCALE_OPS_SPEC or FP_SCALE2_OPS_SPEC."
+    },
+    {
+        "ArchStdEvent": "FP_SP_FIXED_MIN_OPS_SPEC",
+        "PublicDescription": "This event increments by v for each speculatively executed non-scalable element arithmetic operation, due to an instruction where the smallest type was single-precision floating-point, where v is the number of arithmetic operations carried out by the operation or instruction which causes the event to increment.\nThis event does not count operations that are counted by FP_SCALE_OPS_SPEC or FP_SCALE2_OPS_SPEC."
+    },
+    {
+        "ArchStdEvent": "FP_HP_FIXED_MIN_OPS_SPEC",
+        "PublicDescription": "This event increments by v for each speculatively executed non-scalable element arithmetic operation, due to an instruction where the smallest type was half-precision floating-point, where v is the number of arithmetic operations carried out by the operation or instruction which causes the event to increment.\nThis event does not count operations that are counted by FP_SCALE_OPS_SPEC or FP_SCALE2_OPS_SPEC."
+    },
+    {
+        "ArchStdEvent": "FP_BF16_FIXED_MIN_OPS_SPEC",
+        "PublicDescription": "This event increments by v for each speculatively executed non-scalable element arithmetic operation, due to an instruction where the smallest type was BFloat16 floating-point. Where v is the number of arithmetic operations carried out by the operation or instruction which causes the event to increment. This event does not count operations that are counted by FP_SCALE_OPS_SPEC or FP_SCALE2_OPS_SPEC."
+    },
+    {
+        "ArchStdEvent": "FP_FP8_FIXED_MIN_OPS_SPEC",
+        "PublicDescription": "This event increments by v for each speculatively executed non-scalable element arithmetic operation, due to an instruction where the smallest type was 8-bit floating-point, where v is the number of arithmetic operations carried out by the operation or instruction which causes the event to increment.\nThis event does not count operations that are counted by FP_SCALE_OPS_SPEC or FP_SCALE2_OPS_SPEC."
+    },
+    {
+        "ArchStdEvent": "FP_SP_SCALE_MIN_OPS_SPEC",
+        "PublicDescription": "This event increments by v for each speculatively executed scalable element arithmetic operation, due to an instruction where the smallest type was single-precision floating-point, where v is a value such that (v*(VL/128)) is the number of arithmetic operations carried out by the operation or instruction which causes the event to increment.\nThis event does not count operations that are counted by FP_FIXED_OPS_SPEC or FP_SCALE2_OPS_SPEC."
+    },
+    {
+        "ArchStdEvent": "FP_HP_SCALE_MIN_OPS_SPEC",
+        "PublicDescription": "This event increments by v for each speculatively executed scalable element arithmetic operation, due to an instruction where the smallest type was half-precision floating-point, where v is a value such that (v*(VL/128)) is the number of arithmetic operations carried out by the operation or instruction which causes the event to increment.\nThis event does not count operations that are counted by FP_FIXED_OPS_SPEC or FP_SCALE2_OPS_SPEC."
+    },
+    {
+        "ArchStdEvent": "FP_BF16_SCALE_MIN_OPS_SPEC",
+        "PublicDescription": "This event increments by v for each speculatively executed scalable element arithmetic operation, due to an instruction where the smallest type was BFloat16 floating-point, where v is a value such that (v*(VL/128)) is the number of arithmetic operations carried out by the operation or instruction which causes the event to increment.\nThis event does not count operations that are counted by FP_FIXED_OPS_SPEC or FP_SCALE2_OPS_SPEC."
+    },
+    {
+        "ArchStdEvent": "FP_FP8_SCALE_MIN_OPS_SPEC",
+        "PublicDescription": "This event increments by v for each speculatively executed scalable element arithmetic operation, due to an instruction where the smallest type was 8-bit floating-point, where v is a value such that (v*(VL/128)) is the number of arithmetic operations carried out by the operation or instruction which causes the event to increment.\nThis event does not count operations that are counted by FP_FIXED_OPS_SPEC or FP_SCALE2_OPS_SPEC."
+    }
+]

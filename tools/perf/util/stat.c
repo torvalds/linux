@@ -246,9 +246,11 @@ void evlist__reset_prev_raw_counts(struct evlist *evlist)
 
 static void evsel__copy_prev_raw_counts(struct evsel *evsel)
 {
-	int idx, nthreads = perf_thread_map__nr(evsel->core.threads);
+	int nthreads = perf_thread_map__nr(evsel->core.threads);
 
 	for (int thread = 0; thread < nthreads; thread++) {
+		unsigned int idx;
+
 		perf_cpu_map__for_each_idx(idx, evsel__cpus(evsel)) {
 			*perf_counts(evsel->counts, idx, thread) =
 				*perf_counts(evsel->prev_raw_counts, idx, thread);
@@ -580,7 +582,7 @@ static void evsel__update_percore_stats(struct evsel *evsel, struct aggr_cpu_id 
 	struct perf_counts_values counts = { 0, };
 	struct aggr_cpu_id id;
 	struct perf_cpu cpu;
-	int idx;
+	unsigned int idx;
 
 	/* collect per-core counts */
 	perf_cpu_map__for_each_cpu(cpu, idx, evsel->core.cpus) {
@@ -617,7 +619,7 @@ static void evsel__process_percore(struct evsel *evsel)
 	struct perf_stat_evsel *ps = evsel->stats;
 	struct aggr_cpu_id core_id;
 	struct perf_cpu cpu;
-	int idx;
+	unsigned int idx;
 
 	if (!evsel->percore)
 		return;

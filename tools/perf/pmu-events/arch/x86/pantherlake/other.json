@@ -31,6 +31,16 @@
         "Unit": "cpu_core"
     },
     {
+        "BriefDescription": "Counts the total number of BTCLEARS.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xe8",
+        "EventName": "PREDICTION.BTCLEAR",
+        "PublicDescription": "Counts the total number of BTCLEARS which occurs when the Branch Target Buffer (BTB) predicts a taken branch.",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Cycles the uncore cannot take further requests",
         "Counter": "0,1,2,3,4,5,6,7,8,9",
         "CounterMask": "1",

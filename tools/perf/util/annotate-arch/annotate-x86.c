@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <string.h>
 #include <linux/compiler.h>
+#include <linux/zalloc.h>
 #include <assert.h>
 #include <inttypes.h>
 #include "../annotate-data.h"
@@ -204,6 +205,15 @@ static int x86__cpuid_parse(struct arch *arch, const char *cpuid)
 }
 
 #ifdef HAVE_LIBDW_SUPPORT
+static void invalidate_reg_state(struct type_state_reg *reg)
+{
+	reg->kind = TSR_KIND_INVALID;
+	reg->ok = false;
+	reg->lifetime_active = false;
+	reg->lifetime_end = 0;
+	reg->copied_from = -1;
+}
+
 static void update_insn_state_x86(struct type_state *state,
 				  struct data_loc_info *dloc, Dwarf_Die *cu_die,
 				  struct disasm_line *dl)
@@ -222,24 +232,40 @@ static void update_insn_state_x86(struct type_state *state,
 
 	if (ins__is_call(&dl->ins)) {
 		struct symbol *func = dl->ops.target.sym;
+		const char *call_name;
+		u64 call_addr;
 
-		if (func == NULL)
-			return;
+		/* Try to resolve the call target name */
+		if (func)
+			call_name = func->name;
+		else
+			call_name = dl->ops.target.name;
 
 		/* __fentry__ will preserve all registers */
-		if (!strcmp(func->name, "__fentry__"))
+		if (call_name && !strcmp(call_name, "__fentry__"))
 			return;
 
-		pr_debug_dtp("call [%x] %s\n", insn_offset, func->name);
+		if (call_name)
+			pr_debug_dtp("call [%x] %s\n", insn_offset, call_name);
+		else
+			pr_debug_dtp("call [%x] <unknown>\n", insn_offset);
 
-		/* Otherwise invalidate caller-saved registers after call */
+		/* Invalidate caller-saved registers after call */
+		call_addr = map__rip_2objdump(dloc->ms->map,
+					      dloc->ms->sym->start + dl->al.offset);
 		for (unsigned i = 0; i < ARRAY_SIZE(state->regs); i++) {
-			if (state->regs[i].caller_saved)
-				state->regs[i].ok = false;
+			struct type_state_reg *reg = &state->regs[i];
+
+			if (!reg->caller_saved)
+				continue;
+			/* Keep register valid within DWARF location lifetime */
+			if (reg->lifetime_active && call_addr < reg->lifetime_end)
+				continue;
+			invalidate_reg_state(reg);
 		}
 
 		/* Update register with the return type (if any) */
-		if (die_find_func_rettype(cu_die, func->name, &type_die)) {
+		if (call_name && die_find_func_rettype(cu_die, call_name, &type_die)) {
 			tsr = &state->regs[state->ret_reg];
 			tsr->type = type_die;
 			tsr->kind = TSR_KIND_TYPE;
@@ -265,6 +291,8 @@ static void update_insn_state_x86(struct type_state *state,
 
 		tsr = &state->regs[dst->reg1];
 		tsr->copied_from = -1;
+		tsr->lifetime_active = false;
+		tsr->lifetime_end = 0;
 
 		if (src->imm)
 			imm_value = src->offset;
@@ -330,6 +358,8 @@ static void update_insn_state_x86(struct type_state *state,
 
 		tsr = &state->regs[dst->reg1];
 		tsr->copied_from = -1;
+		tsr->lifetime_active = false;
+		tsr->lifetime_end = 0;
 
 		if (src->imm)
 			imm_value = src->offset;
@@ -364,8 +394,7 @@ static void update_insn_state_x86(struct type_state *state,
 		src_tsr = state->regs[sreg];
 		tsr = &state->regs[dst->reg1];
 
-		tsr->copied_from = -1;
-		tsr->ok = false;
+		invalidate_reg_state(tsr);
 
 		/* Case 1: Based on stack pointer or frame pointer */
 		if (sreg == fbreg || sreg == state->stack_reg) {
@@ -433,8 +462,7 @@ static void update_insn_state_x86(struct type_state *state,
 		    !strncmp(dl->ins.name, "inc", 3)  || !strncmp(dl->ins.name, "dec", 3)) {
 			pr_debug_dtp("%s [%x] invalidate reg%d\n",
 						dl->ins.name, insn_offset, dst->reg1);
-			state->regs[dst->reg1].ok = false;
-			state->regs[dst->reg1].copied_from = -1;
+			invalidate_reg_state(&state->regs[dst->reg1]);
 			return;
 		}
 
@@ -446,6 +474,8 @@ static void update_insn_state_x86(struct type_state *state,
 			state->regs[dst->reg1].kind = TSR_KIND_CONST;
 			state->regs[dst->reg1].imm_value = 0;
 			state->regs[dst->reg1].ok = true;
+			state->regs[dst->reg1].lifetime_active = false;
+			state->regs[dst->reg1].lifetime_end = 0;
 			state->regs[dst->reg1].copied_from = -1;
 			return;
 		}
@@ -496,7 +526,7 @@ static void update_insn_state_x86(struct type_state *state,
 			if (!get_global_var_type(cu_die, dloc, ip, var_addr,
 						 &offset, &type_die) ||
 			    !die_get_member_type(&type_die, offset, &type_die)) {
-				tsr->ok = false;
+				invalidate_reg_state(tsr);
 				return;
 			}
 
@@ -524,7 +554,7 @@ static void update_insn_state_x86(struct type_state *state,
 
 		if (!has_reg_type(state, src->reg1) ||
 		    !state->regs[src->reg1].ok) {
-			tsr->ok = false;
+			invalidate_reg_state(tsr);
 			return;
 		}
 
@@ -532,6 +562,8 @@ static void update_insn_state_x86(struct type_state *state,
 		tsr->kind = state->regs[src->reg1].kind;
 		tsr->imm_value = state->regs[src->reg1].imm_value;
 		tsr->offset = state->regs[src->reg1].offset;
+		tsr->lifetime_active = state->regs[src->reg1].lifetime_active;
+		tsr->lifetime_end = state->regs[src->reg1].lifetime_end;
 		tsr->ok = true;
 
 		/* To copy back the variable type later (hopefully) */
@@ -560,7 +592,7 @@ retry:
 
 			stack = find_stack_state(state, offset);
 			if (stack == NULL) {
-				tsr->ok = false;
+				invalidate_reg_state(tsr);
 				return;
 			} else if (!stack->compound) {
 				tsr->type = stack->type;
@@ -575,7 +607,7 @@ retry:
 				tsr->offset = 0;
 				tsr->ok = true;
 			} else {
-				tsr->ok = false;
+				invalidate_reg_state(tsr);
 				return;
 			}
 
@@ -628,7 +660,7 @@ retry:
 			if (!get_global_var_type(cu_die, dloc, ip, addr, &offset,
 						 &type_die) ||
 			    !die_get_member_type(&type_die, offset, &type_die)) {
-				tsr->ok = false;
+				invalidate_reg_state(tsr);
 				return;
 			}
 
@@ -679,7 +711,7 @@ retry:
 				}
 				pr_debug_type_name(&tsr->type, tsr->kind);
 			} else {
-				tsr->ok = false;
+				invalidate_reg_state(tsr);
 			}
 		}
 		/* And then dereference the calculated pointer if it has one */
@@ -721,7 +753,7 @@ retry:
 				}
 			}
 
-			tsr->ok = false;
+			invalidate_reg_state(tsr);
 		}
 	}
 	/* Case 3. register to memory transfers */

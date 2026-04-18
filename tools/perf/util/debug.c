@@ -48,7 +48,7 @@ int debug_ordered_events;
 static int redirect_to_stderr;
 int debug_data_convert;
 static FILE *_debug_file;
-bool debug_display_time;
+static bool debug_display_time;
 int debug_type_profile;
 
 FILE *debug_file(void)

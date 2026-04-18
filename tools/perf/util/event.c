@@ -12,7 +12,6 @@
 #include <unistd.h>
 #include <uapi/linux/mman.h> /* To get things like MAP_HUGETLB even on older libc headers */
 #include <linux/perf_event.h>
-#include <linux/zalloc.h>
 #include "cpumap.h"
 #include "dso.h"
 #include "event.h"

@@ -2405,7 +2405,7 @@ static int init_idle_threads(int ncpu)
 {
 	int i, ret;
 
-	idle_threads = zalloc(ncpu * sizeof(struct thread *));
+	idle_threads = calloc(ncpu, sizeof(struct thread *));
 	if (!idle_threads)
 		return -ENOMEM;
 
@@ -3483,7 +3483,7 @@ static int setup_cpus_switch_event(struct perf_sched *sched)
 	if (!sched->cpu_last_switched)
 		return -1;
 
-	sched->curr_pid = malloc(MAX_CPUS * sizeof(*(sched->curr_pid)));
+	sched->curr_pid = calloc(MAX_CPUS, sizeof(*(sched->curr_pid)));
 	if (!sched->curr_pid) {
 		zfree(&sched->cpu_last_switched);
 		return -1;
@@ -3559,7 +3559,7 @@ static int setup_map_cpus(struct perf_sched *sched)
 	sched->max_cpu.cpu  = sysconf(_SC_NPROCESSORS_CONF);
 
 	if (sched->map.comp) {
-		sched->map.comp_cpus = zalloc(sched->max_cpu.cpu * sizeof(int));
+		sched->map.comp_cpus = calloc(sched->max_cpu.cpu, sizeof(int));
 		if (!sched->map.comp_cpus)
 			return -1;
 	}
@@ -4879,8 +4879,8 @@ int cmd_sched(int argc, const char **argv)
 		    "Display call chains if present (default on)"),
 	OPT_UINTEGER(0, "max-stack", &sched.max_stack,
 		   "Maximum number of functions to display backtrace."),
-	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
-		    "Look for files with symbols relative to this directory"),
+	OPT_CALLBACK(0, "symfs", NULL, "directory[,layout]", SYMFS_HELP,
+		     symbol__config_symfs),
 	OPT_BOOLEAN('s', "summary", &sched.summary_only,
 		    "Show only syscall summary with statistics"),
 	OPT_BOOLEAN('S', "with-summary", &sched.summary,
@@ -4955,6 +4955,7 @@ int cmd_sched(int argc, const char **argv)
 		.switch_event	    = replay_switch_event,
 		.fork_event	    = replay_fork_event,
 	};
+	struct trace_sched_handler stats_ops  = {};
 	int ret;
 
 	perf_tool__init(&sched.tool, /*ordered_events=*/true);
@@ -5037,6 +5038,7 @@ int cmd_sched(int argc, const char **argv)
 	} else if (!strcmp(argv[0], "stats")) {
 		const char *const stats_subcommands[] = {"record", "report", NULL};
 
+		sched.tp_handler = &stats_ops;
 		argc = parse_options_subcommand(argc, argv, stats_options,
 						stats_subcommands,
 						stats_usage,

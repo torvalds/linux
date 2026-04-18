@@ -59,7 +59,7 @@ int mem2node__init(struct mem2node *map, struct perf_env *env)
 		max += bitmap_weight(n->set, n->size);
 	}
 
-	entries = zalloc(sizeof(*entries) * max);
+	entries = calloc(max, sizeof(*entries));
 	if (!entries)
 		return -ENOMEM;
 

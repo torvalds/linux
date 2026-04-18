@@ -77,8 +77,6 @@ bool sysctl__nmi_watchdog_enabled(void)
 	return nmi_watchdog;
 }
 
-bool test_attr__enabled;
-
 bool exclude_GH_default;
 
 bool perf_host  = true;
@@ -547,3 +545,11 @@ int scandirat(int dirfd, const char *dirp,
 	return err;
 }
 #endif
+
+/* basename version that takes a const input string */
+const char *perf_basename(const char *path)
+{
+	const char *base = strrchr(path, '/');
+
+	return base ? base + 1 : path;
+}

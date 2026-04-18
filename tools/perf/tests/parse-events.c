@@ -1796,31 +1796,38 @@ static bool test__acr_valid(void)
 
 static int test__ratio_to_prev(struct evlist *evlist)
 {
-	struct evsel *evsel;
+	struct evsel *evsel, *leader;
 
 	TEST_ASSERT_VAL("wrong number of entries", 2 * perf_pmus__num_core_pmus() == evlist->core.nr_entries);
 
-	 evlist__for_each_entry(evlist, evsel) {
-		if (!perf_pmu__has_format(evsel->pmu, "acr_mask"))
-			return TEST_OK;
-
-		if (evsel == evlist__first(evlist)) {
-			TEST_ASSERT_VAL("wrong config2", 0 == evsel->core.attr.config2);
-			TEST_ASSERT_VAL("wrong leader", evsel__is_group_leader(evsel));
-			TEST_ASSERT_VAL("wrong core.nr_members", evsel->core.nr_members == 2);
-			TEST_ASSERT_VAL("wrong group_idx", evsel__group_idx(evsel) == 0);
-			TEST_ASSERT_EVSEL("unexpected event",
-					evsel__match(evsel, HARDWARE, HW_CPU_CYCLES),
-					evsel);
-		} else {
-			TEST_ASSERT_VAL("wrong config2", 0 == evsel->core.attr.config2);
-			TEST_ASSERT_VAL("wrong leader", !evsel__is_group_leader(evsel));
-			TEST_ASSERT_VAL("wrong core.nr_members", evsel->core.nr_members == 0);
-			TEST_ASSERT_VAL("wrong group_idx", evsel__group_idx(evsel) == 1);
-			TEST_ASSERT_EVSEL("unexpected event",
-					evsel__match(evsel, HARDWARE, HW_INSTRUCTIONS),
-					evsel);
+	evlist__for_each_entry(evlist, evsel) {
+		if (evsel != evsel__leader(evsel) ||
+		    !perf_pmu__has_format(evsel->pmu, "acr_mask")) {
+			continue;
 		}
+		leader = evsel;
+		/* cycles */
+		TEST_ASSERT_VAL("wrong config2", 0 == leader->core.attr.config2);
+		TEST_ASSERT_VAL("wrong core.nr_members", leader->core.nr_members == 2);
+		TEST_ASSERT_VAL("wrong group_idx", evsel__group_idx(leader) == 0);
+		TEST_ASSERT_EVSEL("unexpected event",
+				  evsel__match(leader, HARDWARE, HW_CPU_CYCLES),
+				  leader);
+		/*
+		 * The period value gets configured within evlist__config,
+		 * while this test executes only parse events method.
+		 */
+		TEST_ASSERT_VAL("wrong period", 0 == leader->core.attr.sample_period);
+
+		 /* instructions/period=200000,ratio-to-prev=2.0/ */
+		evsel = evsel__next(evsel);
+		TEST_ASSERT_VAL("wrong config2", 0 == evsel->core.attr.config2);
+		TEST_ASSERT_VAL("wrong leader", evsel__has_leader(evsel, leader));
+		TEST_ASSERT_VAL("wrong core.nr_members", evsel->core.nr_members == 0);
+		TEST_ASSERT_VAL("wrong group_idx", evsel__group_idx(evsel) == 1);
+		TEST_ASSERT_EVSEL("unexpected event",
+				  evsel__match(evsel, HARDWARE, HW_INSTRUCTIONS),
+				  evsel);
 		/*
 		 * The period value gets configured within evlist__config,
 		 * while this test executes only parse events method.

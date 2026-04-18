@@ -8,8 +8,6 @@ struct dso;
 struct inline_node;
 struct symbol;
 
-extern int addr2line_timeout_ms;
-
 int cmd__addr2line(const char *dso_name, u64 addr,
 		   char **file, unsigned int *line_nr,
 		   struct dso *dso,

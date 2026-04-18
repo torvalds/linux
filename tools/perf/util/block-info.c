@@ -303,7 +303,7 @@ static int block_range_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	char buf[128];
 	char *start_line, *end_line;
 
-	symbol_conf.disable_add2line_warn = true;
+	symbol_conf.addr2line_disable_warn = true;
 
 	start_line = map__srcline(he->ms.map, bi->sym->start + bi->start,
 				  he->ms.sym);

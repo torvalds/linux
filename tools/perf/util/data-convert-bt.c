@@ -1181,6 +1181,10 @@ static int add_event(struct ctf_writer *cw, struct evsel *evsel)
 	const char *name = evsel__name(evsel);
 	int ret;
 
+	if (evsel->priv) {
+		pr_err("Error: attempt to add already added event %s\n", name);
+		return -1;
+	}
 	pr("Adding event '%s' (type %d)\n", name, evsel->core.attr.type);
 
 	event_class = bt_ctf_event_class_create(name);
@@ -1223,13 +1227,28 @@ err:
 	return -1;
 }
 
-static int setup_events(struct ctf_writer *cw, struct perf_session *session)
+enum setup_events_type {
+	SETUP_EVENTS_ALL,
+	SETUP_EVENTS_NOT_TRACEPOINT,
+	SETUP_EVENTS_TRACEPOINT_ONLY,
+};
+
+static int setup_events(struct ctf_writer *cw, struct perf_session *session,
+			enum setup_events_type type)
 {
 	struct evlist *evlist = session->evlist;
 	struct evsel *evsel;
 	int ret;
 
 	evlist__for_each_entry(evlist, evsel) {
+		bool is_tracepoint = evsel->core.attr.type == PERF_TYPE_TRACEPOINT;
+
+		if (is_tracepoint && type == SETUP_EVENTS_NOT_TRACEPOINT)
+			continue;
+
+		if (!is_tracepoint && type == SETUP_EVENTS_TRACEPOINT_ONLY)
+			continue;
+
 		ret = add_event(cw, evsel);
 		if (ret)
 			return ret;
@@ -1360,7 +1379,7 @@ static int setup_streams(struct ctf_writer *cw, struct perf_session *session)
 	 */
 	ncpus = env->nr_cpus_avail ?: MAX_CPUS;
 
-	stream = zalloc(sizeof(*stream) * ncpus);
+	stream = calloc(ncpus, sizeof(*stream));
 	if (!stream) {
 		pr_err("Failed to allocate streams.\n");
 		return -ENOMEM;
@@ -1412,15 +1431,24 @@ static int process_feature_event(const struct perf_tool *tool,
 	struct convert *c = container_of(tool, struct convert, tool);
 	struct ctf_writer *cw = &c->writer;
 	struct perf_record_header_feature *fe = &event->feat;
+	int ret = perf_event__process_feature(tool, session, event);
 
-	if (event->feat.feat_id < HEADER_LAST_FEATURE) {
-		int ret = perf_event__process_feature(session, event);
-
-		if (ret)
-			return ret;
-	}
+	if (ret)
+		return ret;
 
 	switch (fe->feat_id) {
+	case HEADER_EVENT_DESC:
+		/*
+		 * In non-pipe mode (not here) the evsels combine the desc with
+		 * the perf_event_attr when it is parsed. In pipe mode the
+		 * perf_event_attr events appear first and then the event desc
+		 * feature events that set the names appear after. Once we have
+		 * the full evsel data we can generate the babeltrace
+		 * events. For tracepoint events we still don't have the tracing
+		 * data and so need to wait until the tracing data event to add
+		 * those events to babeltrace.
+		 */
+		return setup_events(cw, session, SETUP_EVENTS_NOT_TRACEPOINT);
 	case HEADER_HOSTNAME:
 		if (session->header.env.hostname) {
 			return bt_ctf_writer_add_environment_field(cw->writer, "host",
@@ -1449,6 +1477,26 @@ static int process_feature_event(const struct perf_tool *tool,
 		break;
 	}
 	return 0;
+}
+
+static int process_tracing_data(const struct perf_tool *tool,
+				struct perf_session *session,
+				union perf_event *event)
+{
+	struct convert *c = container_of(tool, struct convert, tool);
+	struct ctf_writer *cw = &c->writer;
+	int ret;
+
+	ret = perf_event__process_tracing_data(tool, session, event);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * Now the attr was set up by the attr event, the name by the feature
+	 * event desc event and the tracepoint data set up above, the tracepoint
+	 * babeltrace events can be added.
+	 */
+	return setup_events(cw, session, SETUP_EVENTS_TRACEPOINT_ONLY);
 }
 
 static int ctf_writer__setup_clock(struct ctf_writer *cw,
@@ -1680,9 +1728,10 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 	c.tool.exit            = perf_event__process_exit;
 	c.tool.fork            = perf_event__process_fork;
 	c.tool.lost            = perf_event__process_lost;
-	c.tool.tracing_data    = perf_event__process_tracing_data;
+	c.tool.tracing_data    = process_tracing_data;
 	c.tool.build_id        = perf_event__process_build_id;
 	c.tool.namespaces      = perf_event__process_namespaces;
+	c.tool.finished_round  = perf_event__process_finished_round;
 	c.tool.attr            = perf_event__process_attr;
 	c.tool.feature         = process_feature_event;
 	c.tool.ordering_requires_timestamps = true;
@@ -1727,8 +1776,11 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 	if (ctf_writer__setup_env(cw, session))
 		goto free_writer;
 
-	/* CTF events setup */
-	if (setup_events(cw, session))
+	/*
+	 * CTF events setup. Note, in pipe mode no events exist yet (they come
+	 * in via header feature events) and so this does nothing.
+	 */
+	if (setup_events(cw, session, SETUP_EVENTS_ALL))
 		goto free_writer;
 
 	if (opts->all && setup_non_sample_events(cw, session))

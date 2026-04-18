@@ -22,11 +22,11 @@ do {                                            \
 
 #ifdef __i386__
 /* Only breakpoint length less-than 8 has hardware support on i386. */
-volatile u32 data1;
+static volatile u32 data1;
 #else
-volatile u64 data1;
+static volatile u64 data1;
 #endif
-volatile u8 data2[3];
+static volatile u8 data2[3];
 
 #ifndef __s390x__
 static int wp_read(int fd, long long *count, int size)

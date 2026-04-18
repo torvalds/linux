@@ -60,6 +60,8 @@ Dwarf_Die *die_get_type(Dwarf_Die *vr_die, Dwarf_Die *die_mem);
 Dwarf_Die *__die_get_real_type(Dwarf_Die *vr_die, Dwarf_Die *die_mem);
 /* Get a type die, but skip qualifiers and typedef */
 Dwarf_Die *die_get_real_type(Dwarf_Die *vr_die, Dwarf_Die *die_mem);
+/* Get a pointer/array type, following typedefs/qualifiers */
+Dwarf_Die *die_get_pointer_type(Dwarf_Die *type_die, Dwarf_Die *die_mem);
 
 /* Check whether the DIE is signed or not */
 bool die_is_signed_type(Dwarf_Die *tp_die);
@@ -146,10 +148,12 @@ struct die_var_type {
 	struct die_var_type *next;
 	u64 die_off;
 	u64 addr;
+	u64 end;        /* end address of location range */
 	int reg;
 	int offset;
 	/* Whether the register holds a address to the type */
 	bool is_reg_var_addr;
+	bool has_range; /* whether end is valid */
 };
 
 /* Return type info of a member at offset */
@@ -163,12 +167,13 @@ int die_get_var_range(Dwarf_Die *sp_die, Dwarf_Die *vr_die, struct strbuf *buf);
 
 /* Find a variable saved in the 'reg' at given address */
 Dwarf_Die *die_find_variable_by_reg(Dwarf_Die *sc_die, Dwarf_Addr pc, int reg,
-				    int *poffset, bool is_fbreg,
+				    Dwarf_Die *type_die, int *poffset, bool is_fbreg,
 				    Dwarf_Die *die_mem);
 
 /* Find a (global) variable located in the 'addr' */
 Dwarf_Die *die_find_variable_by_addr(Dwarf_Die *sc_die, Dwarf_Addr addr,
-				     Dwarf_Die *die_mem, int *offset);
+				     Dwarf_Die *die_mem, Dwarf_Die *type_die,
+				     int *offset);
 
 /* Save all variables and parameters in this scope */
 void die_collect_vars(Dwarf_Die *sc_die, struct die_var_type **var_types);

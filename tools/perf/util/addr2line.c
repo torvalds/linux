@@ -18,9 +18,6 @@
 
 #define MAX_INLINE_NEST 1024
 
-/* If addr2line doesn't return data for 5 seconds then timeout. */
-int addr2line_timeout_ms = 5 * 1000;
-
 static int filename_split(char *filename, unsigned int *line_nr)
 {
 	char *sep;
@@ -123,7 +120,7 @@ static enum cmd_a2l_style cmd_addr2line_configure(struct child_process *a2l, con
 			lines = 3;
 			pr_debug3("Detected binutils addr2line style\n");
 		} else {
-			if (!symbol_conf.disable_add2line_warn) {
+			if (!symbol_conf.addr2line_disable_warn) {
 				char *output = NULL;
 				size_t output_len;
 
@@ -310,7 +307,7 @@ int cmd__addr2line(const char *dso_name, u64 addr,
 	}
 
 	if (a2l == NULL) {
-		if (!symbol_conf.disable_add2line_warn)
+		if (!symbol_conf.addr2line_disable_warn)
 			pr_warning("%s %s: addr2line_subprocess_init failed\n", __func__, dso_name);
 		goto out;
 	}
@@ -330,16 +327,16 @@ int cmd__addr2line(const char *dso_name, u64 addr,
 	len = snprintf(buf, sizeof(buf), "%016"PRIx64"\n,\n", addr);
 	written = len > 0 ? write(a2l->in, buf, len) : -1;
 	if (written != len) {
-		if (!symbol_conf.disable_add2line_warn)
+		if (!symbol_conf.addr2line_disable_warn)
 			pr_warning("%s %s: could not send request\n", __func__, dso_name);
 		goto out;
 	}
 	io__init(&io, a2l->out, buf, sizeof(buf));
-	io.timeout_ms = addr2line_timeout_ms;
+	io.timeout_ms = symbol_conf.addr2line_timeout_ms;
 	switch (read_addr2line_record(&io, cmd_a2l_style, dso_name, addr, /*first=*/true,
 				      &record_function, &record_filename, &record_line_nr)) {
 	case -1:
-		if (!symbol_conf.disable_add2line_warn)
+		if (!symbol_conf.addr2line_disable_warn)
 			pr_warning("%s %s: could not read first record\n", __func__, dso_name);
 		goto out;
 	case 0:
@@ -355,7 +352,7 @@ int cmd__addr2line(const char *dso_name, u64 addr,
 					      /*addr=*/1, /*first=*/true,
 					      NULL, NULL, NULL)) {
 		case -1:
-			if (!symbol_conf.disable_add2line_warn)
+			if (!symbol_conf.addr2line_disable_warn)
 				pr_warning("%s %s: could not read sentinel record\n",
 					   __func__, dso_name);
 			break;
@@ -363,7 +360,7 @@ int cmd__addr2line(const char *dso_name, u64 addr,
 			/* The sentinel as expected. */
 			break;
 		default:
-			if (!symbol_conf.disable_add2line_warn)
+			if (!symbol_conf.addr2line_disable_warn)
 				pr_warning("%s %s: unexpected record instead of sentinel",
 					   __func__, dso_name);
 			break;

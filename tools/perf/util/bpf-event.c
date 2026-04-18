@@ -349,7 +349,7 @@ static struct bpf_metadata *bpf_metadata_alloc(__u32 nr_prog_tags,
 	if (!metadata)
 		return NULL;
 
-	metadata->prog_names = zalloc(nr_prog_tags * sizeof(char *));
+	metadata->prog_names = calloc(nr_prog_tags, sizeof(char *));
 	if (!metadata->prog_names) {
 		bpf_metadata_free(metadata);
 		return NULL;

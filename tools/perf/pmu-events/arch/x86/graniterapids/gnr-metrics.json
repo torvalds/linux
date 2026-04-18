@@ -144,6 +144,12 @@
         "ScaleUnit": "100%"
     },
     {
+        "BriefDescription": "The number of times per second that ownership of a cacheline was stolen from the integrated IO controller before it was able to write back the modified line",
+        "MetricExpr": "(UNC_I_MISC1.LOST_FWD + UNC_I_MISC1.SEC_RCVD_INVLD) / duration_time",
+        "MetricName": "io_lost_fwd",
+        "ScaleUnit": "1per_sec"
+    },
+    {
         "BriefDescription": "Message Signaled Interrupts (MSI) per second sent by the integrated I/O traffic controller (IIO) to System Configuration Controller (Ubox)",
         "MetricExpr": "UNC_IIO_NUM_REQ_OF_CPU_BY_TGT.UBOX_POSTED / duration_time",
         "MetricName": "io_msi",
@@ -293,6 +299,27 @@
         "MetricExpr": "(UNC_M_CAS_COUNT_SCH0.WR + UNC_M_CAS_COUNT_SCH1.WR) * 64 / 1e6 / duration_time",
         "MetricName": "memory_bandwidth_write",
         "ScaleUnit": "1MB/s"
+    },
+    {
+        "BriefDescription": "All reads to the local sub-numa cluster cache as a percentage of total memory read accesses",
+        "MetricExpr": "(L2_LINES_IN.ALL - (OCR.READS_TO_CORE.SNC_CACHE.HITM + OCR.READS_TO_CORE.SNC_CACHE.HIT_WITH_FWD + OCR.READS_TO_CORE.REMOTE_CACHE.SNOOP_FWD + OCR.READS_TO_CORE.REMOTE_MEMORY + OCR.READS_TO_CORE.L3_MISS_LOCAL)) / L2_LINES_IN.ALL",
+        "MetricName": "numa_percent_all_reads_to_local_cluster_cache",
+        "PublicDescription": "All reads to the local sub-numa cluster cache as a percentage of total memory read accesses. Includes demand and prefetch requests for data reads, code reads, read for ownerships (RFO), does not include LLC prefetches",
+        "ScaleUnit": "100%"
+    },
+    {
+        "BriefDescription": "All reads to the local sub-numa cluster memory as a percentage of total memory read accesses",
+        "MetricExpr": "OCR.READS_TO_CORE.L3_MISS_LOCAL / L2_LINES_IN.ALL",
+        "MetricName": "numa_percent_all_reads_to_local_cluster_memory",
+        "PublicDescription": "All reads to the local sub-numa cluster memory as a percentage of total memory read accesses. Includes demand and prefetch requests for data reads, code reads, read for ownerships (RFO), does not include LLC prefetches",
+        "ScaleUnit": "100%"
+    },
+    {
+        "BriefDescription": "All reads to a remote sub-numa cluster cache as a percentage of total memory read accesses",
+        "MetricExpr": "(OCR.READS_TO_CORE.SNC_CACHE.HIT_WITH_FWD + OCR.READS_TO_CORE.SNC_CACHE.HITM) / L2_LINES_IN.ALL",
+        "MetricName": "numa_percent_all_reads_to_remote_cluster_cache",
+        "PublicDescription": "All reads to a remote sub-numa cluster cache as a percentage of total memory read accesses. Includes demand and prefetch requests for data reads, code reads, read for ownerships (RFO), does not include LLC prefetches",
+        "ScaleUnit": "100%"
     },
     {
         "BriefDescription": "Memory read that miss the last level cache (LLC) addressed to local DRAM as a percentage of total memory read accesses, does not include LLC prefetches",

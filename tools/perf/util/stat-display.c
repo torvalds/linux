@@ -897,7 +897,7 @@ static bool should_skip_zero_counter(struct perf_stat_config *config,
 				     const struct aggr_cpu_id *id)
 {
 	struct perf_cpu cpu;
-	int idx;
+	unsigned int idx;
 
 	/*
 	 * Skip unsupported default events when not verbose. (default events
@@ -1125,7 +1125,7 @@ static void print_no_aggr_metric(struct perf_stat_config *config,
 				 struct evlist *evlist,
 				 struct outstate *os)
 {
-	int all_idx;
+	unsigned int all_idx;
 	struct perf_cpu cpu;
 
 	perf_cpu_map__for_each_cpu(cpu, all_idx, evlist->core.user_requested_cpus) {

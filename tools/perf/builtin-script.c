@@ -166,7 +166,7 @@ struct perf_script {
 	int			range_num;
 };
 
-struct output_option {
+static struct output_option {
 	const char *str;
 	enum perf_output_field field;
 } all_output_options[] = {
@@ -1271,11 +1271,11 @@ static int ip__fprintf_jump(uint64_t ip, struct branch_entry *en,
 
 	if (PRINT_FIELD(BRCNTR)) {
 		struct evsel *pos = evsel__leader(evsel);
-		unsigned int i = 0, j, num, mask, width;
+		unsigned int i = 0, j, num, mask, width, numprinted = 0;
 
 		perf_env__find_br_cntr_info(evsel__env(evsel), NULL, &width);
 		mask = (1L << width) - 1;
-		printed += fprintf(fp, "br_cntr: ");
+		printed += fprintf(fp, "\t# br_cntr: ");
 		evlist__for_each_entry_from(evsel->evlist, pos) {
 			if (!(pos->core.attr.branch_sample_type & PERF_SAMPLE_BRANCH_COUNTERS))
 				continue;
@@ -1283,16 +1283,20 @@ static int ip__fprintf_jump(uint64_t ip, struct branch_entry *en,
 				break;
 
 			num = (br_cntr >> (i++ * width)) & mask;
+			numprinted += num;
 			if (!verbose) {
 				for (j = 0; j < num; j++)
 					printed += fprintf(fp, "%s", pos->abbr_name);
 			} else
 				printed += fprintf(fp, "%s %d ", pos->name, num);
 		}
-		printed += fprintf(fp, "\t");
+		if (numprinted == 0 && !verbose)
+			printed += fprintf(fp, "-");
+		printed += fprintf(fp, " ");
 	}
 
-	printed += fprintf(fp, "#%s%s%s%s",
+	printed += fprintf(fp, "%s%s%s%s%s",
+			      !PRINT_FIELD(BRCNTR) ? "#" : "",
 			      en->flags.predicted ? " PRED" : "",
 			      en->flags.mispred ? " MISPRED" : "",
 			      en->flags.in_tx ? " INTX" : "",
@@ -2568,7 +2572,6 @@ static struct scripting_ops	*scripting_ops;
 static void __process_stat(struct evsel *counter, u64 tstamp)
 {
 	int nthreads = perf_thread_map__nr(counter->core.threads);
-	int idx, thread;
 	struct perf_cpu cpu;
 	static int header_printed;
 
@@ -2578,7 +2581,9 @@ static void __process_stat(struct evsel *counter, u64 tstamp)
 		header_printed = 1;
 	}
 
-	for (thread = 0; thread < nthreads; thread++) {
+	for (int thread = 0; thread < nthreads; thread++) {
+		unsigned int idx;
+
 		perf_cpu_map__for_each_cpu(cpu, idx, evsel__cpus(counter)) {
 			struct perf_counts_values *counts;
 
@@ -2905,8 +2910,12 @@ static int print_event_with_time(const struct perf_tool *tool,
 		thread = machine__findnew_thread(machine, pid, tid);
 
 	if (evsel) {
+		struct evsel *saved_evsel = sample->evsel;
+
+		sample->evsel = evsel;
 		perf_sample__fprintf_start(script, sample, thread, evsel,
 					   event->header.type, stdout);
+		sample->evsel = saved_evsel;
 	}
 
 	perf_event__fprintf(event, machine, stdout);
@@ -3814,7 +3823,7 @@ out:
 
 static int have_cmd(int argc, const char **argv)
 {
-	char **__argv = malloc(sizeof(const char *) * argc);
+	char **__argv = calloc(argc, sizeof(const char *));
 
 	if (!__argv) {
 		pr_err("malloc failed\n");
@@ -3937,15 +3946,6 @@ int process_cpu_map_event(const struct perf_tool *tool,
 		return -ENOMEM;
 
 	return set_maps(script);
-}
-
-static int process_feature_event(const struct perf_tool *tool __maybe_unused,
-				 struct perf_session *session,
-				 union perf_event *event)
-{
-	if (event->feat.feat_id < HEADER_LAST_FEATURE)
-		return perf_event__process_feature(session, event);
-	return 0;
 }
 
 static int perf_script__process_auxtrace_info(const struct perf_tool *tool,
@@ -4074,8 +4074,7 @@ int cmd_script(int argc, const char **argv)
 		   "file", "kallsyms pathname"),
 	OPT_BOOLEAN('G', "hide-call-graph", &no_callchain,
 		    "When printing symbols do not display call chain"),
-	OPT_CALLBACK(0, "symfs", NULL, "directory",
-		     "Look for files with symbols relative to this directory",
+	OPT_CALLBACK(0, "symfs", NULL, "directory[,layout]", SYMFS_HELP,
 		     symbol__config_symfs),
 	OPT_CALLBACK('F', "fields", NULL, "str",
 		     "comma separated output fields prepend with 'type:'. "
@@ -4313,7 +4312,7 @@ int cmd_script(int argc, const char **argv)
 				}
 			}
 
-			__argv = malloc((argc + 6) * sizeof(const char *));
+			__argv = calloc(argc + 6, sizeof(const char *));
 			if (!__argv) {
 				pr_err("malloc failed\n");
 				err = -ENOMEM;
@@ -4339,7 +4338,7 @@ int cmd_script(int argc, const char **argv)
 		dup2(live_pipe[0], 0);
 		close(live_pipe[1]);
 
-		__argv = malloc((argc + 4) * sizeof(const char *));
+		__argv = calloc(argc + 4, sizeof(const char *));
 		if (!__argv) {
 			pr_err("malloc failed\n");
 			err = -ENOMEM;
@@ -4377,7 +4376,7 @@ script_found:
 			}
 		}
 
-		__argv = malloc((argc + 2) * sizeof(const char *));
+		__argv = calloc(argc + 2, sizeof(const char *));
 		if (!__argv) {
 			pr_err("malloc failed\n");
 			err = -ENOMEM;
@@ -4423,7 +4422,7 @@ script_found:
 #ifdef HAVE_LIBTRACEEVENT
 	script.tool.tracing_data	 = perf_event__process_tracing_data;
 #endif
-	script.tool.feature		 = process_feature_event;
+	script.tool.feature		 = perf_event__process_feature;
 	script.tool.build_id		 = perf_event__process_build_id;
 	script.tool.id_index		 = perf_event__process_id_index;
 	script.tool.auxtrace_info	 = perf_script__process_auxtrace_info;

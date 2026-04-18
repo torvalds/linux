@@ -8,12 +8,16 @@ set -e
 # data type profiling manifestation
 
 # Values in testtypes and testprogs should match
-testtypes=("# data-type: struct Buf" "# data-type: struct _buf")
+testtypes=("# data-type: struct Buf" "# data-type: struct buf")
 testprogs=("perf test -w code_with_type" "perf test -w datasym")
 
 err=0
 perfdata=$(mktemp /tmp/__perf_test.perf.data.XXXXX)
 perfout=$(mktemp /tmp/__perf_test.perf.out.XXXXX)
+
+# Check for support of perf mem before trap handler
+perf mem record -o /dev/null -- true  2>&1 | \
+  		grep -q "failed: no PMU supports the memory events" && exit 2
 
 cleanup() {
   rm -rf "${perfdata}" "${perfout}"

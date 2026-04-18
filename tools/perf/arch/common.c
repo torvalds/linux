@@ -9,14 +9,14 @@
 #include "../util/debug.h"
 #include <linux/zalloc.h>
 
-const char *const arc_triplets[] = {
+static const char *const arc_triplets[] = {
 	"arc-linux-",
 	"arc-snps-linux-uclibc-",
 	"arc-snps-linux-gnu-",
 	NULL
 };
 
-const char *const arm_triplets[] = {
+static const char *const arm_triplets[] = {
 	"arm-eabi-",
 	"arm-linux-androideabi-",
 	"arm-unknown-linux-",
@@ -28,13 +28,13 @@ const char *const arm_triplets[] = {
 	NULL
 };
 
-const char *const arm64_triplets[] = {
+static const char *const arm64_triplets[] = {
 	"aarch64-linux-android-",
 	"aarch64-linux-gnu-",
 	NULL
 };
 
-const char *const powerpc_triplets[] = {
+static const char *const powerpc_triplets[] = {
 	"powerpc-unknown-linux-gnu-",
 	"powerpc-linux-gnu-",
 	"powerpc64-unknown-linux-gnu-",
@@ -43,40 +43,40 @@ const char *const powerpc_triplets[] = {
 	NULL
 };
 
-const char *const riscv32_triplets[] = {
+static const char *const riscv32_triplets[] = {
 	"riscv32-unknown-linux-gnu-",
 	"riscv32-linux-android-",
 	"riscv32-linux-gnu-",
 	NULL
 };
 
-const char *const riscv64_triplets[] = {
+static const char *const riscv64_triplets[] = {
 	"riscv64-unknown-linux-gnu-",
 	"riscv64-linux-android-",
 	"riscv64-linux-gnu-",
 	NULL
 };
 
-const char *const s390_triplets[] = {
+static const char *const s390_triplets[] = {
 	"s390-ibm-linux-",
 	"s390x-linux-gnu-",
 	NULL
 };
 
-const char *const sh_triplets[] = {
+static const char *const sh_triplets[] = {
 	"sh-unknown-linux-gnu-",
 	"sh-linux-gnu-",
 	NULL
 };
 
-const char *const sparc_triplets[] = {
+static const char *const sparc_triplets[] = {
 	"sparc-unknown-linux-gnu-",
 	"sparc64-unknown-linux-gnu-",
 	"sparc64-linux-gnu-",
 	NULL
 };
 
-const char *const x86_triplets[] = {
+static const char *const x86_triplets[] = {
 	"x86_64-pc-linux-gnu-",
 	"x86_64-unknown-linux-gnu-",
 	"i686-pc-linux-gnu-",
@@ -90,7 +90,7 @@ const char *const x86_triplets[] = {
 	NULL
 };
 
-const char *const mips_triplets[] = {
+static const char *const mips_triplets[] = {
 	"mips-unknown-linux-gnu-",
 	"mipsel-linux-android-",
 	"mips-linux-gnu-",

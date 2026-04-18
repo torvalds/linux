@@ -20,18 +20,33 @@
 #include "rlimit.h"
 #include <internal/lib.h>
 
+static void perf_data_file__close(struct perf_data_file *file)
+{
+	if (file->use_stdio) {
+		if (file->fptr) {
+			fclose(file->fptr);
+			file->fptr = NULL;
+		}
+	} else {
+		close(file->fd);
+		file->fd = -1;
+	}
+	zfree(&file->path);
+}
+
 static void close_dir(struct perf_data_file *files, int nr)
 {
-	while (--nr >= 0) {
-		close(files[nr].fd);
-		zfree(&files[nr].path);
-	}
+	while (--nr >= 0)
+		perf_data_file__close(&files[nr]);
+
 	free(files);
 }
 
 void perf_data__close_dir(struct perf_data *data)
 {
 	close_dir(data->dir.files, data->dir.nr);
+	data->dir.files = NULL;
+	data->dir.nr = 0;
 }
 
 int perf_data__create_dir(struct perf_data *data, int nr)
@@ -43,7 +58,7 @@ int perf_data__create_dir(struct perf_data *data, int nr)
 	if (WARN_ON(!data->is_dir))
 		return -EINVAL;
 
-	files = zalloc(nr * sizeof(*files));
+	files = calloc(nr, sizeof(*files));
 	if (!files)
 		return -ENOMEM;
 
@@ -132,16 +147,21 @@ int perf_data__open_dir(struct perf_data *data)
 		files = file;
 		file = &files[nr++];
 
-		file->path = strdup(path);
+		*file = (struct perf_data_file){
+			.path = strdup(path),
+			.fd = -1,
+			.size = st.st_size,
+			.use_stdio = false,
+		};
 		if (!file->path)
 			goto out_err;
 
 		ret = open(file->path, O_RDONLY);
-		if (ret < 0)
+		if (ret < 0) {
+			ret = -errno;
 			goto out_err;
-
+		}
 		file->fd = ret;
-		file->size = st.st_size;
 	}
 
 	closedir(dir);
@@ -174,7 +194,7 @@ static bool check_pipe(struct perf_data *data)
 	}
 
 	if (is_pipe) {
-		if (data->use_stdio) {
+		if (data->file.use_stdio) {
 			const char *mode;
 
 			mode = perf_data__is_read(data) ? "r" : "w";
@@ -182,7 +202,7 @@ static bool check_pipe(struct perf_data *data)
 
 			if (data->file.fptr == NULL) {
 				data->file.fd = fd;
-				data->use_stdio = false;
+				data->file.use_stdio = false;
 			}
 
 		/*
@@ -344,7 +364,7 @@ int perf_data__open(struct perf_data *data)
 		return 0;
 
 	/* currently it allows stdio for pipe only */
-	data->use_stdio = false;
+	data->file.use_stdio = false;
 
 	if (!data->path)
 		data->path = "perf.data";
@@ -364,39 +384,55 @@ void perf_data__close(struct perf_data *data)
 	if (perf_data__is_dir(data))
 		perf_data__close_dir(data);
 
-	zfree(&data->file.path);
+	perf_data_file__close(&data->file);
+}
 
-	if (data->use_stdio)
-		fclose(data->file.fptr);
-	else
-		close(data->file.fd);
+static ssize_t perf_data_file__read(struct perf_data_file *file, void *buf, size_t size)
+{
+	if (file->use_stdio) {
+		if (fread(buf, size, 1, file->fptr) == 1)
+			return size;
+		return feof(file->fptr) ? 0 : -1;
+	}
+	return readn(file->fd, buf, size);
 }
 
 ssize_t perf_data__read(struct perf_data *data, void *buf, size_t size)
 {
-	if (data->use_stdio) {
-		if (fread(buf, size, 1, data->file.fptr) == 1)
-			return size;
-		return feof(data->file.fptr) ? 0 : -1;
-	}
-	return readn(data->file.fd, buf, size);
+	return perf_data_file__read(&data->file, buf, size);
 }
 
 ssize_t perf_data_file__write(struct perf_data_file *file,
 			      void *buf, size_t size)
 {
+	if (file->use_stdio) {
+		if (fwrite(buf, size, /*nmemb=*/1, file->fptr) == 1)
+			return size;
+		return -1;
+	}
 	return writen(file->fd, buf, size);
 }
 
 ssize_t perf_data__write(struct perf_data *data,
 			 void *buf, size_t size)
 {
-	if (data->use_stdio) {
-		if (fwrite(buf, size, 1, data->file.fptr) == 1)
-			return size;
-		return -1;
-	}
 	return perf_data_file__write(&data->file, buf, size);
+}
+
+off_t perf_data_file__seek(struct perf_data_file *file, off_t offset, int whence)
+{
+	if (file->use_stdio) {
+		off_t res = fseeko(file->fptr, offset, whence);
+
+		return res < 0 ? -1 : ftello(file->fptr);
+	}
+	return lseek(file->fd, offset, whence);
+}
+
+off_t perf_data__seek(struct perf_data *data, off_t offset, int whence)
+{
+	/* Note, a pipe fd will fail with -1 with errno of ESPIPE. */
+	return perf_data_file__seek(&data->file, offset, whence);
 }
 
 int perf_data__switch(struct perf_data *data,
@@ -420,19 +456,18 @@ int perf_data__switch(struct perf_data *data,
 		pr_warning("Failed to rename %s to %s\n", data->path, *new_filepath);
 
 	if (!at_exit) {
-		close(data->file.fd);
+		perf_data_file__close(&data->file);
 		ret = perf_data__open(data);
 		if (ret < 0)
 			goto out;
 
-		if (lseek(data->file.fd, pos, SEEK_SET) == (off_t)-1) {
+		if (perf_data__seek(data, pos, SEEK_SET) == (off_t)-1) {
 			ret = -errno;
-			pr_debug("Failed to lseek to %zu: %m\n",
-				 pos);
+			pr_debug("Failed to seek to %zu: %m", pos);
 			goto out;
 		}
 	}
-	ret = data->file.fd;
+	ret = perf_data__fd(data);
 out:
 	return ret;
 }

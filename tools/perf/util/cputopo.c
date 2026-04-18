@@ -191,7 +191,7 @@ bool cpu_topology__core_wide(const struct cpu_topology *topology,
 		const char *core_cpu_list = topology->core_cpus_list[i];
 		struct perf_cpu_map *core_cpus = perf_cpu_map__new(core_cpu_list);
 		struct perf_cpu cpu;
-		int idx;
+		unsigned int idx;
 		bool has_first, first = true;
 
 		perf_cpu_map__for_each_cpu(cpu, idx, core_cpus) {

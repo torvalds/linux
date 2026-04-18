@@ -11,7 +11,6 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <linux/err.h>
-#include <linux/zalloc.h>
 #include <linux/perf_event.h>
 #include <api/fs/fs.h>
 #include <bpf/bpf.h>
@@ -98,7 +97,7 @@ static int bperf_load_program(struct evlist *evlist)
 	struct bpf_link *link;
 	struct evsel *evsel;
 	struct cgroup *cgrp, *leader_cgrp;
-	int i, j;
+	unsigned int i;
 	struct perf_cpu cpu;
 	int total_cpus = cpu__max_cpu().cpu;
 	int map_fd, prog_fd, err;
@@ -146,6 +145,8 @@ static int bperf_load_program(struct evlist *evlist)
 
 	evlist__for_each_entry(evlist, evsel) {
 		if (cgrp == NULL || evsel->cgrp == leader_cgrp) {
+			unsigned int j;
+
 			leader_cgrp = evsel->cgrp;
 			evsel->cgrp = NULL;
 
@@ -234,7 +235,7 @@ static int bperf_cgrp__install_pe(struct evsel *evsel __maybe_unused,
 static int bperf_cgrp__sync_counters(struct evlist *evlist)
 {
 	struct perf_cpu cpu;
-	int idx;
+	unsigned int idx;
 	int prog_fd = bpf_program__fd(skel->progs.trigger_read);
 
 	perf_cpu_map__for_each_cpu(cpu, idx, evlist->core.all_cpus)
@@ -286,7 +287,7 @@ static int bperf_cgrp__read(struct evsel *evsel)
 
 	evlist__for_each_entry(evlist, evsel) {
 		__u32 idx = evsel->core.idx;
-		int i;
+		unsigned int i;
 		struct perf_cpu cpu;
 
 		err = bpf_map_lookup_elem(reading_map_fd, &idx, values);

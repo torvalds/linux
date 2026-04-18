@@ -429,7 +429,7 @@ bool parse_events__filter_pmu(const struct parse_events_state *parse_state,
 	if (parse_state->pmu_filter == NULL)
 		return false;
 
-	return strcmp(parse_state->pmu_filter, pmu->name) != 0;
+	return perf_pmu__wildcard_match(pmu, parse_state->pmu_filter) == 0;
 }
 
 static int parse_events_add_pmu(struct parse_events_state *parse_state,
