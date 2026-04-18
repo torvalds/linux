@@ -238,12 +238,10 @@ void orangefs_debugfs_init(int debug_mask)
 static void orangefs_kernel_debug_init(void)
 {
 	static char k_buffer[ORANGEFS_MAX_DEBUG_STRING_LEN] = { };
-	size_t len = strlen(kernel_debug_string);
+	size_t len =
+		strscpy(k_buffer, kernel_debug_string, sizeof(k_buffer) - 1);
 
-	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "%s: start\n", __func__);
-
-	if (len + 1 < ORANGEFS_MAX_DEBUG_STRING_LEN) {
-		memcpy(k_buffer, kernel_debug_string, len);
+	if (len > 0) {
 		k_buffer[len] = '\n';
 		k_buffer[len + 1] = '\0';
 	} else {
@@ -339,12 +337,10 @@ static int help_show(struct seq_file *m, void *v)
 static void orangefs_client_debug_init(void)
 {
 	static char c_buffer[ORANGEFS_MAX_DEBUG_STRING_LEN] = { };
-	size_t len = strlen(client_debug_string);
+	size_t len =
+		strscpy(c_buffer, client_debug_string, sizeof(c_buffer) - 1);
 
-	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "%s: start\n", __func__);
-
-	if (len + 1 < ORANGEFS_MAX_DEBUG_STRING_LEN) {
-		memcpy(c_buffer, client_debug_string, len);
+	if (len > 0) {
 		c_buffer[len] = '\n';
 		c_buffer[len + 1] = '\0';
 	} else {
@@ -443,7 +439,7 @@ static ssize_t orangefs_debug_write(struct file *file,
 		count = ORANGEFS_MAX_DEBUG_STRING_LEN;
 	}
 
-	buf = memdup_user_nul(ubuf, count - 1);
+	buf = memdup_user_nul(ubuf, count);
 	if (IS_ERR(buf)) {
 		gossip_debug(GOSSIP_DEBUGFS_DEBUG,
 			     "%s: memdup_user_nul failed!\n",
@@ -452,6 +448,7 @@ static ssize_t orangefs_debug_write(struct file *file,
 		buf = NULL;
 		goto out;
 	}
+	strim(buf);
 
 	/*
 	 * Map the keyword string from userspace into a valid debug mask.
@@ -873,9 +870,10 @@ out:
  */
 static void debug_string_to_mask(char *debug_string, void *mask, int type)
 {
-	char *unchecked_keyword;
 	int i;
 	char *strsep_fodder = kstrdup(debug_string, GFP_KERNEL);
+	char *trimmed;
+	char *token;
 	char *original_pointer;
 	int element_count = 0;
 	struct client_debug_mask *c_mask = NULL;
@@ -893,18 +891,17 @@ static void debug_string_to_mask(char *debug_string, void *mask, int type)
 	}
 
 	original_pointer = strsep_fodder;
-	while ((unchecked_keyword = strsep(&strsep_fodder, ",")))
-		if (strlen(unchecked_keyword)) {
+	while ((token = strsep(&strsep_fodder, ",")) != NULL) {
+		trimmed = strim(token);
+		if (*trimmed) {
 			for (i = 0; i < element_count; i++)
 				if (type)
-					do_c_mask(i,
-						  unchecked_keyword,
-						  &c_mask);
+					do_c_mask(i, trimmed, &c_mask);
 				else
-					do_k_mask(i,
-						  unchecked_keyword,
-						  &k_mask);
+					do_k_mask(i, trimmed, &k_mask);
+
 		}
+	}
 
 	kfree(original_pointer);
 }
