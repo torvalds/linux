@@ -8,6 +8,7 @@ config PARISC
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_SYSCALL_TRACEPOINTS
 	select ARCH_WANT_FRAME_POINTERS
+	select ARCH_WANTS_MODULES_TEXT_SECTIONS if !64BIT
 	select ARCH_HAS_CPU_CACHE_ALIASING
 	select ARCH_HAS_DMA_ALLOC if PA11
 	select ARCH_HAS_DMA_OPS
@@ -129,6 +130,9 @@ config GENERIC_BUG
 
 config GENERIC_BUG_RELATIVE_POINTERS
 	bool
+
+config GENERIC_CSUM
+	def_bool y
 
 config GENERIC_HWEIGHT
 	bool
@@ -354,7 +358,8 @@ config ARCH_SPARSEMEM_DEFAULT
 source "kernel/Kconfig.hz"
 
 config COMPAT
-	def_bool y
+	bool "Kernel support for 32-bit binaries"
+	default 64BIT
 	depends on 64BIT
 
 config AUDIT_ARCH
