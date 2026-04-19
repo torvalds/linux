@@ -215,7 +215,7 @@ static int gb_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	/*
 	 * Set period and duty cycle
 	 *
-	 * PWM privodes 64-bit period and duty_cycle, but greybus only accepts
+	 * PWM provides 64-bit period and duty_cycle, but greybus only accepts
 	 * 32-bit, so their values have to be limited to U32_MAX.
 	 */
 	if (period > U32_MAX)

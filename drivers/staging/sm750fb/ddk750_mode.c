@@ -74,7 +74,7 @@ display_control_adjust_SM750LE(struct mode_parameter *mode_param,
 	return disp_control;
 }
 
-/* only timing related registers will be  programed */
+/* only timing related registers will be programmed */
 static void program_mode_registers(struct mode_parameter *mode_param,
 				   struct pll_value *pll)
 {

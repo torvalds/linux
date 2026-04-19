@@ -30,7 +30,7 @@ static u8 CardEnable(struct adapter *padapter)
 
 		ret = HalPwrSeqCmdParsing(padapter, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_SDIO_MSK, rtl8723B_card_enable_flow);
 		if (ret == _SUCCESS) {
-			u8 bMacPwrCtrlOn = true;
+			bMacPwrCtrlOn = true;
 			rtw_hal_set_hwreg(padapter, HW_VAR_APFM_ON_MAC, &bMacPwrCtrlOn);
 		}
 	} else
@@ -214,6 +214,7 @@ static void _InitNormalChipOneOutEpPriority(struct adapter *Adapter)
 	struct hal_com_data *pHalData = GET_HAL_DATA(Adapter);
 
 	u16 value = 0;
+
 	switch (pHalData->OutEpQueueSel) {
 	case TX_SELE_HQ:
 		value = QUEUE_HIGH;
@@ -341,6 +342,7 @@ static void _InitTransferPageSize(struct adapter *padapter)
 	/*  Tx page size is always 128. */
 
 	u8 value8;
+
 	value8 = _PSRX(PBP_128) | _PSTX(PBP_128);
 	rtw_write8(padapter, REG_PBP, value8);
 }
@@ -388,7 +390,7 @@ static void _InitWMACSetting(struct adapter *padapter)
 
 	/*  2010.09.08 hpfan */
 	/*  Since ADF is removed from RCR, ps-poll will not be indicate to driver, */
-	/*  RxFilterMap should mask ps-poll to gurantee AP mode can rx ps-poll. */
+	/*  RxFilterMap should mask ps-poll to guarantee AP mode can rx ps-poll. */
 	value16 = 0x400;
 	rtw_write16(padapter, REG_RXFLTMAP1, value16);
 
@@ -606,7 +608,7 @@ u32 rtl8723bs_hal_init(struct adapter *padapter)
 		cpwm_orig = 0;
 		rtw_hal_get_hwreg(padapter, HW_VAR_CPWM, &cpwm_orig);
 
-		/* ser rpwm */
+		/* set rpwm */
 		val8 = rtw_read8(padapter, SDIO_LOCAL_BASE | SDIO_REG_HRPWM1);
 		val8 &= 0x80;
 		val8 += 0x80;
@@ -901,7 +903,7 @@ u32 rtl8723bs_hal_deinit(struct adapter *padapter)
 				} while (cnt < 100 && (val8 != 0));
 				/* H2C done, enter 32k */
 				if (val8 == 0) {
-					/* ser rpwm to enter 32k */
+					/* set rpwm to enter 32k */
 					val8 = rtw_read8(padapter, SDIO_LOCAL_BASE | SDIO_REG_HRPWM1);
 					val8 += 0x80;
 					val8 |= BIT(0);
@@ -1147,6 +1149,7 @@ void SetHwReg8723BS(struct adapter *padapter, u8 variable, u8 *val)
 	case HW_VAR_SET_REQ_FW_PS:
 		{
 			u8 req_fw_ps = 0;
+
 			req_fw_ps = rtw_read8(padapter, 0x8f);
 			req_fw_ps |= 0x10;
 			rtw_write8(padapter, 0x8f, req_fw_ps);

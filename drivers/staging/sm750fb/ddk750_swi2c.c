@@ -27,7 +27,7 @@
  *
  * I.e. the SCL may only be changed in section 1. and section 3. while
  * the SDA may only be changed in section 2. and section 4. The table
- * below gives the changes for these 2 lines in the varios sections.
+ * below gives the changes for these 2 lines in the various sections.
  *
  * Section changes Table:
  * ======================

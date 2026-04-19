@@ -61,18 +61,6 @@ static int init_display(struct fbtft_par *par)
 	return 0;
 };
 
-static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
-{
-	/* column address */
-	write_reg(par, 0x2a, xs >> 8, xs & 0xff, xe >> 8, xe & 0xff);
-
-	/* Row address */
-	write_reg(par, 0x2b, ys >> 8, ys & 0xff, ye >> 8, ye & 0xff);
-
-	/* memory write */
-	write_reg(par, 0x2c);
-}
-
 #define my BIT(7)
 #define mx BIT(6)
 #define mv BIT(5)
@@ -130,7 +118,6 @@ static struct fbtft_display display = {
 	.gamma = DEFAULT_GAMMA,
 	.fbtftops = {
 		.init_display = init_display,
-		.set_addr_win = set_addr_win,
 		.set_var = set_var,
 		.set_gamma = set_gamma,
 	},

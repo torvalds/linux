@@ -123,7 +123,7 @@ menuconfig GREYBUS_BRIDGED_PHY
 	help
 	  Select this option to pick from a variety of Greybus Bridged
 	  PHY class drivers.  These drivers emulate a number of
-	  different "traditional" busses by tunneling them over Greybus.
+	  different "traditional" buses by tunneling them over Greybus.
 	  Examples of this include serial, SPI, USB, and others.
 
 	  To compile this code as a module, chose M here: the module

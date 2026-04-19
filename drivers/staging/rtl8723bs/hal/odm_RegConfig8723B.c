@@ -125,9 +125,8 @@ void odm_ConfigBB_PHY_REG_PG_8723B(
 {
 	if (Addr == 0xfe || Addr == 0xffe)
 		msleep(50);
-	else {
+	else
 		PHY_StoreTxPowerByRate(pDM_Odm->Adapter, RfPath, Addr, Bitmask, Data);
-	}
 }
 
 void odm_ConfigBB_PHY_8723B(
@@ -149,9 +148,8 @@ void odm_ConfigBB_PHY_8723B(
 		udelay(5);
 	else if (Addr == 0xf9)
 		udelay(1);
-	else {
+	else
 		PHY_SetBBReg(pDM_Odm->Adapter, Addr, Bitmask, Data);
-	}
 
 	/*  Add 1us delay between BB/RF register setting. */
 	udelay(1);

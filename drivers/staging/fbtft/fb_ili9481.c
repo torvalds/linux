@@ -42,17 +42,6 @@ static const s16 default_init_sequence[] = {
 	-3
 };
 
-static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
-{
-	write_reg(par, MIPI_DCS_SET_COLUMN_ADDRESS,
-		  xs >> 8, xs & 0xff, xe >> 8, xe & 0xff);
-
-	write_reg(par, MIPI_DCS_SET_PAGE_ADDRESS,
-		  ys >> 8, ys & 0xff, ye >> 8, ye & 0xff);
-
-	write_reg(par, MIPI_DCS_WRITE_MEMORY_START);
-}
-
 #define HFLIP 0x01
 #define VFLIP 0x02
 #define ROW_X_COL 0x20
@@ -86,7 +75,6 @@ static struct fbtft_display display = {
 	.height = HEIGHT,
 	.init_sequence = default_init_sequence,
 	.fbtftops = {
-		.set_addr_win = set_addr_win,
 		.set_var = set_var,
 	},
 };

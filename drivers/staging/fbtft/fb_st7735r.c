@@ -83,17 +83,6 @@ static const s16 default_init_sequence[] = {
 	-3
 };
 
-static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
-{
-	write_reg(par, MIPI_DCS_SET_COLUMN_ADDRESS,
-		  xs >> 8, xs & 0xFF, xe >> 8, xe & 0xFF);
-
-	write_reg(par, MIPI_DCS_SET_PAGE_ADDRESS,
-		  ys >> 8, ys & 0xFF, ye >> 8, ye & 0xFF);
-
-	write_reg(par, MIPI_DCS_WRITE_MEMORY_START);
-}
-
 #define MY BIT(7)
 #define MX BIT(6)
 #define MV BIT(5)
@@ -168,7 +157,6 @@ static struct fbtft_display display = {
 	.gamma_len = 16,
 	.gamma = DEFAULT_GAMMA,
 	.fbtftops = {
-		.set_addr_win = set_addr_win,
 		.set_var = set_var,
 		.set_gamma = set_gamma,
 	},

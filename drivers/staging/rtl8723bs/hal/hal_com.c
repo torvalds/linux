@@ -31,44 +31,44 @@ void rtw_hal_data_deinit(struct adapter *padapter)
 }
 
 
-void dump_chip_info(struct hal_version	ChipVersion)
+void dump_chip_info(struct hal_version	chip_version)
 {
 	char buf[128];
 	size_t cnt = 0;
 
 	cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "Chip Version Info: CHIP_8723B_%s_",
-			IS_NORMAL_CHIP(ChipVersion) ? "Normal_Chip" : "Test_Chip");
+			IS_NORMAL_CHIP(chip_version) ? "Normal_Chip" : "Test_Chip");
 
-	if (IS_CHIP_VENDOR_TSMC(ChipVersion))
+	if (IS_CHIP_VENDOR_TSMC(chip_version))
 		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "TSMC_");
-	else if (IS_CHIP_VENDOR_UMC(ChipVersion))
+	else if (IS_CHIP_VENDOR_UMC(chip_version))
 		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "UMC_");
-	else if (IS_CHIP_VENDOR_SMIC(ChipVersion))
+	else if (IS_CHIP_VENDOR_SMIC(chip_version))
 		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "SMIC_");
 
-	if (IS_A_CUT(ChipVersion))
+	if (IS_A_CUT(chip_version))
 		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "A_CUT_");
-	else if (IS_B_CUT(ChipVersion))
+	else if (IS_B_CUT(chip_version))
 		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "B_CUT_");
-	else if (IS_C_CUT(ChipVersion))
+	else if (IS_C_CUT(chip_version))
 		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "C_CUT_");
-	else if (IS_D_CUT(ChipVersion))
+	else if (IS_D_CUT(chip_version))
 		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "D_CUT_");
-	else if (IS_E_CUT(ChipVersion))
+	else if (IS_E_CUT(chip_version))
 		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "E_CUT_");
-	else if (IS_I_CUT(ChipVersion))
+	else if (IS_I_CUT(chip_version))
 		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "I_CUT_");
-	else if (IS_J_CUT(ChipVersion))
+	else if (IS_J_CUT(chip_version))
 		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "J_CUT_");
-	else if (IS_K_CUT(ChipVersion))
+	else if (IS_K_CUT(chip_version))
 		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "K_CUT_");
 	else
 		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt,
-				"UNKNOWN_CUT(%d)_", ChipVersion.CUTVersion);
+				"UNKNOWN_CUT(%d)_", chip_version.CUTVersion);
 
 	cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "1T1R_");
 
-	cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "RomVer(%d)\n", ChipVersion.ROMVer);
+	cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "RomVer(%d)\n", chip_version.ROMVer);
 }
 
 
@@ -86,7 +86,7 @@ void dump_chip_info(struct hal_version	ChipVersion)
  *					BIT[6:0] Channel Plan
  *sw_channel_plan		channel plan from SW (registry/module param)
  *def_channel_plan	channel plan used when HW/SW both invalid
- *AutoLoadFail		efuse autoload fail or not
+ *auto_load_fail		efuse autoload fail or not
  *
  * Return:
  *Final channel plan decision
@@ -97,7 +97,7 @@ u8 hal_com_config_channel_plan(
 	u8 hw_channel_plan,
 	u8 sw_channel_plan,
 	u8 def_channel_plan,
-	bool AutoLoadFail
+	bool auto_load_fail
 )
 {
 	struct hal_com_data *pHalData;
@@ -108,9 +108,9 @@ u8 hal_com_config_channel_plan(
 	chnlPlan = def_channel_plan;
 
 	if (0xFF == hw_channel_plan)
-		AutoLoadFail = true;
+		auto_load_fail = true;
 
-	if (!AutoLoadFail) {
+	if (!auto_load_fail) {
 		u8 hw_chnlPlan;
 
 		hw_chnlPlan = hw_channel_plan & (~EEPROM_CHANNEL_PLAN_BY_HW_MASK);
@@ -616,6 +616,7 @@ void SetHwReg(struct adapter *adapter, u8 variable, u8 *val)
 	case HW_VAR_DM_FUNC_SET:
 		if (*((u32 *)val) == DYNAMIC_ALL_FUNC_ENABLE) {
 			struct dm_priv *dm = &hal_data->dmpriv;
+
 			dm->DMFlag = dm->InitDMFlag;
 			odm->SupportAbility = dm->InitODMFlag;
 		} else {
@@ -727,6 +728,7 @@ void SetHalODMVar(
 	case HAL_ODM_STA_INFO:
 		{
 			struct sta_info *psta = pValue1;
+
 			if (bSet) {
 				ODM_CmnInfoPtrArrayHook(podmpriv, ODM_CMNINFO_STA_STATUS, psta->mac_id, psta);
 			} else {
@@ -749,18 +751,6 @@ void SetHalODMVar(
 	}
 }
 
-
-bool eqNByte(u8 *str1, u8 *str2, u32 num)
-{
-	if (num == 0)
-		return false;
-	while (num > 0) {
-		num--;
-		if (str1[num] != str2[num])
-			return false;
-	}
-	return true;
-}
 
 bool GetU1ByteIntegerFromStringInDecimal(char *Str, u8 *pInt)
 {

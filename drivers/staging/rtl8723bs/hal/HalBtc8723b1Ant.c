@@ -684,52 +684,22 @@ static void halbtc8723b1ant_CoexTableWithType(
 	struct btc_coexist *pBtCoexist, bool bForceExec, u8 type
 )
 {
+	static const u32 table[8][2] = {
+		{0x55555555, 0x55555555},
+		{0x55555555, 0x5a5a5a5a},
+		{0x5a5a5a5a, 0x5a5a5a5a},
+		{0xaaaa5555, 0xaaaa5a5a},
+		{0x55555555, 0xaaaa5a5a},
+		{0x5a5a5a5a, 0xaaaa5a5a},
+		{0x55555555, 0xaaaaaaaa},
+		{0xaaaaaaaa, 0xaaaaaaaa}
+	};
+
 	pCoexSta->nCoexTableType = type;
 
-	switch (type) {
-	case 0:
-		halbtc8723b1ant_CoexTable(
-			pBtCoexist, bForceExec, 0x55555555, 0x55555555, 0xffffff, 0x3
-		);
-		break;
-	case 1:
-		halbtc8723b1ant_CoexTable(
-			pBtCoexist, bForceExec, 0x55555555, 0x5a5a5a5a, 0xffffff, 0x3
-		);
-		break;
-	case 2:
-		halbtc8723b1ant_CoexTable(
-			pBtCoexist, bForceExec, 0x5a5a5a5a, 0x5a5a5a5a, 0xffffff, 0x3
-		);
-		break;
-	case 3:
-		halbtc8723b1ant_CoexTable(
-			pBtCoexist, bForceExec, 0xaaaa5555, 0xaaaa5a5a, 0xffffff, 0x3
-		);
-		break;
-	case 4:
-		halbtc8723b1ant_CoexTable(
-			pBtCoexist, bForceExec, 0x55555555, 0xaaaa5a5a, 0xffffff, 0x3
-		);
-		break;
-	case 5:
-		halbtc8723b1ant_CoexTable(
-			pBtCoexist, bForceExec, 0x5a5a5a5a, 0xaaaa5a5a, 0xffffff, 0x3
-		);
-		break;
-	case 6:
-		halbtc8723b1ant_CoexTable(
-			pBtCoexist, bForceExec, 0x55555555, 0xaaaaaaaa, 0xffffff, 0x3
-		);
-		break;
-	case 7:
-		halbtc8723b1ant_CoexTable(
-			pBtCoexist, bForceExec, 0xaaaaaaaa, 0xaaaaaaaa, 0xffffff, 0x3
-		);
-		break;
-	default:
-		break;
-	}
+	if (type < 8)
+		halbtc8723b1ant_CoexTable(pBtCoexist, bForceExec, table[type][0],
+					  table[type][1], 0xffffff, 0x3);
 }
 
 static void halbtc8723b1ant_SetFwIgnoreWlanAct(
@@ -2316,7 +2286,7 @@ void EXhalbtc8723b1ant_ConnectNotify(struct btc_coexist *pBtCoexist, u8 type)
 
 	if (type == BTC_ASSOCIATE_START) {
 		pCoexSta->bWiFiIsHighPriTask = true;
-		 pCoexDm->nArpCnt = 0;
+		pCoexDm->nArpCnt = 0;
 	} else {
 		pCoexSta->bWiFiIsHighPriTask = false;
 		/* pCoexDm->nArpCnt = 0; */

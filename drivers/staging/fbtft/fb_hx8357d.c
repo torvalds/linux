@@ -129,19 +129,6 @@ static int init_display(struct fbtft_par *par)
 	return 0;
 }
 
-static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
-{
-	write_reg(par, MIPI_DCS_SET_COLUMN_ADDRESS,
-		  xs >> 8, xs & 0xff,  /* XSTART */
-		  xe >> 8, xe & 0xff); /* XEND */
-
-	write_reg(par, MIPI_DCS_SET_PAGE_ADDRESS,
-		  ys >> 8, ys & 0xff,  /* YSTART */
-		  ye >> 8, ye & 0xff); /* YEND */
-
-	write_reg(par, MIPI_DCS_WRITE_MEMORY_START);
-}
-
 #define HX8357D_MADCTL_MY  0x80
 #define HX8357D_MADCTL_MX  0x40
 #define HX8357D_MADCTL_MV  0x20
@@ -184,7 +171,6 @@ static struct fbtft_display display = {
 	.gamma_len = 14,
 	.fbtftops = {
 		.init_display = init_display,
-		.set_addr_win = set_addr_win,
 		.set_var = set_var,
 	},
 };

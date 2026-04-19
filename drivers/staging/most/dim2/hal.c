@@ -11,9 +11,8 @@
 #include "hal.h"
 #include "errors.h"
 #include "reg.h"
-#include <linux/stddef.h>
-#include <linux/kernel.h>
 #include <linux/io.h>
+#include <linux/kernel.h>
 
 /*
  * Size factor for isochronous DBR buffer.
@@ -44,8 +43,6 @@
 
 #define DBR_SIZE  (16 * 1024) /* specified by IP */
 #define DBR_BLOCK_SIZE  (DBR_SIZE / 32 / DBR_MAP_SIZE)
-
-#define ROUND_UP_TO(x, d)  (DIV_ROUND_UP(x, (d)) * (d))
 
 /* -------------------------------------------------------------------------- */
 /* generic helper functions and macros */
@@ -758,7 +755,7 @@ static u8 init_ctrl_async(struct dim_channel *ch, u8 type, u8 is_tx,
 		return DIM_INIT_ERR_CHANNEL_ADDRESS;
 
 	if (!ch->dbr_size)
-		ch->dbr_size = ROUND_UP_TO(hw_buffer_size, DBR_BLOCK_SIZE);
+		ch->dbr_size = round_up(hw_buffer_size, DBR_BLOCK_SIZE);
 	ch->dbr_addr = alloc_dbr(ch->dbr_size);
 	if (ch->dbr_addr >= DBR_SIZE)
 		return DIM_INIT_ERR_OUT_OF_MEMORY;

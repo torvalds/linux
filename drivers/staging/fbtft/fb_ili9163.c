@@ -60,7 +60,7 @@
  * configure to constrain the memory and resolution to a fixed dimension (in
  * that case 128x128) but they leaved those pins configured for 128x160 so
  * there was several pixel memory addressing problems.
- * I solved by setup several parameters that dinamically fix the resolution as
+ * I solved by setup several parameters that dynamically fix the resolution as
  * needit so below the parameters for this display. If you have a strain or a
  * correct display (can happen with chinese) you can copy those parameters and
  * create setup for different displays.

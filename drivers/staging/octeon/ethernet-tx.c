@@ -449,8 +449,6 @@ skip_xmit:
 	case QUEUE_CORE:
 		__skb_queue_tail(&priv->tx_free_list[qos], skb);
 		break;
-	default:
-		BUG();
 	}
 
 	while (skb_to_free > 0) {

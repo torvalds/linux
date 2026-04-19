@@ -206,7 +206,7 @@ static int gb_sdio_request_handler(struct gb_operation *op)
 	struct gb_message *request;
 	struct gb_sdio_event_request *payload;
 	u8 type = op->type;
-	int ret =  0;
+	int ret = 0;
 	u8 event;
 
 	if (type != GB_SDIO_TYPE_EVENT) {
@@ -372,7 +372,7 @@ static int gb_sdio_transfer(struct gb_sdio_host *host, struct mmc_data *data)
 	left = data->blksz * data->blocks;
 
 	while (left) {
-		/* check is a stop transmission is pending */
+		/* check if a stop transmission is pending */
 		spin_lock(&host->xfer);
 		if (host->xfer_stop) {
 			host->xfer_stop = false;
