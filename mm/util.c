@@ -1281,16 +1281,6 @@ int compat_vma_mmap(struct file *file, struct vm_area_struct *vma)
 }
 EXPORT_SYMBOL(compat_vma_mmap);
 
-int __vma_check_mmap_hook(struct vm_area_struct *vma)
-{
-	/* vm_ops->mapped is not valid if mmap() is specified. */
-	if (vma->vm_ops && WARN_ON_ONCE(vma->vm_ops->mapped))
-		return -EINVAL;
-
-	return 0;
-}
-EXPORT_SYMBOL(__vma_check_mmap_hook);
-
 static void set_ps_flags(struct page_snapshot *ps, const struct folio *folio,
 			 const struct page *page)
 {

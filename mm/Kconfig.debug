@@ -297,6 +297,17 @@ config DEBUG_KMEMLEAK_AUTO_SCAN
 
 	  If unsure, say Y.
 
+config DEBUG_KMEMLEAK_VERBOSE
+	bool "Default kmemleak to verbose mode"
+	depends on DEBUG_KMEMLEAK_AUTO_SCAN
+	help
+	  Say Y here to have kmemleak print unreferenced object details
+	  (backtrace, hex dump, address) to dmesg when new memory leaks are
+	  detected during automatic scanning. This can also be toggled at
+	  runtime via /sys/module/kmemleak/parameters/verbose.
+
+	  If unsure, say N.
+
 config PER_VMA_LOCK_STATS
 	bool "Statistics for per-vma locks"
 	depends on PER_VMA_LOCK

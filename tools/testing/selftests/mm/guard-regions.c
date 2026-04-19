@@ -21,6 +21,7 @@
 #include <sys/uio.h>
 #include <unistd.h>
 #include "vm_util.h"
+#include "thp_settings.h"
 
 #include "../pidfd/pidfd.h"
 
@@ -2194,6 +2195,9 @@ TEST_F(guard_regions, collapse)
 	const unsigned long num_pages = size / page_size;
 	char *ptr;
 	int i;
+
+	if (!thp_available())
+		SKIP(return, "Transparent Hugepages not available\n");
 
 	/* Need file to be correct size for tests for non-anon. */
 	if (variant->backing != ANON_BACKED)

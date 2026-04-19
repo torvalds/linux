@@ -108,11 +108,15 @@
 #include <linux/liveupdate.h>
 #include <linux/module.h>
 #include <linux/sizes.h>
+#include <linux/xarray.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include "luo_internal.h"
 
 static LIST_HEAD(luo_file_handler_list);
+
+/* Keep track of files being preserved by LUO */
+static DEFINE_XARRAY(luo_preserved_files);
 
 /* 2 4K pages, give space for 128 files per file_set */
 #define LUO_FILE_PGCNT		2ul
@@ -203,6 +207,12 @@ static void luo_free_files_mem(struct luo_file_set *file_set)
 	file_set->files = NULL;
 }
 
+static unsigned long luo_get_id(struct liveupdate_file_handler *fh,
+				struct file *file)
+{
+	return fh->ops->get_id ? fh->ops->get_id(file) : (unsigned long)file;
+}
+
 static bool luo_token_is_used(struct luo_file_set *file_set, u64 token)
 {
 	struct luo_file *iter;
@@ -248,6 +258,7 @@ static bool luo_token_is_used(struct luo_file_set *file_set, u64 token)
  * Context: Can be called from an ioctl handler during normal system operation.
  * Return: 0 on success. Returns a negative errno on failure:
  *         -EEXIST if the token is already used.
+ *         -EBUSY if the file descriptor is already preserved by another session.
  *         -EBADF if the file descriptor is invalid.
  *         -ENOSPC if the file_set is full.
  *         -ENOENT if no compatible handler is found.
@@ -277,20 +288,28 @@ int luo_preserve_file(struct luo_file_set *file_set, u64 token, int fd)
 		goto  err_fput;
 
 	err = -ENOENT;
+	down_read(&luo_register_rwlock);
 	list_private_for_each_entry(fh, &luo_file_handler_list, list) {
 		if (fh->ops->can_preserve(fh, file)) {
-			err = 0;
+			if (try_module_get(fh->ops->owner))
+				err = 0;
 			break;
 		}
 	}
+	up_read(&luo_register_rwlock);
 
 	/* err is still -ENOENT if no handler was found */
 	if (err)
 		goto err_free_files_mem;
 
+	err = xa_insert(&luo_preserved_files, luo_get_id(fh, file),
+			file, GFP_KERNEL);
+	if (err)
+		goto err_module_put;
+
 	err = luo_flb_file_preserve(fh);
 	if (err)
-		goto err_free_files_mem;
+		goto err_erase_xa;
 
 	luo_file = kzalloc_obj(*luo_file);
 	if (!luo_file) {
@@ -320,6 +339,10 @@ err_kfree:
 	kfree(luo_file);
 err_flb_unpreserve:
 	luo_flb_file_unpreserve(fh);
+err_erase_xa:
+	xa_erase(&luo_preserved_files, luo_get_id(fh, file));
+err_module_put:
+	module_put(fh->ops->owner);
 err_free_files_mem:
 	luo_free_files_mem(file_set);
 err_fput:
@@ -362,7 +385,10 @@ void luo_file_unpreserve_files(struct luo_file_set *file_set)
 		args.private_data = luo_file->private_data;
 		luo_file->fh->ops->unpreserve(&args);
 		luo_flb_file_unpreserve(luo_file->fh);
+		module_put(luo_file->fh->ops->owner);
 
+		xa_erase(&luo_preserved_files,
+			 luo_get_id(luo_file->fh, luo_file->file));
 		list_del(&luo_file->list);
 		file_set->count--;
 
@@ -606,6 +632,11 @@ int luo_retrieve_file(struct luo_file_set *file_set, u64 token,
 	luo_file->file = args.file;
 	/* Get reference so we can keep this file in LUO until finish */
 	get_file(luo_file->file);
+
+	WARN_ON(xa_insert(&luo_preserved_files,
+			  luo_get_id(luo_file->fh, luo_file->file),
+			  luo_file->file, GFP_KERNEL));
+
 	*filep = luo_file->file;
 	luo_file->retrieve_status = 1;
 
@@ -646,6 +677,7 @@ static void luo_file_finish_one(struct luo_file_set *file_set,
 
 	luo_file->fh->ops->finish(&args);
 	luo_flb_file_finish(luo_file->fh);
+	module_put(luo_file->fh->ops->owner);
 }
 
 /**
@@ -701,8 +733,11 @@ int luo_file_finish(struct luo_file_set *file_set)
 
 		luo_file_finish_one(file_set, luo_file);
 
-		if (luo_file->file)
+		if (luo_file->file) {
+			xa_erase(&luo_preserved_files,
+				 luo_get_id(luo_file->fh, luo_file->file));
 			fput(luo_file->file);
+		}
 		list_del(&luo_file->list);
 		file_set->count--;
 		mutex_destroy(&luo_file->mutex);
@@ -777,22 +812,28 @@ int luo_file_deserialize(struct luo_file_set *file_set,
 		bool handler_found = false;
 		struct luo_file *luo_file;
 
+		down_read(&luo_register_rwlock);
 		list_private_for_each_entry(fh, &luo_file_handler_list, list) {
 			if (!strcmp(fh->compatible, file_ser[i].compatible)) {
-				handler_found = true;
+				if (try_module_get(fh->ops->owner))
+					handler_found = true;
 				break;
 			}
 		}
+		up_read(&luo_register_rwlock);
 
 		if (!handler_found) {
-			pr_warn("No registered handler for compatible '%s'\n",
+			pr_warn("No registered handler for compatible '%.*s'\n",
+				(int)sizeof(file_ser[i].compatible),
 				file_ser[i].compatible);
 			return -ENOENT;
 		}
 
 		luo_file = kzalloc_obj(*luo_file);
-		if (!luo_file)
+		if (!luo_file) {
+			module_put(fh->ops->owner);
 			return -ENOMEM;
+		}
 
 		luo_file->fh = fh;
 		luo_file->file = NULL;
@@ -842,41 +883,28 @@ int liveupdate_register_file_handler(struct liveupdate_file_handler *fh)
 		return -EINVAL;
 	}
 
-	/*
-	 * Ensure the system is quiescent (no active sessions).
-	 * This prevents registering new handlers while sessions are active or
-	 * while deserialization is in progress.
-	 */
-	if (!luo_session_quiesce())
-		return -EBUSY;
-
+	down_write(&luo_register_rwlock);
 	/* Check for duplicate compatible strings */
 	list_private_for_each_entry(fh_iter, &luo_file_handler_list, list) {
 		if (!strcmp(fh_iter->compatible, fh->compatible)) {
 			pr_err("File handler registration failed: Compatible string '%s' already registered.\n",
 			       fh->compatible);
 			err = -EEXIST;
-			goto err_resume;
+			goto err_unlock;
 		}
-	}
-
-	/* Pin the module implementing the handler */
-	if (!try_module_get(fh->ops->owner)) {
-		err = -EAGAIN;
-		goto err_resume;
 	}
 
 	INIT_LIST_HEAD(&ACCESS_PRIVATE(fh, flb_list));
 	INIT_LIST_HEAD(&ACCESS_PRIVATE(fh, list));
 	list_add_tail(&ACCESS_PRIVATE(fh, list), &luo_file_handler_list);
-	luo_session_resume();
+	up_write(&luo_register_rwlock);
 
 	liveupdate_test_register(fh);
 
 	return 0;
 
-err_resume:
-	luo_session_resume();
+err_unlock:
+	up_write(&luo_register_rwlock);
 	return err;
 }
 
@@ -886,41 +914,13 @@ err_resume:
  *
  * Unregisters the file handler from the liveupdate core. This function
  * reverses the operations of liveupdate_register_file_handler().
- *
- * It ensures safe removal by checking that:
- * No live update session is currently in progress.
- * No FLB registered with this file handler.
- *
- * If the unregistration fails, the internal test state is reverted.
- *
- * Return: 0 Success. -EOPNOTSUPP when live update is not enabled. -EBUSY A live
- * update is in progress, can't quiesce live update or FLB is registred with
- * this file handler.
  */
-int liveupdate_unregister_file_handler(struct liveupdate_file_handler *fh)
+void liveupdate_unregister_file_handler(struct liveupdate_file_handler *fh)
 {
-	int err = -EBUSY;
-
 	if (!liveupdate_enabled())
-		return -EOPNOTSUPP;
+		return;
 
-	liveupdate_test_unregister(fh);
-
-	if (!luo_session_quiesce())
-		goto err_register;
-
-	if (!list_empty(&ACCESS_PRIVATE(fh, flb_list)))
-		goto err_resume;
-
+	guard(rwsem_write)(&luo_register_rwlock);
+	luo_flb_unregister_all(fh);
 	list_del(&ACCESS_PRIVATE(fh, list));
-	module_put(fh->ops->owner);
-	luo_session_resume();
-
-	return 0;
-
-err_resume:
-	luo_session_resume();
-err_register:
-	liveupdate_test_register(fh);
-	return err;
 }
