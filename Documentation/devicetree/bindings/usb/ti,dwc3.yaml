@@ -1,0 +1,100 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/usb/ti,dwc3.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments OMAP DWC3 USB Glue Layer
+
+maintainers:
+  - Felipe Balbi <balbi@ti.com>
+
+description:
+  Texas Instruments glue layer for Synopsys DesignWare USB3 (DWC3)
+  controller on OMAP and AM43xx SoCs. Manages SoC-specific integration
+  including register mapping, interrupt routing, UTMI/PIPE interface mode
+  selection (HW/SW), and child DWC3 core instantiation via address space
+  translation. Supports both legacy single-instance and multi-instance
+  (numbered) configurations.
+
+properties:
+  compatible:
+    enum:
+      - ti,dwc3
+      - ti,am437x-dwc3
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  utmi-mode:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Controls the source of UTMI/PIPE status for VBUS and OTG ID.
+      1 for HW mode, 2 for SW mode.
+    enum: [1, 2]
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 1
+
+  ranges: true
+
+  extcon:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Phandle for the extcon device used to detect connect/
+      disconnect events.
+
+  vbus-supply:
+    description: Phandle to the regulator device tree node if needed.
+
+patternProperties:
+  "^usb@[0-9a-f]+$":
+    type: object
+    $ref: snps,dwc3.yaml#
+    unevaluatedProperties: false
+
+required:
+  - reg
+  - compatible
+  - interrupts
+  - "#address-cells"
+  - "#size-cells"
+  - utmi-mode
+  - ranges
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    omap_dwc3_1@0 {
+        compatible = "ti,dwc3";
+        reg = <0x0 0x10000>;
+        interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        utmi-mode = <2>;
+        ranges = <0 0 0x20000>;
+
+        usb@10000 {
+            compatible = "snps,dwc3";
+            reg = <0x10000 0x17000>;
+            interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+            interrupt-names = "peripheral", "host", "otg";
+            phys = <&usb2_phy1>, <&usb3_phy1>;
+            phy-names = "usb2-phy", "usb3-phy";
+            maximum-speed = "super-speed";
+            dr_mode = "otg";
+            snps,dis_u3_susphy_quirk;
+            snps,dis_u2_susphy_quirk;
+        };
+    };
+...

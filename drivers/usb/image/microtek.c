@@ -55,7 +55,6 @@
  * Status:
  *
  *	Untested with multiple scanners.
- *	Untested on SMP.
  *	Untested on a bigendian machine.
  *
  * History:
@@ -170,25 +169,13 @@ static struct usb_driver mts_usb_driver = {
 #define MTS_VERSION	"0.4.3"
 #define MTS_NAME	"microtek usb (rev " MTS_VERSION "): "
 
-#define MTS_WARNING(x...) \
-	printk( KERN_WARNING MTS_NAME x )
-#define MTS_ERROR(x...) \
-	printk( KERN_ERR MTS_NAME x )
-#define MTS_INT_ERROR(x...) \
-	MTS_ERROR(x)
-#define MTS_MESSAGE(x...) \
-	printk( KERN_INFO MTS_NAME x )
-
 #if defined MTS_DO_DEBUG
 
 #define MTS_DEBUG(x...) \
 	printk( KERN_DEBUG MTS_NAME x )
 
-#define MTS_DEBUG_GOT_HERE() \
-	MTS_DEBUG("got to %s:%d (%s)\n", __FILE__, (int)__LINE__, __func__ )
 #define MTS_DEBUG_INT() \
-	do { MTS_DEBUG_GOT_HERE(); \
-	     MTS_DEBUG("transfer = 0x%x context = 0x%x\n",(int)transfer,(int)context ); \
+	do { MTS_DEBUG("transfer = 0x%x context = 0x%x\n",(int)transfer,(int)context ); \
 	     MTS_DEBUG("status = 0x%x data-length = 0x%x sent = 0x%x\n",transfer->status,(int)context->data_length, (int)transfer->actual_length ); \
              mts_debug_dump(context->instance);\
 	   } while(0)
@@ -197,7 +184,6 @@ static struct usb_driver mts_usb_driver = {
 #define MTS_NUL_STATEMENT do { } while(0)
 
 #define MTS_DEBUG(x...)	MTS_NUL_STATEMENT
-#define MTS_DEBUG_GOT_HERE() MTS_NUL_STATEMENT
 #define MTS_DEBUG_INT() MTS_NUL_STATEMENT
 
 #endif
@@ -316,7 +302,6 @@ static inline void mts_debug_dump(struct mts_desc* dummy)
 #endif
 
 static inline void mts_urb_abort(struct mts_desc* desc) {
-	MTS_DEBUG_GOT_HERE();
 	mts_debug_dump(desc);
 
 	usb_kill_urb( desc->urb );
@@ -332,8 +317,6 @@ static int mts_scsi_abort(struct scsi_cmnd *srb)
 {
 	struct mts_desc* desc = (struct mts_desc*)(srb->device->host->hostdata[0]);
 
-	MTS_DEBUG_GOT_HERE();
-
 	mts_urb_abort(desc);
 
 	return FAILED;
@@ -344,7 +327,6 @@ static int mts_scsi_host_reset(struct scsi_cmnd *srb)
 	struct mts_desc* desc = (struct mts_desc*)(srb->device->host->hostdata[0]);
 	int result;
 
-	MTS_DEBUG_GOT_HERE();
 	mts_debug_dump(desc);
 
 	result = usb_lock_device_for_reset(desc->usb_dev, desc->usb_intf);
@@ -386,7 +368,8 @@ void mts_int_submit_urb (struct urb* transfer,
 
 	res = usb_submit_urb( transfer, GFP_ATOMIC );
 	if ( unlikely(res) ) {
-		MTS_INT_ERROR( "could not submit URB! Error was %d\n",(int)res );
+		dev_err(&context->instance->usb_dev->dev,
+			"could not submit URB! Error was %d\n",(int)res );
 		set_host_byte(context->srb, DID_ERROR);
 		mts_transfer_cleanup(transfer);
 	}
@@ -452,12 +435,9 @@ static void mts_command_done( struct urb *transfer )
 	if ( unlikely(status) ) {
 	        if (status == -ENOENT) {
 		        /* We are being killed */
-			MTS_DEBUG_GOT_HERE();
 			set_host_byte(context->srb, DID_ABORT);
                 } else {
 		        /* A genuine error has occurred */
-			MTS_DEBUG_GOT_HERE();
-
 		        set_host_byte(context->srb, DID_ERROR);
                 }
 		mts_transfer_cleanup(transfer);
@@ -523,8 +503,6 @@ mts_build_transfer_context(struct scsi_cmnd *srb, struct mts_desc* desc)
 {
 	int pipe;
 
-	MTS_DEBUG_GOT_HERE();
-
 	desc->context.instance = desc;
 	desc->context.srb = srb;
 
@@ -565,7 +543,6 @@ static enum scsi_qc_status mts_scsi_queuecommand_lck(struct scsi_cmnd *srb)
 	struct mts_desc* desc = (struct mts_desc*)(srb->device->host->hostdata[0]);
 	int res;
 
-	MTS_DEBUG_GOT_HERE();
 	mts_show_command(srb);
 	mts_debug_dump(desc);
 
@@ -601,7 +578,7 @@ static enum scsi_qc_status mts_scsi_queuecommand_lck(struct scsi_cmnd *srb)
 	res=usb_submit_urb(desc->urb, GFP_ATOMIC);
 
 	if(unlikely(res)){
-		MTS_ERROR("error %d submitting URB\n",(int)res);
+		dev_err(&desc->usb_dev->dev, "error %d submitting URB\n",(int)res);
 		set_host_byte(srb, DID_ERROR);
 
 		if(likely(callback != NULL))
@@ -666,59 +643,47 @@ static int mts_usb_probe(struct usb_interface *intf,
 	/* the current altsetting on the interface we're probing */
 	struct usb_host_interface *altsetting;
 
-	MTS_DEBUG_GOT_HERE();
 	MTS_DEBUG( "usb-device descriptor at %x\n", (int)dev );
 
 	MTS_DEBUG( "product id = 0x%x, vendor id = 0x%x\n",
 		   le16_to_cpu(dev->descriptor.idProduct),
 		   le16_to_cpu(dev->descriptor.idVendor) );
 
-	MTS_DEBUG_GOT_HERE();
-
 	/* the current altsetting on the interface we're probing */
 	altsetting = intf->cur_altsetting;
-
 
 	/* Check if the config is sane */
 
 	if ( altsetting->desc.bNumEndpoints != MTS_EP_TOTAL ) {
-		MTS_WARNING( "expecting %d got %d endpoints! Bailing out.\n",
+		dev_warn(&dev->dev, "expecting %d got %d endpoints! Bailing out.\n",
 			     (int)MTS_EP_TOTAL, (int)altsetting->desc.bNumEndpoints );
 		return -ENODEV;
 	}
 
 	for( i = 0; i < altsetting->desc.bNumEndpoints; i++ ) {
-		if ((altsetting->endpoint[i].desc.bmAttributes &
-		     USB_ENDPOINT_XFERTYPE_MASK) != USB_ENDPOINT_XFER_BULK) {
-
-			MTS_WARNING( "can only deal with bulk endpoints; endpoint %d is not bulk.\n",
-			     (int)altsetting->endpoint[i].desc.bEndpointAddress );
-		} else {
-			if (altsetting->endpoint[i].desc.bEndpointAddress &
-			    USB_DIR_IN)
-				*ep_in_current++
-					= altsetting->endpoint[i].desc.bEndpointAddress &
-					USB_ENDPOINT_NUMBER_MASK;
-			else {
-				if ( ep_out != -1 ) {
-					MTS_WARNING( "can only deal with one output endpoints. Bailing out." );
-					return -ENODEV;
-				}
-
-				ep_out = altsetting->endpoint[i].desc.bEndpointAddress &
-					USB_ENDPOINT_NUMBER_MASK;
+		if (usb_endpoint_is_bulk_in(&altsetting->endpoint[i].desc)) {
+			*ep_in_current++ = usb_endpoint_num(&altsetting->endpoint[i].desc);
+		} else if (usb_endpoint_is_bulk_out(&altsetting->endpoint[i].desc)) {
+			if (ep_out == -1) {
+				ep_out = usb_endpoint_num(&altsetting->endpoint[i].desc);
+			} else {
+				dev_warn(&dev->dev, "can only deal with bulk endpoints; endpoint %d is not bulk.\n",
+						usb_endpoint_num(&altsetting->endpoint[i].desc));
+				return -ENODEV;
 			}
+		} else {
+			dev_warn(&dev->dev, "can only deal with bulk endpoints; endpoint %d is not bulk.\n",
+					usb_endpoint_num(&altsetting->endpoint[i].desc));
 		}
-
 	}
 
 	if (ep_in_current != &ep_in_set[2]) {
-		MTS_WARNING("couldn't find two input bulk endpoints. Bailing out.\n");
+		dev_warn(&dev->dev, "couldn't find two input bulk endpoints. Bailing out.\n");
 		return -ENODEV;
 	}
 
 	if ( ep_out == -1 ) {
-		MTS_WARNING( "couldn't find an output bulk endpoint. Bailing out.\n" );
+		dev_warn(&dev->dev, "couldn't find an output bulk endpoint. Bailing out.\n" );
 		return -ENODEV;
 	}
 
@@ -744,15 +709,15 @@ static int mts_usb_probe(struct usb_interface *intf,
 	new_desc->ep_image = ep_in_set[1];
 
 	if ( new_desc->ep_out != MTS_EP_OUT )
-		MTS_WARNING( "will this work? Command EP is not usually %d\n",
+		dev_warn(&dev->dev, "will this work? Command EP is not usually %d\n",
 			     (int)new_desc->ep_out );
 
 	if ( new_desc->ep_response != MTS_EP_RESPONSE )
-		MTS_WARNING( "will this work? Response EP is not usually %d\n",
+		dev_warn(&dev->dev, "will this work? Response EP is not usually %d\n",
 			     (int)new_desc->ep_response );
 
 	if ( new_desc->ep_image != MTS_EP_IMAGE )
-		MTS_WARNING( "will this work? Image data EP is not usually %d\n",
+		dev_warn(&dev->dev, "will this work? Image data EP is not usually %d\n",
 			     (int)new_desc->ep_image );
 
 	new_desc->host = scsi_host_alloc(&mts_scsi_host_template,

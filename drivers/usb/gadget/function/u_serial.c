@@ -1086,7 +1086,7 @@ static int gs_console_init(struct gs_port *port)
 	if (!cons)
 		return -ENOMEM;
 
-	strcpy(cons->console.name, "ttyGS");
+	strscpy(cons->console.name, "ttyGS");
 	cons->console.write = gs_console_write;
 	cons->console.device = gs_console_device;
 	cons->console.flags = CON_PRINTBUFFER;

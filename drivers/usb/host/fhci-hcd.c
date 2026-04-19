@@ -426,16 +426,11 @@ static int fhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 	}
 
 	/* allocate the private part of the URB */
-	urb_priv = kzalloc_obj(*urb_priv, mem_flags);
+	urb_priv = kzalloc_flex(*urb_priv, tds, size, mem_flags);
 	if (!urb_priv)
 		return -ENOMEM;
 
-	/* allocate the private part of the URB */
-	urb_priv->tds = kzalloc_objs(*urb_priv->tds, size, mem_flags);
-	if (!urb_priv->tds) {
-		kfree(urb_priv);
-		return -ENOMEM;
-	}
+	urb_priv->num_of_tds = size;
 
 	spin_lock_irqsave(&fhci->lock, flags);
 
@@ -444,8 +439,6 @@ static int fhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 		goto err;
 
 	/* fill the private part of the URB */
-	urb_priv->num_of_tds = size;
-
 	urb->status = -EINPROGRESS;
 	urb->actual_length = 0;
 	urb->error_count = 0;
@@ -453,10 +446,8 @@ static int fhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 
 	fhci_queue_urb(fhci, urb);
 err:
-	if (ret) {
-		kfree(urb_priv->tds);
+	if (ret)
 		kfree(urb_priv);
-	}
 	spin_unlock_irqrestore(&fhci->lock, flags);
 	return ret;
 }

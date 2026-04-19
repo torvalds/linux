@@ -26,14 +26,6 @@ struct ep_device {
 #define to_ep_device(_dev) \
 	container_of(_dev, struct ep_device, dev)
 
-struct ep_attribute {
-	struct attribute attr;
-	ssize_t (*show)(struct usb_device *,
-			struct usb_endpoint_descriptor *, char *);
-};
-#define to_ep_attribute(_attr) \
-	container_of(_attr, struct ep_attribute, attr)
-
 #define usb_ep_attr(field, format_string)			\
 static ssize_t field##_show(struct device *dev,			\
 			       struct device_attribute *attr,	\

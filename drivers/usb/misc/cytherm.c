@@ -311,7 +311,7 @@ static int cytherm_probe(struct usb_interface *interface,
 	if (!dev)
 		goto error_mem;
 
-	dev->udev = usb_get_dev(udev);
+	dev->udev = udev;
 
 	usb_set_intfdata(interface, dev);
 
@@ -333,8 +333,6 @@ static void cytherm_disconnect(struct usb_interface *interface)
 
 	/* first remove the files, then NULL the pointer */
 	usb_set_intfdata(interface, NULL);
-
-	usb_put_dev(dev->udev);
 
 	kfree(dev);
 

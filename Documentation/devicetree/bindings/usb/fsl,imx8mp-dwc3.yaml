@@ -10,6 +10,8 @@ title: NXP iMX8MP Soc USB Controller
 maintainers:
   - Li Jun <jun.li@nxp.com>
 
+deprecated: true
+
 properties:
   compatible:
     oneOf:

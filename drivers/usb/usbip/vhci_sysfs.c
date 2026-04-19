@@ -463,7 +463,7 @@ static void set_status_attr(int id)
 
 	status = status_attrs + id;
 	if (id == 0)
-		strcpy(status->name, "status");
+		strscpy(status->name, "status");
 	else
 		snprintf(status->name, MAX_STATUS_NAME+1, "status.%d", id);
 	status->attr.attr.name = status->name;

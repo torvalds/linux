@@ -1,0 +1,79 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/usb/corechips,sl6341.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Corechips SL6341 USB 2.0/3.0 Hub Controller
+
+maintainers:
+  - Alexey Charkov <alchark@flipper.net>
+
+allOf:
+  - $ref: usb-hub.yaml#
+
+properties:
+  compatible:
+    enum:
+      - usb3431,6241
+      - usb3431,6341
+
+  reg: true
+
+  peer-hub: true
+
+  reset-gpios:
+    description: GPIO controlling the RSTN pin.
+
+  vdd1v1-supply:
+    description:
+      The regulator that provides 1.1V core power to the hub.
+
+  vdd3v3-supply:
+    description:
+      The regulator that provides 3.3V IO power to the hub.
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+
+    patternProperties:
+      '^port@':
+        $ref: /schemas/graph.yaml#/properties/port
+
+        properties:
+          reg:
+            minimum: 1
+            maximum: 4
+
+required:
+  - compatible
+  - reg
+  - vdd1v1-supply
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    usb {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        /* 2.0 hub */
+        hub_2_0: hub@1 {
+          compatible = "usb3431,6241";
+          reg = <1>;
+          peer-hub = <&hub_3_0>;
+          reset-gpios = <&gpio0 20 GPIO_ACTIVE_LOW>;
+          vdd1v1-supply = <&vdd1v1_hub>;
+        };
+
+        /* 3.0 hub */
+        hub_3_0: hub@2 {
+          compatible = "usb3431,6341";
+          reg = <2>;
+          peer-hub = <&hub_2_0>;
+          reset-gpios = <&gpio0 20 GPIO_ACTIVE_LOW>;
+          vdd1v1-supply = <&vdd1v1_hub>;
+        };
+    };

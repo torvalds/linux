@@ -387,9 +387,10 @@ struct urb_priv {
 	int tds_cnt;
 	int state;
 
-	struct td **tds;
 	struct ed *ed;
 	struct timer_list time_out;
+
+	struct td *tds[] __counted_by(num_of_tds);
 };
 
 struct endpoint {

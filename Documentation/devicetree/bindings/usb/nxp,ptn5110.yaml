@@ -26,6 +26,10 @@ properties:
     $ref: /schemas/connector/usb-connector.yaml#
     unevaluatedProperties: false
 
+  orientation-gpios:
+    maxItems: 1
+    description: Optional orientation select control
+
 required:
   - compatible
   - reg

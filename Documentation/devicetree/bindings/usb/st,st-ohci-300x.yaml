@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/usb/st,st-ohci-300x.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: STMicroelectronics USB OHCI Controller
+
+maintainers:
+  - Peter Griffin <peter.griffin@linaro.org>
+
+description:
+  The STMicroelectronics USB Open Host Controller Interface (OHCI)
+  compliant USB host controller found in ST platforms. The controller
+  provides full- and low-speed USB host functionality and interfaces
+  with an external USB PHY. It requires dedicated clock, reset, and
+  interrupt resources for proper operation.
+
+allOf:
+  - $ref: /schemas/usb/usb-hcd.yaml#
+
+properties:
+  compatible:
+    const: st,st-ohci-300x
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 2
+
+  clock-names:
+    items:
+      - const: ic
+      - const: clk48
+
+  phys:
+    maxItems: 1
+
+  phy-names:
+    items:
+      - const: usb
+
+  resets:
+    maxItems: 2
+
+  reset-names:
+    items:
+      - const: power
+      - const: softreset
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - phys
+  - phy-names
+  - resets
+  - reset-names
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/reset/stih407-resets.h>
+    usb@fe1ffc00 {
+        compatible = "st,st-ohci-300x";
+        reg = <0xfe1ffc00 0x100>;
+        interrupts = <GIC_SPI 149 IRQ_TYPE_NONE>;
+        clocks = <&clk_s_a1_ls 0>,
+                 <&clockgen_b0 0>;
+        clock-names = "ic", "clk48";
+        phys = <&usb2_phy>;
+        phy-names = "usb";
+        resets = <&powerdown STIH407_USB2_PORT0_POWERDOWN>,
+                 <&softreset STIH407_USB2_PORT0_SOFTRESET>;
+        reset-names = "power", "softreset";
+    };
+...

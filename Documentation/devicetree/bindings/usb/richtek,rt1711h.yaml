@@ -18,11 +18,21 @@ description: |
 
 properties:
   compatible:
-    enum:
-      - richtek,rt1711h
-      - richtek,rt1715
+    oneOf:
+      - enum:
+          - richtek,rt1711h
+          - richtek,rt1715
+      - items:
+          - enum:
+              - hynetek,husb311
+          - const: richtek,rt1711h
+      - items:
+          - enum:
+              - etekmicro,et7304
+          - const: richtek,rt1715
     description:
-      RT1711H support PD20, RT1715 support PD30 except Fast Role Swap.
+      RT1711H support PD20, ET7304 and RT1715 support PD30 except Fast Role Swap.
+      HUSB311 is a rebrand of RT1711H which is pin and register compatible.
 
   reg:
     maxItems: 1

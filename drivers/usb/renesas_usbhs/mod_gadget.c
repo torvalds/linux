@@ -40,7 +40,6 @@ struct usbhsg_gpriv {
 	struct usb_gadget	 gadget;
 	struct usbhs_mod	 mod;
 
-	struct usbhsg_uep	*uep;
 	int			 uep_size;
 
 	struct usb_gadget_driver	*driver;
@@ -53,6 +52,7 @@ struct usbhsg_gpriv {
 #define USBHSG_STATUS_WEDGE		(1 << 2)
 #define USBHSG_STATUS_SELF_POWERED	(1 << 3)
 #define USBHSG_STATUS_SOFT_CONNECT	(1 << 4)
+	struct usbhsg_uep	uep[] __counted_by(uep_size);
 };
 
 struct usbhsg_recip_handle {
@@ -1084,15 +1084,11 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 	int i;
 	int ret;
 
-	gpriv = kzalloc_obj(struct usbhsg_gpriv);
+	gpriv = kzalloc_flex(*gpriv, uep, pipe_size);
 	if (!gpriv)
 		return -ENOMEM;
 
-	uep = kzalloc_objs(struct usbhsg_uep, pipe_size);
-	if (!uep) {
-		ret = -ENOMEM;
-		goto usbhs_mod_gadget_probe_err_gpriv;
-	}
+	gpriv->uep_size	= pipe_size;
 
 	gpriv->transceiver = devm_usb_get_phy(dev, USB_PHY_TYPE_UNDEFINED);
 	dev_info(dev, "%stransceiver found\n",
@@ -1115,8 +1111,6 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 	gpriv->mod.name		= "gadget";
 	gpriv->mod.start	= usbhsg_start;
 	gpriv->mod.stop		= usbhsg_stop;
-	gpriv->uep		= uep;
-	gpriv->uep_size		= pipe_size;
 	usbhsg_status_init(gpriv);
 
 	/*
@@ -1175,9 +1169,6 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 	return 0;
 
 err_add_udc:
-	kfree(gpriv->uep);
-
-usbhs_mod_gadget_probe_err_gpriv:
 	kfree(gpriv);
 
 	return ret;
@@ -1189,6 +1180,5 @@ void usbhs_mod_gadget_remove(struct usbhs_priv *priv)
 
 	usb_del_gadget_udc(&gpriv->gadget);
 
-	kfree(gpriv->uep);
 	kfree(gpriv);
 }

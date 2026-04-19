@@ -193,7 +193,7 @@ static void gaokun_ucsi_connector_status(struct ucsi_connector *con)
 	gaokun_set_orientation(con, &uec->ports[idx]);
 }
 
-const struct ucsi_operations gaokun_ucsi_ops = {
+static const struct ucsi_operations gaokun_ucsi_ops = {
 	.read_version = gaokun_ucsi_read_version,
 	.read_cci = gaokun_ucsi_read_cci,
 	.poll_cci = gaokun_ucsi_read_cci,

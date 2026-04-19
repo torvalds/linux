@@ -30,7 +30,7 @@ static void xhci_mvebu_mbus_config(void __iomem *base,
 		writel(0, base + USB3_WIN_BASE(win));
 	}
 
-	/* Program each DRAM CS in a seperate window */
+	/* Program each DRAM CS in a separate window */
 	for (win = 0; win < dram->num_cs; win++) {
 		const struct mbus_dram_window *cs = &dram->cs[win];
 

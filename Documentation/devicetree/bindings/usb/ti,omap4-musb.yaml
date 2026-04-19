@@ -1,0 +1,120 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/usb/ti,omap4-musb.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments OMAP MUSB USB OTG Controller
+
+maintainers:
+  - Felipe Balbi <balbi@ti.com>
+
+description:
+  Texas Instruments glue layer for the Mentor Graphics MUSB OTG controller.
+  Handles SoC-specific integration including PHY interface bridging(ULPI/
+  UTMI), interrupt aggregation, DMA engine coordination (internal/
+  external), VBUS/session control via control module mailbox, and
+  clock/reset management. Provides fixed hardware configuration parameters
+  to the generic MUSB core driver.
+
+properties:
+  compatible:
+    enum:
+      - ti,omap3-musb
+      - ti,omap4-musb
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    minItems: 1
+    maxItems: 2
+
+  interrupt-names:
+    minItems: 1
+    items:
+      - const: mc
+      - const: dma
+
+  multipoint:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Indicates the MUSB controller supports multipoint. This is a MUSB
+      configuration-specific setting.
+    const: 1
+
+  num-eps:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Specifies the number of endpoints. This is a MUSB configuration
+      specific setting.
+    const: 16
+
+  ram-bits:
+    description: Specifies the RAM address size.
+    const: 12
+
+  interface-type:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Describes the type of interface between the controller and the PHY.
+      0 for ULPI, 1 for UTMI.
+    enum: [0, 1]
+
+  mode:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: 1 for HOST, 2 for PERIPHERAL, 3 for OTG.
+    enum: [1, 2, 3]
+
+  power:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Indicates the maximum current the controller can supply when
+      operating in host mode. A value of 50 corresponds to 100 mA, and a
+      value of 150 corresponds to 300 mA.
+    enum: [50, 150]
+
+  phys:
+    maxItems: 1
+
+  phy-names:
+    const: usb2-phy
+
+  usb-phy:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    description: Phandle for the PHY device.
+    deprecated: true
+
+  ctrl-module:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Phandle of the control module this glue uses to write to mailbox.
+
+required:
+  - reg
+  - compatible
+  - interrupts
+  - interrupt-names
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    usb@4a0ab000 {
+        compatible = "ti,omap4-musb";
+        reg = <0x4a0ab000 0x1000>;
+        interrupts = <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "mc", "dma";
+        multipoint = <1>;
+        num-eps = <16>;
+        ram-bits = <12>;
+        ctrl-module = <&omap_control_usb>;
+        phys = <&usb2_phy>;
+        phy-names = "usb2-phy";
+        interface-type = <1>;
+        mode = <3>;
+        power = <50>;
+    };
+...

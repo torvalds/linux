@@ -267,7 +267,7 @@ static struct stub_device *stub_device_alloc(struct usb_device *udev)
 	if (!sdev)
 		return NULL;
 
-	sdev->udev = usb_get_dev(udev);
+	sdev->udev = udev;
 
 	/*
 	 * devid is defined with devnum when this driver is first allocated.
@@ -409,7 +409,6 @@ call_put_busid_priv:
 	put_busid_priv(busid_priv);
 
 sdev_free:
-	usb_put_dev(udev);
 	stub_device_free(sdev);
 
 	return rc;
@@ -487,8 +486,6 @@ static void stub_disconnect(struct usb_device *udev)
 
 	/* shutdown the current connection */
 	shutdown_busid(busid_priv);
-
-	usb_put_dev(sdev->udev);
 
 	/* we already have busid_priv, just lock busid_lock */
 	spin_lock(&busid_priv->busid_lock);
