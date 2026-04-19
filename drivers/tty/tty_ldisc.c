@@ -44,7 +44,7 @@ enum {
 
 static DEFINE_RAW_SPINLOCK(tty_ldiscs_lock);
 /* Line disc dispatch table */
-static struct tty_ldisc_ops *tty_ldiscs[NR_LDISCS];
+static const struct tty_ldisc_ops *tty_ldiscs[NR_LDISCS];
 
 /**
  * tty_register_ldisc	-	install a line discipline
@@ -55,7 +55,7 @@ static struct tty_ldisc_ops *tty_ldiscs[NR_LDISCS];
  *
  * Locking: takes %tty_ldiscs_lock to guard against ldisc races
  */
-int tty_register_ldisc(struct tty_ldisc_ops *new_ldisc)
+int tty_register_ldisc(const struct tty_ldisc_ops *new_ldisc)
 {
 	unsigned long flags;
 
@@ -80,7 +80,7 @@ EXPORT_SYMBOL(tty_register_ldisc);
  * Locking: takes %tty_ldiscs_lock to guard against ldisc races
  */
 
-void tty_unregister_ldisc(struct tty_ldisc_ops *ldisc)
+void tty_unregister_ldisc(const struct tty_ldisc_ops *ldisc)
 {
 	unsigned long flags;
 
@@ -90,10 +90,10 @@ void tty_unregister_ldisc(struct tty_ldisc_ops *ldisc)
 }
 EXPORT_SYMBOL(tty_unregister_ldisc);
 
-static struct tty_ldisc_ops *get_ldops(int disc)
+static const struct tty_ldisc_ops *get_ldops(int disc)
 {
 	unsigned long flags;
-	struct tty_ldisc_ops *ldops, *ret;
+	const struct tty_ldisc_ops *ldops, *ret;
 
 	raw_spin_lock_irqsave(&tty_ldiscs_lock, flags);
 	ret = ERR_PTR(-EINVAL);
@@ -107,7 +107,7 @@ static struct tty_ldisc_ops *get_ldops(int disc)
 	return ret;
 }
 
-static void put_ldops(struct tty_ldisc_ops *ldops)
+static void put_ldops(const struct tty_ldisc_ops *ldops)
 {
 	unsigned long flags;
 
@@ -139,7 +139,7 @@ int tty_ldisc_autoload = IS_BUILTIN(CONFIG_LDISC_AUTOLOAD);
 static struct tty_ldisc *tty_ldisc_get(struct tty_struct *tty, int disc)
 {
 	struct tty_ldisc *ld;
-	struct tty_ldisc_ops *ldops;
+	const struct tty_ldisc_ops *ldops;
 
 	if (disc < N_TTY || disc >= NR_LDISCS)
 		return ERR_PTR(-EINVAL);
@@ -202,7 +202,7 @@ static void tty_ldiscs_seq_stop(struct seq_file *m, void *v)
 static int tty_ldiscs_seq_show(struct seq_file *m, void *v)
 {
 	int i = *(loff_t *)v;
-	struct tty_ldisc_ops *ldops;
+	const struct tty_ldisc_ops *ldops;
 
 	ldops = get_ldops(i);
 	if (IS_ERR(ldops))

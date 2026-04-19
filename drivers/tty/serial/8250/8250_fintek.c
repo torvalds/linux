@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  Probe for F81216A LPC to 4 UART
+ *  Probe for F81216A LPC to 4 UART and F81214E LPC/eSPI to 2 UART
  *
  *  Copyright (C) 2014-2016 Ricardo Ribalda, Qtechnology A/S
  */
@@ -23,6 +23,7 @@
 #define CHIP_ID_F81216AD 0x1602
 #define CHIP_ID_F81216E 0x1617
 #define CHIP_ID_F81216H 0x0501
+#define CHIP_ID_F81214E 0x1417
 #define CHIP_ID_F81216 0x0802
 #define VENDOR_ID1 0x23
 #define VENDOR_ID1_VAL 0x19
@@ -161,6 +162,7 @@ static int fintek_8250_check_id(struct fintek_8250 *pdata)
 	case CHIP_ID_F81216AD:
 	case CHIP_ID_F81216E:
 	case CHIP_ID_F81216H:
+	case CHIP_ID_F81214E:
 	case CHIP_ID_F81216:
 		break;
 	default:
@@ -185,6 +187,7 @@ static int fintek_8250_get_ldn_range(struct fintek_8250 *pdata, int *min,
 	case CHIP_ID_F81216AD:
 	case CHIP_ID_F81216E:
 	case CHIP_ID_F81216H:
+	case CHIP_ID_F81214E:
 	case CHIP_ID_F81216:
 		*min = F81216_LDN_LOW;
 		*max = F81216_LDN_HIGH;
@@ -255,6 +258,7 @@ static void fintek_8250_set_irq_mode(struct fintek_8250 *pdata, bool is_level)
 	case CHIP_ID_F81216AD:
 	case CHIP_ID_F81216E:
 	case CHIP_ID_F81216H:
+	case CHIP_ID_F81214E:
 	case CHIP_ID_F81216:
 		sio_write_mask_reg(pdata, FINTEK_IRQ_MODE, IRQ_SHARE,
 				   IRQ_SHARE);
@@ -269,6 +273,7 @@ static void fintek_8250_set_max_fifo(struct fintek_8250 *pdata)
 	switch (pdata->pid) {
 	case CHIP_ID_F81216E: /* 128Bytes FIFO */
 	case CHIP_ID_F81216H:
+	case CHIP_ID_F81214E:
 	case CHIP_ID_F81966:
 	case CHIP_ID_F81866:
 		sio_write_mask_reg(pdata, FIFO_CTRL,
@@ -304,6 +309,7 @@ static void fintek_8250_set_termios(struct uart_port *port,
 	switch (pdata->pid) {
 	case CHIP_ID_F81216E:
 	case CHIP_ID_F81216H:
+	case CHIP_ID_F81214E:
 		reg = RS485;
 		break;
 	case CHIP_ID_F81966:
@@ -354,6 +360,7 @@ static void fintek_8250_set_termios_handler(struct uart_8250_port *uart)
 	switch (pdata->pid) {
 	case CHIP_ID_F81216E:
 	case CHIP_ID_F81216H:
+	case CHIP_ID_F81214E:
 	case CHIP_ID_F81966:
 	case CHIP_ID_F81866:
 		uart->port.set_termios = fintek_8250_set_termios;
@@ -446,6 +453,7 @@ static void fintek_8250_set_rs485_handler(struct uart_8250_port *uart)
 		break;
 
 	case CHIP_ID_F81216E: /* F81216E does not support RS485 delays */
+	case CHIP_ID_F81214E: /* F81214E does not support RS485 delays */
 		uart->port.rs485_config = fintek_8250_rs485_config;
 		uart->port.rs485_supported = fintek_8250_rs485_supported;
 		break;

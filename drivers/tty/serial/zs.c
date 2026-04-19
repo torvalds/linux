@@ -1252,7 +1252,7 @@ console_initcall(zs_serial_console_init);
 
 static struct uart_driver zs_reg = {
 	.owner			= THIS_MODULE,
-	.driver_name		= "serial",
+	.driver_name		= "serial_zs",
 	.dev_name		= "ttyS",
 	.major			= TTY_MAJOR,
 	.minor			= 64,

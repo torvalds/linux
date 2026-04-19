@@ -182,6 +182,7 @@ properties:
           - const: ns16550a
       - items:
           - enum:
+              - loongson,ls3a4000-uart
               - loongson,ls3a5000-uart
               - loongson,ls3a6000-uart
               - loongson,ls2k2000-uart

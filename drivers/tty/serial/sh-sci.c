@@ -1184,7 +1184,8 @@ static int sci_handle_errors(struct uart_port *port)
 
 static bool sci_is_rsci_type(u8 type)
 {
-	return (type == RSCI_PORT_SCIF16 || type == RSCI_PORT_SCIF32);
+	return (type == RSCI_PORT_SCIF16 || type == RSCI_PORT_SCIF32 ||
+		type == RSCI_PORT_SCIF32_SINGLE_TCLK);
 }
 
 static int sci_handle_fifo_overrun(struct uart_port *port)
@@ -3181,7 +3182,8 @@ static int sci_init_clocks(struct sci_port *sci_port, struct device *dev)
 
 	if (sci_port->type == PORT_HSCIF) {
 		clk_names[SCI_SCK] = "hsck";
-	} else if (sci_port->type == RSCI_PORT_SCIF16) {
+	} else if (sci_port->type == RSCI_PORT_SCIF16 ||
+		   sci_port->type == RSCI_PORT_SCIF32_SINGLE_TCLK) {
 		clk_names[SCI_FCK] = "operation";
 		clk_names[SCI_BRG_INT] = "bus";
 	} else if (sci_port->type == RSCI_PORT_SCIF32) {
@@ -3196,7 +3198,8 @@ static int sci_init_clocks(struct sci_port *sci_port, struct device *dev)
 		if (IS_ERR(clk))
 			return PTR_ERR(clk);
 
-		if (!clk && sci_port->type == RSCI_PORT_SCIF16 &&
+		if (!clk && (sci_port->type == RSCI_PORT_SCIF16 ||
+			     sci_port->type == RSCI_PORT_SCIF32_SINGLE_TCLK) &&
 		    (i == SCI_FCK || i == SCI_BRG_INT))
 			return dev_err_probe(dev, -ENODEV, "failed to get %s\n", name);
 
@@ -3330,6 +3333,7 @@ static int sci_init_single(struct platform_device *dev,
 		break;
 	case PORT_SCIFA:
 	case RSCI_PORT_SCIF32:
+	case RSCI_PORT_SCIF32_SINGLE_TCLK:
 		sci_port->rx_trigger = 32;
 		break;
 	case PORT_SCIF:
@@ -3663,6 +3667,10 @@ static const struct of_device_id of_sci_match[] __maybe_unused = {
 		.data = &of_sci_scif_rzv2h,
 	},
 #ifdef CONFIG_SERIAL_RSCI
+	{
+		.compatible = "renesas,r9a08g046-rsci",
+		.data = &of_rsci_rzg3l_data,
+	},
 	{
 		.compatible = "renesas,r9a09g047-rsci",
 		.data = &of_rsci_rzg3e_data,

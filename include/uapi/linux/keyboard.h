@@ -41,6 +41,7 @@
 #define KT_SLOCK	12
 #define KT_DEAD2	13
 #define KT_BRL		14
+#define KT_CSI		15	/* CSI sequences with modifier support */
 
 #define K(t,v)		(((t)<<8)|(v))
 #define KTYP(x)		((x) >> 8)
@@ -460,6 +461,34 @@
 #define K_BRL_DOT10     K(KT_BRL, 10)
 
 #define NR_BRL		11
+
+/* KT_CSI keys: value is the CSI parameter number for ESC [ <value> ~ */
+#define K_CSI_HOME	K(KT_CSI, 1)	/* ESC [ 1 ~ */
+#define K_CSI_INSERT	K(KT_CSI, 2)	/* ESC [ 2 ~ */
+#define K_CSI_DELETE	K(KT_CSI, 3)	/* ESC [ 3 ~ */
+#define K_CSI_END	K(KT_CSI, 4)	/* ESC [ 4 ~ */
+#define K_CSI_PGUP	K(KT_CSI, 5)	/* ESC [ 5 ~ */
+#define K_CSI_PGDN	K(KT_CSI, 6)	/* ESC [ 6 ~ */
+#define K_CSI_F1	K(KT_CSI, 11)	/* ESC [ 11 ~ */
+#define K_CSI_F2	K(KT_CSI, 12)	/* ESC [ 12 ~ */
+#define K_CSI_F3	K(KT_CSI, 13)	/* ESC [ 13 ~ */
+#define K_CSI_F4	K(KT_CSI, 14)	/* ESC [ 14 ~ */
+#define K_CSI_F5	K(KT_CSI, 15)	/* ESC [ 15 ~ */
+#define K_CSI_F6	K(KT_CSI, 17)	/* ESC [ 17 ~ */
+#define K_CSI_F7	K(KT_CSI, 18)	/* ESC [ 18 ~ */
+#define K_CSI_F8	K(KT_CSI, 19)	/* ESC [ 19 ~ */
+#define K_CSI_F9	K(KT_CSI, 20)	/* ESC [ 20 ~ */
+#define K_CSI_F10	K(KT_CSI, 21)	/* ESC [ 21 ~ */
+#define K_CSI_F11	K(KT_CSI, 23)	/* ESC [ 23 ~ */
+#define K_CSI_F12	K(KT_CSI, 24)	/* ESC [ 24 ~ */
+#define K_CSI_F13	K(KT_CSI, 25)	/* ESC [ 25 ~ */
+#define K_CSI_F14	K(KT_CSI, 26)	/* ESC [ 26 ~ */
+#define K_CSI_F15	K(KT_CSI, 28)	/* ESC [ 28 ~ */
+#define K_CSI_F16	K(KT_CSI, 29)	/* ESC [ 29 ~ */
+#define K_CSI_F17	K(KT_CSI, 31)	/* ESC [ 31 ~ */
+#define K_CSI_F18	K(KT_CSI, 32)	/* ESC [ 32 ~ */
+#define K_CSI_F19	K(KT_CSI, 33)	/* ESC [ 33 ~ */
+#define K_CSI_F20	K(KT_CSI, 34)	/* ESC [ 34 ~ */
 
 #define MAX_DIACR	256
 #endif /* _UAPI__LINUX_KEYBOARD_H */

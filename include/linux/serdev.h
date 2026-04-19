@@ -37,8 +37,8 @@ struct serdev_device_ops {
  * @nr:		Device number on serdev bus.
  * @ctrl:	serdev controller managing this device.
  * @ops:	Device operations.
- * @write_comp	Completion used by serdev_device_write() internally
- * @write_lock	Lock to serialize access when writing data
+ * @write_comp:	Completion used by serdev_device_write() internally
+ * @write_lock:	Lock to serialize access when writing data
  */
 struct serdev_device {
 	struct device dev;
@@ -57,6 +57,7 @@ struct serdev_device {
  *		structure.
  * @probe:	binds this driver to a serdev device.
  * @remove:	unbinds this driver from the serdev device.
+ * @shutdown:	shut down this serdev device.
  */
 struct serdev_device_driver {
 	struct device_driver driver;
@@ -120,7 +121,7 @@ static inline void serdev_device_set_drvdata(struct serdev_device *serdev, void 
 
 /**
  * serdev_device_put() - decrement serdev device refcount
- * @serdev	serdev device.
+ * @serdev:	serdev device.
  */
 static inline void serdev_device_put(struct serdev_device *serdev)
 {
@@ -148,7 +149,7 @@ static inline void serdev_controller_set_drvdata(struct serdev_controller *ctrl,
 
 /**
  * serdev_controller_put() - decrement controller refcount
- * @ctrl	serdev controller.
+ * @ctrl:	serdev controller.
  */
 static inline void serdev_controller_put(struct serdev_controller *ctrl)
 {

@@ -524,7 +524,7 @@ console_initcall(univ8250_console_init);
 
 struct uart_driver serial8250_reg = {
 	.owner			= THIS_MODULE,
-	.driver_name		= "serial",
+	.driver_name		= "serial_8250",
 	.dev_name		= "ttyS",
 	.major			= TTY_MAJOR,
 	.minor			= 64,

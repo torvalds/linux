@@ -465,11 +465,12 @@ config SERIAL_8250_OMAP_TTYO_FIXUP
 config SERIAL_8250_LOONGSON
 	tristate "Loongson 8250 based serial port"
 	depends on SERIAL_8250
-	depends on LOONGARCH || COMPILE_TEST
+	depends on LOONGARCH || MACH_LOONGSON64 || COMPILE_TEST
 	help
-	  If you have a machine based on LoongArch CPU you can enable
-	  its onboard serial ports by enabling this option. The option
-	  is applicable to both devicetree and ACPI, say Y to this option.
+	  If you have a machine based on LoongArch CPU or MIPS-based Loongson
+	  3A4000 CPU you can enable its onboard serial ports by enabling this
+	  option. The option is applicable to both devicetree and ACPI, say Y
+	  to enable this option.
 	  If unsure, say N.
 
 config SERIAL_8250_LPC18XX
