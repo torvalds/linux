@@ -269,13 +269,22 @@ Git 和邮箱配置
 **请注意** 以上四行，缺少任何一行，您都将会在第一轮审阅后返工，如果您需要一个
 更加明确的示例，请对 zh_CN 目录执行 git log。
 
-导出补丁和制作封面
-------------------
+导出补丁
+--------
 
-这个时候，可以导出补丁，做发送邮件列表最后的准备了。命令行执行::
+这个时候，可以导出补丁，做发送邮件列表最后的准备了。对于单个补丁，
+命令行执行::
+
+	git format-patch -1
+
+然后命令行会输出类似下面的内容::
+
+	0001-docs-zh_CN-add-xxxxxxxx.patch
+
+如果您有多个补丁，命令行执行::
 
 	git format-patch -N
-	# N 要替换为补丁数量，一般 N 大于等于 1
+	# N 要替换为补丁数量，一般 N 大于 1
 
 然后命令行会输出类似下面的内容::
 
@@ -290,13 +299,12 @@ Git 和邮箱配置
 
 	./scripts/checkpatch.pl *.patch
 
-参考脚本输出，解决掉所有的 error 和 warning，通常情况下，只有下面这个
+参考脚本输出，解决掉所有的 error 和 warning。通常情况下，只有下面这个
 warning 不需要解决::
 
 	WARNING: added, moved or deleted file(s), does MAINTAINERS need updating?
 
-一个简单的解决方法是一次只检查一个补丁，然后打上该补丁，直接对译文进行修改，
-然后执行以下命令为补丁追加更改::
+对于单个补丁，解决方案很简单，只需要打上该补丁，直接对译文进行修改，为补丁追加后续更改::
 
 	git checkout docs-next
 	git checkout -b test-trans-new
@@ -304,15 +312,21 @@ warning 不需要解决::
 	./scripts/checkpatch.pl 0001-xxxxx.patch
 	# 直接修改您的翻译
 	git add .
-	git am --amend
+	git commit --amend
 	# 保存退出
-	git am 0002-xxxxx.patch
-	……
 
-重新导出再次检测，重复这个过程，直到处理完所有的补丁。
+随后，重新导出补丁再次检测，重复这个过程，直到处理完所有 warning 和
+error。
 
-最后，如果检测时没有需要处理的 warning 和 error，或者您只有一个补丁，请
-跳过下面这个步骤，否则请重新导出补丁制作封面::
+如果您有多个补丁，请按补丁集中补丁顺序对每个补丁重复上述流程，一次只处理
+一个，不要一次 git am 多个补丁。全部处理完毕后再重新导出并再次测试。
+
+为补丁集制作封面
+----------------
+
+对于单个补丁，请跳过本节。
+
+如果您有多个补丁，则需要为补丁集制作一份封面，即 0 号补丁::
 
 	git format-patch -N --cover-letter --thread=shallow
 	# N 要替换为补丁数量，一般 N 大于 1
@@ -329,17 +343,13 @@ warning 不需要解决::
 	vim 0000-cover-letter.patch
 
 	...
-	Subject: [PATCH 0/N] *** SUBJECT HERE *** #修改该字段，概括您的补丁集都做了哪些事情
+	Subject: [PATCH 0/N] *** SUBJECT HERE *** # 修改该字段，概括您的补丁集都做了哪些事情
 
-	*** BLURB HERE ***			  #修改该字段，详细描述您的补丁集做了哪些事情
+	*** BLURB HERE ***			  # 修改该字段，详细描述您的补丁集做了哪些事情
 
 	Yanteng Si (1):
 	  docs/zh_CN: add xxxxx
 	...
-
-如果您只有一个补丁，则无需制作封面（即 0 号补丁），只需执行::
-
-	git format-patch -1
 
 把补丁提交到邮件列表
 ====================
@@ -392,27 +402,66 @@ reviewer 的评论，做到每条都有回复，每个回复都落实到位。
 迭代补丁
 --------
 
-建议您每回复一条评论，就修改一处翻译。然后重新生成补丁，相信您现在已经具
-备了灵活使用 git am --amend 的能力。
+建议您每回复一条评论，就修改一处翻译，然后重新生成补丁，相信您现在
+已经具备了灵活使用 git am 与 git commit --amend 的能力。
 
-每次迭代一个补丁，不要一次多个::
+对于单个补丁，每回复完评论后修改、追加::
 
-	git am <您要修改的补丁>
+	git am 0001-xxxxx.patch
 	# 直接对文件进行您的修改
 	git add .
 	git commit --amend
 
-当您将所有的评论落实到位后，导出第二版补丁，并修改封面::
+当您将所有的评论落实到位后，导出第二版补丁::
+
+	git format-patch -1 -v 2
+
+命令行会输出 v2-0001-xxxxx.patch。打开该文件，在 --- 分割线下方追加
+changelog。注意，分割线以下的内容不会进入 git 提交历史，仅作为邮件中的
+说明供 reviewer 检查::
+
+	Subject: [PATCH v2] docs/zh_CN: add xxxxxx translation
+
+	Translate .../xxx.rst into Chinese.
+
+	Signed-off-by: Yanteng Si <si.yanteng@linux.dev>
+	---
+	v1->v2:
+	  - 修正第二节的错别字，Reviewer-A 提出的意见
+	  - 根据 Reviewer-B 的建议调整段落顺序
+
+	 Documentation/translations/zh_CN/xxx.rst | 100 ++++++
+	 1 file changed, 100 insertions(+)
+
+后续迭代 v3、v4 …… 时，新的 changelog 放在最上面，旧的保留在下方，按
+从新到旧的顺序叠加。例如 v3 补丁的 --- 下方::
+
+	---
+	v2->v3:
+	  - ...本次相较 v2 的改动...
+	v1->v2:
+	  - ...上一次相较 v1 的改动...
+
+然后发送::
+
+	git send-email v2-0001-*.patch --to <maintainer email addr> --cc <others addr>
+
+如果您有多个补丁，迭代时请按以下原则：每次只迭代一个补丁，不要一次多个，
+每个补丁独立重复上述流程。所有评论落实到位后，导出 v2 时附带封面::
 
 	git format-patch -N -v 2 --cover-letter --thread=shallow
 
-打开 0 号补丁，在 BLURB HERE 处编写相较于上个版本，您做了哪些改动。
+打开 0 号补丁，在 BLURB HERE 处写明整组补丁相较 v1 的总体改动，格式
+同上面的单个补丁 changelog 示例。如果某个补丁需要单独说明，可在该
+补丁文件的 --- 分割线下方追加单个补丁的 changelog。最后执行::
 
-然后执行::
-
-	git send-email v2* --to <maintainer email addr> --cc <others addr>
+	git send-email v2-*.patch --to <maintainer email addr> --cc <others addr>
 
 这样，新的一版补丁就又发送到邮件列表等待审阅，之后就是重复这个过程。
+
+此外，如果审阅者或维护者在邮件回复中给出了 Reviewed-by tag，请在下
+一版补丁的 commit 信息中加入该 tag，放在 Signed-off-by 行的下方，以
+便维护者合入时保留您的审阅记录。
 
 审阅周期
 --------
