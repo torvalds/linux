@@ -288,8 +288,10 @@ fn expand(
         },
     };
     // `mixed_site` ensures that the data is not accessible to the user-controlled code.
-    let init_fields = init_fields(&fields, pinned);
+    let init_fields = make_field_init(&fields, pinned, false);
+    let drop_check = make_field_init(&fields, pinned, true);
     let field_check = make_field_check(&fields, init_kind, &path);
+
     Ok(quote_spanned! { Span::mixed_site() => {
         // Get the data about fields from the supplied type.
         let data = {
@@ -303,17 +305,29 @@ fn expand(
 
         // Ensure that `data` really is of type `data` and help with type inference:
         let init = data.__make_closure::<_, #error>(
-            move |slot| {
+            move |slot, data_lt| {
                 #zeroable_check
                 #this
-                #init_fields
+                // Generate init twice, which is mostly identical except for lifetimes.
+                if true {
+                    // In this path, we use the field lifetime from HRTB to prevent environment
+                    // lifetime from entering the fields, and to ensure that the dependency of
+                    // fields is consistent with the field drop of the struct.
+                    #init_fields
+                } else {
+                    // In this path, we use local lifetime, to make sure that if initialization
+                    // fails, the destructor execution will not cause lifetime issues. This is
+                    // separate as implied bounds between field lifetimes can be inconsistent with
+                    // that of the drop.
+                    #drop_check
+                }
                 #field_check
                 // SAFETY: we are the `init!` macro that is allowed to call this.
                 Ok(unsafe { ::pin_init::__internal::InitOk::new() })
             }
         );
         let init = move |slot| -> ::core::result::Result<(), #error> {
-            init(slot).map(|__InitOk| ())
+            init(slot, data.__with_lt()).map(|__InitOk| ())
         };
         // SAFETY: TODO
         unsafe { ::pin_init::#init_from_closure::<_, #error>(init) }
@@ -360,7 +374,11 @@ fn get_init_kind(rest: Option<(Token![..], Expr)>, dcx: &mut DiagCtxt) -> InitKi
 }
 
 /// Generate the code that initializes the fields of the struct using the initializers in `field`.
-fn init_fields(fields: &Punctuated<InitializerField, Token![,]>, pinned: bool) -> TokenStream {
+fn make_field_init(
+    fields: &Punctuated<InitializerField, Token![,]>,
+    pinned: bool,
+    dropck: bool,
+) -> TokenStream {
     let mut forget_guards = vec![];
     let mut res = TokenStream::new();
     for InitializerField { attrs, kind } in fields {
@@ -388,13 +406,18 @@ fn init_fields(fields: &Punctuated<InitializerField, Token![,]>, pinned: bool) -
         let span = Span::mixed_site().located_at(ident.span());
 
         let slot = if pinned {
+            let data = if !dropck {
+                quote_spanned!(span => data_lt)
+            } else {
+                quote_spanned!(span => data.__with_lt())
+            };
             quote_spanned! { span =>
                 // SAFETY:
                 // - `slot` is valid and properly aligned.
                 // - `make_field_check` checks that `&raw mut (*slot).#member` is properly aligned.
                 // - `make_field_check` prevents `#member` from being used twice, therefore
                 //   `(*slot).#member` is exclusively accessed and has not been initialized.
-                (unsafe { data.#ident(slot) })
+                (unsafe { #data.#ident(slot) })
             }
         } else {
             quote_spanned! { span =>
@@ -455,6 +478,11 @@ fn init_fields(fields: &Punctuated<InitializerField, Token![,]>, pinned: bool) -
 
         // A tuple field has no name that could be bound here (the `_0` identifiers are considered
         // implementation detail and not user-facing).
+        let let_binding_method = if !dropck {
+            format_ident!("let_binding", span = span)
+        } else {
+            format_ident!("let_binding_in_dropck", span = span)
+        };
         let binding = match member {
             Member::Named(ident) => quote_spanned! { span =>
                 #(#cfgs)*
@@ -462,7 +490,7 @@ fn init_fields(fields: &Punctuated<InitializerField, Token![,]>, pinned: bool) -
                 // struct field.
                 #[allow(unused_variables, non_snake_case)]
                 // Include `mut` so that `Pin<&mut T>` bindings can be reborrowed via `.as_mut()`.
-                let mut #ident = #guard.let_binding();
+                let mut #ident = #guard.#let_binding_method();
             },
             Member::Unnamed(_) => quote!(),
         };

@@ -923,6 +923,7 @@ macro_rules! assert_pinned {
             let data = <$ty as $crate::__internal::HasInitData>::__init_data();
             let data = $crate::__internal::HasPinData::__pin_data(data);
             _ = data
+                .__with_lt()
                 .$field(ptr)
                 .init($crate::__internal::AlwaysFail::<$field_ty>::new());
         };

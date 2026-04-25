@@ -61,7 +61,6 @@ enum BorrowedKind {
 }
 
 /// Information about a borrowed field.
-#[expect(unused)]
 struct BorrowedInfo {
     kind: BorrowedKind,
     /// Field lifetime for this field.
@@ -969,12 +968,36 @@ fn generate_the_pin_data(info: &StructInfo) -> TokenStream {
         generics,
         ..
     } = &info.struct_;
-    let (impl_generics, ty_generics, whr) = generics.split_for_impl();
 
-    // For every field, we create an initializing projection function according to its projection
-    // type. If a field is structurally pinned, we create a `Slot` with `Pinned` which must be
-    // initialized via `PinInit`; if it is not structurally pinned, then we create a `Slot` with
-    // `Unpinned` which allows initialization via `Init`.
+    // Wrap in `CombinedGenerics` because it's ty generics will always output `<>`, so it can be
+    // used with `for`.
+    let field_lts = CombinedGenerics(vec![&info.field_lts]);
+    let generics_with_field_lt = CombinedGenerics(vec![&info.field_lts, generics]);
+
+    let (impl_generics, ty_generics, whr) = generics.split_for_impl();
+    let (_, field_lt_ty_generics, _) = field_lts.split_for_impl();
+    let (impl_generics_with_lt, ty_generics_with_field_lt, whr_with_field_lt) =
+        generics_with_field_lt.split_for_impl();
+
+    // Wrap each field in a `PhantomInvariant`. For borrowed fields, additionally
+    // use `&#lt mut #ty` so the `lt` becomes associated with `#ty` which deduces
+    // implied bounds.
+    let phantom_fields = info.fields.iter().map(|f| {
+        let ty = &f.field.ty;
+        let ident = f.member.as_ident();
+
+        if let Some(borrowed) = &f.borrowed {
+            let lt = &borrowed.lifetime;
+            quote!(
+                #ident: ::pin_init::__internal::PhantomInvariant<&#lt mut #ty>,
+            )
+        } else {
+            quote!(
+                #ident: ::pin_init::__internal::PhantomInvariant<#ty>,
+            )
+        }
+    });
+
     let field_accessors = info
         .fields
         .iter()
@@ -987,6 +1010,30 @@ fn generate_the_pin_data(info: &StructInfo) -> TokenStream {
             } else {
                 quote!(Unpinned)
             };
+
+            let (slot_ty, slot_arg) = match &f.borrowed {
+                None => (quote!(Slot), quote!()),
+                Some(BorrowedInfo {
+                    kind: BorrowedKind::Shared,
+                    lifetime,
+                }) => (
+                    // For borrowed fields, create a `SelfRefSlot`, which after initialization
+                    // turns into a `SelfRefDropGuard` instead of `DropGuard`.
+                    //
+                    // They're mostly the same, except that `SelfRefDropGuard` returns `&'field T`
+                    // instead of `&'guard T` for let bindings; this allows it to be used to be
+                    // used to initialize other fields.
+                    //
+                    // The soundness of doing so relies on fact that `__make_init` requires a
+                    // higher-ranked trait bound on the closure. Within the closure (which is the
+                    // caller of the generated slot projection functions here), it can make no
+                    // assumptions on the lifetime except for those implied by the struct's bounds,
+                    // and we have validated them in `generate_drop_check`.
+                    quote!(SelfRefSlot),
+                    quote!(#lifetime,),
+                ),
+            };
+
             quote! {
                 /// # Safety
                 ///
@@ -1001,19 +1048,54 @@ fn generate_the_pin_data(info: &StructInfo) -> TokenStream {
                 #vis unsafe fn #field_name(
                     self,
                     slot: *mut #struct_name #ty_generics,
-                ) -> ::pin_init::__internal::Slot<::pin_init::__internal::#pin_marker, #ty> {
+                ) -> ::pin_init::__internal::#slot_ty<
+                    #slot_arg ::pin_init::__internal::#pin_marker, #ty
+                > {
+                    // CAST: `as _` is needed to convert types wrapped inside `SelfRef`.
                     // SAFETY:
                     // - If `#pin_marker` is `Pinned`, the corresponding field is structurally
                     //   pinned.
                     // - Other safety requirements follows the safety requirement.
-                    unsafe { ::pin_init::__internal::Slot::new(&raw mut (*slot).#member) }
+                    // - If `#slot_ty` is `SelfRefSlot`, the lifetime `#lt` represents that of the
+                    //   field.
+                    unsafe { ::pin_init::__internal::#slot_ty::new(&raw mut (*slot).#member as _) }
                 }
             }
         })
         .collect::<TokenStream>();
+
     quote! {
-        // We declare this struct which will host all of the projection function for our type. It
-        // will be invariant over all generic parameters which are inherited from the struct.
+        // We declare this struct which will host all of the projection function for our type.
+        #[doc(hidden)]
+        #[allow(non_snake_case)]
+        #vis struct __PinDataLt #generics_with_field_lt
+            #whr_with_field_lt
+        {
+            #(#phantom_fields)*
+            __pin_phantom: ::core::marker::PhantomData<#struct_name #ty_generics>,
+        }
+
+        impl #impl_generics_with_lt ::core::clone::Clone for __PinDataLt #ty_generics_with_field_lt
+            #whr_with_field_lt
+        {
+            fn clone(&self) -> Self { *self }
+        }
+
+        impl #impl_generics_with_lt ::core::marker::Copy for __PinDataLt #ty_generics_with_field_lt
+            #whr_with_field_lt
+        {}
+
+        #[allow(dead_code)] // Some functions might never be used and private.
+        #[expect(clippy::missing_safety_doc)]
+        impl #impl_generics_with_lt __PinDataLt #ty_generics_with_field_lt
+            #whr_with_field_lt
+        {
+            #field_accessors
+        }
+
+        // Declare a type that serves as the entry point of interaction with the `pin_init!` macro.
+        // We use this type instead of defining methods directly on user's type to avoid possibility
+        // of name conflicts.
         #[doc(hidden)]
         #vis struct __ThePinData #generics
             #whr
@@ -1032,7 +1114,6 @@ fn generate_the_pin_data(info: &StructInfo) -> TokenStream {
             #whr
         {}
 
-        #[allow(dead_code)] // Some functions might never be used and private.
         impl #impl_generics __ThePinData #ty_generics
             #whr
         {
@@ -1040,13 +1121,20 @@ fn generate_the_pin_data(info: &StructInfo) -> TokenStream {
             #[inline(always)]
             #vis fn __make_closure<__F, __E>(self, f: __F) -> __F
             where
-                __F: FnOnce(*mut #struct_name #ty_generics) ->
-                    ::core::result::Result<::pin_init::__internal::InitOk, __E>,
+                __F: for #field_lt_ty_generics ::core::ops::FnOnce(
+                    *mut #struct_name #ty_generics,
+                    __PinDataLt #ty_generics_with_field_lt
+                ) -> ::core::result::Result<::pin_init::__internal::InitOk, __E>,
             {
                 f
             }
 
-            #field_accessors
+            #[inline(always)]
+            #vis fn __with_lt #field_lts(self) -> __PinDataLt #ty_generics_with_field_lt {
+                // Generate a zeroed to avoid naming all fields.
+                // SAFETY: `__PinDataLt` only contains phantom fields.
+                unsafe { ::core::mem::zeroed() }
+            }
         }
 
         // SAFETY: We have added the correct projection functions above to `__ThePinData` and
