@@ -3356,6 +3356,11 @@
 			status = "disabled";
 		};
 
+		pinmux_aon: pinmux@c7a2000 {
+			compatible = "nvidia,tegra264-pinmux-aon";
+			reg = <0x0 0x0c7a2000 0x0 0x2000>;
+		};
+
 		pmc: pmc@c800000 {
 			compatible = "nvidia,tegra264-pmc";
 			reg = <0x0 0x0c800000 0x0 0x100000>,
@@ -3560,6 +3565,11 @@
 
 			nvidia,bpmp = <&bpmp 0>;
 			status = "disabled";
+		};
+
+		pinmux_main: pinmux@c281000 {
+			compatible = "nvidia,tegra264-pinmux-main";
+			reg = <0x00 0x0c281000 0x0 0xc000>;
 		};
 
 		gpio_main: gpio@c300000 {
@@ -3944,6 +3954,11 @@
 		ranges = <0x00 0x00000000 0xa8 0x00000000 0x00 0x20000000>, /* MMIO (512 MiB) */
 			 <0x00 0x20000000 0x00 0x20000000 0x00 0x60000000>, /* non-prefetchable memory (32-bit, 1536 GiB) */
 			 <0xa8 0x80000000 0xa8 0x80000000 0x57 0x80000000>; /* I/O, ECAM, prefetchable memory (64-bit) */
+
+		pinmux_uphy: pinmux@82e0000 {
+			compatible = "nvidia,tegra264-pinmux-uphy";
+			reg = <0x00 0x082e0000 0x0 0x4000>;
+		};
 
 		gpio_uphy: gpio@8300000 {
 			compatible = "nvidia,tegra264-gpio-uphy";
