@@ -138,8 +138,6 @@ struct msr_counter {
 	enum counter_format format;
 	struct msr_counter *next;
 	unsigned int flags;
-#define	FLAGS_HIDE	(1 << 0)
-#define	FLAGS_SHOW	(1 << 1)
 #define	SYSFS_PERCPU	(1 << 1)
 };
 static int use_android_msr_path;
