@@ -3283,8 +3283,6 @@ int dump_counters(PER_THREAD_PARAMS)
 
 double rapl_counter_get_value(const struct rapl_counter *c, enum rapl_unit desired_unit, double interval)
 {
-	assert(desired_unit != RAPL_UNIT_INVALID);
-
 	/*
 	 * For now we don't expect anything other than joules,
 	 * so just simplify the logic.
