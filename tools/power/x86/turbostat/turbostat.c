@@ -1424,7 +1424,7 @@ void init_perf_model_support(unsigned int family, unsigned int model)
 int backwards_count;
 char *progname;
 
-cpu_set_t *cpu_present_set, *cpu_possible_set, *cpu_effective_set, *cpu_allowed_set, *cpu_affinity_set, *cpu_subset;
+cpu_set_t *cpu_present_set, *cpu_possible_set, *cpu_effective_set, *cpu_allowed_set, *cpu_affinity_set, *cpuset_cmdline;
 cpu_set_t *perf_pcore_set, *perf_ecore_set, *perf_lcore_set;
 size_t cpu_setsize;
 #define MAX_ADDED_THREAD_COUNTERS 24
@@ -3382,7 +3382,7 @@ int format_counters(PER_THREAD_PARAMS)
 		return 0;
 
 	/*if not summary line and --cpu is used */
-	if ((t != average.threads) && (cpu_subset && !CPU_ISSET_S(t->cpu_id, cpu_setsize, cpu_subset)))
+	if ((t != average.threads) && (cpuset_cmdline && !CPU_ISSET_S(t->cpu_id, cpu_setsize, cpuset_cmdline)))
 		return 0;
 
 	if (DO_BIC(BIC_USEC)) {
@@ -9682,19 +9682,19 @@ void topology_probe(bool startup)
 	/*
 	 * Validate and update cpu_allowed_set.
 	 *
-	 * Make sure all cpus in cpu_subset are also in cpu_present_set during startup.
-	 * Give a warning when cpus in cpu_subset become unavailable at runtime.
+	 * Make sure all cpus in cpuset_cmdline are also in cpu_present_set during startup.
+	 * Give a warning when cpus in cpuset_cmdline become unavailable at runtime.
 	 * Give a warning when cpus are not effective because of cgroup setting.
 	 *
-	 * cpu_allowed_set is the intersection of cpu_present_set/cpu_effective_set/cpu_subset.
+	 * cpu_allowed_set is the intersection of cpu_present_set/cpu_effective_set/cpuset_cmdline.
 	 */
 	for (i = 0; i <= topo.max_cpu_num; ++i) {
-		if (cpu_subset && !CPU_ISSET_S(i, cpu_setsize, cpu_subset))
+		if (cpuset_cmdline && !CPU_ISSET_S(i, cpu_setsize, cpuset_cmdline))
 			continue;
 
 		if (!CPU_ISSET_S(i, cpu_setsize, cpu_present_set)) {
-			if (cpu_subset) {
-				/* cpus in cpu_subset must be in cpu_present_set during startup */
+			if (cpuset_cmdline) {
+				/* cpus in cpuset_cmdline must be in cpu_present_set during startup */
 				if (startup)
 					errx(1, "cpu%d not present", i);
 				else
@@ -11533,18 +11533,18 @@ void probe_cpuidle_counts(void)
 
 /*
  * parse cpuset with following syntax
- * 1,2,4..6,8-10 and set bits in cpu_subset
+ * 1,2,4..6,8-10 and set bits in cpuset_cmdline
  */
 void parse_cpu_command(char *optarg)
 {
 	if (!strcmp(optarg, "core")) {
-		if (cpu_subset)
+		if (cpuset_cmdline)
 			goto error;
 		show_core_only++;
 		return;
 	}
 	if (!strcmp(optarg, "package")) {
-		if (cpu_subset)
+		if (cpuset_cmdline)
 			goto error;
 		show_pkg_only++;
 		return;
@@ -11552,18 +11552,23 @@ void parse_cpu_command(char *optarg)
 	if (show_core_only || show_pkg_only)
 		goto error;
 
-	if (!cpu_subset) {
-		cpu_subset = CPU_ALLOC(topo.max_cpu_num + 1);
-		if (cpu_subset == NULL)
+	/*
+	 * cpuset_cmdline is allocated on the first invocation of --cpu
+	 * It is re-used for subsequent invocations.
+	 * It is never freed.
+	 */
+	if (!cpuset_cmdline) {
+		cpuset_cmdline = CPU_ALLOC(topo.max_cpu_num + 1);
+		if (cpuset_cmdline == NULL)
 			err(3, "CPU_ALLOC");
 
-		CPU_ZERO_S(cpu_setsize, cpu_subset);
+		CPU_ZERO_S(cpu_setsize, cpuset_cmdline);
 	}
 
-	if (parse_cpu_str(optarg, cpu_subset, cpu_setsize))
+	if (parse_cpu_str(optarg, cpuset_cmdline, cpu_setsize))
 		goto error;
 	if (debug)
-		print_cpu_set("--cpu", cpu_subset);
+		print_cpu_set("--cpu", cpuset_cmdline);
 
 	return;
 
