@@ -290,7 +290,9 @@ enum bic_names {
 	MAX_BIC
 };
 
-void print_bic_set(char *s, cpu_set_t *set)
+typedef cpu_set_t bic_set_t;	/* implement bic_set_t using cpu_set_t */
+
+void print_bic_set(char *s, bic_set_t *set)
 {
 	int i;
 
@@ -306,17 +308,17 @@ void print_bic_set(char *s, cpu_set_t *set)
 	putchar('\n');
 }
 
-static cpu_set_t bic_group_topology;
-static cpu_set_t bic_group_thermal_pwr;
-static cpu_set_t bic_group_frequency;
-static cpu_set_t bic_group_hw_idle;
-static cpu_set_t bic_group_sw_idle;
-static cpu_set_t bic_group_idle;
-static cpu_set_t bic_group_cache;
-static cpu_set_t bic_group_other;
-static cpu_set_t bic_group_disabled_by_default;
-static cpu_set_t bic_enabled;
-static cpu_set_t bic_present;
+static bic_set_t bic_group_topology;
+static bic_set_t bic_group_thermal_pwr;
+static bic_set_t bic_group_frequency;
+static bic_set_t bic_group_hw_idle;
+static bic_set_t bic_group_sw_idle;
+static bic_set_t bic_group_idle;
+static bic_set_t bic_group_cache;
+static bic_set_t bic_group_other;
+static bic_set_t bic_group_disabled_by_default;
+static bic_set_t bic_enabled;
+static bic_set_t bic_present;
 
 /* modify */
 #define BIC_INIT(set) CPU_ZERO(set)
@@ -332,7 +334,7 @@ static cpu_set_t bic_present;
 #define DO_BIC_READ(COUNTER_NUMBER) CPU_ISSET(COUNTER_NUMBER, &bic_present)
 #define DO_BIC(COUNTER_NUMBER) (CPU_ISSET(COUNTER_NUMBER, &bic_enabled) && CPU_ISSET(COUNTER_NUMBER, &bic_present))
 
-static void bic_set_all(cpu_set_t *set)
+static void bic_set_all(bic_set_t *set)
 {
 	int i;
 
@@ -346,7 +348,7 @@ static void bic_set_all(cpu_set_t *set)
  * bic_clear_bits()
  * clear all the bits from "clr" in "dst"
  */
-static void bic_clear_bits(cpu_set_t *dst, cpu_set_t *clr)
+static void bic_clear_bits(bic_set_t *dst, bic_set_t *clr)
 {
 	int i;
 
@@ -2783,7 +2785,7 @@ void help(void)
  * for all the strings in comma separate name_list,
  * set the approprate bit in return value.
  */
-void bic_lookup(cpu_set_t *ret_set, char *name_list, enum show_hide_mode mode)
+void bic_lookup(bic_set_t *ret_set, char *name_list, enum show_hide_mode mode)
 {
 	unsigned int i;
 
@@ -11620,7 +11622,7 @@ void cmdline(int argc, char **argv)
 			 *  multiple invocations simply clear more bits in enabled mask
 			 */
 			{
-				cpu_set_t bic_group_hide;
+				bic_set_t bic_group_hide;
 
 				BIC_INIT(&bic_group_hide);
 
