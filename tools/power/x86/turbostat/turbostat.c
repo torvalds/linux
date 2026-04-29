@@ -11552,16 +11552,18 @@ void parse_cpu_command(char *optarg)
 	if (show_core_only || show_pkg_only)
 		goto error;
 
-	cpu_subset = CPU_ALLOC(topo.max_cpu_num + 1);
-	if (cpu_subset == NULL)
-		err(3, "CPU_ALLOC");
+	if (!cpu_subset) {
+		cpu_subset = CPU_ALLOC(topo.max_cpu_num + 1);
+		if (cpu_subset == NULL)
+			err(3, "CPU_ALLOC");
 
-	CPU_ZERO_S(cpu_setsize, cpu_subset);
+		CPU_ZERO_S(cpu_setsize, cpu_subset);
+	}
 
 	if (parse_cpu_str(optarg, cpu_subset, cpu_setsize))
 		goto error;
 	if (debug)
-		print_cpu_set("cpu subsetset", cpu_subset);
+		print_cpu_set("--cpu", cpu_subset);
 
 	return;
 
