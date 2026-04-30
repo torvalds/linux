@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+use std::collections::{BTreeMap, BTreeSet};
+
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
 use syn::{
@@ -7,8 +9,10 @@ use syn::{
     parse_quote, parse_quote_spanned,
     punctuated::Punctuated,
     spanned::Spanned,
+    visit::Visit,
     visit_mut::VisitMut,
-    Field, Fields, Generics, Index, Item, ItemStruct, Member, PathSegment, Type, TypePath,
+    Field, Fields, Generics, Ident, Index, Item, ItemStruct, Lifetime, Member, PathSegment, Type,
+    TypePath,
 };
 
 use crate::{
@@ -48,10 +52,69 @@ impl ToTokens for Args {
     }
 }
 
+/// Description of how a field is borrowed.
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+enum BorrowedKind {
+    /// Implicitly inferreed.
+    #[default]
+    Shared,
+}
+
+/// Information about a borrowed field.
+#[expect(unused)]
+struct BorrowedInfo {
+    kind: BorrowedKind,
+    /// Field lifetime for this field.
+    lifetime: Lifetime,
+}
+
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+enum Variance {
+    /// Implicitly inferred variance.
+    #[default]
+    Covariant,
+}
+
+/// Information about field lifetimes captured in a type.
+#[expect(unused)]
+struct Capture {
+    variance: Variance,
+    /// Lifetime to be captured.
+    lifetime: Lifetime,
+}
+
+impl std::borrow::Borrow<Lifetime> for Capture {
+    fn borrow(&self) -> &Lifetime {
+        &self.lifetime
+    }
+}
+
+impl PartialEq for Capture {
+    fn eq(&self, other: &Self) -> bool {
+        self.lifetime == other.lifetime
+    }
+}
+
+impl Eq for Capture {}
+
+impl PartialOrd for Capture {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Capture {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.lifetime.cmp(&other.lifetime)
+    }
+}
+
 struct FieldInfo {
     field: Field,
     member: Member,
     pinned: bool,
+    borrowed: Option<BorrowedInfo>,
+    captures: BTreeSet<Capture>,
 }
 
 struct StructInfo {
@@ -59,6 +122,7 @@ struct StructInfo {
     struct_: ItemStruct,
     fields: Vec<FieldInfo>,
     is_tuple_struct: bool,
+    self_referential: bool,
 }
 
 pub(crate) fn expand_with_cfg(
@@ -147,7 +211,22 @@ fn expand(
     replacer.visit_fields_mut(&mut struct_.fields);
 
     let is_tuple_struct = matches!(struct_.fields, Fields::Unnamed(_));
-    let fields: Vec<FieldInfo> = struct_
+
+    // Collect all bound lifetimes from generics.
+    let bound_lifetimes: BTreeSet<&Lifetime> =
+        struct_.generics.lifetimes().map(|x| &x.lifetime).collect();
+    // Collect all fields.
+    let field_idx_map: BTreeMap<Ident, usize> = struct_
+        .fields
+        .iter()
+        .enumerate()
+        .filter_map(|(index, field)| Some((field.ident.clone()?, index)))
+        .collect();
+
+    // Keep track on fields being implicitly borrowed by being mentioned.
+    let mut implicitly_borrowed = BTreeSet::new();
+
+    let mut fields: Vec<FieldInfo> = struct_
         .fields
         .into_iter()
         .enumerate()
@@ -166,16 +245,88 @@ fn expand(
                 }),
             };
 
+            let mut captures = BTreeSet::new();
+            let wildcard_variance = Variance::default();
+
+            // Infer lifetime based on the field referenced.
+            // Bound lifetimes from struct generics take priority.
+            //
+            // For example,
+            // ```
+            // struct Foo<'a> {
+            //     bar: &'a (),
+            //     a: u32,
+            // }
+            // ```
+            // would not be inferred as self-referential because `'a` is already bound by the
+            // struct generics.
+            Lifetime::visitor(|lt| {
+                if bound_lifetimes.contains(lt) || captures.contains(lt) {
+                    return;
+                }
+
+                if !field_idx_map.contains_key(&lt.ident) {
+                    dcx.error(
+                        lt,
+                        format!("`{lt}` is neither a lifetime in generics nor a field name"),
+                    );
+                    return;
+                }
+
+                captures.insert(Capture {
+                    variance: wildcard_variance,
+                    lifetime: lt.clone(),
+                });
+            })
+            .visit_type(&field.ty);
+
+            for capture in captures.iter() {
+                implicitly_borrowed.insert(capture.lifetime.ident.clone());
+            }
+
             FieldInfo {
                 field,
                 member,
                 pinned,
+                borrowed: None,
+                captures,
             }
         })
         .collect();
 
+    for field_name in implicitly_borrowed.into_iter() {
+        let field = &mut fields[field_idx_map[&field_name]];
+
+        // If field is not explicit marked as borrowed, infer a shared borrow.
+        if field.borrowed.is_none() {
+            field.borrowed = Some(BorrowedInfo {
+                kind: BorrowedKind::Shared,
+                // Obtaining from `field` instead of `field_name` for the correct span.
+                lifetime: Lifetime::from_ident(&field.member.as_ident()),
+            });
+        }
+    }
+
+    // Check that field lifetimes do not appear in the bounds.
+    Lifetime::visitor(|lt| {
+        if bound_lifetimes.contains(&lt) {
+            return;
+        }
+
+        if field_idx_map.contains_key(&lt.ident) {
+            // Forbid the use of field lifetimes within bounds.
+            dcx.error(lt, "field lifetimes cannot be used in bounds");
+        }
+
+        // Otherwise this is completely unbound. Let Rust compiler produce that error instead.
+    })
+    .visit_generics(&struct_.generics);
+
     struct_.fields = Fields::Unit;
     let info = StructInfo {
+        self_referential: fields
+            .iter()
+            .any(|f| !f.captures.is_empty() || f.borrowed.is_some()),
         args,
         struct_,
         fields,
@@ -193,6 +344,13 @@ fn expand(
                 ),
             );
         }
+    }
+
+    if info.self_referential {
+        dcx.error(
+            &info.struct_.ident,
+            "self-referential support is not fully implemented",
+        );
     }
 
     let struct_def = generate_struct_def(&info);

@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+use std::collections::BTreeSet;
+
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, ToTokens};
-use syn::{Attribute, GenericParam, Generics, Index, Member, Token};
+use syn::{
+    visit::Visit, Attribute, BoundLifetimes, GenericParam, Generics, Index, Lifetime, Member, Token,
+};
 
 use crate::DiagCtxt;
 
@@ -235,5 +239,93 @@ impl ToTokens for CombinedTypeGenerics<'_> {
             .and_then(|x| x.gt_token)
             .unwrap_or_default()
             .to_tokens(tokens);
+    }
+}
+
+pub(crate) trait LifetimeExt {
+    /// Get a visitor that call the provided function for all unbound lifetimes.
+    fn visitor<'a>(f: impl FnMut(&'a Lifetime)) -> impl Visit<'a>;
+
+    /// Obtain a lifetime from a identifier.
+    ///
+    /// The created lifetime has the same span.
+    fn from_ident(ident: &Ident) -> Self;
+}
+
+impl LifetimeExt for Lifetime {
+    fn visitor<'a>(f: impl FnMut(&'a Lifetime)) -> impl Visit<'a> {
+        LifetimeVisitor {
+            bound: BTreeSet::new(),
+            visit: f,
+        }
+    }
+
+    fn from_ident(ident: &Ident) -> Self {
+        Lifetime {
+            apostrophe: ident.span(),
+            ident: ident.clone(),
+        }
+    }
+}
+
+struct LifetimeVisitor<'a, F> {
+    bound: BTreeSet<&'a Lifetime>,
+    visit: F,
+}
+
+impl<'a, F> LifetimeVisitor<'a, F> {
+    fn with_bound_lifetimes(
+        &mut self,
+        bound: Option<&'a BoundLifetimes>,
+        f: impl FnOnce(&mut Self),
+    ) {
+        // In case the type includes a lifetime binder, e.g. `dyn for<'a> Foo`,
+        // the lifetimes in the binder are bound and should not be visited.
+
+        let mut to_remove = Vec::new();
+        if let Some(bound) = bound {
+            for lt in &bound.lifetimes {
+                let GenericParam::Lifetime(lt) = lt else {
+                    continue;
+                };
+                if !self.bound.contains(&&lt.lifetime) {
+                    self.bound.insert(&lt.lifetime);
+                    to_remove.push(&lt.lifetime);
+                }
+            }
+        }
+
+        f(self);
+
+        for lt in to_remove {
+            self.bound.remove(lt);
+        }
+    }
+}
+
+impl<'a, F: FnMut(&'a Lifetime)> Visit<'a> for LifetimeVisitor<'a, F> {
+    fn visit_lifetime(&mut self, lt: &'a Lifetime) {
+        if lt.ident == "static" {
+            return;
+        }
+
+        if !self.bound.contains(lt) {
+            (self.visit)(lt);
+        }
+    }
+
+    fn visit_trait_bound(&mut self, bound: &'a syn::TraitBound) {
+        self.with_bound_lifetimes(bound.lifetimes.as_ref(), |this| {
+            this.visit_path(&bound.path)
+        });
+    }
+
+    fn visit_type_bare_fn(&mut self, bare_fn: &'a syn::TypeBareFn) {
+        self.with_bound_lifetimes(bare_fn.lifetimes.as_ref(), |this| {
+            for input in bare_fn.inputs.iter() {
+                this.visit_bare_fn_arg(input);
+            }
+            this.visit_return_type(&bare_fn.output);
+        });
     }
 }
