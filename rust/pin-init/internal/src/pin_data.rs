@@ -417,6 +417,22 @@ fn generate_struct_def(info: &StructInfo) -> TokenStream {
             ty,
         } = &field.field;
 
+        let mut ty = ty.to_token_stream();
+
+        // Replace lifetime for self-referential fields.
+        if !field.captures.is_empty() {
+            // Build a chain `for<'a> fn(&'a ()) -> ... -> (Ty,)`. Such type will have a `EraseLt`
+            // implementation and thus may be used inside `Erase`.
+            ty = quote!((#ty,));
+
+            for borrow in field.captures.iter().rev() {
+                let lt = &borrow.lifetime;
+                ty = quote!(for<#lt> fn(&#lt()) -> #ty);
+            }
+
+            ty = quote!(::pin_init::__internal::Erase<#ty>);
+        };
+
         quote! {
            #(#attrs)* #vis #ident #colon_token #ty
         }

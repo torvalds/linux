@@ -385,3 +385,80 @@ unsafe impl<T: ?Sized> PinInit<T, ()> for AlwaysFail<T> {
         Err(())
     }
 }
+/// Polyfill of `FnOnce` trait to be able to reference output via associated type.
+pub trait FnOutput<Args> {
+    type Output;
+}
+
+macro_rules! impl_fn_output {
+    () => {};
+    ($ret:ident, $($arg:ident,)*) => {
+        impl<This, $ret, $($arg,)*> FnOutput<($($arg,)*)> for This
+        where
+            This: FnOnce($($arg,)*) -> $ret,
+        {
+            type Output = $ret;
+        }
+        impl_fn_output!($($arg,)*);
+    };
+}
+
+impl_fn_output!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U,);
+
+/// Lifetime erasure facility.
+///
+/// Say we have `exists<'a, 'b> Foo<'a, 'b>` and we want to store it. There's no concrete
+/// lifetimes we can use, so we want to erase the lifetime.
+///
+/// Such erasure can be encoded as
+/// `Erased<for<'a> fn(&'a ()) -> for<'b> fn(&'b()) -> (Foo<'a, 'b>,)`.
+///
+/// This can be considered the stable version of Rust's `unsafe_binder` feature, without the
+/// no-drop-glue requirement.
+#[repr(transparent)]
+#[allow(private_bounds)]
+pub struct Erase<F: EraseLt>(F::Erased);
+
+/// Helper trait to resolve the erased lifetime.
+trait EraseLt {
+    type Erased;
+}
+
+impl<T> EraseLt for (T,) {
+    type Erased = T;
+}
+
+impl<T> EraseLt for T
+where
+    T: for<'a> FnOutput<(&'a (),), Output: EraseLt>,
+{
+    type Erased = <<T as FnOutput<(&'static (),)>>::Output as EraseLt>::Erased;
+}
+
+// The default `Send` and `Sync` are not sufficient, because one can use lifetime specialization to
+// implement `Send` or `Sync` for a concrete instance of lifetime. Use HRTB to ensure that the type
+// will only implement `Send` or `Sync` if it's implemented for *all* erased lifetimes.
+
+// SAFETY: Trivial, no lifetime to erase.
+unsafe impl<T: Send> Send for Erase<(T,)> {}
+
+// SAFETY: If we erased a lifetime, then the type needs to be `Send` for across *all* that
+// lifetimes.
+unsafe impl<F: EraseLt> Send for Erase<F>
+where
+    F: for<'a> FnOutput<(&'a (),), Output: EraseLt>,
+    for<'a> Erase<<F as FnOutput<(&'a (),)>>::Output>: Send,
+{
+}
+
+// SAFETY: Trivial, no lifetime to erase.
+unsafe impl<T: Sync> Sync for Erase<(T,)> {}
+
+// SAFETY: If we erased a lifetime, then the type needs to be `Sync` for across *all* that
+// lifetimes.
+unsafe impl<F: EraseLt> Sync for Erase<F>
+where
+    F: for<'a> FnOutput<(&'a (),), Output: EraseLt>,
+    for<'a> Erase<<F as FnOutput<(&'a (),)>>::Output>: Sync,
+{
+}
