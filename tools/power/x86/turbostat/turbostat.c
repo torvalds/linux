@@ -5834,7 +5834,7 @@ void free_fd_percpu(void)
 	if (!fd_percpu)
 		return;
 
-	for (i = 0; i < topo.max_cpu_num + 1; ++i) {
+	for (i = 0; i <= topo.max_cpu_num; ++i) {
 		if (fd_percpu[i] != 0)
 			close(fd_percpu[i]);
 	}
@@ -5848,7 +5848,7 @@ void free_fd_instr_count_percpu(void)
 	if (!fd_instr_count_percpu)
 		return;
 
-	for (int i = 0; i < topo.max_cpu_num + 1; ++i) {
+	for (int i = 0; i <= topo.max_cpu_num; ++i) {
 		if (fd_instr_count_percpu[i] != 0)
 			close(fd_instr_count_percpu[i]);
 	}
@@ -5862,7 +5862,7 @@ void free_fd_llc_percpu(void)
 	if (!fd_llc_percpu)
 		return;
 
-	for (int i = 0; i < topo.max_cpu_num + 1; ++i) {
+	for (int i = 0; i <= topo.max_cpu_num; ++i) {
 		if (fd_llc_percpu[i] != 0)
 			close(fd_llc_percpu[i]);
 	}
@@ -5879,7 +5879,7 @@ void free_fd_l2_percpu(void)
 	if (!fd_l2_percpu)
 		return;
 
-	for (int i = 0; i < topo.max_cpu_num + 1; ++i) {
+	for (int i = 0; i <= topo.max_cpu_num; ++i) {
 		if (fd_l2_percpu[i] != 0)
 			close(fd_l2_percpu[i]);
 	}
@@ -8722,7 +8722,7 @@ void rapl_perf_init(void)
 
 		memset(domain_visited, 0, num_domains * sizeof(*domain_visited));
 
-		for (int cpu = 0; cpu < topo.max_cpu_num + 1; ++cpu) {
+		for (int cpu = 0; cpu <= topo.max_cpu_num; ++cpu) {
 
 			if (cpu_is_not_allowed(cpu))
 				continue;
@@ -9843,7 +9843,7 @@ void allocate_counters(struct counters *counters)
 	if (counters->threads == NULL)
 		goto error;
 
-	for (i = 0; i < topo.max_cpu_num + 1; i++)
+	for (i = 0; i <= topo.max_cpu_num; i++)
 		(counters->threads)[i].cpu_id = -1;
 
 	counters->cores = calloc(num_cores, sizeof(struct core_data));
@@ -9972,7 +9972,7 @@ void set_master_cpu(void)
 {
 	int i;
 
-	for (i = 0; i < topo.max_cpu_num + 1; ++i) {
+	for (i = 0; i <= topo.max_cpu_num; ++i) {
 		if (cpu_is_not_allowed(i))
 			continue;
 		master_cpu = i;
@@ -10091,7 +10091,7 @@ int added_perf_counters_init_(struct perf_counter_info *pinfo)
 
 		memset(domain_visited, 0, max_num_domains * sizeof(*domain_visited));
 
-		for (int cpu = 0; cpu < topo.max_cpu_num + 1; ++cpu) {
+		for (int cpu = 0; cpu <= topo.max_cpu_num; ++cpu) {
 
 			next_domain = cpu_to_domain(pinfo, cpu);
 
