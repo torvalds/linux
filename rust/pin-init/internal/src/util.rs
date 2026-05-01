@@ -5,7 +5,8 @@ use std::collections::BTreeSet;
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, ToTokens};
 use syn::{
-    visit::Visit, Attribute, BoundLifetimes, GenericParam, Generics, Index, Lifetime, Member, Token,
+    visit::Visit, Attribute, BoundLifetimes, GenericParam, Generics, Index, Lifetime, Member,
+    Token, TypePath,
 };
 
 use crate::DiagCtxt;
@@ -85,6 +86,7 @@ impl MemberExt for Member {
 pub(crate) struct CombinedGenerics<'a>(pub(crate) Vec<&'a Generics>);
 pub(crate) struct CombinedImplGenerics<'a>(&'a CombinedGenerics<'a>);
 pub(crate) struct CombinedTypeGenerics<'a>(&'a CombinedGenerics<'a>);
+pub(crate) struct CombinedWhereClauses<'a>(&'a CombinedGenerics<'a>);
 
 impl CombinedGenerics<'_> {
     pub(crate) fn split_for_impl(
@@ -92,10 +94,13 @@ impl CombinedGenerics<'_> {
     ) -> (
         CombinedImplGenerics<'_>,
         CombinedTypeGenerics<'_>,
-        // A stub type so `split_for_impl` signature matches that of `syn`'s.
-        impl Sized,
+        CombinedWhereClauses<'_>,
     ) {
-        (CombinedImplGenerics(self), CombinedTypeGenerics(self), ())
+        (
+            CombinedImplGenerics(self),
+            CombinedTypeGenerics(self),
+            CombinedWhereClauses(self),
+        )
     }
 }
 
@@ -242,6 +247,31 @@ impl ToTokens for CombinedTypeGenerics<'_> {
     }
 }
 
+impl ToTokens for CombinedWhereClauses<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0
+             .0
+            .iter()
+            .filter_map(|x| Some(x.where_clause.as_ref()?.where_token))
+            .next_back()
+            .unwrap_or_default()
+            .to_tokens(tokens);
+
+        let comma: Token![,] = Default::default();
+
+        for generics in self.0 .0.iter() {
+            let Some(where_clause) = &generics.where_clause else {
+                continue;
+            };
+
+            where_clause.predicates.to_tokens(tokens);
+            if !where_clause.predicates.empty_or_trailing() {
+                comma.to_tokens(tokens);
+            }
+        }
+    }
+}
+
 pub(crate) trait LifetimeExt {
     /// Get a visitor that call the provided function for all unbound lifetimes.
     fn visitor<'a>(f: impl FnMut(&'a Lifetime)) -> impl Visit<'a>;
@@ -327,5 +357,32 @@ impl<'a, F: FnMut(&'a Lifetime)> Visit<'a> for LifetimeVisitor<'a, F> {
             }
             this.visit_return_type(&bare_fn.output);
         });
+    }
+}
+
+pub(crate) trait GenericParamExt {
+    fn maybe_type_params_visitor<'a>(f: impl FnMut(&'a Ident)) -> impl Visit<'a>;
+}
+
+impl GenericParamExt for GenericParam {
+    fn maybe_type_params_visitor<'a>(f: impl FnMut(&'a Ident)) -> impl Visit<'a> {
+        struct TypeParamVisitor<F>(F);
+
+        impl<'a, F> Visit<'a> for TypeParamVisitor<F>
+        where
+            F: FnMut(&'a Ident),
+        {
+            fn visit_type_path(&mut self, ty: &'a TypePath) {
+                if ty.qself.is_none()
+                    && ty.path.leading_colon.is_none()
+                    && ty.path.segments[0].arguments.is_none()
+                {
+                    (self.0)(&ty.path.segments[0].ident);
+                }
+                syn::visit::visit_type_path(self, ty);
+            }
+        }
+
+        TypeParamVisitor(f)
     }
 }
