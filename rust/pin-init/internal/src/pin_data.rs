@@ -76,7 +76,6 @@ enum Variance {
 }
 
 /// Information about field lifetimes captured in a type.
-#[expect(unused)]
 struct Capture {
     variance: Variance,
     /// Lifetime to be captured.
@@ -435,6 +434,7 @@ fn expand(
     let unpin_impl = generate_unpin_impl(&info);
     let drop_impl = generate_drop_impl(&info);
     let drop_order_check = generate_drop_order_check(dcx, &info);
+    let variance_check = generate_variance_check(&info);
     let projections = generate_projections(&info);
     let the_pin_data = generate_the_pin_data(&info);
 
@@ -444,6 +444,7 @@ fn expand(
         // outside.
         const _: () = {
             #drop_order_check
+            #variance_check
             #projections
             #the_pin_data
             #unpin_impl
@@ -763,6 +764,78 @@ fn generate_drop_order_check(dcx: &mut DiagCtxt, info: &StructInfo) -> TokenStre
             #(#wf_proofs)*
         }
     }
+}
+
+/// Produce variance checks, so we can ensure that the variance of lifetimes captured by field types
+/// actually match our expectation.
+fn generate_variance_check(info: &StructInfo) -> TokenStream {
+    if !info.self_referential {
+        return quote!();
+    }
+
+    let mut checks = Vec::new();
+
+    for f in info.fields.iter() {
+        let covariant_captures: Vec<_> = f
+            .captures
+            .iter()
+            .filter(|b| b.variance == Variance::Covariant)
+            .map(|b| &b.lifetime)
+            .collect();
+        if covariant_captures.is_empty() {
+            continue;
+        }
+
+        let ident = f.member.as_ident();
+        // Use the span of type for better error message.
+        let span = f.field.ty.span().resolved_at(Span::mixed_site());
+
+        let other_field_lifetimes = Generics {
+            lt_token: None,
+            params: f
+                .captures
+                .iter()
+                .filter(|b| b.variance != Variance::Covariant)
+                .map(|b| GenericParam::Lifetime(LifetimeParam::new(b.lifetime.clone())))
+                .collect(),
+            gt_token: None,
+            where_clause: None,
+        };
+
+        let long = Lifetime::new("'__long", span);
+        let long_ty = f
+            .field
+            .ty
+            .replace_lifetimes(&covariant_captures, &vec![&long; covariant_captures.len()]);
+
+        let short = Lifetime::new("'__short", span);
+        let short_ty = f
+            .field
+            .ty
+            .replace_lifetimes(&covariant_captures, &vec![&short; covariant_captures.len()]);
+
+        let check_name = format_ident!("__{ident}_covariance", span = span);
+
+        // Add `<'__long: '__short, 'short>` as additional generics.
+        let covariance_check_generics = parse_quote!(<#long: #short, #short>);
+        let combined_generics = CombinedGenerics(vec![
+            &covariance_check_generics,
+            &other_field_lifetimes,
+            &info.struct_.generics,
+        ]);
+        let (combined_impl_generics, _, whr) = combined_generics.split_for_impl();
+
+        checks.push(quote_spanned!(span =>
+            // Emit a check to ensure the type is *really* covariant for soundness.
+            fn #check_name #combined_impl_generics (long: #long_ty) -> #short_ty #whr {
+                long
+            }
+        ));
+    }
+
+    quote!(
+        #(#checks)*
+    )
 }
 
 fn generate_projections(info: &StructInfo) -> TokenStream {

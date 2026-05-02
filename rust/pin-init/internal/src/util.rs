@@ -5,8 +5,8 @@ use std::collections::BTreeSet;
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, ToTokens};
 use syn::{
-    visit::Visit, Attribute, BoundLifetimes, GenericParam, Generics, Index, Lifetime, Member,
-    Token, TypePath,
+    parse_quote, visit::Visit, Attribute, BoundLifetimes, GenericParam, Generics, Index, Lifetime,
+    Member, Token, Type, TypePath,
 };
 
 use crate::DiagCtxt;
@@ -384,5 +384,25 @@ impl GenericParamExt for GenericParam {
         }
 
         TypeParamVisitor(f)
+    }
+}
+
+pub(crate) trait TypeExt {
+    fn replace_lifetimes(&self, needle: &[&Lifetime], replacement: &[&Lifetime]) -> Type;
+}
+
+impl TypeExt for Type {
+    fn replace_lifetimes(&self, needle: &[&Lifetime], replacement: &[&Lifetime]) -> Type {
+        if needle.is_empty() {
+            return self.clone();
+        }
+
+        parse_quote!(
+            <
+                for<#(#needle,)*> fn(#(&#needle (),)*) -> #self
+                    as
+                ::pin_init::__internal::FnOutput<(#(&#replacement (),)*)>
+            >::Output
+        )
     }
 }
