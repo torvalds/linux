@@ -846,10 +846,17 @@ fn generate_projections(info: &StructInfo) -> TokenStream {
     } = &info.struct_;
     let this_lt = Lifetime::new("'__this", Span::mixed_site());
     let this_lt_generics: Generics = parse_quote!(<#this_lt>);
-    let generics_with_this_lt = CombinedGenerics(vec![&this_lt_generics, generics]);
 
+    // Wrap in `CombinedGenerics` because it's ty generics will always output `<>`, so it can be
+    // used with `for`.
+    let field_lts = CombinedGenerics(vec![&info.field_lts]);
+    let generics_with_this_lt = CombinedGenerics(vec![&this_lt_generics, generics]);
+    let generics_with_this_field_lt =
+        CombinedGenerics(vec![&this_lt_generics, &info.field_lts, generics]);
     let (impl_generics, ty_generics, whr) = generics.split_for_impl();
+    let (_, field_lt_ty_generics, _) = field_lts.split_for_impl();
     let (_, ty_generics_with_this_lt, _) = generics_with_this_lt.split_for_impl();
+    let (_, ty_generics_with_this_field_lt, _) = generics_with_this_field_lt.split_for_impl();
 
     let this = format_ident!("this");
 
@@ -923,16 +930,78 @@ fn generate_projections(info: &StructInfo) -> TokenStream {
             }
         })
         .collect();
-    let structurally_pinned_fields_docs = info
+
+    let (fields_decl_lt, fields_proj_lt): (Vec<_>, Vec<_>) = info
+        .fields
+        .iter()
+        .map(|f| {
+            let vis = &f.field.vis;
+            let ident = f.member.as_ident();
+            let member = &f.member;
+            let name = (!info.is_tuple_struct).then(|| quote!(#ident:));
+
+            let ty = &f.field.ty;
+
+            // Fields shared-referenced by other fields can only be shared accessed.
+            let mut_token: Option<Token![mut]> = if f.borrowed.is_none() {
+                Some(Default::default())
+            } else {
+                None
+            };
+
+            let mut accessor = quote!(&#mut_token #this.#member);
+            if !f.captures.is_empty() || f.borrowed.is_some() {
+                accessor = quote!(
+                    // SAFETY: we have `Erase<..>` which we know is layout compatible with `f.ty`.
+                    // We cannot include explicit type name here as the field lifetimes are nameable
+                    // in this context, so `for<'field_name> ..` would fail.
+                    unsafe { ::core::mem::transmute(#accessor) }
+                )
+            }
+
+            // In `with_project`, borrowed fields have their field lifetime available, so use it
+            // instead of `'__this`.
+            let lt = if f.borrowed.is_some() {
+                Lifetime::from_ident(&ident)
+            } else {
+                this_lt.clone()
+            };
+
+            if f.pinned {
+                (
+                    quote!(
+                        #vis #name ::core::pin::Pin<&#lt #mut_token #ty>,
+                    ),
+                    quote!(
+                        // SAFETY: this field is structurally pinned.
+                        #name unsafe { ::core::pin::Pin::new_unchecked(#accessor) },
+                    ),
+                )
+            } else {
+                (
+                    quote!(
+                        #vis #name &#lt #mut_token #ty,
+                    ),
+                    quote!(
+                        #name #accessor,
+                    ),
+                )
+            }
+        })
+        .collect();
+
+    let structurally_pinned_fields_docs: Vec<_> = info
         .fields
         .iter()
         .filter(|f| f.pinned)
-        .map(|f| format!(" - {}", f.member.display_name()));
-    let not_structurally_pinned_fields_docs = info
+        .map(|f| format!(" - {}", f.member.display_name()))
+        .collect();
+    let not_structurally_pinned_fields_docs: Vec<_> = info
         .fields
         .iter()
         .filter(|f| !f.pinned)
-        .map(|f| format!(" - {}", f.member.display_name()));
+        .map(|f| format!(" - {}", f.member.display_name()))
+        .collect();
     let docs = format!(" Pin-projections of [`{ident}`]");
     let (projection_def, projection_init) = if info.is_tuple_struct {
         (
@@ -963,6 +1032,42 @@ fn generate_projections(info: &StructInfo) -> TokenStream {
                 __Projection {
                     #(#fields_proj)*
                     __this: ::core::marker::PhantomData,
+                }
+            },
+        )
+    };
+
+    let projection_lt = format_ident!("__ProjectionLt");
+    let (projection_lt_def, projection_lt_init) = if info.is_tuple_struct {
+        (
+            quote! {
+                #vis struct #projection_lt #generics_with_this_field_lt (
+                    #(#fields_decl_lt)*
+                    ::core::marker::PhantomData<&'__this mut #ident #ty_generics>,
+                ) #whr;
+            },
+            quote! {
+                #projection_lt(
+                    #(#fields_proj_lt)*
+                    ::core::marker::PhantomData,
+                )
+            },
+        )
+    } else {
+        (
+            quote! {
+                #vis struct #projection_lt #generics_with_this_field_lt
+                    #whr
+                {
+                    #(#fields_decl_lt)*
+                    ___pin_phantom_data:
+                        ::core::marker::PhantomData<&'__this mut #ident #ty_generics>,
+                }
+            },
+            quote! {
+                #projection_lt {
+                    #(#fields_proj_lt)*
+                    ___pin_phantom_data: ::core::marker::PhantomData,
                 }
             },
         )
@@ -1018,6 +1123,13 @@ fn generate_projections(info: &StructInfo) -> TokenStream {
         #[doc(hidden)]
         #projection_def
 
+        #[doc = #docs]
+        // Allow `non_snake_case` since the same warning will be emitted on
+        // the struct definition.
+        #[allow(dead_code, non_snake_case)]
+        #[doc(hidden)]
+        #projection_lt_def
+
         impl #impl_generics #ident #ty_generics
             #whr
         {
@@ -1035,6 +1147,25 @@ fn generate_projections(info: &StructInfo) -> TokenStream {
                 // SAFETY: we only give access to `&mut` for fields not structurally pinned.
                 let #this = unsafe { ::core::pin::Pin::get_unchecked_mut(self) };
                 #projection_init
+            }
+
+            /// Pin-projects all fields of `Self` with proper lifetime.
+            ///
+            /// These fields are structurally pinned:
+            #(#[doc = #structurally_pinned_fields_docs])*
+            ///
+            /// These fields are **not** structurally pinned:
+            #(#[doc = #not_structurally_pinned_fields_docs])*
+            #[inline]
+            #vis fn with_project<'__this, R>(
+                self: ::core::pin::Pin<&'__this mut Self>,
+                f: impl for #field_lt_ty_generics ::core::ops::FnOnce(
+                    #projection_lt #ty_generics_with_this_field_lt
+                ) -> R,
+            ) -> R {
+                // SAFETY: we only give access to `&mut` for fields not structurally pinned.
+                let #this = unsafe { ::core::pin::Pin::get_unchecked_mut(self) };
+                f(#projection_lt_init)
             }
 
             #(#accessors)*
