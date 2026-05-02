@@ -6,6 +6,9 @@ use pin_init::*;
 
 #[pin_data]
 struct SelfRef {
+    #[uses('_: invariant)]
+    not_cov: Box<dyn Fn(&'str str) -> bool + 'str>,
+
     part: &'str str,
     str: String,
 
@@ -20,6 +23,7 @@ fn use_self_ref() {
         part: &str[..5],
         mut_str: "hello world".to_owned(),
         mut_part: &mut mut_str[..5],
+        not_cov: Box::new(move |s| s == str),
     }));
 
     // Access via projection.
@@ -41,6 +45,14 @@ fn use_self_ref() {
     foo.as_mut().with_project(|proj| {
         proj.mut_part.make_ascii_uppercase();
     });
+
+    // Access non-covariant type using `with_` accessor.
+    foo.with_not_cov(|not_cov| {
+        not_cov("");
+    });
+
+    // Access non-covariant type using `with_project`.
+    foo.as_mut().with_project(|proj| (proj.not_cov)(proj.str));
 }
 
 fn main() {
