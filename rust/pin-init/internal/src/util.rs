@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, ToTokens};
 use syn::{
-    parse_quote, visit::Visit, Attribute, BoundLifetimes, GenericParam, Generics, Index, Lifetime,
-    Member, Token, Type, TypePath,
+    parse_quote, visit::Visit, visit_mut::VisitMut, Attribute, BoundLifetimes, GenericParam,
+    Generics, Index, Lifetime, Member, Token, Type, TypePath,
 };
 
 use crate::DiagCtxt;
@@ -388,21 +388,113 @@ impl GenericParamExt for GenericParam {
 }
 
 pub(crate) trait TypeExt {
+    /// Check if the type includes macro invocations.
+    ///
+    /// Proc-macros cannot expand macros and peek into them, so if macro is involved sometimes
+    /// special handling is required.
+    fn has_macro(&self) -> bool;
+
     fn replace_lifetimes(&self, needle: &[&Lifetime], replacement: &[&Lifetime]) -> Type;
 }
 
 impl TypeExt for Type {
+    fn has_macro(&self) -> bool {
+        struct HasMacro(bool);
+
+        impl<'ast> Visit<'ast> for HasMacro {
+            fn visit_macro(&mut self, _: &'ast syn::Macro) {
+                self.0 = true;
+            }
+        }
+
+        let mut visitor = HasMacro(false);
+        visitor.visit_type(self);
+        visitor.0
+    }
+
     fn replace_lifetimes(&self, needle: &[&Lifetime], replacement: &[&Lifetime]) -> Type {
         if needle.is_empty() {
             return self.clone();
         }
 
-        parse_quote!(
-            <
-                for<#(#needle,)*> fn(#(&#needle (),)*) -> #self
-                    as
-                ::pin_init::__internal::FnOutput<(#(&#replacement (),)*)>
-            >::Output
-        )
+        // If the type has macro, we cannot peek into it. Use some different approach to replace
+        // the type using GAT.
+        if self.has_macro() {
+            return parse_quote!(
+                <
+                    for<#(#needle,)*> fn(#(&#needle (),)*) -> #self
+                        as
+                    ::pin_init::__internal::FnOutput<(#(&#replacement (),)*)>
+                >::Output
+            );
+        }
+
+        struct LifetimeReplacer<'a> {
+            to_replace: BTreeMap<&'a Lifetime, &'a Lifetime>,
+        }
+
+        impl<'a> LifetimeReplacer<'a> {
+            fn with_bound_lifetimes(
+                &mut self,
+                bound: Option<&BoundLifetimes>,
+                f: impl FnOnce(&mut Self),
+            ) {
+                // In case the type includes a lifetime binder, e.g. `dyn for<'a> Foo`,
+                // temporarily remove them from to_replace if they're.
+
+                let mut removed = Vec::new();
+                if let Some(bound) = bound {
+                    for lt in &bound.lifetimes {
+                        let GenericParam::Lifetime(lt) = lt else {
+                            continue;
+                        };
+                        if let Some(entry) = self.to_replace.remove_entry(&lt.lifetime) {
+                            removed.push(entry);
+                        }
+                    }
+                }
+
+                f(self);
+
+                for (key, val) in removed {
+                    self.to_replace.insert(key, val);
+                }
+            }
+        }
+
+        impl VisitMut for LifetimeReplacer<'_> {
+            fn visit_lifetime_mut(&mut self, lt: &mut syn::Lifetime) {
+                if let Some(&replacement) = self.to_replace.get(lt) {
+                    *lt = replacement.clone();
+                }
+            }
+
+            fn visit_trait_bound_mut(&mut self, bound: &mut syn::TraitBound) {
+                self.with_bound_lifetimes(bound.lifetimes.as_ref(), |this| {
+                    this.visit_path_mut(&mut bound.path)
+                });
+            }
+
+            fn visit_type_bare_fn_mut(&mut self, bare_fn: &mut syn::TypeBareFn) {
+                self.with_bound_lifetimes(bare_fn.lifetimes.as_ref(), |this| {
+                    for input in bare_fn.inputs.iter_mut() {
+                        this.visit_bare_fn_arg_mut(input);
+                    }
+
+                    this.visit_return_type_mut(&mut bare_fn.output);
+                });
+            }
+        }
+
+        let mut ret = self.clone();
+        LifetimeReplacer {
+            to_replace: needle
+                .iter()
+                .copied()
+                .zip(replacement.iter().copied())
+                .collect(),
+        }
+        .visit_type_mut(&mut ret);
+        ret
     }
 }
