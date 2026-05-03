@@ -98,6 +98,8 @@
 
 #define ROUND_UP_TO_PAGE_SIZE(n) (((n) + 0x1000UL-1UL) & ~(0x1000UL-1UL))
 
+FILE *outf;
+
 enum counter_scope { SCOPE_CPU, SCOPE_CORE, SCOPE_PACKAGE };
 enum counter_type { COUNTER_ITEMS, COUNTER_CYCLES, COUNTER_SECONDS, COUNTER_USEC, COUNTER_K2M };
 enum counter_format { FORMAT_RAW, FORMAT_DELTA, FORMAT_PERCENT, FORMAT_AVERAGE };
@@ -292,20 +294,23 @@ enum bic_names {
 
 typedef cpu_set_t bic_set_t;	/* implement bic_set_t using cpu_set_t */
 
-void print_bic_set(char *s, bic_set_t *set)
+/*
+ * debug helper
+ */
+static void print_bic_set(const char *s, const bic_set_t *set)
 {
 	int i;
 
 	assert(MAX_BIC < CPU_SETSIZE);
 
-	printf("%s:", s);
+	fprintf(outf, "%s:", s);
 
 	for (i = 0; i < MAX_BIC; ++i) {
 
 		if (CPU_ISSET(i, set))
-			printf(" %s", bic[i].name);
+			fprintf(outf, " %s", bic[i].name);
 	}
-	putchar('\n');
+	fputc('\n', outf);
 }
 
 static bic_set_t bic_group_topology;
@@ -319,6 +324,21 @@ static bic_set_t bic_group_other;
 static bic_set_t bic_group_disabled_by_default;
 static bic_set_t bic_enabled;
 static bic_set_t bic_present;
+
+static void dump_bic_sets(void)
+{
+	print_bic_set("bic_enabled", &bic_enabled);
+	print_bic_set("bic_present", &bic_present);
+	print_bic_set("bic_group_topology", &bic_group_topology);
+	print_bic_set("bic_group_thermal_pwr", &bic_group_thermal_pwr);
+	print_bic_set("bic_group_frequency", &bic_group_frequency);
+	print_bic_set("bic_group_hw_idle", &bic_group_hw_idle);
+	print_bic_set("bic_group_sw_idle", &bic_group_sw_idle);
+	print_bic_set("bic_group_idle", &bic_group_idle);
+	print_bic_set("bic_group_cache", &bic_group_cache);
+	print_bic_set("bic_group_other", &bic_group_other);
+	print_bic_set("bic_group_disabled_by_default", &bic_group_disabled_by_default);
+}
 
 /* modify */
 #define BIC_INIT(set) CPU_ZERO(set)
@@ -485,7 +505,6 @@ static void bic_groups_init(void)
 #define PCLUNL 15		/* Unlimited */
 
 char *proc_stat = "/proc/stat";
-FILE *outf;
 int *fd_percpu;
 int *fd_instr_count_percpu;
 int *fd_llc_percpu;
@@ -11772,8 +11791,10 @@ skip_cgroup_setting:
 		msr_sum_record();
 
 	/* dump counters and exit */
-	if (dump_only)
+	if (dump_only) {
+		dump_bic_sets();
 		return get_and_dump_counters();
+	}
 
 	/* list header and exit */
 	if (list_header_only) {
