@@ -590,8 +590,8 @@ struct gfx_sysfs_info {
 static struct gfx_sysfs_info gfx_info[GFX_MAX];
 
 int get_msr(int cpu, off_t offset, unsigned long long *msr);
-int add_counter(unsigned int msr_num, char *path, char *name,
-		unsigned int width, enum counter_scope scope, enum counter_type type, enum counter_format format, int flags, int package_num);
+int add_counter(unsigned int msr_num, const char *path, const char *name,
+		unsigned int width, enum counter_scope scope, enum counter_type type, enum counter_format format, int flags, int id);
 
 /* Model specific support Start */
 
@@ -10718,7 +10718,7 @@ void print_bootcmd(void)
 	fclose(fp);
 }
 
-struct msr_counter *find_msrp_by_name(struct msr_counter *head, char *name)
+struct msr_counter *find_msrp_by_name(struct msr_counter *head, const char *name)
 {
 	struct msr_counter *mp;
 
@@ -10731,7 +10731,7 @@ struct msr_counter *find_msrp_by_name(struct msr_counter *head, char *name)
 	return NULL;
 }
 
-int add_counter(unsigned int msr_num, char *path, char *name,
+int add_counter(unsigned int msr_num, const char *path, const char *name,
 		unsigned int width, enum counter_scope scope, enum counter_type type, enum counter_format format, int flags, int id)
 {
 	struct msr_counter *msrp;
