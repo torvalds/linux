@@ -2011,15 +2011,17 @@ int pmt_telemdir_filter(const struct dirent *e)
 {
 	unsigned int dummy;
 
-	return sscanf(e->d_name, "telem%u", &dummy);
+	return (sscanf(e->d_name, "telem%u", &dummy) == 1);
 }
 
 int pmt_telemdir_sort(const struct dirent **a, const struct dirent **b)
 {
 	unsigned int aidx = 0, bidx = 0;
 
-	sscanf((*a)->d_name, "telem%u", &aidx);
-	sscanf((*b)->d_name, "telem%u", &bidx);
+	if (sscanf((*a)->d_name, "telem%u", &aidx) != 1)
+		aidx = 0;
+	if (sscanf((*b)->d_name, "telem%u", &bidx) != 1)
+		bidx = 0;
 
 	return (aidx > bidx) ? 1 : (aidx < bidx) ? -1 : 0;
 }
