@@ -658,7 +658,7 @@ double slm_bclk(void)
 	freq = slm_freq_table[i];
 
 	if (!quiet)
-		fprintf(outf, "SLM BCLK: %.1f Mhz\n", freq);
+		fprintf(outf, "SLM BCLK: %.1f MHz\n", freq);
 
 	return freq;
 }
