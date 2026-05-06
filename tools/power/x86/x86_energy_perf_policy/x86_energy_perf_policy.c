@@ -345,7 +345,7 @@ int parse_cmdline_turbo(int i)
 	return i;
 }
 
-long parse_optarg_string(char *s)
+long parse_optarg_string(const char *s)
 {
 	long i;
 	char *endptr;
@@ -586,7 +586,7 @@ static int platform_profile_access(int mode)
 	return 1;
 }
 
-static int platform_profile_name_is(char *name)
+static int platform_profile_name_is(const char *name)
 {
 	char buf[64];
 
@@ -968,7 +968,7 @@ void read_hwp_cap(int cpu, struct msr_hwp_cap *cap, unsigned int msr_offset)
 	cap->lowest = msr_perf_2_ratio(HWP_LOWEST_PERF(msr));
 }
 
-void print_hwp_request(int cpu, struct msr_hwp_request *h, char *str)
+void print_hwp_request(int cpu, struct msr_hwp_request *h, const char *str)
 {
 	if (cpu != -1)
 		printf("cpu%d: ", cpu);
@@ -980,7 +980,7 @@ void print_hwp_request(int cpu, struct msr_hwp_request *h, char *str)
 	       h->hwp_min, h->hwp_max, h->hwp_desired, h->hwp_epp, h->hwp_window, h->hwp_window & 0x7F, (h->hwp_window >> 7) & 0x7, h->hwp_use_pkg);
 }
 
-void print_hwp_request_pkg(int pkg, struct msr_hwp_request *h, char *str)
+void print_hwp_request_pkg(int pkg, struct msr_hwp_request *h, const char *str)
 {
 	printf("pkg%d: ", pkg);
 
