@@ -9,7 +9,12 @@
  */
 
 #define _GNU_SOURCE
-#include MSRHEADER
+/*
+ * MSRHEADER macro should be defined by the build system to include the
+ * appropriate MSR definitions header file. Typical usage:
+ * gcc -DMSRHEADER=\"msr-index.h\" or similar platform-specific MSR header
+ */
+#include MSRHEADER  /* e.g., msr-index.h with MSR_* constant definitions */
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
