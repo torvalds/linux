@@ -191,7 +191,7 @@ int parse_cmdline_epb(int i)
 		return ENERGY_PERF_BIAS_PERFORMANCE;
 	}
 	if (i < 0 || i > ENERGY_PERF_BIAS_POWERSAVE)
-		errx(1, "--epb must be from 0 to 15");
+		errx(1, "--epb must be 0 through 15");
 	return i;
 }
 
@@ -305,8 +305,8 @@ int parse_cmdline_hwp_epp(int i)
 	case OPTARG_PERFORMANCE:
 		return HWP_EPP_PERFORMANCE;
 	}
-	if (i < 0 || i > 0xff) {
-		fprintf(stderr, "--hwp-epp must be from 0 to 0xff\n");
+	if (i < 0 || i > 255) {
+		fprintf(stderr, "--hwp-epp must be 0 through 255\n");
 		usage();
 	}
 	return i;
@@ -332,9 +332,9 @@ int parse_cmdline_turbo(int i)
 	return i;
 }
 
-int parse_optarg_string(char *s)
+long parse_optarg_string(char *s)
 {
-	int i;
+	long i;
 	char *endptr;
 
 	if (!strncmp(s, "default", 7))
@@ -355,19 +355,13 @@ int parse_optarg_string(char *s)
 	if (!strncmp(s, "performance", 11))
 		return OPTARG_PERFORMANCE;
 
+	errno = 0;
 	i = strtol(s, &endptr, 0);
-	if (s == endptr) {
-		fprintf(stderr, "no digits in \"%s\"\n", s);
+	if (endptr == s || errno == ERANGE || i < 0 || i > 255) {
+		warnx("bad value \"%s\"", s);
 		usage();
 	}
-	if (i == LONG_MIN || i == LONG_MAX)
-		errx(-1, "%s", s);
 
-	if (i > 0xFF)
-		errx(-1, "%d (0x%x) must be < 256", i, i);
-
-	if (i < 0)
-		errx(-1, "%d (0x%x) must be >= 0", i, i);
 	return i;
 }
 
@@ -424,9 +418,10 @@ void parse_cmdline_cpu(char *s)
 			int end_cpu;
 
 			startp++;
+			errno = 0;
 			end_cpu = strtol(startp, &endp, 10);
-			if (startp == endp)
-				continue;
+			if (startp == endp || errno == ERANGE)
+				errx(1, "Confused by end_cpu '%s'", startp);
 
 			while (cpu <= end_cpu) {
 				if (cpu > max_cpu_num)
@@ -469,11 +464,11 @@ void parse_cmdline_cpu(char *s)
 				break;
 		}
 
+		errno = 0;
 		cpu = strtol(startp, &endp, 10);
-		if (startp == endp)
+		if (startp == endp || errno == ERANGE || cpu < 0 || cpu > max_cpu_num)
 			errx(1, "--cpu cpu-set: confused by '%s'", startp);
-		if (cpu > max_cpu_num)
-			errx(1, "Requested cpu%d exceeds max cpu%d", cpu, max_cpu_num);
+
 		CPU_SET_S(cpu, cpu_setsize, cpu_selected_set);
 		startp = endp;
 	}
@@ -504,9 +499,10 @@ void parse_cmdline_pkg(char *s)
 			int end_pkg;
 
 			startp++;
+			errno = 0;
 			end_pkg = strtol(startp, &endp, 10);
-			if (startp == endp)
-				continue;
+			if (startp == endp || errno == ERANGE)
+				errx(1, "Confused by end_pkg '%s'", startp);
 
 			while (pkg <= end_pkg) {
 				if (pkg > max_pkg_num)
@@ -523,9 +519,11 @@ void parse_cmdline_pkg(char *s)
 			return;
 		}
 
+		errno = 0;
 		pkg = strtol(startp, &endp, 10);
-		if (pkg > max_pkg_num)
-			errx(1, "Requested pkg%d Exceeds max pkg%d", pkg, max_pkg_num);
+		if (startp == endp || errno == ERANGE || pkg < 0 || pkg > max_pkg_num)
+			errx(1, "Confused by pkg '%s'", startp);
+
 		pkg_selected_set |= 1 << pkg;
 		startp = endp;
 	}
@@ -546,6 +544,7 @@ static int parse_cmdline_int(const char *s, int *out)
 	char *endp;
 	long val;
 
+	errno = 0;
 	val = strtol(s, &endp, 0);
 	if (endp == s || errno == ERANGE)
 		return -1;
@@ -714,13 +713,19 @@ void cmdline(int argc, char **argv)
 		case 't':
 			turbo_update_value = parse_cmdline_turbo(parse_optarg_string(optarg));
 			break;
-		case 'u':
-			update_hwp_use_pkg++;
-			if (atoi(optarg) == 0)
-				req_update.hwp_use_pkg = 0;
-			else
-				req_update.hwp_use_pkg = 1;
-			break;
+		case 'u': {
+				char *endp;
+				long val;
+
+				update_hwp_use_pkg++;
+
+				errno = 0;
+				val = strtol(optarg, &endp, 10);
+				if (endp == optarg || errno == ERANGE || val < 0 || val > 1)
+					errx(1, "--hwp-use-pkg: must be 0 or 1");
+				req_update.hwp_use_pkg = val;
+				break;
+			}
 		case 'v':
 			print_version();
 			exit(0);
@@ -1016,8 +1021,9 @@ static int get_epb_sysfs(int cpu)
 	if (!read_sysfs(path, linebuf, 3))
 		return -1;
 
+	errno = 0;
 	val = strtol(linebuf, &endp, 0);
-	if (endp == linebuf || errno == ERANGE)
+	if (endp == linebuf || errno == ERANGE || val < 0 || val > 15)
 		return -1;
 
 	return (int)val;
@@ -1040,8 +1046,9 @@ static int set_epb_sysfs(int cpu, int val)
 	if (ret <= 0)
 		return -1;
 
+	errno = 0;
 	val = strtol(linebuf, &endp, 0);
-	if (endp == linebuf || errno == ERANGE)
+	if (endp == linebuf || errno == ERANGE || val < 0 || val > 15)
 		return -1;
 
 	return (int)val;
