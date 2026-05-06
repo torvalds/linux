@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::{
-    parse::{End, Nothing, Parse},
+    parse::{End, Nothing, Parse, ParseStream},
     parse_quote, parse_quote_spanned,
     punctuated::Punctuated,
     spanned::Spanned,
@@ -58,6 +58,8 @@ enum BorrowedKind {
     /// `#[borrowed]`, or implicitly inferreed.
     #[default]
     Shared,
+    // `#[borrowed(mut)]`.
+    Mutable,
 }
 
 impl BorrowedKind {
@@ -67,9 +69,17 @@ impl BorrowedKind {
         Some(if let Meta::Path(_) = attr.meta {
             BorrowedKind::Shared
         } else {
-            // Swallow the error and recover by inferring shared.
-            dcx.error(attr.path(), "unexpected `#[borrowed]` attribute");
-            BorrowedKind::Shared
+            match attr.parse_args_with(|input: ParseStream<'_>| {
+                let _: Token![mut] = input.parse()?;
+                Ok(BorrowedKind::Mutable)
+            }) {
+                Ok(v) => v,
+                Err(err) => {
+                    // Swallow the error and recover by inferring shared.
+                    dcx.error(attr.path(), err);
+                    BorrowedKind::Shared
+                }
+            }
         })
     }
 }
@@ -515,8 +525,17 @@ fn generate_struct_def(info: &StructInfo) -> TokenStream {
 
         let mut ty = ty.to_token_stream();
 
-        // Replace lifetime for self-referential fields.
-        if !field.captures.is_empty() {
+        // Replace lifetime for self-referential fields. For mutable fields, this uses `Erase` to
+        // block direct access.
+        if !field.captures.is_empty()
+            || matches!(
+                field.borrowed,
+                Some(BorrowedInfo {
+                    kind: BorrowedKind::Mutable,
+                    ..
+                })
+            )
+        {
             // Build a chain `for<'a> fn(&'a ()) -> ... -> (Ty,)`. Such type will have a `EraseLt`
             // implementation and thus may be used inside `Erase`.
             ty = quote!((#ty,));
@@ -916,9 +935,18 @@ fn generate_projections(info: &StructInfo) -> TokenStream {
                 )
             }
 
-            if !f.captures.iter().all(|b| b.variance == Variance::Covariant) {
+            if !f.captures.iter().all(|b| b.variance == Variance::Covariant)
+                || matches!(
+                    f.borrowed,
+                    Some(BorrowedInfo {
+                        kind: BorrowedKind::Mutable,
+                        ..
+                    })
+                )
+            {
                 // If the type is not covariant, it must omitted, as projection shortens the
                 // lifetime to `'__this`.
+                // Mutable borrow must be omitted for aliasing reason.
                 (
                     quote!(
                         #vis #name ::pin_init::__internal::NotVisible<&'__this #mut_token #ty>,
@@ -986,7 +1014,25 @@ fn generate_projections(info: &StructInfo) -> TokenStream {
                 this_lt.clone()
             };
 
-            if f.pinned {
+            if matches!(
+                f.borrowed,
+                Some(BorrowedInfo {
+                    kind: BorrowedKind::Mutable,
+                    ..
+                })
+            ) {
+                // If the type is not covariant, it must omitted, as projection shortens the
+                // lifetime to `'__this`.
+                // Mutable borrow must be omitted for aliasing reason.
+                (
+                    quote!(
+                        #vis #name ::pin_init::__internal::NotVisible<&#lt #mut_token #ty>,
+                    ),
+                    quote!(
+                        #name ::pin_init::__internal::NotVisible::new(),
+                    ),
+                )
+            } else if f.pinned {
                 (
                     quote!(
                         #vis #name ::core::pin::Pin<&#lt #mut_token #ty>,
@@ -1103,6 +1149,17 @@ fn generate_projections(info: &StructInfo) -> TokenStream {
 
         if f.captures.is_empty() {
             // They can be accessed normally, no accessor to be generated.
+            continue;
+        }
+
+        if matches!(
+            f.borrowed,
+            Some(BorrowedInfo {
+                kind: BorrowedKind::Mutable,
+                ..
+            })
+        ) {
+            // Mutably borrowed fields cannot be accessed directly under any circumstance.
             continue;
         }
 
@@ -1261,7 +1318,26 @@ fn generate_the_pin_data(info: &StructInfo) -> TokenStream {
                     // assumptions on the lifetime except for those implied by the struct's bounds,
                     // and we have validated them in `generate_drop_check`.
                     quote!(SelfRefSlot),
-                    quote!(#lifetime,),
+                    quote!(#lifetime, ::pin_init::__internal::Shared, ),
+                ),
+                Some(BorrowedInfo {
+                    kind: BorrowedKind::Mutable,
+                    lifetime,
+                }) => (
+                    // For borrowed fields, create a `SelfRefSlot`, which after initialization
+                    // turns into a `SelfRefDropGuard` instead of `DropGuard`.
+                    //
+                    // They're mostly the same, except that `SelfRefDropGuard` returns `&'field T`
+                    // instead of `&'guard T` for let bindings; this allows it to be used to be
+                    // used to initialize other fields.
+                    //
+                    // The soundness of doing so relies on fact that `__make_init` requires a
+                    // higher-ranked trait bound on the closure. Within the closure (which is the
+                    // caller of the generated slot projection functions here), it can make no
+                    // assumptions on the lifetime except for those implied by the struct's bounds,
+                    // and we have validated them in `generate_drop_check`.
+                    quote!(SelfRefSlot),
+                    quote!(#lifetime, ::pin_init::__internal::Mutable, ),
                 ),
             };
 
