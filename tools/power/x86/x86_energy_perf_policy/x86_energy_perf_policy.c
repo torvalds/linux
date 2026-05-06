@@ -678,7 +678,7 @@ void cmdline(int argc, char **argv)
 				errx(1, "--platform-profile: value too long");
 			if (!platform_profile_access(W_OK))
 				errx(1, "Can not update platform-profile in '%s'", PATH_PLATFORM_PROFILE);
-			strcpy(platform_profile, optarg);
+			snprintf(platform_profile, sizeof(platform_profile), "%s", optarg);
 			update_platform_profile = 1;
 			break;
 		case 'm':
