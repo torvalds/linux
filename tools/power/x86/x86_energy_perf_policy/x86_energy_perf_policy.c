@@ -509,7 +509,7 @@ void parse_cmdline_pkg(char *s)
 			while (pkg <= end_pkg) {
 				if (pkg > max_pkg_num)
 					errx(1, "Requested pkg%d exceeds max pkg%d", pkg, max_pkg_num);
-				pkg_selected_set |= 1 << pkg;
+				pkg_selected_set |= 1ULL << pkg;
 				pkg++;
 			}
 			startp = endp;
@@ -526,7 +526,7 @@ void parse_cmdline_pkg(char *s)
 		if (startp == endp || errno == ERANGE || pkg < 0 || pkg > max_pkg_num)
 			errx(1, "Confused by pkg '%s'", startp);
 
-		pkg_selected_set |= 1 << pkg;
+		pkg_selected_set |= 1ULL << pkg;
 		startp = endp;
 	}
 }
@@ -535,8 +535,8 @@ void for_packages(unsigned long long pkg_set, int (func) (int))
 {
 	int pkg_num;
 
-	for (pkg_num = 0; pkg_num <= max_pkg_num; ++pkg_num) {
-		if (pkg_set & (1UL << pkg_num))
+	for (pkg_num = 0; pkg_num <= max_pkg_num && pkg_num < MAX_PACKAGES; ++pkg_num) {
+		if (pkg_set & (1ULL << pkg_num))
 			func(pkg_num);
 	}
 }
