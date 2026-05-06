@@ -25,7 +25,6 @@
 #include <getopt.h>
 #include <err.h>
 #include <fcntl.h>
-#include <signal.h>
 #include <sys/time.h>
 #include <limits.h>
 #include <stdlib.h>
