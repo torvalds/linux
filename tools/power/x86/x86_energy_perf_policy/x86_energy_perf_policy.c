@@ -141,11 +141,13 @@ void usage(void)
 int ratio_2_msr_perf(int ratio)
 {
 	int msr_perf;
+	unsigned long long temp;
 
 	if (!bdx_highest_ratio)
 		return ratio;
 
-	msr_perf = ratio * 255 / bdx_highest_ratio;
+	temp = (unsigned long long)ratio * 255;
+	msr_perf = temp / bdx_highest_ratio;
 
 	if (debug)
 		fprintf(stderr, "%d = ratio_to_msr_perf(%d)\n", msr_perf, ratio);
