@@ -186,6 +186,18 @@ mt76_dma_queue_magic_cnt_init(struct mt76_dev *dev, struct mt76_queue *q)
 	}
 }
 
+/* A hung bus (e.g. after a PCIe AER error) reads 0xffffffff from every
+ * register, so clamp an out-of-range index to the fallback to keep it from
+ * corrupting q->head/q->tail.
+ */
+static int
+mt76_dma_read_dma_idx(struct mt76_queue *q, int fallback)
+{
+	u32 idx = Q_READ(q, dma_idx);
+
+	return idx < q->ndesc ? idx : fallback;
+}
+
 static void
 mt76_dma_sync_idx(struct mt76_dev *dev, struct mt76_queue *q)
 {
@@ -201,7 +213,8 @@ mt76_dma_sync_idx(struct mt76_dev *dev, struct mt76_queue *q)
 	}
 
 	Q_WRITE(q, desc_base, q->desc_dma);
-	q->head = Q_READ(q, dma_idx);
+
+	q->head = mt76_dma_read_dma_idx(q, 0);
 	q->tail = q->head;
 }
 
@@ -419,7 +432,7 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, struct mt76_queue *q, bool flush)
 	if (flush)
 		last = -1;
 	else
-		last = Q_READ(q, dma_idx);
+		last = mt76_dma_read_dma_idx(q, -1);
 
 	while (q->queued > 0 && q->tail != last) {
 		mt76_dma_tx_cleanup_idx(dev, q, q->tail, &entry);
@@ -432,7 +445,7 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, struct mt76_queue *q, bool flush)
 		}
 
 		if (!flush && q->tail == last)
-			last = Q_READ(q, dma_idx);
+			last = mt76_dma_read_dma_idx(q, -1);
 	}
 	spin_unlock_bh(&q->cleanup_lock);
 
@@ -625,8 +638,8 @@ mt76_dma_tx_queue_skb_raw(struct mt76_dev *dev, struct mt76_queue *q,
 	buf.len = skb->len;
 
 	spin_lock_bh(&q->lock);
-	mt76_dma_add_buf(dev, q, &buf, 1, tx_info, skb, NULL);
-	mt76_dma_kick_queue(dev, q);
+	if (mt76_dma_add_buf(dev, q, &buf, 1, tx_info, skb, NULL) >= 0)
+		mt76_dma_kick_queue(dev, q);
 	spin_unlock_bh(&q->lock);
 
 	return 0;
@@ -983,7 +996,7 @@ mt76_dma_rx_process(struct mt76_dev *dev, struct mt76_queue *q, int budget)
 	if ((q->flags & MT_QFLAG_WED_RRO_EN) ||
 	    (IS_ENABLED(CONFIG_NET_MEDIATEK_SOC_WED) &&
 	     mt76_queue_is_wed_tx_free(q))) {
-		dma_idx = Q_READ(q, dma_idx);
+		dma_idx = mt76_dma_read_dma_idx(q, q->tail);
 		check_ddone = true;
 	}
 
@@ -993,7 +1006,7 @@ mt76_dma_rx_process(struct mt76_dev *dev, struct mt76_queue *q, int budget)
 
 		if (check_ddone) {
 			if (q->tail == dma_idx)
-				dma_idx = Q_READ(q, dma_idx);
+				dma_idx = mt76_dma_read_dma_idx(q, q->tail);
 
 			if (q->tail == dma_idx)
 				break;

@@ -674,6 +674,9 @@ void mt7921_mac_reset_work(struct work_struct *work)
 	cancel_work_sync(&pm->wake_work);
 
 	for (i = 0; i < 10; i++) {
+		if (atomic_read(&dev->mt76.bus_hung))
+			return;
+
 		mutex_lock(&dev->mt76.mutex);
 		ret = mt792x_dev_reset(dev);
 		mutex_unlock(&dev->mt76.mutex);
