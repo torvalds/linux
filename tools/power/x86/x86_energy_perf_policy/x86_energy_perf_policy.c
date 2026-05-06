@@ -1167,12 +1167,12 @@ int ratio_2_sysfs_khz(int ratio)
  */
 void update_cpufreq_scaling_freq(int is_max, int cpu, unsigned int ratio)
 {
-	char pathname[64];
+	char pathname[96];
 	FILE *fp;
 	int retval;
 	int khz;
 
-	sprintf(pathname, "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_%s_freq", cpu, is_max ? "max" : "min");
+	snprintf(pathname, sizeof(pathname), "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_%s_freq", cpu, is_max ? "max" : "min");
 
 	fp = fopen(pathname, "w");
 	if (!fp) {
