@@ -37,6 +37,10 @@
 /* Maximum HWP activity window duration in microseconds */
 #define HWP_WINDOW_MAX_USEC 1270000000U
 
+/* Nominal bus clock frequency in MHz - assumed for all HWP systems */
+#define BCLK_MHZ 100
+#define KHZ_PER_MHZ 1000
+
 struct msr_hwp_cap {
 	unsigned char highest;
 	unsigned char guaranteed;
@@ -1163,7 +1167,7 @@ int print_pkg_msrs(int pkg)
  */
 int ratio_2_sysfs_khz(int ratio)
 {
-	int bclk_khz = 100 * 1000;	/* 100,000 KHz = 100 MHz */
+	int bclk_khz = BCLK_MHZ * KHZ_PER_MHZ; /* Convert MHz to KHz */
 
 	return ratio * bclk_khz;
 }
