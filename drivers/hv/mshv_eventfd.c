@@ -473,18 +473,6 @@ static int mshv_irqfd_assign(struct mshv_partition *pt,
 	init_poll_funcptr(&irqfd->irqfd_polltbl, mshv_irqfd_queue_proc);
 
 	spin_lock_irq(&pt->pt_irqfds_lock);
-#if IS_ENABLED(CONFIG_X86)
-	if (args->flags & BIT(MSHV_IRQFD_BIT_RESAMPLE) &&
-	    !irqfd->irqfd_lapic_irq.lapic_control.level_triggered) {
-		/*
-		 * Resample Fd must be for level triggered interrupt
-		 * Otherwise return with failure
-		 */
-		spin_unlock_irq(&pt->pt_irqfds_lock);
-		ret = -EINVAL;
-		goto fail;
-	}
-#endif
 	ret = 0;
 	hlist_for_each_entry(tmp, &pt->pt_irqfds_list, irqfd_hnode) {
 		if (irqfd->irqfd_eventfd_ctx != tmp->irqfd_eventfd_ctx)
@@ -497,6 +485,21 @@ static int mshv_irqfd_assign(struct mshv_partition *pt,
 
 	idx = srcu_read_lock(&pt->pt_irq_srcu);
 	mshv_irqfd_update(pt, irqfd);
+
+#if IS_ENABLED(CONFIG_X86)
+	if (args->flags & BIT(MSHV_IRQFD_BIT_RESAMPLE) &&
+	    !irqfd->irqfd_lapic_irq.lapic_control.level_triggered) {
+		/*
+		 * Resample Fd must be for level triggered interrupt
+		 * Otherwise return with failure
+		 */
+		spin_unlock_irq(&pt->pt_irqfds_lock);
+		srcu_read_unlock(&pt->pt_irq_srcu, idx);
+		ret = -EINVAL;
+		goto fail;
+	}
+#endif
+
 	hlist_add_head(&irqfd->irqfd_hnode, &pt->pt_irqfds_list);
 	spin_unlock_irq(&pt->pt_irqfds_lock);
 
