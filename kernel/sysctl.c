@@ -148,7 +148,7 @@ static void warn_sysctl_write(const struct ctl_table *table)
  * @ppos: file position
  * @table: the sysctl table
  *
- * Returns true if the first position is non-zero and the sysctl_writes_strict
+ * Returns: true if the first position is non-zero and the sysctl_writes_strict
  * mode indicates this is not allowed for numeric input types. String proc
  * handlers can ignore the return value.
  */
@@ -184,7 +184,7 @@ static bool proc_first_pos_non_zero_ignore(loff_t *ppos,
  * and a newline '\n' is added. It is truncated if the buffer is
  * not large enough.
  *
- * Returns 0 on success.
+ * Returns: %0 on success.
  */
 int proc_dostring(const struct ctl_table *table, int dir,
 		  void *buffer, size_t *lenp, loff_t *ppos)
@@ -225,11 +225,14 @@ static void proc_skip_char(char **buf, size_t *size, const char v)
  * @base: the base to use
  * @res: where the parsed integer will be stored
  *
- * In case of success 0 is returned and @res will contain the parsed integer,
- * @endp will hold any trailing characters.
  * This function will fail the parse on overflow. If there wasn't an overflow
  * the function will defer the decision what characters count as invalid to the
  * caller.
+ *
+ * Returns:
+ * * %0 on success and @res will contain the parsed integer,
+ *   @endp will hold any trailing characters.
+ * * %-ERANGE on overflow.
  */
 static int strtoul_lenient(const char *cp, char **endp, unsigned int base,
 			   unsigned long *res)
@@ -263,10 +266,12 @@ static int strtoul_lenient(const char *cp, char **endp, unsigned int base,
  * @perm_tr_len: size of the perm_tr vector
  * @tr: pointer to store the trailer character
  *
- * In case of success %0 is returned and @buf and @size are updated with
- * the amount of bytes read. If @tr is non-NULL and a trailing
- * character exists (size is non-zero after returning from this
- * function), @tr is updated with the trailing character.
+ * Returns:
+ * * %0 on success and @buf and @size are updated with
+ *   the amount of bytes read. If @tr is non-NULL and a trailing
+ *   character exists (size is non-zero after returning from this
+ *   function), @tr is updated with the trailing character.
+ * * %-EINVAL on failure.
  */
 static int proc_get_long(char **buf, size_t *size,
 			  unsigned long *val, bool *neg,
@@ -365,7 +370,7 @@ static void proc_put_char(void **buf, size_t *size, char c)
  * not NULL. Check that the values are less than UINT_MAX to avoid
  * having to support wrap around from userspace.
  *
- * Returns: 0 on success.
+ * Returns: %0 on success.
  */
 int proc_uint_u2k_conv_uop(const ulong *u_ptr, uint *k_ptr,
 			   ulong (*u_ptr_op)(const ulong))
@@ -386,7 +391,7 @@ int proc_uint_u2k_conv_uop(const ulong *u_ptr, uint *k_ptr,
  *
  * Uses READ_ONCE to assign value to u_ptr.
  *
- * Returns: 0 on success.
+ * Returns: %0 on success.
  */
 int proc_uint_k2u_conv(ulong *u_ptr, const uint *k_ptr)
 {
@@ -409,7 +414,7 @@ int proc_uint_k2u_conv(ulong *u_ptr, const uint *k_ptr)
  * When direction is kernel to user, then the u_ptr is modified.
  * When direction is user to kernel, then the k_ptr is modified.
  *
- * Returns 0 on success
+ * Returns: %0 on success
  */
 int proc_uint_conv(ulong *u_ptr, uint *k_ptr, int dir,
 		   const struct ctl_table *tbl, bool k_ptr_range_check,
@@ -744,7 +749,7 @@ out:
  * values from/to the user buffer, treated as an ASCII string. Negative
  * strings are not allowed.
  *
- * Returns 0 on success
+ * Returns: %0 on success
  */
 int proc_douintvec_conv(const struct ctl_table *table, int dir, void *buffer,
 			size_t *lenp, loff_t *ppos,
@@ -773,7 +778,7 @@ int proc_douintvec_conv(const struct ctl_table *table, int dir, void *buffer,
  * table->data must point to a bool variable and table->maxlen must
  * be sizeof(bool).
  *
- * Returns 0 on success.
+ * Returns: %0 on success.
  */
 int proc_dobool(const struct ctl_table *table, int dir, void *buffer,
 		size_t *lenp, loff_t *ppos)
@@ -810,7 +815,7 @@ int proc_dobool(const struct ctl_table *table, int dir, void *buffer,
  * Reads/writes up to table->maxlen/sizeof(unsigned int) integer
  * values from/to the user buffer, treated as an ASCII string.
  *
- * Returns 0 on success.
+ * Returns: %0 on success.
  */
 int proc_dointvec(const struct ctl_table *table, int dir, void *buffer,
 		  size_t *lenp, loff_t *ppos)
@@ -830,7 +835,7 @@ int proc_dointvec(const struct ctl_table *table, int dir, void *buffer,
  * Reads/writes up to table->maxlen/sizeof(unsigned int) unsigned integer
  * values from/to the user buffer, treated as an ASCII string.
  *
- * Returns 0 on success.
+ * Returns: %0 on success.
  */
 int proc_douintvec(const struct ctl_table *table, int dir, void *buffer,
 		size_t *lenp, loff_t *ppos)
@@ -853,7 +858,7 @@ int proc_douintvec(const struct ctl_table *table, int dir, void *buffer,
  * This routine will ensure the values are within the range specified by
  * table->extra1 (min) and table->extra2 (max).
  *
- * Returns 0 on success or -EINVAL when the range check fails and
+ * Returns: %0 on success or -EINVAL when the range check fails and
  * SYSCTL_USER_TO_KERN(dir) == true
  */
 int proc_dointvec_minmax(const struct ctl_table *table, int dir,
@@ -880,7 +885,7 @@ int proc_dointvec_minmax(const struct ctl_table *table, int dir,
  * (max). And Check that the values are less than UINT_MAX to avoid having to
  * support wrap around uses from userspace.
  *
- * Returns 0 on success or -ERANGE when range check failes and
+ * Returns: %0 on success or -ERANGE when range check failes and
  * SYSCTL_USER_TO_KERN(dir) == true
  */
 int proc_douintvec_minmax(const struct ctl_table *table, int dir,
@@ -905,7 +910,7 @@ int proc_douintvec_minmax(const struct ctl_table *table, int dir,
  * This routine will ensure the values are within the range specified by
  * table->extra1 (min) and table->extra2 (max).
  *
- * Returns 0 on success or an error on SYSCTL_USER_TO_KERN(dir) == true
+ * Returns: %0 on success or an error on SYSCTL_USER_TO_KERN(dir) == true
  * and the range check fails.
  */
 int proc_dou8vec_minmax(const struct ctl_table *table, int dir,
@@ -1079,7 +1084,7 @@ int proc_doulongvec_conv(const struct ctl_table *table, int dir,
  * This routine will ensure the values are within the range specified by
  * table->extra1 (min) and table->extra2 (max).
  *
- * Returns 0 on success.
+ * Returns: %0 on success.
  */
 int proc_doulongvec_minmax(const struct ctl_table *table, int dir,
 			   void *buffer, size_t *lenp, loff_t *ppos)
@@ -1128,7 +1133,7 @@ int proc_dointvec_conv(const struct ctl_table *table, int dir, void *buffer,
  * large bitmaps may be represented in a compact manner. Writing into
  * the file will clear the bitmap then update it with the given input.
  *
- * Returns 0 on success.
+ * Returns: %0 on success.
  */
 int proc_do_large_bitmap(const struct ctl_table *table, int dir,
 			 void *buffer, size_t *lenp, loff_t *ppos)
