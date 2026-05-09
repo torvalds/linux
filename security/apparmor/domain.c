@@ -875,6 +875,52 @@ static struct aa_label *label_merge_wrap(struct aa_label *a, struct aa_label *b,
 	return label;
 }
 
+static bool is_profile_priv_restricted_to_stack(const struct cred *subj_cred,
+						struct aa_profile *profile)
+{
+	if (profile_unconfined(profile) && profile == profile->ns->unconfined &&
+	    aa_unprivileged_unconfined_restricted &&
+	    /* cap_capable returns false (0) if true, hence true here means
+	     * doesn't have capability and the stack will be restricted
+	     */
+	    cap_capable(current_cred(), &init_user_ns, CAP_MAC_OVERRIDE,
+			CAP_OPT_NOAUDIT))
+		return true;
+	return false;
+}
+
+static const char *stack_msg = "change_profile unprivileged unconfined converted to stacking";
+
+static struct aa_label *priv_restricted_transition(const struct cred *subj_cred,
+						   struct aa_profile *profile,
+						   const char *op, u32 request,
+						   const char *name,
+						   struct aa_label *transition,
+						   gfp_t gfp)
+{
+	if (!is_profile_priv_restricted_to_stack(subj_cred, profile))
+		return aa_get_newest_label(transition);
+
+	/* transition allowed but only via stack */
+	struct aa_label *target = label_merge_wrap(&profile->label,
+						      transition, gfp);
+	if (IS_ERR_OR_NULL(target))
+		return target;
+
+	/* doing this here is less than optimal but good enough until the
+	 * fs mediation rework lands
+	 */
+	struct aa_perms perms = {
+		.allow = request,
+		.audit = request,
+	};
+	aa_audit_file(subj_cred, profile, &perms, op,
+		      request, name, NULL, target,
+		      subj_cred->euid, stack_msg, 0);
+
+	return target;
+}
+
 static struct aa_label *handle_onexec(const struct cred *subj_cred,
 				      struct aa_label *label,
 				      struct aa_label *onexec, bool stack,
@@ -903,7 +949,10 @@ static struct aa_label *handle_onexec(const struct cred *subj_cred,
 	new = fn_label_build_in_scope(label, profile, GFP_KERNEL,
 			stack ? label_merge_wrap(&profile->label, onexec,
 						 GFP_KERNEL)
-			      : aa_get_newest_label(onexec),
+			      : priv_restricted_transition(subj_cred, profile,
+						OP_CHANGE_ONEXEC, AA_MAY_ONEXEC,
+						bprm->filename, onexec,
+						GFP_KERNEL),
 			profile_transition(subj_cred, profile, bprm,
 					   buffer, cond, unsafe));
 	AA_BUG(!new);
@@ -1407,8 +1456,6 @@ static int change_profile_perms_wrapper(const char *op, const char *name,
 	return error;
 }
 
-static const char *stack_msg = "change_profile unprivileged unconfined converted to stacking";
-
 /**
  * aa_change_profile - perform a one-way profile transition
  * @fqname: name of profile may include namespace (NOT NULL)
@@ -1466,28 +1513,6 @@ int aa_change_profile(const char *fqname, int flags)
 			op = OP_STACK;
 		else
 			op = OP_CHANGE_PROFILE;
-	}
-
-	/* This should move to a per profile test. Requires pushing build
-	 * into callback
-	 */
-	if (!stack && unconfined(label) &&
-	    label == &labels_ns(label)->unconfined->label &&
-	    aa_unprivileged_unconfined_restricted &&
-	    /* TODO: refactor so this check is a fn */
-	    cap_capable(current_cred(), &init_user_ns, CAP_MAC_OVERRIDE,
-			CAP_OPT_NOAUDIT)) {
-		/* regardless of the request in this case apparmor
-		 * stacks against unconfined so admin set policy can't be
-		 * by-passed
-		 */
-		stack = true;
-		perms.audit = request;
-		(void) fn_for_each_in_scope(label, profile,
-				aa_audit_file(subj_cred, profile, &perms, op,
-					      request, auditname, NULL, target,
-					      GLOBAL_ROOT_UID, stack_msg, 0));
-		perms.audit = 0;
 	}
 
 	if (*fqname == '&') {
@@ -1560,7 +1585,10 @@ check:
 	/* stacking is always a subset, so only check the nonstack case */
 	if (!stack) {
 		new = fn_label_build_in_scope(label, profile, GFP_KERNEL,
-					   aa_get_label(target),
+				priv_restricted_transition(subj_cred, profile,
+							   op, request,
+							   auditname, target,
+							   GFP_KERNEL),
 					   aa_get_label(&profile->label));
 		AA_BUG(!new);
 		if (IS_ERR(new))
