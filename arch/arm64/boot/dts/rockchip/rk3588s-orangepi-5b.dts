@@ -2,7 +2,7 @@
 
 /dts-v1/;
 
-#include "rk3588s-orangepi-5.dtsi"
+#include "rk3588s-orangepi-5-5b.dtsi"
 
 / {
 	model = "Xunlong Orange Pi 5B";
