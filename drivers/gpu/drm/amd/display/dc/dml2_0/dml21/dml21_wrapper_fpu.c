@@ -155,6 +155,11 @@ static void dml21_calculate_rq_and_dlg_params(const struct dc *dc, struct dc_sta
 		context->bw_ctx.bw.dcn.clk.max_supported_dppclk_khz = in_ctx->v21.dml_init.soc_bb.clk_table.dppclk.clk_values_khz[0];
 	}
 
+	if (dc->config.forced_clocks || dc->debug.max_disp_clk) {
+		context->bw_ctx.bw.dcn.clk.bw_dispclk_khz = context->bw_ctx.bw.dcn.clk.max_supported_dispclk_khz;
+		context->bw_ctx.bw.dcn.clk.bw_dppclk_khz = context->bw_ctx.bw.dcn.clk.max_supported_dppclk_khz;
+	}
+
 	/* get global mall allocation */
 	if (dc->res_pool->funcs->calculate_mall_ways_from_bytes) {
 		context->bw_ctx.bw.dcn.clk.num_ways = dc->res_pool->funcs->calculate_mall_ways_from_bytes(dc, context->bw_ctx.bw.dcn.mall_subvp_size_bytes);
