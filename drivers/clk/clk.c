@@ -1846,10 +1846,10 @@ static int __clk_notify(struct clk_core *core, unsigned long msg,
 }
 
 /**
- * __clk_recalc_accuracies
+ * __clk_recalc_accuracies - recalculate all accuracies in the clk subtree
  * @core: first clk in the subtree
  *
- * Walks the subtree of clks starting with clk and recalculates accuracies as
+ * Walks the subtree of clks starting with @core and recalculates accuracies as
  * it goes.  Note that if a clk does not implement the .recalc_accuracy
  * callback then it is assumed that the clock will take on the accuracy of its
  * parent.
@@ -1919,16 +1919,16 @@ static unsigned long clk_recalc(struct clk_core *core,
 }
 
 /**
- * __clk_recalc_rates
+ * __clk_recalc_rates - recalculate all rates in the clk subtree
  * @core: first clk in the subtree
  * @update_req: Whether req_rate should be updated with the new rate
  * @msg: notification type (see include/linux/clk.h)
  *
- * Walks the subtree of clks starting with clk and recalculates rates as it
+ * Walks the subtree of clks starting with @core and recalculates rates as it
  * goes.  Note that if a clk does not implement the .recalc_rate callback then
  * it is assumed that the clock will take on the rate of its parent.
  *
- * clk_recalc_rates also propagates the POST_RATE_CHANGE notification,
+ * __clk_recalc_rates also propagates the POST_RATE_CHANGE notification,
  * if necessary.
  */
 static void __clk_recalc_rates(struct clk_core *core, bool update_req,
@@ -2191,14 +2191,14 @@ static int __clk_set_parent(struct clk_core *core, struct clk_core *parent,
 }
 
 /**
- * __clk_speculate_rates
+ * __clk_speculate_rates - speculate all rates in the clk subtree
  * @core: first clk in the subtree
  * @parent_rate: the "future" rate of clk's parent
  *
- * Walks the subtree of clks starting with clk, speculating rates as it
+ * Walks the subtree of clks starting with @core, speculating rates as it
  * goes and firing off PRE_RATE_CHANGE notifications as necessary.
  *
- * Unlike clk_recalc_rates, clk_speculate_rates exists only for sending
+ * Unlike __clk_recalc_rates, __clk_speculate_rates exists only for sending
  * pre-rate change notifications and returns early if no clks in the
  * subtree have subscribed to the notifications.  Note that if a clk does not
  * implement the .recalc_rate callback then it is assumed that the clock will
