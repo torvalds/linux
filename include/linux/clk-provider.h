@@ -10,28 +10,40 @@
 #include <linux/of.h>
 #include <linux/of_clk.h>
 
-/*
- * flags used across common struct clk.  these flags should only affect the
- * top-level framework.  custom flags for dealing with hardware specifics
- * belong in struct clk_foo
+/**
+ * DOC: clk framework flags
  *
- * Please update clk_flags[] in drivers/clk/clk.c when making changes here!
+ * Flags used across common struct clk. These flags should only affect the
+ * top-level framework. Custom flags for dealing with hardware specifics
+ * belong in struct clk_foo.
+ *
+ * * CLK_SET_RATE_GATE - must be gated across rate change
+ * * CLK_SET_PARENT_GATE - must be gated across re-parent
+ * * CLK_SET_RATE_PARENT - propagate rate change up one level
+ * * CLK_IGNORE_UNUSED - do not gate even if unused
+ * * CLK_GET_RATE_NOCACHE - do not use the cached clk rate
+ * * CLK_SET_RATE_NO_REPARENT - don't re-parent on rate change
+ * * CLK_GET_ACCURACY_NOCACHE - do not use the cached clk accuracy
+ * * CLK_RECALC_NEW_RATES - recalc rates after notifications
+ * * CLK_SET_RATE_UNGATE - clock needs to run to set rate
+ * * CLK_IS_CRITICAL - do not gate, ever
+ * * CLK_OPS_PARENT_ENABLE - parents need enable during gate/ungate, set rate and re-parent
+ * * CLK_DUTY_CYCLE_PARENT - duty cycle call may be forwarded to the parent clock
  */
-#define CLK_SET_RATE_GATE	BIT(0) /* must be gated across rate change */
-#define CLK_SET_PARENT_GATE	BIT(1) /* must be gated across re-parent */
-#define CLK_SET_RATE_PARENT	BIT(2) /* propagate rate change up one level */
-#define CLK_IGNORE_UNUSED	BIT(3) /* do not gate even if unused */
+/* Please update clk_flags[] in drivers/clk/clk.c when making changes here! */
+#define CLK_SET_RATE_GATE	BIT(0)
+#define CLK_SET_PARENT_GATE	BIT(1)
+#define CLK_SET_RATE_PARENT	BIT(2)
+#define CLK_IGNORE_UNUSED	BIT(3)
 				/* unused */
 				/* unused */
-#define CLK_GET_RATE_NOCACHE	BIT(6) /* do not use the cached clk rate */
-#define CLK_SET_RATE_NO_REPARENT BIT(7) /* don't re-parent on rate change */
-#define CLK_GET_ACCURACY_NOCACHE BIT(8) /* do not use the cached clk accuracy */
-#define CLK_RECALC_NEW_RATES	BIT(9) /* recalc rates after notifications */
-#define CLK_SET_RATE_UNGATE	BIT(10) /* clock needs to run to set rate */
-#define CLK_IS_CRITICAL		BIT(11) /* do not gate, ever */
-/* parents need enable during gate/ungate, set rate and re-parent */
+#define CLK_GET_RATE_NOCACHE	BIT(6)
+#define CLK_SET_RATE_NO_REPARENT BIT(7)
+#define CLK_GET_ACCURACY_NOCACHE BIT(8)
+#define CLK_RECALC_NEW_RATES	BIT(9)
+#define CLK_SET_RATE_UNGATE	BIT(10)
+#define CLK_IS_CRITICAL		BIT(11)
 #define CLK_OPS_PARENT_ENABLE	BIT(12)
-/* duty cycle call may be forwarded to the parent clock */
 #define CLK_DUTY_CYCLE_PARENT	BIT(13)
 
 struct clk;
