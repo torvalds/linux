@@ -2324,7 +2324,7 @@ nvme_fc_create_hw_io_queues(struct nvme_fc_ctrl *ctrl, u16 qsize)
 	return 0;
 
 delete_queues:
-	for (; i > 0; i--)
+	for (--i; i > 0; i--)
 		__nvme_fc_delete_hw_queue(ctrl, &ctrl->queues[i], i);
 	return ret;
 }
