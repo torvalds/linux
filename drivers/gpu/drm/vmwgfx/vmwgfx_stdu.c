@@ -448,6 +448,13 @@ static void vmw_stdu_crtc_atomic_disable(struct drm_crtc *crtc,
 		    !new_crtc_state->mode_changed)
 			return;
 
+		/* Never destroy DU 0's ST so that the VM client always has a
+		 * window to accept input from. Otherwise we may never receive
+		 * input to wake the VM when the CRTC is disabled during idle.
+		 */
+		if (stdu->base.unit == 0)
+			return;
+
 		ret = vmw_stdu_destroy_st(dev_priv, stdu);
 		if (ret)
 			DRM_ERROR("Failed to destroy Screen Target\n");
