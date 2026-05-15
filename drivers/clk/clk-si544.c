@@ -479,9 +479,9 @@ static int si544_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id si544_id[] = {
-	{ "si544a", 1500000000 },
-	{ "si544b", 800000000 },
-	{ "si544c", 350000000 },
+	{ .name = "si544a", .driver_data = 1500000000 },
+	{ .name = "si544b", .driver_data = 800000000 },
+	{ .name = "si544c", .driver_data = 350000000 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, si544_id);
