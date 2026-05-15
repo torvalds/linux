@@ -430,6 +430,29 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
 	INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_RSU_DCMF_STATUS)
 
 /**
+ * Request INTEL_SIP_SMC_RSU_GET_DEVICE_INFO
+ *
+ * Sync call used by service driver at EL1 to query QSPI device info from FW
+ *
+ * Call register usage:
+ * a0 INTEL_SIP_SMC_RSU_GET_DEVICE_INFO
+ * a1-7 not used
+ *
+ * Return status
+ * a0 INTEL_SIP_SMC_STATUS_OK
+ * a1 erasesize0 | size0
+ * a2 erasesize1 | size1
+ * a3 erasesize2 | size2
+ * a4 erasesize3 | size3
+ * Or
+ *
+ * a0 INTEL_SIP_SMC_RSU_ERROR
+ */
+#define INTEL_SIP_SMC_FUNCID_RSU_GET_DEVICE_INFO 22
+#define INTEL_SIP_SMC_RSU_GET_DEVICE_INFO \
+	INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_RSU_GET_DEVICE_INFO)
+
+/**
  * Request INTEL_SIP_SMC_SERVICE_COMPLETED
  * Sync call to check if the secure world have completed service request
  * or not.
@@ -493,7 +516,7 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
  * a3 not used
  */
 #define INTEL_SIP_SMC_FUNCID_MBOX_SEND_CMD 60
-	#define INTEL_SIP_SMC_MBOX_SEND_CMD \
+#define INTEL_SIP_SMC_MBOX_SEND_CMD \
 	INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_MBOX_SEND_CMD)
 
 /**

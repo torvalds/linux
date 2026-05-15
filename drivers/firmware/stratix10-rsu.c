@@ -7,17 +7,24 @@
 #include <linux/arm-smccc.h>
 #include <linux/bitfield.h>
 #include <linux/completion.h>
+#include <linux/delay.h>
+#include <linux/firmware/intel/stratix10-svc-client.h>
+#include <linux/kernel.h>
 #include <linux/kobject.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/firmware/intel/stratix10-svc-client.h>
 #include <linux/string.h>
 #include <linux/sysfs.h>
-#include <linux/delay.h>
 
-#define RSU_ERASE_SIZE_MASK		GENMASK_ULL(63, 32)
+/*
+ * INTEL_SIP_SMC_RSU_GET_DEVICE_INFO packs each flash word as:
+ *   [63:32] erase_size, [31:0] size (see stratix10-smc.h).
+ */
+#define RSU_DEVICE_INFO_SIZE_MASK	GENMASK_ULL(31, 0)
+#define RSU_DEVICE_INFO_ERASE_SIZE_MASK	GENMASK_ULL(63, 32)
+
 #define RSU_DCMF0_MASK			GENMASK_ULL(31, 0)
 #define RSU_DCMF1_MASK			GENMASK_ULL(63, 32)
 #define RSU_DCMF2_MASK			GENMASK_ULL(31, 0)
@@ -33,10 +40,30 @@
 #define INVALID_DCMF_VERSION		0xFF
 #define INVALID_DCMF_STATUS		0xFFFFFFFF
 #define INVALID_SPT_ADDRESS		0x0
+#define INVALID_DEVICE_INFO		(~0U)
 
 #define RSU_RETRY_SLEEP_MS		(1U)
 #define RSU_ASYNC_MSG_RETRY		(3U)
 #define RSU_GET_SPT_RESP_LEN		(4 * sizeof(unsigned int))
+
+struct flash_device_info {
+	unsigned int size;
+	unsigned int erase_size;
+};
+
+/**
+ * rsu_device_info_set_from_packed() - Decode one RSU device-info SMC word
+ * @di: slot to fill
+ * @packed: register value: [63:32] erase_size, [31:0] size
+ *	(INTEL_SIP_SMC_RSU_GET_DEVICE_INFO)
+ */
+static void rsu_device_info_set_from_packed(struct flash_device_info *di,
+					    unsigned long packed)
+{
+	di->size = (unsigned int)FIELD_GET(RSU_DEVICE_INFO_SIZE_MASK, packed);
+	di->erase_size = (unsigned int)FIELD_GET(RSU_DEVICE_INFO_ERASE_SIZE_MASK,
+						 packed);
+}
 
 typedef void (*rsu_callback)(struct stratix10_svc_client *client,
 			     struct stratix10_svc_cb_data *data);
@@ -60,6 +87,8 @@ typedef void (*rsu_callback)(struct stratix10_svc_client *client,
  * @dcmf_status.dcmf1: dcmf1 status
  * @dcmf_status.dcmf2: dcmf2 status
  * @dcmf_status.dcmf3: dcmf3 status
+ * @device_info: per-device flash information array; each entry contains
+ * size and erase size for one flash device
  * @retry_counter: the current image's retry counter
  * @max_retry: the preset max retry value
  * @spt0_address: address of spt0
@@ -93,12 +122,28 @@ struct stratix10_rsu_priv {
 		unsigned int dcmf3;
 	} dcmf_status;
 
+	struct flash_device_info device_info[4];
+
 	unsigned int retry_counter;
 	unsigned int max_retry;
 
 	unsigned long spt0_address;
 	unsigned long spt1_address;
 };
+
+/**
+ * rsu_device_info_invalidate() - Mark all cached QSPI device slots invalid
+ * @priv: RSU private data
+ */
+static void rsu_device_info_invalidate(struct stratix10_rsu_priv *priv)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(priv->device_info); i++) {
+		priv->device_info[i].size = INVALID_DEVICE_INFO;
+		priv->device_info[i].erase_size = INVALID_DEVICE_INFO;
+	}
+}
 
 typedef void (*rsu_async_callback)(struct device *dev,
 	struct stratix10_rsu_priv *priv, struct stratix10_svc_cb_data *data);
@@ -229,8 +274,57 @@ static void rsu_dcmf_status_callback(struct stratix10_svc_client *client,
 }
 
 /**
- * rsu_async_get_spt_table_callback() - Callback to be used by the rsu_async_send()
- * to retrieve the SPT table information.
+ * rsu_get_device_info_callback() - Callback from Intel service layer for
+ * getting the QSPI device info
+ * @client: pointer to client
+ * @data: pointer to callback data structure
+ *
+ * Callback from Intel service layer for QSPI device info.
+ * @data->kaddr1 points to struct arm_smccc_1_2_regs on SVC_STATUS_OK or
+ * SVC_STATUS_ERROR; it is NULL on SVC_STATUS_NO_SUPPORT (unsupported command).
+ */
+static void rsu_get_device_info_callback(struct stratix10_svc_client *client,
+					 struct stratix10_svc_cb_data *data)
+{
+	struct stratix10_rsu_priv *priv = client->priv;
+	struct arm_smccc_1_2_regs *res = data->kaddr1;
+
+	if (data->status == BIT(SVC_STATUS_OK)) {
+		if (!res) {
+			dev_err(client->dev,
+				"COMMAND_RSU_GET_DEVICE_INFO: missing result payload\n");
+			rsu_device_info_invalidate(priv);
+			complete(&priv->completion);
+			return;
+		}
+
+		rsu_device_info_set_from_packed(&priv->device_info[0], res->a1);
+		rsu_device_info_set_from_packed(&priv->device_info[1], res->a2);
+		rsu_device_info_set_from_packed(&priv->device_info[2], res->a3);
+		rsu_device_info_set_from_packed(&priv->device_info[3], res->a4);
+
+	} else if (data->status == BIT(SVC_STATUS_NO_SUPPORT)) {
+		dev_warn(client->dev,
+			 "COMMAND_RSU_GET_DEVICE_INFO not supported by firmware\n");
+		rsu_device_info_invalidate(priv);
+	} else {
+		if (res)
+			dev_err(client->dev,
+				"COMMAND_RSU_GET_DEVICE_INFO returned 0x%lX\n",
+				res->a0);
+		else
+			dev_err(client->dev,
+				"COMMAND_RSU_GET_DEVICE_INFO failed with status 0x%X\n",
+				data->status);
+		rsu_device_info_invalidate(priv);
+	}
+
+	complete(&priv->completion);
+}
+
+/**
+ * rsu_async_get_spt_table_callback() - Callback to be used by the
+ * rsu_async_send() to retrieve the SPT table information.
  * @dev: pointer to device object
  * @priv: pointer to priv object
  * @data: pointer to callback data structure
@@ -698,6 +792,75 @@ static ssize_t notify_store(struct device *dev,
 	return count;
 }
 
+static ssize_t rsu_device_info_show(struct device *dev, char *buf,
+				    unsigned int index, bool erase_size)
+{
+	struct stratix10_rsu_priv *priv = dev_get_drvdata(dev);
+	unsigned int value;
+
+	if (!priv)
+		return -ENODEV;
+
+	if (index >= ARRAY_SIZE(priv->device_info))
+		return -EINVAL;
+
+	value = erase_size ? priv->device_info[index].erase_size :
+			     priv->device_info[index].size;
+
+	if (value == INVALID_DEVICE_INFO)
+		return -EIO;
+
+	return sysfs_emit(buf, "0x%08x\n", value);
+}
+
+static ssize_t size0_show(struct device *dev,
+			  struct device_attribute *attr, char *buf)
+{
+	return rsu_device_info_show(dev, buf, 0, false);
+}
+
+static ssize_t size1_show(struct device *dev,
+			  struct device_attribute *attr, char *buf)
+{
+	return rsu_device_info_show(dev, buf, 1, false);
+}
+
+static ssize_t size2_show(struct device *dev,
+			  struct device_attribute *attr, char *buf)
+{
+	return rsu_device_info_show(dev, buf, 2, false);
+}
+
+static ssize_t size3_show(struct device *dev,
+			  struct device_attribute *attr, char *buf)
+{
+	return rsu_device_info_show(dev, buf, 3, false);
+}
+
+static ssize_t erase_size0_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	return rsu_device_info_show(dev, buf, 0, true);
+}
+
+static ssize_t erase_size1_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	return rsu_device_info_show(dev, buf, 1, true);
+}
+
+static ssize_t erase_size2_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	return rsu_device_info_show(dev, buf, 2, true);
+}
+
+static ssize_t erase_size3_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	return rsu_device_info_show(dev, buf, 3, true);
+}
+
 static ssize_t spt0_address_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
@@ -742,6 +905,14 @@ static DEVICE_ATTR_RO(dcmf0_status);
 static DEVICE_ATTR_RO(dcmf1_status);
 static DEVICE_ATTR_RO(dcmf2_status);
 static DEVICE_ATTR_RO(dcmf3_status);
+static DEVICE_ATTR_RO(size0);
+static DEVICE_ATTR_RO(size1);
+static DEVICE_ATTR_RO(size2);
+static DEVICE_ATTR_RO(size3);
+static DEVICE_ATTR_RO(erase_size0);
+static DEVICE_ATTR_RO(erase_size1);
+static DEVICE_ATTR_RO(erase_size2);
+static DEVICE_ATTR_RO(erase_size3);
 static DEVICE_ATTR_WO(reboot_image);
 static DEVICE_ATTR_WO(notify);
 static DEVICE_ATTR_RO(spt0_address);
@@ -764,6 +935,14 @@ static struct attribute *rsu_attrs[] = {
 	&dev_attr_dcmf1_status.attr,
 	&dev_attr_dcmf2_status.attr,
 	&dev_attr_dcmf3_status.attr,
+	&dev_attr_size0.attr,
+	&dev_attr_size1.attr,
+	&dev_attr_size2.attr,
+	&dev_attr_size3.attr,
+	&dev_attr_erase_size0.attr,
+	&dev_attr_erase_size1.attr,
+	&dev_attr_erase_size2.attr,
+	&dev_attr_erase_size3.attr,
 	&dev_attr_reboot_image.attr,
 	&dev_attr_notify.attr,
 	&dev_attr_spt0_address.attr,
@@ -796,6 +975,7 @@ static int stratix10_rsu_probe(struct platform_device *pdev)
 	priv->dcmf_status.dcmf2 = INVALID_DCMF_STATUS;
 	priv->dcmf_status.dcmf3 = INVALID_DCMF_STATUS;
 	/* spt0/1_address and status fields default to 0 from kzalloc */
+	rsu_device_info_invalidate(priv);
 
 	mutex_init(&priv->lock);
 	init_completion(&priv->completion);
@@ -844,6 +1024,16 @@ static int stratix10_rsu_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(dev, "Error, getting RSU max retry %i\n", ret);
 		goto remove_async_client;
+	}
+
+	/* get QSPI device info from firmware */
+	ret = rsu_send_msg(priv, COMMAND_RSU_GET_DEVICE_INFO, 0,
+			   rsu_get_device_info_callback);
+	if (ret) {
+		dev_err(dev, "Error, getting QSPI Device Info %i\n", ret);
+		stratix10_svc_remove_async_client(priv->chan);
+		stratix10_svc_free_channel(priv->chan);
+		return ret;
 	}
 
 	ret = rsu_send_async_msg(dev, priv, COMMAND_RSU_GET_SPT_TABLE, 0,

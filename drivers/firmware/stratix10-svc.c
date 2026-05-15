@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/string.h>
 #include <linux/firmware/intel/stratix10-smc.h>
 #include <linux/firmware/intel/stratix10-svc-client.h>
 #include <linux/types.h>
@@ -445,13 +446,15 @@ static void svc_thread_cmd_config_status(struct stratix10_svc_controller *ctrl,
  * svc_thread_recv_status_ok() - handle the successful status
  * @p_data: pointer to service data structure
  * @cb_data: pointer to callback data structure to service client
- * @res: result from SMC or HVC call
+ * @res: result from SMC or HVC call (a0-a3; used for routing and most commands)
+ * @res12: full v1.2 result for %COMMAND_RSU_GET_DEVICE_INFO, else NULL
  *
  * Send back the correspond status to the service clients.
  */
 static void svc_thread_recv_status_ok(struct stratix10_svc_data *p_data,
 				      struct stratix10_svc_cb_data *cb_data,
-				      struct arm_smccc_res res)
+				      struct arm_smccc_res res,
+				      struct arm_smccc_1_2_regs *res12)
 {
 	cb_data->kaddr1 = NULL;
 	cb_data->kaddr2 = NULL;
@@ -513,6 +516,16 @@ static void svc_thread_recv_status_ok(struct stratix10_svc_data *p_data,
 		res.a2 = res.a2 * BYTE_TO_WORD_SIZE;
 		cb_data->kaddr2 = &res.a2;
 		break;
+	case COMMAND_RSU_GET_DEVICE_INFO:
+		if (WARN_ON(!res12)) {
+			cb_data->status = BIT(SVC_STATUS_ERROR);
+			break;
+		}
+		cb_data->status = BIT(SVC_STATUS_OK);
+		cb_data->kaddr1 = res12;
+		cb_data->kaddr2 = NULL;
+		cb_data->kaddr3 = NULL;
+		break;
 	default:
 		pr_warn("it shouldn't happen\n");
 		break;
@@ -521,6 +534,10 @@ static void svc_thread_recv_status_ok(struct stratix10_svc_data *p_data,
 	pr_debug("%s: call receive_cb\n", __func__);
 	p_data->chan->scl->receive_cb(p_data->chan->scl, cb_data);
 }
+
+static void svc_smccc_1_2_full(struct stratix10_svc_controller *ctrl,
+			       const struct arm_smccc_1_2_regs *args,
+			       struct arm_smccc_1_2_regs *res);
 
 /**
  * svc_normal_to_secure_thread() - the function to run in the kthread
@@ -539,6 +556,7 @@ static int svc_normal_to_secure_thread(void *data)
 	struct stratix10_svc_data *pdata = NULL;
 	struct stratix10_svc_cb_data *cbdata = NULL;
 	struct arm_smccc_res res;
+	struct arm_smccc_1_2_regs res12 = { 0 };
 	unsigned long a0, a1, a2, a3, a4, a5, a6, a7;
 	int ret_fifo = 0;
 
@@ -727,6 +745,16 @@ static int svc_normal_to_secure_thread(void *data)
 			a5 = (unsigned long)pdata->paddr_output;
 			a6 = (unsigned long)pdata->size_output / BYTE_TO_WORD_SIZE;
 			break;
+		case COMMAND_RSU_GET_DEVICE_INFO:
+			a0 = INTEL_SIP_SMC_RSU_GET_DEVICE_INFO;
+			a1 = 0;
+			a2 = 0;
+			a3 = 0;
+			a4 = 0;
+			a5 = 0;
+			a6 = 0;
+			a7 = 0;
+			break;
 		default:
 			pr_warn("it shouldn't happen\n");
 			mutex_unlock(&ctrl->sdm_lock);
@@ -740,7 +768,18 @@ static int svc_normal_to_secure_thread(void *data)
 		pr_debug(" a3=0x%016x\n", (unsigned int)a3);
 		pr_debug(" a4=0x%016x\n", (unsigned int)a4);
 		pr_debug(" a5=0x%016x\n", (unsigned int)a5);
-		ctrl->invoke_fn(a0, a1, a2, a3, a4, a5, a6, a7, &res);
+		if (pdata->command == COMMAND_RSU_GET_DEVICE_INFO) {
+			struct arm_smccc_1_2_regs args12 = { 0 };
+
+			args12.a0 = INTEL_SIP_SMC_RSU_GET_DEVICE_INFO;
+			svc_smccc_1_2_full(ctrl, &args12, &res12);
+			res.a0 = res12.a0;
+			res.a1 = res12.a1;
+			res.a2 = res12.a2;
+			res.a3 = res12.a3;
+		} else {
+			ctrl->invoke_fn(a0, a1, a2, a3, a4, a5, a6, a7, &res);
+		}
 
 		pr_debug("%s: %s: after SMC call -- res.a0=0x%016x",
 			 __func__, chan->name, (unsigned int)res.a0);
@@ -763,9 +802,15 @@ static int svc_normal_to_secure_thread(void *data)
 		}
 
 		switch (res.a0) {
-		case INTEL_SIP_SMC_STATUS_OK:
-			svc_thread_recv_status_ok(pdata, cbdata, res);
+		case INTEL_SIP_SMC_STATUS_OK: {
+			struct arm_smccc_1_2_regs *devinfo_res =
+				(pdata->command == COMMAND_RSU_GET_DEVICE_INFO) ?
+				&res12 : NULL;
+
+			svc_thread_recv_status_ok(pdata, cbdata, res,
+						  devinfo_res);
 			break;
+		}
 		case INTEL_SIP_SMC_STATUS_BUSY:
 			switch (pdata->command) {
 			case COMMAND_RECONFIG_DATA_SUBMIT:
@@ -806,10 +851,16 @@ static int svc_normal_to_secure_thread(void *data)
 		case INTEL_SIP_SMC_RSU_ERROR:
 			pr_err("%s: STATUS_ERROR\n", __func__);
 			cbdata->status = BIT(SVC_STATUS_ERROR);
-			cbdata->kaddr1 = &res.a1;
-			cbdata->kaddr2 = (res.a2) ?
-				svc_pa_to_va(res.a2) : NULL;
-			cbdata->kaddr3 = (res.a3) ? &res.a3 : NULL;
+			if (pdata->command == COMMAND_RSU_GET_DEVICE_INFO) {
+				cbdata->kaddr1 = &res12;
+				cbdata->kaddr2 = NULL;
+				cbdata->kaddr3 = NULL;
+			} else {
+				cbdata->kaddr1 = &res.a1;
+				cbdata->kaddr2 = (res.a2) ?
+					svc_pa_to_va(res.a2) : NULL;
+				cbdata->kaddr3 = (res.a3) ? &res.a3 : NULL;
+			}
 			pdata->chan->scl->receive_cb(pdata->chan->scl, cbdata);
 			break;
 		default:
@@ -1023,6 +1074,31 @@ static void svc_smccc_hvc(unsigned long a0, unsigned long a1,
 			  struct arm_smccc_res *res)
 {
 	arm_smccc_hvc(a0, a1, a2, a3, a4, a5, a6, a7, res);
+}
+
+/**
+ * svc_smccc_1_2_full() - SMC/HVC v1.2 call matching the sync channel method
+ * @ctrl: service controller (selects SMC vs HVC)
+ * @args: arguments
+ * @res: full register-file result (a0-a17)
+ */
+static void svc_smccc_1_2_full(struct stratix10_svc_controller *ctrl,
+			       const struct arm_smccc_1_2_regs *args,
+			       struct arm_smccc_1_2_regs *res)
+{
+	if (ctrl->invoke_fn == svc_smccc_smc) {
+		arm_smccc_1_2_smc(args, res);
+	} else if (ctrl->invoke_fn == svc_smccc_hvc) {
+		arm_smccc_1_2_hvc(args, res);
+	} else {
+		WARN_ON_ONCE(1);
+		/*
+		 * INTEL_SIP_SMC_STATUS_OK is 0; zero-filled res would be misrouted
+		 * as success. Force an error path and clear fabricated payload.
+		 */
+		memset(res, 0, sizeof(*res));
+		res->a0 = INTEL_SIP_SMC_STATUS_ERROR;
+	}
 }
 
 /**
