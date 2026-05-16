@@ -315,16 +315,16 @@ struct landlock_net_port_attr {
  *   :manpage:`connect(2)` as well as calls to :manpage:`sendmsg(2)` with an
  *   explicit recipient address.
  *
- *   This access right only applies to connections to UNIX server sockets which
+ *   This access right applies only to connections to UNIX server sockets which
  *   were created outside of the newly created Landlock domain (e.g. from within
  *   a parent domain or from an unrestricted process).  Newly created UNIX
  *   servers within the same Landlock domain continue to be accessible.  In this
  *   regard, %LANDLOCK_ACCESS_FS_RESOLVE_UNIX has the same semantics as the
  *   ``LANDLOCK_SCOPE_*`` flags.
  *
- *   If a resolve attempt is denied, the operation returns an ``EACCES`` error,
- *   in line with other filesystem access rights (but different to denials for
- *   abstract UNIX domain sockets).
+ *   If a resolution attempt is denied, the operation returns an ``EACCES``
+ *   error, in line with other filesystem access rights (but different to
+ *   denials for abstract UNIX domain sockets).
  *
  *   This access right is available since the ninth version of the Landlock ABI.
  *
