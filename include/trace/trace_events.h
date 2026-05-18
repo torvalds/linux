@@ -19,6 +19,7 @@
  */
 
 #include <linux/trace_events.h>
+#include <linux/btf_ids.h>
 
 #ifndef TRACE_SYSTEM_VAR
 #define TRACE_SYSTEM_VAR TRACE_SYSTEM
@@ -397,6 +398,27 @@ static inline notrace int trace_event_get_offsets_##call(		\
 #define _TRACE_PERF_INIT(call)
 #endif /* CONFIG_PERF_EVENTS */
 
+#ifdef CONFIG_BPF_EVENTS
+/*
+ * Per-template BTF id list, populated at link time by resolve_btfids:
+ *   [0] FUNC   __bpf_trace_<call>     (the BPF dispatcher)
+ *   [1] STRUCT trace_event_raw_<call> (the ring-buffer record)
+ * Exposed via the events/<sys>/<name>/btf_ids tracefs file.
+ */
+#define _TRACE_BTF_IDS_DECLARE(call)					\
+	extern u32 __bpf_trace_btf_ids_##call[];			\
+	BTF_ID_LIST_GLOBAL(__bpf_trace_btf_ids_##call, 2)		\
+	BTF_ID(func,   __bpf_trace_##call)				\
+	BTF_ID(struct, trace_event_raw_##call)
+
+#define _TRACE_BTF_IDS_INIT(call)					\
+	.btf_ids		= __bpf_trace_btf_ids_##call,
+
+#else
+#define _TRACE_BTF_IDS_DECLARE(call)
+#define _TRACE_BTF_IDS_INIT(call)
+#endif /* CONFIG_BPF_EVENTS */
+
 #include "stages/stage6_event_callback.h"
 
 
@@ -474,6 +496,7 @@ static inline void ftrace_test_probe_##call(void)			\
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
 _TRACE_PERF_PROTO(call, PARAMS(proto));					\
+_TRACE_BTF_IDS_DECLARE(call)						\
 static char print_fmt_##call[] = print;					\
 static struct trace_event_class __used __refdata event_class_##call = { \
 	.system			= TRACE_SYSTEM_STRING,			\
@@ -483,6 +506,7 @@ static struct trace_event_class __used __refdata event_class_##call = { \
 	.probe			= trace_event_raw_event_##call,		\
 	.reg			= trace_event_reg,			\
 	_TRACE_PERF_INIT(call)						\
+	_TRACE_BTF_IDS_INIT(call)					\
 };
 
 #undef DECLARE_EVENT_SYSCALL_CLASS

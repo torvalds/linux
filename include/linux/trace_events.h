@@ -298,6 +298,15 @@ struct trace_event_class {
 	struct list_head	*(*get_fields)(struct trace_event_call *);
 	struct list_head	fields;
 	int			(*raw_init)(struct trace_event_call *);
+#ifdef CONFIG_BPF_EVENTS
+	/*
+	 * Per-template BTF ids set by DECLARE_EVENT_CLASS via BTF_ID() and
+	 * patched by resolve_btfids at link time. NULL for handcrafted classes.
+	 *   [0] FUNC   __bpf_trace_<template>
+	 *   [1] STRUCT trace_event_raw_<template>
+	 */
+	const u32		*btf_ids;
+#endif
 };
 
 extern int trace_event_reg(struct trace_event_call *event,

@@ -22,6 +22,7 @@
 #include <linux/sort.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/btf.h>
 
 #include <trace/events/sched.h>
 #include <trace/syscall.h>
@@ -2202,6 +2203,61 @@ event_id_read(struct file *filp, char __user *ubuf, size_t cnt, loff_t *ppos)
 }
 #endif
 
+#ifdef CONFIG_BPF_EVENTS
+static ssize_t
+event_btf_ids_read(struct file *filp, char __user *ubuf, size_t cnt, loff_t *ppos)
+{
+	struct trace_event_file *file;
+	struct trace_event_call *call;
+	const struct btf_type *t;
+	struct module *mod = NULL;
+	u32 raw_id = 0, tp_id = 0, obj_id = 0;
+	const u32 *ids;
+	struct btf *btf;
+	char buf[128];
+	int len;
+
+	/* Module unload could free call->class and ids[] mid-read. */
+	scoped_guard(mutex, &event_mutex) {
+		file = event_file_file(filp);
+		if (!file)
+			return -ENODEV;
+
+		call = file->event_call;
+		ids = call->class->btf_ids;
+		if (!ids)
+			return -ENOENT;
+		if (!(call->flags & TRACE_EVENT_FL_DYNAMIC))
+			mod = (struct module *)call->module;
+
+		btf = btf_get_module_btf(mod);
+		if (IS_ERR_OR_NULL(btf))
+			return -ENOENT;
+
+		/* Module-local ids in ids[] need base+local relocation. */
+		tp_id = btf_relocate_id(btf, ids[1]);
+
+		/*
+		 * Without FL_TRACEPOINT the dispatcher is shared (e.g. all
+		 * per-syscall events fan out from __bpf_trace_sys_enter), so
+		 * raw_btf_id has no per-event attach point — report 0.
+		 */
+		if (call->flags & TRACE_EVENT_FL_TRACEPOINT) {
+			t = btf_type_by_id(btf, btf_relocate_id(btf, ids[0]));
+			raw_id = t ? t->type : 0;
+		}
+		obj_id = btf_obj_id(btf);
+		btf_put(btf);
+	}
+
+	len = scnprintf(buf, sizeof(buf),
+			"btf_obj_id: %u\nraw_btf_id: %u\ntp_btf_id: %u\n",
+			obj_id, raw_id, tp_id);
+
+	return simple_read_from_buffer(ubuf, cnt, ppos, buf, len);
+}
+#endif
+
 static ssize_t
 event_filter_read(struct file *filp, char __user *ubuf, size_t cnt,
 		  loff_t *ppos)
@@ -2702,6 +2758,13 @@ static const struct file_operations ftrace_event_id_fops = {
 };
 #endif
 
+#ifdef CONFIG_BPF_EVENTS
+static const struct file_operations ftrace_event_btf_ids_fops = {
+	.read = event_btf_ids_read,
+	.llseek = default_llseek,
+};
+#endif
+
 static const struct file_operations ftrace_event_filter_fops = {
 	.open = tracing_open_file_tr,
 	.read = event_filter_read,
@@ -3095,6 +3158,14 @@ static int event_callback(const char *name, umode_t *mode, void **data,
 	}
 #endif
 
+#ifdef CONFIG_BPF_EVENTS
+	if (call->class->btf_ids && strcmp(name, "btf_ids") == 0) {
+		*mode = TRACE_MODE_READ;
+		*fops = &ftrace_event_btf_ids_fops;
+		return 1;
+	}
+#endif
+
 #ifdef CONFIG_HIST_TRIGGERS
 	if (strcmp(name, "hist") == 0) {
 		*mode = TRACE_MODE_READ;
@@ -3149,7 +3220,14 @@ event_create_dir(struct eventfs_inode *parent, struct trace_event_file *file)
 			.callback	= event_callback,
 		},
 #endif
-#define NR_RO_EVENT_ENTRIES	(1 + IS_ENABLED(CONFIG_PERF_EVENTS))
+#ifdef CONFIG_BPF_EVENTS
+		{
+			.name		= "btf_ids",
+			.callback	= event_callback,
+		},
+#endif
+#define NR_RO_EVENT_ENTRIES	(1 + IS_ENABLED(CONFIG_PERF_EVENTS) + \
+				 IS_ENABLED(CONFIG_BPF_EVENTS))
 /* Readonly files must be above this line and counted by NR_RO_EVENT_ENTRIES. */
 		{
 			.name		= "enable",
