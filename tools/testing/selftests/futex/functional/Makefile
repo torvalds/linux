@@ -11,7 +11,8 @@ endif
 
 LOCAL_HDRS := \
 	../include/futextest.h \
-	../include/atomic.h
+	../include/atomic.h \
+	../include/futex_thread.h
 TEST_GEN_PROGS := \
 	futex_wait_timeout \
 	futex_wait_wouldblock \
