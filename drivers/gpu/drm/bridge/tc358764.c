@@ -376,23 +376,15 @@ static int tc358764_probe(struct mipi_dsi_device *dsi)
 	ctx->bridge.of_node = dev->of_node;
 	ctx->bridge.pre_enable_prev_first = true;
 
-	drm_bridge_add(&ctx->bridge);
+	ret = devm_drm_bridge_add(dev, &ctx->bridge);
+	if (ret < 0)
+		return ret;
 
-	ret = mipi_dsi_attach(dsi);
-	if (ret < 0) {
-		drm_bridge_remove(&ctx->bridge);
+	ret = devm_mipi_dsi_attach(dev, dsi);
+	if (ret < 0)
 		dev_err(dev, "failed to attach dsi\n");
-	}
 
 	return ret;
-}
-
-static void tc358764_remove(struct mipi_dsi_device *dsi)
-{
-	struct tc358764 *ctx = mipi_dsi_get_drvdata(dsi);
-
-	mipi_dsi_detach(dsi);
-	drm_bridge_remove(&ctx->bridge);
 }
 
 static const struct of_device_id tc358764_of_match[] = {
@@ -403,7 +395,6 @@ MODULE_DEVICE_TABLE(of, tc358764_of_match);
 
 static struct mipi_dsi_driver tc358764_driver = {
 	.probe = tc358764_probe,
-	.remove = tc358764_remove,
 	.driver = {
 		.name = "tc358764",
 		.of_match_table = tc358764_of_match,
