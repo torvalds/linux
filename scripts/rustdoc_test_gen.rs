@@ -31,8 +31,15 @@
 use std::{
     fs,
     fs::File,
-    io::{BufWriter, Read, Write},
-    path::{Path, PathBuf},
+    io::{
+        BufWriter,
+        Read,
+        Write, //
+    },
+    path::{
+        Path,
+        PathBuf, //
+    }, //
 };
 
 /// Find the real path to the original file based on the `file` portion of the test name.
