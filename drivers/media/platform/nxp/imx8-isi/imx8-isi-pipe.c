@@ -232,6 +232,47 @@ static inline struct mxc_isi_pipe *to_isi_pipe(struct v4l2_subdev *sd)
 	return container_of(sd, struct mxc_isi_pipe, sd);
 }
 
+static int mxc_isi_get_vc(struct mxc_isi_pipe *pipe)
+{
+	struct mxc_isi_crossbar *xbar = &pipe->isi->crossbar;
+	struct device *dev = pipe->isi->dev;
+	struct v4l2_mbus_frame_desc fd = { };
+	unsigned int source_pad = xbar->num_sinks + pipe->id;
+	unsigned int num_vcs;
+	unsigned int i;
+	int ret;
+
+	ret = v4l2_subdev_call(&xbar->sd, pad, get_frame_desc,
+			       source_pad, &fd);
+	if (ret < 0) {
+		dev_err(dev, "Failed to get source frame desc from pad %u\n",
+			source_pad);
+		return ret;
+	}
+
+	/* Find stream 0 in the frame descriptor. */
+	for (i = 0; i < fd.num_entries; i++) {
+		if (fd.entry[i].stream == 0)
+			break;
+	}
+
+	if (i == fd.num_entries) {
+		dev_err(dev, "Failed to find stream from source frame desc\n");
+		return -EPIPE;
+	}
+
+	num_vcs = pipe->isi->pdata->num_vc ? : 1;
+
+	/* Check virtual channel range. */
+	if (fd.entry[i].bus.csi2.vc >= num_vcs) {
+		dev_err(dev, "Virtual channel %u exceeds maximum %u\n",
+			fd.entry[i].bus.csi2.vc, num_vcs - 1);
+		return -EPIPE;
+	}
+
+	return fd.entry[i].bus.csi2.vc;
+}
+
 int mxc_isi_pipe_enable(struct mxc_isi_pipe *pipe)
 {
 	struct mxc_isi_crossbar *xbar = &pipe->isi->crossbar;
@@ -246,6 +287,7 @@ int mxc_isi_pipe_enable(struct mxc_isi_pipe *pipe)
 	struct v4l2_rect crop;
 	u32 input;
 	int ret;
+	int vc;
 
 	/*
 	 * Find the connected input by inspecting the crossbar switch routing
@@ -280,8 +322,12 @@ int mxc_isi_pipe_enable(struct mxc_isi_pipe *pipe)
 
 	v4l2_subdev_unlock_state(state);
 
+	vc = mxc_isi_get_vc(pipe);
+	if (vc < 0)
+		return vc;
+
 	/* Configure the ISI channel. */
-	mxc_isi_channel_config(pipe, input, &in_size, &scale, &crop,
+	mxc_isi_channel_config(pipe, input, vc, &in_size, &scale, &crop,
 			       sink_info->encoding, src_info->encoding);
 
 	mxc_isi_channel_enable(pipe);

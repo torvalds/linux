@@ -144,7 +144,7 @@ static void mxc_isi_m2m_device_run(void *priv)
 			.height = ctx->queues.cap.format.height,
 		};
 
-		mxc_isi_channel_config(m2m->pipe, MXC_ISI_INPUT_MEM,
+		mxc_isi_channel_config(m2m->pipe, MXC_ISI_INPUT_MEM, 0,
 				       &in_size, &scale, &crop,
 				       ctx->queues.out.info->encoding,
 				       ctx->queues.cap.info->encoding);
