@@ -44,6 +44,8 @@
 	container_of(x, struct vmw_screen_target_display_unit, base.encoder)
 #define vmw_connector_to_stdu(x) \
 	container_of(x, struct vmw_screen_target_display_unit, base.connector)
+#define vmw_primary_to_stdu(x) \
+	container_of(x, struct vmw_screen_target_display_unit, base.primary)
 
 /*
  * Some renderers such as llvmpipe will align the width and height of their
@@ -1418,7 +1420,8 @@ vmw_stdu_primary_plane_atomic_update(struct drm_plane *plane,
 	int ret;
 
 	/* If case of device error, maintain consistent atomic state */
-	if (crtc && new_state->fb) {
+	if (crtc && new_state->fb &&
+	    drm_atomic_get_new_crtc_state(state, crtc)->active) {
 		struct vmw_framebuffer *vfb =
 			vmw_framebuffer_to_vfb(new_state->fb);
 		stdu = vmw_crtc_to_stdu(crtc);
@@ -1442,9 +1445,8 @@ vmw_stdu_primary_plane_atomic_update(struct drm_plane *plane,
 		if (ret)
 			DRM_ERROR("Failed to update STDU.\n");
 	} else {
-		crtc = old_state->crtc;
-		stdu = vmw_crtc_to_stdu(crtc);
-		dev_priv = vmw_priv(crtc->dev);
+		stdu = vmw_primary_to_stdu(plane);
+		dev_priv = vmw_priv(plane->dev);
 
 		/* Blank STDU when fb and crtc are NULL */
 		if (!stdu->defined)
