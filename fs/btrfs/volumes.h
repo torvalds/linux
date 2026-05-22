@@ -633,8 +633,6 @@ struct btrfs_chunk_map {
 	u64 chunk_len;
 	u64 stripe_size;
 	u64 type;
-	int io_align;
-	int io_width;
 	int num_stripes;
 	int sub_stripes;
 	struct btrfs_io_stripe stripes[];

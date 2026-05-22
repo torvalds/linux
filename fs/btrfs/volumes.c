@@ -6033,8 +6033,6 @@ static struct btrfs_block_group *create_chunk(struct btrfs_trans_handle *trans,
 	map->chunk_len = ctl->chunk_size;
 	map->stripe_size = ctl->stripe_size;
 	map->type = type;
-	map->io_align = BTRFS_STRIPE_LEN;
-	map->io_width = BTRFS_STRIPE_LEN;
 	map->sub_stripes = ctl->sub_stripes;
 	map->num_stripes = ctl->num_stripes;
 
@@ -7597,8 +7595,6 @@ static int read_one_chunk(struct btrfs_key *key, struct extent_buffer *leaf,
 	map->start = logical;
 	map->chunk_len = length;
 	map->num_stripes = num_stripes;
-	map->io_width = btrfs_chunk_io_width(leaf, chunk);
-	map->io_align = btrfs_chunk_io_align(leaf, chunk);
 	map->type = type;
 	/*
 	 * We can't use the sub_stripes value, as for profiles other than
