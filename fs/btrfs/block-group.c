@@ -2630,7 +2630,7 @@ static int fill_dummy_bgs(struct btrfs_fs_info *fs_info)
 
 		/* Fill dummy cache as FULL */
 		bg->length = map->chunk_len;
-		bg->flags = map->type;
+		bg->flags = map->on_disk_type;
 		bg->cached = BTRFS_CACHE_FINISHED;
 		bg->used = map->chunk_len;
 		bg->space_info = btrfs_find_space_info(fs_info, bg->flags);
