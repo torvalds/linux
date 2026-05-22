@@ -2633,7 +2633,6 @@ static int fill_dummy_bgs(struct btrfs_fs_info *fs_info)
 		bg->flags = map->type;
 		bg->cached = BTRFS_CACHE_FINISHED;
 		bg->used = map->chunk_len;
-		bg->flags = map->type;
 		bg->space_info = btrfs_find_space_info(fs_info, bg->flags);
 		ret = btrfs_add_block_group_cache(bg);
 		/*
