@@ -1840,15 +1840,16 @@ int qaic_perf_stats_bo_ioctl(struct drm_device *dev, void *data, struct drm_file
 			goto free_ent;
 		}
 		bo = to_qaic_bo(obj);
+		ret = mutex_lock_interruptible(&bo->lock);
+		if (ret)
+			goto put_obj;
 		if (!bo->sliced) {
-			drm_gem_object_put(obj);
 			ret = -EINVAL;
-			goto free_ent;
+			goto unlock_bo;
 		}
 		if (bo->dbc->id != args->hdr.dbc_id) {
-			drm_gem_object_put(obj);
 			ret = -EINVAL;
-			goto free_ent;
+			goto unlock_bo;
 		}
 		/*
 		 * perf stats ioctl is called before wait ioctl is complete then
@@ -1864,7 +1865,12 @@ int qaic_perf_stats_bo_ioctl(struct drm_device *dev, void *data, struct drm_file
 						    bo->perf_stats.req_received_ts), 1000);
 		ent[i].queue_level_before = bo->perf_stats.queue_level_before;
 		ent[i].num_queue_element = bo->total_slice_nents;
+unlock_bo:
+		mutex_unlock(&bo->lock);
+put_obj:
 		drm_gem_object_put(obj);
+		if (ret)
+			goto free_ent;
 	}
 
 	if (copy_to_user(u64_to_user_ptr(args->data), ent, args->hdr.count * sizeof(*ent)))
