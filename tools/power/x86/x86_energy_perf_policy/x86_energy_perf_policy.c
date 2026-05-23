@@ -784,10 +784,10 @@ void err_on_hypervisor(void)
 	/* On VMs /proc/cpuinfo contains a "flags" entry for hypervisor */
 	cpuinfo = fopen_or_die("/proc/cpuinfo", "r");
 
-	buffer = malloc(4096);
+	buffer = calloc(4096, 1);
 	if (!buffer) {
 		fclose(cpuinfo);
-		err(-ENOMEM, "buffer malloc fail");
+		err(-ENOMEM, "buffer calloc fail");
 	}
 
 	if (!fread(buffer, 1024, 1, cpuinfo)) {
@@ -816,11 +816,10 @@ void err_on_hypervisor(void)
 	fclose(cpuinfo);
 
 	hypervisor = strstr(buffer, "hypervisor");
-
-	free(buffer);
-
 	if (hypervisor)
 		err(-1, "not supported on this virtual machine");
+
+	free(buffer);
 }
 
 /*
