@@ -9092,6 +9092,14 @@ void dump_rdt_m_leaf(int leaf)
 #define RDT_CBA_INDEX 5
 #define RDT_RP_INDEX 6
 
+#ifndef MSR_IA32_RESOURCE_PRIORITY
+#define MSR_IA32_RESOURCE_PRIORITY	0xc88
+#endif
+
+#ifndef MSR_IA32_RESOURCE_PRIORITY_PKG
+#define MSR_IA32_RESOURCE_PRIORITY_PKG	0xc89
+#endif
+
 void dump_rdt_a_leaf(int leaf)
 {
 	unsigned int eax, ebx, ecx, edx;
@@ -9116,8 +9124,21 @@ void dump_rdt_a_leaf(int leaf)
 		has_rp_thread = eax & (1 << 0);
 		has_rp_package = eax & (1 << 1);
 
-		fprintf(outf, "cpu%d: CPUID(0x%x).%d: %sRP_THREAD, %sRP_PKG\n",
+		fprintf(outf, "cpu%d: CPUID(0x%x).%d: %sRP_THREAD, %sRP_PKG",
 			cpu, leaf, RDT_RP_INDEX, has_rp_thread ? "" : "No-", has_rp_package ? "" : "No-");
+		if (has_rp_thread && !no_msr) {
+			unsigned long long msr;
+
+			get_msr(cpu, MSR_IA32_RESOURCE_PRIORITY, &msr);
+			fprintf(outf, " MSR_RP_THREAD_EN:%llu", msr);
+		}
+		if (has_rp_package && !no_msr) {
+			unsigned long long msr;
+
+			get_msr(cpu, MSR_IA32_RESOURCE_PRIORITY_PKG, &msr);
+			fprintf(outf, " MSR_RP_PKG_EN:%llu", msr);
+		}
+		fprintf(outf, "\n");
 	}
 }
 
