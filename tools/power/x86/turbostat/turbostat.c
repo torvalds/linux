@@ -8327,9 +8327,6 @@ void decode_feature_control_msr(void)
 	if (no_msr)
 		return;
 
-	if (quiet)
-		return;
-
 	get_msr(master_cpu, MSR_IA32_FEAT_CTL, &msr);
 	fprintf(outf, "cpu%d: MSR_IA32_FEATURE_CONTROL: 0x%08llx (%sLocked %s)\n",
 		master_cpu, msr, msr & FEAT_CTL_LOCKED ? "" : "UN-", msr & (1 << 18) ? "SGX" : "");
@@ -9200,21 +9197,31 @@ void process_cpuid()
 		decode_misc_enable_msr();
 
 	if (max_level >= 0x7) {
-		int has_sgx;
-
-		ecx = 0;
-
+		eax = ebx = ecx = edx = 0;
 		__cpuid_count(0x7, 0, eax, ebx, ecx, edx);
-
-		has_sgx = ebx & (1 << 2);
 
 		is_hybrid = !!(edx & (1 << 15));
 
-		if (!quiet)
-			fprintf(outf, "CPUID(7): %sSGX %sHybrid\n", has_sgx ? "" : "No-", is_hybrid ? "" : "No-");
+		if (!quiet) {
+			int has_sgx, has_rdt_m, has_rdt_a, has_ardt_m, has_ardt_a;
 
-		if (has_sgx)
-			decode_feature_control_msr();
+			has_sgx = ebx & (1 << 2);
+			has_rdt_m = ebx & (1 << 12);
+			has_rdt_a = ebx & (1 << 15);
+
+			eax = ebx = ecx = edx = 0;
+			__cpuid_count(0x7, 1, eax, ebx, ecx, edx);
+
+			has_ardt_m = ecx & (1 << 0);
+			has_ardt_a = ecx & (1 << 1);
+
+			fprintf(outf, "CPUID(7): %sSGX %sRDT_M %sRDT_A %sARDT_M %sARDT_A %sHybrid\n",
+				has_sgx ? "" : "No-", has_rdt_m ? "" : "No-", has_rdt_a ? "" : "No-", has_ardt_m ? "" : "No-", has_ardt_a ? "" : "No-",
+				is_hybrid ? "" : "No-");
+
+			if (has_sgx)
+				decode_feature_control_msr();
+		}
 	}
 
 	if (max_level >= 0x15) {
