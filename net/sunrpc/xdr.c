@@ -2049,7 +2049,7 @@ void xdr_buf_trim(struct xdr_buf *buf, unsigned int len)
 		trim -= cur;
 	}
 fix_len:
-	buf->len -= (len - trim);
+	buf->len -= min_t(unsigned int, buf->len, len - trim);
 }
 EXPORT_SYMBOL_GPL(xdr_buf_trim);
 
