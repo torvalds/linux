@@ -9076,6 +9076,65 @@ void dump_cpuid_hypervisor(void)
 	fprintf(outf, "\n");
 }
 
+void dump_rdt_m_leaf(int leaf)
+{
+	unsigned int eax, ebx, ecx, edx;
+	int cpu = sched_getcpu();
+
+	__cpuid_count(leaf, 0, eax, ebx, ecx, edx);
+
+	fprintf(outf, "cpu%d: CPUID(0x%x).0: MAX_RMID:%d %sL3_MON\n", cpu, leaf, ebx, edx & 0x1 ? "" : "No-");
+}
+
+#define RDT_CAT_L3_INDEX 1
+#define RDT_CAT_L2_INDEX 2
+#define RDT_MBA_INDEX 3
+#define RDT_CBA_INDEX 5
+#define RDT_RP_INDEX 6
+
+void dump_rdt_a_leaf(int leaf)
+{
+	unsigned int eax, ebx, ecx, edx;
+	int cpu = sched_getcpu();
+	unsigned int has_cat_l3, has_cat_l2, has_mba, has_cba, has_rp;
+
+	__cpuid_count(leaf, 0, eax, ebx, ecx, edx);
+
+	has_cat_l3 = ebx & (1 << RDT_CAT_L3_INDEX);
+	has_cat_l2 = ebx & (1 << RDT_CAT_L2_INDEX);
+	has_mba = ebx & (1 << RDT_MBA_INDEX);
+	has_cba = ebx & (1 << RDT_CBA_INDEX);
+	has_rp = ebx & (1 << RDT_RP_INDEX);
+
+	fprintf(outf, "cpu%d: CPUID(0x%x).0: %sCATL3, %sCATL2, %sMBA, %sCBA, %sRP\n", cpu, leaf,
+		has_cat_l3 ? "" : "No-", has_cat_l2 ? "" : "No-", has_mba ? "" : "No-", has_cba ? "" : "No-", has_rp ? "" : "No-");
+	if (has_rp) {
+		unsigned int has_rp_thread, has_rp_package;
+
+		__cpuid_count(leaf, RDT_RP_INDEX, eax, ebx, ecx, edx);
+
+		has_rp_thread = eax & (1 << 0);
+		has_rp_package = eax & (1 << 1);
+
+		fprintf(outf, "cpu%d: CPUID(0x%x).%d: %sRP_THREAD, %sRP_PKG\n",
+			cpu, leaf, RDT_RP_INDEX, has_rp_thread ? "" : "No-", has_rp_package ? "" : "No-");
+	}
+}
+
+int dump_ardt_m(int cpu)
+{
+	cpu_migrate(cpu);
+	dump_rdt_m_leaf(0x27);
+	return 0;
+}
+
+int dump_ardt_a(int cpu)
+{
+	cpu_migrate(cpu);
+	dump_rdt_a_leaf(0x28);
+	return 0;
+}
+
 void process_cpuid()
 {
 	unsigned int eax, ebx, ecx, edx;
@@ -9221,6 +9280,15 @@ void process_cpuid()
 
 			if (has_sgx)
 				decode_feature_control_msr();
+
+			if (has_rdt_m && max_level >= 0xF)
+				dump_rdt_m_leaf(0xF);
+			if (has_rdt_a && max_level >= 0x10)
+				dump_rdt_a_leaf(0x10);
+			if (has_ardt_m && max_level >= 0x27)
+				for_all_proc_cpus(dump_ardt_m);
+			if (has_ardt_a && max_level >= 0x28)
+				for_all_proc_cpus(dump_ardt_a);
 		}
 	}
 
