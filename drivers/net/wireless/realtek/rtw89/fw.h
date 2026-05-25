@@ -3063,6 +3063,8 @@ struct rtw89_h2c_scanofld_be {
 	__le32 w7;
 	__le32 w8;
 	__le32 w9; /* Added after SCAN_OFFLOAD_BE_V1 */
+	__le32 w10; /* Added after SCAN_OFFLOAD_BE_V2 */
+	__le32 w11; /* Added after SCAN_OFFLOAD_BE_V2 */
 	/* struct rtw89_h2c_scanofld_be_macc_role (flexible number) */
 	/* struct rtw89_h2c_scanofld_be_opch (flexible number) */
 } __packed;
