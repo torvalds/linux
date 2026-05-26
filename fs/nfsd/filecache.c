@@ -1227,7 +1227,7 @@ open_file:
 		nf->nf_mark = nfsd_file_mark_find_or_create(inode);
 
 	if (type != S_IFREG || nf->nf_mark) {
-		if (file) {
+		if (file && (file->f_mode & FMODE_OPENED)) {
 			get_file(file);
 			nf->nf_file = file;
 			status = nfs_ok;
@@ -1374,12 +1374,12 @@ nfsd_file_acquire_local(struct net *net, struct svc_cred *cred,
  * @rqstp: the RPC transaction being executed
  * @fhp: the NFS filehandle of the file just created
  * @may_flags: NFSD_MAY_ settings for the file
- * @file: cached, already-open file (may be NULL)
+ * @file: cached, already-open file (may be NULL or not yet opened)
  * @pnf: OUT: new or found "struct nfsd_file" object
  *
  * Acquire a nfsd_file object that is not GC'ed. If one doesn't already exist,
- * and @file is non-NULL, use it to instantiate a new nfsd_file instead of
- * opening a new one.
+ * and @file has FMODE_OPENED set, use it to instantiate a new nfsd_file
+ * instead of opening a new one.
  *
  * Return values:
  *   %nfs_ok - @pnf points to an nfsd_file with its reference
