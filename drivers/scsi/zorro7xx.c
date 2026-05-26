@@ -68,7 +68,7 @@ static struct zorro_device_id zorro7xx_zorro_tbl[] = {
 		.id = ZORRO_PROD_GVP_GFORCE_040_060,
 		.driver_data = (unsigned long)&zorro7xx_driver_data[3],
 	},
-	{ 0 }
+	{ }
 };
 MODULE_DEVICE_TABLE(zorro, zorro7xx_zorro_tbl);
 
