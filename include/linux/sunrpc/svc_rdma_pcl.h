@@ -119,6 +119,8 @@ extern bool pcl_alloc_call(struct svc_rdma_recv_ctxt *rctxt, __be32 *p);
 extern bool pcl_alloc_read(struct svc_rdma_recv_ctxt *rctxt, __be32 *p);
 extern bool pcl_alloc_write(struct svc_rdma_recv_ctxt *rctxt,
 			    struct svc_rdma_pcl *pcl, __be32 *p);
+extern bool pcl_check_read_chunk_positions(struct svc_rdma_recv_ctxt *rctxt,
+					   unsigned int inline_len);
 extern int pcl_process_nonpayloads(const struct svc_rdma_pcl *pcl,
 				   const struct xdr_buf *xdr,
 				   int (*actor)(const struct xdr_buf *,

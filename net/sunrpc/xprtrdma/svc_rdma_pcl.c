@@ -149,9 +149,6 @@ bool pcl_alloc_call(struct svc_rdma_recv_ctxt *rctxt, __be32 *p)
  *              cl_count is updated to be the number of chunks (ie.
  *              unique position values) in the Read list.
  *      %false: Memory allocation failed.
- *
- * TODO:
- * - Check for chunk range overlaps
  */
 bool pcl_alloc_read(struct svc_rdma_recv_ctxt *rctxt, __be32 *p)
 {
@@ -226,6 +223,64 @@ bool pcl_alloc_write(struct svc_rdma_recv_ctxt *rctxt,
 		}
 		list_add_tail(&chunk->ch_list, &pcl->cl_chunks);
 	}
+	return true;
+}
+
+/**
+ * pcl_check_read_chunk_positions - Validate Read chunk positions
+ * @rctxt: Ingress receive context with populated chunk lists
+ * @inline_len: Length of the inline RPC body after the transport header
+ *
+ * Read chunk positions are offsets in the unreduced XDR stream
+ * (RFC 8166 Section 3.4.4), so each position includes the
+ * cumulative length of preceding Read chunks. This function
+ * subtracts those lengths to recover the inline-body offset
+ * before comparing against @inline_len or the Call chunk length.
+ *
+ * Rejects frames where a Read chunk's inline-body offset exceeds
+ * the bound, where adjacent Read chunks overlap, or where any
+ * single chunk length exceeds the page budget.
+ *
+ * Return values:
+ *       %true: Read chunk positions and lengths are valid
+ *      %false: Malformed chunk list detected
+ */
+bool pcl_check_read_chunk_positions(struct svc_rdma_recv_ctxt *rctxt,
+				    unsigned int inline_len)
+{
+	unsigned int max_len, bound, total_read;
+	struct svc_rdma_chunk *chunk, *next;
+
+	max_len = rctxt->rc_maxpages << PAGE_SHIFT;
+
+	if (!pcl_is_empty(&rctxt->rc_call_pcl)) {
+		chunk = pcl_first_chunk(&rctxt->rc_call_pcl);
+		if (chunk->ch_length > max_len)
+			return false;
+		bound = chunk->ch_length;
+	} else {
+		bound = inline_len;
+	}
+
+	if (pcl_is_empty(&rctxt->rc_read_pcl))
+		return true;
+
+	total_read = 0;
+	pcl_for_each_chunk(chunk, &rctxt->rc_read_pcl) {
+		if (chunk->ch_position - total_read > bound)
+			return false;
+		if (chunk->ch_length > max_len)
+			return false;
+
+		next = pcl_next_chunk(&rctxt->rc_read_pcl, chunk);
+		if (!next)
+			break;
+
+		if (chunk->ch_position + chunk->ch_length > next->ch_position)
+			return false;
+		total_read += chunk->ch_length;
+	}
+
 	return true;
 }
 

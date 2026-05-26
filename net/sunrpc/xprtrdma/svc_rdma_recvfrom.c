@@ -724,6 +724,9 @@ static int svc_rdma_xdr_decode_req(struct xdr_buf *rq_arg,
 
 	rq_arg->head[0].iov_base = rctxt->rc_stream.p;
 	hdr_len = xdr_stream_pos(&rctxt->rc_stream);
+	if (!pcl_check_read_chunk_positions(rctxt,
+					    rq_arg->head[0].iov_len - hdr_len))
+		goto out_inval;
 	rq_arg->head[0].iov_len -= hdr_len;
 	rq_arg->len -= hdr_len;
 	trace_svcrdma_decode_rqst(rctxt, rdma_argp, hdr_len);
