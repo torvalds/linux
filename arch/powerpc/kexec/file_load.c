@@ -36,25 +36,19 @@
 char *setup_kdump_cmdline(struct kimage *image, char *cmdline,
 			  unsigned long cmdline_len)
 {
-	int elfcorehdr_strlen;
 	char *cmdline_ptr;
 
-	cmdline_ptr = kzalloc(COMMAND_LINE_SIZE, GFP_KERNEL);
+	cmdline_ptr = kmalloc(COMMAND_LINE_SIZE, GFP_KERNEL);
 	if (!cmdline_ptr)
 		return NULL;
 
-	elfcorehdr_strlen = sprintf(cmdline_ptr, "elfcorehdr=0x%lx ",
-				    image->elf_load_addr);
-
-	if (elfcorehdr_strlen + cmdline_len > COMMAND_LINE_SIZE) {
-		pr_err("Appending elfcorehdr=<addr> exceeds cmdline size\n");
+	if (snprintf(cmdline_ptr, COMMAND_LINE_SIZE, "elfcorehdr=0x%lx %s",
+		     image->elf_load_addr, cmdline_len ? cmdline : "") >= COMMAND_LINE_SIZE) {
+		pr_err("Prepending elfcorehdr=<addr> exceeds cmdline size\n");
 		kfree(cmdline_ptr);
 		return NULL;
 	}
 
-	memcpy(cmdline_ptr + elfcorehdr_strlen, cmdline, cmdline_len);
-	// Ensure it's nul terminated
-	cmdline_ptr[COMMAND_LINE_SIZE - 1] = '\0';
 	return cmdline_ptr;
 }
 
