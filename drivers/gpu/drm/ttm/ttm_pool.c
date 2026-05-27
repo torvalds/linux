@@ -421,6 +421,7 @@ static void ttm_pool_type_fini(struct ttm_pool_type *pt)
 
 	list_lru_walk(&pt->pages, pool_move_to_dispose_list, &dispose, LONG_MAX);
 	ttm_pool_dispose_list(pt, &dispose);
+	list_lru_destroy(&pt->pages);
 }
 
 /* Return the pool_type to use for the given caching and order */
