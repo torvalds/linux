@@ -37,7 +37,6 @@ static void serial_edit_cmdline(char *buf, int len, unsigned int timeout)
 	char ch, *cp;
 	struct serial_console_data *scdp = console_ops.data;
 
-	cp = buf;
 	count = strlen(buf);
 	cp = &buf[count];
 	count++;
