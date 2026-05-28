@@ -168,7 +168,10 @@ static int luo_flb_retrieve_one(struct liveupdate_flb *flb)
 	if (private->incoming.finished)
 		return -ENODATA;
 
-	if (private->incoming.retrieved)
+	if (private->incoming.retrieve_status < 0)
+		return private->incoming.retrieve_status;
+
+	if (private->incoming.retrieve_status > 0)
 		return 0;
 
 	if (!fh->active)
@@ -194,12 +197,13 @@ static int luo_flb_retrieve_one(struct liveupdate_flb *flb)
 
 	err = flb->ops->retrieve(&args);
 	if (err) {
+		private->incoming.retrieve_status = err;
 		module_put(flb->ops->owner);
 		return err;
 	}
 
 	private->incoming.obj = args.obj;
-	private->incoming.retrieved = true;
+	private->incoming.retrieve_status = 1;
 
 	return 0;
 }
@@ -213,7 +217,7 @@ void liveupdate_flb_put_incoming(struct liveupdate_flb *flb)
 		if (!refcount_dec_and_test(&private->incoming.count))
 			return;
 
-		if (!private->incoming.retrieved) {
+		if (private->incoming.retrieve_status <= 0) {
 			int err = luo_flb_retrieve_one(flb);
 
 			if (WARN_ON(err))
