@@ -147,12 +147,12 @@ static int bd71837_clk_probe(struct platform_device *pdev)
 }
 
 static const struct platform_device_id bd718x7_clk_id[] = {
-	{ "bd71837-clk", ROHM_CHIP_TYPE_BD71837 },
-	{ "bd71847-clk", ROHM_CHIP_TYPE_BD71847 },
-	{ "bd71828-clk", ROHM_CHIP_TYPE_BD71828 },
-	{ "bd71815-clk", ROHM_CHIP_TYPE_BD71815 },
-	{ "bd72720-clk", ROHM_CHIP_TYPE_BD72720 },
-	{ },
+	{ .name = "bd71837-clk", .driver_data = ROHM_CHIP_TYPE_BD71837 },
+	{ .name = "bd71847-clk", .driver_data = ROHM_CHIP_TYPE_BD71847 },
+	{ .name = "bd71828-clk", .driver_data = ROHM_CHIP_TYPE_BD71828 },
+	{ .name = "bd71815-clk", .driver_data = ROHM_CHIP_TYPE_BD71815 },
+	{ .name = "bd72720-clk", .driver_data = ROHM_CHIP_TYPE_BD72720 },
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, bd718x7_clk_id);
 
