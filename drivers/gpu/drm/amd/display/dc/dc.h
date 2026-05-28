@@ -1994,6 +1994,7 @@ struct dc_scratch_space {
 	// BW ALLOCATON USB4 ONLY
 	struct dc_dpia_bw_alloc dpia_bw_alloc_config;
 	bool skip_implict_edp_power_control;
+	bool forced_psr_active;
 	enum backlight_control_type backlight_control_type;
 };
 

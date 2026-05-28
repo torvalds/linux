@@ -1819,8 +1819,11 @@ void dcn35_disable_link_output(struct dc_link *link,
 		disable_link_output_symclk_on_tx_off(link, DP_UNKNOWN_ENCODING);
 		link->phy_state.symclk_state = SYMCLK_ON_TX_OFF;
 	} else {
-		link_hwss->disable_link_output(link, link_res, signal);
-		link->phy_state.symclk_state = SYMCLK_OFF_TX_OFF;
+		if (!(signal == SIGNAL_TYPE_EDP &&
+		      link->forced_psr_active)) {
+			link_hwss->disable_link_output(link, link_res, signal);
+			link->phy_state.symclk_state = SYMCLK_OFF_TX_OFF;
+		}
 	}
 	/*
 	 * Add the logic to extract BOTH power up and power down sequences
