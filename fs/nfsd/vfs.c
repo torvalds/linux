@@ -1380,6 +1380,7 @@ nfsd_direct_write(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	struct file *file = nf->nf_file;
 	unsigned int nsegs, i;
 	ssize_t host_err;
+	size_t expected;
 
 	nsegs = nfsd_write_dio_iters_init(nf, rqstp->rq_bvec, nvecs,
 					  kiocb, *cnt, segments);
@@ -1401,11 +1402,13 @@ nfsd_direct_write(struct svc_rqst *rqstp, struct svc_fh *fhp,
 				kiocb->ki_flags |= IOCB_DONTCACHE;
 		}
 
+		expected = iov_iter_count(&segments[i].iter);
+
 		host_err = vfs_iocb_iter_write(file, kiocb, &segments[i].iter);
 		if (host_err < 0)
 			return host_err;
 		*cnt += host_err;
-		if (host_err < segments[i].iter.count)
+		if (host_err < (ssize_t)expected)
 			break;	/* partial write */
 	}
 
