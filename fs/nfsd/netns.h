@@ -28,6 +28,16 @@ struct cld_net;
 struct nfsd_net_cb;
 struct nfsd4_client_tracking_ops;
 
+enum nfsd_net_flag {
+	NFSD_NET_GRACE_ENDED,
+	NFSD_NET_GRACE_END_FORCED,
+	NFSD_NET_IN_GRACE,
+	NFSD_NET_SOMEBODY_RECLAIMED,
+	NFSD_NET_TRACK_RECLAIM_COMPLETES,
+	NFSD_NET_UP,
+	NFSD_NET_LOCKD_UP,
+};
+
 enum {
 	/* cache misses due only to checksum comparison failures */
 	NFSD_STATS_PAYLOAD_MISSES,
@@ -66,8 +76,7 @@ struct nfsd_net {
 	struct cache_detail *nametoid_cache;
 
 	struct lock_manager nfsd4_manager;
-	bool grace_ended;
-	bool grace_end_forced;
+	unsigned long flags;
 	time64_t boot_time;
 
 	struct dentry *nfsd_client_dir;
@@ -117,18 +126,12 @@ struct nfsd_net {
 	spinlock_t blocked_locks_lock;
 
 	struct file *rec_file;
-	bool in_grace;
 	const struct nfsd4_client_tracking_ops *client_tracking_ops;
 
 	time64_t nfsd4_lease;
 	time64_t nfsd4_grace;
-	bool somebody_reclaimed;
 
-	bool track_reclaim_completes;
 	atomic_t nr_reclaim_complete;
-
-	bool nfsd_net_up;
-	bool lockd_up;
 
 	seqlock_t writeverf_lock;
 	unsigned char writeverf[8];
