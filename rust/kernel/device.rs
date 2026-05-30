@@ -54,7 +54,8 @@ pub mod property;
 /// reference is valid in. For instance, the [`Bound`] context guarantees that the [`Device`] is
 /// bound to a driver for the entire duration of the existence of a [`Device<Bound>`] reference.
 ///
-/// Other [`DeviceContext`] types besides [`Bound`] are [`Normal`], [`Core`] and [`CoreInternal`].
+/// Other [`DeviceContext`] types besides [`Bound`] are [`Normal`], [`Core`], [`CoreInternal`] and
+/// [`BoundInternal`].
 ///
 /// Unless selected otherwise [`Device`] defaults to the [`Normal`] [`DeviceContext`], which by
 /// itself has no additional requirements.
@@ -476,7 +477,8 @@ unsafe impl Sync for Device<Bound> {}
 /// [`DeviceContext`] is a marker trait for types representing the context of a bus specific
 /// [`Device`].
 ///
-/// The specific device context types are: [`CoreInternal`], [`Core`], [`Bound`] and [`Normal`].
+/// The specific device context types are: [`CoreInternal`], [`Core`], [`BoundInternal`], [`Bound`]
+/// and [`Normal`].
 ///
 /// [`DeviceContext`] types are hierarchical, which means that there is a strict hierarchy that
 /// defines which [`DeviceContext`] type can be derived from another. For instance, any
@@ -485,6 +487,11 @@ unsafe impl Sync for Device<Bound> {}
 /// The following enumeration illustrates the dereference hierarchy of [`DeviceContext`] types.
 ///
 /// - [`CoreInternal`] => [`Core`] => [`Bound`] => [`Normal`]
+/// - [`BoundInternal`] => [`Bound`] => [`Normal`]
+///
+/// Both [`CoreInternal`] and [`BoundInternal`] implement the [`InternalBoundContext`] trait,
+/// which provides access to internal bus abstraction methods on [`Device`] that are not available
+/// to drivers.
 ///
 /// Bus devices can automatically implement the dereference hierarchy by using
 /// [`impl_device_context_deref`].
@@ -524,6 +531,18 @@ pub struct Core<'a>(PhantomData<&'a ()>);
 /// from bus callbacks with bus abstractions, but without making them accessible for drivers.
 pub struct CoreInternal<'a>(PhantomData<&'a ()>);
 
+/// Semantically the same as [`Bound`], but reserved for internal usage of the corresponding bus
+/// abstraction.
+///
+/// The internal bound context is intended to be used in exactly the same way as the [`Bound`]
+/// context, with the difference that this [`DeviceContext`] is internal to the corresponding bus
+/// abstraction.
+///
+/// This context exists for cases where the bus abstraction needs access to internal device
+/// infrastructure (such as [`Device::drvdata_borrow`]), where [`CoreInternal`] would not be
+/// justified.
+pub struct BoundInternal;
+
 /// The [`Bound`] context is the [`DeviceContext`] of a bus specific device when it is guaranteed to
 /// be bound to a driver.
 ///
@@ -546,15 +565,27 @@ mod private {
     pub trait Sealed {}
 
     impl Sealed for super::Bound {}
+    impl Sealed for super::BoundInternal {}
     impl<'a> Sealed for super::Core<'a> {}
     impl<'a> Sealed for super::CoreInternal<'a> {}
     impl Sealed for super::Normal {}
 }
 
 impl DeviceContext for Bound {}
+impl DeviceContext for BoundInternal {}
 impl<'a> DeviceContext for Core<'a> {}
 impl<'a> DeviceContext for CoreInternal<'a> {}
 impl DeviceContext for Normal {}
+
+/// Marker trait for [`DeviceContext`] types that have internal bound-level access.
+///
+/// This trait is implemented by [`CoreInternal`] and [`BoundInternal`], allowing methods that
+/// require internal bus abstraction access to a bound device to be generic over both contexts.
+///
+/// Methods bounded by this trait are available to bus abstractions but not to drivers.
+pub trait InternalBoundContext: DeviceContext {}
+impl<'a> InternalBoundContext for CoreInternal<'a> {}
+impl InternalBoundContext for BoundInternal {}
 
 impl<Ctx: DeviceContext> AsRef<Device<Ctx>> for Device<Ctx> {
     #[inline]
@@ -665,6 +696,13 @@ macro_rules! impl_device_context_deref {
         // `__impl_device_context_deref!`.
         ::kernel::__impl_device_context_deref!(unsafe {
             $device,
+            $crate::device::BoundInternal => $crate::device::Bound
+        });
+
+        // SAFETY: This macro has the exact same safety requirement as
+        // `__impl_device_context_deref!`.
+        ::kernel::__impl_device_context_deref!(unsafe {
+            $device,
             $crate::device::Bound => $crate::device::Normal
         });
     };
@@ -700,6 +738,7 @@ macro_rules! impl_device_context_into_aref {
         ::kernel::__impl_device_context_into_aref!(
             <'a> $crate::device::Core<'a>, $device
         );
+        ::kernel::__impl_device_context_into_aref!($crate::device::BoundInternal, $device);
         ::kernel::__impl_device_context_into_aref!($crate::device::Bound, $device);
     };
 }
