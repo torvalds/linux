@@ -236,7 +236,9 @@ impl<'a> Device<CoreInternal<'a>> {
         //   in `into_foreign()`.
         Some(unsafe { Pin::<KBox<T>>::from_foreign(ptr.cast()) })
     }
+}
 
+impl<Ctx: InternalBoundContext> Device<Ctx> {
     /// Borrow the driver's private data bound to this [`Device`].
     ///
     /// # Safety
@@ -246,22 +248,6 @@ impl<'a> Device<CoreInternal<'a>> {
     /// - The type `T` must match the type of the `ForeignOwnable` previously stored by
     ///   [`Device::set_drvdata`].
     pub unsafe fn drvdata_borrow<T>(&self) -> Pin<&T> {
-        // SAFETY: `drvdata_unchecked()` has the exact same safety requirements as the ones
-        // required by this method.
-        unsafe { self.drvdata_unchecked() }
-    }
-}
-
-impl Device<Bound> {
-    /// Borrow the driver's private data bound to this [`Device`].
-    ///
-    /// # Safety
-    ///
-    /// - Must only be called after a preceding call to [`Device::set_drvdata`] and before
-    ///   the device is fully unbound.
-    /// - The type `T` must match the type of the `ForeignOwnable` previously stored by
-    ///   [`Device::set_drvdata`].
-    unsafe fn drvdata_unchecked<T>(&self) -> Pin<&T> {
         // SAFETY: By the type invariants, `self.as_raw()` is a valid pointer to a `struct device`.
         let ptr = unsafe { bindings::dev_get_drvdata(self.as_raw()) };
 
