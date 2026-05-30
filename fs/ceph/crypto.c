@@ -298,6 +298,10 @@ out:
  * Otherwise, base64 decode the string, and then ask fscrypt to format it
  * for userland presentation.
  *
+ * Though the fscrypt/crypto subsystems broadly expect all buffers to be in the
+ * linear-mapped region, this function slightly relaxes those requirements:
+ * fname->ctext, fname->name, and oname->name may be vmalloc(), but not tname.
+ *
  * Returns 0 on success or negative error code on error.
  */
 int ceph_fname_to_usr(const struct ceph_fname *fname, unsigned char *tname,
@@ -305,10 +309,14 @@ int ceph_fname_to_usr(const struct ceph_fname *fname, unsigned char *tname,
 {
 	struct inode *dir = fname->dir;
 	struct fscrypt_str _tname = FSTR_INIT(NULL, 0);
+	struct fscrypt_str _oname;
 	struct fscrypt_str iname;
 	char *name = fname->name;
 	int name_len = fname->name_len;
 	int ret;
+
+	if (WARN_ON_ONCE(tname && is_vmalloc_addr(tname)))
+		return -EIO;
 
 	/* Sanity check that the resulting name will fit in the buffer */
 	if (fname->name_len > NAME_MAX || fname->ctext_len > NAME_MAX)
@@ -350,15 +358,17 @@ int ceph_fname_to_usr(const struct ceph_fname *fname, unsigned char *tname,
 		goto out_inode;
 	}
 
+	if (!tname && (fname->ctext_len == 0 ||
+		       unlikely(is_vmalloc_addr(fname->ctext)) ||
+		       unlikely(is_vmalloc_addr(oname->name)))) {
+		ret = fscrypt_fname_alloc_buffer(NAME_MAX, &_tname);
+		if (ret)
+			goto out_inode;
+		tname = _tname.name;
+	}
+
 	if (fname->ctext_len == 0) {
 		int declen;
-
-		if (!tname) {
-			ret = fscrypt_fname_alloc_buffer(NAME_MAX, &_tname);
-			if (ret)
-				goto out_inode;
-			tname = _tname.name;
-		}
 
 		declen = base64_decode(name, name_len, tname, false, BASE64_IMAP);
 		if (declen <= 0) {
@@ -367,13 +377,28 @@ int ceph_fname_to_usr(const struct ceph_fname *fname, unsigned char *tname,
 		}
 		iname.name = tname;
 		iname.len = declen;
+	} else if (unlikely(is_vmalloc_addr(fname->ctext))) {
+		memcpy(tname, fname->ctext, fname->ctext_len);
+
+		iname.name = tname;
+		iname.len = fname->ctext_len;
 	} else {
 		iname.name = fname->ctext;
 		iname.len = fname->ctext_len;
 	}
 
-	ret = fscrypt_fname_disk_to_usr(dir, 0, 0, &iname, oname);
-	if (!ret && (dir != fname->dir)) {
+	_oname.name = unlikely(is_vmalloc_addr(oname->name)) ? tname : oname->name;
+	_oname.len = oname->len;
+
+	ret = fscrypt_fname_disk_to_usr(dir, 0, 0, &iname, &_oname);
+	if (ret)
+		goto out;
+
+	if (unlikely(is_vmalloc_addr(oname->name)))
+		memcpy(oname->name, _oname.name, _oname.len);
+	oname->len = _oname.len;
+
+	if (dir != fname->dir) {
 		char tmp_buf[BASE64_CHARS(NAME_MAX)];
 
 		name_len = snprintf(tmp_buf, sizeof(tmp_buf), "_%.*s_%llu",
