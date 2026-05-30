@@ -449,9 +449,18 @@ nfsd4_decode_posixacl(struct nfsd4_compoundargs *argp, struct posix_acl **acl)
 	if (xdr_stream_decode_u32(argp->xdr, &count) < 0)
 		return nfserr_bad_xdr;
 
+	/*
+	 * The NFSv4 POSIX ACL draft doesn't define a max number of ACE's, but
+	 * the NFSACL spec does. For NFSv4, cap the number of entries to the v3
+	 * limit, as we want to ensure that ACLs set via NFSv4 POSIX ACL
+	 * extensions are retrievable via NFSACL.
+	 */
+	if (count > NFS_ACL_MAX_ENTRIES)
+		return nfserr_inval;
+
 	*acl = posix_acl_alloc(count, GFP_KERNEL);
 	if (*acl == NULL)
-		return nfserr_resource;
+		return nfserr_jukebox;
 
 	(*acl)->a_count = count;
 	for (ace = (*acl)->a_entries; ace < (*acl)->a_entries + count; ace++) {
