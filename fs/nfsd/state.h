@@ -755,6 +755,7 @@ struct nfs4_layout_stateid {
 	struct delayed_work		ls_fence_work;
 	unsigned int			ls_fence_delay;
 	bool				ls_fenced;
+	bool				ls_fence_inflight;
 };
 
 static inline struct nfs4_layout_stateid *layoutstateid(struct nfs4_stid *s)

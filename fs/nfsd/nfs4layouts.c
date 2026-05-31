@@ -260,6 +260,7 @@ nfsd4_alloc_layout_stateid(struct nfsd4_compound_state *cstate,
 	}
 
 	ls->ls_fenced = false;
+	ls->ls_fence_inflight = false;
 	ls->ls_fence_delay = 0;
 	INIT_DELAYED_WORK(&ls->ls_fence_work, nfsd4_layout_fence_worker);
 
@@ -797,15 +798,6 @@ nfsd4_layout_fence_worker(struct work_struct *work)
 	struct nfs4_client *clp;
 	struct nfsd_net *nn;
 
-	/*
-	 * The workqueue clears WORK_STRUCT_PENDING before invoking
-	 * this callback. Re-arm immediately so that
-	 * delayed_work_pending() returns true while the fence
-	 * operation is in progress, preventing
-	 * lm_breaker_timedout() from taking a duplicate reference.
-	 */
-	mod_delayed_work(system_dfl_wq, &ls->ls_fence_work, 0);
-
 	spin_lock(&ls->ls_lock);
 	if (list_empty(&ls->ls_layouts)) {
 		spin_unlock(&ls->ls_lock);
@@ -815,6 +807,9 @@ dispose:
 		nfsd4_close_layout(ls);
 
 		ls->ls_fenced = true;
+		spin_lock(&ls->ls_lock);
+		ls->ls_fence_inflight = false;
+		spin_unlock(&ls->ls_lock);
 		nfs4_put_stid(&ls->ls_stid);
 		return;
 	}
@@ -900,18 +895,26 @@ nfsd4_layout_lm_breaker_timedout(struct file_lease *fl)
 	if ((!nfsd4_layout_ops[ls->ls_layout_type]->fence_client) ||
 			ls->ls_fenced)
 		return true;
-	if (delayed_work_pending(&ls->ls_fence_work))
-		return false;
 	/*
 	 * Make sure layout has not been returned yet before
-	 * taking a reference count on the layout stateid.
+	 * taking a reference count on the layout stateid. The
+	 * ls_fence_inflight flag is set together with the sc_count
+	 * increment under ls_lock so that a fence worker invocation
+	 * already in progress (which has cleared WORK_STRUCT_PENDING
+	 * but not yet reached dispose:) cannot be coalesced with a
+	 * fresh schedule that takes an extra unmatched reference.
 	 */
 	spin_lock(&ls->ls_lock);
+	if (ls->ls_fence_inflight) {
+		spin_unlock(&ls->ls_lock);
+		return false;
+	}
 	if (list_empty(&ls->ls_layouts) ||
 			!refcount_inc_not_zero(&ls->ls_stid.sc_count)) {
 		spin_unlock(&ls->ls_lock);
 		return true;
 	}
+	ls->ls_fence_inflight = true;
 	spin_unlock(&ls->ls_lock);
 
 	mod_delayed_work(system_dfl_wq, &ls->ls_fence_work, 0);
