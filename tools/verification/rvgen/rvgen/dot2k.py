@@ -15,6 +15,9 @@ from .automata import ConstraintCondition, AutomataError
 class dot2k(Monitor, Dot2c):
     template_dir = "dot2k"
 
+    # only needed for the per-obj cleanup hook
+    cleanup_marker = "obj_cleanup"
+
     def __init__(self, file_path, MonitorType, extra_params={}):
         self.monitor_type = MonitorType
         Monitor.__init__(self, extra_params)
@@ -54,18 +57,30 @@ class dot2k(Monitor, Dot2c):
                 buff.append(f"\tda_{handle}({event}{self.enum_suffix});")
             buff.append("}")
             buff.append("")
+        if self.monitor_type == "per_obj":
+            buff.append("/* XXX: obj is being destroyed, remove if not required (e.g. obj is static) */")
+            buff.append(f"static void handle_{self.cleanup_marker}(void *data, /* XXX: fill header */)")
+            buff.append("{")
+            buff.append("\tint id = /* XXX: how do I get the id? */;")
+            buff.append("\tda_destroy_storage(id);")
+            buff.append("}")
+            buff.append("")
         return '\n'.join(buff)
 
     def fill_tracepoint_attach_probe(self) -> str:
         buff = []
         for event in self.events:
             buff.append(f"\trv_attach_trace_probe(\"{self.name}\", /* XXX: tracepoint */, handle_{event});")
+        if self.monitor_type == "per_obj":
+            buff.append(f"\trv_attach_trace_probe(\"{self.name}\", /* XXX: cleanup tracepoint */, handle_{self.cleanup_marker});")
         return '\n'.join(buff)
 
     def fill_tracepoint_detach_helper(self) -> str:
         buff = []
         for event in self.events:
             buff.append(f"\trv_detach_trace_probe(\"{self.name}\", /* XXX: tracepoint */, handle_{event});")
+        if self.monitor_type == "per_obj":
+            buff.append(f"\trv_detach_trace_probe(\"{self.name}\", /* XXX: cleanup tracepoint */, handle_{self.cleanup_marker});")
         return '\n'.join(buff)
 
     def fill_model_h_header(self) -> list[str]:
