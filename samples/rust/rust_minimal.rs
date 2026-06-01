@@ -28,7 +28,7 @@ impl kernel::Module for RustMinimal {
         pr_info!("Am I built-in? {}\n", !cfg!(MODULE));
         pr_info!(
             "test_parameter: {}\n",
-            *module_parameters::test_parameter.value()
+            module_parameters::test_parameter.value()
         );
 
         let mut numbers = KVec::new();

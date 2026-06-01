@@ -130,10 +130,26 @@ impl<T> ModuleParamAccess<T> {
         }
     }
 
+    /// Get a copy of the parameter value.
+    ///
+    /// Returns the value supplied at module load time, or the default value
+    /// if the parameter has not been set.
+    #[inline]
+    pub fn value(&self) -> T
+    where
+        T: Copy,
+    {
+        self.value.copy().unwrap_or(self.default)
+    }
+
     /// Get a shared reference to the parameter value.
+    ///
+    /// Returns a reference to the value supplied at module load time, or a
+    /// reference to the default value if the parameter has not been set.
     // Note: When sysfs access to parameters are enabled, we have to pass in a
     // held lock guard here.
-    pub fn value(&self) -> &T {
+    #[inline]
+    pub fn value_ref(&self) -> &T {
         self.value.as_ref().unwrap_or(&self.default)
     }
 
