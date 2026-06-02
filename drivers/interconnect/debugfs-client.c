@@ -142,6 +142,8 @@ int icc_debugfs_client_init(struct dentry *icc_dir)
 	int ret;
 
 	pdev = platform_device_alloc("icc-debugfs-client", PLATFORM_DEVID_NONE);
+	if (!pdev)
+		return -ENOMEM;
 
 	ret = platform_device_add(pdev);
 	if (ret) {
