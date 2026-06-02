@@ -292,8 +292,22 @@ struct nfsd_file *nfs_open_local_fh(nfs_uuid_t *uuid,
 	localio = nfs_to->nfsd_open_local_fh(net, uuid->dom, rpc_clnt, cred,
 					     nfs_fh, pnf, fmode);
 	if (!IS_ERR(localio) && nfs_uuid_add_file(uuid, nfl) < 0) {
-		/* Delete the cached file when racing with nfs_uuid_put() */
+		/*
+		 * Delete the cached file when racing with nfs_uuid_put().
+		 * Since nfl->nfs_uuid was never published via
+		 * rcu_assign_pointer(), nfs_close_local_fh() will early-return
+		 * and cannot clean up after us.  Drop the slot's file ref and
+		 * its paired net ref, then drop the caller-owned nfsd_file ref
+		 * (+1) and the entry-time nfsd_net ref carried via nf->nf_net,
+		 * and return -ENXIO so the caller never dereferences the
+		 * now-cleared localio.
+		 */
+		struct nfsd_file __rcu *tmp =
+			(struct nfsd_file __force __rcu *)localio;
+
 		nfs_to_nfsd_file_put_local(pnf);
+		nfs_to_nfsd_file_put_local(&tmp);
+		localio = ERR_PTR(-ENXIO);
 	}
 	nfs_to_nfsd_net_put(net);
 
