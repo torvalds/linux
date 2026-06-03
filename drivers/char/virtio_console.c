@@ -2187,9 +2187,6 @@ static int virtcons_restore(struct virtio_device *vdev)
 
 	virtio_device_ready(portdev->vdev);
 
-	if (use_multiport(portdev))
-		fill_queue(portdev->c_ivq, &portdev->c_ivq_lock);
-
 	list_for_each_entry(port, &portdev->ports, list) {
 		port->in_vq = portdev->in_vqs[port->id];
 		port->out_vq = portdev->out_vqs[port->id];
@@ -2206,6 +2203,18 @@ static int virtcons_restore(struct virtio_device *vdev)
 		if (port->guest_connected)
 			send_control_msg(port, VIRTIO_CONSOLE_PORT_OPEN, 1);
 	}
+
+	/*
+	 * Populate the control receive queue only after the list iteration
+	 * is complete. If we fill this queue before iterating, the host could
+	 * immediately deliver a VIRTIO_CONSOLE_PORT_REMOVE message.
+	 * This would trigger the control workqueue, which modifies the
+	 * portdev->ports list concurrently with the unprotected loop above,
+	 * leading to a Use-After-Free and list corruption.
+	 */
+	if (use_multiport(portdev))
+		fill_queue(portdev->c_ivq, &portdev->c_ivq_lock);
+
 	return 0;
 }
 #endif
