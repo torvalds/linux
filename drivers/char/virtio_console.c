@@ -157,6 +157,12 @@ struct ports_device {
 
 	/* Major number for this device.  Ports will be created as minors. */
 	int chr_major;
+
+	/*
+	 * Set to true during PM freeze to block TX paths that may race
+	 * with virtqueue teardown (e.g. hvc put_chars with no_console_suspend).
+	 */
+	bool pm_freezing;
 };
 
 struct port_stats {
@@ -618,6 +624,17 @@ static ssize_t __send_to_port(struct port *port, struct scatterlist *sg,
 		in_count = 0;
 		goto free_and_done;
 	}
+
+	/*
+	 * Check freeze flag under the lock so that the flag check and
+	 * virtqueue_add_outbuf() are atomic with respect to
+	 * remove_port_data() which also takes outvq_lock.  This
+	 * guarantees that once remove_port_data() returns, no new
+	 * buffers can be added before remove_vqs() tears down the vq.
+	 * Pairs with smp_store_release() in virtcons_freeze/restore.
+	 */
+	if (smp_load_acquire(&portdev->pm_freezing)) /* pairs with freeze/restore */
+		goto free_and_done;
 
 	out_vq = port->out_vq;
 
@@ -1133,14 +1150,27 @@ static ssize_t put_chars(u32 vtermno, const u8 *buf, size_t count)
 		return -EPIPE;
 
 	/*
-	 * Silently drop output if device hot-unplug is in progress.
-	 * portdev was NULLed by unplug_port() after hvc_remove() was
-	 * already called, so the hvc layer will stop invoking put_chars()
-	 * very soon. Returning count avoids a pointless retry loop in the
-	 * interim.
+	 * Silently drop output in two cases, both by returning count so
+	 * that the hvc layer does not spin-retry:
+	 *
+	 *  1. Device hot-unplug (!portdev): portdev was NULLed by
+	 *     unplug_port() after hvc_remove() was already called, so
+	 *     the hvc layer will stop invoking put_chars() very soon.
+	 *     Returning count avoids a pointless retry loop in the
+	 *     interim.
+	 *
+	 *  2. PM freeze (pm_freezing): the hvc console stays active
+	 *     under no_console_suspend but virtqueues are being torn
+	 *     down.  Drop the output silently so the hvc layer does not
+	 *     stall suspend.
+	 *
+	 * This early check avoids a pointless GFP_ATOMIC allocation;
+	 * __send_to_port() rechecks under outvq_lock for correctness.
+	 * Pairs with smp_store_release() in virtcons_freeze/restore.
 	 */
 	portdev = READ_ONCE(port->portdev);
-	if (!portdev)
+	if (!portdev ||
+	    smp_load_acquire(&portdev->pm_freezing)) /* pairs with freeze/restore */
 		return count;
 
 	pbuf = alloc_buf(portdev->vdev, count, 0, GFP_ATOMIC);
@@ -2023,6 +2053,7 @@ static int virtcons_probe(struct virtio_device *vdev)
 	/* Attach this portdev to this virtio_device, and vice-versa. */
 	portdev->vdev = vdev;
 	vdev->priv = portdev;
+	portdev->pm_freezing = false;
 
 	portdev->chr_major = register_chrdev(0, "virtio-portsdev",
 					     &portdev_fops);
@@ -2142,8 +2173,29 @@ static int virtcons_freeze(struct virtio_device *vdev)
 {
 	struct ports_device *portdev;
 	struct port *port;
+	unsigned long flags;
 
 	portdev = vdev->priv;
+
+	/*
+	 * Block TX paths (put_chars, __send_to_port) before resetting the
+	 * device and tearing down virtqueues.  This prevents races with
+	 * hvc console writes that remain active under no_console_suspend.
+	 */
+	smp_store_release(&portdev->pm_freezing, true);
+
+	/*
+	 * Synchronize with any concurrent __send_to_port() that may have
+	 * passed the pm_freezing check. By acquiring and releasing the
+	 * outvq_lock for each port, we ensure all active TX paths have
+	 * completed before we reset the device.
+	 */
+	spin_lock_irqsave(&portdev->ports_lock, flags);
+	list_for_each_entry(port, &portdev->ports, list) {
+		spin_lock(&port->outvq_lock);
+		spin_unlock(&port->outvq_lock);
+	}
+	spin_unlock_irqrestore(&portdev->ports_lock, flags);
 
 	virtio_reset_device(vdev);
 
@@ -2214,6 +2266,12 @@ static int virtcons_restore(struct virtio_device *vdev)
 	 */
 	if (use_multiport(portdev))
 		fill_queue(portdev->c_ivq, &portdev->c_ivq_lock);
+
+	/*
+	 * Allow TX paths only after all port->out_vq pointers have
+	 * been reassigned to the newly allocated virtqueues.
+	 */
+	smp_store_release(&portdev->pm_freezing, false);
 
 	return 0;
 }
