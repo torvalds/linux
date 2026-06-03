@@ -608,10 +608,18 @@ static ssize_t __send_to_port(struct port *port, struct scatterlist *sg,
 	int err;
 	unsigned long flags;
 	unsigned int len;
-
-	out_vq = port->out_vq;
+	struct ports_device *portdev;
 
 	spin_lock_irqsave(&port->outvq_lock, flags);
+
+	portdev = READ_ONCE(port->portdev);
+
+	if (!portdev) {
+		in_count = 0;
+		goto free_and_done;
+	}
+
+	out_vq = port->out_vq;
 
 	reclaim_consumed_buffers(port);
 
@@ -1118,12 +1126,24 @@ static ssize_t put_chars(u32 vtermno, const u8 *buf, size_t count)
 	struct port *port;
 	struct scatterlist sg[1];
 	struct port_buffer *pbuf;
+	struct ports_device *portdev;
 
 	port = find_port_by_vtermno(vtermno);
 	if (!port)
 		return -EPIPE;
 
-	pbuf = alloc_buf(port->portdev->vdev, count, 0, GFP_ATOMIC);
+	/*
+	 * Silently drop output if device hot-unplug is in progress.
+	 * portdev was NULLed by unplug_port() after hvc_remove() was
+	 * already called, so the hvc layer will stop invoking put_chars()
+	 * very soon. Returning count avoids a pointless retry loop in the
+	 * interim.
+	 */
+	portdev = READ_ONCE(port->portdev);
+	if (!portdev)
+		return count;
+
+	pbuf = alloc_buf(portdev->vdev, count, 0, GFP_ATOMIC);
 	if (!pbuf)
 		return -ENOMEM;
 
@@ -1511,11 +1531,16 @@ static void unplug_port(struct port *port)
 	remove_port_data(port);
 
 	/*
-	 * We should just assume the device itself has gone off --
-	 * else a close on an open port later will try to send out a
-	 * control message.
+	 * Null out portdev under outvq_lock so that __send_to_port()
+	 * cannot race: it checks port->portdev inside the same lock
+	 * and bails out if NULL, preventing any buffer from being
+	 * enqueued to an already torn-down virtqueue.  Also prevents
+	 * a close on an open port later from sending a stale control
+	 * message.
 	 */
+	spin_lock_irq(&port->outvq_lock);
 	port->portdev = NULL;
+	spin_unlock_irq(&port->outvq_lock);
 
 	sysfs_remove_group(&port->dev->kobj, &port_attribute_group);
 	device_destroy(&port_class, port->dev->devt);
