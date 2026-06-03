@@ -457,6 +457,7 @@ struct dml2_display_cfg_programming {
 			double fclk_pstate_change_us;
 			double usr_retraining_us;
 			double temp_read_or_ppt_watermark_us;
+			double writeback_temp_read_or_ppt_watermark_us;
 		} watermarks;
 
 		struct {

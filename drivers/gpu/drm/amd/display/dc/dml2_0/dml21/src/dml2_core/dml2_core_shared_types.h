@@ -212,6 +212,7 @@ struct dml2_core_internal_watermarks {
 	double Z8StutterEnterPlusExitWatermark;
 	double USRRetrainingWatermark;
 	double temp_read_or_ppt_watermark_us;
+	double writeback_temp_read_or_ppt_watermark_us;
 };
 
 struct dml2_core_internal_mode_support_info {
@@ -1269,6 +1270,7 @@ struct dml2_core_calcs_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport_local
 	double FullDETBufferingTimeC;
 	double WritebackDRAMClockChangeLatencyMargin;
 	double WritebackFCLKChangeLatencyMargin;
+	double WritebackTempReadOrPptLatencyMargin;
 	double WritebackLatencyHiding;
 
 	unsigned int TotalActiveWriteback;

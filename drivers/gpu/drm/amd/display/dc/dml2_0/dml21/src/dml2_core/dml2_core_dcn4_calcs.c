@@ -317,6 +317,7 @@ dml_get_var_func(meta_trip_memory_us, double, mode_lib->mp.MetaTripToMemory);
 dml_get_var_func(wm_fclk_change, double, mode_lib->mp.Watermark.FCLKChangeWatermark);
 dml_get_var_func(wm_usr_retraining, double, mode_lib->mp.Watermark.USRRetrainingWatermark);
 dml_get_var_func(wm_temp_read_or_ppt, double, mode_lib->mp.Watermark.temp_read_or_ppt_watermark_us);
+dml_get_var_func(wm_writeback_temp_read_or_ppt, double, mode_lib->mp.Watermark.writeback_temp_read_or_ppt_watermark_us);
 dml_get_var_func(wm_dram_clock_change, double, mode_lib->mp.Watermark.DRAMClockChangeWatermark);
 dml_get_var_func(fraction_of_urgent_bandwidth, double, mode_lib->mp.FractionOfUrgentBandwidth);
 dml_get_var_func(fraction_of_urgent_bandwidth_imm_flip, double, mode_lib->mp.FractionOfUrgentBandwidthImmediateFlip);
@@ -13230,6 +13231,8 @@ void dml2_core_calcs_get_informative(const struct dml2_core_internal_display_mod
 	out->informative.watermarks.fclk_pstate_change_us = dml_get_wm_fclk_change(mode_lib);
 	out->informative.watermarks.usr_retraining_us = dml_get_wm_usr_retraining(mode_lib);
 	out->informative.watermarks.temp_read_or_ppt_watermark_us = dml_get_wm_temp_read_or_ppt(mode_lib);
+	out->informative.watermarks.writeback_temp_read_or_ppt_watermark_us = dml_get_wm_writeback_temp_read_or_ppt(mode_lib);
+
 
 	out->informative.mall.total_surface_size_in_mall_bytes = 0;
 	out->informative.dpp.total_num_dpps_required = 0;
