@@ -734,6 +734,11 @@ static int smu_v14_0_1_get_dpm_freq_by_index(struct smu_context *smu,
 			return -EINVAL;
 		*freq = clk_table->FclkClocks_Freq[dpm_level];
 		break;
+	case SMU_DCEFCLK:
+		if (dpm_level >= clk_table->NumDcfClkLevelsEnabled)
+			return -EINVAL;
+		*freq = clk_table->DcfClocks[dpm_level];
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -777,6 +782,11 @@ static int smu_v14_0_0_get_dpm_freq_by_index(struct smu_context *smu,
 		if (dpm_level >= clk_table->NumFclkLevelsEnabled)
 			return -EINVAL;
 		*freq = clk_table->FclkClocks_Freq[dpm_level];
+		break;
+	case SMU_DCEFCLK:
+		if (dpm_level >= clk_table->NumDcfClkLevelsEnabled)
+			return -EINVAL;
+		*freq = clk_table->DcfClocks[dpm_level];
 		break;
 	default:
 		return -EINVAL;
@@ -1141,6 +1151,9 @@ static int smu_v14_0_1_get_dpm_level_count(struct smu_context *smu,
 	case SMU_FCLK:
 		*count = clk_table->NumFclkLevelsEnabled;
 		break;
+	case SMU_DCEFCLK:
+		*count = clk_table->NumDcfClkLevelsEnabled;
+		break;
 	default:
 		break;
 	}
@@ -1169,6 +1182,9 @@ static int smu_v14_0_0_get_dpm_level_count(struct smu_context *smu,
 		break;
 	case SMU_FCLK:
 		*count = clk_table->NumFclkLevelsEnabled;
+		break;
+	case SMU_DCEFCLK:
+		*count = clk_table->NumDcfClkLevelsEnabled;
 		break;
 	default:
 		break;
@@ -1234,6 +1250,18 @@ static int smu_v14_0_0_emit_clk_levels(struct smu_context *smu,
 
 			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n", i, value,
 					      cur_value == value ? "*" : "");
+		}
+		break;
+	case SMU_DCEFCLK:
+		ret = smu_v14_0_common_get_dpm_level_count(smu, clk_type, &count);
+		if (ret)
+			return ret;
+
+		for (i = 0; i < count; i++) {
+			ret = smu_v14_0_common_get_dpm_freq_by_index(smu, clk_type, i, &value);
+			if (ret)
+				return ret;
+			size += sysfs_emit_at(buf, size, "%d: %uMhz\n", i, value);
 		}
 		break;
 	case SMU_GFXCLK:
