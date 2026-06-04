@@ -41,7 +41,7 @@ module_param(simdisk_count, int, S_IRUGO);
 MODULE_PARM_DESC(simdisk_count, "Number of simdisk units.");
 
 static int n_files;
-static const char *filename[MAX_SIMDISK_COUNT] = {
+static char *filename[MAX_SIMDISK_COUNT] = {
 #ifdef CONFIG_SIMDISK0_FILENAME
 	CONFIG_SIMDISK0_FILENAME,
 #ifdef CONFIG_SIMDISK1_FILENAME
@@ -50,20 +50,48 @@ static const char *filename[MAX_SIMDISK_COUNT] = {
 #endif
 };
 
+/*
+ * The simdisk code can be built either into the kernel or as a loadable module.
+ * When built-in, CONFIG_SIMDISK{0,1}_FILENAME can be used to specify the
+ * initial simdisk filenames and additional filenames can be provided on the
+ * kernel command line. These arguments are parsed during early boot when slab
+ * is not yet available, but the command line itself is preserved for the
+ * lifetime of the kernel, so the incoming pointer is stored directly.
+ * When built as a loadable module, each value is copied with kstrdup() and all
+ * allocated memory is freed in simdisk_param_free_filename() when the module is
+ * unloaded.
+ */
 static int simdisk_param_set_filename(const char *val,
 		const struct kernel_param *kp)
 {
-	if (n_files < ARRAY_SIZE(filename))
-		filename[n_files++] = val;
-	else
+	char *str;
+
+	if (n_files >= ARRAY_SIZE(filename))
 		return -EINVAL;
+
+#ifdef MODULE
+	str = kstrdup(val, GFP_KERNEL);
+	if (!str)
+		return -ENOMEM;
+#else
+	str = (char *)val;
+#endif
+
+	filename[n_files++] = str;
 	return 0;
+}
+
+static void simdisk_param_free_filename(void *arg)
+{
+	for (int i = 0; i < n_files; i++)
+		kfree(filename[i]);
 }
 
 static const struct kernel_param_ops simdisk_param_ops_filename = {
 	.set = simdisk_param_set_filename,
+	.free = simdisk_param_free_filename,
 };
-module_param_cb(filename, &simdisk_param_ops_filename, &n_files, 0);
+module_param_cb(filename, &simdisk_param_ops_filename, NULL, 0);
 MODULE_PARM_DESC(filename, "Backing storage filename.");
 
 static int simdisk_major = SIMDISK_MAJOR;
