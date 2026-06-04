@@ -1458,7 +1458,6 @@ static void free_module(struct module *mod)
 
 	/* This may be empty, but that's OK */
 	module_arch_freeing_init(mod);
-	kfree(mod->args);
 	percpu_modfree(mod);
 
 	free_mod_mem(mod);
@@ -3425,7 +3424,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	struct module *mod;
 	bool module_allocated = false;
 	long err = 0;
-	char *after_dashes;
+	char *args = NULL, *after_dashes;
 
 	/*
 	 * Do the signature check (if any) first. All that
@@ -3523,9 +3522,9 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	flush_module_icache(mod);
 
 	/* Now copy in args */
-	mod->args = strndup_user(uargs, ~0UL >> 1);
-	if (IS_ERR(mod->args)) {
-		err = PTR_ERR(mod->args);
+	args = strndup_user(uargs, ~0UL >> 1);
+	if (IS_ERR(args)) {
+		err = PTR_ERR(args);
 		goto free_arch_cleanup;
 	}
 
@@ -3546,7 +3545,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	mod->async_probe_requested = async_probe;
 
 	/* Module is ready to execute: parsing args may do that. */
-	after_dashes = parse_args(mod->name, mod->args, mod->kp, mod->num_kp,
+	after_dashes = parse_args(mod->name, args, mod->kp, mod->num_kp,
 				  -32768, 32767, mod,
 				  unknown_module_param_cb);
 	if (IS_ERR(after_dashes)) {
@@ -3556,6 +3555,8 @@ static int load_module(struct load_info *info, const char __user *uargs,
 		pr_warn("%s: parameters '%s' after `--' ignored\n",
 		       mod->name, after_dashes);
 	}
+	kfree(args);
+	args = NULL;
 
 	/* Link in to sysfs. */
 	err = mod_sysfs_setup(mod, info, mod->kp, mod->num_kp);
@@ -3597,7 +3598,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
  ddebug_cleanup:
 	ftrace_release_mod(mod);
 	synchronize_rcu();
-	kfree(mod->args);
+	kfree(args);
  free_arch_cleanup:
 	module_arch_cleanup(mod);
  free_modinfo:
