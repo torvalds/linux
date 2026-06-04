@@ -487,4 +487,5 @@ struct clk_hw *imx_clk_gpr_mux(const char *name, const char *compatible,
 			       u32 reg, const char **parent_names,
 			       u8 num_parents, const u32 *mux_table, u32 mask);
 
+void imx_audio_pll_debug_init(struct clk_hw *hws[], unsigned int num_plls);
 #endif
