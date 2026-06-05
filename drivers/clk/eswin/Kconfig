@@ -13,3 +13,16 @@ config COMMON_CLK_EIC7700
 	  SoC. The clock controller generates and supplies clocks to various
 	  peripherals within the SoC.
 	  Say yes here to support the clock controller on the EIC7700 SoC.
+
+config COMMON_CLK_EIC7700_HSP
+	tristate "EIC7700 HSP Clock Driver"
+	depends on ARCH_ESWIN || COMPILE_TEST
+	select AUXILIARY_BUS
+	select COMMON_CLK_EIC7700
+	select RESET_EIC7700_HSP if RESET_CONTROLLER
+	select REGMAP_MMIO
+	help
+	  This driver provides support for clock controller on ESWIN EIC7700
+	  HSP. The clock controller generates and supplies clocks to high
+	  speed peripherals within the SoC.
+	  Say yes here to support the clock controller on the EIC7700 HSP.
