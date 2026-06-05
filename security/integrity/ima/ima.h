@@ -75,6 +75,7 @@ extern struct ima_algo_desc *ima_algo_array __ro_after_init;
 extern int ima_appraise;
 extern struct tpm_chip *ima_tpm_chip;
 extern const char boot_aggregate_name[];
+extern const char boot_aggregate_late_name[];
 
 /* IMA event related data */
 struct ima_event_data {
