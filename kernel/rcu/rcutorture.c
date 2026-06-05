@@ -4183,9 +4183,7 @@ static int rcu_torture_preempt(void *unused)
 		// Wait for preempt_interval ms with up to 100us fuzz.
 		torture_hrtimeout_ms(preempt_interval, 100, &rand);
 		// Select online CPU.
-		cpu = cpumask_next(cpu, cpu_online_mask);
-		if (cpu >= nr_cpu_ids)
-			cpu = cpumask_next(-1, cpu_online_mask);
+		cpu = cpumask_next_wrap(cpu, cpu_online_mask);
 		WARN_ON_ONCE(cpu >= nr_cpu_ids);
 		// Move to that CPU, if can't do so, retry later.
 		if (torture_sched_setaffinity(current->pid, cpumask_of(cpu), false))
