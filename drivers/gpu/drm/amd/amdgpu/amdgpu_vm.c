@@ -766,18 +766,22 @@ bool amdgpu_vm_need_pipeline_sync(struct amdgpu_ring *ring,
  * @ring: ring to use for flush
  * @job:  related job
  * @need_pipe_sync: is pipe sync needed
+ * @emit_spm_needed: does the caller need to emit spm
+ * @emit_gds_needed: does the caller need to emit gds
  *
  * Emit a VM flush when it is necessary.
  */
 void amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job,
-		     bool need_pipe_sync)
+		     bool need_pipe_sync, bool *emit_spm_needed,
+		     bool *emit_gds_needed)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_isolation *isolation = &adev->isolation[ring->xcp_id];
 	unsigned vmhub = ring->vm_hub;
 	struct amdgpu_vmid_mgr *id_mgr = &adev->vm_manager.id_mgr[vmhub];
 	struct amdgpu_vmid *id = &id_mgr->ids[job->vmid];
-	bool spm_update_needed = job->spm_update_needed;
+	bool spm_update_needed = adev->gfx.rlc.funcs->update_spm_vmid &&
+		job->spm_update_needed;
 	bool gds_switch_needed = ring->funcs->emit_gds_switch &&
 		job->gds_switch_needed;
 	bool vm_flush_needed = job->vm_needs_flush;
@@ -785,6 +789,7 @@ void amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job,
 	bool pasid_mapping_needed = false;
 	struct dma_fence *fence = NULL;
 	unsigned int patch = 0;
+	bool emit_fence;
 
 	if (amdgpu_vmid_had_gpu_reset(adev, id)) {
 		gds_switch_needed = true;
@@ -810,6 +815,17 @@ void amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job,
 		adev->gfx.enable_cleaner_shader &&
 		ring->funcs->emit_cleaner_shader && job->base.s_fence &&
 		&job->base.s_fence->scheduled == isolation->spearhead;
+
+	emit_fence = vm_flush_needed || pasid_mapping_needed ||
+		cleaner_shader_needed;
+
+	*emit_spm_needed = spm_update_needed;
+	if (spm_update_needed && emit_fence)
+		*emit_spm_needed = false;
+
+	*emit_gds_needed = gds_switch_needed;
+	if (gds_switch_needed && emit_fence)
+		*emit_gds_needed = false;
 
 	if (!vm_flush_needed && !gds_switch_needed && !need_pipe_sync &&
 	    !cleaner_shader_needed && !spm_update_needed)
@@ -845,21 +861,21 @@ void amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job,
 	if (pasid_mapping_needed)
 		amdgpu_gmc_emit_pasid_mapping(ring, job->vmid, job->pasid);
 
-	if (spm_update_needed && adev->gfx.rlc.funcs->update_spm_vmid)
-		adev->gfx.rlc.funcs->update_spm_vmid(adev, ring->xcc_id, ring, job->vmid);
+	if (emit_fence) {
+		if (spm_update_needed)
+			adev->gfx.rlc.funcs->update_spm_vmid(adev, ring->xcc_id, ring, job->vmid);
 
-	if (ring->funcs->emit_gds_switch &&
-	    gds_switch_needed) {
-		amdgpu_ring_emit_gds_switch(ring, job->vmid, job->gds_base,
-					    job->gds_size, job->gws_base,
-					    job->gws_size, job->oa_base,
-					    job->oa_size);
+		if (gds_switch_needed)
+			amdgpu_ring_emit_gds_switch(ring, job->vmid, job->gds_base,
+						    job->gds_size, job->gws_base,
+						    job->gws_size, job->oa_base,
+						    job->oa_size);
+
+		amdgpu_fence_emit(ring, job->hw_vm_fence, 0);
+		fence = &job->hw_vm_fence->base;
+		/* get a ref for the job */
+		dma_fence_get(fence);
 	}
-
-	amdgpu_fence_emit(ring, job->hw_vm_fence, 0);
-	fence = &job->hw_vm_fence->base;
-	/* get a ref for the job */
-	dma_fence_get(fence);
 
 	if (vm_flush_needed) {
 		mutex_lock(&id_mgr->lock);
