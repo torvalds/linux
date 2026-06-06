@@ -3504,6 +3504,23 @@ config GCD_KUNIT_TEST
 
 	  If unsure, say N
 
+config POLYNOMIAL_KUNIT_TEST
+	tristate "Polynomial calculation (polynomial_calc) test" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	select POLYNOMIAL
+	default KUNIT_ALL_TESTS
+	help
+	  This option enables the KUnit test suite for the polynomial_calc()
+	  function, which evaluates integer polynomials using factor
+	  redistribution to avoid overflow.
+
+	  The test suite verifies correctness for constant, linear, and
+	  quadratic polynomials, negative coefficients, per-step dividers,
+	  divider_leftover, total_divider scaling, and a real sensor
+	  N-to-temperature conversion polynomial.
+
+	  If unsure, say N
+
 config PRIME_NUMBERS_KUNIT_TEST
 	tristate "Prime number generator test" if !KUNIT_ALL_TESTS
 	depends on KUNIT
