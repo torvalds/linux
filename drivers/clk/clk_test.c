@@ -2247,7 +2247,7 @@ static void
 clk_leaf_mux_set_rate_parent_determine_rate_test_case_to_desc(
 		const struct clk_leaf_mux_set_rate_parent_determine_rate_test_case *t, char *desc)
 {
-	strcpy(desc, t->desc);
+	strscpy(desc, t->desc, KUNIT_PARAM_DESC_SIZE);
 }
 
 static const struct clk_leaf_mux_set_rate_parent_determine_rate_test_case
@@ -2659,7 +2659,7 @@ static void
 clk_register_clk_parent_data_test_case_to_desc(
 		const struct clk_register_clk_parent_data_test_case *t, char *desc)
 {
-	strcpy(desc, t->desc);
+	strscpy(desc, t->desc, KUNIT_PARAM_DESC_SIZE);
 }
 
 static const struct clk_register_clk_parent_data_test_case
