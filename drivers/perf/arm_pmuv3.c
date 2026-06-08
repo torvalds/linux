@@ -8,6 +8,7 @@
  * This code is based heavily on the ARMv7 perf event code.
  */
 
+#include <asm/cputype.h>
 #include <asm/irq_regs.h>
 #include <asm/perf_event.h>
 #include <asm/virt.h>
@@ -795,6 +796,7 @@ static void armv8pmu_disable_user_access(void)
 static void armv8pmu_enable_user_access(struct arm_pmu *cpu_pmu)
 {
 	int i;
+	u64 userenr = ARMV8_PMU_USERENR_ER | ARMV8_PMU_USERENR_UEN;
 	struct pmu_hw_events *cpuc = this_cpu_ptr(cpu_pmu->hw_events);
 
 	if (is_pmuv3p9(cpu_pmu->pmuver)) {
@@ -817,7 +819,10 @@ static void armv8pmu_enable_user_access(struct arm_pmu *cpu_pmu)
 		}
 	}
 
-	update_pmuserenr(ARMV8_PMU_USERENR_ER | ARMV8_PMU_USERENR_CR | ARMV8_PMU_USERENR_UEN);
+	if (!cpu_pmu->avoid_pmccntr)
+		userenr |= ARMV8_PMU_USERENR_CR;
+
+	update_pmuserenr(userenr);
 }
 
 static void armv8pmu_enable_event(struct perf_event *event)
@@ -1002,13 +1007,7 @@ static bool armv8pmu_can_use_pmccntr(struct pmu_hw_events *cpuc,
 	if (has_branch_stack(event))
 		return false;
 
-	/*
-	 * The PMCCNTR_EL0 increments from the processor clock rather than
-	 * the PE clock (ARM DDI0487 L.b D13.1.3) which means it'll continue
-	 * counting on a WFI PE if one of its SMT sibling is not idle on a
-	 * multi-threaded implementation. So don't use it on SMT cores.
-	 */
-	if (cpu_pmu->has_smt)
+	if (cpu_pmu->avoid_pmccntr)
 		return false;
 
 	return true;
@@ -1250,7 +1249,8 @@ static int __armv8_pmuv3_map_event(struct perf_event *event,
 		if (!(event->attach_state & PERF_ATTACH_TASK))
 			return -EINVAL;
 		if (armv8pmu_event_is_64bit(event) &&
-		    (hw_event_id != ARMV8_PMUV3_PERFCTR_CPU_CYCLES) &&
+		    (hw_event_id != ARMV8_PMUV3_PERFCTR_CPU_CYCLES ||
+		     armpmu->avoid_pmccntr) &&
 		    !armv8pmu_has_long_event(armpmu))
 			return -EOPNOTSUPP;
 
@@ -1298,6 +1298,45 @@ static int armv8_vulcan_map_event(struct perf_event *event)
 	return __armv8_pmuv3_map_event(event, NULL,
 				       &armv8_vulcan_perf_cache_map);
 }
+
+#ifdef CONFIG_ARM64
+/*
+ * List of CPUs that should avoid using PMCCNTR_EL0.
+ */
+static struct midr_range armv8pmu_avoid_pmccntr_cpus[] = {
+	/*
+	 * NVIDIA Olympus may expose different WFI/WFE behaviour between the
+	 * PMCCNTR_EL0 and the CPU_CYCLES event on programmable counters.
+	 * While the CPU is in WFI/WFE state, the PMCCNTR_EL0 may still increment
+	 * but the programmable counter may not. This is an implementation specific
+	 * behavior and not an erratum. Perf assumes those two paths are
+	 * interchangeable, so avoid using PMCCNTR_EL0 for CPU_CYCLES event.
+	 *
+	 * From ARM DDI0487 D14.4:
+	 *   It is IMPLEMENTATION SPECIFIC whether CPU_CYCLES and PMCCNTR count
+	 *   when the PE is in WFI or WFE state, even if the clocks are not stopped.
+	 *
+	 * From ARM DDI0487 D24.5.2:
+	 *   All counters are subject to any changes in clock frequency, including
+	 *   clock stopping caused by the WFI and WFE instructions.
+	 *   This means that it is CONSTRAINED UNPREDICTABLE whether or not
+	 *   PMCCNTR_EL0 continues to increment when clocks are stopped by WFI and
+	 *   WFE instructions.
+	 */
+	MIDR_ALL_VERSIONS(MIDR_NVIDIA_OLYMPUS),
+	{}
+};
+
+static bool armv8pmu_is_in_avoid_pmccntr_cpus(void)
+{
+	return is_midr_in_range_list(armv8pmu_avoid_pmccntr_cpus);
+}
+#else
+static bool armv8pmu_is_in_avoid_pmccntr_cpus(void)
+{
+	return false;
+}
+#endif
 
 struct armv8pmu_probe_info {
 	struct arm_pmu *pmu;
@@ -1347,6 +1386,13 @@ static void __armv8pmu_probe_pmu(void *info)
 		cpu_pmu->reg_pmmir = read_pmmir();
 	else
 		cpu_pmu->reg_pmmir = 0;
+
+	/*
+	 * On some CPUs, PMCCNTR_EL0 does not match the behavior of CPU_CYCLES
+	 * programmable counter, so avoid routing cycles through PMCCNTR_EL0 to
+	 * prevent inconsistency in the results.
+	 */
+	cpu_pmu->avoid_pmccntr |= armv8pmu_is_in_avoid_pmccntr_cpus();
 
 	brbe_probe(cpu_pmu);
 }
