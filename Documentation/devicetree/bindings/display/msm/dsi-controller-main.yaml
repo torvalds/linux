@@ -48,6 +48,10 @@ properties:
               - qcom,sm8750-dsi-ctrl
           - const: qcom,mdss-dsi-ctrl
       - items:
+          - const: qcom,shikra-dsi-ctrl
+          - const: qcom,qcm2290-dsi-ctrl
+          - const: qcom,mdss-dsi-ctrl
+      - items:
           - enum:
               - qcom,qcs8300-dsi-ctrl
               - qcom,sc8280xp-dsi-ctrl
