@@ -221,9 +221,9 @@ static void batadv_tp_batctl_notify(enum batadv_tp_meter_reason reason,
 				    unsigned long start_time, u64 total_sent,
 				    u32 cookie)
 {
+	u32 total_bytes;
 	u32 test_time;
 	u8 result;
-	u32 total_bytes;
 
 	if (!batadv_tp_is_error(reason)) {
 		result = BATADV_TP_REASON_COMPLETE;
@@ -267,8 +267,8 @@ static void batadv_tp_batctl_error_notify(enum batadv_tp_meter_reason reason,
 static struct batadv_tp_sender *
 batadv_tp_list_find_sender(struct batadv_priv *bat_priv, const u8 *dst)
 {
-	struct batadv_tp_sender *pos;
 	struct batadv_tp_sender *tp_vars = NULL;
+	struct batadv_tp_sender *pos;
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(pos, &bat_priv->tp_sender_list, common.list) {
@@ -333,8 +333,8 @@ static struct batadv_tp_sender *
 batadv_tp_list_find_sender_session(struct batadv_priv *bat_priv, const u8 *dst,
 				   const u8 *session)
 {
-	struct batadv_tp_sender *pos;
 	struct batadv_tp_sender *tp_vars = NULL;
+	struct batadv_tp_sender *pos;
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(pos, &bat_priv->tp_sender_list, common.list) {
@@ -580,8 +580,8 @@ static void batadv_tp_sender_timeout(struct timer_list *t)
 static void batadv_tp_fill_prerandom(struct batadv_tp_sender *tp_vars,
 				     u8 *buf, size_t nbytes)
 {
-	u32 local_offset;
 	size_t bytes_inbuf;
+	u32 local_offset;
 	size_t to_copy;
 	size_t pos = 0;
 
@@ -627,9 +627,9 @@ static int batadv_tp_send_msg(struct batadv_tp_sender *tp_vars, const u8 *src,
 {
 	struct batadv_icmp_tp_packet *icmp;
 	struct sk_buff *skb;
-	int r;
-	u8 *data;
 	size_t data_len;
+	u8 *data;
+	int r;
 
 	skb = netdev_alloc_skb_ip_align(NULL, len + ETH_HLEN);
 	if (unlikely(!skb))
@@ -866,8 +866,8 @@ out:
 static bool batadv_tp_avail(struct batadv_tp_sender *tp_vars,
 			    size_t payload_len)
 {
-	u32 win_left;
 	u32 win_limit;
+	u32 win_left;
 
 	spin_lock_bh(&tp_vars->cc_lock);
 
@@ -913,15 +913,16 @@ static int batadv_tp_wait_available(struct batadv_tp_sender *tp_vars, size_t ple
  */
 static int batadv_tp_send(void *arg)
 {
-	struct batadv_tp_sender *tp_vars = arg;
-	struct batadv_priv *bat_priv = tp_vars->common.bat_priv;
 	struct batadv_hard_iface *primary_if = NULL;
 	struct batadv_orig_node *orig_node = NULL;
+	struct batadv_tp_sender *tp_vars = arg;
+	struct batadv_priv *bat_priv;
 	size_t payload_len;
 	size_t packet_len;
 	u32 last_sent;
 	int err = 0;
 
+	bat_priv = tp_vars->common.bat_priv;
 	orig_node = batadv_orig_hash_find(bat_priv, tp_vars->common.other_end);
 	if (unlikely(!orig_node)) {
 		err = BATADV_TP_REASON_DST_UNREACHABLE;
@@ -1009,8 +1010,8 @@ out:
  */
 static void batadv_tp_start_kthread(struct batadv_tp_sender *tp_vars)
 {
-	struct task_struct *kthread;
 	struct batadv_priv *bat_priv = tp_vars->common.bat_priv;
+	struct task_struct *kthread;
 	u32 session_cookie;
 
 	kref_get(&tp_vars->common.refcount);
@@ -1046,9 +1047,9 @@ void batadv_tp_start(struct batadv_priv *bat_priv, const u8 *dst,
 		     u32 test_length, u32 *cookie)
 {
 	struct batadv_tp_sender *tp_vars;
+	u32 session_cookie;
 	u8 session_id[2];
 	u8 icmp_uid;
-	u32 session_cookie;
 
 	get_random_bytes(session_id, sizeof(session_id));
 	get_random_bytes(&icmp_uid, 1);
@@ -1215,8 +1216,8 @@ static struct batadv_tp_receiver *
 batadv_tp_list_find_receiver_session(struct batadv_priv *bat_priv, const u8 *dst,
 				     const u8 *session)
 {
-	struct batadv_tp_receiver *pos;
 	struct batadv_tp_receiver *tp_vars = NULL;
+	struct batadv_tp_receiver *pos;
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(pos, &bat_priv->tp_receiver_list, common.list) {
@@ -1301,8 +1302,8 @@ static void batadv_tp_reset_receiver_timer(struct batadv_tp_receiver *tp_vars)
 static void batadv_tp_receiver_shutdown(struct timer_list *t)
 {
 	struct batadv_tp_receiver *tp_vars = timer_container_of(tp_vars, t, common.timer);
-	struct batadv_tp_unacked *un;
 	struct batadv_tp_unacked *safe;
+	struct batadv_tp_unacked *un;
 	struct batadv_priv *bat_priv;
 
 	bat_priv = tp_vars->common.bat_priv;
@@ -1357,8 +1358,8 @@ static int batadv_tp_send_ack(struct batadv_priv *bat_priv, const u8 *dst,
 	struct batadv_orig_node *orig_node;
 	struct batadv_icmp_tp_packet *icmp;
 	struct sk_buff *skb;
-	int r;
 	int ret;
+	int r;
 
 	orig_node = batadv_orig_hash_find(bat_priv, dst);
 	if (unlikely(!orig_node)) {
@@ -1535,8 +1536,8 @@ static bool batadv_tp_handle_out_of_order(struct batadv_tp_receiver *tp_vars,
 static void batadv_tp_ack_unordered(struct batadv_tp_receiver *tp_vars)
 	__must_hold(&tp_vars->ack_seqno_lock)
 {
-	struct batadv_tp_unacked *un;
 	struct batadv_tp_unacked *safe;
+	struct batadv_tp_unacked *un;
 	u32 to_ack;
 
 	/* go through the unacked packet list and possibly ACK them as

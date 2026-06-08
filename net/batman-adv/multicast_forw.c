@@ -195,8 +195,8 @@ static int batadv_mcast_forw_push_dests_list(struct batadv_priv *bat_priv,
 					     unsigned short *num_dests,
 					     unsigned short *tvlv_len)
 {
-	struct hlist_node *node;
 	struct batadv_orig_node *orig_node;
+	struct hlist_node *node;
 
 	rcu_read_lock();
 	__hlist_for_each_rcu(node, head) {
@@ -232,12 +232,9 @@ batadv_mcast_forw_push_tt(struct batadv_priv *bat_priv, struct sk_buff *skb,
 			  unsigned short *tvlv_len)
 {
 	struct batadv_tt_orig_list_entry *orig_entry;
-
 	struct batadv_tt_global_entry *tt_global;
 	const u8 *addr = eth_hdr(skb)->h_dest;
-
-	/* ok */
-	int ret = true;
+	int ret = true; /* ok */
 
 	tt_global = batadv_tt_global_hash_find(bat_priv, addr, vid);
 	if (!tt_global)
@@ -368,8 +365,8 @@ static void batadv_mcast_forw_scrape(struct sk_buff *skb,
 				     unsigned short offset,
 				     unsigned short len)
 {
-	char *to;
 	char *from;
+	char *to;
 
 	SKB_LINEAR_ASSERT(skb);
 
@@ -412,8 +409,8 @@ static bool batadv_mcast_forw_push_insert_padding(struct sk_buff *skb,
 						  unsigned short *tvlv_len)
 {
 	unsigned short offset =	*tvlv_len;
-	char *to;
 	char *from = skb->data;
+	char *to;
 
 	to = batadv_mcast_forw_push_padding(skb, tvlv_len);
 	if (!to)
@@ -935,9 +932,9 @@ static int batadv_mcast_forw_packet(struct batadv_priv *bat_priv,
 	unsigned int tvlv_len;
 	unsigned long offset;
 	bool xmitted = false;
-	u8 *dest;
 	u8 *next_dest;
 	u16 num_dests;
+	u8 *dest;
 	int ret;
 
 	/* (at least) TVLV part needs to be linearized */

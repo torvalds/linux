@@ -230,12 +230,14 @@ static bool
 batadv_v_elp_wifi_neigh_probe(struct batadv_hardif_neigh_node *neigh)
 {
 	struct batadv_hard_iface *hard_iface = neigh->if_incoming;
-	struct batadv_priv *bat_priv = netdev_priv(hard_iface->mesh_iface);
+	struct batadv_priv *bat_priv;
 	unsigned long last_tx_diff;
 	struct sk_buff *skb;
+	int elp_skb_len;
 	int probe_len;
 	int i;
-	int elp_skb_len;
+
+	bat_priv = netdev_priv(hard_iface->mesh_iface);
 
 	/* this probing routine is for Wifi neighbours only */
 	if (!batadv_is_wifi_hardif(hard_iface))
@@ -290,8 +292,8 @@ static void batadv_v_elp_periodic_work(struct work_struct *work)
 	struct batadv_v_metric_queue_entry *metric_entry;
 	struct batadv_v_metric_queue_entry *metric_safe;
 	struct batadv_hardif_neigh_node *hardif_neigh;
-	struct batadv_hard_iface *hard_iface;
 	struct batadv_hard_iface_bat_v *bat_v;
+	struct batadv_hard_iface *hard_iface;
 	struct batadv_elp_packet *elp_packet;
 	struct list_head metric_queue;
 	struct batadv_priv *bat_priv;
@@ -396,9 +398,9 @@ int batadv_v_elp_iface_enable(struct batadv_hard_iface *hard_iface)
 	static const size_t tvlv_padding = sizeof(__be32);
 	struct batadv_elp_packet *elp_packet;
 	unsigned char *elp_buff;
+	int res = -ENOMEM;
 	u32 random_seqno;
 	size_t size;
-	int res = -ENOMEM;
 
 	size = ETH_HLEN + NET_IP_ALIGN + BATADV_ELP_HLEN + tvlv_padding;
 	hard_iface->bat_v.elp_skb = dev_alloc_skb(size);
@@ -501,11 +503,11 @@ static void batadv_v_elp_neigh_update(struct batadv_priv *bat_priv,
 				      struct batadv_elp_packet *elp_packet)
 
 {
-	struct batadv_neigh_node *neigh;
-	struct batadv_orig_node *orig_neigh;
 	struct batadv_hardif_neigh_node *hardif_neigh;
-	s32 seqno_diff;
+	struct batadv_orig_node *orig_neigh;
+	struct batadv_neigh_node *neigh;
 	s32 elp_latest_seqno;
+	s32 seqno_diff;
 
 	orig_neigh = batadv_v_ogm_orig_get(bat_priv, elp_packet->orig);
 	if (!orig_neigh)
@@ -557,8 +559,8 @@ int batadv_v_elp_packet_recv(struct sk_buff *skb,
 	struct batadv_elp_packet *elp_packet;
 	struct batadv_hard_iface *primary_if;
 	struct ethhdr *ethhdr;
-	bool res;
 	int ret = NET_RX_DROP;
+	bool res;
 
 	res = batadv_check_management_packet(skb, if_incoming, BATADV_ELP_HLEN);
 	if (!res)

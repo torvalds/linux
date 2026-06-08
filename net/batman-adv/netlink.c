@@ -752,8 +752,8 @@ static int
 batadv_netlink_tp_meter_cancel(struct sk_buff *skb, struct genl_info *info)
 {
 	struct batadv_priv *bat_priv = info->user_ptr[0];
-	u8 *dst;
 	int ret = 0;
+	u8 *dst;
 
 	if (!info->attrs[BATADV_ATTR_ORIG_ADDRESS])
 		return -EINVAL;
@@ -959,10 +959,10 @@ static int batadv_netlink_set_hardif(struct sk_buff *skb,
 static int
 batadv_netlink_dump_hardif(struct sk_buff *msg, struct netlink_callback *cb)
 {
-	struct net_device *mesh_iface;
-	struct batadv_hard_iface *hard_iface;
-	struct batadv_priv *bat_priv;
 	int portid = NETLINK_CB(cb->skb).portid;
+	struct batadv_hard_iface *hard_iface;
+	struct net_device *mesh_iface;
+	struct batadv_priv *bat_priv;
 	int skip = cb->args[0];
 	struct list_head *iter;
 	int i = 0;

@@ -131,8 +131,9 @@ static int batadv_param_set_ra(const char *val, const struct kernel_param *kp)
 {
 	struct batadv_algo_ops *bat_algo_ops;
 	char *algo_name = (char *)val;
-	size_t name_len = strlen(algo_name);
+	size_t name_len;
 
+	name_len = strlen(algo_name);
 	if (name_len > 0 && algo_name[name_len - 1] == '\n')
 		algo_name[name_len - 1] = '\0';
 

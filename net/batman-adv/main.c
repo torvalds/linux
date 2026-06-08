@@ -368,14 +368,14 @@ int batadv_max_header_len(void)
  */
 void batadv_skb_set_priority(struct sk_buff *skb, int offset)
 {
-	struct iphdr ip_hdr_tmp;
-	struct iphdr *ip_hdr;
-	struct ipv6hdr ip6_hdr_tmp;
-	struct ipv6hdr *ip6_hdr;
-	struct ethhdr ethhdr_tmp;
-	struct ethhdr *ethhdr;
-	struct vlan_ethhdr *vhdr;
 	struct vlan_ethhdr vhdr_tmp;
+	struct ipv6hdr ip6_hdr_tmp;
+	struct ethhdr ethhdr_tmp;
+	struct vlan_ethhdr *vhdr;
+	struct iphdr ip_hdr_tmp;
+	struct ipv6hdr *ip6_hdr;
+	struct ethhdr *ethhdr;
+	struct iphdr *ip_hdr;
 	u32 prio;
 
 	/* already set, do nothing */
@@ -448,9 +448,9 @@ int batadv_batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 			   struct packet_type *ptype,
 			   struct net_device *orig_dev)
 {
-	struct batadv_priv *bat_priv;
 	struct batadv_ogm_packet *batadv_ogm_packet;
 	struct batadv_hard_iface *hard_iface;
+	struct batadv_priv *bat_priv;
 	u8 idx;
 
 	hard_iface = container_of(ptype, struct batadv_hard_iface,
@@ -687,9 +687,9 @@ bool batadv_vlan_ap_isola_get(struct batadv_priv *bat_priv, unsigned short vid)
 int batadv_throw_uevent(struct batadv_priv *bat_priv, enum batadv_uev_type type,
 			enum batadv_uev_action action, const char *data)
 {
-	int ret = -ENOMEM;
-	struct kobject *bat_kobj;
 	char *uevent_env[4] = { NULL, NULL, NULL, NULL };
+	struct kobject *bat_kobj;
+	int ret = -ENOMEM;
 
 	bat_kobj = &bat_priv->mesh_iface->dev.kobj;
 

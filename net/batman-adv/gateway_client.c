@@ -103,8 +103,8 @@ out:
 struct batadv_orig_node *
 batadv_gw_get_selected_orig(struct batadv_priv *bat_priv)
 {
-	struct batadv_gw_node *gw_node;
 	struct batadv_orig_node *orig_node = NULL;
+	struct batadv_gw_node *gw_node;
 
 	gw_node = batadv_gw_get_selected_gw_node(bat_priv);
 	if (!gw_node)
@@ -205,10 +205,10 @@ void batadv_gw_check_client_stop(struct batadv_priv *bat_priv)
  */
 void batadv_gw_election(struct batadv_priv *bat_priv)
 {
+	struct batadv_neigh_ifinfo *router_ifinfo = NULL;
+	struct batadv_neigh_node *router = NULL;
 	struct batadv_gw_node *curr_gw = NULL;
 	struct batadv_gw_node *next_gw = NULL;
-	struct batadv_neigh_node *router = NULL;
-	struct batadv_neigh_ifinfo *router_ifinfo = NULL;
 	char gw_addr[18] = { '\0' };
 
 	if (READ_ONCE(bat_priv->gw.mode) != BATADV_GW_MODE_CLIENT)
@@ -378,8 +378,8 @@ static void batadv_gw_node_add(struct batadv_priv *bat_priv,
 struct batadv_gw_node *batadv_gw_node_get(struct batadv_priv *bat_priv,
 					  struct batadv_orig_node *orig_node)
 {
-	struct batadv_gw_node *gw_node_tmp;
 	struct batadv_gw_node *gw_node = NULL;
+	struct batadv_gw_node *gw_node_tmp;
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(gw_node_tmp, &bat_priv->gw.gateway_list,
@@ -409,8 +409,8 @@ void batadv_gw_node_update(struct batadv_priv *bat_priv,
 			   struct batadv_orig_node *orig_node,
 			   struct batadv_tvlv_gateway_data *gateway)
 {
-	struct batadv_gw_node *gw_node;
 	struct batadv_gw_node *curr_gw = NULL;
+	struct batadv_gw_node *gw_node;
 
 	spin_lock_bh(&bat_priv->gw.list_lock);
 	gw_node = batadv_gw_node_get(bat_priv, orig_node);
@@ -571,11 +571,11 @@ batadv_gw_dhcp_recipient_get(struct sk_buff *skb, unsigned int *header_len,
 			     u8 *chaddr)
 {
 	enum batadv_dhcp_recipient ret = BATADV_DHCP_NO;
-	struct ethhdr *ethhdr;
-	struct iphdr *iphdr;
-	struct ipv6hdr *ipv6hdr;
-	struct udphdr *udphdr;
 	struct vlan_ethhdr *vhdr;
+	struct ipv6hdr *ipv6hdr;
+	struct ethhdr *ethhdr;
+	struct udphdr *udphdr;
+	struct iphdr *iphdr;
 	int chaddr_offset;
 	__be16 proto;
 	u8 *p;
@@ -695,17 +695,17 @@ batadv_gw_dhcp_recipient_get(struct sk_buff *skb, unsigned int *header_len,
 bool batadv_gw_out_of_range(struct batadv_priv *bat_priv,
 			    struct sk_buff *skb)
 {
+	struct batadv_orig_node *orig_dst_node = NULL;
 	struct batadv_neigh_node *neigh_curr = NULL;
 	struct batadv_neigh_node *neigh_old = NULL;
-	struct batadv_orig_node *orig_dst_node = NULL;
-	struct batadv_gw_node *gw_node = NULL;
-	struct batadv_gw_node *curr_gw = NULL;
 	struct batadv_neigh_ifinfo *curr_ifinfo;
 	struct batadv_neigh_ifinfo *old_ifinfo;
-	struct ethhdr *ethhdr;
+	struct batadv_gw_node *gw_node = NULL;
+	struct batadv_gw_node *curr_gw = NULL;
 	bool out_of_range = false;
-	u8 curr_tq_avg;
+	struct ethhdr *ethhdr;
 	unsigned short vid;
+	u8 curr_tq_avg;
 
 	vid = batadv_get_vid(skb, 0);
 	ethhdr = (struct ethhdr *)skb->data;

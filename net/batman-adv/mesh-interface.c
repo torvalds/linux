@@ -213,31 +213,29 @@ static void batadv_interface_set_rx_mode(struct net_device *dev)
 static netdev_tx_t batadv_interface_tx(struct sk_buff *skb,
 				       struct net_device *mesh_iface)
 {
-	struct ethhdr *ethhdr;
+	static const u8 ectp_addr[ETH_ALEN] = {0xCF, 0x00, 0x00, 0x00, 0x00, 0x00};
+	static const u8 stp_addr[ETH_ALEN] = {0x01, 0x80, 0xC2, 0x00, 0x00, 0x00};
 	struct batadv_priv *bat_priv = netdev_priv(mesh_iface);
+	enum batadv_dhcp_recipient dhcp_rcp = BATADV_DHCP_NO;
+	enum batadv_forw_mode forw_mode = BATADV_FORW_BCAST;
 	struct batadv_hard_iface *primary_if = NULL;
 	struct batadv_bcast_packet *bcast_packet;
-	static const u8 stp_addr[ETH_ALEN] = {0x01, 0x80, 0xC2, 0x00,
-					      0x00, 0x00};
-	static const u8 ectp_addr[ETH_ALEN] = {0xCF, 0x00, 0x00, 0x00,
-					       0x00, 0x00};
-	enum batadv_dhcp_recipient dhcp_rcp = BATADV_DHCP_NO;
+	int network_offset = ETH_HLEN;
+	unsigned int header_len = 0;
+	unsigned long brd_delay = 0;
+	int mcast_is_routable = 0;
+	struct vlan_ethhdr *vhdr;
+	int data_len = skb->len;
+	struct ethhdr *ethhdr;
+	bool do_bcast = false;
 	u8 *dst_hint = NULL;
 	u8 chaddr[ETH_ALEN];
-	struct vlan_ethhdr *vhdr;
-	unsigned int header_len = 0;
-	int data_len = skb->len;
-	int ret;
-	unsigned long brd_delay = 0;
-	bool do_bcast = false;
-	bool client_added;
 	unsigned short vid;
-	u32 seqno;
-	int gw_mode;
-	enum batadv_forw_mode forw_mode = BATADV_FORW_BCAST;
-	int mcast_is_routable = 0;
-	int network_offset = ETH_HLEN;
+	bool client_added;
 	__be16 proto;
+	int gw_mode;
+	u32 seqno;
+	int ret;
 
 	if (READ_ONCE(bat_priv->mesh_state) != BATADV_MESH_ACTIVE)
 		goto dropped;
@@ -455,8 +453,8 @@ void batadv_interface_rx(struct net_device *mesh_iface,
 			 struct sk_buff *skb, int hdr_size,
 			 struct batadv_orig_node *orig_node)
 {
-	struct batadv_bcast_packet *batadv_bcast_packet;
 	struct batadv_priv *bat_priv = netdev_priv(mesh_iface);
+	struct batadv_bcast_packet *batadv_bcast_packet;
 	struct vlan_ethhdr *vhdr;
 	struct ethhdr *ethhdr;
 	unsigned short vid;
@@ -570,8 +568,8 @@ void batadv_meshif_vlan_release(struct kref *ref)
 struct batadv_meshif_vlan *batadv_meshif_vlan_get(struct batadv_priv *bat_priv,
 						  unsigned short vid)
 {
-	struct batadv_meshif_vlan *vlan_tmp;
 	struct batadv_meshif_vlan *vlan = NULL;
+	struct batadv_meshif_vlan *vlan_tmp;
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(vlan_tmp, &bat_priv->meshif_vlan_list, list) {
@@ -789,10 +787,10 @@ static void batadv_set_lockdep_class(struct net_device *dev)
  */
 static int batadv_meshif_init_late(struct net_device *dev)
 {
+	size_t cnt_len = sizeof(u64) * BATADV_CNT_NUM;
 	struct batadv_priv *bat_priv;
 	u32 random_seqno;
 	int ret;
-	size_t cnt_len = sizeof(u64) * BATADV_CNT_NUM;
 
 	batadv_set_lockdep_class(dev);
 

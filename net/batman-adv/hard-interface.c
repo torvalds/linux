@@ -350,8 +350,8 @@ static bool batadv_is_cfg80211_netdev(struct net_device *net_device)
  */
 static u32 batadv_wifi_flags_evaluate(struct net_device *net_device)
 {
-	u32 wifi_flags = 0;
 	struct net_device *real_netdev;
+	u32 wifi_flags = 0;
 
 	if (batadv_is_wext_netdev(net_device))
 		wifi_flags |= BATADV_HARDIF_WIFI_WEXT_DIRECT;
@@ -445,8 +445,8 @@ int batadv_hardif_no_broadcast(struct batadv_hard_iface *if_outgoing,
 			       u8 *orig_addr, u8 *orig_neigh)
 {
 	struct batadv_hardif_neigh_node *hardif_neigh;
-	struct hlist_node *first;
 	int ret = BATADV_HARDIF_BCAST_OK;
+	struct hlist_node *first;
 
 	rcu_read_lock();
 
@@ -731,8 +731,8 @@ void batadv_update_min_mtu(struct net_device *mesh_iface)
 static void
 batadv_hardif_activate_interface(struct batadv_hard_iface *hard_iface)
 {
-	struct batadv_priv *bat_priv;
 	struct batadv_hard_iface *primary_if = NULL;
+	struct batadv_priv *bat_priv;
 
 	if (hard_iface->if_status != BATADV_IF_INACTIVE)
 		goto out;
@@ -794,10 +794,10 @@ batadv_hardif_deactivate_interface(struct batadv_hard_iface *hard_iface)
 int batadv_hardif_enable_interface(struct net_device *net_dev,
 				   struct net_device *mesh_iface)
 {
-	struct batadv_priv *bat_priv;
-	__be16 ethertype = htons(ETH_P_BATMAN);
 	int max_header_len = batadv_max_header_len();
+	__be16 ethertype = htons(ETH_P_BATMAN);
 	struct batadv_hard_iface *hard_iface;
+	struct batadv_priv *bat_priv;
 	unsigned int required_mtu;
 	unsigned int hardif_mtu;
 	bool fragmentation;
@@ -1106,8 +1106,8 @@ static int batadv_hard_if_event(struct notifier_block *this,
 				unsigned long event, void *ptr)
 {
 	struct net_device *net_dev = netdev_notifier_info_to_dev(ptr);
-	struct batadv_hard_iface *hard_iface;
 	struct batadv_hard_iface *primary_if = NULL;
+	struct batadv_hard_iface *hard_iface;
 	struct batadv_priv *bat_priv;
 
 	if (batadv_meshif_is_valid(net_dev))

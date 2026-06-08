@@ -159,9 +159,9 @@ static int
 batadv_v_neigh_dump_neigh(struct sk_buff *msg, u32 portid, u32 seq,
 			  struct batadv_hardif_neigh_node *hardif_neigh)
 {
-	void *hdr;
 	unsigned int last_seen_msecs;
 	u32 throughput;
+	void *hdr;
 
 	last_seen_msecs = jiffies_to_msecs(jiffies - hardif_neigh->last_seen);
 	throughput = ewma_throughput_read(&hardif_neigh->bat_v.throughput);
@@ -242,12 +242,12 @@ batadv_v_neigh_dump(struct sk_buff *msg, struct netlink_callback *cb,
 		    struct batadv_priv *bat_priv,
 		    struct batadv_hard_iface *single_hardif)
 {
-	struct batadv_hard_iface *hard_iface;
-	struct list_head *iter;
-	int i_hardif = 0;
-	int i_hardif_s = cb->args[0];
-	int idx = cb->args[1];
 	int portid = NETLINK_CB(cb->skb).portid;
+	struct batadv_hard_iface *hard_iface;
+	int i_hardif_s = cb->args[0];
+	struct list_head *iter;
+	int idx = cb->args[1];
+	int i_hardif = 0;
 
 	rcu_read_lock();
 	if (single_hardif) {
@@ -452,11 +452,11 @@ batadv_v_orig_dump(struct sk_buff *msg, struct netlink_callback *cb,
 		   struct batadv_hard_iface *if_outgoing)
 {
 	struct batadv_hashtable *hash = bat_priv->orig_hash;
-	struct hlist_head *head;
+	int portid = NETLINK_CB(cb->skb).portid;
 	int bucket = cb->args[0];
+	struct hlist_head *head;
 	int idx = cb->args[1];
 	int sub = cb->args[2];
-	int portid = NETLINK_CB(cb->skb).portid;
 
 	while (bucket < hash->size) {
 		head = &hash->table[bucket];
@@ -529,8 +529,8 @@ static bool batadv_v_neigh_is_sob(struct batadv_neigh_node *neigh1,
 {
 	struct batadv_neigh_ifinfo *ifinfo1;
 	struct batadv_neigh_ifinfo *ifinfo2;
-	u32 threshold;
 	bool ret = false;
+	u32 threshold;
 
 	ifinfo1 = batadv_neigh_ifinfo_get(neigh1, if_outgoing1);
 	if (!ifinfo1)
@@ -612,8 +612,8 @@ out:
 static struct batadv_gw_node *
 batadv_v_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 {
-	struct batadv_gw_node *gw_node;
 	struct batadv_gw_node *curr_gw = NULL;
+	struct batadv_gw_node *gw_node;
 	u32 max_bw = 0;
 	u32 bw;
 
@@ -654,12 +654,12 @@ static bool batadv_v_gw_is_eligible(struct batadv_priv *bat_priv,
 				    struct batadv_orig_node *curr_gw_orig,
 				    struct batadv_orig_node *orig_node)
 {
-	struct batadv_gw_node *curr_gw;
 	struct batadv_gw_node *orig_gw = NULL;
-	u32 gw_throughput;
+	struct batadv_gw_node *curr_gw;
 	u32 orig_throughput;
-	u32 threshold;
+	u32 gw_throughput;
 	bool ret = false;
+	u32 threshold;
 
 	threshold = READ_ONCE(bat_priv->gw.sel_class);
 
@@ -715,8 +715,8 @@ static int batadv_v_gw_dump_entry(struct sk_buff *msg, u32 portid,
 				  struct batadv_gw_node *gw_node)
 {
 	struct batadv_neigh_ifinfo *router_ifinfo = NULL;
-	struct batadv_neigh_node *router;
 	struct batadv_gw_node *curr_gw = NULL;
+	struct batadv_neigh_node *router;
 	int ret = 0;
 	void *hdr;
 

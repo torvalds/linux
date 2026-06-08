@@ -72,8 +72,8 @@ static void batadv_tvlv_handler_put(struct batadv_tvlv_handler *tvlv_handler)
 static struct batadv_tvlv_handler *
 batadv_tvlv_handler_get(struct batadv_priv *bat_priv, u8 type, u8 version)
 {
-	struct batadv_tvlv_handler *tvlv_handler_tmp;
 	struct batadv_tvlv_handler *tvlv_handler = NULL;
+	struct batadv_tvlv_handler *tvlv_handler_tmp;
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(tvlv_handler_tmp,
@@ -135,8 +135,8 @@ static void batadv_tvlv_container_put(struct batadv_tvlv_container *tvlv)
 static struct batadv_tvlv_container *
 batadv_tvlv_container_get(struct batadv_priv *bat_priv, u8 type, u8 version)
 {
-	struct batadv_tvlv_container *tvlv_tmp;
 	struct batadv_tvlv_container *tvlv = NULL;
+	struct batadv_tvlv_container *tvlv_tmp;
 
 	lockdep_assert_held(&bat_priv->tvlv.container_list_lock);
 
@@ -539,13 +539,13 @@ int batadv_tvlv_containers_process(struct batadv_priv *bat_priv,
 				   struct sk_buff *skb, void *tvlv_value,
 				   u16 tvlv_value_len)
 {
+	u8 cifnotfound = BATADV_TVLV_HANDLER_OGM_CIFNOTFND;
 	u16 tvlv_value_start_len = tvlv_value_len;
 	struct batadv_tvlv_handler *tvlv_handler;
 	void *tvlv_value_start = tvlv_value;
 	struct batadv_tvlv_hdr *tvlv_hdr;
-	u16 tvlv_value_cont_len;
-	u8 cifnotfound = BATADV_TVLV_HANDLER_OGM_CIFNOTFND;
 	int ret = NET_RX_SUCCESS;
+	u16 tvlv_value_cont_len;
 	int res;
 
 	while ((tvlv_hdr = batadv_tvlv_hdr_next(&tvlv_value, &tvlv_value_len))) {
@@ -606,8 +606,8 @@ void batadv_tvlv_ogm_receive(struct batadv_priv *bat_priv,
 			     struct batadv_ogm_packet *batadv_ogm_packet,
 			     struct batadv_orig_node *orig_node)
 {
-	void *tvlv_value;
 	u16 tvlv_value_len;
+	void *tvlv_value;
 
 	if (!batadv_ogm_packet)
 		return;
@@ -727,12 +727,12 @@ void batadv_tvlv_unicast_send(struct batadv_priv *bat_priv, const u8 *src,
 			      void *tvlv_value, u16 tvlv_value_len)
 {
 	struct batadv_unicast_tvlv_packet *unicast_tvlv_packet;
-	struct batadv_tvlv_hdr *tvlv_hdr;
+	ssize_t hdr_len = sizeof(*unicast_tvlv_packet);
 	struct batadv_orig_node *orig_node;
-	struct sk_buff *skb;
+	struct batadv_tvlv_hdr *tvlv_hdr;
 	unsigned char *tvlv_buff;
 	unsigned int tvlv_len;
-	ssize_t hdr_len = sizeof(*unicast_tvlv_packet);
+	struct sk_buff *skb;
 
 	orig_node = batadv_orig_hash_find(bat_priv, dst);
 	if (!orig_node)

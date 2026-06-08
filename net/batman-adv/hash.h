@@ -92,11 +92,11 @@ static inline int batadv_hash_add(struct batadv_hashtable *hash,
 				  const void *data,
 				  struct hlist_node *data_node)
 {
-	u32 index;
-	int ret = -1;
+	spinlock_t *list_lock; /* spinlock to protect write access */
 	struct hlist_head *head;
 	struct hlist_node *node;
-	spinlock_t *list_lock; /* spinlock to protect write access */
+	int ret = -1;
+	u32 index;
 
 	if (!hash)
 		goto out;
@@ -145,10 +145,10 @@ static inline void *batadv_hash_remove(struct batadv_hashtable *hash,
 				       batadv_hashdata_choose_cb choose,
 				       void *data)
 {
-	u32 index;
 	struct hlist_node *node;
 	struct hlist_head *head;
 	void *data_save = NULL;
+	u32 index;
 
 	index = choose(data, hash->size);
 	head = &hash->table[index];
