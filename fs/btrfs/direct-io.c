@@ -14,7 +14,6 @@
 #include "ordered-data.h"
 
 struct btrfs_dio_data {
-	ssize_t submitted;
 	loff_t old_isize;
 	struct extent_changeset *data_reserved;
 	struct btrfs_ordered_extent *ordered;
@@ -619,7 +618,6 @@ static int btrfs_dio_iomap_end(struct inode *inode, loff_t pos, loff_t length,
 {
 	struct iomap_iter *iter = container_of(iomap, struct iomap_iter, iomap);
 	struct btrfs_dio_data *dio_data = iter->private;
-	size_t submitted = dio_data->submitted;
 	const bool write = !!(flags & IOMAP_WRITE);
 	int ret = 0;
 
@@ -630,9 +628,9 @@ static int btrfs_dio_iomap_end(struct inode *inode, loff_t pos, loff_t length,
 		return 0;
 	}
 
-	if (submitted < length) {
-		pos += submitted;
-		length -= submitted;
+	if (written < length) {
+		pos += written;
+		length -= written;
 		if (write) {
 			/*
 			 * Got a short write and have updated the isize, need to
@@ -659,7 +657,7 @@ static int btrfs_dio_iomap_end(struct inode *inode, loff_t pos, loff_t length,
 			if (dio_data->updated_isize) {
 				u64 new_isize;
 
-				if (submitted == 0)
+				if (written == 0)
 					new_isize = dio_data->old_isize;
 				else
 					new_isize = max(dio_data->old_isize, pos);
@@ -771,8 +769,6 @@ static void btrfs_dio_submit_io(const struct iomap_iter *iter, struct bio *bio,
 
 	dip->file_offset = file_offset;
 	dip->bytes = bio->bi_iter.bi_size;
-
-	dio_data->submitted += bio->bi_iter.bi_size;
 
 	/*
 	 * Check if we are doing a partial write.  If we are, we need to split
