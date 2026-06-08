@@ -586,15 +586,13 @@ static int cs42l43_soft_reset(struct cs42l43 *cs42l43)
  */
 static int cs42l43_wait_for_attach(struct cs42l43 *cs42l43)
 {
-	if (!cs42l43->attached) {
-		unsigned long timeout = msecs_to_jiffies(CS42L43_SDW_ATTACH_TIMEOUT_MS);
-		unsigned long time;
+	int ret;
 
-		time = wait_for_completion_timeout(&cs42l43->device_attach, timeout);
-		if (!time) {
-			dev_err(cs42l43->dev, "Timed out waiting for device re-attach\n");
-			return -ETIMEDOUT;
-		}
+	if (cs42l43->sdw) {
+		ret = sdw_slave_wait_for_init(cs42l43->sdw,
+					      CS42L43_SDW_ATTACH_TIMEOUT_MS);
+		if (ret)
+			return ret;
 	}
 
 	regcache_cache_only(cs42l43->regmap, false);
@@ -1120,7 +1118,6 @@ int cs42l43_dev_probe(struct cs42l43 *cs42l43)
 	dev_set_drvdata(cs42l43->dev, cs42l43);
 
 	mutex_init(&cs42l43->pll_lock);
-	init_completion(&cs42l43->device_attach);
 	init_completion(&cs42l43->device_detach);
 	init_completion(&cs42l43->firmware_download);
 	INIT_WORK(&cs42l43->boot_work, cs42l43_boot_work);

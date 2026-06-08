@@ -45,8 +45,6 @@ static int cs42l43_i2c_probe(struct i2c_client *i2c)
 
 	cs42l43->dev = &i2c->dev;
 	cs42l43->irq = i2c->irq;
-	/* A device on an I2C is always attached by definition. */
-	cs42l43->attached = true;
 	cs42l43->variant_id = (long)device_get_match_data(cs42l43->dev);
 
 	cs42l43->regmap = devm_regmap_init_i2c(i2c, &cs42l43_i2c_regmap);
