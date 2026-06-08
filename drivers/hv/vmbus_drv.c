@@ -2169,6 +2169,7 @@ int vmbus_device_register(struct hv_device *child_device_obj)
 	child_device_obj->device.dma_parms = &child_device_obj->dma_parms;
 	child_device_obj->device.dma_mask = &child_device_obj->dma_mask;
 	dma_set_mask(&child_device_obj->device, DMA_BIT_MASK(64));
+	dma_set_coherent_mask(&child_device_obj->device, DMA_BIT_MASK(64));
 
 	/*
 	 * Register with the LDM. This will kick off the driver/device
