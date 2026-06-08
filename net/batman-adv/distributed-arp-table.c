@@ -368,7 +368,9 @@ batadv_dat_entry_hash_find(struct batadv_priv *bat_priv, __be32 ip,
 			   unsigned short vid)
 {
 	struct hlist_head *head;
-	struct batadv_dat_entry to_find, *dat_entry, *dat_entry_tmp = NULL;
+	struct batadv_dat_entry to_find;
+	struct batadv_dat_entry *dat_entry;
+	struct batadv_dat_entry *dat_entry_tmp = NULL;
 	struct batadv_hashtable *hash = bat_priv->dat.hash;
 	u32 index;
 
@@ -470,7 +472,8 @@ static void batadv_dbg_arp(struct batadv_priv *bat_priv, struct sk_buff *skb,
 	struct batadv_unicast_4addr_packet *unicast_4addr_packet;
 	struct batadv_bcast_packet *bcast_pkt;
 	u8 *orig_addr;
-	__be32 ip_src, ip_dst;
+	__be32 ip_src;
+	__be32 ip_dst;
 
 	if (msg)
 		batadv_dbg(BATADV_DBG_DAT, bat_priv, "%s\n", msg);
@@ -607,7 +610,8 @@ static void batadv_choose_next_candidate(struct batadv_priv *bat_priv,
 {
 	batadv_dat_addr_t max = 0;
 	batadv_dat_addr_t tmp_max = 0;
-	struct batadv_orig_node *orig_node, *max_orig_node = NULL;
+	struct batadv_orig_node *orig_node;
+	struct batadv_orig_node *max_orig_node = NULL;
 	struct batadv_hashtable *hash = bat_priv->orig_hash;
 	struct hlist_head *head;
 	int i;
@@ -673,7 +677,8 @@ batadv_dat_select_candidates(struct batadv_priv *bat_priv, __be32 ip_dst,
 			     unsigned short vid)
 {
 	int select;
-	batadv_dat_addr_t last_max = BATADV_DAT_ADDR_MAX, ip_key;
+	batadv_dat_addr_t last_max = BATADV_DAT_ADDR_MAX;
+	batadv_dat_addr_t ip_key;
 	struct batadv_dat_candidate *res;
 	struct batadv_dat_entry dat;
 
@@ -1043,8 +1048,10 @@ static u16 batadv_arp_get_type(struct batadv_priv *bat_priv,
 {
 	struct arphdr *arphdr;
 	struct ethhdr *ethhdr;
-	__be32 ip_src, ip_dst;
-	u8 *hw_src, *hw_dst;
+	__be32 ip_src;
+	__be32 ip_dst;
+	u8 *hw_src;
+	u8 *hw_dst;
 	u16 type = 0;
 
 	/* pull the ethernet header */
@@ -1192,7 +1199,8 @@ bool batadv_dat_snoop_outgoing_arp_request(struct batadv_priv *bat_priv,
 					   struct sk_buff *skb)
 {
 	u16 type = 0;
-	__be32 ip_dst, ip_src;
+	__be32 ip_dst;
+	__be32 ip_src;
 	u8 *hw_src;
 	bool ret = false;
 	struct batadv_dat_entry *dat_entry = NULL;
@@ -1297,7 +1305,8 @@ bool batadv_dat_snoop_incoming_arp_request(struct batadv_priv *bat_priv,
 					   struct sk_buff *skb, int hdr_size)
 {
 	u16 type;
-	__be32 ip_src, ip_dst;
+	__be32 ip_src;
+	__be32 ip_dst;
 	u8 *hw_src;
 	struct sk_buff *skb_new;
 	struct batadv_dat_entry *dat_entry = NULL;
@@ -1363,8 +1372,10 @@ void batadv_dat_snoop_outgoing_arp_reply(struct batadv_priv *bat_priv,
 					 struct sk_buff *skb)
 {
 	u16 type;
-	__be32 ip_src, ip_dst;
-	u8 *hw_src, *hw_dst;
+	__be32 ip_src;
+	__be32 ip_dst;
+	u8 *hw_src;
+	u8 *hw_dst;
 	int hdr_size = 0;
 	unsigned short vid;
 
@@ -1420,8 +1431,10 @@ bool batadv_dat_snoop_incoming_arp_reply(struct batadv_priv *bat_priv,
 {
 	struct batadv_dat_entry *dat_entry = NULL;
 	u16 type;
-	__be32 ip_src, ip_dst;
-	u8 *hw_src, *hw_dst;
+	__be32 ip_src;
+	__be32 ip_dst;
+	u8 *hw_src;
+	u8 *hw_dst;
 	bool dropped = false;
 	unsigned short vid;
 
@@ -1514,8 +1527,10 @@ static bool
 batadv_dat_check_dhcp_ipudp(struct sk_buff *skb, __be32 *ip_src)
 {
 	unsigned int offset = skb_network_offset(skb);
-	struct udphdr *udphdr, _udphdr;
-	struct iphdr *iphdr, _iphdr;
+	struct udphdr *udphdr;
+	struct udphdr _udphdr;
+	struct iphdr *iphdr;
+	struct iphdr _iphdr;
 
 	iphdr = skb_header_pointer(skb, offset, sizeof(_iphdr), &_iphdr);
 	if (!iphdr || iphdr->version != 4 || iphdr->ihl * 4 < sizeof(_iphdr))
@@ -1553,7 +1568,8 @@ batadv_dat_check_dhcp_ipudp(struct sk_buff *skb, __be32 *ip_src)
 static int
 batadv_dat_check_dhcp(struct sk_buff *skb, __be16 proto, __be32 *ip_src)
 {
-	__be32 *magic, _magic;
+	__be32 *magic;
+	__be32 _magic;
 	unsigned int offset;
 	struct {
 		__u8 op;
@@ -1601,7 +1617,8 @@ batadv_dat_check_dhcp(struct sk_buff *skb, __be16 proto, __be32 *ip_src)
 static int batadv_dat_get_dhcp_message_type(struct sk_buff *skb)
 {
 	unsigned int offset = skb_transport_offset(skb) + sizeof(struct udphdr);
-	u8 *type, _type;
+	u8 *type;
+	u8 _type;
 	struct {
 		u8 type;
 		u8 len;
@@ -1797,7 +1814,8 @@ void batadv_dat_snoop_outgoing_dhcp_ack(struct batadv_priv *bat_priv,
 					unsigned short vid)
 {
 	u8 chaddr[BATADV_DHCP_CHADDR_LEN];
-	__be32 ip_src, yiaddr;
+	__be32 ip_src;
+	__be32 yiaddr;
 
 	if (!READ_ONCE(bat_priv->distributed_arp_table))
 		return;
@@ -1829,7 +1847,8 @@ void batadv_dat_snoop_incoming_dhcp_ack(struct batadv_priv *bat_priv,
 {
 	u8 chaddr[BATADV_DHCP_CHADDR_LEN];
 	struct ethhdr *ethhdr;
-	__be32 ip_src, yiaddr;
+	__be32 ip_src;
+	__be32 yiaddr;
 	unsigned short vid;
 	int hdr_size_tmp;
 	__be16 proto;

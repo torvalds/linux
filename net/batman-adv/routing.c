@@ -276,7 +276,8 @@ static int batadv_recv_my_icmp_packet(struct batadv_priv *bat_priv,
 	struct batadv_hard_iface *primary_if = NULL;
 	struct batadv_orig_node *orig_node = NULL;
 	struct batadv_icmp_header *icmph;
-	int res, ret = NET_RX_DROP;
+	int res;
+	int ret = NET_RX_DROP;
 
 	icmph = (struct batadv_icmp_header *)skb->data;
 
@@ -348,7 +349,8 @@ static int batadv_recv_icmp_ttl_exceeded(struct batadv_priv *bat_priv,
 	struct batadv_hard_iface *primary_if = NULL;
 	struct batadv_orig_node *orig_node = NULL;
 	struct batadv_icmp_packet *icmp_packet;
-	int res, ret = NET_RX_DROP;
+	int res;
+	int ret = NET_RX_DROP;
 
 	icmp_packet = (struct batadv_icmp_packet *)skb->data;
 
@@ -411,7 +413,8 @@ int batadv_recv_icmp_packet(struct sk_buff *skb,
 	struct ethhdr *ethhdr;
 	struct batadv_orig_node *orig_node = NULL;
 	int hdr_size = sizeof(struct batadv_icmp_header);
-	int res, ret = NET_RX_DROP;
+	int res;
+	int ret = NET_RX_DROP;
 
 	/* drop packet if it has not necessary minimum size */
 	if (unlikely(!pskb_may_pull(skb, hdr_size)))
@@ -593,9 +596,11 @@ batadv_find_router(struct batadv_priv *bat_priv,
 	struct batadv_algo_ops *bao = bat_priv->algo_ops;
 	struct batadv_neigh_node *first_candidate_router = NULL;
 	struct batadv_neigh_node *next_candidate_router = NULL;
-	struct batadv_neigh_node *router, *cand_router = NULL;
+	struct batadv_neigh_node *router;
+	struct batadv_neigh_node *cand_router = NULL;
 	struct batadv_neigh_node *last_cand_router = NULL;
-	struct batadv_orig_ifinfo *cand, *first_candidate = NULL;
+	struct batadv_orig_ifinfo *cand;
+	struct batadv_orig_ifinfo *first_candidate = NULL;
 	struct batadv_orig_ifinfo *next_candidate = NULL;
 	struct batadv_orig_ifinfo *last_candidate;
 	bool last_candidate_found = false;
@@ -739,7 +744,9 @@ static int batadv_route_unicast_packet(struct sk_buff *skb,
 	struct batadv_orig_node *orig_node = NULL;
 	struct batadv_unicast_packet *unicast_packet;
 	struct ethhdr *ethhdr = eth_hdr(skb);
-	int res, hdr_len, ret = NET_RX_DROP;
+	int res;
+	int hdr_len;
+	int ret = NET_RX_DROP;
 	unsigned int len;
 
 	unicast_packet = (struct batadv_unicast_packet *)skb->data;
@@ -882,7 +889,8 @@ static bool batadv_check_unicast_ttvn(struct batadv_priv *bat_priv,
 	struct batadv_unicast_packet *unicast_packet;
 	struct batadv_hard_iface *primary_if;
 	struct batadv_orig_node *orig_node;
-	u8 curr_ttvn, old_ttvn;
+	u8 curr_ttvn;
+	u8 old_ttvn;
 	struct ethhdr *ethhdr;
 	unsigned short vid;
 	int is_old_ttvn;
@@ -1002,7 +1010,8 @@ int batadv_recv_unhandled_unicast_packet(struct sk_buff *skb,
 {
 	struct batadv_unicast_packet *unicast_packet;
 	struct batadv_priv *bat_priv = netdev_priv(recv_if->mesh_iface);
-	int check, hdr_size = sizeof(*unicast_packet);
+	int check;
+	int hdr_size = sizeof(*unicast_packet);
 
 	check = batadv_check_unicast_packet(bat_priv, skb, hdr_size);
 	if (check < 0)
@@ -1033,12 +1042,16 @@ int batadv_recv_unicast_packet(struct sk_buff *skb,
 	struct batadv_priv *bat_priv = netdev_priv(recv_if->mesh_iface);
 	struct batadv_unicast_packet *unicast_packet;
 	struct batadv_unicast_4addr_packet *unicast_4addr_packet;
-	u8 *orig_addr, *orig_addr_gw;
-	struct batadv_orig_node *orig_node = NULL, *orig_node_gw = NULL;
-	int check, hdr_size = sizeof(*unicast_packet);
+	u8 *orig_addr;
+	u8 *orig_addr_gw;
+	struct batadv_orig_node *orig_node = NULL;
+	struct batadv_orig_node *orig_node_gw = NULL;
+	int check;
+	int hdr_size = sizeof(*unicast_packet);
 	enum batadv_subtype subtype;
 	int ret = NET_RX_DROP;
-	bool is4addr, is_gw;
+	bool is4addr;
+	bool is_gw;
 
 	unicast_packet = (struct batadv_unicast_packet *)skb->data;
 	is4addr = unicast_packet->packet_type == BATADV_UNICAST_4ADDR;

@@ -368,7 +368,8 @@ static void batadv_mcast_forw_scrape(struct sk_buff *skb,
 				     unsigned short offset,
 				     unsigned short len)
 {
-	char *to, *from;
+	char *to;
+	char *from;
 
 	SKB_LINEAR_ASSERT(skb);
 
@@ -411,7 +412,8 @@ static bool batadv_mcast_forw_push_insert_padding(struct sk_buff *skb,
 						  unsigned short *tvlv_len)
 {
 	unsigned short offset =	*tvlv_len;
-	char *to, *from = skb->data;
+	char *to;
+	char *from = skb->data;
 
 	to = batadv_mcast_forw_push_padding(skb, tvlv_len);
 	if (!to)
@@ -933,7 +935,8 @@ static int batadv_mcast_forw_packet(struct batadv_priv *bat_priv,
 	unsigned int tvlv_len;
 	unsigned long offset;
 	bool xmitted = false;
-	u8 *dest, *next_dest;
+	u8 *dest;
+	u8 *next_dest;
 	u16 num_dests;
 	int ret;
 

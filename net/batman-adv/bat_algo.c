@@ -42,7 +42,8 @@ void batadv_algo_init(void)
  */
 struct batadv_algo_ops *batadv_algo_get(const char *name)
 {
-	struct batadv_algo_ops *bat_algo_ops = NULL, *bat_algo_ops_tmp;
+	struct batadv_algo_ops *bat_algo_ops = NULL;
+	struct batadv_algo_ops *bat_algo_ops_tmp;
 
 	hlist_for_each_entry(bat_algo_ops_tmp, &batadv_algo_list, list) {
 		if (strcmp(bat_algo_ops_tmp->name, name) != 0)

@@ -896,7 +896,8 @@ static void batadv_iv_ogm_schedule_buff(struct batadv_hard_iface *hard_iface)
 	struct batadv_priv *bat_priv = netdev_priv(hard_iface->mesh_iface);
 	struct batadv_ogm_buf *ogm_buff = &hard_iface->bat_iv.ogm_buff;
 	struct batadv_ogm_packet *batadv_ogm_packet;
-	struct batadv_hard_iface *primary_if, *tmp_hard_iface;
+	struct batadv_hard_iface *primary_if;
+	struct batadv_hard_iface *tmp_hard_iface;
 	struct list_head *iter;
 	u32 seqno;
 	u16 tvlv_len = 0;
@@ -1109,7 +1110,8 @@ batadv_iv_ogm_orig_update(struct batadv_priv *bat_priv,
 	struct batadv_neigh_node *neigh_node = NULL;
 	struct batadv_neigh_node *tmp_neigh_node = NULL;
 	struct batadv_neigh_node *router = NULL;
-	u8 sum_orig, sum_neigh;
+	u8 sum_orig;
+	u8 sum_neigh;
 	u8 *neigh_addr;
 	u8 tq_avg;
 
@@ -1241,13 +1243,19 @@ static bool batadv_iv_ogm_calc_tq(struct batadv_orig_node *orig_node,
 				  struct batadv_hard_iface *if_outgoing)
 {
 	struct batadv_priv *bat_priv = netdev_priv(if_incoming->mesh_iface);
-	struct batadv_neigh_node *neigh_node = NULL, *tmp_neigh_node;
+	struct batadv_neigh_node *neigh_node = NULL;
+	struct batadv_neigh_node *tmp_neigh_node;
 	struct batadv_neigh_ifinfo *neigh_ifinfo;
 	u8 total_count;
-	u8 orig_eq_count, neigh_rq_count, neigh_rq_inv, tq_own;
+	u8 orig_eq_count;
+	u8 neigh_rq_count;
+	u8 neigh_rq_inv;
+	u8 tq_own;
 	unsigned int tq_iface_hop_penalty = BATADV_TQ_MAX_VALUE;
-	unsigned int neigh_rq_inv_cube, neigh_rq_max_cube;
-	unsigned int tq_asym_penalty, inv_asym_penalty;
+	unsigned int neigh_rq_inv_cube;
+	unsigned int neigh_rq_max_cube;
+	unsigned int tq_asym_penalty;
+	unsigned int inv_asym_penalty;
 	unsigned int combined_tq;
 	bool ret = false;
 
@@ -1521,7 +1529,8 @@ batadv_iv_ogm_process_per_outif(const struct sk_buff *skb, int ogm_offset,
 	enum batadv_dup_status dup_status;
 	bool is_from_best_next_hop = false;
 	bool is_single_hop_neigh = false;
-	bool sameseq, similar_ttl;
+	bool sameseq;
+	bool similar_ttl;
 	struct sk_buff *skb_priv;
 	struct ethhdr *ethhdr;
 	u8 *prev_sender;
@@ -1747,7 +1756,8 @@ static void batadv_iv_ogm_process(const struct sk_buff *skb, int ogm_offset,
 				  struct batadv_hard_iface *if_incoming)
 {
 	struct batadv_priv *bat_priv = netdev_priv(if_incoming->mesh_iface);
-	struct batadv_orig_node *orig_neigh_node, *orig_node;
+	struct batadv_orig_node *orig_neigh_node;
+	struct batadv_orig_node *orig_node;
 	struct batadv_hard_iface *hard_iface;
 	struct batadv_ogm_packet *ogm_packet;
 	u32 if_incoming_seqno;
@@ -2230,8 +2240,10 @@ static bool batadv_iv_ogm_neigh_diff(struct batadv_neigh_node *neigh1,
 				     struct batadv_hard_iface *if_outgoing2,
 				     int *diff)
 {
-	struct batadv_neigh_ifinfo *neigh1_ifinfo, *neigh2_ifinfo;
-	u8 tq1, tq2;
+	struct batadv_neigh_ifinfo *neigh1_ifinfo;
+	struct batadv_neigh_ifinfo *neigh2_ifinfo;
+	u8 tq1;
+	u8 tq2;
 	bool ret = true;
 
 	neigh1_ifinfo = batadv_neigh_ifinfo_get(neigh1, if_outgoing1);
@@ -2474,7 +2486,8 @@ batadv_iv_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 {
 	struct batadv_neigh_node *router;
 	struct batadv_neigh_ifinfo *router_ifinfo;
-	struct batadv_gw_node *gw_node, *curr_gw = NULL;
+	struct batadv_gw_node *gw_node;
+	struct batadv_gw_node *curr_gw = NULL;
 	u64 max_gw_factor = 0;
 	u64 tmp_gw_factor = 0;
 	u8 max_tq = 0;
@@ -2568,7 +2581,8 @@ static bool batadv_iv_gw_is_eligible(struct batadv_priv *bat_priv,
 	u32 sel_class = READ_ONCE(bat_priv->gw.sel_class);
 	struct batadv_neigh_node *router_gw = NULL;
 	struct batadv_neigh_node *router_orig = NULL;
-	u8 gw_tq_avg, orig_tq_avg;
+	u8 gw_tq_avg;
+	u8 orig_tq_avg;
 	bool ret = false;
 
 	/* dynamic re-election is performed only on fast or late switch */

@@ -92,7 +92,8 @@ int batadv_skb_head_push(struct sk_buff *skb, unsigned int len)
  */
 static u64 batadv_sum_counter(struct batadv_priv *bat_priv,  size_t idx)
 {
-	u64 *counters, sum = 0;
+	u64 *counters;
+	u64 sum = 0;
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
@@ -221,12 +222,15 @@ static netdev_tx_t batadv_interface_tx(struct sk_buff *skb,
 	static const u8 ectp_addr[ETH_ALEN] = {0xCF, 0x00, 0x00, 0x00,
 					       0x00, 0x00};
 	enum batadv_dhcp_recipient dhcp_rcp = BATADV_DHCP_NO;
-	u8 *dst_hint = NULL, chaddr[ETH_ALEN];
+	u8 *dst_hint = NULL;
+	u8 chaddr[ETH_ALEN];
 	struct vlan_ethhdr *vhdr;
 	unsigned int header_len = 0;
-	int data_len = skb->len, ret;
+	int data_len = skb->len;
+	int ret;
 	unsigned long brd_delay = 0;
-	bool do_bcast = false, client_added;
+	bool do_bcast = false;
+	bool client_added;
 	unsigned short vid;
 	u32 seqno;
 	int gw_mode;
@@ -566,7 +570,8 @@ void batadv_meshif_vlan_release(struct kref *ref)
 struct batadv_meshif_vlan *batadv_meshif_vlan_get(struct batadv_priv *bat_priv,
 						  unsigned short vid)
 {
-	struct batadv_meshif_vlan *vlan_tmp, *vlan = NULL;
+	struct batadv_meshif_vlan *vlan_tmp;
+	struct batadv_meshif_vlan *vlan = NULL;
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(vlan_tmp, &bat_priv->meshif_vlan_list, list) {

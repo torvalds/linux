@@ -140,11 +140,13 @@ static bool batadv_frag_insert_packet(struct batadv_orig_node *orig_node,
 				      struct hlist_head *chain_out)
 {
 	struct batadv_frag_table_entry *chain;
-	struct batadv_frag_list_entry *frag_entry_new = NULL, *frag_entry_curr;
+	struct batadv_frag_list_entry *frag_entry_new = NULL;
+	struct batadv_frag_list_entry *frag_entry_curr;
 	struct batadv_frag_list_entry *frag_entry_last = NULL;
 	struct batadv_frag_packet *frag_packet;
 	u8 bucket;
-	u16 seqno, hdr_size = sizeof(struct batadv_frag_packet);
+	u16 seqno;
+	u16 hdr_size = sizeof(struct batadv_frag_packet);
 	bool overflow = false;
 	bool ret = false;
 	size_t data_len;
@@ -261,7 +263,8 @@ batadv_frag_merge_packets(struct hlist_head *chain)
 	struct batadv_frag_packet *packet;
 	struct batadv_frag_list_entry *entry;
 	struct sk_buff *skb_out;
-	int size, hdr_size = sizeof(struct batadv_frag_packet);
+	int size;
+	int hdr_size = sizeof(struct batadv_frag_packet);
 	bool dropped = false;
 
 	/* Remove first entry, as this is the destination for the rest of the
@@ -509,7 +512,8 @@ int batadv_frag_send_packet(struct sk_buff *skb,
 	struct sk_buff *skb_fragment;
 	unsigned int mtu = net_dev->mtu;
 	unsigned int header_size = sizeof(frag_header);
-	unsigned int max_fragment_size, num_fragments;
+	unsigned int max_fragment_size;
+	unsigned int num_fragments;
 	int ret;
 
 	/* To avoid merge and refragmentation at next-hops we never send

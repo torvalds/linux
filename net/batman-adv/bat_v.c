@@ -490,7 +490,8 @@ static int batadv_v_neigh_cmp(struct batadv_neigh_node *neigh1,
 			      struct batadv_neigh_node *neigh2,
 			      struct batadv_hard_iface *if_outgoing2)
 {
-	struct batadv_neigh_ifinfo *ifinfo1, *ifinfo2;
+	struct batadv_neigh_ifinfo *ifinfo1;
+	struct batadv_neigh_ifinfo *ifinfo2;
 	int ret = 0;
 
 	ifinfo1 = batadv_neigh_ifinfo_get(neigh1, if_outgoing1);
@@ -526,7 +527,8 @@ static bool batadv_v_neigh_is_sob(struct batadv_neigh_node *neigh1,
 				  struct batadv_neigh_node *neigh2,
 				  struct batadv_hard_iface *if_outgoing2)
 {
-	struct batadv_neigh_ifinfo *ifinfo1, *ifinfo2;
+	struct batadv_neigh_ifinfo *ifinfo1;
+	struct batadv_neigh_ifinfo *ifinfo2;
 	u32 threshold;
 	bool ret = false;
 
@@ -610,8 +612,10 @@ out:
 static struct batadv_gw_node *
 batadv_v_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 {
-	struct batadv_gw_node *gw_node, *curr_gw = NULL;
-	u32 max_bw = 0, bw;
+	struct batadv_gw_node *gw_node;
+	struct batadv_gw_node *curr_gw = NULL;
+	u32 max_bw = 0;
+	u32 bw;
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(gw_node, &bat_priv->gw.gateway_list, list) {
@@ -650,8 +654,11 @@ static bool batadv_v_gw_is_eligible(struct batadv_priv *bat_priv,
 				    struct batadv_orig_node *curr_gw_orig,
 				    struct batadv_orig_node *orig_node)
 {
-	struct batadv_gw_node *curr_gw, *orig_gw = NULL;
-	u32 gw_throughput, orig_throughput, threshold;
+	struct batadv_gw_node *curr_gw;
+	struct batadv_gw_node *orig_gw = NULL;
+	u32 gw_throughput;
+	u32 orig_throughput;
+	u32 threshold;
 	bool ret = false;
 
 	threshold = READ_ONCE(bat_priv->gw.sel_class);

@@ -368,10 +368,14 @@ int batadv_max_header_len(void)
  */
 void batadv_skb_set_priority(struct sk_buff *skb, int offset)
 {
-	struct iphdr ip_hdr_tmp, *ip_hdr;
-	struct ipv6hdr ip6_hdr_tmp, *ip6_hdr;
-	struct ethhdr ethhdr_tmp, *ethhdr;
-	struct vlan_ethhdr *vhdr, vhdr_tmp;
+	struct iphdr ip_hdr_tmp;
+	struct iphdr *ip_hdr;
+	struct ipv6hdr ip6_hdr_tmp;
+	struct ipv6hdr *ip6_hdr;
+	struct ethhdr ethhdr_tmp;
+	struct ethhdr *ethhdr;
+	struct vlan_ethhdr *vhdr;
+	struct vlan_ethhdr vhdr_tmp;
 	u32 prio;
 
 	/* already set, do nothing */

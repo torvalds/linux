@@ -274,7 +274,8 @@ static struct batadv_mcast_mla_flags
 batadv_mcast_mla_flags_get(struct batadv_priv *bat_priv)
 {
 	struct net_device *dev = bat_priv->mesh_iface;
-	struct batadv_mcast_querier_state *qr4, *qr6;
+	struct batadv_mcast_querier_state *qr4;
+	struct batadv_mcast_querier_state *qr6;
 	struct batadv_mcast_mla_flags mla_flags;
 	struct net_device *bridge;
 
@@ -521,7 +522,8 @@ batadv_mcast_mla_meshif_get(struct net_device *dev,
 			    struct batadv_mcast_mla_flags *flags)
 {
 	struct net_device *bridge = batadv_mcast_get_bridge(dev);
-	int ret4, ret6 = 0;
+	int ret4;
+	int ret6 = 0;
 
 	if (bridge)
 		dev = bridge;
@@ -585,7 +587,8 @@ static int batadv_mcast_mla_bridge_get(struct net_device *dev,
 				       struct batadv_mcast_mla_flags *flags)
 {
 	struct list_head bridge_mcast_list = LIST_HEAD_INIT(bridge_mcast_list);
-	struct br_ip_list *br_ip_entry, *tmp;
+	struct br_ip_list *br_ip_entry;
+	struct br_ip_list *tmp;
 	u8 tvlv_flags = flags->tvlv_flags;
 	struct batadv_hw_addr *new;
 	u8 mcast_addr[ETH_ALEN];
@@ -1229,7 +1232,11 @@ enum batadv_forw_mode
 batadv_mcast_forw_mode(struct batadv_priv *bat_priv, struct sk_buff *skb,
 		       unsigned short vid, int *is_routable)
 {
-	int ret, tt_count, ip_count, unsnoop_count, total_count;
+	int ret;
+	int tt_count;
+	int ip_count;
+	int unsnoop_count;
+	int total_count;
 	bool is_unsnoopable = false;
 	struct ethhdr *ethhdr;
 	int rtr_count = 0;

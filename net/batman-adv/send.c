@@ -394,7 +394,8 @@ int batadv_send_skb_via_tt_generic(struct batadv_priv *bat_priv,
 {
 	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
 	struct batadv_orig_node *orig_node;
-	u8 *src, *dst;
+	u8 *src;
+	u8 *dst;
 	int ret;
 
 	src = ethhdr->h_source;

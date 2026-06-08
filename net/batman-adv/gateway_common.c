@@ -26,7 +26,8 @@ void batadv_gw_tvlv_container_update(struct batadv_priv *bat_priv)
 {
 	struct batadv_tvlv_gateway_data gw;
 	enum batadv_gw_modes gw_mode;
-	u32 down, up;
+	u32 down;
+	u32 up;
 
 	gw_mode = READ_ONCE(bat_priv->gw.mode);
 
@@ -59,7 +60,8 @@ static void batadv_gw_tvlv_ogm_handler_v1(struct batadv_priv *bat_priv,
 					  u8 flags,
 					  void *tvlv_value, u16 tvlv_value_len)
 {
-	struct batadv_tvlv_gateway_data gateway, *gateway_ptr;
+	struct batadv_tvlv_gateway_data gateway;
+	struct batadv_tvlv_gateway_data *gateway_ptr;
 
 	/* only fetch the tvlv value if the handler wasn't called via the
 	 * CIFNOTFND flag and if there is data to fetch

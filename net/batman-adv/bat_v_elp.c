@@ -233,7 +233,8 @@ batadv_v_elp_wifi_neigh_probe(struct batadv_hardif_neigh_node *neigh)
 	struct batadv_priv *bat_priv = netdev_priv(hard_iface->mesh_iface);
 	unsigned long last_tx_diff;
 	struct sk_buff *skb;
-	int probe_len, i;
+	int probe_len;
+	int i;
 	int elp_skb_len;
 
 	/* this probing routine is for Wifi neighbours only */

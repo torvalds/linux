@@ -72,7 +72,8 @@ static void batadv_tvlv_handler_put(struct batadv_tvlv_handler *tvlv_handler)
 static struct batadv_tvlv_handler *
 batadv_tvlv_handler_get(struct batadv_priv *bat_priv, u8 type, u8 version)
 {
-	struct batadv_tvlv_handler *tvlv_handler_tmp, *tvlv_handler = NULL;
+	struct batadv_tvlv_handler *tvlv_handler_tmp;
+	struct batadv_tvlv_handler *tvlv_handler = NULL;
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(tvlv_handler_tmp,
@@ -134,7 +135,8 @@ static void batadv_tvlv_container_put(struct batadv_tvlv_container *tvlv)
 static struct batadv_tvlv_container *
 batadv_tvlv_container_get(struct batadv_priv *bat_priv, u8 type, u8 version)
 {
-	struct batadv_tvlv_container *tvlv_tmp, *tvlv = NULL;
+	struct batadv_tvlv_container *tvlv_tmp;
+	struct batadv_tvlv_container *tvlv = NULL;
 
 	lockdep_assert_held(&bat_priv->tvlv.container_list_lock);
 
@@ -236,7 +238,8 @@ void batadv_tvlv_container_register(struct batadv_priv *bat_priv,
 				    u8 type, u8 version,
 				    void *tvlv_value, u16 tvlv_value_len)
 {
-	struct batadv_tvlv_container *tvlv_old, *tvlv_new;
+	struct batadv_tvlv_container *tvlv_old;
+	struct batadv_tvlv_container *tvlv_new;
 
 	if (!tvlv_value)
 		tvlv_value_len = 0;
@@ -395,7 +398,8 @@ static int batadv_tvlv_call_handler(struct batadv_priv *bat_priv,
 				    u16 tvlv_value_len)
 {
 	unsigned int tvlv_offset;
-	u8 *src, *dst;
+	u8 *src;
+	u8 *dst;
 
 	if (!tvlv_handler)
 		return NET_RX_SUCCESS;
