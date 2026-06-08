@@ -98,6 +98,15 @@ static u64 batadv_sum_counter(struct batadv_priv *bat_priv,  size_t idx)
 	return sum;
 }
 
+/**
+ * batadv_interface_stats() - return netdev stats for a mesh interface
+ * @dev: the mesh interface to query
+ *
+ * Aggregate the per-CPU traffic counters into the standard netdev stats
+ * structure.
+ *
+ * Return: pointer to the populated net_device_stats structure
+ */
 static struct net_device_stats *batadv_interface_stats(struct net_device *dev)
 {
 	struct batadv_priv *bat_priv = netdev_priv(dev);
@@ -111,6 +120,18 @@ static struct net_device_stats *batadv_interface_stats(struct net_device *dev)
 	return stats;
 }
 
+/**
+ * batadv_interface_set_mac_addr() - change the MAC address of a mesh
+ *  interface
+ * @dev: the mesh interface to modify
+ * @p: pointer to a struct sockaddr holding the new MAC address
+ *
+ * Replace the MAC address of the mesh interface. If the mesh is already
+ * active, also update the local translation table entries for all configured
+ * VLANs so that the new MAC is announced and the old one is removed.
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
 static int batadv_interface_set_mac_addr(struct net_device *dev, void *p)
 {
 	struct batadv_priv *bat_priv = netdev_priv(dev);
@@ -140,6 +161,16 @@ static int batadv_interface_set_mac_addr(struct net_device *dev, void *p)
 	return 0;
 }
 
+/**
+ * batadv_interface_change_mtu() - change the MTU of a mesh interface
+ * @dev: the mesh interface to modify
+ * @new_mtu: requested new MTU value
+ *
+ * Validate that @new_mtu fits within the range supported by the configured
+ * hard interfaces and remember it as the user-configured MTU.
+ *
+ * Return: 0 on success or -EINVAL if @new_mtu is out of range
+ */
 static int batadv_interface_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct batadv_priv *bat_priv = netdev_priv(dev);
@@ -166,6 +197,13 @@ static void batadv_interface_set_rx_mode(struct net_device *dev)
 {
 }
 
+/**
+ * batadv_interface_tx() - transmit a frame on a mesh interface
+ * @skb: the frame to send
+ * @mesh_iface: the mesh interface the frame was queued on
+ *
+ * Return: NETDEV_TX_OK on success
+ */
 static netdev_tx_t batadv_interface_tx(struct sk_buff *skb,
 				       struct net_device *mesh_iface)
 {
@@ -883,6 +921,11 @@ static const struct net_device_ops batadv_netdev_ops = {
 	.ndo_del_slave = batadv_meshif_slave_del,
 };
 
+/**
+ * batadv_get_drvinfo() - ethtool driver info handler for mesh interfaces
+ * @dev: the mesh interface (unused)
+ * @info: ethtool_drvinfo struct to populate
+ */
 static void batadv_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *info)
 {
@@ -943,6 +986,12 @@ static const struct {
 #endif
 };
 
+/**
+ * batadv_get_strings() - ethtool string handler for mesh interfaces
+ * @dev: the mesh interface (unused)
+ * @stringset: ethtool string set to retrieve
+ * @data: buffer to copy the requested string set into
+ */
 static void batadv_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 {
 	if (stringset == ETH_SS_STATS)
@@ -950,6 +999,12 @@ static void batadv_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 		       sizeof(batadv_counters_strings));
 }
 
+/**
+ * batadv_get_ethtool_stats() - ethtool stats handler for mesh interfaces
+ * @dev: the mesh interface to query
+ * @stats: ethtool_stats struct (unused)
+ * @data: destination array for the gathered counter values
+ */
 static void batadv_get_ethtool_stats(struct net_device *dev,
 				     struct ethtool_stats *stats, u64 *data)
 {
@@ -960,6 +1015,14 @@ static void batadv_get_ethtool_stats(struct net_device *dev,
 		data[i] = batadv_sum_counter(bat_priv, i);
 }
 
+/**
+ * batadv_get_sset_count() - ethtool stringset size handler for mesh interfaces
+ * @dev: the mesh interface (unused)
+ * @stringset: ethtool string set to query
+ *
+ * Return: number of entries in @stringset or -EOPNOTSUPP if @stringset is not
+ *  supported
+ */
 static int batadv_get_sset_count(struct net_device *dev, int stringset)
 {
 	if (stringset == ETH_SS_STATS)

@@ -328,6 +328,16 @@ out:
 	return ret;
 }
 
+/**
+ * batadv_recv_icmp_ttl_exceeded() - handle an ICMP packet that hit TTL 0
+ * @bat_priv: the bat priv with all the mesh interface information
+ * @skb: ICMP packet whose TTL has expired
+ *
+ * For traceroute-style ICMP echo requests, send a TTL exceeded reply back to
+ * the source. Other ICMP types are simply dropped.
+ *
+ * Return: NET_XMIT_SUCCESS if the reply was queued, NET_RX_DROP otherwise
+ */
 static int batadv_recv_icmp_ttl_exceeded(struct batadv_priv *bat_priv,
 					 struct sk_buff *skb)
 {
@@ -706,6 +716,18 @@ next:
 	return router;
 }
 
+/**
+ * batadv_route_unicast_packet() - forward a unicast packet towards its
+ *  destination originator
+ * @skb: the received unicast packet
+ * @recv_if: interface on which the packet was received
+ *
+ * Decrement the TTL, look up the originator for the destination address and
+ * hand the packet over to batadv_send_skb_to_orig() for transmission. Drop
+ * the packet when the TTL is exhausted or no route exists.
+ *
+ * Return: NET_RX_SUCCESS if the packet was forwarded, NET_RX_DROP otherwise
+ */
 static int batadv_route_unicast_packet(struct sk_buff *skb,
 				       struct batadv_hard_iface *recv_if)
 {
@@ -836,6 +858,15 @@ out:
 	return ret;
 }
 
+/**
+ * batadv_check_unicast_ttvn() - check and adjust the TTVN of a unicast packet
+ * @bat_priv: the bat priv with all the mesh interface information
+ * @skb: the unicast packet to check
+ * @hdr_len: length of the unicast header preceding the payload
+ *
+ * Return: true if the packet may be processed further, false if has to be
+ * dropped by the caller
+ */
 static bool batadv_check_unicast_ttvn(struct batadv_priv *bat_priv,
 				      struct sk_buff *skb, int hdr_len)
 {

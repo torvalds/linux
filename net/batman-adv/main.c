@@ -82,6 +82,14 @@ static char *batadv_uev_type_str[] = {
 	"bla",
 };
 
+/**
+ * batadv_init() - batman-adv module init function
+ *
+ * Initialise the global state used by all mesh interfaces, register the
+ * netdevice notifier and the netlink/rtnl family.
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
 static int __init batadv_init(void)
 {
 	int ret;
@@ -128,6 +136,12 @@ err_create_wq:
 	return ret;
 }
 
+/**
+ * batadv_exit() - batman-adv module exit function
+ *
+ * Unregister the netdevice notifier and tear down all global state allocated
+ * by batadv_init().
+ */
 static void __exit batadv_exit(void)
 {
 	batadv_netlink_unregister();
@@ -398,6 +412,17 @@ void batadv_skb_set_priority(struct sk_buff *skb, int offset)
 	skb->priority = prio + 256;
 }
 
+/**
+ * batadv_recv_unhandled_packet() - default RX handler for unsupported packet
+ *  types
+ * @skb: incoming packet
+ * @recv_if: interface on which the packet was received (unused)
+ *
+ * Drop incoming packets whose packet_type has no dedicated RX handler
+ * registered.
+ *
+ * Return: NET_RX_DROP
+ */
 static int batadv_recv_unhandled_packet(struct sk_buff *skb,
 					struct batadv_hard_iface *recv_if)
 {
@@ -405,10 +430,6 @@ static int batadv_recv_unhandled_packet(struct sk_buff *skb,
 
 	return NET_RX_DROP;
 }
-
-/* incoming packets with the batman ethertype received on any active hard
- * interface
- */
 
 /**
  * batadv_batman_skb_recv() - Handle incoming message from an hard interface
@@ -492,6 +513,13 @@ err_out:
 	return NET_RX_DROP;
 }
 
+/**
+ * batadv_recv_handler_init() - initialise the RX handler dispatch table
+ *
+ * Initialise all entries of the RX handler table as either "unhandled" or with
+ * protocol indepentend handlers, and perform compile-time size sanity checks on
+ * all on-wire packet structs.
+ */
 static void batadv_recv_handler_init(void)
 {
 	int i;

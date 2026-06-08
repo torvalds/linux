@@ -50,27 +50,65 @@
 #include "translation-table.h"
 #include "tvlv.h"
 
+/**
+ * enum batadv_bootpop - BOOTP/DHCP message op codes
+ */
 enum batadv_bootpop {
+	/** @BATADV_BOOTREPLY: server-to-client reply */
 	BATADV_BOOTREPLY	= 2,
 };
 
+/**
+ * enum batadv_boothtype - BOOTP/DHCP hardware address types
+ */
 enum batadv_boothtype {
+	/** @BATADV_HTYPE_ETHERNET: Ethernet (10Mb) */
 	BATADV_HTYPE_ETHERNET	= 1,
 };
 
+/**
+ * enum batadv_dhcpoptioncode - DHCP option codes relevant for batman-adv DAT
+ */
 enum batadv_dhcpoptioncode {
+	/** @BATADV_DHCP_OPT_PAD: pad option */
 	BATADV_DHCP_OPT_PAD		= 0,
+
+	/** @BATADV_DHCP_OPT_MSG_TYPE: DHCP message type option */
 	BATADV_DHCP_OPT_MSG_TYPE	= 53,
+
+	/** @BATADV_DHCP_OPT_END: end of options marker */
 	BATADV_DHCP_OPT_END		= 255,
 };
 
+/**
+ * enum batadv_dhcptype - DHCP message types relevant for batman-adv DAT
+ */
 enum batadv_dhcptype {
+	/** @BATADV_DHCPACK: DHCPACK message */
 	BATADV_DHCPACK		= 5,
 };
 
 /* { 99, 130, 83, 99 } */
 #define BATADV_DHCP_MAGIC 1669485411
 
+/**
+ * struct batadv_dhcp_packet - BOOTP/DHCP packet header
+ * @op: message op code / message type
+ * @htype: hardware address type
+ * @hlen: hardware address length
+ * @hops: number of relay hops
+ * @xid: transaction identifier
+ * @secs: seconds elapsed since client started trying to boot
+ * @flags: BOOTP/DHCP flags
+ * @ciaddr: client IP address
+ * @yiaddr: "your" (client) IP address as assigned by the server
+ * @siaddr: IP address of next server to use in bootstrap
+ * @giaddr: relay agent IP address
+ * @chaddr: client hardware address
+ * @sname: optional server host name
+ * @file: boot file name
+ * @magic: BOOTP/DHCP magic cookie identifying the start of options
+ */
 struct batadv_dhcp_packet {
 	__u8 op;
 	__u8 htype;

@@ -41,6 +41,13 @@
 #include "netlink.h"
 #include "originator.h"
 
+/**
+ * batadv_v_iface_activate() - finalise the activation of a hard interface
+ * @hard_iface: interface to activate
+ *
+ * Reuse the currently selected primary interface to seed the ELP packet.
+ * Immediately activate the interface.
+ */
 static void batadv_v_iface_activate(struct batadv_hard_iface *hard_iface)
 {
 	struct batadv_priv *bat_priv = netdev_priv(hard_iface->mesh_iface);
@@ -61,6 +68,16 @@ static void batadv_v_iface_activate(struct batadv_hard_iface *hard_iface)
 		hard_iface->if_status = BATADV_IF_ACTIVE;
 }
 
+/**
+ * batadv_v_iface_enable() - enable the B.A.T.M.A.N. V protocol on an
+ *  interface
+ * @hard_iface: interface to enable
+ *
+ * Enable the ELP and OGM components for @hard_iface. On error, the partially
+ * enabled state is rolled back before returning.
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
 static int batadv_v_iface_enable(struct batadv_hard_iface *hard_iface)
 {
 	int ret;
@@ -76,12 +93,21 @@ static int batadv_v_iface_enable(struct batadv_hard_iface *hard_iface)
 	return ret;
 }
 
+/**
+ * batadv_v_iface_disable() - disable the B.A.T.M.A.N. V protocol on an
+ *  interface
+ * @hard_iface: interface to disable
+ */
 static void batadv_v_iface_disable(struct batadv_hard_iface *hard_iface)
 {
 	batadv_v_ogm_iface_disable(hard_iface);
 	batadv_v_elp_iface_disable(hard_iface);
 }
 
+/**
+ * batadv_v_primary_iface_set() - apply primary interface state
+ * @hard_iface: interface which just became the primary
+ */
 static void batadv_v_primary_iface_set(struct batadv_hard_iface *hard_iface)
 {
 	batadv_v_elp_primary_iface_set(hard_iface);
@@ -109,6 +135,11 @@ out:
 	batadv_hardif_put(primary_if);
 }
 
+/**
+ * batadv_v_hardif_neigh_init() - initialise the B.A.T.M.A.N. V state of a
+ *  hard interface neighbour
+ * @hardif_neigh: hard interface neighbour to initialise
+ */
 static void
 batadv_v_hardif_neigh_init(struct batadv_hardif_neigh_node *hardif_neigh)
 {
@@ -444,6 +475,16 @@ batadv_v_orig_dump(struct sk_buff *msg, struct netlink_callback *cb,
 	cb->args[2] = sub;
 }
 
+/**
+ * batadv_v_neigh_cmp() - compare two B.A.T.M.A.N. V neighbours by throughput
+ * @neigh1: first neighbour to compare
+ * @if_outgoing1: outgoing interface to use for @neigh1
+ * @neigh2: second neighbour to compare
+ * @if_outgoing2: outgoing interface to use for @neigh2
+ *
+ * Return: a positive value if @neigh1 is better, a negative value if @neigh2
+ *  is better and 0 if both have equal throughput
+ */
 static int batadv_v_neigh_cmp(struct batadv_neigh_node *neigh1,
 			      struct batadv_hard_iface *if_outgoing1,
 			      struct batadv_neigh_node *neigh2,
@@ -469,6 +510,17 @@ err_ifinfo1:
 	return ret;
 }
 
+/**
+ * batadv_v_neigh_is_sob() - check whether two B.A.T.M.A.N. V neighbours have
+ *  a similar or better throughput
+ * @neigh1: first neighbour to compare
+ * @if_outgoing1: outgoing interface to use for @neigh1
+ * @neigh2: second neighbour to compare
+ * @if_outgoing2: outgoing interface to use for @neigh2
+ *
+ * Return: true if the throughput of @neigh2 is at least 3/4 of the
+ *  @neigh1 throughput
+ */
 static bool batadv_v_neigh_is_sob(struct batadv_neigh_node *neigh1,
 				  struct batadv_hard_iface *if_outgoing1,
 				  struct batadv_neigh_node *neigh2,

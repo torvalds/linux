@@ -1295,6 +1295,13 @@ void batadv_purge_orig_ref(struct batadv_priv *bat_priv)
 	batadv_gw_election(bat_priv);
 }
 
+/**
+ * batadv_purge_orig() - periodic worker to purge stale originator entries
+ * @work: delayed work embedded in the bat_priv
+ *
+ * Invoke batadv_purge_orig_ref() to drop stale originators and reschedule the
+ * next run after BATADV_ORIG_WORK_PERIOD milliseconds.
+ */
 static void batadv_purge_orig(struct work_struct *work)
 {
 	struct delayed_work *delayed_work;

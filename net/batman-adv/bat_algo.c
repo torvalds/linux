@@ -116,6 +116,16 @@ int batadv_algo_select(struct batadv_priv *bat_priv, const char *name)
 	return 0;
 }
 
+/**
+ * batadv_param_set_ra() - Validate and store routing_algo module parameter
+ * @val: new value for the routing_algo module parameter
+ * @kp: kernel parameter description used to store the value
+ *
+ * Check that the requested algorithm is known to batman-adv and then store
+ * the name as the new default routing algorithm.
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
 static int batadv_param_set_ra(const char *val, const struct kernel_param *kp)
 {
 	struct batadv_algo_ops *bat_algo_ops;

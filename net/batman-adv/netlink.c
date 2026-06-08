@@ -52,9 +52,15 @@
 
 struct genl_family batadv_netlink_family;
 
-/* multicast groups */
+/**
+ * enum batadv_netlink_multicast_groups - batman-adv generic netlink multicast
+ *  groups
+ */
 enum batadv_netlink_multicast_groups {
+	/** @BATADV_NL_MCGRP_CONFIG: configuration change notifications */
 	BATADV_NL_MCGRP_CONFIG,
+
+	/** @BATADV_NL_MCGRP_TPMETER: throughput meter result notifications */
 	BATADV_NL_MCGRP_TPMETER,
 };
 

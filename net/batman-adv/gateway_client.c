@@ -125,6 +125,14 @@ out:
 	return orig_node;
 }
 
+/**
+ * batadv_gw_select() - select a new currently active gateway
+ * @bat_priv: the bat priv with all the mesh interface information
+ * @new_gw_node: gateway node to be set as the current gateway, may be NULL
+ *
+ * Atomically replace the currently active gateway with @new_gw_node and drop
+ * the reference to the previous one.
+ */
 static void batadv_gw_select(struct batadv_priv *bat_priv,
 			     struct batadv_gw_node *new_gw_node)
 {

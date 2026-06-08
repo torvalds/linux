@@ -192,13 +192,19 @@ enum batadv_tvlv_type {
 };
 
 #pragma pack(2)
-/* the destination hardware field in the ARP frame is used to
- * transport the claim type and the group id
+/**
+ * struct batadv_bla_claim_dst - layout of the destination MAC of a BLA claim
+ *  frame
+ * @magic: fixed magic prefix (FF:43:05) identifying claim frames
+ * @type: claim frame type, see &enum batadv_bla_claimframe
+ * @group: group identifier of the announcing backbone gateway
+ *
+ * used in the destination hardware field of the ARP frame
  */
 struct batadv_bla_claim_dst {
-	__u8   magic[3];	/* FF:43:05 */
-	__u8   type;		/* bla_claimframe */
-	__be16 group;		/* group id */
+	__u8   magic[3];
+	__u8   type;
+	__be16 group;
 };
 
 /**

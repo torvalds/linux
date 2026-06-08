@@ -171,6 +171,14 @@ free_orig_node_hash:
 	return NULL;
 }
 
+/**
+ * batadv_iv_ogm_neigh_new() - retrieve or create a B.A.T.M.A.N. IV neighbour
+ * @hard_iface: the interface where the neighbour is connected to
+ * @neigh_addr: the mac address of the neighbour
+ * @orig_node: originator object representing the neighbour
+ *
+ * Return: pointer to the neigh_node or NULL in case of failure
+ */
 static struct batadv_neigh_node *
 batadv_iv_ogm_neigh_new(struct batadv_hard_iface *hard_iface,
 			const u8 *neigh_addr,
@@ -183,6 +191,14 @@ batadv_iv_ogm_neigh_new(struct batadv_hard_iface *hard_iface,
 	return neigh_node;
 }
 
+/**
+ * batadv_iv_ogm_iface_enable() - prepare an interface for B.A.T.M.A.N. IV
+ * @hard_iface: the interface to prepare
+ *
+ * Allocate and prepare the per-interface OGM buffer
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
 static int batadv_iv_ogm_iface_enable(struct batadv_hard_iface *hard_iface)
 {
 	struct batadv_ogm_packet *batadv_ogm_packet;
@@ -220,6 +236,14 @@ static int batadv_iv_ogm_iface_enable(struct batadv_hard_iface *hard_iface)
 	return 0;
 }
 
+/**
+ * batadv_iv_ogm_iface_disable() - release B.A.T.M.A.N. IV resources of an
+ *  interface
+ * @hard_iface: the interface which is shutting down
+ *
+ * Free the per-interface OGM buffer and cancel a possibly pending OGM
+ * rescheduling work.
+ */
 static void batadv_iv_ogm_iface_disable(struct batadv_hard_iface *hard_iface)
 {
 	mutex_lock(&hard_iface->bat_iv.ogm_buff_mutex);
@@ -233,6 +257,11 @@ static void batadv_iv_ogm_iface_disable(struct batadv_hard_iface *hard_iface)
 	disable_delayed_work_sync(&hard_iface->bat_iv.reschedule_work);
 }
 
+/**
+ * batadv_iv_ogm_iface_update_mac() - update the originator MAC stored in the
+ *  per-interface OGM buffer
+ * @hard_iface: the interface for which the OGM buffer should be updated
+ */
 static void batadv_iv_ogm_iface_update_mac(struct batadv_hard_iface *hard_iface)
 {
 	struct batadv_ogm_packet *batadv_ogm_packet;
@@ -254,6 +283,14 @@ unlock:
 	mutex_unlock(&hard_iface->bat_iv.ogm_buff_mutex);
 }
 
+/**
+ * batadv_iv_ogm_primary_iface_set() - apply primary interface state to
+ *  a batadv_hard_iface
+ * @hard_iface: interface which just became the primary
+ *
+ * The primary interface uses the full TTL for its own OGMs, so adjust the TTL
+ * stored in the OGM template buffer accordingly.
+ */
 static void
 batadv_iv_ogm_primary_iface_set(struct batadv_hard_iface *hard_iface)
 {
@@ -273,7 +310,17 @@ unlock:
 	mutex_unlock(&hard_iface->bat_iv.ogm_buff_mutex);
 }
 
-/* when do we schedule our own ogm to be sent */
+/**
+ * batadv_iv_ogm_emit_send_time() - calculate the jiffies when an own OGM
+ *  should be sent next
+ * @bat_priv: the bat priv with all the mesh interface information
+ *
+ * The next emission point is the configured orig_interval randomised by
+ * +/- BATADV_JITTER milliseconds to reduce chance of potential collisions
+ * between neighbours.
+ *
+ * Return: jiffies value when the next OGM should be transmitted
+ */
 static unsigned long
 batadv_iv_ogm_emit_send_time(const struct batadv_priv *bat_priv)
 {
@@ -285,13 +332,24 @@ batadv_iv_ogm_emit_send_time(const struct batadv_priv *bat_priv)
 	return jiffies + msecs_to_jiffies(msecs);
 }
 
-/* when do we schedule a ogm packet to be sent */
+/**
+ * batadv_iv_ogm_fwd_send_time() - calculate the jiffies when a forwarded OGM
+ *  should be sent next
+ *
+ * Return: jiffies value at which a forwarded OGM should be transmitted
+ */
 static unsigned long batadv_iv_ogm_fwd_send_time(void)
 {
 	return jiffies + msecs_to_jiffies(get_random_u32_below(BATADV_JITTER / 2));
 }
 
-/* apply hop penalty for a normal link */
+/**
+ * batadv_hop_penalty() - apply the configured hop penalty to a TQ value
+ * @tq: input TQ value to be reduced
+ * @bat_priv: the bat priv with all the mesh interface information
+ *
+ * Return: the TQ value after the hop penalty has been applied
+ */
 static u8 batadv_hop_penalty(u8 tq, const struct batadv_priv *bat_priv)
 {
 	int hop_penalty = READ_ONCE(bat_priv->hop_penalty);
@@ -337,7 +395,15 @@ batadv_iv_ogm_aggr_packet(int buff_pos, int packet_len,
 	return next_buff_pos <= packet_len;
 }
 
-/* send a batman ogm to a given interface */
+/**
+ * batadv_iv_ogm_send_to_if() - send a batman OGM to a given interface
+ * @forw_packet: forward packet containing the OGM(s) to be transmitted
+ * @hard_iface: interface to send the OGM out on
+ *
+ * Update the direct link flags of each aggregated OGM for the outgoing
+ * interface, log the transmission and finally hand a clone of the skb to the
+ * lower layer for broadcast.
+ */
 static void batadv_iv_ogm_send_to_if(struct batadv_forw_packet *forw_packet,
 				     struct batadv_hard_iface *hard_iface)
 {
@@ -401,7 +467,13 @@ static void batadv_iv_ogm_send_to_if(struct batadv_forw_packet *forw_packet,
 	}
 }
 
-/* send a batman ogm packet */
+/**
+ * batadv_iv_ogm_emit() - emit an (aggregated) OGM packet
+ * @forw_packet: forward packet which should be emitted
+ *
+ * The @forw_packet will be emitted but not consumed. When the interface is
+ * no longer active, the transmission will be skipped.
+ */
 static void batadv_iv_ogm_emit(struct batadv_forw_packet *forw_packet)
 {
 	if (!forw_packet->if_incoming) {
@@ -603,7 +675,14 @@ static bool batadv_iv_ogm_aggregate_new(const unsigned char *packet_buff,
 	return true;
 }
 
-/* aggregate a new packet into the existing ogm packet */
+/**
+ * batadv_iv_ogm_aggregate() - append an OGM to an existing aggregated forward
+ *  packet
+ * @forw_packet_aggr: aggregated forward packet to extend
+ * @packet_buff: pointer to the OGM to append
+ * @packet_len: length of the OGM to append
+ * @direct_link: true if @packet_buff was received as a direct link OGM
+ */
 static void batadv_iv_ogm_aggregate(struct batadv_forw_packet *forw_packet_aggr,
 				    const unsigned char *packet_buff,
 				    int packet_len, bool direct_link)
@@ -699,6 +778,21 @@ static bool batadv_iv_ogm_queue_add(struct batadv_priv *bat_priv,
 	}
 }
 
+/**
+ * batadv_iv_ogm_forward() - rebroadcast a received OGM
+ * @orig_node: originator that sent the OGM
+ * @ethhdr: ethernet header of the OGM packet
+ * @batadv_ogm_packet: OGM packet to be forwarded
+ * @is_single_hop_neigh: true if the OGM was received via a one-hop neighbour
+ * @is_from_best_next_hop: true if the sender is the currently selected best
+ *  next hop towards @orig_node
+ * @if_incoming: interface where the packet was received
+ * @if_outgoing: interface for which the retransmission should be considered
+ *
+ * Decrement the TTL, apply the hop penalty and queue the OGM for
+ * retransmission. OGMs that do not arrive over the best next hop are only
+ * forwarded for link-quality measurement reasons (and marked accordingly).
+ */
 static void batadv_iv_ogm_forward(struct batadv_orig_node *orig_node,
 				  const struct ethhdr *ethhdr,
 				  struct batadv_ogm_packet *batadv_ogm_packet,
@@ -899,6 +993,13 @@ out:
 	batadv_hardif_put(primary_if);
 }
 
+/**
+ * batadv_iv_ogm_schedule() - schedule the next OGM transmission on an
+ *  interface
+ * @hard_iface: interface for which the next OGM should be scheduled
+ *
+ * Take the OGM buffer mutex and prepare the next OGM for transmission.
+ */
 static void batadv_iv_ogm_schedule(struct batadv_hard_iface *hard_iface)
 {
 	if (hard_iface->if_status == BATADV_IF_TO_BE_REMOVED)
@@ -909,6 +1010,13 @@ static void batadv_iv_ogm_schedule(struct batadv_hard_iface *hard_iface)
 	mutex_unlock(&hard_iface->bat_iv.ogm_buff_mutex);
 }
 
+/**
+ * batadv_iv_ogm_reschedule() - work-queue helper to rerun batadv_iv_ogm_schedule()
+ * @work: work item embedded in the hard interface
+ *
+ * Invoked from the per-interface reschedule_work delayed work when the
+ * previous attempt to enqueue the own OGM failed.
+ */
 static void batadv_iv_ogm_reschedule(struct work_struct *work)
 {
 	struct delayed_work *delayed_work = to_delayed_work(work);
@@ -1765,6 +1873,14 @@ static void batadv_iv_ogm_process(const struct sk_buff *skb, int ogm_offset,
 	batadv_orig_node_put(orig_node);
 }
 
+/**
+ * batadv_iv_send_outstanding_bat_ogm_packet() - work-queue helper to emit a
+ *  queued forward packet
+ * @work: work item embedded in the forward packet
+ *
+ * Emit the queued OGM forward packet and, for own primary-interface packets,
+ * schedule the next periodic OGM. The forward packet is freed afterwards.
+ */
 static void batadv_iv_send_outstanding_bat_ogm_packet(struct work_struct *work)
 {
 	struct delayed_work *delayed_work;
@@ -1803,6 +1919,17 @@ out:
 		batadv_forw_packet_free(forw_packet, dropped);
 }
 
+/**
+ * batadv_iv_ogm_receive() - receive a B.A.T.M.A.N. IV OGM packet
+ * @skb: skb containing the OGM packet
+ * @if_incoming: interface where the packet was received
+ *
+ * Validate the packet, then split the aggregated OGM packet into individual
+ * OGMs and hand each of them to batadv_iv_ogm_process(). Ownership of @skb is
+ * always taken over by this function.
+ *
+ * Return: NET_RX_SUCCESS or NET_RX_DROP
+ */
 static int batadv_iv_ogm_receive(struct sk_buff *skb,
 				 struct batadv_hard_iface *if_incoming)
 {
@@ -2310,6 +2437,12 @@ batadv_iv_ogm_neigh_is_sob(struct batadv_neigh_node *neigh1,
 	return ret;
 }
 
+/**
+ * batadv_iv_iface_enabled() - notification handler for activated interfaces
+ * @hard_iface: interface that was just activated
+ *
+ * Set up the per-interface reschedule work and start sending periodic OGMs.
+ */
 static void batadv_iv_iface_enabled(struct batadv_hard_iface *hard_iface)
 {
 	INIT_DELAYED_WORK(&hard_iface->bat_iv.reschedule_work, batadv_iv_ogm_reschedule);
@@ -2328,6 +2461,14 @@ static void batadv_iv_init_sel_class(struct batadv_priv *bat_priv)
 	WRITE_ONCE(bat_priv->gw.sel_class, 20);
 }
 
+/**
+ * batadv_iv_gw_get_best_gw_node() - retrieve the best gateway node based on
+ *  the B.A.T.M.A.N. IV metric and the configured GW selection class
+ * @bat_priv: the bat priv with all the mesh interface information
+ *
+ * Return: gateway node with the highest score for the current selection class,
+ *  or NULL if no eligible gateway exists.
+ */
 static struct batadv_gw_node *
 batadv_iv_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 {
@@ -2405,6 +2546,19 @@ next:
 	return curr_gw;
 }
 
+/**
+ * batadv_iv_gw_is_eligible() - check whether a new gateway should replace the
+ *  currently selected one
+ * @bat_priv: the bat priv with all the mesh interface information
+ * @curr_gw_orig: originator of the currently selected gateway
+ * @orig_node: originator of the gateway candidate
+ *
+ * Compare the TQ values of @curr_gw_orig and @orig_node, taking the configured
+ * gateway selection class into account.
+ *
+ * Return: true if @orig_node should take over as the active gateway, false
+ *  otherwise
+ */
 static bool batadv_iv_gw_is_eligible(struct batadv_priv *bat_priv,
 				     struct batadv_orig_node *curr_gw_orig,
 				     struct batadv_orig_node *orig_node)
