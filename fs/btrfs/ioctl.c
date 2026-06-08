@@ -393,9 +393,9 @@ int btrfs_fileattr_set(struct mnt_idmap *idmap,
 
 	/*
 	 * 1 for inode item
-	 * 2 for properties
+	 * 1 for property
 	 */
-	trans = btrfs_start_transaction(root, 3);
+	trans = btrfs_start_transaction(root, 2);
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
 
