@@ -621,74 +621,78 @@ static int btrfs_dio_iomap_end(struct inode *inode, loff_t pos, loff_t length,
 	const bool write = !!(flags & IOMAP_WRITE);
 	int ret = 0;
 
-	if (!write && (iomap->type == IOMAP_HOLE)) {
-		/* If reading from a hole, unlock and return */
-		btrfs_unlock_dio_extent(&BTRFS_I(inode)->io_tree, pos,
-					pos + length - 1, NULL);
+	if (!write) {
+		/*
+		 * Hole read, nothing is submitted, thus we have to unlock
+		 * the whole range.
+		 */
+		if (iomap->type == IOMAP_HOLE) {
+			btrfs_unlock_dio_extent(&BTRFS_I(inode)->io_tree, pos,
+						pos + length - 1, NULL);
+			return 0;
+		}
+		/*
+		 * Short read, needs to unlock the remaining range, and
+		 * return -ENOTBLK so we can later fault in the pages and retry.
+		 */
+		if (written < length) {
+			btrfs_unlock_dio_extent(&BTRFS_I(inode)->io_tree, pos + written,
+						pos + length - 1, NULL);
+			return -ENOTBLK;
+		}
+		/* The full range is submitted, endio will do the unlock. */
 		return 0;
 	}
 
 	if (written < length) {
-		pos += written;
-		length -= written;
-		if (write) {
-			/*
-			 * Got a short write and have updated the isize, need to
-			 * revert the isize change.
-			 *
-			 * Normally we need to update isize with extent lock hold,
-			 * but we're safe due to the following factors:
-			 *
-			 * - Only a single writer can be enlarging isize
-			 *   Enlarging isize will take the exclusive inode lock.
-			 *
-			 * - Buffered readers need to wait for the OE we're holding
-			 *   Buffered readers will lock extent and wait for OE
-			 *   of the folio range, and since page cache is invalidated
-			 *   the OE wait can not be skipped.
-			 *
-			 * So here we are safe to revert the isize before
-			 * finishing the OE, and no reader of the remaining range
-			 * can see the enlarged size.
-			 *
-			 * TODO: Extend the DIO_LOCKED lifespan for direct writes,
-			 * and only enlarge isize after a successful write.
-			 */
-			if (dio_data->updated_isize) {
-				u64 new_isize;
+		/*
+		 * Got a short write and have updated the i_size, need to revert
+		 * the i_size change.
+		 *
+		 * Normally we need to update i_size with extent lock held, but
+		 * we're safe due to the following factors:
+		 *
+		 * - Only a single writer can be enlarging i_size
+		 *   Enlarging i_size will take the exclusive inode lock.
+		 *
+		 * - Buffered readers need to wait for the OE we're holding
+		 *   Buffered readers will lock extent and wait for OE
+		 *   of the folio range, and since page cache is invalidated
+		 *   the OE wait cannot be skipped.
+		 *
+		 * So here we are safe to revert the isize before finishing the
+		 * OE, and no reader of the remaining range can see the enlarged
+		 * size.
+		 *
+		 * TODO: Extend the DIO_LOCKED lifespan for direct writes,
+		 * and only enlarge isize after a successful write.
+		 */
+		if (dio_data->updated_isize) {
+			u64 new_isize;
 
-				if (written == 0)
-					new_isize = dio_data->old_isize;
-				else
-					new_isize = max(dio_data->old_isize, pos);
-				i_size_write(inode, new_isize);
-				dio_data->updated_isize = false;
-			}
-			/*
-			 * We have a short write, if there is any range
-			 * that is submitted properly, that part will have
-			 * its own OE split from the original one.
-			 *
-			 * So for the OE at dio_data->ordered, it's the part
-			 * that is not submitted, and should be marked
-			 * as fully truncated.
-			 */
-			btrfs_mark_ordered_extent_truncated(dio_data->ordered, 0);
-			btrfs_finish_ordered_extent(dio_data->ordered,
-						    pos, length, true);
-		} else {
-			btrfs_unlock_dio_extent(&BTRFS_I(inode)->io_tree, pos,
-						pos + length - 1, NULL);
+			if (written == 0)
+				new_isize = dio_data->old_isize;
+			else
+				new_isize = max(dio_data->old_isize, pos + written);
+			i_size_write(inode, new_isize);
+			dio_data->updated_isize = false;
 		}
+		/*
+		 * We have a short write, if there is any range that is submitted
+		 * properly, that part will have its own OE split from the
+		 * original one.
+		 *
+		 * So for the OE at dio_data->ordered, it's the part that is not
+		 * submitted, and should be marked as fully truncated.
+		 */
+		btrfs_mark_ordered_extent_truncated(dio_data->ordered, 0);
+		btrfs_finish_ordered_extent(dio_data->ordered,
+					    pos + written, length - written, true);
 		ret = -ENOTBLK;
 	}
-	if (write) {
-		btrfs_put_ordered_extent(dio_data->ordered);
-		dio_data->ordered = NULL;
-	}
-
-	if (write)
-		extent_changeset_free(dio_data->data_reserved);
+	btrfs_put_ordered_extent(dio_data->ordered);
+	dio_data->ordered = NULL;
+	extent_changeset_free(dio_data->data_reserved);
 	return ret;
 }
 
