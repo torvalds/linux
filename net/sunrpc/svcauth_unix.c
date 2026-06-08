@@ -133,7 +133,7 @@ static void ip_map_init(struct cache_head *cnew, struct cache_head *citem)
 	struct ip_map *new = container_of(cnew, struct ip_map, h);
 	struct ip_map *item = container_of(citem, struct ip_map, h);
 
-	strcpy(new->m_class, item->m_class);
+	strscpy(new->m_class, item->m_class);
 	new->m_addr = item->m_addr;
 }
 static void update(struct cache_head *cnew, struct cache_head *citem)
@@ -296,7 +296,7 @@ static struct ip_map *__ip_map_lookup(struct cache_detail *cd, char *class,
 	struct ip_map ip;
 	struct cache_head *ch;
 
-	strcpy(ip.m_class, class);
+	strscpy(ip.m_class, class);
 	ip.m_addr = *addr;
 	ch = sunrpc_cache_lookup_rcu(cd, &ip.h,
 				     hash_str(class, IP_HASHBITS) ^
