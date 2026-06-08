@@ -246,8 +246,6 @@ enum si476x_phase_diversity_mode {
  * Platform dependent definition
  */
 struct si476x_platform_data {
-	int gpio_reset; /* < 0 if not used */
-
 	struct si476x_power_up_args power_up_parameters;
 	enum si476x_phase_diversity_mode diversity_mode;
 

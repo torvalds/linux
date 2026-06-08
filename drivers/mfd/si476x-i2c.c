@@ -13,7 +13,7 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/regulator/consumer.h>
 #include <linux/i2c.h>
 #include <linux/err.h>
@@ -130,8 +130,8 @@ int si476x_core_start(struct si476x_core *core, bool soft)
 	int err;
 
 	if (!soft) {
-		if (gpio_is_valid(core->gpio_reset))
-			gpio_set_value_cansleep(core->gpio_reset, 1);
+		if (core->reset)
+			gpiod_set_value_cansleep(core->reset, 0);
 
 		if (client->irq)
 			enable_irq(client->irq);
@@ -197,8 +197,8 @@ disable_irq:
 	else
 		cancel_delayed_work_sync(&core->status_monitor);
 
-	if (gpio_is_valid(core->gpio_reset))
-		gpio_set_value_cansleep(core->gpio_reset, 0);
+	if (core->reset)
+		gpiod_set_value_cansleep(core->reset, 1);
 
 	return err;
 }
@@ -243,8 +243,8 @@ int si476x_core_stop(struct si476x_core *core, bool soft)
 		cancel_delayed_work_sync(&core->status_monitor);
 
 	if (!soft) {
-		if (gpio_is_valid(core->gpio_reset))
-			gpio_set_value_cansleep(core->gpio_reset, 0);
+		if (core->reset)
+			gpiod_set_value_cansleep(core->reset, 1);
 	}
 	return err;
 }
@@ -712,24 +712,18 @@ static int si476x_core_probe(struct i2c_client *client)
 	atomic_set(&core->is_alive, 0);
 	core->power_state = SI476X_POWER_DOWN;
 
+	core->reset = devm_gpiod_get_optional(&client->dev, "reset",
+					      GPIOD_OUT_HIGH);
+	if (IS_ERR(core->reset))
+		return dev_err_probe(&client->dev, PTR_ERR(core->reset),
+				     "error getting reset GPIO\n");
+	gpiod_set_consumer_name(core->reset, "si476x reset");
+
 	pdata = dev_get_platdata(&client->dev);
 	if (pdata) {
 		memcpy(&core->power_up_parameters,
 		       &pdata->power_up_parameters,
 		       sizeof(core->power_up_parameters));
-
-		core->gpio_reset = -1;
-		if (gpio_is_valid(pdata->gpio_reset)) {
-			rval = gpio_request(pdata->gpio_reset, "si476x reset");
-			if (rval) {
-				dev_err(&client->dev,
-					"Failed to request gpio: %d\n", rval);
-				return rval;
-			}
-			core->gpio_reset = pdata->gpio_reset;
-			gpio_direction_output(core->gpio_reset, 0);
-		}
-
 		core->diversity_mode = pdata->diversity_mode;
 		memcpy(&core->pinmux, &pdata->pinmux,
 		       sizeof(struct si476x_pinmux));
@@ -748,7 +742,7 @@ static int si476x_core_probe(struct i2c_client *client)
 				       core->supplies);
 	if (rval) {
 		dev_err(&client->dev, "Failed to get all of the regulators\n");
-		goto free_gpio;
+		return rval;
 	}
 
 	mutex_init(&core->cmd_lock);
@@ -761,7 +755,7 @@ static int si476x_core_probe(struct i2c_client *client)
 			   GFP_KERNEL);
 	if (rval) {
 		dev_err(&client->dev, "Could not allocate the FIFO\n");
-		goto free_gpio;
+		return rval;
 	}
 	mutex_init(&core->rds_drainer_status_lock);
 	init_waitqueue_head(&core->rds_read_queue);
@@ -827,11 +821,6 @@ static int si476x_core_probe(struct i2c_client *client)
 
 free_kfifo:
 	kfifo_free(&core->rds_fifo);
-
-free_gpio:
-	if (gpio_is_valid(core->gpio_reset))
-		gpio_free(core->gpio_reset);
-
 	return rval;
 }
 
@@ -848,9 +837,6 @@ static void si476x_core_remove(struct i2c_client *client)
 		cancel_delayed_work_sync(&core->status_monitor);
 
 	kfifo_free(&core->rds_fifo);
-
-	if (gpio_is_valid(core->gpio_reset))
-		gpio_free(core->gpio_reset);
 }
 
 
