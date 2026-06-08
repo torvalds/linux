@@ -5310,7 +5310,8 @@ static int ext4_block_group_meta_init(struct super_block *sb, int silent)
 	}
 	if (sbi->s_inodes_per_group < sbi->s_inodes_per_block ||
 	    sbi->s_inodes_per_group > sb->s_blocksize * 8 ||
-	    sbi->s_inodes_per_group & 7) {
+	    sbi->s_inodes_per_group & 7 ||
+	    sbi->s_inodes_per_group % sbi->s_inodes_per_block) {
 		ext4_msg(sb, KERN_ERR, "invalid inodes per group: %lu",
 			 sbi->s_inodes_per_group);
 		return -EINVAL;
