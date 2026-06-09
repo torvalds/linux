@@ -2873,7 +2873,7 @@
 			675000	3
 			495000	4
 		>;
-		low-volt-read-margin = <4>;
+		low-volt-mem-read-margin = <4>;
 		intermediate-threshold-freq = <500000>;	/* KHz*/
 		rockchip,init-freq = <1000000>;		/* KHz */
 
