@@ -155,8 +155,8 @@ static const uint8_t check_sizes[16] = {
  */
 static bool fill_temp(struct xz_dec *s, struct xz_buf *b)
 {
-	size_t copy_size = min_t(size_t,
-			b->in_size - b->in_pos, s->temp.size - s->temp.pos);
+	size_t copy_size = min(b->in_size - b->in_pos,
+			       s->temp.size - s->temp.pos);
 
 	memcpy(s->temp.buf + s->temp.pos, b->in + b->in_pos, copy_size);
 	b->in_pos += copy_size;
