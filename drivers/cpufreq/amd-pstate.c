@@ -1922,12 +1922,13 @@ static int amd_pstate_epp_cpu_init(struct cpufreq_policy *policy)
 
 	policy->boost_supported = READ_ONCE(cpudata->boost_supported);
 
-	/* Fetch the firmware programmed default EPP value */
+	/* Cache the firmware programmed EPP */
 	default_epp = amd_pstate_get_epp(cpudata);
 	if (default_epp < 0) {
 		ret = default_epp;
 		goto free_cpudata1;
 	}
+	FIELD_MODIFY(AMD_CPPC_EPP_PERF_MASK, &cpudata->cppc_req_cached, default_epp);
 
 	/*
 	 * Set the policy to provide a valid fallback value in case
