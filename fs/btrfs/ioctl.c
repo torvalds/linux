@@ -3613,7 +3613,7 @@ static long btrfs_ioctl_qgroup_assign(struct file *file, void __user *arg)
 {
 	struct inode *inode = file_inode(file);
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_root *quota_root;
 	struct btrfs_ioctl_qgroup_assign_args AUTO_KFREE(sa);
 	struct btrfs_qgroup_list AUTO_KFREE(prealloc);
 	struct btrfs_trans_handle *trans;
@@ -3644,10 +3644,20 @@ static long btrfs_ioctl_qgroup_assign(struct file *file, void __user *arg)
 		}
 	}
 
+	mutex_lock(&fs_info->qgroup_ioctl_lock);
+	quota_root = btrfs_grab_root(fs_info->quota_root);
+	mutex_unlock(&fs_info->qgroup_ioctl_lock);
+
+	if (!quota_root) {
+		ret = -ENOTCONN;
+		goto drop_write;
+	}
+
 	/* 2 BTRFS_QGROUP_RELATION_KEY items. */
-	trans = btrfs_start_transaction(root, 2);
+	trans = btrfs_start_transaction(quota_root, 2);
 	if (IS_ERR(trans)) {
 		ret = PTR_ERR(trans);
+		btrfs_put_root(quota_root);
 		goto drop_write;
 	}
 
@@ -3671,6 +3681,7 @@ static long btrfs_ioctl_qgroup_assign(struct file *file, void __user *arg)
 			   "qgroup status update failed after %s relation, marked as inconsistent",
 			   sa->assign ? "adding" : "deleting");
 	err = btrfs_end_transaction(trans);
+	btrfs_put_root(quota_root);
 	if (err && !ret)
 		ret = err;
 
@@ -3682,7 +3693,8 @@ drop_write:
 static long btrfs_ioctl_qgroup_create(struct file *file, void __user *arg)
 {
 	struct inode *inode = file_inode(file);
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
+	struct btrfs_root *quota_root;
 	struct btrfs_ioctl_qgroup_create_args AUTO_KFREE(sa);
 	struct btrfs_trans_handle *trans;
 	int ret;
@@ -3691,7 +3703,7 @@ static long btrfs_ioctl_qgroup_create(struct file *file, void __user *arg)
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (!btrfs_qgroup_enabled(root->fs_info))
+	if (!btrfs_qgroup_enabled(fs_info))
 		return -ENOTCONN;
 
 	ret = mnt_want_write_file(file);
@@ -3714,13 +3726,23 @@ static long btrfs_ioctl_qgroup_create(struct file *file, void __user *arg)
 		goto drop_write;
 	}
 
+	mutex_lock(&fs_info->qgroup_ioctl_lock);
+	quota_root = btrfs_grab_root(fs_info->quota_root);
+	mutex_unlock(&fs_info->qgroup_ioctl_lock);
+
+	if (!quota_root) {
+		ret = -ENOTCONN;
+		goto drop_write;
+	}
+
 	/*
 	 * 1 BTRFS_QGROUP_INFO_KEY item.
 	 * 1 BTRFS_QGROUP_LIMIT_KEY item.
 	 */
-	trans = btrfs_start_transaction(root, 2);
+	trans = btrfs_start_transaction(quota_root, 2);
 	if (IS_ERR(trans)) {
 		ret = PTR_ERR(trans);
+		btrfs_put_root(quota_root);
 		goto drop_write;
 	}
 
@@ -3731,6 +3753,7 @@ static long btrfs_ioctl_qgroup_create(struct file *file, void __user *arg)
 	}
 
 	err = btrfs_end_transaction(trans);
+	btrfs_put_root(quota_root);
 	if (err && !ret)
 		ret = err;
 
@@ -3743,6 +3766,8 @@ static long btrfs_ioctl_qgroup_limit(struct file *file, void __user *arg)
 {
 	struct inode *inode = file_inode(file);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_root *quota_root;
+	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_ioctl_qgroup_limit_args AUTO_KFREE(sa);
 	struct btrfs_trans_handle *trans;
 	int ret;
@@ -3752,7 +3777,7 @@ static long btrfs_ioctl_qgroup_limit(struct file *file, void __user *arg)
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (!btrfs_qgroup_enabled(root->fs_info))
+	if (!btrfs_qgroup_enabled(fs_info))
 		return -ENOTCONN;
 
 	ret = mnt_want_write_file(file);
@@ -3765,10 +3790,20 @@ static long btrfs_ioctl_qgroup_limit(struct file *file, void __user *arg)
 		goto drop_write;
 	}
 
+	mutex_lock(&fs_info->qgroup_ioctl_lock);
+	quota_root = btrfs_grab_root(fs_info->quota_root);
+	mutex_unlock(&fs_info->qgroup_ioctl_lock);
+
+	if (!quota_root) {
+		ret = -ENOTCONN;
+		goto drop_write;
+	}
+
 	/* 1 BTRFS_QGROUP_LIMIT_KEY item. */
-	trans = btrfs_start_transaction(root, 1);
+	trans = btrfs_start_transaction(quota_root, 1);
 	if (IS_ERR(trans)) {
 		ret = PTR_ERR(trans);
+		btrfs_put_root(quota_root);
 		goto drop_write;
 	}
 
@@ -3781,6 +3816,7 @@ static long btrfs_ioctl_qgroup_limit(struct file *file, void __user *arg)
 	ret = btrfs_limit_qgroup(trans, qgroupid, &sa->lim);
 
 	err = btrfs_end_transaction(trans);
+	btrfs_put_root(quota_root);
 	if (err && !ret)
 		ret = err;
 
