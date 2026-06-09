@@ -1403,6 +1403,7 @@ enum {
 	MCU_CE_CMD_FWLOG_2_HOST = 0xc5,
 	MCU_CE_CMD_GET_WTBL = 0xcd,
 	MCU_CE_CMD_GET_TXPWR = 0xd0,
+	MCU_CE_CMD_SET_REGD_CH = 0xd1,
 };
 
 enum {

@@ -1425,6 +1425,9 @@ int mt7921_mcu_set_clc(struct mt792x_dev *dev, u8 *alpha2,
 
 	/* submit all clc config */
 	for (i = 0; i < ARRAY_SIZE(phy->clc); i++) {
+		if (i == MT792x_CLC_REGD)
+			continue;
+
 		ret = __mt7921_mcu_set_clc(dev, alpha2, env_cap,
 					   phy->clc[i], i);
 
