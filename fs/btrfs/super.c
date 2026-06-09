@@ -514,19 +514,20 @@ static int btrfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		btrfs_clear_opt(ctx->mount_opt, NODISCARD);
 		break;
 	case Opt_space_cache:
-		if (result.negated) {
-			btrfs_set_opt(ctx->mount_opt, NOSPACECACHE);
-			btrfs_clear_opt(ctx->mount_opt, SPACE_CACHE);
-			btrfs_clear_opt(ctx->mount_opt, FREE_SPACE_TREE);
-		} else {
-			btrfs_clear_opt(ctx->mount_opt, FREE_SPACE_TREE);
-			btrfs_set_opt(ctx->mount_opt, SPACE_CACHE);
-		}
+		if (!result.negated)
+			btrfs_warn(NULL,
+			"v1 space cache is deprecated, falling back to no space cache");
+		btrfs_set_opt(ctx->mount_opt, NOSPACECACHE);
+		btrfs_clear_opt(ctx->mount_opt, SPACE_CACHE);
+		btrfs_clear_opt(ctx->mount_opt, FREE_SPACE_TREE);
 		break;
 	case Opt_space_cache_version:
 		switch (result.uint_32) {
 		case Opt_space_cache_v1:
-			btrfs_set_opt(ctx->mount_opt, SPACE_CACHE);
+			btrfs_warn(NULL,
+			"v1 space cache is deprecated, falling back to no space cache");
+			btrfs_set_opt(ctx->mount_opt, NOSPACECACHE);
+			btrfs_clear_opt(ctx->mount_opt, SPACE_CACHE);
 			btrfs_clear_opt(ctx->mount_opt, FREE_SPACE_TREE);
 			break;
 		case Opt_space_cache_v2:
