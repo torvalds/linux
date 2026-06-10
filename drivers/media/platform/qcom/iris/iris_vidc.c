@@ -9,6 +9,7 @@
 #include <media/v4l2-mem2mem.h>
 #include <media/videobuf2-dma-contig.h>
 
+#include "iris_ctrls.h"
 #include "iris_vidc.h"
 #include "iris_instance.h"
 #include "iris_vdec.h"
@@ -195,6 +196,8 @@ int iris_open(struct file *filp)
 		ret = -EINVAL;
 		goto fail_m2m_release;
 	}
+
+	iris_session_init_caps(core);
 
 	if (inst->domain == DECODER)
 		ret = iris_vdec_inst_init(inst);
