@@ -77,7 +77,8 @@ static int ionic_lif_hwstamp_set_ts_config(struct ionic_lif *lif,
 	bool rx_all;
 	__le64 mask;
 
-	if (!lif->phc || !lif->phc->ptp)
+	if (!lif->phc || !lif->phc->ptp ||
+	    !(lif->hw_features & IONIC_ETH_HW_TIMESTAMP))
 		return -EOPNOTSUPP;
 
 	mutex_lock(&lif->phc->config_lock);
@@ -210,7 +211,8 @@ int ionic_hwstamp_set(struct net_device *netdev,
 	struct ionic_lif *lif = netdev_priv(netdev);
 	int err;
 
-	if (!lif->phc || !lif->phc->ptp)
+	if (!lif->phc || !lif->phc->ptp ||
+	    !(lif->hw_features & IONIC_ETH_HW_TIMESTAMP))
 		return -EOPNOTSUPP;
 
 	mutex_lock(&lif->queue_lock);
@@ -228,7 +230,8 @@ void ionic_lif_hwstamp_replay(struct ionic_lif *lif)
 {
 	int err;
 
-	if (!lif->phc || !lif->phc->ptp)
+	if (!lif->phc || !lif->phc->ptp ||
+	    !(lif->hw_features & IONIC_ETH_HW_TIMESTAMP))
 		return;
 
 	mutex_lock(&lif->queue_lock);
@@ -242,7 +245,8 @@ void ionic_lif_hwstamp_recreate_queues(struct ionic_lif *lif)
 {
 	int err;
 
-	if (!lif->phc || !lif->phc->ptp)
+	if (!lif->phc || !lif->phc->ptp ||
+	    !(lif->hw_features & IONIC_ETH_HW_TIMESTAMP))
 		return;
 
 	mutex_lock(&lif->phc->config_lock);
@@ -267,7 +271,8 @@ int ionic_hwstamp_get(struct net_device *netdev,
 {
 	struct ionic_lif *lif = netdev_priv(netdev);
 
-	if (!lif->phc || !lif->phc->ptp)
+	if (!lif->phc || !lif->phc->ptp ||
+	    !(lif->hw_features & IONIC_ETH_HW_TIMESTAMP))
 		return -EOPNOTSUPP;
 
 	mutex_lock(&lif->phc->config_lock);
@@ -506,7 +511,8 @@ static const struct ptp_clock_info ionic_ptp_info = {
 
 void ionic_lif_register_phc(struct ionic_lif *lif)
 {
-	if (!lif->phc || !(lif->hw_features & IONIC_ETH_HW_TIMESTAMP))
+	if (!lif->phc ||
+	    !(lif->hw_features & (IONIC_ETH_HW_TIMESTAMP | IONIC_ETH_HW_RDMA_TIMESTAMP)))
 		return;
 
 	lif->phc->ptp = ptp_clock_register(&lif->phc->ptp_info, lif->ionic->dev);
@@ -545,7 +551,7 @@ void ionic_lif_alloc_phc(struct ionic_lif *lif)
 		return;
 
 	features = le64_to_cpu(ionic->ident.lif.eth.config.features);
-	if (!(features & IONIC_ETH_HW_TIMESTAMP))
+	if (!(features & (IONIC_ETH_HW_TIMESTAMP | IONIC_ETH_HW_RDMA_TIMESTAMP)))
 		return;
 
 	phc = devm_kzalloc(ionic->dev, sizeof(*phc), GFP_KERNEL);

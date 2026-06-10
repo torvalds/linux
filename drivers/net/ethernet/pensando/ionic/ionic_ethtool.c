@@ -1041,10 +1041,14 @@ static int ionic_get_ts_info(struct net_device *netdev,
 
 	info->phc_index = ptp_clock_index(lif->phc->ptp);
 
-	info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
-				SOF_TIMESTAMPING_TX_HARDWARE |
-				SOF_TIMESTAMPING_RX_HARDWARE |
-				SOF_TIMESTAMPING_RAW_HARDWARE;
+	info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE;
+
+	if (!(lif->hw_features & IONIC_ETH_HW_TIMESTAMP))
+		return 0;
+
+	info->so_timestamping |= SOF_TIMESTAMPING_TX_HARDWARE |
+				 SOF_TIMESTAMPING_RX_HARDWARE |
+				 SOF_TIMESTAMPING_RAW_HARDWARE;
 
 	/* tx modes */
 
