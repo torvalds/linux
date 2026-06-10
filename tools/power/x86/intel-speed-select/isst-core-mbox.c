@@ -561,7 +561,7 @@ static int mbox_get_get_trl(struct isst_id *id, int level, int avx_level, int *t
 	if (ret)
 		return ret;
 
-	debug_printf("cpu:%d CONFIG_TDP_GET_TURBO_LIMIT req:%x resp:%x\n", id->cpu,
+	debug_printf("cpu:%d CONFIG_TDP_GET_TURBO_LIMIT_RATIOS req:%x resp:%x\n", id->cpu,
 		     req, resp);
 
 	trl[4] = resp & GENMASK(7, 0);
