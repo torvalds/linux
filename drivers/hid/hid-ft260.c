@@ -502,15 +502,23 @@ static int ft260_i2c_read(struct ft260_device *dev, u8 addr, u8 *data,
 	struct ft260_i2c_read_request_report rep;
 	struct hid_device *hdev = dev->hdev;
 	u8 bus_busy = 0;
+	/*
+	 * STOP terminates the last chunk; clear means hold the bus so a
+	 * follow-up call continues the same I2C transaction.
+	 */
+	bool want_stop = !!(flag & FT260_FLAG_STOP);
 
 	if ((flag & FT260_FLAG_START_REPEATED) == FT260_FLAG_START_REPEATED)
 		flag = FT260_FLAG_START_REPEATED;
-	else
+	else if (flag & FT260_FLAG_START)
 		flag = FT260_FLAG_START;
+	else
+		flag = 0;	/* no fresh START - continue current transaction */
 	do {
 		if (len <= rd_data_max) {
 			rd_len = len;
-			flag |= FT260_FLAG_STOP;
+			if (want_stop)
+				flag |= FT260_FLAG_STOP;
 		} else {
 			rd_len = rd_data_max;
 		}
@@ -708,14 +716,41 @@ static int ft260_smbus_xfer(struct i2c_adapter *adapter, u16 addr, u16 flags,
 		break;
 	case I2C_SMBUS_BLOCK_DATA:
 		if (read_write == I2C_SMBUS_READ) {
+			u8 count = 0;
+
+			/*
+			 * SMBus 2.0 section 6.5.7 block read in one I2C
+			 * transaction:
+			 *
+			 *   S Addr+Wr A Reg A Sr Addr+Rd A Count A Data... P
+			 *
+			 * The count is read separately and validated
+			 * before sizing the data read so a misbehaving
+			 * slave cannot drive a write past data->block[].
+			 */
 			ret = ft260_smbus_write(dev, addr, cmd, NULL, 0,
 						FT260_FLAG_START);
 			if (ret)
 				goto smbus_exit;
 
-			ret = ft260_i2c_read(dev, addr, data->block,
-					     data->block[0] + 1,
-					     FT260_FLAG_START_STOP_REPEATED);
+			ret = ft260_i2c_read(dev, addr, &count, 1,
+					     FT260_FLAG_START_REPEATED);
+			if (ret)
+				goto smbus_exit;
+
+			if (count == 0 || count > I2C_SMBUS_BLOCK_MAX) {
+				hid_warn(hdev,
+					 "smbus block read: invalid count %u from slave 0x%02x\n",
+					 count, addr);
+				ft260_i2c_reset(hdev);
+				ret = -EPROTO;
+				goto smbus_exit;
+			}
+
+			data->block[0] = count;
+
+			ret = ft260_i2c_read(dev, addr, data->block + 1,
+					     count, FT260_FLAG_STOP);
 		} else {
 			ret = ft260_smbus_write(dev, addr, cmd, data->block,
 						data->block[0] + 1,
