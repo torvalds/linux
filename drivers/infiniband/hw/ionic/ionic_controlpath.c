@@ -391,6 +391,16 @@ int ionic_alloc_ucontext(struct ib_ucontext *ibctx, struct ib_udata *udata)
 		goto err_mmap_dbell;
 	}
 
+	if (dev->lif_cfg.phc_state) {
+		ctx->mmap_phc = ionic_mmap_entry_insert(ctx, PAGE_SIZE, 0,
+							IONIC_MMAP_PHC,
+							&resp.phc_offset);
+		if (!ctx->mmap_phc) {
+			rc = -ENOMEM;
+			goto err_mmap_phc;
+		}
+	}
+
 	resp.page_shift = PAGE_SHIFT;
 
 	resp.dbell_offset = db_phys & ~PAGE_MASK;
@@ -421,6 +431,8 @@ int ionic_alloc_ucontext(struct ib_ucontext *ibctx, struct ib_udata *udata)
 	return 0;
 
 err_resp:
+	rdma_user_mmap_entry_remove(ctx->mmap_phc);
+err_mmap_phc:
 	rdma_user_mmap_entry_remove(ctx->mmap_dbell);
 err_mmap_dbell:
 	ionic_put_dbid(dev, ctx->dbid);
@@ -433,8 +445,24 @@ void ionic_dealloc_ucontext(struct ib_ucontext *ibctx)
 	struct ionic_ibdev *dev = to_ionic_ibdev(ibctx->device);
 	struct ionic_ctx *ctx = to_ionic_ctx(ibctx);
 
+	rdma_user_mmap_entry_remove(ctx->mmap_phc);
 	rdma_user_mmap_entry_remove(ctx->mmap_dbell);
 	ionic_put_dbid(dev, ctx->dbid);
+}
+
+static int ionic_mmap_phc_state(struct ionic_ibdev *dev,
+				struct vm_area_struct *vma)
+{
+	if (!(vma->vm_flags & VM_SHARED))
+		return -EINVAL;
+
+	if (vma->vm_flags & (VM_WRITE | VM_EXEC))
+		return -EPERM;
+
+	vm_flags_clear(vma, VM_MAYWRITE);
+
+	return vm_insert_page(vma, vma->vm_start,
+			      virt_to_page(dev->lif_cfg.phc_state));
 }
 
 int ionic_mmap(struct ib_ucontext *ibctx, struct vm_area_struct *vma)
@@ -454,6 +482,12 @@ int ionic_mmap(struct ib_ucontext *ibctx, struct vm_area_struct *vma)
 
 	ionic_entry = container_of(rdma_entry, struct ionic_mmap_entry,
 				   rdma_entry);
+
+	if (ionic_entry->mmap_flags & IONIC_MMAP_PHC) {
+		rc = ionic_mmap_phc_state(dev, vma);
+		rdma_user_mmap_entry_put(rdma_entry);
+		return rc;
+	}
 
 	ibdev_dbg(&dev->ibdev, "writecombine? %d\n",
 		  ionic_entry->mmap_flags & IONIC_MMAP_WC);
