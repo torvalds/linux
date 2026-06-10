@@ -80,6 +80,7 @@ properties:
           - qcom,pmcx0102
           - qcom,pmd8028
           - qcom,pmd9635
+          - qcom,pmg1110
           - qcom,pmh0101
           - qcom,pmh0104
           - qcom,pmh0110
