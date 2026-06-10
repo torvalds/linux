@@ -1379,4 +1379,37 @@ enum ib_uverbs_raw_packet_caps {
 	IB_UVERBS_RAW_PACKET_CAP_DELAY_DROP = 1 << 3,
 };
 
+/*
+ * struct ib_uverbs_clock_info - timecounter state shared with userspace
+ *
+ * Drivers that use a software timecounter over a free-running hardware
+ * cycle counter can map this page read-only into userspace, allowing
+ * conversion of hardware timestamps to system time without a syscall.
+ *
+ * Synchronization uses a sequence counter (@sign): the kernel sets bit 0
+ * before updating, then advances by 2 after. Userspace must retry the read
+ * if @sign is odd or changed during the read.
+ *
+ * @sign:            Sequence counter (bit 0 = update in progress)
+ * @resv:            Reserved
+ * @nsec:            Nanoseconds at last update
+ * @cycles:          Cycle counter value at last update
+ * @frac:            Fractional nanoseconds at last update
+ * @mult:            Cycle-to-nanosecond multiplier
+ * @shift:           Cycle-to-nanosecond shift
+ * @mask:            Cycle counter bitmask
+ * @overflow_period: Max interval (nsec) between reads before counter wraps
+ */
+struct ib_uverbs_clock_info {
+	__u32 sign;
+	__u32 resv;
+	__aligned_u64 nsec;
+	__aligned_u64 cycles;
+	__aligned_u64 frac;
+	__u32 mult;
+	__u32 shift;
+	__aligned_u64 mask;
+	__aligned_u64 overflow_period;
+};
+
 #endif /* IB_USER_VERBS_H */
