@@ -11,7 +11,6 @@
 #include <linux/kernel.h>
 #include <linux/rcupdate.h>
 #include <linux/spinlock.h>
-/* #define CONFIG_MAPLE_RCU_DISABLED */
 
 /*
  * Allocated nodes are mutable until they have been inserted into the tree,
@@ -864,9 +863,6 @@ static inline void mt_init(struct maple_tree *mt)
 
 static inline bool mt_in_rcu(struct maple_tree *mt)
 {
-#ifdef CONFIG_MAPLE_RCU_DISABLED
-	return false;
-#endif
 	return mt->ma_flags & MT_FLAGS_USE_RCU;
 }
 
