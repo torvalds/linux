@@ -2584,7 +2584,7 @@ static void query_phy_status_page0(struct rtw_dev *rtwdev, u8 *phy_status,
 	pkt_stat->rx_power[RF_PATH_A] = rx_power[RF_PATH_A];
 	pkt_stat->rx_power[RF_PATH_B] = rx_power[RF_PATH_B];
 
-	for (path = 0; path <= rtwdev->hal.rf_path_num; path++) {
+	for (path = 0; path < rtwdev->hal.rf_path_num; path++) {
 		rssi = rtw_phy_rf_power_2_rssi(&pkt_stat->rx_power[path], 1);
 		dm_info->rssi[path] = rssi;
 	}
@@ -2644,7 +2644,7 @@ static void query_phy_status_page1(struct rtw_dev *rtwdev, u8 *phy_status,
 	pkt_stat->cfo_tail[RF_PATH_A] = GET_PHY_STAT_P1_CFO_TAIL_A(phy_status);
 	pkt_stat->cfo_tail[RF_PATH_B] = GET_PHY_STAT_P1_CFO_TAIL_B(phy_status);
 
-	for (path = 0; path <= rtwdev->hal.rf_path_num; path++) {
+	for (path = 0; path < rtwdev->hal.rf_path_num; path++) {
 		rssi = rtw_phy_rf_power_2_rssi(&pkt_stat->rx_power[path], 1);
 		dm_info->rssi[path] = rssi;
 		if (path == RF_PATH_A) {
