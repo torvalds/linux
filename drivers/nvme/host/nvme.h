@@ -1184,6 +1184,15 @@ static inline bool nvme_mpath_queue_if_no_path(struct nvme_ns_head *head)
 }
 #endif /* CONFIG_NVME_MULTIPATH */
 
+#if defined(CONFIG_NVME_MULTIPATH) && defined(CONFIG_BLK_DEV_ZONED)
+int nvme_mpath_revalidate_zones(struct nvme_ns_head *head);
+#else
+static inline int nvme_mpath_revalidate_zones(struct nvme_ns_head *head)
+{
+	return 0;
+}
+#endif
+
 int nvme_ns_get_unique_id(struct nvme_ns *ns, u8 id[16],
 		enum blk_unique_id type);
 

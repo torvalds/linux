@@ -2592,11 +2592,15 @@ static int nvme_update_ns_info(struct nvme_ns *ns, struct nvme_ns_info *info)
 		lim.max_write_streams = ns_lim->max_write_streams;
 		lim.write_stream_granularity = ns_lim->write_stream_granularity;
 		ret = queue_limits_commit_update(ns->head->disk->queue, &lim);
+		if (ret)
+			goto unfreeze_head_queue;
 
 		set_capacity_and_notify(ns->head->disk, get_capacity(ns->disk));
 		set_disk_ro(ns->head->disk, nvme_ns_is_readonly(ns, info));
 		nvme_mpath_revalidate_paths(ns->head);
+		ret = nvme_mpath_revalidate_zones(ns->head);
 
+unfreeze_head_queue:
 		blk_mq_unfreeze_queue(ns->head->disk->queue, memflags);
 	}
 

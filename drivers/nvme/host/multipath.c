@@ -288,6 +288,25 @@ void nvme_mpath_revalidate_paths(struct nvme_ns_head *head)
 	kblockd_schedule_work(&head->requeue_work);
 }
 
+#ifdef CONFIG_BLK_DEV_ZONED
+int nvme_mpath_revalidate_zones(struct nvme_ns_head *head)
+{
+	struct gendisk *disk = head->disk;
+	int ret;
+
+	if (!disk || !blk_queue_is_zoned(disk->queue) ||
+	    !test_bit(NVME_NSHEAD_DISK_LIVE, &head->flags))
+		return 0;
+
+	ret = blk_revalidate_disk_zones(disk);
+	if (ret)
+		dev_warn_ratelimited(disk_to_dev(disk),
+				     "failed to revalidate zoned namespace head: %d\n",
+				     ret);
+	return ret;
+}
+#endif /* CONFIG_BLK_DEV_ZONED */
+
 static bool nvme_path_is_disabled(struct nvme_ns *ns)
 {
 	enum nvme_ctrl_state state = nvme_ctrl_state(ns->ctrl);
@@ -819,6 +838,7 @@ static void nvme_mpath_set_live(struct nvme_ns *ns)
 	mutex_unlock(&head->lock);
 
 	synchronize_srcu(&head->srcu);
+	nvme_mpath_revalidate_zones(head);
 	kblockd_schedule_work(&head->requeue_work);
 }
 
@@ -1375,10 +1395,6 @@ void nvme_mpath_add_disk(struct nvme_ns *ns, __le32 anagrpid)
 		nvme_mpath_set_live(ns);
 	}
 
-#ifdef CONFIG_BLK_DEV_ZONED
-	if (blk_queue_is_zoned(ns->queue) && ns->head->disk)
-		ns->head->disk->nr_zones = ns->disk->nr_zones;
-#endif
 }
 
 void nvme_mpath_remove_disk(struct nvme_ns_head *head)
