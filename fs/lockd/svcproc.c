@@ -133,7 +133,7 @@ nlm3svc_lookup_host(struct svc_rqst *rqstp, string caller, bool monitored)
 {
 	struct nlm_host *host;
 
-	if (!nlmsvc_ops)
+	if (!rcu_access_pointer(nlmsvc_ops))
 		return NULL;
 	host = nlmsvc_lookup_host(rqstp, caller.data, caller.len);
 	if (!host)
@@ -924,7 +924,7 @@ static __be32 nlmsvc_proc_granted_res(struct svc_rqst *rqstp)
 {
 	struct nlm_res_wrapper *argp = rqstp->rq_argp;
 
-	if (!nlmsvc_ops)
+	if (!rcu_access_pointer(nlmsvc_ops))
 		return rpc_success;
 
 	if (nlm_netobj_to_cookie(&argp->cookie, &argp->xdrgen.cookie))
