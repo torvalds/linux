@@ -237,15 +237,21 @@ static void nfsd_net_free(struct percpu_ref *ref)
  */
 #define	NFSD_MAXSERVS		8192
 
+/**
+ * nfsd_nrthreads - report a namespace's configured nfsd thread count
+ * @net: network namespace to query
+ *
+ * Return: the configured thread ceiling, or 0 when no service runs.
+ */
 int nfsd_nrthreads(struct net *net)
 {
-	int i, rv = 0;
+	int rv = 0;
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
+	/* nfsd_mutex keeps nn->nfsd_serv valid across the read. */
 	mutex_lock(&nfsd_mutex);
 	if (nn->nfsd_serv)
-		for (i = 0; i < nn->nfsd_serv->sv_nrpools; ++i)
-			rv += nn->nfsd_serv->sv_pools[i].sp_nrthrmax;
+		rv = svc_serv_maxthreads(nn->nfsd_serv);
 	mutex_unlock(&nfsd_mutex);
 	return rv;
 }

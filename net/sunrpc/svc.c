@@ -988,6 +988,29 @@ svc_set_num_threads(struct svc_serv *serv, unsigned int min_threads,
 EXPORT_SYMBOL_GPL(svc_set_num_threads);
 
 /**
+ * svc_serv_maxthreads - report a service's configured thread ceiling
+ * @serv: RPC service to query
+ *
+ * A pooled service sizes its threads dynamically, so the number of
+ * threads running at any moment tracks recent load rather than the
+ * service's capacity. The per-pool maximum is the stable figure a
+ * consumer should size against.
+ *
+ * The caller must keep @serv valid for the duration of the call.
+ *
+ * Return: the sum of every pool's maximum thread count.
+ */
+unsigned int svc_serv_maxthreads(const struct svc_serv *serv)
+{
+	unsigned int i, max = 0;
+
+	for (i = 0; i < serv->sv_nrpools; i++)
+		max += data_race(serv->sv_pools[i].sp_nrthrmax);
+	return max;
+}
+EXPORT_SYMBOL_GPL(svc_serv_maxthreads);
+
+/**
  * svc_rqst_replace_page - Replace one page in rq_respages[]
  * @rqstp: svc_rqst with pages to replace
  * @page: replacement page

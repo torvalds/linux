@@ -469,6 +469,7 @@ int		   svc_set_pool_threads(struct svc_serv *serv, struct svc_pool *pool,
 					unsigned int min_threads, unsigned int max_threads);
 int		   svc_set_num_threads(struct svc_serv *serv, unsigned int min_threads,
 				       unsigned int nrservs);
+unsigned int	   svc_serv_maxthreads(const struct svc_serv *serv);
 int		   svc_pool_stats_open(struct svc_info *si, struct file *file);
 void		   svc_process(struct svc_rqst *rqstp);
 void		   svc_process_bc(struct rpc_rqst *req, struct svc_rqst *rqstp);
