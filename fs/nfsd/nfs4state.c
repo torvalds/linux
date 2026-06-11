@@ -7876,7 +7876,7 @@ retry:
 		return status;
 	stp = openlockstateid(s);
 	if (nfsd4_cstate_assign_replay(cstate, stp->st_stateowner) == -EAGAIN) {
-		nfs4_put_stateowner(stp->st_stateowner);
+		nfs4_put_stid(&stp->st_stid);
 		goto retry;
 	}
 
