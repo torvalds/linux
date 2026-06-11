@@ -2087,20 +2087,13 @@ free_session_slots(struct nfsd4_session *ses, int from)
 	}
 }
 
-/**
- * reduce_session_slots - reduce the target max-slots of a session if possible
- * @ses:  The session to affect
- * @dec:  how much to decrease the target by
- *
+/*
  * This interface can be used by a shrinker to reduce the target max-slots
  * for a session so that some slots can eventually be freed.
  * It uses spin_trylock() as it may be called in a context where another
  * spinlock is held that has a dependency on client_lock.  As shrinkers are
- * best-effort, skiping a session is client_lock is already held has no
- * great coast
- *
- * Return value:
- *   The number of slots that the target was reduced by.
+ * best-effort, skipping a session with the client_lock already held has no
+ * great cost.
  */
 static int
 reduce_session_slots(struct nfsd4_session *ses, int dec)
