@@ -72,8 +72,15 @@ enum bug_trap_type handle_cfi_failure(struct pt_regs *regs)
 
 	switch (cfi_mode) {
 	case CFI_KCFI:
-		if (!is_cfi_trap(addr))
-			return BUG_TRAP_TYPE_NONE;
+		if (!is_cfi_trap(addr)) {
+			/*
+			 * The updated kCFI sequence has "test $0xd6, %al" instead of
+			 * "ud2", adjust the offset.
+			 */
+			addr -= 1;
+			if (!is_cfi_trap(addr))
+				return BUG_TRAP_TYPE_NONE;
+		}
 
 		if (!decode_cfi_insn(regs, &target, &type))
 			return report_cfi_failure_noaddr(regs, addr);
