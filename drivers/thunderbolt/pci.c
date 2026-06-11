@@ -230,7 +230,7 @@ static void nhi_pci_ring_release_msix(struct tb_ring *ring)
 	ring->irq = 0;
 }
 
-static void nhi_pci_shutdown(struct tb_nhi *nhi)
+static void nhi_pci_release_irq(struct tb_nhi *nhi)
 {
 	struct tb_nhi_pci *nhi_pci = nhi_to_pci(nhi);
 	struct pci_dev *pdev = to_pci_dev(nhi->dev);
@@ -256,7 +256,7 @@ static const struct tb_nhi_ops pci_nhi_default_ops = {
 	.post_nvm_auth = nhi_pci_complete_dma_port,
 	.request_ring_irq = nhi_pci_ring_request_msix,
 	.release_ring_irq = nhi_pci_ring_release_msix,
-	.shutdown = nhi_pci_shutdown,
+	.shutdown = nhi_pci_release_irq,
 	.is_present = nhi_pci_is_present,
 	.init_interrupts = nhi_pci_init_msi,
 };
@@ -424,7 +424,7 @@ static int icl_nhi_resume(struct tb_nhi *nhi)
 
 static void icl_nhi_shutdown(struct tb_nhi *nhi)
 {
-	nhi_pci_shutdown(nhi);
+	nhi_pci_release_irq(nhi);
 
 	icl_nhi_force_power(nhi, false);
 }
@@ -479,10 +479,18 @@ static int nhi_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return nhi_probe(&nhi_pci->nhi);
 }
 
-static void nhi_pci_remove(struct pci_dev *pdev)
+static void nhi_pci_do_remove(struct pci_dev *pdev, bool reset)
 {
 	struct tb *tb = pci_get_drvdata(pdev);
 	struct tb_nhi *nhi = tb->nhi;
+
+	/*
+	 * On system shutdown/reboot force a host router reset so the
+	 * connection manager asserts DPR on connected Thunderbolt 3 devices
+	 * before the router tree is removed (see tb_stop()).
+	 */
+	if (reset)
+		nhi->host_reset = true;
 
 	pm_runtime_get_sync(&pdev->dev);
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
@@ -491,6 +499,16 @@ static void nhi_pci_remove(struct pci_dev *pdev)
 	tb_domain_remove(tb);
 	wait_for_completion(&nhi->domain_released);
 	nhi_shutdown(nhi);
+}
+
+static void nhi_pci_remove(struct pci_dev *pdev)
+{
+	nhi_pci_do_remove(pdev, false);
+}
+
+static void nhi_pci_shutdown(struct pci_dev *pdev)
+{
+	nhi_pci_do_remove(pdev, true);
 }
 
 static struct pci_device_id nhi_ids[] = {
@@ -593,7 +611,7 @@ static struct pci_driver nhi_driver = {
 	.id_table = nhi_ids,
 	.probe = nhi_pci_probe,
 	.remove = nhi_pci_remove,
-	.shutdown = nhi_pci_remove,
+	.shutdown = nhi_pci_shutdown,
 	.driver.pm = &nhi_pm_ops,
 };
 

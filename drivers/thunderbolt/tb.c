@@ -2941,7 +2941,9 @@ static void tb_handle_event(struct tb *tb, enum tb_cfg_pkg_type type,
 static void tb_stop(struct tb *tb)
 {
 	struct tb_cm *tcm = tb_priv(tb);
+	struct tb_nhi *nhi = tb->nhi;
 	struct tb_tunnel *tunnel;
+	struct tb_port *port;
 	struct tb_tunnel *n;
 
 	cancel_delayed_work(&tcm->remove_work);
@@ -2955,6 +2957,25 @@ static void tb_stop(struct tb *tb)
 		if (tb_tunnel_is_dma(tunnel))
 			tb_tunnel_deactivate(tunnel);
 		tb_tunnel_put(tunnel);
+	}
+	/*
+	 * Signal disconnect to connected devices before the router tree is
+	 * removed below. A Thunderbolt 3 device directly connected to a USB4
+	 * host otherwise never receives a disconnect indication, leaving
+	 * firmware to poll the dead link for up to ~60 s which on some
+	 * platforms turns the shutdown into a warm reset. Asserting
+	 * PORT_CS_19.DPR drives SBTX low (USB4 spec section 6.9) so the device
+	 * detects SBRX low and goes to Uninitialized Unplugged immediately.
+	 */
+	if (nhi->host_reset) {
+		tb_switch_for_each_port(tb->root_switch, port) {
+			if (!tb_port_is_null(port) || !tb_port_has_remote(port))
+				continue;
+			if (tb_switch_is_usb4(port->remote->sw))
+				continue;
+			if (tb_port_reset(port))
+				tb_port_dbg(port, "downstream port reset failed, continuing\n");
+		}
 	}
 	tb_switch_remove(tb->root_switch);
 	tb->root_switch = NULL;

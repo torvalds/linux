@@ -514,6 +514,11 @@ void tb_service_properties_changed(struct tb_service *svc);
  * @hop_count: Number of rings (end point hops) supported by NHI.
  * @quirks: NHI specific quirks if any
  * @domain_released: Completed when domain has been fully released
+ * @host_reset: Host router was reset on driver load, or forced on system
+ *		shutdown/reboot. When set, tb_stop() asserts DPR on connected
+ *		downstream ports to signal disconnect before tearing down the
+ *		router tree. Only Thunderbolt 3 devices are reset; USB4
+ *		routers are skipped.
  */
 struct tb_nhi {
 	spinlock_t lock;
@@ -528,6 +533,7 @@ struct tb_nhi {
 	u32 hop_count;
 	unsigned long quirks;
 	struct completion domain_released;
+	bool host_reset;
 };
 
 /**

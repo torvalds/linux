@@ -1235,6 +1235,8 @@ int nhi_probe(struct tb_nhi *nhi)
 
 	init_completion(&nhi->domain_released);
 
+	nhi->host_reset = host_reset;
+
 	res = tb_domain_add(tb, host_reset);
 	if (res) {
 		/*
