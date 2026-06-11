@@ -2052,7 +2052,7 @@ static unsigned long damon_get_intervals_adaptation_bp(struct damon_ctx *c)
 	return adaptation_bp;
 }
 
-static void kdamond_tune_intervals(struct damon_ctx *c)
+static noinline_for_stack void kdamond_tune_intervals(struct damon_ctx *c)
 {
 	unsigned long adaptation_bp;
 	struct damon_attrs new_attrs;
