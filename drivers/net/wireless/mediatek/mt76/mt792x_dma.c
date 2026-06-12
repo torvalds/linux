@@ -386,7 +386,7 @@ int mt792x_dma_disable(struct mt792x_dev *dev, bool force)
 
 	/* disable dmashdl */
 	mt76_clear(dev, MT_WFDMA0_GLO_CFG_EXT0,
-		   MT_WFDMA0_CSR_TX_DMASHDL_ENABLE);
+		   MT_WFDMA0_GLO_CFG_EXT0_CSR_TX_DMASHDL_EN);
 	mt76_set(dev, MT_DMASHDL_SW_CONTROL, MT_DMASHDL_DMASHDL_BYPASS);
 
 	if (force) {
