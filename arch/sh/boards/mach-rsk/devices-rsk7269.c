@@ -11,7 +11,6 @@
 #include <linux/interrupt.h>
 #include <linux/input.h>
 #include <linux/smsc911x.h>
-#include <linux/gpio.h>
 #include <asm/machvec.h>
 #include <asm/io.h>
 

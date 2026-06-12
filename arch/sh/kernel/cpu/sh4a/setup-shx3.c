@@ -9,7 +9,7 @@
 #include <linux/serial.h>
 #include <linux/serial_sci.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
+#include <linux/gpio/legacy.h>
 #include <linux/sh_timer.h>
 #include <linux/sh_intc.h>
 #include <cpu/shx3.h>

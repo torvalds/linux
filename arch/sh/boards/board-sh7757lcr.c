@@ -7,7 +7,7 @@
 
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/gpio.h>
+#include <linux/gpio/legacy.h>
 #include <linux/irq.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
