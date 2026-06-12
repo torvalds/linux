@@ -286,6 +286,10 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 		.drv_own = mt792xe_mcu_drv_pmctrl,
 		.fw_own = mt792xe_mcu_fw_pmctrl,
 	};
+	static const struct mt792x_pcie_reg mt7921_pcie_reg = {
+		.imask = MT_PCIE_MAC_INT_ENABLE,
+		.pm = MT_PCIE_MAC_PM,
+	};
 	static const struct mt792x_irq_map irq_map = {
 		.host_irq_enable = MT_WFDMA0_HOST_INT_ENA,
 		.tx = {
@@ -355,6 +359,7 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 
 	dev->fw_features = features;
 	dev->hif_ops = &mt7921_pcie_ops;
+	dev->pcie_reg = &mt7921_pcie_reg;
 	dev->irq_map = &irq_map;
 	mt76_mmio_init(&dev->mt76, regs);
 
