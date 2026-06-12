@@ -4115,10 +4115,10 @@ static int copy_remapped_data(struct btrfs_fs_info *fs_info, u64 old_addr,
 			      u64 new_addr, u64 length)
 {
 	int ret;
-	u64 copy_len = min_t(u64, length, SZ_1M);
+	const u64 copy_len = min_t(u64, length, SZ_1M);
 	struct page **pages;
 	struct reloc_io_private priv;
-	unsigned int nr_pages = DIV_ROUND_UP(length, PAGE_SIZE);
+	const unsigned int nr_pages = DIV_ROUND_UP(copy_len, PAGE_SIZE);
 
 	pages = kzalloc_objs(struct page *, nr_pages, GFP_NOFS);
 	if (!pages)
