@@ -172,6 +172,7 @@ extern int movable_gigantic_pages __read_mostly;
 extern int sysctl_hugetlb_shm_group __read_mostly;
 extern struct list_head huge_boot_pages[MAX_NUMNODES];
 
+void hugetlb_bootmem_struct_page_init(void);
 void hugetlb_bootmem_alloc(void);
 extern nodemask_t hugetlb_bootmem_nodes;
 void hugetlb_bootmem_set_nodes(void);
@@ -1292,6 +1293,10 @@ static inline bool hugetlbfs_pagecache_present(
 }
 
 static inline void hugetlb_bootmem_alloc(void)
+{
+}
+
+static inline void hugetlb_bootmem_struct_page_init(void)
 {
 }
 #endif	/* CONFIG_HUGETLB_PAGE */
