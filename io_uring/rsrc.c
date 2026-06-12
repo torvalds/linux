@@ -1015,63 +1015,81 @@ int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 	return ret;
 }
 
+static struct io_mapped_ubuf *io_kernel_buffer_init(struct io_ring_ctx *ctx,
+						    unsigned int nr_bvecs,
+						    unsigned int total_bytes,
+						    u8 dir,
+						    void (*release)(void *),
+						    void *priv,
+						    unsigned int index)
+{
+	struct io_rsrc_data *data = &ctx->buf_table;
+	struct io_mapped_ubuf *imu;
+	struct io_rsrc_node *node;
+
+	if (index >= data->nr)
+		return ERR_PTR(-EINVAL);
+	index = array_index_nospec(index, data->nr);
+
+	if (data->nodes[index])
+		return ERR_PTR(-EBUSY);
+
+	node = io_rsrc_node_alloc(ctx, IORING_RSRC_BUFFER);
+	if (!node)
+		return ERR_PTR(-ENOMEM);
+
+	imu = io_alloc_imu(ctx, nr_bvecs);
+	if (!imu) {
+		io_cache_free(&ctx->node_cache, node);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	imu->ubuf = 0;
+	imu->len = total_bytes;
+	imu->folio_shift = PAGE_SHIFT;
+	imu->nr_bvecs = nr_bvecs;
+	refcount_set(&imu->refs, 1);
+	imu->release = release;
+	imu->priv = priv;
+	imu->dir = dir;
+	imu->flags = IO_REGBUF_F_KBUF;
+
+	node->buf = imu;
+	data->nodes[index] = node;
+
+	return imu;
+}
+
 int io_buffer_register_request(struct io_uring_cmd *cmd, struct request *rq,
 			       void (*release)(void *), unsigned int index,
 			       unsigned int issue_flags)
 {
 	struct io_ring_ctx *ctx = cmd_to_io_kiocb(cmd)->ctx;
-	struct io_rsrc_data *data = &ctx->buf_table;
 	struct req_iterator rq_iter;
 	struct io_mapped_ubuf *imu;
-	struct io_rsrc_node *node;
 	struct bio_vec bv;
-	unsigned int nr_bvecs = 0;
-	int ret = 0;
-
-	io_ring_submit_lock(ctx, issue_flags);
-	if (index >= data->nr) {
-		ret = -EINVAL;
-		goto unlock;
-	}
-	index = array_index_nospec(index, data->nr);
-
-	if (data->nodes[index]) {
-		ret = -EBUSY;
-		goto unlock;
-	}
-
-	node = io_rsrc_node_alloc(ctx, IORING_RSRC_BUFFER);
-	if (!node) {
-		ret = -ENOMEM;
-		goto unlock;
-	}
-
 	/*
 	 * blk_rq_nr_phys_segments() may overestimate the number of bvecs
 	 * but avoids needing to iterate over the bvecs
 	 */
-	imu = io_alloc_imu(ctx, blk_rq_nr_phys_segments(rq));
-	if (!imu) {
-		io_cache_free(&ctx->node_cache, node);
-		ret = -ENOMEM;
+	unsigned int nr_bvecs = blk_rq_nr_phys_segments(rq);
+	unsigned int total_bytes = blk_rq_bytes(rq);
+	int ret = 0;
+
+	io_ring_submit_lock(ctx, issue_flags);
+
+	imu = io_kernel_buffer_init(ctx, nr_bvecs, total_bytes,
+				    1 << rq_data_dir(rq), release, rq, index);
+	if (IS_ERR(imu)) {
+		ret = PTR_ERR(imu);
 		goto unlock;
 	}
 
-	imu->ubuf = 0;
-	imu->len = blk_rq_bytes(rq);
-	imu->folio_shift = PAGE_SHIFT;
-	refcount_set(&imu->refs, 1);
-	imu->release = release;
-	imu->priv = rq;
-	imu->flags = IO_REGBUF_F_KBUF;
-	imu->dir = 1 << rq_data_dir(rq);
-
+	nr_bvecs = 0;
 	rq_for_each_bvec(bv, rq, rq_iter)
 		imu->bvec[nr_bvecs++] = bv;
 	imu->nr_bvecs = nr_bvecs;
 
-	node->buf = imu;
-	data->nodes[index] = node;
 unlock:
 	io_ring_submit_unlock(ctx, issue_flags);
 	return ret;
