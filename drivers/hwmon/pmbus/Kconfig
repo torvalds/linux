@@ -677,6 +677,25 @@ config SENSORS_STEF48H28
 	  This driver can also be built as a module. If so, the module will
 	  be called stef48h28.
 
+config SENSORS_SQ24860
+	tristate "Silergy SQ24860"
+	help
+	  If you say yes here you get hardware monitoring support for Silergy
+	  SQ24860 eFuse.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called sq24860.
+
+config SENSORS_SQ24860_REGULATOR
+	bool "Regulator support for SQ24860"
+	depends on SENSORS_SQ24860 && REGULATOR
+	default SENSORS_SQ24860
+	help
+	  If you say yes here you get regulator support for Silergy SQ24860.
+	  The regulator is registered through the PMBus regulator framework and
+	  can be used to control the output exposed by the device.
+	  This option is only useful if regulator framework support is needed.
+
 config SENSORS_STPDDC60
 	tristate "ST STPDDC60"
 	help
