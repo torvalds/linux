@@ -33,7 +33,7 @@
 #define MT792x_CHIP_CAP_MLO_EML_EN BIT(9)
 
 /* NOTE: used to map mt76_rates. idx may change if firmware expands table */
-#define MT792x_BASIC_RATES_TBL	11
+#define MT792x_BASIC_RATES_TBL	14
 
 #define MT792x_WATCHDOG_TIME	(HZ / 4)
 
