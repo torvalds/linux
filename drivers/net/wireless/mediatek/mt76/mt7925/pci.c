@@ -161,7 +161,7 @@ static u32 __mt7925_reg_addr(struct mt792x_dev *dev, u32 addr)
 		{ 0x7c060000, 0x0e0000, 0x0010000 }, /* CONN_INFRA, conn_host_csr_top */
 		{ 0x7c000000, 0x0f0000, 0x0010000 }, /* CONN_INFRA */
 		{ 0x70020000, 0x1f0000, 0x0010000 }, /* Reserved for CBTOP, can't switch */
-		{ 0x7c500000, 0x060000, 0x2000000 }, /* remap */
+		{ 0x7c500000, 0x060000, 0x200000 },  /* remap */
 		{ 0x0, 0x0, 0x0 } /* End */
 	};
 	int i;
