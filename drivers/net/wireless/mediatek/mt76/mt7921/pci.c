@@ -293,6 +293,7 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 			.mcu_complete_mask = MT_INT_TX_DONE_MCU,
 		},
 		.rx = {
+			.all_complete_mask = MT_INT_RX_DONE_ALL,
 			.data_complete_mask = MT_INT_RX_DONE_DATA,
 			.wm_complete_mask = MT_INT_RX_DONE_WM,
 			.wm2_complete_mask = MT_INT_RX_DONE_WM2,
@@ -560,7 +561,8 @@ static int mt7921_pci_resume(struct device *device)
 	mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0xff);
 	mt76_connac_irq_enable(&dev->mt76,
 			       dev->irq_map->tx.all_complete_mask |
-			       MT_INT_RX_DONE_ALL | MT_INT_MCU_CMD);
+			       dev->irq_map->rx.all_complete_mask |
+			       MT_INT_MCU_CMD);
 	mt76_set(dev, MT_MCU2HOST_SW_INT_ENA, MT_MCU_CMD_WAKE_RX_PCIE);
 
 	/* put dma enabled */
