@@ -252,6 +252,27 @@ static const struct mt792x_dma_layout mt7927_dma_layout = {
 				   MT_RX_DATA_RING_BASE),
 };
 
+static const struct mt792x_dma_layout mt7928_dma_layout = {
+	.tx_data0 = mt792x_dma_ring(MT7925_TXQ_BAND0,
+				    MT7925_TX_RING_SIZE,
+				    MT_TX_RING_BASE),
+	.tx_mcu = mt792x_dma_ring(MT7925_TXQ_MCU_WM,
+				  MT7925_TX_MCU_RING_SIZE,
+				  MT_TX_RING_BASE),
+	.tx_fwdl = mt792x_dma_ring(MT7925_TXQ_FWDL,
+				   MT7925_TX_FWDL_RING_SIZE,
+				   MT_TX_RING_BASE),
+	.tx_done = mt792x_dma_ring(MT7928_RXQ_MCU_WM2,
+				   MT7928_RX_MCU_WA_RING_SIZE,
+				   MT_RX_EVENT_RING_BASE),
+	.rx_mcu = mt792x_dma_ring(MT7928_RXQ_MCU_WM,
+				  MT7925_RX_MCU_RING_SIZE,
+				  MT_RX_EVENT_RING_BASE),
+	.rx_data = mt792x_dma_ring(MT7928_RXQ_BAND0,
+				   MT7925_RX_RING_SIZE,
+				   MT_RX_DATA_RING_BASE),
+};
+
 static int mt7927_dma_init(struct mt792x_dev *dev)
 {
 	int ret;
@@ -279,17 +300,71 @@ static int mt7927_dma_init(struct mt792x_dev *dev)
 	return mt792x_dma_enable(dev);
 }
 
+static void mt7928_dma_shdl_lite_init(struct mt792x_dev *dev)
+{
+	u32 addr, idx, grp1_5_quota, grp15_quota;
+	u32 q2group[8] = {
+		0x04000000, /* AC00->G0,..., AC03->G4 */
+		0x04010101, /* AC10->G1,..., AC13->G4 */
+		0x04020202, /* AC20->G2,..., AC23->G4 */
+		0x04030303, /* AC30->G3,..., AC33->G4 */
+		0x00000005, /* ALTX->G5,BMC->G0,BCN->G0 */
+		0x00000005, /* TGID=1 ALTX->G5 */
+		0x00000000, /* NAF/NBCN/FIXFID -> G0 */
+		0x00000005, /* TGID=2 ALTX->G5 */
+	};
+
+	/* RST */
+	mt76_wr(dev, MT_DMASHDL_LITE_MAIN_CONTROL, MT_DMASHDL_LITE_MAIN_CONTROL_SW_RST);
+	/* pse page size 0x10, ple page size 0x7e0 */
+	mt76_wr(dev, MT_DMASHDL_LITE_PAGE_SIZE,
+		FIELD_PREP(MT_DMASHDL_LITE_PSE_PAGE_SIZE_MASK, 0x10) |
+		FIELD_PREP(MT_DMASHDL_LITE_PLE_PAGE_SIZE_MASK, 0x7e0));
+	/* pse max page 8, ple max page 1 */
+	mt76_wr(dev, MT_DMASHDL_LITE_PKT_MAX_SIZE,
+		FIELD_PREP(MT_DMASHDL_LITE_PSE_PKT_MAX_SIZE_MASK, 8) |
+		FIELD_PREP(MT_DMASHDL_LITE_PLE_PKT_MAX_SIZE_MASK, 1));
+	/* SN/UDF check */
+	mt76_wr(dev, MT_DMASHDL_LITE_GROUP_SN_CHK0, 0xffffffff);
+	mt76_wr(dev, MT_DMASHDL_LITE_GROUP_SN_CHK1, 0xffffffff);
+	mt76_wr(dev, MT_DMASHDL_LITE_GROUP_UDF_CHK0, 0xffffffff);
+	mt76_wr(dev, MT_DMASHDL_LITE_GROUP_UDF_CHK1, 0xffffffff);
+	/* q mapping */
+	for (addr = MT_DMASHDL_LITE_Q_MAPPING0, idx = 0;
+	     idx < ARRAY_SIZE(q2group);
+	     idx++, addr += 4)
+		mt76_wr(dev, addr, q2group[idx]);
+	/* refill, set 0 to enable group 0,1,2,3,4,5 & 15 */
+	mt76_wr(dev, MT_DMASHDL_LITE_GROUP_DISABLE0, 0xffff7fc0);
+	mt76_wr(dev, MT_DMASHDL_LITE_GROUP_DISABLE1, 0xffffffff);
+	/* max/min quota */
+	grp1_5_quota = FIELD_PREP(MT_DMASHDL_LITE_GROUP_MAX_QUOTA_MASK, 0x3f0) |
+		       FIELD_PREP(MT_DMASHDL_LITE_GROUP_MIN_QUOTA_MASK, 0x10);
+	grp15_quota = FIELD_PREP(MT_DMASHDL_LITE_GROUP_MAX_QUOTA_MASK, 0x30);
+
+	for (addr = MT_DMASHDL_LITE_GROUP0_QUOTA, idx = 0;
+	     idx < DMASHDL_LITE_GROUP_NUM;
+	     idx++, addr += 4)
+		mt76_wr(dev, addr, (idx <= 5) ? grp1_5_quota :
+			((idx == 15) ? grp15_quota : 0));
+}
+
 static int mt7925_dma_init(struct mt792x_dev *dev)
 {
 	int ret;
+	const struct mt792x_dma_layout *layout =
+		is_mt7928(&dev->mt76) ? &mt7928_dma_layout : &mt7925_dma_layout;
 
-	ret = mt792x_dma_alloc_queues(dev, &mt7925_dma_layout);
+	ret = mt792x_dma_alloc_queues(dev, layout);
 	if (ret)
 		return ret;
 
 	ret = mt76_init_queues(dev, mt792x_poll_rx);
 	if (ret < 0)
 		return ret;
+
+	if (is_mt7928(&dev->mt76))
+		mt7928_dma_shdl_lite_init(dev);
 
 	netif_napi_add_tx(dev->mt76.tx_napi_dev, &dev->mt76.tx_napi,
 			  mt792x_poll_tx);
@@ -402,13 +477,17 @@ static int mt7925_pci_probe(struct pci_dev *pdev,
 	if (ret < 0)
 		return ret;
 
-	ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
-	if (ret)
-		goto err_free_pci_vec;
-
 	is_mt7927_hw = (pdev->device == 0x6639 || pdev->device == 0x7927 ||
 			pdev->device == 0x0738);
 	is_mt7928_hw = (pdev->device == 0x7928 || pdev->device == 0x7935);
+
+	if (is_mt7928_hw)
+		ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(34));
+	else
+		ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
+
+	if (ret)
+		goto err_free_pci_vec;
 
 	/* MT7927: ASPM L1 causes unreliable WFDMA register access */
 	if (mt7925_disable_aspm || is_mt7927_hw)
@@ -499,7 +578,7 @@ static int mt7925_pci_probe(struct pci_dev *pdev,
 
 	if (is_mt7927(&dev->mt76))
 		ret = mt7927_dma_init(dev);
-	else if (is_mt7925(&dev->mt76))
+	else if (is_mt7925(&dev->mt76) || is_mt7928(&dev->mt76))
 		ret = mt7925_dma_init(dev);
 	else
 		ret = -EINVAL;

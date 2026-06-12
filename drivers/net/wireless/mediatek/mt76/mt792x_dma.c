@@ -206,9 +206,38 @@ static void mt7927_wfdma_setup(struct mt792x_dev *dev)
 	mt76_set(dev, MT_WFDMA0_INT_TX_PRI, 0x7F00);
 }
 
+static void mt7928_dma_prefetch_setup(struct mt792x_dev *dev)
+{
+	/* rx ring */
+	mt76_wr(dev, MT_WFDMA0_RX_RING0_EXT_CTRL, PREFETCH(0x0000, 0x8));
+	mt76_wr(dev, MT_WFDMA0_RX_RING1_EXT_CTRL, PREFETCH(0x0080, 0x4));
+	mt76_wr(dev, MT_WFDMA0_RX_RING2_EXT_CTRL, PREFETCH(0x00c0, 0x8));
+	mt76_wr(dev, MT_WFDMA0_RX_RING3_EXT_CTRL, PREFETCH(0x0140, 0x4));
+	mt76_wr(dev, MT_WFDMA0_RX_RING4_EXT_CTRL, PREFETCH(0x0180, 0x4));
+	mt76_wr(dev, MT_WFDMA0_RX_RING5_EXT_CTRL, PREFETCH(0x01c0, 0x4));
+	mt76_wr(dev, MT_WFDMA0_RX_RING6_EXT_CTRL, PREFETCH(0x0200, 0x4));
+	/* tx ring */
+	mt76_wr(dev, MT_WFDMA0_TX_RING0_EXT_CTRL, PREFETCH(0x0240, 0x10));
+	mt76_wr(dev, MT_WFDMA0_TX_RING1_EXT_CTRL, PREFETCH(0x0340, 0x10));
+	mt76_wr(dev, MT_WFDMA0_TX_RING2_EXT_CTRL, PREFETCH(0x0440, 0x10));
+	mt76_wr(dev, MT_WFDMA0_TX_RING3_EXT_CTRL, PREFETCH(0x0540, 0x10));
+	mt76_wr(dev, MT_WFDMA0_TX_RING4_EXT_CTRL, PREFETCH(0x0640, 0x10));
+	mt76_wr(dev, MT_WFDMA0_TX_RING5_EXT_CTRL, PREFETCH(0x0740, 0x10));
+	mt76_wr(dev, MT_WFDMA0_TX_RING15_EXT_CTRL, PREFETCH(0x0840, 0x4));
+	mt76_wr(dev, MT_WFDMA0_TX_RING16_EXT_CTRL, PREFETCH(0x0880, 0x4));
+}
+
+static void mt7928_wfdma_setup(struct mt792x_dev *dev)
+{
+	mt76_wr(dev, MT_WFDMA0_INT_RX_PRI, 0);
+	mt76_wr(dev, MT_WFDMA0_INT_TX_PRI, 0);
+}
+
 static void mt792x_dma_prefetch(struct mt792x_dev *dev)
 {
-	if (is_mt7927(&dev->mt76)) {
+	if (is_mt7928(&dev->mt76)) {
+		mt7928_dma_prefetch_setup(dev);
+	} else if (is_mt7927(&dev->mt76)) {
 		mt7927_dma_prefetch_setup(dev);
 	} else if (is_mt7925(&dev->mt76)) {
 		mt7925_dma_prefetch_setup(dev);
@@ -250,32 +279,69 @@ static void mt792x_dma_prefetch(struct mt792x_dev *dev)
 
 int mt792x_dma_enable(struct mt792x_dev *dev)
 {
-	/* configure perfetch settings */
+	u32 addr;
+
+	/* configure prefetch settings */
 	mt792x_dma_prefetch(dev);
 
 	/* reset dma idx */
 	mt76_wr(dev, MT_WFDMA0_RST_DTX_PTR, ~0);
-	if (is_mt7925(&dev->mt76))
+	if (is_mt7925(&dev->mt76) || is_mt7928(&dev->mt76))
 		mt76_wr(dev, MT_WFDMA0_RST_DRX_PTR, ~0);
 
 	/* configure delay interrupt */
 	mt76_wr(dev, MT_WFDMA0_PRI_DLY_INT_CFG0, 0);
 
-	mt76_set(dev, MT_WFDMA0_GLO_CFG,
-		 MT_WFDMA0_GLO_CFG_TX_WB_DDONE |
-		 MT_WFDMA0_GLO_CFG_FIFO_LITTLE_ENDIAN |
-		 MT_WFDMA0_GLO_CFG_CLK_GAT_DIS |
-		 MT_WFDMA0_GLO_CFG_OMIT_TX_INFO |
-		 FIELD_PREP(MT_WFDMA0_GLO_CFG_DMA_SIZE, 3) |
-		 MT_WFDMA0_GLO_CFG_FIFO_DIS_CHECK |
-		 MT_WFDMA0_GLO_CFG_RX_WB_DDONE |
-		 MT_WFDMA0_GLO_CFG_CSR_DISP_BASE_PTR_CHAIN_EN |
-		 MT_WFDMA0_GLO_CFG_OMIT_RX_INFO_PFET2);
+	if (is_mt7928(&dev->mt76)) {
+		mt76_wr(dev, MT_WFDMA0_GLO_CFG,
+			MT_WFDMA0_GLO_CFG_TX_WB_DDONE |
+			MT_WFDMA0_GLO_CFG_FIFO_LITTLE_ENDIAN |
+			MT_WFDMA0_GLO_CFG_CLK_GAT_DIS |
+			MT_WFDMA0_GLO_CFG_OMIT_TX_INFO |
+			FIELD_PREP(MT_WFDMA0_GLO_CFG_DMA_SIZE, 1) |
+			MT_WFDMA0_GLO_CFG_FIFO_DIS_CHECK |
+			MT_WFDMA0_GLO_CFG_RX_WB_DDONE |
+			MT_WFDMA0_GLO_CFG_CSR_DISP_BASE_PTR_CHAIN_EN |
+			MT_WFDMA0_GLO_CFG_ADDR_EXT_EN |
+			MT_WFDMA0_GLO_CFG_CSR_LBK_RX_Q_SEL_EN);
+		/* set rxq threshold to 2 */
+		for (addr = MT_WFDMA0_WPDMA_PAUSE_RXQ_TH10;
+		     addr <= MT_WFDMA0_WPDMA_PAUSE_RXQ_TH76;
+		     addr += 4) {
+			mt76_wr(dev, addr,
+				FIELD_PREP(MT_WFDMA0_WPDMA_PAUSE_RXQ_THXX_L_TH_MASK, 2) |
+				FIELD_PREP(MT_WFDMA0_WPDMA_PAUSE_RXQ_THXX_H_TH_MASK, 2));
+		}
+		mt76_wr(dev, MT_WFDMA0_GLO_CFG_EXT0,
+			MT_WFDMA0_GLO_CFG_EXT0_CSR_MEM_ARB_LOCK_EN |
+			MT_WFDMA0_GLO_CFG_EXT0_CSR_TX_DMASHDL_LITE_EN |
+			MT_WFDMA0_GLO_CFG_EXT0_CSR_RX_WB_KEEP_RSVD |
+			MT_WFDMA0_GLO_CFG_EXT0_CSR_BID_CHECK_BYPASS_EN |
+			MT_WFDMA0_GLO_CFG_EXT0_CSR_RX_INFO_WB_EN |
+			MT_WFDMA0_GLO_CFG_EXT0_CSR_AXI_AWUSER_LOCK_EN |
+			FIELD_PREP(MT_WFDMA0_GLO_CFG_EXT0_CSR_MAX_PREFETCH_CNT_MASK, 3) |
+			FIELD_PREP(MT_WFDMA0_GLO_CFG_EXT0_CSR_MEM_BST_SIZE_MASK, 3) |
+			FIELD_PREP(MT_WFDMA0_GLO_CFG_EXT0_CSR_AXI_AW_OUTSTANDING_NUM_MASK,
+				   8));
+	} else {
+		mt76_set(dev, MT_WFDMA0_GLO_CFG,
+			 MT_WFDMA0_GLO_CFG_TX_WB_DDONE |
+			 MT_WFDMA0_GLO_CFG_FIFO_LITTLE_ENDIAN |
+			 MT_WFDMA0_GLO_CFG_CLK_GAT_DIS |
+			 MT_WFDMA0_GLO_CFG_OMIT_TX_INFO |
+			 FIELD_PREP(MT_WFDMA0_GLO_CFG_DMA_SIZE, 3) |
+			 MT_WFDMA0_GLO_CFG_FIFO_DIS_CHECK |
+			 MT_WFDMA0_GLO_CFG_RX_WB_DDONE |
+			 MT_WFDMA0_GLO_CFG_CSR_DISP_BASE_PTR_CHAIN_EN |
+			 MT_WFDMA0_GLO_CFG_OMIT_RX_INFO_PFET2);
+	}
 
 	mt76_set(dev, MT_WFDMA0_GLO_CFG,
 		 MT_WFDMA0_GLO_CFG_TX_DMA_EN | MT_WFDMA0_GLO_CFG_RX_DMA_EN);
 
-	if (is_mt7927(&dev->mt76))
+	if (is_mt7928(&dev->mt76))
+		mt7928_wfdma_setup(dev);
+	else if (is_mt7927(&dev->mt76))
 		mt7927_wfdma_setup(dev);
 	else if (is_mt7925(&dev->mt76))
 		mt7925_wfdma_setup(dev);

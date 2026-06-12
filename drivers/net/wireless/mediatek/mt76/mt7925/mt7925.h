@@ -15,6 +15,7 @@
 
 #define MT7925_RX_RING_SIZE		1536
 #define MT7925_RX_MCU_RING_SIZE		512
+#define MT7928_RX_MCU_WA_RING_SIZE	512
 
 #define MT7925_EEPROM_SIZE		3584
 #define MT7925_TOKEN_SIZE		8192
@@ -137,6 +138,13 @@ enum mt7927_rxq_id {
 	MT7927_RXQ_BAND0 = 4,
 	MT7927_RXQ_MCU_WM = 6,
 	MT7927_RXQ_DATA2 = 7,
+};
+
+enum mt7928_rxq_id {
+	MT7928_RXQ_BAND0,
+	MT7928_RXQ_BAND1 = 2,
+	MT7928_RXQ_MCU_WM = 3,
+	MT7928_RXQ_MCU_WM2 = 1, /* for tx done */
 };
 
 enum {
