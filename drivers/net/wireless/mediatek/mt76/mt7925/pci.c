@@ -473,6 +473,11 @@ static const struct mt792x_pcie_reg mt7925_pcie_reg = {
 	.pm = MT7925_PCIE_MAC_PM,
 };
 
+static const struct mt792x_pcie_reg mt7928_pcie_reg = {
+	.imask = MT7928_PCIE_MAC_INT_ENABLE,
+	.pm = MT7928_PCIE_MAC_PM,
+};
+
 static const struct mt792x_irq_map mt7925_irq_map = {
 	.host_irq_enable = MT_WFDMA0_HOST_INT_ENA,
 	.tx = {
@@ -609,6 +614,7 @@ static int mt7925_pci_probe(struct pci_dev *pdev,
 	dev->pcie_reg = &mt7925_pcie_reg;
 
 	if (is_mt7928_hw) {
+		dev->pcie_reg = &mt7928_pcie_reg;
 		dev->irq_map = &mt7928_irq_map;
 		mdev->rev = 0x7928 << 16;
 	} else if (is_mt7927_hw) {
