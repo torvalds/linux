@@ -8,10 +8,12 @@
 	clk: kunit-clock {
 		compatible = "test,clk-assigned-rates";
 		#clock-cells = <1>;
+	};
+
+	kunit-clock-consumer {
+		compatible = "test,clk-consumer";
 		assigned-clocks = <&clk 0>,
 				  <&clk 1>;
-		assigned-clock-rates-u64 = /bits/ 64 <ASSIGNED_RATES_0_RATE>,
-					   /bits/ 64 <ASSIGNED_RATES_1_RATE>;
 		assigned-clock-sscs = <ASSIGNED_SSCS_0_MODFREQ
 				       ASSIGNED_SSCS_0_SPREAD
 				       ASSIGNED_SSCS_0_METHOD>,
