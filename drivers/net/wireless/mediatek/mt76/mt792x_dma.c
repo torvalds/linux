@@ -39,9 +39,7 @@ void mt792x_irq_tasklet(unsigned long data)
 
 	trace_dev_irq(&dev->mt76, intr, dev->mt76.mmio.irqmask);
 
-	mask |= intr & (irq_map->rx.data_complete_mask |
-			irq_map->rx.wm_complete_mask |
-			irq_map->rx.wm2_complete_mask);
+	mask |= intr & irq_map->rx.all_complete_mask;
 	if (intr & dev->irq_map->tx.mcu_complete_mask)
 		mask |= dev->irq_map->tx.mcu_complete_mask;
 
@@ -276,9 +274,7 @@ int mt792x_dma_enable(struct mt792x_dev *dev)
 	/* enable interrupts for TX/RX rings */
 	mt76_connac_irq_enable(&dev->mt76,
 			       dev->irq_map->tx.all_complete_mask |
-			       dev->irq_map->rx.data_complete_mask |
-			       dev->irq_map->rx.wm2_complete_mask |
-			       dev->irq_map->rx.wm_complete_mask |
+			       dev->irq_map->rx.all_complete_mask |
 			       MT_INT_MCU_CMD);
 	mt76_set(dev, MT_MCU2HOST_SW_INT_ENA, MT_MCU_CMD_WAKE_RX_PCIE);
 

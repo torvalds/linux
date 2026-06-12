@@ -200,6 +200,7 @@ struct mt792x_irq_map {
 		u32 mcu_complete_mask;
 	} tx;
 	struct {
+		u32 all_complete_mask;
 		u32 data_complete_mask;
 		u32 wm_complete_mask;
 		u32 wm2_complete_mask;
