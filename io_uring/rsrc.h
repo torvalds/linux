@@ -24,11 +24,6 @@ struct io_rsrc_node {
 };
 
 enum {
-	IO_IMU_DEST	= 1 << ITER_DEST,
-	IO_IMU_SOURCE	= 1 << ITER_SOURCE,
-};
-
-enum {
 	IO_REGBUF_F_KBUF		= 1,
 };
 
