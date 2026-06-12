@@ -298,6 +298,20 @@ static int mt7925_dma_init(struct mt792x_dev *dev)
 	return mt792x_dma_enable(dev);
 }
 
+static const struct mt792x_irq_map mt7925_irq_map = {
+	.host_irq_enable = MT_WFDMA0_HOST_INT_ENA,
+	.tx = {
+		.all_complete_mask = MT_INT_TX_DONE_ALL,
+		.mcu_complete_mask = MT_INT_TX_DONE_MCU,
+	},
+	.rx = {
+		.all_complete_mask = MT7925_INT_RX_DONE_ALL,
+		.data_complete_mask = MT7925_INT_RX_DONE_DATA,
+		.wm_complete_mask = MT7925_INT_RX_DONE_WM,
+		.wm2_complete_mask = MT_INT_RX_DONE_WM2,
+	},
+};
+
 static const struct mt792x_irq_map mt7927_irq_map = {
 	.host_irq_enable = MT_WFDMA0_HOST_INT_ENA,
 	.tx = {
@@ -338,17 +352,6 @@ static int mt7925_pci_probe(struct pci_dev *pdev,
 		.mcu_init = mt7925e_mcu_init,
 		.drv_own = mt792xe_mcu_drv_pmctrl,
 		.fw_own = mt792xe_mcu_fw_pmctrl,
-	};
-	static const struct mt792x_irq_map irq_map = {
-		.host_irq_enable = MT_WFDMA0_HOST_INT_ENA,
-		.tx = {
-			.all_complete_mask = MT_INT_TX_DONE_ALL,
-			.mcu_complete_mask = MT_INT_TX_DONE_MCU,
-		},
-		.rx = {
-			.data_complete_mask = HOST_RX_DONE_INT_ENA2,
-			.wm_complete_mask = HOST_RX_DONE_INT_ENA0,
-		},
 	};
 	struct ieee80211_ops *ops;
 	struct mt76_bus_ops *bus_ops;
@@ -407,7 +410,7 @@ static int mt7925_pci_probe(struct pci_dev *pdev,
 	dev = container_of(mdev, struct mt792x_dev, mt76);
 	dev->fw_features = features;
 	dev->hif_ops = &mt7925_pcie_ops;
-	dev->irq_map = is_mt7927_hw ? &mt7927_irq_map : &irq_map;
+	dev->irq_map = is_mt7927_hw ? &mt7927_irq_map : &mt7925_irq_map;
 	mt76_mmio_init(&dev->mt76, pcim_iomap_table(pdev)[0]);
 	tasklet_init(&mdev->irq_tasklet, mt792x_irq_tasklet, (unsigned long)dev);
 
@@ -456,7 +459,7 @@ static int mt7925_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		goto err_free_dev;
 
-	mt76_wr(dev, irq_map.host_irq_enable, 0);
+	mt76_wr(dev, dev->irq_map->host_irq_enable, 0);
 
 	mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0xff);
 
@@ -613,9 +616,7 @@ static int _mt7925_pci_resume(struct device *device, bool restore)
 	mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0xff);
 	mt76_connac_irq_enable(&dev->mt76,
 			       dev->irq_map->tx.all_complete_mask |
-			       dev->irq_map->rx.data_complete_mask |
-			       dev->irq_map->rx.wm_complete_mask |
-			       dev->irq_map->rx.wm2_complete_mask |
+			       dev->irq_map->rx.all_complete_mask |
 			       MT_INT_MCU_CMD);
 	mt76_set(dev, MT_MCU2HOST_SW_INT_ENA, MT_MCU_CMD_WAKE_RX_PCIE);
 
