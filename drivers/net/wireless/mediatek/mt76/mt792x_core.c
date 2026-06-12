@@ -985,6 +985,15 @@ int mt792x_load_firmware(struct mt792x_dev *dev)
 		dev_warn(dev->mt76.dev,
 			 "MCU is not ready for firmware download\n");
 
+	if (is_mt7928(&dev->mt76)) {
+		dev_info(dev->mt76.dev, "Loading CB firmware patch: %s\n",
+			 mt792x_cb_patch_name(dev));
+		ret = mt76_connac3_load_cb_patch(&dev->mt76, mt792x_cb_patch_name(dev));
+		if (ret)
+			return ret;
+	}
+
+	dev_info(dev->mt76.dev, "Loading firmware patch: %s\n", mt792x_patch_name(dev));
 	ret = mt76_connac2_load_patch(&dev->mt76, mt792x_patch_name(dev));
 	if (ret)
 		return ret;
@@ -994,6 +1003,12 @@ int mt792x_load_firmware(struct mt792x_dev *dev)
 		ret = __mt792x_mcu_fw_pmctrl(dev);
 		if (!ret)
 			ret = __mt792x_mcu_drv_pmctrl(dev);
+	}
+
+	if (is_mt7928(&dev->mt76)) {
+		ret = mt76_connac3_load_phy_ram(&dev->mt76, mt792x_phy_ram_name(dev));
+		if (ret)
+			return ret;
 	}
 
 	ret = mt76_connac2_load_ram(&dev->mt76, mt792x_ram_name(dev), NULL);

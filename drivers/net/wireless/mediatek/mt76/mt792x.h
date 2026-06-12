@@ -47,6 +47,7 @@
 #define MT7922_FIRMWARE_WM	"mediatek/WIFI_RAM_CODE_MT7922_1.bin"
 #define MT7925_FIRMWARE_WM	"mediatek/mt7925/WIFI_RAM_CODE_MT7925_1_1.bin"
 #define MT7927_FIRMWARE_WM	"mediatek/mt7927/WIFI_RAM_CODE_MT6639_2_1.bin"
+#define MT7928_FIRMWARE_WM	"mediatek/mt7928/WIFI_RAM_CODE_MT7935_1_1.bin"
 
 #define MT7902_ROM_PATCH	"mediatek/WIFI_MT7902_patch_mcu_1_1_hdr.bin"
 #define MT7920_ROM_PATCH	"mediatek/WIFI_MT7961_patch_mcu_1a_2_hdr.bin"
@@ -54,6 +55,10 @@
 #define MT7922_ROM_PATCH	"mediatek/WIFI_MT7922_patch_mcu_1_1_hdr.bin"
 #define MT7925_ROM_PATCH	"mediatek/mt7925/WIFI_MT7925_PATCH_MCU_1_1_hdr.bin"
 #define MT7927_ROM_PATCH	"mediatek/mt7927/WIFI_MT6639_PATCH_MCU_2_1_hdr.bin"
+#define MT7928_ROM_PATCH	"mediatek/mt7928/WIFI_MT7935_PATCH_MCU_1_1_hdr.bin"
+
+#define MT7928_CB_ROM_PATCH	"mediatek/mt7928/CBMCU_CODE_MT7935_1_1.bin"
+#define MT7928_PHY_RAM		"mediatek/mt7928/WIFI_MT7935_PHY_RAM_CODE_1_1.bin"
 
 #define MT792x_SDIO_HDR_TX_BYTES	GENMASK(15, 0)
 #define MT792x_SDIO_HDR_PKT_TYPE	GENMASK(17, 16)
@@ -494,6 +499,8 @@ static inline char *mt792x_ram_name(struct mt792x_dev *dev)
 		return MT7925_FIRMWARE_WM;
 	case 0x7927:
 		return MT7927_FIRMWARE_WM;
+	case 0x7928:
+		return MT7928_FIRMWARE_WM;
 	default:
 		return MT7921_FIRMWARE_WM;
 	}
@@ -512,8 +519,30 @@ static inline char *mt792x_patch_name(struct mt792x_dev *dev)
 		return MT7925_ROM_PATCH;
 	case 0x7927:
 		return MT7927_ROM_PATCH;
+	case 0x7928:
+		return MT7928_ROM_PATCH;
 	default:
 		return MT7921_ROM_PATCH;
+	}
+}
+
+static inline char *mt792x_cb_patch_name(struct mt792x_dev *dev)
+{
+	switch (mt76_chip(&dev->mt76)) {
+	case 0x7928:
+		return MT7928_CB_ROM_PATCH;
+	default:
+		return NULL;
+	}
+}
+
+static inline char *mt792x_phy_ram_name(struct mt792x_dev *dev)
+{
+	switch (mt76_chip(&dev->mt76)) {
+	case 0x7928:
+		return MT7928_PHY_RAM;
+	default:
+		return NULL;
 	}
 }
 
