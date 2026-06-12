@@ -298,6 +298,11 @@ static int mt7925_dma_init(struct mt792x_dev *dev)
 	return mt792x_dma_enable(dev);
 }
 
+static const struct mt792x_pcie_reg mt7925_pcie_reg = {
+	.imask = MT7925_PCIE_MAC_INT_ENABLE,
+	.pm = MT7925_PCIE_MAC_PM,
+};
+
 static const struct mt792x_irq_map mt7925_irq_map = {
 	.host_irq_enable = MT_WFDMA0_HOST_INT_ENA,
 	.tx = {
@@ -413,6 +418,8 @@ static int mt7925_pci_probe(struct pci_dev *pdev,
 	dev->fw_features = features;
 	dev->hif_ops = &mt7925_pcie_ops;
 	dev->irq_map = is_mt7927_hw ? &mt7927_irq_map : &mt7925_irq_map;
+	dev->pcie_reg = &mt7925_pcie_reg;
+
 	mt76_mmio_init(&dev->mt76, pcim_iomap_table(pdev)[0]);
 	tasklet_init(&mdev->irq_tasklet, mt792x_irq_tasklet, (unsigned long)dev);
 
@@ -462,8 +469,7 @@ static int mt7925_pci_probe(struct pci_dev *pdev,
 		goto err_free_dev;
 
 	mt76_wr(dev, dev->irq_map->host_irq_enable, 0);
-
-	mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0xff);
+	mt76_wr(dev, dev->pcie_reg->imask, 0xff);
 
 	ret = devm_request_irq(mdev->dev, pdev->irq, mt792x_irq_handler,
 			       IRQF_SHARED, KBUILD_MODNAME, dev);
@@ -564,8 +570,7 @@ static int mt7925_pci_suspend(struct device *device)
 
 	/* disable interrupt */
 	mt76_wr(dev, dev->irq_map->host_irq_enable, 0);
-
-	mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0x0);
+	mt76_wr(dev, dev->pcie_reg->imask, 0x0);
 
 	synchronize_irq(pdev->irq);
 	tasklet_kill(&mdev->irq_tasklet);
@@ -615,7 +620,7 @@ static int _mt7925_pci_resume(struct device *device, bool restore)
 	mt792x_wpdma_reinit_cond(dev);
 
 	/* enable interrupt */
-	mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0xff);
+	mt76_wr(dev, dev->pcie_reg->imask, 0xff);
 	mt76_connac_irq_enable(&dev->mt76,
 			       dev->irq_map->tx.all_complete_mask |
 			       dev->irq_map->rx.all_complete_mask |

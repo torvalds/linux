@@ -43,7 +43,7 @@ int mt7925e_mcu_init(struct mt792x_dev *dev)
 	if (err)
 		return err;
 
-	mt76_rmw_field(dev, MT_PCIE_MAC_PM, MT_PCIE_MAC_PM_L0S_DIS, 1);
+	mt76_rmw_field(dev, dev->pcie_reg->pm, MT_PCIE_MAC_PM_L0S_DIS, 1);
 
 	err = mt7925_run_firmware(dev);
 

@@ -78,7 +78,7 @@ int mt7925e_mac_reset(struct mt792x_dev *dev)
 	mt76_connac_free_pending_tx_skbs(&dev->pm, NULL);
 
 	mt76_wr(dev, dev->irq_map->host_irq_enable, 0);
-	mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0x0);
+	mt76_wr(dev, dev->pcie_reg->imask, 0x0);
 
 	set_bit(MT76_RESET, &dev->mphy.state);
 	set_bit(MT76_MCU_RESET, &dev->mphy.state);
@@ -121,7 +121,7 @@ int mt7925e_mac_reset(struct mt792x_dev *dev)
 		dev->irq_map->tx.all_complete_mask |
 		dev->irq_map->rx.all_complete_mask |
 		MT_INT_MCU_CMD);
-	mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0xff);
+	mt76_wr(dev, dev->pcie_reg->imask, 0xff);
 
 	err = mt792xe_mcu_fw_pmctrl(dev);
 	if (err)
