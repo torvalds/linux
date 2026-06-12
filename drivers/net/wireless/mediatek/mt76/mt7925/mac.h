@@ -14,7 +14,14 @@
 
 static inline u32 mt7925_mac_wtbl_lmac_addr(struct mt792x_dev *dev, u16 wcid, u8 dw)
 {
-	mt76_wr(dev, MT7925_WTBLON_TOP_WDUCR,
+	u32 wdu_cr;
+
+	if (is_mt7928(&dev->mt76))
+		wdu_cr = MT7928_WTBLON_TOP_WDUCR;
+	else
+		wdu_cr = MT7925_WTBLON_TOP_WDUCR;
+
+	mt76_wr(dev, wdu_cr,
 		FIELD_PREP(MT_WTBLON_TOP_WDUCR_GROUP, (wcid >> 7)));
 
 	return MT_WTBL_LMAC_OFFS(wcid, dw);

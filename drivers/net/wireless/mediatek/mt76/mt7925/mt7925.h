@@ -354,6 +354,7 @@ int mt7925_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 int mt7925e_mac_reset(struct mt792x_dev *dev);
 int mt7925e_mcu_init(struct mt792x_dev *dev);
 void mt7925_mac_add_txs(struct mt792x_dev *dev, void *data);
+void mt7928_mac_add_txs_msg(struct mt792x_dev *dev, void *evt);
 void mt7925_set_runtime_pm(struct mt792x_dev *dev);
 void mt7925_mcu_set_suspend_iter(void *priv, u8 *mac,
 				 struct ieee80211_vif *vif);
