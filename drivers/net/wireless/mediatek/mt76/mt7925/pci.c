@@ -22,6 +22,10 @@ static const struct pci_device_id mt7925_pci_device_table[] = {
 		.driver_data = (kernel_ulong_t)MT7927_FIRMWARE_WM },
 	{ PCI_DEVICE(PCI_VENDOR_ID_MEDIATEK, 0x0738),
 		.driver_data = (kernel_ulong_t)MT7927_FIRMWARE_WM },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MEDIATEK, 0x7928),
+		.driver_data = (kernel_ulong_t)MT7928_FIRMWARE_WM },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MEDIATEK, 0x7935),
+		.driver_data = (kernel_ulong_t)MT7928_FIRMWARE_WM },
 	{ },
 };
 
@@ -663,6 +667,11 @@ static int mt7925_pci_probe(struct pci_dev *pdev,
 			 "MT7927 raw CHIPID=0x%04x, forcing chip=0x7927\n",
 			 mt76_chip(mdev));
 		mdev->rev = (0x7927 << 16) | (mdev->rev & 0xff);
+	} else if (is_mt7928_hw && mt76_chip(mdev) != 0x7928) {
+		dev_info(mdev->dev,
+			 "MT7928 raw CHIPID=0x%04x, forcing chip=0x7928\n",
+			 mt76_chip(mdev));
+		mdev->rev = (0x7928 << 16) | (mdev->rev & 0xff);
 	}
 
 	mt76_rmw_field(dev, MT_HW_EMI_CTL, MT_HW_EMI_CTL_SLPPROT_EN, 1);
@@ -913,6 +922,10 @@ MODULE_FIRMWARE(MT7925_FIRMWARE_WM);
 MODULE_FIRMWARE(MT7925_ROM_PATCH);
 MODULE_FIRMWARE(MT7927_FIRMWARE_WM);
 MODULE_FIRMWARE(MT7927_ROM_PATCH);
+MODULE_FIRMWARE(MT7928_FIRMWARE_WM);
+MODULE_FIRMWARE(MT7928_ROM_PATCH);
+MODULE_FIRMWARE(MT7928_CB_ROM_PATCH);
+MODULE_FIRMWARE(MT7928_PHY_RAM);
 MODULE_AUTHOR("Deren Wu <deren.wu@mediatek.com>");
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo@kernel.org>");
 MODULE_DESCRIPTION("MediaTek MT7925E (PCIe) wireless driver");
