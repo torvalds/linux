@@ -319,11 +319,13 @@ static const struct mt792x_irq_map mt7927_irq_map = {
 		.mcu_complete_mask = MT_INT_TX_DONE_MCU,
 	},
 	.rx = {
-		.data_complete_mask = MT7927_RX_DONE_INT_ENA4,
-		.wm_complete_mask = MT7927_RX_DONE_INT_ENA6,
-		.wm2_complete_mask = MT7927_RX_DONE_INT_ENA7,
+		.all_complete_mask = MT7927_INT_RX_DONE_ALL,
+		.data_complete_mask = MT7927_INT_RX_DONE_DATA,
+		.wm_complete_mask = MT7927_INT_RX_DONE_WM,
+		.wm2_complete_mask = MT7927_INT_RX_DONE_WM2,
 	},
 };
+
 static int mt7925_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *id)
 {
