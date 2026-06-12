@@ -12,10 +12,10 @@
 
 bool mt7925_mac_wtbl_update(struct mt792x_dev *dev, int idx, u32 mask)
 {
-	mt76_rmw(dev, MT_WTBL_UPDATE, MT_WTBL_UPDATE_WLAN_IDX,
+	mt76_rmw(dev, MT7925_WTBL_UPDATE, MT_WTBL_UPDATE_WLAN_IDX,
 		 FIELD_PREP(MT_WTBL_UPDATE_WLAN_IDX, idx) | mask);
 
-	return mt76_poll(dev, MT_WTBL_UPDATE, MT_WTBL_UPDATE_BUSY,
+	return mt76_poll(dev, MT7925_WTBL_UPDATE, MT_WTBL_UPDATE_BUSY,
 			 0, 5000);
 }
 
