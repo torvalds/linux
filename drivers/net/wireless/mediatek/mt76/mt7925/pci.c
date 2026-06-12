@@ -331,6 +331,20 @@ static const struct mt792x_irq_map mt7927_irq_map = {
 	},
 };
 
+static const struct mt792x_irq_map mt7928_irq_map = {
+	.host_irq_enable = MT_WFDMA0_HOST_INT_ENA,
+	.tx = {
+		.all_complete_mask = MT_INT_TX_DONE_ALL,
+		.mcu_complete_mask = MT_INT_TX_DONE_MCU,
+	},
+	.rx = {
+		.all_complete_mask = MT7928_INT_RX_DONE_ALL,
+		.data_complete_mask = MT7928_INT_RX_DONE_DATA,
+		.wm_complete_mask = MT7928_INT_RX_DONE_WM,
+		.wm2_complete_mask = MT_INT_RX_DONE_WM2,
+	},
+};
+
 static int mt7925_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *id)
 {
@@ -360,11 +374,11 @@ static int mt7925_pci_probe(struct pci_dev *pdev,
 		.drv_own = mt792xe_mcu_drv_pmctrl,
 		.fw_own = mt792xe_mcu_fw_pmctrl,
 	};
-	struct ieee80211_ops *ops;
+	bool is_mt7927_hw, is_mt7928_hw;
 	struct mt76_bus_ops *bus_ops;
+	struct ieee80211_ops *ops;
 	struct mt792x_dev *dev;
 	struct mt76_dev *mdev;
-	bool is_mt7927_hw;
 	u8 features;
 	int ret;
 	u16 cmd;
@@ -394,6 +408,7 @@ static int mt7925_pci_probe(struct pci_dev *pdev,
 
 	is_mt7927_hw = (pdev->device == 0x6639 || pdev->device == 0x7927 ||
 			pdev->device == 0x0738);
+	is_mt7928_hw = (pdev->device == 0x7928 || pdev->device == 0x7935);
 
 	/* MT7927: ASPM L1 causes unreliable WFDMA register access */
 	if (mt7925_disable_aspm || is_mt7927_hw)
@@ -417,8 +432,14 @@ static int mt7925_pci_probe(struct pci_dev *pdev,
 	dev = container_of(mdev, struct mt792x_dev, mt76);
 	dev->fw_features = features;
 	dev->hif_ops = &mt7925_pcie_ops;
-	dev->irq_map = is_mt7927_hw ? &mt7927_irq_map : &mt7925_irq_map;
 	dev->pcie_reg = &mt7925_pcie_reg;
+
+	if (is_mt7928_hw)
+		dev->irq_map = &mt7928_irq_map;
+	else if (is_mt7927_hw)
+		dev->irq_map = &mt7927_irq_map;
+	else
+		dev->irq_map = &mt7925_irq_map;
 
 	mt76_mmio_init(&dev->mt76, pcim_iomap_table(pdev)[0]);
 	tasklet_init(&mdev->irq_tasklet, mt792x_irq_tasklet, (unsigned long)dev);
