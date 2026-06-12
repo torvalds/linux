@@ -122,6 +122,17 @@ int mt792x_dma_alloc_queues(struct mt792x_dev *dev,
 	if (ret)
 		return ret;
 
+	/* tx done */
+	if (layout->tx_done.ring_base) {
+		ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MCU_WA],
+				       layout->tx_done.qid,
+				       layout->tx_done.n_desc,
+				       MT_RX_BUF_SIZE,
+				       layout->tx_done.ring_base);
+		if (ret)
+			return ret;
+	}
+
 	/* rx event */
 	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MCU],
 			       layout->rx_mcu.qid,

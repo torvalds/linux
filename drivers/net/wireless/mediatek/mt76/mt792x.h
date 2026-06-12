@@ -217,6 +217,7 @@ struct mt792x_dma_layout {
 	struct mt792x_dma_ring tx_data0;
 	struct mt792x_dma_ring tx_mcu;
 	struct mt792x_dma_ring tx_fwdl;
+	struct mt792x_dma_ring tx_done;
 	struct mt792x_dma_ring rx_data;
 	struct mt792x_dma_ring rx_mcu;
 };
