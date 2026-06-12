@@ -2683,10 +2683,10 @@ void __init mm_core_init_early(void)
 {
 	int nid;
 
+	free_area_init();
+
 	hugetlb_cma_reserve();
 	hugetlb_bootmem_alloc();
-
-	free_area_init();
 
 	sparse_init();
 	for_each_node_state(nid, N_MEMORY)
