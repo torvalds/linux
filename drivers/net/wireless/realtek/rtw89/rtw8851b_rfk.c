@@ -1874,7 +1874,7 @@ static void _dpk_onoff(struct rtw89_dev *rtwdev, enum rtw89_rf_path path,
 			       0xf0000000, val);
 
 	rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DPK] S%d[%d] DPK %s !!!\n", path,
-		    kidx, val == 0 ? "disable" : "enable");
+		    kidx, str_enable_disable(val));
 }
 
 static void _dpk_init(struct rtw89_dev *rtwdev, enum rtw89_rf_path path)
