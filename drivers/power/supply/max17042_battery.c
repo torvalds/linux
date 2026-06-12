@@ -1027,10 +1027,14 @@ static int max17042_parse_dt(struct max17042_chip *chip)
 		chip->temp_min = INT_MIN;
 	if (of_property_read_s32(np, "maxim,over-heat-temp", &chip->temp_max))
 		chip->temp_max = INT_MAX;
-	if (of_property_read_s32(np, "maxim,dead-volt", &chip->vmin))
+	if (of_property_read_u32(np, "maxim,dead-volt", &prop))
 		chip->vmin = INT_MIN;
-	if (of_property_read_s32(np, "maxim,over-volt", &chip->vmax))
+	else
+		chip->vmin = prop;
+	if (of_property_read_u32(np, "maxim,over-volt", &prop))
 		chip->vmax = INT_MAX;
+	else
+		chip->vmin = prop;
 
 	return 0;
 }
