@@ -345,7 +345,8 @@ int mt792x_wpdma_reinit_cond(struct mt792x_dev *dev)
 	if (mt792x_dma_need_reinit(dev)) {
 		/* disable interrutpts */
 		mt76_wr(dev, dev->irq_map->host_irq_enable, 0);
-		mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0x0);
+		if (dev->pcie_reg)
+			mt76_wr(dev, dev->pcie_reg->imask, 0x0);
 
 		err = mt792x_wpdma_reset(dev, false);
 		if (err) {
@@ -354,7 +355,8 @@ int mt792x_wpdma_reinit_cond(struct mt792x_dev *dev)
 		}
 
 		/* enable interrutpts */
-		mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0xff);
+		if (dev->pcie_reg)
+			mt76_wr(dev, dev->pcie_reg->imask, 0xff);
 		pm->stats.lp_wake++;
 	}
 
