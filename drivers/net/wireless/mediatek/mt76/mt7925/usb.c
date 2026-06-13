@@ -81,6 +81,13 @@ static int mt7925u_mac_reset(struct mt792x_dev *dev)
 {
 	int err;
 
+	if (atomic_read(&dev->mt76.bus_hung))
+		return 0;
+
+	mt792xu_reset_on_bus_error(dev);
+	if (atomic_read(&dev->mt76.bus_hung))
+		return 0;
+
 	mt76_txq_schedule_all(&dev->mphy);
 	mt76_worker_disable(&dev->mt76.tx_worker);
 
