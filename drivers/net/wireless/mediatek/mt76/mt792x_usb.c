@@ -11,6 +11,7 @@
 #include "mt792x.h"
 #include "mt76_connac2_mac.h"
 
+#define MT792X_USB_TX_TIMEOUT_LIMIT	50000
 #define MT792X_USB_UDMA_IDLE_TIMEOUT	1000
 
 static int mt792xu_read32(struct mt76_dev *dev, u32 addr, void *buf)
@@ -400,6 +401,10 @@ int mt792xu_dma_init(struct mt792x_dev *dev, bool resume)
 	mt76_set(dev, MT_UDMA_WLCFG_0,
 		 MT_WL_RX_EN | MT_WL_TX_EN |
 		 MT_WL_RX_MPSZ_PAD0 | MT_TICK_1US_EN);
+	mt76_rmw(dev, MT_UDMA_WLCFG_1, MT_WL_TX_TMOUT_LMT,
+		 FIELD_PREP(MT_WL_TX_TMOUT_LMT,
+			    MT792X_USB_TX_TIMEOUT_LIMIT));
+	mt76_set(dev, MT_UDMA_WLCFG_0, MT_WL_TX_TMOUT_FUNC_EN);
 	mt76_clear(dev, MT_UDMA_WLCFG_0,
 		   MT_WL_RX_AGG_TO | MT_WL_RX_AGG_LMT);
 	mt76_clear(dev, MT_UDMA_WLCFG_1, MT_WL_RX_AGG_PKT_LMT);
