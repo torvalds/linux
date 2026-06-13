@@ -31,10 +31,75 @@ static void mt792xu_reset_work(struct work_struct *work)
 	atomic_set(&dev->usb_reset_pending, 0);
 }
 
+static void mt792xu_queue_usb_reset(struct mt792x_dev *dev, int err)
+{
+	if (!atomic_xchg(&dev->usb_reset_pending, 1)) {
+		dev_warn(dev->mt76.dev,
+			 "USB transport access failed (%d), queueing device reset\n",
+			 err);
+
+		schedule_work(&dev->usb_reset_work);
+	}
+}
+
+static u32 mt792xu_bus_hung_rr(struct mt76_dev *mdev, u32 offset)
+{
+	return 0;
+}
+
+static void mt792xu_bus_hung_wr(struct mt76_dev *mdev, u32 offset, u32 val)
+{
+}
+
+static u32 mt792xu_bus_hung_rmw(struct mt76_dev *mdev, u32 offset,
+				u32 mask, u32 val)
+{
+	return 0;
+}
+
+static void mt792xu_bus_hung_write_copy(struct mt76_dev *mdev, u32 offset,
+					const void *data, int len)
+{
+}
+
+static void mt792xu_bus_hung_read_copy(struct mt76_dev *mdev, u32 offset,
+				       void *data, int len)
+{
+	memset(data, 0, len);
+}
+
+static const struct mt76_bus_ops mt792xu_bus_hung_ops = {
+	.rr = mt792xu_bus_hung_rr,
+	.wr = mt792xu_bus_hung_wr,
+	.rmw = mt792xu_bus_hung_rmw,
+	.write_copy = mt792xu_bus_hung_write_copy,
+	.read_copy = mt792xu_bus_hung_read_copy,
+	.type = MT76_BUS_USB,
+};
+
+static void mt792xu_set_bus_hung(struct mt792x_dev *dev)
+{
+	atomic_set(&dev->mt76.bus_hung, true);
+
+	if (READ_ONCE(dev->mt76.bus) == &mt792xu_bus_hung_ops)
+		return;
+
+	WRITE_ONCE(dev->mt76.bus, &mt792xu_bus_hung_ops);
+}
+
+static void mt792xu_ctrl_timeout(struct mt76_dev *mdev, int err)
+{
+	struct mt792x_dev *dev = container_of(mdev, struct mt792x_dev, mt76);
+
+	mt792xu_set_bus_hung(dev);
+	mt792xu_queue_usb_reset(dev, err);
+}
+
 void mt792xu_reset_work_init(struct mt792x_dev *dev)
 {
 	INIT_WORK(&dev->usb_reset_work, mt792xu_reset_work);
 	atomic_set(&dev->usb_reset_pending, 0);
+	dev->mt76.usb.ctrl_timeout = mt792xu_ctrl_timeout;
 }
 EXPORT_SYMBOL_GPL(mt792xu_reset_work_init);
 
@@ -62,26 +127,23 @@ EXPORT_SYMBOL_GPL(mt792xu_check_bus);
 
 int mt792xu_reset_on_bus_error(struct mt792x_dev *dev)
 {
-	int err = 0;
+	int err;
 
-	if (!atomic_read(&dev->mt76.bus_hung))
-		err = mt792xu_check_bus(dev);
+	/* Once hung, the no-op bus ops stay installed until the queued USB
+	 * reset re-probes the device. Do not clear bus_hung here, or the caller
+	 * would run a full reset over dropped register I/O and report success.
+	 */
+	if (atomic_read(&dev->mt76.bus_hung))
+		return -EIO;
 
+	err = mt792xu_check_bus(dev);
 	if (err) {
-		atomic_set(&dev->mt76.bus_hung, true);
-
-		if (!atomic_xchg(&dev->usb_reset_pending, 1)) {
-			dev_warn(dev->mt76.dev,
-				 "USB transport access failed (%d), queueing device reset\n",
-				 err);
-
-			schedule_work(&dev->usb_reset_work);
-		}
+		mt792xu_set_bus_hung(dev);
+		mt792xu_queue_usb_reset(dev, err);
 
 		return err;
 	}
 
-	atomic_set(&dev->mt76.bus_hung, false);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mt792xu_reset_on_bus_error);
@@ -343,6 +405,9 @@ int mt792xu_wfsys_reset(struct mt792x_dev *dev)
 						&mt7921_wfsys_desc;
 	u32 val;
 	int i;
+
+	if (atomic_read(&dev->mt76.bus_hung))
+		return -EIO;
 
 	mt792xu_epctl_rst_opt(dev, false);
 

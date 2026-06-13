@@ -30,6 +30,8 @@ int __mt76u_vendor_request(struct mt76_dev *dev, u8 req, u8 req_type,
 	for (i = 0; i < MT_VEND_REQ_MAX_RETRY; i++) {
 		if (test_bit(MT76_REMOVED, &dev->phy.state))
 			return -EIO;
+		if (dev->usb.ctrl_timeout && atomic_read(&dev->bus_hung))
+			return -EIO;
 
 		ret = usb_control_msg(udev, pipe, req, req_type, val,
 				      offset, buf, len, MT_VEND_REQ_TOUT_MS);
@@ -42,6 +44,15 @@ int __mt76u_vendor_request(struct mt76_dev *dev, u8 req, u8 req_type,
 
 	dev_err(dev->dev, "vendor request req:%02x off:%04x failed:%d\n",
 		req, offset, ret);
+
+	if (dev->usb.ctrl_timeout) {
+		atomic_set(&dev->bus_hung, true);
+		dev_err(dev->dev, "vendor request req:%02x off:%04x timed out, marking bus hung\n",
+			req, offset);
+		dev->usb.ctrl_timeout(dev, ret);
+		return ret;
+	}
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(__mt76u_vendor_request);

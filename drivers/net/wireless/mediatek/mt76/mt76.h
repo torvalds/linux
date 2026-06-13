@@ -672,6 +672,7 @@ struct mt76_usb {
 
 	u8 out_ep[__MT_EP_OUT_MAX];
 	u8 in_ep[__MT_EP_IN_MAX];
+	void (*ctrl_timeout)(struct mt76_dev *dev, int err);
 	bool sg_en;
 
 	struct mt76u_mcu {
