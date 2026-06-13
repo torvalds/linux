@@ -11,6 +11,8 @@
 #include "mt792x.h"
 #include "mt76_connac2_mac.h"
 
+#define MT792X_USB_UDMA_IDLE_TIMEOUT	1000
+
 static int mt792xu_read32(struct mt76_dev *dev, u32 addr, void *buf)
 {
 	return __mt76u_vendor_request(dev, MT_VEND_READ_EXT,
@@ -343,6 +345,23 @@ static void mt792xu_epctl_rst_opt(struct mt792x_dev *dev, bool reset)
 	mt792xu_uhw_wr(&dev->mt76, MT_SSUSB_EPCTL_CSR_EP_RST_OPT, val);
 }
 
+static void mt792xu_wait_udma_idle(struct mt792x_dev *dev)
+{
+	u32 mask = MT_WL_RX_BUSY | MT_WL_TX_BUSY;
+	u32 val;
+
+	mt76_set(dev, MT_UDMA_WLCFG_0, MT_WL_RX_FLUSH);
+
+	if (mt76_poll_msec(dev, MT_UDMA_WLCFG_0, mask, 0,
+			   MT792X_USB_UDMA_IDLE_TIMEOUT))
+		return;
+
+	val = mt76_rr(dev, MT_UDMA_WLCFG_0);
+
+	dev_warn(dev->mt76.dev,
+		 "UDMA busy before WFSYS reset: WLCFG0=0x%08x\n", val);
+}
+
 struct mt792xu_wfsys_desc {
 	u32 rst_reg;
 	u32 done_reg;
@@ -409,6 +428,7 @@ int mt792xu_wfsys_reset(struct mt792x_dev *dev)
 	if (atomic_read(&dev->mt76.bus_hung))
 		return -EIO;
 
+	mt792xu_wait_udma_idle(dev);
 	mt792xu_epctl_rst_opt(dev, false);
 
 	val = mt792xu_uhw_rr(&dev->mt76, desc->rst_reg);
