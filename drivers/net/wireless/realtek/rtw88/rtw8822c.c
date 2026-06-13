@@ -3405,7 +3405,7 @@ static u8 rtw8822c_dpk_one_shot(struct rtw_dev *rtwdev, u8 path, u8 action)
 		rtw_write32_mask(rtwdev, REG_DPD_CTL0, BIT(12), 0x1);
 		rtw_write32_mask(rtwdev, REG_DPD_CTL0, BIT(12), 0x0);
 		rtw_write32_mask(rtwdev, REG_RXSRAM_CTL, BIT_RPT_SEL, 0x0);
-		msleep(10);
+		fsleep(10000);
 		if (!check_hw_ready(rtwdev, REG_STAT_RPT, BIT(31), 0x1)) {
 			result = 1;
 			rtw_dbg(rtwdev, RTW_DBG_RFK, "[DPK] one-shot over 20ms\n");
@@ -3418,7 +3418,7 @@ static u8 rtw8822c_dpk_one_shot(struct rtw_dev *rtwdev, u8 path, u8 action)
 		dpk_cmd = rtw8822c_dpk_get_cmd(rtwdev, action, path);
 		rtw_write32(rtwdev, REG_NCTL0, dpk_cmd);
 		rtw_write32(rtwdev, REG_NCTL0, dpk_cmd + 1);
-		msleep(10);
+		fsleep(10000);
 		if (!check_hw_ready(rtwdev, 0x2d9c, 0xff, 0x55)) {
 			result = 1;
 			rtw_dbg(rtwdev, RTW_DBG_RFK, "[DPK] one-shot over 20ms\n");
