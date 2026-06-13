@@ -234,9 +234,9 @@ EXPORT_SYMBOL_GPL(mt792xu_mcu_power_on);
 static void mt792xu_cleanup(struct mt792x_dev *dev)
 {
 	clear_bit(MT76_STATE_INITIALIZED, &dev->mphy.state);
-	mt792xu_wfsys_reset(dev);
 	skb_queue_purge(&dev->mt76.mcu.res_q);
 	mt76u_queues_deinit(&dev->mt76);
+	mt792xu_wfsys_reset(dev);
 }
 
 static u32 mt792xu_uhw_rr(struct mt76_dev *dev, u32 addr)
@@ -498,13 +498,27 @@ void mt792xu_disconnect(struct usb_interface *usb_intf)
 {
 	struct mt792x_dev *dev = usb_get_intfdata(usb_intf);
 
-	mt792xu_reset_work_cleanup(dev);
-	cancel_work_sync(&dev->init_work);
-	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mphy.state))
+	if (!dev)
 		return;
+
+	set_bit(MT76_RESET, &dev->mphy.state);
+	set_bit(MT76_MCU_RESET, &dev->mphy.state);
+	clear_bit(MT76_STATE_RUNNING, &dev->mphy.state);
+	wake_up(&dev->mt76.mcu.wait);
+	skb_queue_purge(&dev->mt76.mcu.res_q);
+
+	cancel_work_sync(&dev->reset_work);
+	cancel_work_sync(&dev->init_work);
+	mt76_worker_disable(&dev->mt76.tx_worker);
+	mt792xu_reset_work_cleanup(dev);
+	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mphy.state)) {
+		set_bit(MT76_REMOVED, &dev->mphy.state);
+		return;
+	}
 
 	mt76_unregister_device(&dev->mt76);
 	mt792xu_cleanup(dev);
+	set_bit(MT76_REMOVED, &dev->mphy.state);
 
 	usb_set_intfdata(usb_intf, NULL);
 
