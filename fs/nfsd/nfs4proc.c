@@ -1262,7 +1262,7 @@ nfsd4_setattr(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	if (deleg_attrs) {
 		status = nfserr_bad_stateid;
-		if (st->sc_type & SC_TYPE_DELEG) {
+		if (st && (st->sc_type & SC_TYPE_DELEG)) {
 			struct nfs4_delegation *dp = delegstateid(st);
 
 			/* Only for *_ATTRS_DELEG flavors */
