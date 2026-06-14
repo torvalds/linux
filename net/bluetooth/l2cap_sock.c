@@ -1365,6 +1365,7 @@ static int __l2cap_wait_ack(struct sock *sk, struct l2cap_chan *chan)
 }
 
 static int l2cap_sock_shutdown(struct socket *sock, int how)
+	__context_unsafe(/* complex chan->conn locking */)
 {
 	struct sock *sk = sock->sk;
 	struct l2cap_chan *chan;
