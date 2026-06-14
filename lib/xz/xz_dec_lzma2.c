@@ -271,7 +271,7 @@ struct xz_dec_lzma2 {
 	struct lzma_dec lzma;
 
 	/*
-	 * Temporary buffer which holds small number of input bytes between
+	 * Temporary buffer which holds a small number of input bytes between
 	 * decoder calls. See lzma2_lzma() for details.
 	 */
 	struct {
@@ -757,8 +757,8 @@ static bool lzma_main(struct xz_dec_lzma2 *s)
 	uint32_t pos_state;
 
 	/*
-	 * If the dictionary was reached during the previous call, try to
-	 * finish the possibly pending repeat in the dictionary.
+	 * If the dictionary write limit was reached during the previous call,
+	 * try to finish the possibly pending repeat in the dictionary.
 	 */
 	if (dict_has_space(&s->dict) && s->lzma.len > 0)
 		dict_repeat(&s->dict, &s->lzma.len, s->lzma.rep0);
@@ -978,7 +978,7 @@ enum xz_ret xz_dec_lzma2_run(struct xz_dec_lzma2 *s, struct xz_buf *b)
 			 *          an uncompressed chunk
 			 *   0x02   Uncompressed chunk (no dictionary reset)
 			 *
-			 * Highest three bits (s->control & 0xE0):
+			 * Highest three bits (tmp & 0xE0):
 			 *   0xE0   Dictionary reset, new properties and state
 			 *          reset, followed by LZMA compressed chunk
 			 *   0xC0   New properties and state reset, followed
@@ -990,7 +990,7 @@ enum xz_ret xz_dec_lzma2_run(struct xz_dec_lzma2 *s, struct xz_buf *b)
 			 *   0x80   LZMA chunk (no dictionary or state reset)
 			 *
 			 * For LZMA compressed chunks, the lowest five bits
-			 * (s->control & 1F) are the highest bits of the
+			 * (tmp & 1F) are the highest bits of the
 			 * uncompressed size (bits 16-20).
 			 *
 			 * A new LZMA2 stream must begin with a dictionary
@@ -1091,7 +1091,7 @@ enum xz_ret xz_dec_lzma2_run(struct xz_dec_lzma2 *s, struct xz_buf *b)
 		case SEQ_LZMA_RUN:
 			/*
 			 * Set dictionary limit to indicate how much we want
-			 * to be encoded at maximum. Decode new data into the
+			 * to be decoded at maximum. Decode new data into the
 			 * dictionary. Flush the new data from dictionary to
 			 * b->out. Check if we finished decoding this chunk.
 			 * In case the dictionary got full but we didn't fill
