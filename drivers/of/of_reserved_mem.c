@@ -633,7 +633,8 @@ static void __init fdt_init_reserved_mem_node(unsigned long node, const char *un
 	struct reserved_mem *rmem = &reserved_mem[reserved_mem_count];
 
 	if (reserved_mem_count == total_reserved_mem_cnt) {
-		pr_err("not enough space for all defined regions.\n");
+		pr_err("not enough space for all defined regions, skip '%s'\n",
+		       uname);
 		return;
 	}
 
