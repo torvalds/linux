@@ -608,6 +608,9 @@ struct mt7925_wow_pattern_tlv {
 	u8 rsv[4];
 };
 
+#define MT7925_WOW_PATTERN_TLV_V2_SIZE	\
+	(offsetof(struct mt7925_wow_pattern_tlv, rsv) + 3)
+
 struct roc_acquire_tlv {
 	__le16 tag;
 	__le16 len;
