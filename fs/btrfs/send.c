@@ -625,9 +625,8 @@ static void fs_path_unreverse(struct fs_path *p)
 static inline bool is_current_inode_path(const struct send_ctx *sctx,
 					 const struct fs_path *path)
 {
-	const struct fs_path *cur = &sctx->cur_inode_path;
-
-	return (strncmp(path->start, cur->start, fs_path_len(cur)) == 0);
+	/* Paths are always nul terminated. */
+	return (strcmp(path->start, sctx->cur_inode_path.start) == 0);
 }
 
 static struct btrfs_path *alloc_path_for_send(void)
