@@ -130,10 +130,10 @@ static_assert(offsetof(struct backref_cache_entry, entry) == 0);
 #define SEND_MAX_DIR_CREATED_CACHE_SIZE			64
 
 /*
- * Max number of entries in the cache that stores directories that were already
- * created. The cache uses raw struct btrfs_lru_cache_entry entries, so it uses
- * at most 4096 bytes - sizeof(struct btrfs_lru_cache_entry) is 48 bytes, but
- * the kmalloc-64 slab is used, so we get 4096 bytes (64 bytes * 64).
+ * Maximum number of entries in the cache that stores utimes values for directories.
+ * The cache uses raw struct btrfs_lru_cache_entry entries, so it uses at most
+ * 4096 bytes - sizeof(struct btrfs_lru_cache_entry) is 48 bytes, but the
+ * kmalloc-64 slab is used, so we get 4096 bytes (64 bytes * 64).
  */
 #define SEND_MAX_DIR_UTIMES_CACHE_SIZE			64
 
