@@ -200,25 +200,6 @@ static inline void ext4_fc_set_snap_err(int *snap_err, int err)
 		*snap_err = err;
 }
 
-static void ext4_end_buffer_io_sync(struct bio *bio)
-{
-	struct buffer_head *bh;
-	bool uptodate = bio_endio_bh(bio, &bh);
-
-	BUFFER_TRACE(bh, "");
-	if (uptodate) {
-		ext4_debug("%s: Block %lld up-to-date",
-			   __func__, bh->b_blocknr);
-		set_buffer_uptodate(bh);
-	} else {
-		ext4_debug("%s: Block %lld not up-to-date",
-			   __func__, bh->b_blocknr);
-		clear_buffer_uptodate(bh);
-	}
-
-	unlock_buffer(bh);
-}
-
 static void ext4_fc_free_inode_snap(struct inode *inode);
 
 static inline void ext4_fc_reset_inode(struct inode *inode)
@@ -691,7 +672,7 @@ static void ext4_fc_submit_bh(struct super_block *sb, bool is_tail)
 	lock_buffer(bh);
 	set_buffer_dirty(bh);
 	set_buffer_uptodate(bh);
-	bh_submit(bh, REQ_OP_WRITE | write_flags, ext4_end_buffer_io_sync);
+	bh_submit(bh, REQ_OP_WRITE | write_flags, bh_end_write);
 	EXT4_SB(sb)->s_fc_bh = NULL;
 }
 
