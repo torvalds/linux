@@ -2858,12 +2858,23 @@ void btrfs_readahead(struct readahead_control *rac)
 	struct fsverity_info *vi = NULL;
 
 	lock_extents_for_read(inode, start, end, &cached_state);
+	/* We don't use cached state for a bulk unlock, just free it. */
+	btrfs_free_extent_state(cached_state);
 	if (start < i_size_read(vfs_inode))
 		vi = fsverity_get_info(vfs_inode);
-	while ((folio = readahead_folio(rac)) != NULL)
-		btrfs_do_readpage(folio, &em_cached, &bio_ctrl, vi);
+	while ((folio = readahead_folio(rac)) != NULL) {
+		/*
+		 * Read start and end before btrfs_do_readpage(). It unlocks the
+		 * folio, so our reference might not be valid after.
+		 */
+		const u64 folio_start = folio_pos(folio);
+		const u64 folio_end = folio_start + folio_size(folio) - 1;
 
-	btrfs_unlock_extent(&inode->io_tree, start, end, &cached_state);
+		btrfs_do_readpage(folio, &em_cached, &bio_ctrl, vi);
+		/* Only unlock the range we locked, even if readahead expands. */
+		if (folio_start >= start && folio_end <= end)
+			btrfs_unlock_extent(&inode->io_tree, folio_start, folio_end, NULL);
+	}
 
 	if (em_cached)
 		btrfs_free_extent_map(em_cached);
