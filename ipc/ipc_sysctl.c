@@ -28,7 +28,7 @@ static int proc_ipc_dointvec_minmax_orphans(const struct ctl_table *table, int w
 
 	if (err < 0)
 		return err;
-	if (ns->shm_rmid_forced)
+	if (write && ns->shm_rmid_forced)
 		shm_destroy_orphaned(ns);
 	return err;
 }
