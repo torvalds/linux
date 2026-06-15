@@ -7,6 +7,7 @@
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/bitfield.h>
+#include <linux/err.h>
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
 #include <linux/regmap.h>
@@ -50,6 +51,7 @@ struct meson_msr_data {
 struct meson_msr {
 	struct regmap *regmap;
 	struct meson_msr_data data;
+	struct dentry *debugfs_root;
 };
 
 #define CLK_MSR_ID(__id, __name) \
@@ -1204,6 +1206,7 @@ static int meson_msr_probe(struct platform_device *pdev)
 	       sizeof(struct msr_reg_offset));
 
 	root = debugfs_create_dir("meson-clk-msr", NULL);
+	priv->debugfs_root = root;
 	clks = debugfs_create_dir("clks", root);
 
 	debugfs_create_file("measure_summary", 0444, root,
@@ -1219,7 +1222,17 @@ static int meson_msr_probe(struct platform_device *pdev)
 				    &priv->data.msr_table[i], &clk_msr_fops);
 	}
 
+	platform_set_drvdata(pdev, priv);
+
 	return 0;
+}
+
+static void meson_msr_remove(struct platform_device *pdev)
+{
+	struct meson_msr *priv = platform_get_drvdata(pdev);
+
+	if (!IS_ERR_OR_NULL(priv->debugfs_root))
+		debugfs_remove_recursive(priv->debugfs_root);
 }
 
 static const struct msr_reg_offset msr_reg_offset = {
@@ -1337,6 +1350,7 @@ MODULE_DEVICE_TABLE(of, meson_msr_match_table);
 
 static struct platform_driver meson_msr_driver = {
 	.probe	= meson_msr_probe,
+	.remove = meson_msr_remove,
 	.driver = {
 		.name		= "meson_msr",
 		.of_match_table	= meson_msr_match_table,
