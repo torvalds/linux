@@ -177,6 +177,7 @@ static int ntfs_decompress(struct page *dest_pages[], int completed_pages[],
 
 	/* Variables for uncompressed data / destination. */
 	struct page *dp;	/* Current destination page being worked on. */
+	u8 *dp_kaddr;		/* Local kmap for the current destination page. */
 	u8 *dp_addr;		/* Current pointer into dp. */
 	u8 *dp_sb_start;	/* Start of current sub-block in dp. */
 	u8 *dp_sb_end;		/* End of current sb in dp (dp_sb_start + NTFS_SB_SIZE). */
@@ -191,6 +192,7 @@ static int ntfs_decompress(struct page *dest_pages[], int completed_pages[],
 	/* Default error code. */
 	int err = -EOVERFLOW;
 
+	dp_kaddr = NULL;
 	ntfs_debug("Entering, cb_size = 0x%x.", cb_size);
 do_next_sb:
 	ntfs_debug("Beginning sub-block at offset = 0x%zx in the cb.",
@@ -223,7 +225,6 @@ return_error:
 				 */
 				handle_bounds_compressed_page(dp, i_size,
 						initialized_size);
-				kunmap_local(page_address(dp));
 				SetPageUptodate(dp);
 				unlock_page(dp);
 				if (di == xpage)
@@ -269,7 +270,8 @@ return_error:
 	}
 
 	/* We have a valid destination page. Setup the destination pointers. */
-	dp_addr = (u8 *)page_address(dp) + do_sb_start;
+	dp_kaddr = kmap_local_page(dp);
+	dp_addr = dp_kaddr + do_sb_start;
 
 	/* Now, we are ready to process the current sub-block (sb). */
 	if (!(le16_to_cpup((__le16 *)cb) & NTFS_SB_IS_COMPRESSED)) {
@@ -290,6 +292,8 @@ return_error:
 		/* Advance destination position to next sub-block. */
 		*dest_ofs += NTFS_SB_SIZE;
 		*dest_ofs &= ~PAGE_MASK;
+		kunmap_local(dp_kaddr);
+		dp_kaddr = NULL;
 		if (!(*dest_ofs)) {
 finalize_page:
 			/*
@@ -324,6 +328,8 @@ do_next_tag:
 		}
 		/* We have finished the current sub-block. */
 		*dest_ofs &= ~PAGE_MASK;
+		kunmap_local(dp_kaddr);
+		dp_kaddr = NULL;
 		if (!(*dest_ofs))
 			goto finalize_page;
 		goto do_next_sb;
@@ -429,6 +435,8 @@ do_next_tag:
 	goto do_next_tag;
 
 return_overflow:
+	if (dp_kaddr)
+		kunmap_local(dp_kaddr);
 	ntfs_error(NULL, "Failed. Returning -EOVERFLOW.");
 	goto return_error;
 }
@@ -557,7 +565,6 @@ int ntfs_read_compressed_block(struct folio *folio)
 			 * least wasting our time.
 			 */
 			if (!PageDirty(page) && (!PageUptodate(page))) {
-				kmap_local_page(page);
 				continue;
 			}
 			unlock_page(page);
@@ -643,8 +650,7 @@ lock_retry_remap:
 		}
 
 		lock_page(lpage);
-		memcpy(cb_pos, page_address(lpage) + page_ofs,
-		       vol->cluster_size);
+		memcpy_from_page(cb_pos, lpage, page_ofs, vol->cluster_size);
 		unlock_page(lpage);
 		put_page(lpage);
 		cb_pos += vol->cluster_size;
@@ -683,14 +689,7 @@ lock_retry_remap:
 		for (; cur_page < cb_max_page; cur_page++) {
 			page = pages[cur_page];
 			if (page) {
-				if (likely(!cur_ofs))
-					clear_page(page_address(page));
-				else
-					memset(page_address(page) + cur_ofs, 0,
-							PAGE_SIZE -
-							cur_ofs);
-				flush_dcache_page(page);
-				kunmap_local(page_address(page));
+				memzero_page(page, cur_ofs, PAGE_SIZE - cur_ofs);
 				SetPageUptodate(page);
 				unlock_page(page);
 				if (cur_page == xpage)
@@ -708,8 +707,7 @@ lock_retry_remap:
 		if (cb_max_ofs && cb_pos < cb_end) {
 			page = pages[cur_page];
 			if (page)
-				memset(page_address(page) + cur_ofs, 0,
-						cb_max_ofs - cur_ofs);
+				memzero_page(page, cur_ofs, cb_max_ofs - cur_ofs);
 			/*
 			 * No need to update cb_pos at this stage:
 			 *	cb_pos += cb_max_ofs - cur_ofs;
@@ -730,7 +728,7 @@ lock_retry_remap:
 		for (; cur_page < cb_max_page; cur_page++) {
 			page = pages[cur_page];
 			if (page)
-				memcpy(page_address(page) + cur_ofs, cb_pos,
+				memcpy_to_page(page, cur_ofs, cb_pos,
 						PAGE_SIZE - cur_ofs);
 			cb_pos += PAGE_SIZE - cur_ofs;
 			cur_ofs = 0;
@@ -741,7 +739,7 @@ lock_retry_remap:
 		if (cb_max_ofs && cb_pos < cb_end) {
 			page = pages[cur_page];
 			if (page)
-				memcpy(page_address(page) + cur_ofs, cb_pos,
+				memcpy_to_page(page, cur_ofs, cb_pos,
 						cb_max_ofs - cur_ofs);
 			cb_pos += cb_max_ofs - cur_ofs;
 			cur_ofs = cb_max_ofs;
@@ -758,7 +756,6 @@ lock_retry_remap:
 				 */
 				handle_bounds_compressed_page(page, i_size,
 						initialized_size);
-				kunmap_local(page_address(page));
 				SetPageUptodate(page);
 				unlock_page(page);
 				if (cur2_page == xpage)
@@ -794,7 +791,6 @@ lock_retry_remap:
 				page = pages[prev_cur_page];
 				if (page) {
 					flush_dcache_page(page);
-					kunmap_local(page_address(page));
 					unlock_page(page);
 					if (prev_cur_page != xpage)
 						put_page(page);
@@ -818,7 +814,6 @@ lock_retry_remap:
 				"Still have pages left! Terminating them with extreme prejudice.  Inode 0x%llx, page index 0x%lx.",
 				ni->mft_no, folio->index);
 			flush_dcache_folio(folio);
-			kunmap_local(page_address(page));
 			folio_unlock(folio);
 			if (cur_page != xpage)
 				folio_put(folio);
@@ -856,7 +851,6 @@ err_out:
 		page = pages[i];
 		if (page) {
 			flush_dcache_page(page);
-			kunmap_local(page_address(page));
 			unlock_page(page);
 			if (i != xpage)
 				put_page(page);
@@ -1308,7 +1302,6 @@ static int ntfs_write_cb(struct ntfs_inode *ni, loff_t pos, struct page **pages,
 		}
 		pages_disk[i] = pg;
 		lock_page(pg);
-		kmap_local_page(pg);
 	}
 
 	outbuf = vmap(pages_disk, pages_count, VM_MAP, PAGE_KERNEL);
@@ -1443,7 +1436,6 @@ out:
 	for (i = 0; i < pages_count; i++) {
 		pg = pages_disk[i];
 		if (pg) {
-			kunmap_local(page_address(pg));
 			unlock_page(pg);
 			put_page(pg);
 		}
