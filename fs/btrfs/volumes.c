@@ -4588,7 +4588,7 @@ again:
 		if (ret == -ENOSPC) {
 			enospc_errors++;
 		} else if (ret == -ETXTBSY) {
-			btrfs_info(fs_info,
+			btrfs_warn(fs_info,
 	   "skipping relocation of block group %llu due to active swapfile",
 				   found_key.offset);
 			ret = 0;
