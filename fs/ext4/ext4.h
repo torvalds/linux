@@ -3639,7 +3639,13 @@ struct ext4_group_info {
 #define EXT4_MB_GRP_CLEAR_TRIMMED(grp)	\
 	(clear_bit(EXT4_GROUP_INFO_WAS_TRIMMED_BIT, &((grp)->bb_state)))
 #define EXT4_MB_GRP_TEST_AND_SET_READ(grp)	\
-	(test_and_set_bit(EXT4_GROUP_INFO_BBITMAP_READ_BIT, &((grp)->bb_state)))
+	(ext4_mb_grp_test_and_set_read((grp)))
+
+static inline int ext4_mb_grp_test_and_set_read(struct ext4_group_info *grp)
+{
+	return (test_bit(EXT4_GROUP_INFO_BBITMAP_READ_BIT, &grp->bb_state) ||
+		test_and_set_bit(EXT4_GROUP_INFO_BBITMAP_READ_BIT, &grp->bb_state));
+}
 
 #define EXT4_MAX_CONTENTION		8
 #define EXT4_CONTENTION_THRESHOLD	2
