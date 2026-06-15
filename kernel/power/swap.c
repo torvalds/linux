@@ -739,7 +739,7 @@ static int save_compressed_image(struct swap_map_handle *handle,
 
 		data[thr].cc = crypto_alloc_acomp(hib_comp_algo, 0, CRYPTO_ALG_ASYNC);
 		if (IS_ERR_OR_NULL(data[thr].cc)) {
-			pr_err("Could not allocate comp stream %ld\n", PTR_ERR(data[thr].cc));
+			pr_err("Could not allocate comp stream %pe\n", data[thr].cc);
 			ret = -EFAULT;
 			goto out_clean;
 		}
@@ -1243,7 +1243,7 @@ static int load_compressed_image(struct swap_map_handle *handle,
 
 		data[thr].cc = crypto_alloc_acomp(hib_comp_algo, 0, CRYPTO_ALG_ASYNC);
 		if (IS_ERR_OR_NULL(data[thr].cc)) {
-			pr_err("Could not allocate comp stream %ld\n", PTR_ERR(data[thr].cc));
+			pr_err("Could not allocate comp stream %pe\n", data[thr].cc);
 			ret = -EFAULT;
 			goto out_clean;
 		}
