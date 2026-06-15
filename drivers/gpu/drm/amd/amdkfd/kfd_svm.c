@@ -748,6 +748,48 @@ svm_range_check_attr(struct kfd_process *p,
 	return 0;
 }
 
+static void svm_range_update_checkpoint_timestamp(struct kfd_process *p)
+{
+	struct svm_range_list *svms;
+	int i;
+
+	svms = &p->svms;
+
+	/* calculate time stamps that are used to decide which page faults need be
+	 * dropped or handled before unmap pages from gpu vm
+	 */
+	for_each_set_bit(i, svms->bitmap_supported, p->n_pdds) {
+		struct kfd_process_device *pdd;
+		struct amdgpu_device *adev;
+		struct amdgpu_ih_ring *ih;
+		uint32_t checkpoint_wptr;
+
+		pdd = p->pdds[i];
+		if (!pdd)
+			continue;
+
+		adev = pdd->dev->adev;
+
+		/* Check and drain ih1 ring if cam not available */
+		if (!adev->irq.retry_cam_enabled && adev->irq.ih1.ring_size) {
+			ih = &adev->irq.ih1;
+			checkpoint_wptr = amdgpu_ih_get_wptr(adev, ih);
+			if (ih->rptr != checkpoint_wptr) {
+				atomic64_set(&svms->checkpoint_ts[i],
+					amdgpu_ih_decode_iv_ts(adev, ih, checkpoint_wptr, -1));
+				continue;
+			}
+		}
+
+		/* check if dev->irq.ih_soft is not empty */
+		ih = &adev->irq.ih_soft;
+		checkpoint_wptr = amdgpu_ih_get_wptr(adev, ih);
+		if (ih->rptr != checkpoint_wptr)
+			atomic64_set(&svms->checkpoint_ts[i],
+				     amdgpu_ih_decode_iv_ts(adev, ih, checkpoint_wptr, -1));
+	}
+}
+
 static void
 svm_range_apply_attrs(struct kfd_process *p, struct svm_range *prange,
 		      uint32_t nattr, struct kfd_ioctl_svm_attribute *attrs,
@@ -2545,7 +2587,6 @@ svm_range_unmap_from_cpu(struct mm_struct *mm, struct svm_range *prange,
 	struct kfd_process *p;
 	unsigned long s, l;
 	bool unmap_parent;
-	uint32_t i;
 
 	if (atomic_read(&prange->queue_refcount)) {
 		int r;
@@ -2565,38 +2606,7 @@ svm_range_unmap_from_cpu(struct mm_struct *mm, struct svm_range *prange,
 	pr_debug("svms 0x%p prange 0x%p [0x%lx 0x%lx] [0x%lx 0x%lx]\n", svms,
 		 prange, prange->start, prange->last, start, last);
 
-	/* calculate time stamps that are used to decide which page faults need be
-	 * dropped or handled before unmap pages from gpu vm
-	 */
-	for_each_set_bit(i, svms->bitmap_supported, p->n_pdds) {
-		struct kfd_process_device *pdd;
-		struct amdgpu_device *adev;
-		struct amdgpu_ih_ring *ih;
-		uint32_t checkpoint_wptr;
-
-		pdd = p->pdds[i];
-		if (!pdd)
-			continue;
-
-		adev = pdd->dev->adev;
-
-		/* Check and drain ih1 ring if cam not available */
-		if (!adev->irq.retry_cam_enabled && adev->irq.ih1.ring_size) {
-			ih = &adev->irq.ih1;
-			checkpoint_wptr = amdgpu_ih_get_wptr(adev, ih);
-			if (ih->rptr != checkpoint_wptr) {
-				svms->checkpoint_ts[i] =
-					amdgpu_ih_decode_iv_ts(adev, ih, checkpoint_wptr, -1);
-				continue;
-			}
-		}
-
-		/* check if dev->irq.ih_soft is not empty */
-		ih = &adev->irq.ih_soft;
-		checkpoint_wptr = amdgpu_ih_get_wptr(adev, ih);
-		if (ih->rptr != checkpoint_wptr)
-			svms->checkpoint_ts[i] = amdgpu_ih_decode_iv_ts(adev, ih, checkpoint_wptr, -1);
-	}
+	svm_range_update_checkpoint_timestamp(p);
 
 	unmap_parent = start <= prange->start && last >= prange->last;
 
@@ -3043,6 +3053,7 @@ svm_range_restore_pages(struct amdgpu_device *adev, unsigned int pasid,
 	struct svm_range *prange;
 	struct kfd_process *p;
 	ktime_t timestamp = ktime_get_boottime();
+	uint64_t checkpoint_ts;
 	struct kfd_node *node;
 	int32_t best_loc;
 	int32_t gpuid, gpuidx = MAX_GPU_INSTANCE;
@@ -3105,9 +3116,11 @@ svm_range_restore_pages(struct amdgpu_device *adev, unsigned int pasid,
 retry_write_locked:
 	mutex_lock(&svms->lock);
 
+	checkpoint_ts = atomic64_read(&svms->checkpoint_ts[gpuidx]);
+
 	/* check if this page fault time stamp is before svms->checkpoint_ts */
-	if (svms->checkpoint_ts[gpuidx] != 0) {
-		if (amdgpu_ih_ts_after_or_equal(ts,  svms->checkpoint_ts[gpuidx])) {
+	if (checkpoint_ts) {
+		if (amdgpu_ih_ts_after_or_equal(ts, checkpoint_ts)) {
 			pr_debug("draining retry fault, drop fault 0x%llx\n", addr);
 			if (write_locked)
 				mmap_write_downgrade(mm);
@@ -3117,7 +3130,7 @@ retry_write_locked:
 			/* ts is after svms->checkpoint_ts now, reset svms->checkpoint_ts
 			 * to zero to avoid following ts wrap around give wrong comparing
 			 */
-			svms->checkpoint_ts[gpuidx] = 0;
+			atomic64_set(&svms->checkpoint_ts[gpuidx], 0);
 		}
 	}
 

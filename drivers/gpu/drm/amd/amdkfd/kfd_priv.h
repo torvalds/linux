@@ -895,7 +895,7 @@ struct svm_range_list {
 	DECLARE_BITMAP(bitmap_supported, MAX_GPU_INSTANCE);
 	struct task_struct		*faulting_task;
 	/* check point ts decides if page fault recovery need be dropped */
-	uint64_t			checkpoint_ts[MAX_GPU_INSTANCE];
+	atomic64_t			checkpoint_ts[MAX_GPU_INSTANCE];
 
 	/* Default granularity to use in buffer migration
 	 * and restoration of backing memory while handling
