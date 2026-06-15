@@ -46,12 +46,32 @@ properties:
 
     additionalProperties: false
 
+  ti,current-range:
+    description: |
+      Configure the current limit setting. When present, this property
+      overrides the hardware setting of the physical CL pin by configuring
+      the DEVICE_SETUP register.
+      - "low": maps to 25 mV (LM25066) or 26 mV (LM5064, LM5066, LM5066i)
+      - "high": maps to 46 mV (LM25066) or 50 mV (LM5064, LM5066, LM5066i)
+    $ref: /schemas/types.yaml#/definitions/string
+    enum:
+      - low
+      - high
+
 required:
   - compatible
   - reg
 
 allOf:
   - $ref: /schemas/hwmon/hwmon-common.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ti,lm25056
+    then:
+      properties:
+        ti,current-range: false
 
 unevaluatedProperties: false
 
