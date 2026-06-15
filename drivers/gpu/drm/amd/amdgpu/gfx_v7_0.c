@@ -933,7 +933,8 @@ static int gfx_v7_0_init_microcode(struct amdgpu_device *adev)
 		chip_name = "mullins";
 		break;
 	default:
-		BUG();
+		dev_warn(adev->dev, "Unsupported asic_type 0x%08x\n", adev->asic_type);
+		return -EINVAL;
 	}
 
 	err = amdgpu_ucode_request(adev, &adev->gfx.pfp_fw,
