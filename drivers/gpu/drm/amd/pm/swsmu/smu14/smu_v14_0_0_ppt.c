@@ -260,6 +260,35 @@ static int smu_v14_0_0_system_features_control(struct smu_context *smu, bool en)
 	return ret;
 }
 
+/**
+ * smu_v14_0_0_find_clk_level - find the closest DPM level for a frequency
+ * @freqs: array of frequencies (one per DPM level)
+ * @count: number of valid entries in @freqs
+ * @target: the frequency to match
+ *
+ * Returns the index of the DPM level whose frequency is closest to @target.
+ * If an exact match exists it is preferred; otherwise the nearest level by
+ * absolute difference is returned.
+ */
+static uint8_t smu_v14_0_0_find_clk_level(const uint32_t *freqs, uint8_t count,
+					   uint32_t target)
+{
+	uint8_t i, closest = 0;
+	uint32_t best_diff = U32_MAX;
+
+	for (i = 0; i < count; i++) {
+		uint32_t diff = abs((int)target - (int)freqs[i]);
+
+		if (diff < best_diff) {
+			best_diff = diff;
+			closest = i;
+		}
+		if (freqs[i] == target)
+			return i;
+	}
+	return closest;
+}
+
 static int smu_v14_0_0_get_smu_metrics_data(struct smu_context *smu,
 					    MetricsMember_t member,
 					    uint32_t *value)
@@ -284,7 +313,30 @@ static int smu_v14_0_0_get_smu_metrics_data(struct smu_context *smu,
 		*value = metrics->VclkFrequency;
 		break;
 	case METRICS_AVERAGE_DCLK:
+		/*
+		 * SmuMetrics_t has no DclkFrequency field.  DCLK and VCLK
+		 * share the same DPM level count, so find the DPM level
+		 * whose VCLK matches the reported VclkFrequency and return
+		 * the DCLK frequency at that level.
+		 */
 		*value = 0;
+		if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 1)) {
+			DpmClocks_t_v14_0_1 *clk_table = smu->smu_table.clocks_table;
+			uint8_t lvl = smu_v14_0_0_find_clk_level(
+					clk_table->VClocks0,
+					clk_table->Vcn0ClkLevelsEnabled,
+					metrics->VclkFrequency);
+
+			*value = clk_table->DClocks0[lvl];
+		} else {
+			DpmClocks_t *clk_table = smu->smu_table.clocks_table;
+			uint8_t lvl = smu_v14_0_0_find_clk_level(
+					clk_table->VClocks,
+					clk_table->VcnClkLevelsEnabled,
+					metrics->VclkFrequency);
+
+			*value = clk_table->DClocks[lvl];
+		}
 		break;
 	case METRICS_AVERAGE_UCLK:
 		*value = metrics->MemclkFrequency;
