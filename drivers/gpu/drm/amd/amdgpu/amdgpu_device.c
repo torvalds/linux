@@ -3162,8 +3162,6 @@ static int amdgpu_device_ip_suspend(struct amdgpu_device *adev)
 		amdgpu_virt_request_full_gpu(adev, false);
 	}
 
-	amdgpu_ttm_disable_buffer_funcs(adev);
-
 	r = amdgpu_device_ip_suspend_phase1(adev);
 	if (r)
 		return r;
