@@ -10031,7 +10031,8 @@ nfsd_get_dir_deleg(struct nfsd4_compound_state *cstate,
 	 * NB: gddr_notification[0] represents the notifications that
 	 * will be granted to the client
 	 */
-	fl = nfs4_alloc_init_lease(dp, gdd->gddr_notification[0]);
+	dp->dl_notify_mask = gdd->gddr_notification[0];
+	fl = nfs4_alloc_init_lease(dp, dp->dl_notify_mask);
 	if (!fl)
 		goto out_put_stid;
 

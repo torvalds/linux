@@ -2552,12 +2552,18 @@ nfsd4_verify(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	return status == nfserr_same ? nfs_ok : status;
 }
 
+#define SUPPORTED_NOTIFY_MASK	(BIT(NOTIFY4_REMOVE_ENTRY) |	\
+				 BIT(NOTIFY4_ADD_ENTRY) |	\
+				 BIT(NOTIFY4_RENAME_ENTRY) |	\
+				 BIT(NOTIFY4_GFLAG_EXTEND))
+
 static __be32
 nfsd4_get_dir_delegation(struct svc_rqst *rqstp,
 			 struct nfsd4_compound_state *cstate,
 			 union nfsd4_op_u *u)
 {
 	struct nfsd4_get_dir_delegation *gdd = &u->get_dir_delegation;
+	u32 requested = gdd->gdda_notification_types[0];
 	struct nfs4_delegation *dd;
 	struct nfsd_file *nf;
 	__be32 status;
@@ -2565,6 +2571,21 @@ nfsd4_get_dir_delegation(struct svc_rqst *rqstp,
 	status = nfsd_file_acquire_dir(rqstp, &cstate->current_fh, &nf);
 	if (status != nfs_ok)
 		return status;
+
+	/*
+	 * Offer no notifications to an order-aware client. RFC8881bis section
+	 * 16.2.13 defines order-aware as NOTIFY4_CFLAG_ORDER being set or
+	 * NOTIFY4_GFLAG_EXTEND being reset. Such a client expects cookie and
+	 * previous-entry information with its notifications (e.g. 27.4.5), and
+	 * nfsd does not track or emit directory offset information. Per
+	 * 16.2.11.3 the alternative would be to recall the delegation, so it's
+	 * simpler to just decline the notifications here.
+	 */
+	if (!(requested & BIT(NOTIFY4_GFLAG_EXTEND)) ||
+	    (requested & BIT(NOTIFY4_CFLAG_ORDER)))
+		requested = 0;
+
+	gdd->gddr_notification[0] = requested & SUPPORTED_NOTIFY_MASK;
 
 	/*
 	 * RFC 8881, section 18.39.3 says:

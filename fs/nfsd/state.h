@@ -297,6 +297,9 @@ struct nfs4_delegation {
 	struct timespec64	dl_atime;
 	struct timespec64	dl_mtime;
 	struct timespec64	dl_ctime;
+
+	/* For dir delegations */
+	u32			dl_notify_mask;
 };
 
 static inline bool deleg_is_read(u32 dl_type)
