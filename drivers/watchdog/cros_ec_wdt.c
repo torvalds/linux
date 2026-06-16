@@ -178,8 +178,8 @@ static int __maybe_unused cros_ec_wdt_resume(struct platform_device *pdev)
 }
 
 static const struct platform_device_id cros_ec_wdt_id[] = {
-	{ DRV_NAME, 0 },
-	{}
+	{ .name = DRV_NAME },
+	{ }
 };
 
 static struct platform_driver cros_ec_wdt_driver = {

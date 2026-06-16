@@ -245,13 +245,13 @@ static int max63xx_wdt_probe(struct platform_device *pdev)
 }
 
 static const struct platform_device_id max63xx_id_table[] = {
-	{ "max6369_wdt", (kernel_ulong_t)max6369_table, },
-	{ "max6370_wdt", (kernel_ulong_t)max6369_table, },
-	{ "max6371_wdt", (kernel_ulong_t)max6371_table, },
-	{ "max6372_wdt", (kernel_ulong_t)max6371_table, },
-	{ "max6373_wdt", (kernel_ulong_t)max6373_table, },
-	{ "max6374_wdt", (kernel_ulong_t)max6373_table, },
-	{ },
+	{ .name = "max6369_wdt", .driver_data = (kernel_ulong_t)max6369_table },
+	{ .name = "max6370_wdt", .driver_data = (kernel_ulong_t)max6369_table },
+	{ .name = "max6371_wdt", .driver_data = (kernel_ulong_t)max6371_table },
+	{ .name = "max6372_wdt", .driver_data = (kernel_ulong_t)max6371_table },
+	{ .name = "max6373_wdt", .driver_data = (kernel_ulong_t)max6373_table },
+	{ .name = "max6374_wdt", .driver_data = (kernel_ulong_t)max6373_table },
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, max63xx_id_table);
 
