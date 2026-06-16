@@ -119,6 +119,14 @@ union efi_rts_args {
 struct efi_runtime_work efi_rts_work;
 
 /*
+ * Upper bound on how long we wait for a single EFI runtime service
+ * call to finish before declaring firmware wedged. Chosen to be longer
+ * than any plausible legitimate call (including UpdateCapsule on slow
+ * SPI-NOR) while still bounding userspace wait time.
+ */
+#define EFI_RTS_TIMEOUT		(120 * HZ)
+
+/*
  * efi_queue_work:	Queue EFI runtime service call and wait for completion
  * @_rts:		EFI runtime service function identifier
  * @_args:		Arguments to pass to the EFI runtime service
@@ -233,6 +241,9 @@ static void __nocfi efi_call_rts(struct work_struct *work)
 	const union efi_rts_args *args = efi_rts_work.args;
 	efi_status_t status = EFI_NOT_FOUND;
 	unsigned long flags;
+
+	if (!efi_enabled(EFI_RUNTIME_SERVICES))
+		efi_rts_park_worker();
 
 	efi_runtime_lock_owner = current;
 
@@ -355,7 +366,13 @@ static efi_status_t __efi_queue_work(enum efi_rts_ids id,
 		goto exit;
 	}
 
-	wait_for_completion(&efi_rts_work.efi_rts_comp);
+	if (!wait_for_completion_timeout(&efi_rts_work.efi_rts_comp,
+					 EFI_RTS_TIMEOUT)) {
+		pr_err("EFI runtime service %d wedged in firmware; disabling EFI runtime services\n",
+		       id);
+		clear_bit(EFI_RUNTIME_SERVICES, &efi.flags);
+		return EFI_ABORTED;
+	}
 
 	WARN_ON_ONCE(efi_rts_work.status == EFI_ABORTED);
 exit:
