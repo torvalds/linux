@@ -4198,6 +4198,71 @@ out_nfserr:
 	goto out;
 }
 
+static bool
+setup_notify_fhandle(struct dentry *dentry, struct nfs4_delegation *dp,
+		     struct nfsd_file *nf, struct nfsd4_fattr_args *args)
+{
+	struct nfs4_file *fi = dp->dl_stid.sc_file;
+	struct nfs4_client *clp = dp->dl_stid.sc_client;
+	int fileid_type, fsid_len, maxsize, flags = 0;
+	struct knfsd_fh *fhp = &args->fhandle;
+	struct inode *inode = d_inode(dentry);
+	struct inode *parent = NULL;
+	struct svc_export *exp;
+	struct fid *fid;
+	bool ret = false;
+
+	/*
+	 * drop_stid_export() can clear sc_export under cl_lock and drop its
+	 * reference when the delegation is admin-revoked, concurrently with
+	 * this callback. Grab our own reference under cl_lock so the export
+	 * can be neither NULL-raced nor freed while we encode.
+	 */
+	spin_lock(&clp->cl_lock);
+	exp = dp->dl_stid.sc_export;
+	if (exp)
+		exp_get(exp);
+	spin_unlock(&clp->cl_lock);
+
+	fsid_len = key_len(fi->fi_fhandle.fh_fsid_type);
+	fhp->fh_size = 4 + fsid_len;
+
+	/* Copy first 4 bytes + fsid */
+	memcpy(&fhp->fh_raw, &fi->fi_fhandle.fh_raw, fhp->fh_size);
+
+	fid = (struct fid *)(fh_fsid(fhp) + fsid_len/4);
+	maxsize = (NFS4_FHSIZE - fhp->fh_size)/4;
+
+	/*
+	 * Subtree-checking exports need a connectable filehandle so the
+	 * parent can be resolved at decode time. Derive this from the
+	 * delegation's export rather than the shared nfs4_file, which may
+	 * have been initialized under a different export.
+	 */
+	if (exp && !(exp->ex_flags & NFSEXP_NOSUBTREECHECK) &&
+	    !S_ISDIR(inode->i_mode)) {
+		parent = d_inode(nf->nf_file->f_path.dentry);
+		flags = EXPORT_FH_CONNECTABLE;
+	}
+
+	fileid_type = exportfs_encode_inode_fh(inode, fid, &maxsize, parent, flags);
+	if (fileid_type < 0 || fileid_type == FILEID_INVALID)
+		goto out;
+
+	fhp->fh_fileid_type = fileid_type;
+	fhp->fh_size += maxsize * 4;
+
+	if (exp && (exp->ex_flags & NFSEXP_SIGN_FH))
+		if (!fh_append_mac(fhp, NFS4_FHSIZE, exp->cd->net))
+			goto out;
+
+	ret = true;
+out:
+	if (exp)
+		exp_put(exp);
+	return ret;
+}
+
 #define CB_NOTIFY_STATX_REQUEST_MASK (STATX_BASIC_STATS   | \
 				      STATX_BTIME	  | \
 				      STATX_CHANGE_COOKIE)
@@ -4244,6 +4309,9 @@ nfsd4_setup_notify_entry4(struct notify_entry4 *ne, struct xdr_stream *xdr,
 		      FATTR4_WORD1_SPACE_USED | FATTR4_WORD1_TIME_ACCESS |
 		      FATTR4_WORD1_TIME_METADATA | FATTR4_WORD1_TIME_MODIFY;
 	attrmask[2] = 0;
+
+	if (setup_notify_fhandle(dentry, dp, nf, &args))
+		attrmask[0] |= FATTR4_WORD0_FILEHANDLE;
 
 	if (args.stat.result_mask & STATX_BTIME)
 		attrmask[1] |= FATTR4_WORD1_TIME_CREATE;
