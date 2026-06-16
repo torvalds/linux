@@ -32,4 +32,7 @@ bool xdrgen_decode_posixaceperm4(struct xdr_stream *xdr, posixaceperm4 *ptr);
 bool xdrgen_encode_posixaceperm4(struct xdr_stream *xdr, const posixaceperm4 value);
 
 
+bool xdrgen_decode_CB_NOTIFY4args(struct xdr_stream *xdr, struct CB_NOTIFY4args *ptr);
+bool xdrgen_encode_CB_NOTIFY4args(struct xdr_stream *xdr, const struct CB_NOTIFY4args *value);
+
 #endif /* _LINUX_XDRGEN_NFS4_1_DECL_H */

@@ -713,7 +713,7 @@ xdrgen_decode_notify4(struct xdr_stream *xdr, struct notify4 *ptr)
 	return true;
 }
 
-static bool __maybe_unused
+bool
 xdrgen_decode_CB_NOTIFY4args(struct xdr_stream *xdr, struct CB_NOTIFY4args *ptr)
 {
 	if (!xdrgen_decode_stateid4(xdr, &ptr->cna_stateid))
@@ -1135,7 +1135,7 @@ xdrgen_encode_notify4(struct xdr_stream *xdr, const struct notify4 *value)
 	return true;
 }
 
-static bool __maybe_unused
+bool
 xdrgen_encode_CB_NOTIFY4args(struct xdr_stream *xdr, const struct CB_NOTIFY4args *value)
 {
 	if (!xdrgen_encode_stateid4(xdr, &value->cna_stateid))

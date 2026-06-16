@@ -490,6 +490,7 @@ struct CB_NOTIFY4args {
         nfs_fh4     cna_fh;
         notify4     cna_changes<>;
 };
+pragma public CB_NOTIFY4args;
 
 struct CB_NOTIFY4res {
         nfsstat4    cnr_status;
