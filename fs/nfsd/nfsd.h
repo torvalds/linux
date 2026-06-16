@@ -332,13 +332,14 @@ void		nfsd_lockd_shutdown(void);
 #define nfserr_noxattr			cpu_to_be32(NFS4ERR_NOXATTR)
 
 /*
- * Error codes for internal use.  We use enum to choose numbers that are
- * not already assigned, then covert to be32 resulting in a number that
- * cannot conflict with any existing be32 nfserr value.
+ * Error codes for internal use.  These are based at an impossible
+ * nfsstat4 value so that, once converted to be32, they cannot conflict
+ * with any value defined by the protocol (compare the nlm__int__* codes
+ * in fs/lockd/lockd.h).
  */
 enum {
 /* end-of-file indicator in readdir */
-	NFSERR_EOF = NFS4ERR_FIRST_FREE,
+	NFSERR_EOF = 30000,
 #define	nfserr_eof		cpu_to_be32(NFSERR_EOF)
 
 /* replay detected */
