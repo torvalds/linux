@@ -91,6 +91,8 @@ static void _free_cpntf_state_locked(struct nfsd_net *nn, struct nfs4_cpntf_stat
 static void nfsd4_file_hash_remove(struct nfs4_file *fi);
 static void deleg_reaper(struct nfsd_net *nn);
 
+static const struct lease_manager_operations nfsd_lease_mng_ops;
+
 /* Locking: */
 
 enum nfsd4_st_mutex_lock_subclass {
@@ -5747,6 +5749,10 @@ static bool nfsd_breaker_owns_lease(struct file_lease *fl)
 	struct nfsd_thread_local_info *ntli;
 	struct svc_rqst *rqst;
 	struct nfs4_client *clp;
+
+	/* Only nfsd leases */
+	if (fl->fl_lmops != &nfsd_lease_mng_ops)
+		return false;
 
 	rqst = nfsd_current_rqst();
 	if (!nfsd_v4client(rqst))
