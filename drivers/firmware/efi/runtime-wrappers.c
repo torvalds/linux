@@ -351,10 +351,12 @@ static efi_status_t __efi_queue_work(enum efi_rts_ids id,
 	 * queue_work() returns 0 if work was already on queue,
 	 * _ideally_ this should never happen.
 	 */
-	if (queue_work(efi_rts_wq, &efi_rts_work.work))
-		wait_for_completion(&efi_rts_work.efi_rts_comp);
-	else
+	if (!queue_work(efi_rts_wq, &efi_rts_work.work)) {
 		pr_err("Failed to queue work to efi_rts_wq.\n");
+		goto exit;
+	}
+
+	wait_for_completion(&efi_rts_work.efi_rts_comp);
 
 	WARN_ON_ONCE(efi_rts_work.status == EFI_ABORTED);
 exit:
