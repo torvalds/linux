@@ -2608,6 +2608,8 @@ nfsd4_get_dir_delegation(struct svc_rqst *rqstp,
 
 	gdd->gddrnf_status = GDD4_OK;
 	memcpy(&gdd->gddr_stateid, &dd->dl_stid.sc_stateid, sizeof(gdd->gddr_stateid));
+	gdd->gddr_child_attributes[0] = dd->dl_child_attrs[0];
+	gdd->gddr_child_attributes[1] = dd->dl_child_attrs[1];
 	nfs4_put_stid(&dd->dl_stid);
 	return nfs_ok;
 }
@@ -3574,7 +3576,7 @@ static u32 nfsd4_get_dir_delegation_rsize(const struct svc_rqst *rqstp,
 		op_encode_verifier_maxsz +
 		op_encode_stateid_maxsz +
 		2 /* gddr_notification */ +
-		2 /* gddr_child_attributes */ +
+		3 /* gddr_child_attributes */ +
 		2 /* gddr_dir_attributes */) * sizeof(__be32);
 }
 

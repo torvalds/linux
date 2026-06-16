@@ -300,6 +300,7 @@ struct nfs4_delegation {
 
 	/* For dir delegations */
 	u32			dl_notify_mask;
+	u32			dl_child_attrs[2];
 };
 
 static inline bool deleg_is_read(u32 dl_type)
