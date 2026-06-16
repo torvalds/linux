@@ -335,6 +335,10 @@ impl Node {
         death: ListArc<DTRWrap<NodeDeath>, 1>,
         guard: &mut Guard<'_, ProcessInner, SpinLockBackend>,
     ) {
+        assert!(
+            core::ptr::eq(self, &**death.node),
+            "attempt to add NodeDeath to the wrong death list"
+        );
         self.inner.access_mut(guard).death_list.push_back(death);
     }
 
