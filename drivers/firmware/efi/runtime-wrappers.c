@@ -336,6 +336,9 @@ static void __nocfi efi_call_rts(struct work_struct *work)
 	efi_call_virt_check_flags(flags, efi_rts_work.caller);
 	arch_efi_call_virt_teardown();
 
+	if (!efi_enabled(EFI_RUNTIME_SERVICES))
+		efi_rts_park_worker();
+
 	efi_rts_work.status = status;
 	complete(&efi_rts_work.efi_rts_comp);
 	efi_runtime_lock_owner = NULL;
