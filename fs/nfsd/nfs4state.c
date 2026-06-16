@@ -1255,6 +1255,7 @@ static void nfs4_unlock_deleg_lease(struct nfs4_delegation *dp)
 
 	nfsd4_finalize_deleg_timestamps(dp, nf->nf_file);
 	kernel_setlease(nf->nf_file, F_UNLCK, NULL, (void **)&dp);
+	nfsd_fsnotify_recalc_mask(nf);
 	put_deleg_file(fp);
 }
 
@@ -9747,8 +9748,7 @@ out_status:
  * @nf: nfsd_file opened on the directory
  *
  * Given a GET_DIR_DELEGATION request @gdd, attempt to acquire a delegation
- * on the directory to which @nf refers. Note that this does not set up any
- * sort of async notifications for the delegation.
+ * on the directory to which @nf refers.
  */
 struct nfs4_delegation *
 nfsd_get_dir_deleg(struct nfsd4_compound_state *cstate,
@@ -9838,6 +9838,7 @@ nfsd_get_dir_deleg(struct nfsd4_compound_state *cstate,
 
 	if (!status) {
 		put_nfs4_file(fp);
+		nfsd_fsnotify_recalc_mask(nf);
 		return dp;
 	}
 

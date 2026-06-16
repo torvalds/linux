@@ -192,6 +192,7 @@ nfsd_file_mark_find_or_create(struct inode *inode)
 		fsnotify_init_mark(&new->nfm_mark, nfsd_file_fsnotify_group);
 		new->nfm_mark.mask = FS_ATTRIB|FS_DELETE_SELF;
 		refcount_set(&new->nfm_ref, 1);
+		mutex_init(&new->nfm_recalc_mutex);
 
 		err = fsnotify_add_inode_mark(&new->nfm_mark, inode, 0);
 
@@ -1472,4 +1473,55 @@ int nfsd_file_cache_stats_show(struct seq_file *m, void *v)
 	else
 		seq_printf(m, "mean age (ms): -\n");
 	return 0;
+}
+
+/**
+ * nfsd_fsnotify_recalc_mask - recalculate the fsnotify mask for a nfsd_file
+ * @nf: nfsd_file to recalculate the mask on
+ *
+ * When a directory nfsd_file has a delegation added or removed, that may
+ * change the events that nfsd requires from the VFS layer. This function
+ * recalculates the fsnotify mask based on the leases present.
+ */
+void nfsd_fsnotify_recalc_mask(struct nfsd_file *nf)
+{
+	struct inode *inode = file_inode(nf->nf_file);
+	u32 lease_mask, set = 0, clear = 0;
+	struct fsnotify_mark *mark;
+
+	/* This is only needed when adding or removing dir delegs */
+	if (!S_ISDIR(inode->i_mode) || !nf->nf_mark)
+		return;
+
+	mark = &nf->nf_mark->nfm_mark;
+
+	/*
+	 * The mark is shared by every nfsd_file on this inode, so concurrent
+	 * delegation add/remove on the same directory can recalc it in
+	 * parallel. Serialize the read of the lease state and the update of
+	 * the mark so that a recalc working from a stale snapshot of the
+	 * lease list can't clobber a concurrent recalc's update.
+	 */
+	mutex_lock(&nf->nf_mark->nfm_recalc_mutex);
+
+	/* Set up notifications for any ignored delegation events */
+	lease_mask = inode_lease_ignore_mask(inode);
+
+	if (lease_mask & FL_IGN_DIR_CREATE)
+		set |= FS_CREATE | FS_MOVED_TO;
+	else
+		clear |= FS_CREATE | FS_MOVED_TO;
+
+	if (lease_mask & FL_IGN_DIR_DELETE)
+		set |= FS_DELETE | FS_MOVED_FROM;
+	else
+		clear |= FS_DELETE | FS_MOVED_FROM;
+
+	if (lease_mask & FL_IGN_DIR_RENAME)
+		set |= FS_RENAME;
+	else
+		clear |= FS_RENAME;
+
+	fsnotify_modify_mark_mask(mark, set, clear);
+	mutex_unlock(&nf->nf_mark->nfm_recalc_mutex);
 }
