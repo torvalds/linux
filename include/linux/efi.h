@@ -1256,6 +1256,8 @@ extern struct efi_runtime_work efi_rts_work;
 /* Workqueue to queue EFI Runtime Services */
 extern struct workqueue_struct *efi_rts_wq;
 
+void __noreturn efi_rts_park_worker(void);
+
 struct linux_efi_memreserve {
 	int		size;			// allocated size of the array
 	atomic_t	count;			// number of entries used
