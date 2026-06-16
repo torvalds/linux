@@ -142,16 +142,15 @@ static inline __be32 check_pseudo_root(struct dentry *dentry,
 /* Size of a file handle MAC, in 4-octet words */
 #define FH_MAC_WORDS (sizeof(__le64) / 4)
 
-static bool fh_append_mac(struct svc_fh *fhp, struct net *net)
+bool fh_append_mac(struct knfsd_fh *fh, int fh_maxsize, struct net *net)
 {
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
-	struct knfsd_fh *fh = &fhp->fh_handle;
 	siphash_key_t *fh_key = nn->fh_key;
 	__le64 hash;
 
 	if (!fh_key)
 		goto out_no_key;
-	if (fh->fh_size + sizeof(hash) > fhp->fh_maxsize)
+	if (fh->fh_size + sizeof(hash) > fh_maxsize)
 		goto out_no_space;
 
 	hash = cpu_to_le64(siphash(&fh->fh_raw, fh->fh_size, fh_key));
@@ -165,7 +164,7 @@ out_no_key:
 
 out_no_space:
 	pr_warn_ratelimited("NFSD: unable to sign filehandles, fh_size %zu would be greater than fh_maxsize %d.\n",
-			    fh->fh_size + sizeof(hash), fhp->fh_maxsize);
+			    fh->fh_size + sizeof(hash), fh_maxsize);
 	return false;
 }
 
@@ -564,7 +563,8 @@ static void _fh_update(struct svc_fh *fhp, struct svc_export *exp,
 		fhp->fh_handle.fh_size += maxsize * 4;
 
 		if (exp->ex_flags & NFSEXP_SIGN_FH)
-			if (!fh_append_mac(fhp, exp->cd->net))
+			if (!fh_append_mac(&fhp->fh_handle, fhp->fh_maxsize,
+					   exp->cd->net))
 				fhp->fh_handle.fh_fileid_type = FILEID_INVALID;
 	} else {
 		fhp->fh_handle.fh_fileid_type = FILEID_ROOT;
@@ -894,19 +894,20 @@ char * SVCFH_fmt(struct svc_fh *fhp)
 	return buf;
 }
 
-enum fsid_source fsid_source(const struct svc_fh *fhp)
+enum fsid_source fsid_source_fh(const struct knfsd_fh *fh,
+				struct svc_export *exp)
 {
-	if (fhp->fh_handle.fh_version != 1)
+	if (fh->fh_version != 1)
 		return FSIDSOURCE_DEV;
-	switch(fhp->fh_handle.fh_fsid_type) {
+	switch (fh->fh_fsid_type) {
 	case FSID_DEV:
 	case FSID_ENCODE_DEV:
 	case FSID_MAJOR_MINOR:
-		if (exp_sb(fhp->fh_export)->s_type->fs_flags & FS_REQUIRES_DEV)
+		if (exp_sb(exp)->s_type->fs_flags & FS_REQUIRES_DEV)
 			return FSIDSOURCE_DEV;
 		break;
 	case FSID_NUM:
-		if (fhp->fh_export->ex_flags & NFSEXP_FSID)
+		if (exp->ex_flags & NFSEXP_FSID)
 			return FSIDSOURCE_FSID;
 		break;
 	default:
@@ -915,11 +916,16 @@ enum fsid_source fsid_source(const struct svc_fh *fhp)
 	/* either a UUID type filehandle, or the filehandle doesn't
 	 * match the export.
 	 */
-	if (fhp->fh_export->ex_flags & NFSEXP_FSID)
+	if (exp->ex_flags & NFSEXP_FSID)
 		return FSIDSOURCE_FSID;
-	if (fhp->fh_export->ex_uuid)
+	if (exp->ex_uuid)
 		return FSIDSOURCE_UUID;
 	return FSIDSOURCE_DEV;
+}
+
+enum fsid_source fsid_source(const struct svc_fh *fhp)
+{
+	return fsid_source_fh(&fhp->fh_handle, fhp->fh_export);
 }
 
 /**
