@@ -170,11 +170,10 @@ struct dpages {
 			 struct page **p, unsigned long *len, unsigned int *offset);
 	void (*next_page)(struct dpages *dp);
 
-	union {
-		unsigned int context_u;
-		struct bvec_iter context_bi;
-	};
+	unsigned int context_u;
 	void *context_ptr;
+
+	struct bio *orig_bio;
 
 	void *vma_invalidate_address;
 	unsigned long vma_invalidate_size;
@@ -208,44 +207,6 @@ static void list_dp_init(struct dpages *dp, struct page_list *pl, unsigned int o
 	dp->next_page = list_next_page;
 	dp->context_u = offset;
 	dp->context_ptr = pl;
-}
-
-/*
- * Functions for getting the pages from a bvec.
- */
-static void bio_get_page(struct dpages *dp, struct page **p,
-			 unsigned long *len, unsigned int *offset)
-{
-	struct bio_vec bvec = bvec_iter_bvec((struct bio_vec *)dp->context_ptr,
-					     dp->context_bi);
-
-	*p = bvec.bv_page;
-	*len = bvec.bv_len;
-	*offset = bvec.bv_offset;
-
-	/* avoid figuring it out again in bio_next_page() */
-	dp->context_bi.bi_sector = (sector_t)bvec.bv_len;
-}
-
-static void bio_next_page(struct dpages *dp)
-{
-	unsigned int len = (unsigned int)dp->context_bi.bi_sector;
-
-	bvec_iter_advance((struct bio_vec *)dp->context_ptr,
-			  &dp->context_bi, len);
-}
-
-static void bio_dp_init(struct dpages *dp, struct bio *bio)
-{
-	dp->get_page = bio_get_page;
-	dp->next_page = bio_next_page;
-
-	/*
-	 * We just use bvec iterator to retrieve pages, so it is ok to
-	 * access the bvec table directly here
-	 */
-	dp->context_ptr = bio->bi_io_vec;
-	dp->context_bi = bio->bi_iter;
 }
 
 /*
@@ -329,6 +290,21 @@ static void do_region(const blk_opf_t opf, unsigned int region,
 	    special_cmd_max_sectors == 0) {
 		atomic_inc(&io->count);
 		dec_count(io, region, BLK_STS_NOTSUPP);
+		return;
+	}
+
+	if (dp->orig_bio) {
+		bio = bio_alloc_clone(where->bdev, dp->orig_bio, GFP_NOIO,
+				      &io->client->bios);
+		bio->bi_iter.bi_sector = where->sector;
+		bio->bi_iter.bi_size = where->count << SECTOR_SHIFT;
+		bio->bi_opf = opf;
+		bio->bi_end_io = endio;
+		bio->bi_ioprio = ioprio;
+		store_io_and_region_in_bio(bio, io, region);
+
+		atomic_inc(&io->count);
+		submit_bio(bio);
 		return;
 	}
 
@@ -468,6 +444,7 @@ static int dp_init(struct dm_io_request *io_req, struct dpages *dp,
 
 	dp->vma_invalidate_address = NULL;
 	dp->vma_invalidate_size = 0;
+	dp->orig_bio = NULL;
 
 	switch (io_req->mem.type) {
 	case DM_IO_PAGE_LIST:
@@ -475,7 +452,11 @@ static int dp_init(struct dm_io_request *io_req, struct dpages *dp,
 		break;
 
 	case DM_IO_BIO:
-		bio_dp_init(dp, io_req->mem.ptr.bio);
+		/*
+		 * The destination bios clone this bio's biovec directly, so
+		 * there are no per-page accessors to set up here.
+		 */
+		dp->orig_bio = io_req->mem.ptr.bio;
 		break;
 
 	case DM_IO_VMA:
