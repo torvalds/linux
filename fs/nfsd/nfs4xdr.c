@@ -4272,11 +4272,12 @@ nfsd4_setup_notify_entry4(struct notify_entry4 *ne, struct xdr_stream *xdr,
 			  struct dentry *dentry, struct nfs4_delegation *dp,
 			  struct nfsd_file *nf, char *name, u32 namelen)
 {
-	struct path path =  { .mnt = nf->nf_file->f_path.mnt,
-			      .dentry = dentry };
+	struct path path = nf->nf_file->f_path;
 	struct nfsd4_fattr_args args = { };
+	const u32 *reqmask;
 	uint32_t *attrmask;
 	__be32 status;
+	bool parent;
 	int ret;
 
 	/* Reserve space for attrmask */
@@ -4288,9 +4289,29 @@ nfsd4_setup_notify_entry4(struct notify_entry4 *ne, struct xdr_stream *xdr,
 	ne->ne_file.len = namelen;
 	ne->ne_attrs.attrmask.element = attrmask;
 
-	/* FIXME: d_find_alias for inode ? */
-	if (!path.dentry || !d_inode(path.dentry))
-		goto noattrs;
+	parent = (dentry == path.dentry);
+	path.dentry = dentry;
+	reqmask = parent ? dp->dl_dir_attrs : dp->dl_child_attrs;
+
+	/*
+	 * A NULL or negative dentry has no attributes to report (expected,
+	 * e.g. for the old entry of a rename or an entry already removed).
+	 * The client may also have been granted the notification while
+	 * requesting no attributes for this entry. Both cases encode an
+	 * empty attribute set rather than failing: the vfs_getattr() and
+	 * nfsd4_encode_attr_vals() failures below recall the delegation, so
+	 * a case with nothing to fetch must short-circuit ahead of them.
+	 */
+	if (!path.dentry || !d_inode(path.dentry) ||
+	    (!reqmask[0] && !reqmask[1])) {
+		attrmask[0] = 0;
+		attrmask[1] = 0;
+		attrmask[2] = 0;
+		ne->ne_attrs.attr_vals.data = NULL;
+		ne->ne_attrs.attr_vals.len = 0;
+		ne->ne_attrs.attrmask.count = 1;
+		return true;
+	}
 
 	/*
 	 * It is possible that the client was granted a delegation when a file
@@ -4299,36 +4320,33 @@ nfsd4_setup_notify_entry4(struct notify_entry4 *ne, struct xdr_stream *xdr,
 	 */
 	ret = vfs_getattr(&path, &args.stat, CB_NOTIFY_STATX_REQUEST_MASK, AT_STATX_SYNC_AS_STAT);
 	if (ret)
-		goto noattrs;
+		return false;
 
 	args.change_attr = nfsd4_change_attribute(&args.stat);
 
-	attrmask[0] = dp->dl_child_attrs[0];
-	attrmask[1] = dp->dl_child_attrs[1];
+	if (parent) {
+		attrmask[0] = dp->dl_dir_attrs[0];
+		attrmask[1] = dp->dl_dir_attrs[1];
+	} else {
+		attrmask[0] = dp->dl_child_attrs[0];
+		attrmask[1] = dp->dl_child_attrs[1];
+
+		if (!setup_notify_fhandle(dentry, dp, nf, &args))
+			attrmask[0] &= ~FATTR4_WORD0_FILEHANDLE;
+
+		if (!(args.stat.result_mask & STATX_BTIME))
+			attrmask[1] &= ~FATTR4_WORD1_TIME_CREATE;
+	}
 	attrmask[2] = 0;
-
-	if (!setup_notify_fhandle(dentry, dp, nf, &args))
-		attrmask[0] &= ~FATTR4_WORD0_FILEHANDLE;
-
-	if (!(args.stat.result_mask & STATX_BTIME))
-		attrmask[1] &= ~FATTR4_WORD1_TIME_CREATE;
 
 	ne->ne_attrs.attrmask.count = 2;
 	ne->ne_attrs.attr_vals.data = (u8 *)xdr->p;
 
 	status = nfsd4_encode_attr_vals(xdr, attrmask, &args);
 	if (status != nfs_ok)
-		goto noattrs;
+		return false;
 
 	ne->ne_attrs.attr_vals.len = (u8 *)xdr->p - ne->ne_attrs.attr_vals.data;
-	return true;
-noattrs:
-	attrmask[0] = 0;
-	attrmask[1] = 0;
-	attrmask[2] = 0;
-	ne->ne_attrs.attr_vals.data = NULL;
-	ne->ne_attrs.attr_vals.len = 0;
-	ne->ne_attrs.attrmask.count = 1;
 	return true;
 }
 
@@ -4422,6 +4440,42 @@ u8 *nfsd4_encode_notify_event(struct xdr_stream *xdr, struct nfsd_notify_event *
 out_err:
 	pr_warn("nfsd: unable to marshal notify event to xdr stream\n");
 	return NULL;
+}
+
+/**
+ * nfsd4_encode_dir_attr_change
+ * @xdr: stream to which to encode the fattr4
+ * @dp: delegation where the event occurred
+ * @nf: nfsd_file opened on the directory
+ *
+ * Encode a dir attr change event.
+ *
+ * Return: a pointer to the start of the encoded event on success; NULL
+ * if there were no requested attributes to report, in which case the
+ * caller should omit the event; or an ERR_PTR if the event was requested
+ * but could not be marshalled into @xdr, in which case the caller should
+ * recall the delegation.
+ */
+u8 *nfsd4_encode_dir_attr_change(struct xdr_stream *xdr, struct nfs4_delegation *dp,
+				 struct nfsd_file *nf)
+{
+	struct dentry *dentry = nf->nf_file->f_path.dentry;
+	struct notify_attr4 na = { };
+	u8 *p;
+
+	/* RFC 8881 s10.4.3: ne_file must be a zero-length string for dir attrs */
+	if (!nfsd4_setup_notify_entry4(&na.na_changed_entry, xdr,
+				       dentry, dp, nf, "", 0))
+		return ERR_PTR(-ENOBUFS);
+
+	/* No requested attributes to report; omit the event */
+	if (!na.na_changed_entry.ne_attrs.attr_vals.len)
+		return NULL;
+
+	p = (u8 *)xdr->p;
+	if (!xdrgen_encode_notify_attr4(xdr, &na))
+		return ERR_PTR(-ENOBUFS);
+	return p;
 }
 
 static void svcxdr_init_encode_from_buffer(struct xdr_stream *xdr,

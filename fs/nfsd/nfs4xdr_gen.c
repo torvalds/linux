@@ -669,7 +669,7 @@ xdrgen_decode_notify_add4(struct xdr_stream *xdr, struct notify_add4 *ptr)
 	return true;
 }
 
-static bool __maybe_unused
+bool
 xdrgen_decode_notify_attr4(struct xdr_stream *xdr, struct notify_attr4 *ptr)
 {
 	if (!xdrgen_decode_notify_entry4(xdr, &ptr->na_changed_entry))
@@ -1091,7 +1091,7 @@ xdrgen_encode_notify_add4(struct xdr_stream *xdr, const struct notify_add4 *valu
 	return true;
 }
 
-static bool __maybe_unused
+bool
 xdrgen_encode_notify_attr4(struct xdr_stream *xdr, const struct notify_attr4 *value)
 {
 	if (!xdrgen_encode_notify_entry4(xdr, &value->na_changed_entry))

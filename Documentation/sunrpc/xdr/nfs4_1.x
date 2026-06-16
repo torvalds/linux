@@ -464,6 +464,7 @@ pragma public notify_add4;
 struct notify_attr4 {
         notify_entry4   na_changed_entry;
 };
+pragma public notify_attr4;
 
 struct notify_rename4 {
         notify_remove4  nrn_old_entry;

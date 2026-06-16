@@ -38,6 +38,9 @@ bool xdrgen_encode_notify_remove4(struct xdr_stream *xdr, const struct notify_re
 bool xdrgen_decode_notify_add4(struct xdr_stream *xdr, struct notify_add4 *ptr);
 bool xdrgen_encode_notify_add4(struct xdr_stream *xdr, const struct notify_add4 *value);
 
+bool xdrgen_decode_notify_attr4(struct xdr_stream *xdr, struct notify_attr4 *ptr);
+bool xdrgen_encode_notify_attr4(struct xdr_stream *xdr, const struct notify_attr4 *value);
+
 bool xdrgen_decode_notify_rename4(struct xdr_stream *xdr, struct notify_rename4 *ptr);
 bool xdrgen_encode_notify_rename4(struct xdr_stream *xdr, const struct notify_rename4 *value);
 
