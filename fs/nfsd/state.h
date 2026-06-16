@@ -201,9 +201,22 @@ struct nfsd_notify_event {
 	refcount_t	ne_ref;		// refcount
 	u32		ne_mask;	// FS_* mask from fsnotify callback
 	struct dentry	*ne_dentry;	// dentry reference to target
-	u32		ne_namelen;	// length of ne_name
-	char		ne_name[];	// name of dentry being changed
+	struct inode	*ne_target;	// inode overwritten by rename, or NULL
+	u32		ne_namelen;	// length of ne_name (old name for a rename)
+	u32		ne_newnamelen;	// length of new name (rename only), else 0
+	char		ne_name[];	// entry name, then new name (rename only)
 };
+
+/*
+ * For a rename, the new name is snapshotted at event-alloc time and stored
+ * immediately after the (NUL-terminated) old name in ne_name[]. ne_dentry can
+ * be renamed again before the CB_NOTIFY work runs, so the new name must not be
+ * read from the live dentry at encode time.
+ */
+static inline char *nfsd_notify_event_newname(struct nfsd_notify_event *ne)
+{
+	return ne->ne_name + ne->ne_namelen + 1;
+}
 
 static inline struct nfsd_notify_event *nfsd_notify_event_get(struct nfsd_notify_event *ne)
 {
@@ -214,6 +227,7 @@ static inline struct nfsd_notify_event *nfsd_notify_event_get(struct nfsd_notify
 static inline void nfsd_notify_event_put(struct nfsd_notify_event *ne)
 {
 	if (refcount_dec_and_test(&ne->ne_ref)) {
+		iput(ne->ne_target);
 		dput(ne->ne_dentry);
 		kfree(ne);
 	}
@@ -901,6 +915,8 @@ void nfsd_update_cmtime_attr(struct file *f, unsigned int flags);
 extern struct nfs4_client_reclaim *nfs4_client_to_reclaim(struct xdr_netobj name,
 				struct xdr_netobj princhash, struct nfsd_net *nn);
 extern bool nfs4_has_reclaimed_state(struct xdr_netobj name, struct nfsd_net *nn);
+int nfsd_handle_dir_event(u32 mask, const struct inode *dir, const void *data,
+			  int data_type, const struct qstr *name);
 
 void put_nfs4_file(struct nfs4_file *fi);
 extern void nfs4_put_cpntf_state(struct nfsd_net *nn,

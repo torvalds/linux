@@ -445,6 +445,7 @@ struct notify_remove4 {
         notify_entry4   nrm_old_entry;
         nfs_cookie4     nrm_old_entry_cookie;
 };
+pragma public notify_remove4;
 
 struct notify_add4 {
         /*
@@ -458,6 +459,7 @@ struct notify_add4 {
         prev_entry4         nad_prev_entry<1>;
         bool                nad_last_entry;
 };
+pragma public notify_add4;
 
 struct notify_attr4 {
         notify_entry4   na_changed_entry;
@@ -467,6 +469,7 @@ struct notify_rename4 {
         notify_remove4  nrn_old_entry;
         notify_add4     nrn_new_entry;
 };
+pragma public notify_rename4;
 
 struct notify_verifier4 {
         verifier4       nv_old_cookieverf;

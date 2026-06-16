@@ -32,6 +32,15 @@ bool xdrgen_decode_posixaceperm4(struct xdr_stream *xdr, posixaceperm4 *ptr);
 bool xdrgen_encode_posixaceperm4(struct xdr_stream *xdr, const posixaceperm4 value);
 
 
+bool xdrgen_decode_notify_remove4(struct xdr_stream *xdr, struct notify_remove4 *ptr);
+bool xdrgen_encode_notify_remove4(struct xdr_stream *xdr, const struct notify_remove4 *value);
+
+bool xdrgen_decode_notify_add4(struct xdr_stream *xdr, struct notify_add4 *ptr);
+bool xdrgen_encode_notify_add4(struct xdr_stream *xdr, const struct notify_add4 *value);
+
+bool xdrgen_decode_notify_rename4(struct xdr_stream *xdr, struct notify_rename4 *ptr);
+bool xdrgen_encode_notify_rename4(struct xdr_stream *xdr, const struct notify_rename4 *value);
+
 bool xdrgen_decode_CB_NOTIFY4args(struct xdr_stream *xdr, struct CB_NOTIFY4args *ptr);
 bool xdrgen_encode_CB_NOTIFY4args(struct xdr_stream *xdr, const struct CB_NOTIFY4args *value);
 

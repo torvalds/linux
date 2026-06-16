@@ -896,11 +896,14 @@ static void nfs4_xdr_enc_cb_notify(struct rpc_rqst *req,
 				   const void *data)
 {
 	const struct nfsd4_callback *cb = data;
+	struct nfsd4_cb_notify *ncn = container_of(cb, struct nfsd4_cb_notify, ncn_cb);
+	struct nfs4_delegation *dp = container_of(ncn, struct nfs4_delegation, dl_cb_notify);
 	struct nfs4_cb_compound_hdr hdr = {
 		.ident = 0,
 		.minorversion = cb->cb_clp->cl_minorversion,
 	};
-	struct CB_NOTIFY4args args = { };
+	struct CB_NOTIFY4args args;
+	unsigned int start;
 
 	WARN_ON_ONCE(hdr.minorversion == 0);
 
@@ -908,12 +911,42 @@ static void nfs4_xdr_enc_cb_notify(struct rpc_rqst *req,
 	encode_cb_sequence4args(xdr, cb, &hdr);
 
 	/*
-	 * FIXME: get stateid and fh from delegation. Inline the cna_changes
-	 * buffer, and zero it.
+	 * nfsd4_cb_notify_prepare() sized the payload against a single page,
+	 * but did not account for the compound, sequence, stateid, and
+	 * filehandle encoded here. If the variable-length encode overflows the
+	 * backchannel send buffer, roll back to before the operation so that a
+	 * truncated CB_NOTIFY is never placed on the wire.
 	 */
-	xdrgen_encode_CB_NOTIFY4args(xdr, &args);
+	start = xdr_stream_pos(xdr);
+
+	if (xdr_stream_encode_u32(xdr, OP_CB_NOTIFY) < 0)
+		goto out_err;
+
+	args.cna_stateid.seqid = dp->dl_stid.sc_stateid.si_generation;
+	memcpy(&args.cna_stateid.other, &dp->dl_stid.sc_stateid.si_opaque,
+	       ARRAY_SIZE(args.cna_stateid.other));
+	args.cna_fh.len = dp->dl_stid.sc_file->fi_fhandle.fh_size;
+	args.cna_fh.data = dp->dl_stid.sc_file->fi_fhandle.fh_raw;
+	args.cna_changes.count = ncn->ncn_nf_cnt;
+	args.cna_changes.element = ncn->ncn_nf;
+	if (!xdrgen_encode_CB_NOTIFY4args(xdr, &args))
+		goto out_err;
 
 	hdr.nops++;
+	encode_cb_nops(&hdr);
+	return;
+
+out_err:
+	/*
+	 * Drop the CB_NOTIFY op and emit a valid CB_SEQUENCE-only compound so
+	 * the client still advances its slot. Flag the failure so the done
+	 * handler recalls the delegation and the missed notification is not
+	 * silently lost. The flag is written here in the transmit path and read
+	 * in the done handler; the two are serialized phases of the same
+	 * rpc_task, so no additional barrier is needed.
+	 */
+	ncn->ncn_encode_err = true;
+	xdr_truncate_encode(xdr, start);
 	encode_cb_nops(&hdr);
 }
 
@@ -1411,6 +1444,16 @@ static void nfsd41_destroy_cb(struct nfsd4_callback *cb)
 		clear_and_wake_up_bit(NFSD4_CALLBACK_RUNNING, &cb->cb_flags);
 	else
 		clear_bit(NFSD4_CALLBACK_RUNNING, &cb->cb_flags);
+
+	/*
+	 * Order the clear of NFSD4_CALLBACK_RUNNING above before the ->release()
+	 * callback below. A release op may re-check producer-side state to decide
+	 * whether to requeue itself (see nfsd4_cb_notify_release()), and that
+	 * check must not be reordered ahead of the clear. The plain clear_bit()
+	 * path carries no ordering; clear_and_wake_up_bit() already issues this
+	 * barrier internally, so the extra one is harmless there.
+	 */
+	smp_mb__after_atomic();
 
 	if (cb->cb_ops && cb->cb_ops->release)
 		cb->cb_ops->release(cb);

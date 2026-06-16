@@ -628,7 +628,7 @@ xdrgen_decode_prev_entry4(struct xdr_stream *xdr, struct prev_entry4 *ptr)
 	return true;
 }
 
-static bool __maybe_unused
+bool
 xdrgen_decode_notify_remove4(struct xdr_stream *xdr, struct notify_remove4 *ptr)
 {
 	if (!xdrgen_decode_notify_entry4(xdr, &ptr->nrm_old_entry))
@@ -638,7 +638,7 @@ xdrgen_decode_notify_remove4(struct xdr_stream *xdr, struct notify_remove4 *ptr)
 	return true;
 }
 
-static bool __maybe_unused
+bool
 xdrgen_decode_notify_add4(struct xdr_stream *xdr, struct notify_add4 *ptr)
 {
 	if (xdr_stream_decode_u32(xdr, &ptr->nad_old_entry.count) < 0)
@@ -677,7 +677,7 @@ xdrgen_decode_notify_attr4(struct xdr_stream *xdr, struct notify_attr4 *ptr)
 	return true;
 }
 
-static bool __maybe_unused
+bool
 xdrgen_decode_notify_rename4(struct xdr_stream *xdr, struct notify_rename4 *ptr)
 {
 	if (!xdrgen_decode_notify_remove4(xdr, &ptr->nrn_old_entry))
@@ -1050,7 +1050,7 @@ xdrgen_encode_prev_entry4(struct xdr_stream *xdr, const struct prev_entry4 *valu
 	return true;
 }
 
-static bool __maybe_unused
+bool
 xdrgen_encode_notify_remove4(struct xdr_stream *xdr, const struct notify_remove4 *value)
 {
 	if (!xdrgen_encode_notify_entry4(xdr, &value->nrm_old_entry))
@@ -1060,7 +1060,7 @@ xdrgen_encode_notify_remove4(struct xdr_stream *xdr, const struct notify_remove4
 	return true;
 }
 
-static bool __maybe_unused
+bool
 xdrgen_encode_notify_add4(struct xdr_stream *xdr, const struct notify_add4 *value)
 {
 	if (value->nad_old_entry.count > 1)
@@ -1099,7 +1099,7 @@ xdrgen_encode_notify_attr4(struct xdr_stream *xdr, const struct notify_attr4 *va
 	return true;
 }
 
-static bool __maybe_unused
+bool
 xdrgen_encode_notify_rename4(struct xdr_stream *xdr, const struct notify_rename4 *value)
 {
 	if (!xdrgen_encode_notify_remove4(xdr, &value->nrn_old_entry))
