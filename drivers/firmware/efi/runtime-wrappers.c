@@ -333,16 +333,15 @@ static void __nocfi efi_call_rts(struct work_struct *work)
 static efi_status_t __efi_queue_work(enum efi_rts_ids id,
 				     union efi_rts_args *args)
 {
+	if (!efi_enabled(EFI_RUNTIME_SERVICES)) {
+		pr_warn_once("EFI Runtime Services are disabled!\n");
+		return EFI_DEVICE_ERROR;
+	}
+
 	efi_rts_work.efi_rts_id = id;
 	efi_rts_work.args = args;
 	efi_rts_work.caller = __builtin_return_address(0);
 	efi_rts_work.status = EFI_ABORTED;
-
-	if (!efi_enabled(EFI_RUNTIME_SERVICES)) {
-		pr_warn_once("EFI Runtime Services are disabled!\n");
-		efi_rts_work.status = EFI_DEVICE_ERROR;
-		goto exit;
-	}
 
 	init_completion(&efi_rts_work.efi_rts_comp);
 	INIT_WORK(&efi_rts_work.work, efi_call_rts);
