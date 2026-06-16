@@ -153,6 +153,13 @@ struct dml2_dchub_per_pipe_register_set {
 	uint32_t det_size;
 };
 
+struct dml2_mcif_per_pipe_register_set {
+	unsigned int time_per_pixel; // U6.6 format
+	unsigned int arbitration_slice;
+	unsigned int slice_lines;
+	unsigned int max_scaled_time_ns;
+};
+
 struct dml2_dchub_watermark_regs {
 	/* watermarks */
 	uint32_t urgent;
@@ -185,6 +192,19 @@ enum dml2_dchub_watermark_reg_set_index {
 struct dml2_dchub_global_register_set {
 	struct dml2_display_arb_regs arb_regs;
 	struct dml2_dchub_watermark_regs wm_regs[DML2_DCHUB_WATERMARK_SET_NUM];
+	unsigned int num_watermark_sets;
+};
+
+struct dml2_mcif_watermark_regs {
+	/* watermarks */
+	uint32_t urgent; /* (CLI) */
+	uint32_t uclk_pstate;
+	uint32_t fclk_pstate;
+	uint32_t temp_read_or_ppt;
+};
+
+struct dml2_mcif_global_register_set {
+	struct dml2_mcif_watermark_regs wm_regs[DML2_DCHUB_WATERMARK_SET_NUM];
 	unsigned int num_watermark_sets;
 };
 

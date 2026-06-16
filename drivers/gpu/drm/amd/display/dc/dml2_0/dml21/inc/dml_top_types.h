@@ -436,12 +436,14 @@ struct dml2_display_cfg_programming {
 	} z8_stutter;
 
 	struct dml2_dchub_global_register_set global_regs;
+	struct dml2_mcif_global_register_set mcif_global_regs;
 
 	struct dml2_per_plane_programming plane_programming[DML2_MAX_PLANES];
 	struct dml2_per_stream_programming stream_programming[DML2_MAX_PLANES];
 
 	// Don't access this structure directly, access it through plane_programming.pipe_regs
 	struct dml2_dchub_per_pipe_register_set pipe_regs[DML2_MAX_PLANES];
+	struct dml2_mcif_per_pipe_register_set mcif_regs[DML2_MAX_WRITEBACK];
 
 	struct {
 		struct {
