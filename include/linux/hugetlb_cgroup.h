@@ -267,5 +267,5 @@ static inline void hugetlb_cgroup_migrate(struct folio *old_folio,
 {
 }
 
-#endif  /* CONFIG_MEM_RES_CTLR_HUGETLB */
+#endif  /* CONFIG_CGROUP_HUGETLB */
 #endif
