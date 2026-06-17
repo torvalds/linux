@@ -622,6 +622,7 @@ struct dc_state {
 	 * @stream_status: Planes status on a given stream
 	 */
 	struct dc_stream_status stream_status[MAX_PIPES];
+
 	/**
 	 * @phantom_streams: Stream state properties for phantoms
 	 */
@@ -645,6 +646,17 @@ struct dc_state {
 	 * @stream_count: Total phantom planes in use
 	 */
 	uint8_t phantom_plane_count;
+
+	/**
+	 * @probes: Committed absolute set of probe descriptors.
+	 */
+	struct dc_probe_state probes[MAX_PROBES];
+
+	/**
+	 * @probe_count: Number of valid entries in @probes.
+	 */
+	int probe_count;
+
 	/**
 	 * @res_ctx: Persistent state of resources
 	 */

@@ -29,6 +29,7 @@
 #include "dc_types.h"
 #include "dc_state.h"
 #include "dc_plane.h"
+#include "dc_probe.h"
 #include "grph_object_defs.h"
 #include "logger_types.h"
 #include "hdcp_msg_types.h"
@@ -2103,6 +2104,14 @@ struct dc_surface_update {
 	unsigned int sdr_white_level_nits;
 	struct dc_bias_and_scale bias_and_scale;
 	struct cm_hist_control *cm_hist_control;
+};
+
+struct dc_state_update {
+	struct dc_stream_state   *stream;
+	struct dc_stream_update  *stream_update;
+	struct dc_surface_update *surface_updates;
+	int                       surface_count;
+	const struct dc_probe_updates *probe_updates;
 };
 
 struct dc_underflow_debug_data {
