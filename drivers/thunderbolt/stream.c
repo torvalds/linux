@@ -633,10 +633,23 @@ static void tbstream_dev_stop(struct tbstream_dev *sdev)
 	sdev->tx_ring.ring = NULL;
 }
 
+static int tbstream_dev_lock(struct tbstream_dev *sdev, bool nowait)
+{
+	if (nowait) {
+		if (!mutex_trylock(&sdev->lock))
+			return -EAGAIN;
+	} else {
+		if (mutex_lock_interruptible(&sdev->lock))
+			return -ERESTARTSYS;
+	}
+	return 0;
+}
+
 static ssize_t
 tbstream_dev_fops_read_iter(struct kiocb *kiocb, struct iov_iter *to)
 {
 	struct file *file = kiocb->ki_filp;
+	bool nowait = file->f_flags & O_NONBLOCK || kiocb->ki_flags & IOCB_NOWAIT;
 	struct tbstream_dev *sdev = to_tbstream_dev(file->private_data);
 	size_t nbytes;
 	int ret;
@@ -645,14 +658,16 @@ tbstream_dev_fops_read_iter(struct kiocb *kiocb, struct iov_iter *to)
 	if (ret)
 		return ret;
 
-	if (mutex_lock_interruptible(&sdev->lock))
-		return -ERESTARTSYS;
+	ret = tbstream_dev_lock(sdev, nowait);
+	if (ret)
+		return ret;
 
 	while (!tbstream_ring_available(&sdev->rx_ring)) {
 		mutex_unlock(&sdev->lock);
 
-		if (file->f_flags & O_NONBLOCK)
+		if (nowait)
 			return -EAGAIN;
+
 		ret = wait_event_interruptible(sdev->wait,
 				tbstream_ring_available(&sdev->rx_ring) ||
 				tbstream_dev_valid(sdev) != 0 ||
@@ -668,8 +683,9 @@ tbstream_dev_fops_read_iter(struct kiocb *kiocb, struct iov_iter *to)
 		if (tbstream_dev_closed(sdev) || tbstream_dev_removed(sdev))
 			return 0;
 
-		if (mutex_lock_interruptible(&sdev->lock))
-			return -ERESTARTSYS;
+		ret = tbstream_dev_lock(sdev, nowait);
+		if (ret)
+			return ret;
 	}
 
 	nbytes = 0;
@@ -729,6 +745,7 @@ static ssize_t
 tbstream_dev_fops_write_iter(struct kiocb *kiocb, struct iov_iter *from)
 {
 	struct file *file = kiocb->ki_filp;
+	bool nowait = file->f_flags & O_NONBLOCK || kiocb->ki_flags & IOCB_NOWAIT;
 	struct tbstream_dev *sdev = to_tbstream_dev(file->private_data);
 	size_t nbytes;
 	int ret;
@@ -737,14 +754,16 @@ tbstream_dev_fops_write_iter(struct kiocb *kiocb, struct iov_iter *from)
 	if (ret)
 		return ret;
 
-	if (mutex_lock_interruptible(&sdev->lock))
-		return -ERESTARTSYS;
+	ret = tbstream_dev_lock(sdev, nowait);
+	if (ret)
+		return ret;
 
 	while (!tbstream_ring_available(&sdev->tx_ring)) {
 		mutex_unlock(&sdev->lock);
 
-		if (file->f_flags & O_NONBLOCK)
+		if (nowait)
 			return -EAGAIN;
+
 		ret = wait_event_interruptible(sdev->wait,
 				tbstream_ring_available(&sdev->tx_ring) ||
 				tbstream_dev_valid(sdev) != 0 ||
@@ -760,8 +779,9 @@ tbstream_dev_fops_write_iter(struct kiocb *kiocb, struct iov_iter *from)
 		if (tbstream_dev_closed(sdev) || tbstream_dev_removed(sdev))
 			return -ENXIO;
 
-		if (mutex_lock_interruptible(&sdev->lock))
-			return -ERESTARTSYS;
+		ret = tbstream_dev_lock(sdev, nowait);
+		if (ret)
+			return ret;
 	}
 
 	nbytes = 0;
