@@ -330,8 +330,8 @@ static unsigned int kernfs_name_hash(const char *name,
 				     const struct ns_common *ns)
 {
 	unsigned long hash = init_name_hash(kernfs_ns_id(ns));
-	unsigned int len = strlen(name);
-	while (len--)
+
+	while (*name)
 		hash = partial_name_hash(*name++, hash);
 	hash = end_name_hash(hash);
 	hash &= 0x7fffffffU;
