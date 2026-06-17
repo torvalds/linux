@@ -1897,9 +1897,15 @@ static int mt7925_set_sar_specs(struct ieee80211_hw *hw,
 	int err;
 
 	mt792x_mutex_acquire(dev);
-	err = mt7925_set_tx_sar_pwr(hw, sar);
-	mt792x_mutex_release(dev);
+	err = mt7925_mcu_set_clc(dev, dev->mt76.alpha2,
+			 dev->country_ie_env);
+	if (err < 0)
+		goto out;
 
+	err = mt7925_set_tx_sar_pwr(hw, sar);
+
+out:
+	mt792x_mutex_release(dev);
 	return err;
 }
 
