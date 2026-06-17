@@ -409,6 +409,7 @@ static const char *__hyp_enter_exit_reason_str(u8 reason)
 	static const char strs[][12] = {
 		"smc",
 		"hvc",
+		"sys",
 		"psci",
 		"host_abort",
 		"guest_exit",
