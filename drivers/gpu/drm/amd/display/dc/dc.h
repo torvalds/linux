@@ -2182,9 +2182,9 @@ void dc_post_update_surfaces_to_stream(
 void dc_get_default_tiling_info(const struct dc *dc, struct dc_tiling_info *tiling_info);
 
 /**
- * struct dc_validation_set - Struct to store surface/stream associations for validation
+ * struct dc_validation_stream - Per-stream surface/stream association for validation
  */
-struct dc_validation_set {
+struct dc_validation_stream {
 	/**
 	 * @stream: Stream state properties
 	 */
@@ -2201,6 +2201,21 @@ struct dc_validation_set {
 	uint8_t plane_count;
 };
 
+/**
+ * struct dc_validation_set - Root validation input grouping all streams for a commit
+ */
+struct dc_validation_set {
+	/**
+	 * @streams: Per-stream entries (stream + its planes)
+	 */
+	struct dc_validation_stream streams[MAX_STREAMS];
+
+	/**
+	 * @stream_count: Number of active entries in @streams
+	 */
+	uint8_t stream_count;
+};
+
 bool dc_validate_boot_timing(const struct dc *dc,
 				const struct dc_sink *sink,
 				struct dc_crtc_timing *crtc_timing);
@@ -2208,8 +2223,7 @@ bool dc_validate_boot_timing(const struct dc *dc,
 enum dc_status dc_validate_plane(struct dc *dc, const struct dc_plane_state *plane_state);
 
 enum dc_status dc_validate_with_context(struct dc *dc,
-					const struct dc_validation_set set[],
-					unsigned int set_count,
+					const struct dc_validation_set *set,
 					struct dc_state *context,
 					enum dc_validate_mode validate_mode);
 

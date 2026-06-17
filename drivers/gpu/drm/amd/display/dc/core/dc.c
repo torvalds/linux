@@ -2479,7 +2479,7 @@ enum dc_status dc_commit_streams(struct dc *dc, struct dc_commit_streams_params 
 	unsigned int i, j;
 	struct dc_state *context;
 	enum dc_status res = DC_OK;
-	struct dc_validation_set set[MAX_STREAMS] = {0};
+	struct dc_validation_set set = {0};
 	struct pipe_ctx *pipe;
 	bool handle_exit_odm2to1 = false;
 
@@ -2512,14 +2512,15 @@ enum dc_status dc_commit_streams(struct dc *dc, struct dc_commit_streams_params 
 
 		dc_stream_log(dc, stream);
 
-		set[i].stream = stream;
+		set.streams[i].stream = stream;
 
 		if (status) {
-			set[i].plane_count = (uint8_t)status->plane_count;
+			set.streams[i].plane_count = (uint8_t)status->plane_count;
 			for (j = 0; j < (unsigned int)status->plane_count; j++)
-				set[i].plane_states[j] = status->plane_states[j];
+				set.streams[i].plane_states[j] = status->plane_states[j];
 		}
 	}
+	set.stream_count = (uint8_t)params->stream_count;
 
 	/* ODM Combine 2:1 power optimization is only applied for single stream
 	 * scenario, it uses extra pipes than needed to reduce power consumption
@@ -2543,7 +2544,7 @@ enum dc_status dc_commit_streams(struct dc *dc, struct dc_commit_streams_params 
 
 	context->power_source = params->power_source;
 
-	res = dc_validate_with_context(dc, set, params->stream_count, context, DC_VALIDATE_MODE_AND_PROGRAMMING);
+	res = dc_validate_with_context(dc, &set, context, DC_VALIDATE_MODE_AND_PROGRAMMING);
 
 	/*
 	 * Only update link encoder to stream assignment after bandwidth validation passed.

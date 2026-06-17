@@ -577,8 +577,7 @@ struct pipe_ctx *resource_find_free_secondary_pipe_legacy(
 		const struct pipe_ctx *primary_pipe);
 
 bool resource_validate_attach_surfaces(
-		const struct dc_validation_set set[],
-		int set_count,
+		const struct dc_validation_set *set,
 		const struct dc_state *old_context,
 		struct dc_state *context,
 		const struct resource_pool *pool);
