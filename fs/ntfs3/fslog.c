@@ -789,6 +789,20 @@ static bool check_rstbl(const struct RESTART_TABLE *rt, size_t bytes)
 	return true;
 }
 
+static bool check_dp_table(const struct RESTART_TABLE *dptbl)
+{
+	u32 rsize = le16_to_cpu(dptbl->size);
+	struct DIR_PAGE_ENTRY *dp = NULL;
+
+	while ((dp = enum_rstbl((struct RESTART_TABLE *)dptbl, dp))) {
+		if (struct_size(dp, page_lcns, le32_to_cpu(dp->lcns_follow)) >
+		    rsize)
+			return false;
+	}
+
+	return true;
+}
+
 /*
  * free_rsttbl_idx - Free a previously allocated index a Restart Table.
  */
@@ -4289,6 +4303,11 @@ check_dirty_page_table:
 
 	/* Now check that this is a valid restart table. */
 	if (!check_rstbl(rt, t32)) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	if (!check_dp_table(rt)) {
 		err = -EINVAL;
 		goto out;
 	}
