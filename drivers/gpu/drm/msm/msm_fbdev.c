@@ -9,6 +9,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_file.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_prime.h>
@@ -92,11 +93,13 @@ int msm_fbdev_driver_fbdev_probe(struct drm_fb_helper *helper,
 	struct drm_device *dev = helper->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 	struct fb_info *fbi = helper->info;
+	struct drm_mode_fb_cmd2 mode_cmd = { };
 	struct drm_framebuffer *fb = NULL;
 	struct drm_gem_object *bo;
 	uint64_t paddr;
 	uint32_t format;
 	int ret, pitch;
+	int size;
 
 	format = drm_mode_legacy_fb_format(sizes->surface_bpp, sizes->surface_depth);
 
@@ -105,15 +108,38 @@ int msm_fbdev_driver_fbdev_probe(struct drm_fb_helper *helper,
 			sizes->fb_width, sizes->fb_height);
 
 	pitch = align_pitch(sizes->surface_width, sizes->surface_bpp);
-	fb = msm_alloc_stolen_fb(dev, sizes->surface_width,
-			sizes->surface_height, pitch, format);
 
-	if (IS_ERR(fb)) {
-		DRM_DEV_ERROR(dev->dev, "failed to allocate fb\n");
-		return PTR_ERR(fb);
+	/* allocate backing bo */
+	size = pitch * sizes->surface_height;
+	DBG("allocating %d bytes for fb %d", size, dev->primary->index);
+	bo = msm_gem_new(dev, size, MSM_BO_SCANOUT | MSM_BO_WC | MSM_BO_STOLEN, NULL);
+	if (IS_ERR(bo)) {
+		dev_warn(dev->dev, "could not allocate stolen bo\n");
+		/* try regular bo: */
+		bo = msm_gem_new(dev, size, MSM_BO_SCANOUT | MSM_BO_WC, NULL);
+		if (IS_ERR(bo)) {
+			DRM_DEV_ERROR(dev->dev, "failed to allocate buffer object\n");
+			return PTR_ERR(bo);
+		}
 	}
 
-	bo = msm_framebuffer_bo(fb, 0);
+	msm_gem_object_set_name(bo, "stolenfb");
+
+	mode_cmd.pixel_format = format;
+	mode_cmd.width = sizes->surface_width;
+	mode_cmd.height = sizes->surface_height;
+	mode_cmd.pitches[0] = pitch;
+	mode_cmd.modifier[0] = DRM_FORMAT_MOD_LINEAR;
+
+	fb = msm_framebuffer_init(dev,
+				  drm_get_format_info(dev, mode_cmd.pixel_format,
+						      mode_cmd.modifier[0]),
+				  &mode_cmd, &bo);
+	if (IS_ERR(fb)) {
+		DRM_DEV_ERROR(dev->dev, "failed to allocate fb\n");
+		ret = PTR_ERR(fb);
+		goto err_drm_gem_object_put;
+	}
 
 	/*
 	 * NOTE: if we can be guaranteed to be able to map buffer
@@ -123,7 +149,7 @@ int msm_fbdev_driver_fbdev_probe(struct drm_fb_helper *helper,
 	ret = msm_gem_get_and_pin_iova(bo, priv->kms->vm, &paddr);
 	if (ret) {
 		DRM_DEV_ERROR(dev->dev, "failed to get buffer obj iova: %d\n", ret);
-		goto fail;
+		goto err_drm_framebuffer_remove;
 	}
 
 	DBG("fbi=%p, dev=%p", fbi, dev);
@@ -138,7 +164,7 @@ int msm_fbdev_driver_fbdev_probe(struct drm_fb_helper *helper,
 	fbi->screen_buffer = msm_gem_get_vaddr(bo);
 	if (IS_ERR(fbi->screen_buffer)) {
 		ret = PTR_ERR(fbi->screen_buffer);
-		goto fail;
+		goto err_drm_framebuffer_remove;
 	}
 	fbi->screen_size = bo->size;
 	fbi->fix.smem_start = paddr;
@@ -149,7 +175,9 @@ int msm_fbdev_driver_fbdev_probe(struct drm_fb_helper *helper,
 
 	return 0;
 
-fail:
+err_drm_framebuffer_remove:
 	drm_framebuffer_remove(fb);
+err_drm_gem_object_put:
+	drm_gem_object_put(bo);
 	return ret;
 }
