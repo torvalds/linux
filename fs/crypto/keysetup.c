@@ -83,8 +83,6 @@ static struct fscrypt_mode *
 select_encryption_mode(const union fscrypt_policy *policy,
 		       const struct inode *inode)
 {
-	BUILD_BUG_ON(ARRAY_SIZE(fscrypt_modes) != FSCRYPT_MODE_MAX + 1);
-
 	if (S_ISREG(inode->i_mode))
 		return &fscrypt_modes[fscrypt_policy_contents_mode(policy)];
 
@@ -228,9 +226,6 @@ static int setup_per_mode_enc_key(struct fscrypt_inode_info *ci,
 	unsigned int hkdf_infolen = 0;
 	bool use_hw_wrapped_key = false;
 	int err;
-
-	if (WARN_ON_ONCE(mode_num > FSCRYPT_MODE_MAX))
-		return -EINVAL;
 
 	if (mk->mk_secret.is_hw_wrapped && S_ISREG(inode->i_mode)) {
 		/* Using a hardware-wrapped key for file contents encryption */
