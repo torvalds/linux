@@ -6,7 +6,7 @@
 # dot2k: transform dot files into a monitor for the Linux kernel.
 #
 # For further information, see:
-#   Documentation/trace/rv/da_monitor_synthesis.rst
+#   Documentation/trace/rv/monitor_synthesis.rst
 
 from .dot2c import Dot2c
 from .generator import Monitor
