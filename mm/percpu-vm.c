@@ -21,7 +21,8 @@ static struct page *pcpu_chunk_page(struct pcpu_chunk *chunk,
 
 /**
  * pcpu_get_pages - get temp pages array
- * @gfp: allocation flags passed to the underlying allocator
+ * @gfp: allocation flags passed to the underlying allocator, 0 to only
+ *	 return the cached array
  *
  * Returns pointer to array of pointers to struct page which can be indexed
  * with pcpu_page_idx().  Note that there is only one array and accesses
@@ -37,9 +38,14 @@ static struct page **pcpu_get_pages(gfp_t gfp)
 
 	lockdep_assert_held(&pcpu_alloc_mutex);
 
-	if (!pages)
+	if (!pages && gfp)
 		pages = pcpu_mem_zalloc(pages_size, gfp);
 	return pages;
+}
+
+static struct page **pcpu_get_pages_cached(void)
+{
+	return pcpu_get_pages(0);
 }
 
 /**
@@ -333,7 +339,7 @@ static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk,
 	 * successful population attempt so the temp pages array must
 	 * be available now.
 	 */
-	pages = pcpu_get_pages(GFP_KERNEL);
+	pages = pcpu_get_pages_cached();
 	BUG_ON(!pages);
 
 	/* unmap and free */
