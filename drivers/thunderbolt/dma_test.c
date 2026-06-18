@@ -689,7 +689,7 @@ static const struct dev_pm_ops dma_test_pm_ops = {
 
 static const struct tb_service_id dma_test_ids[] = {
 	{ TB_SERVICE("dma_test", 1) },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(tbsvc, dma_test_ids);
 
