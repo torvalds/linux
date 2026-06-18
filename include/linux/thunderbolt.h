@@ -465,7 +465,7 @@ static inline struct tb_service *tb_to_service(struct device *dev)
  */
 struct tb_service_driver {
 	struct device_driver driver;
-	int (*probe)(struct tb_service *svc, const struct tb_service_id *id);
+	int (*probe)(struct tb_service *svc);
 	void (*remove)(struct tb_service *svc);
 	void (*shutdown)(struct tb_service *svc);
 	const struct tb_service_id *id_table;

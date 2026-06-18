@@ -77,12 +77,10 @@ static int tb_service_probe(struct device *dev)
 {
 	struct tb_service *svc = tb_to_service(dev);
 	struct tb_service_driver *driver;
-	const struct tb_service_id *id;
 
 	driver = container_of(dev->driver, struct tb_service_driver, driver);
-	id = __tb_service_match(dev, &driver->driver);
 
-	return driver->probe(svc, id);
+	return driver->probe(svc);
 }
 
 static void tb_service_remove(struct device *dev)
