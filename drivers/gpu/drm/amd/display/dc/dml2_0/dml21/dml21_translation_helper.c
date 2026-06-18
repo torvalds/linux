@@ -447,8 +447,8 @@ static void populate_dml21_dummy_surface_cfg(struct dml2_surface_cfg *surface, c
 	surface->plane0.pitch = ((surface->plane0.width + 127) / 128) * 128;
 	surface->plane1.pitch = 0;
 	surface->dcc.enable = false;
-	surface->dcc.informative.dcc_rate_plane0 = 1.0;
-	surface->dcc.informative.dcc_rate_plane1 = 1.0;
+	surface->dcc.informative.dcc_rate_plane0 = 2.0;
+	surface->dcc.informative.dcc_rate_plane1 = 2.0;
 	surface->dcc.informative.fraction_of_zero_size_request_plane0 = 0;
 	surface->dcc.informative.fraction_of_zero_size_request_plane1 = 0;
 	surface->tiling = dml2_sw_64kb_2d;
@@ -517,8 +517,8 @@ static void populate_dml21_surface_config_from_plane_state(
 	surface->plane1.height = plane_state->plane_size.chroma_size.height;
 	surface->plane1.width = plane_state->plane_size.chroma_size.width;
 	surface->dcc.enable = plane_state->dcc.enable;
-	surface->dcc.informative.dcc_rate_plane0 = 1.0;
-	surface->dcc.informative.dcc_rate_plane1 = 1.0;
+	surface->dcc.informative.dcc_rate_plane0 = 2.0;
+	surface->dcc.informative.dcc_rate_plane1 = 2.0;
 	surface->dcc.informative.fraction_of_zero_size_request_plane0 = plane_state->dcc.independent_64b_blks;
 	surface->dcc.informative.fraction_of_zero_size_request_plane1 = plane_state->dcc.independent_64b_blks_c;
 	surface->dcc.plane0.pitch = plane_state->dcc.meta_pitch;
