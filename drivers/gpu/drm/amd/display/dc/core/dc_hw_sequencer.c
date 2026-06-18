@@ -1495,6 +1495,48 @@ void hwss_execute_sequence(struct dc *dc,
 		case HUBBUB_SOFT_RESET:
 			hwss_hubbub_soft_reset(params);
 			break;
+		case HUBBUB_PERFMON_RESET:
+			hwss_hubbub_perfmon_reset(params);
+			break;
+		case HUBBUB_PERFMON_ARM_OUT_OF_ORDER_BW:
+			hwss_hubbub_perfmon_arm_out_of_order_bw(params);
+			break;
+		case HUBBUB_PERFMON_START_OUT_OF_ORDER_BW:
+			hwss_hubbub_perfmon_start_out_of_order_bw(params);
+			break;
+		case HUBBUB_PERFMON_START_IN_ORDER_BW:
+			hwss_hubbub_perfmon_start_in_order_bw(params);
+			break;
+		case HUBBUB_PERFMON_START_MEMORY_LATENCIES:
+			hwss_hubbub_perfmon_start_memory_latencies(params);
+			break;
+		case HUBBUB_PERFMON_START_URGENT_ASSERTION_COUNT:
+			hwss_hubbub_perfmon_start_urgent_assertion_count(params);
+			break;
+		case HUBBUB_PERFMON_START_URGENT_RAMP_LATENCY:
+			hwss_hubbub_perfmon_start_urgent_ramp_latency(params);
+			break;
+		case HUBBUB_PERFMON_START_PREFETCH_DATA_SIZE:
+			hwss_hubbub_perfmon_start_prefetch_data_size(params);
+			break;
+		case HUBBUB_PERFMON_GET_OUT_OF_ORDER_BW:
+			hwss_hubbub_perfmon_get_out_of_order_bw(params);
+			break;
+		case HUBBUB_PERFMON_GET_IN_ORDER_BW:
+			hwss_hubbub_perfmon_get_in_order_bw(params);
+			break;
+		case HUBBUB_PERFMON_GET_MEMORY_LATENCIES:
+			hwss_hubbub_perfmon_get_memory_latencies(params);
+			break;
+		case HUBBUB_PERFMON_GET_URGENT_ASSERTION_COUNT:
+			hwss_hubbub_perfmon_get_urgent_assertion_count(params);
+			break;
+		case HUBBUB_PERFMON_GET_PREFETCH_DATA_SIZE:
+			hwss_hubbub_perfmon_get_prefetch_data_size(params);
+			break;
+		case HUBBUB_PERFMON_GET_URGENT_RAMP_LATENCY:
+			hwss_hubbub_perfmon_get_urgent_ramp_latency(params);
+			break;
 		case HUBP_CLK_CNTL:
 			hwss_hubp_clk_cntl(params);
 			break;
@@ -3251,6 +3293,139 @@ void hwss_hubbub_soft_reset(union block_sequence_params *params)
 		params->hubbub_soft_reset_params.hubbub_soft_reset(hubbub, reset);
 }
 
+void hwss_hubbub_perfmon_reset(union block_sequence_params *params)
+{
+	struct hubbub *hubbub = params->hubbub_perfmon_reset_params.hubbub;
+
+	if (hubbub && hubbub->funcs->perfmon.reset)
+		hubbub->funcs->perfmon.reset(hubbub);
+}
+
+void hwss_hubbub_perfmon_arm_out_of_order_bw(union block_sequence_params *params)
+{
+	struct hubbub *hubbub = params->hubbub_perfmon_arm_out_of_order_bw_params.hubbub;
+
+	if (hubbub && hubbub->funcs->perfmon.arm_measuring_out_of_order_bandwidth)
+		hubbub->funcs->perfmon.arm_measuring_out_of_order_bandwidth(hubbub);
+}
+
+void hwss_hubbub_perfmon_start_out_of_order_bw(union block_sequence_params *params)
+{
+	struct hubbub *hubbub = params->hubbub_perfmon_start_out_of_order_bw_params.hubbub;
+
+	if (hubbub && hubbub->funcs->perfmon.start_measuring_out_of_order_bandwidth)
+		hubbub->funcs->perfmon.start_measuring_out_of_order_bandwidth(hubbub);
+}
+
+void hwss_hubbub_perfmon_start_in_order_bw(union block_sequence_params *params)
+{
+	struct hubbub *hubbub = params->hubbub_perfmon_start_in_order_bw_params.hubbub;
+
+	if (hubbub && hubbub->funcs->perfmon.start_measuring_in_order_bandwidth)
+		hubbub->funcs->perfmon.start_measuring_in_order_bandwidth(hubbub);
+}
+
+void hwss_hubbub_perfmon_start_memory_latencies(union block_sequence_params *params)
+{
+	struct hubbub *hubbub = params->hubbub_perfmon_start_memory_latencies_params.hubbub;
+
+	if (hubbub && hubbub->funcs->perfmon.start_measuring_memory_latencies)
+		hubbub->funcs->perfmon.start_measuring_memory_latencies(hubbub);
+}
+
+void hwss_hubbub_perfmon_start_urgent_assertion_count(union block_sequence_params *params)
+{
+	struct hubbub *hubbub = params->hubbub_perfmon_start_urgent_assertion_count_params.hubbub;
+
+	if (hubbub && hubbub->funcs->perfmon.start_measuring_urgent_assertion_count)
+		hubbub->funcs->perfmon.start_measuring_urgent_assertion_count(hubbub);
+}
+
+void hwss_hubbub_perfmon_start_urgent_ramp_latency(union block_sequence_params *params)
+{
+	struct hubbub *hubbub = params->hubbub_perfmon_start_urgent_ramp_latency_params.hubbub;
+
+	if (hubbub && hubbub->funcs->perfmon.start_measuring_urgent_ramp_latency)
+		hubbub->funcs->perfmon.start_measuring_urgent_ramp_latency(
+				hubbub,
+				&params->hubbub_perfmon_start_urgent_ramp_latency_params.latency_params);
+}
+
+void hwss_hubbub_perfmon_start_prefetch_data_size(union block_sequence_params *params)
+{
+	struct hubbub *hubbub = params->hubbub_perfmon_start_prefetch_data_size_params.hubbub;
+
+	if (hubbub && hubbub->funcs->perfmon.start_measuring_prefetch_data_size)
+		hubbub->funcs->perfmon.start_measuring_prefetch_data_size(hubbub);
+}
+
+void hwss_hubbub_perfmon_get_out_of_order_bw(union block_sequence_params *params)
+{
+	struct hubbub *hubbub = params->hubbub_perfmon_get_out_of_order_bw_params.hubbub;
+	uint32_t refclk_mhz  = params->hubbub_perfmon_get_out_of_order_bw_params.refclk_mhz;
+	uint32_t *mbps       = params->hubbub_perfmon_get_out_of_order_bw_params.bandwidth_mbps;
+	uint32_t *duration   = params->hubbub_perfmon_get_out_of_order_bw_params.duration_ns;
+
+	if (hubbub && hubbub->funcs->perfmon.get_out_of_order_bandwidth_mbps && mbps)
+		*mbps = hubbub->funcs->perfmon.get_out_of_order_bandwidth_mbps(
+				hubbub, refclk_mhz, duration);
+}
+
+void hwss_hubbub_perfmon_get_in_order_bw(union block_sequence_params *params)
+{
+	struct hubbub *hubbub     = params->hubbub_perfmon_get_in_order_bw_params.hubbub;
+	uint32_t refclk_mhz       = params->hubbub_perfmon_get_in_order_bw_params.refclk_mhz;
+	uint32_t min_duration_ns  = params->hubbub_perfmon_get_in_order_bw_params.min_duration_ns;
+	uint32_t *mbps            = params->hubbub_perfmon_get_in_order_bw_params.bandwidth_mbps;
+	uint32_t *duration        = params->hubbub_perfmon_get_in_order_bw_params.duration_ns;
+
+	if (hubbub && hubbub->funcs->perfmon.get_in_order_bandwidth_mbps && mbps)
+		*mbps = hubbub->funcs->perfmon.get_in_order_bandwidth_mbps(
+				hubbub, refclk_mhz, min_duration_ns, duration);
+}
+
+void hwss_hubbub_perfmon_get_memory_latencies(union block_sequence_params *params)
+{
+	struct hubbub *hubbub = params->hubbub_perfmon_get_memory_latencies_params.hubbub;
+	uint32_t refclk_mhz  = params->hubbub_perfmon_get_memory_latencies_params.refclk_mhz;
+	struct hubbub_system_latencies *result = params->hubbub_perfmon_get_memory_latencies_params.result;
+
+	if (hubbub && hubbub->funcs->perfmon.get_memory_latencies_ns && result)
+		hubbub->funcs->perfmon.get_memory_latencies_ns(
+				hubbub, refclk_mhz, &result->min_latency_ns, &result->max_latency_ns, &result->avg_latency_ns);
+}
+
+void hwss_hubbub_perfmon_get_urgent_assertion_count(union block_sequence_params *params)
+{
+	struct hubbub *hubbub   = params->hubbub_perfmon_get_urgent_assertion_count_params.hubbub;
+	uint32_t refclk_mhz    = params->hubbub_perfmon_get_urgent_assertion_count_params.refclk_mhz;
+	uint32_t *count         = params->hubbub_perfmon_get_urgent_assertion_count_params.assertion_count;
+
+	if (hubbub && hubbub->funcs->perfmon.get_urgent_assertion_count)
+		hubbub->funcs->perfmon.get_urgent_assertion_count(
+				hubbub, refclk_mhz, count, NULL, NULL);
+}
+
+void hwss_hubbub_perfmon_get_prefetch_data_size(union block_sequence_params *params)
+{
+	struct hubbub *hubbub     = params->hubbub_perfmon_get_prefetch_data_size_params.hubbub;
+	uint32_t *prefetch_size   = params->hubbub_perfmon_get_prefetch_data_size_params.prefetch_data_size;
+
+	if (hubbub && hubbub->funcs->perfmon.get_prefetch_data_size && prefetch_size)
+		*prefetch_size = hubbub->funcs->perfmon.get_prefetch_data_size(hubbub);
+}
+
+void hwss_hubbub_perfmon_get_urgent_ramp_latency(union block_sequence_params *params)
+{
+	struct hubbub *hubbub = params->hubbub_perfmon_get_urgent_ramp_latency_params.hubbub;
+	uint32_t refclk_mhz  = params->hubbub_perfmon_get_urgent_ramp_latency_params.refclk_mhz;
+	uint32_t *latency_ns = params->hubbub_perfmon_get_urgent_ramp_latency_params.latency_ns;
+
+	if (hubbub && hubbub->funcs->perfmon.get_urgent_ramp_latency_ns && latency_ns)
+		*latency_ns = hubbub->funcs->perfmon.get_urgent_ramp_latency_ns(
+				hubbub, refclk_mhz);
+}
+
 void hwss_hubp_clk_cntl(union block_sequence_params *params)
 {
 	struct hubp *hubp = params->hubp_clk_cntl_params.hubp;
@@ -4418,6 +4593,168 @@ void hwss_add_hubbub_soft_reset(struct block_sequence_state *seq_state,
 		seq_state->steps[*seq_state->num_steps].params.hubbub_soft_reset_params.hubbub = hubbub;
 		seq_state->steps[*seq_state->num_steps].params.hubbub_soft_reset_params.hubbub_soft_reset = hubbub_soft_reset;
 		seq_state->steps[*seq_state->num_steps].params.hubbub_soft_reset_params.reset = reset;
+		(*seq_state->num_steps)++;
+	}
+}
+
+void hwss_add_hubbub_perfmon_reset(struct block_sequence_state *seq_state,
+		struct hubbub *hubbub)
+{
+	if (*seq_state->num_steps < MAX_HWSS_BLOCK_SEQUENCE_SIZE) {
+		seq_state->steps[*seq_state->num_steps].func = HUBBUB_PERFMON_RESET;
+		seq_state->steps[*seq_state->num_steps].params.hubbub_perfmon_reset_params.hubbub = hubbub;
+		(*seq_state->num_steps)++;
+	}
+}
+
+void hwss_add_hubbub_perfmon_arm_out_of_order_bw(struct block_sequence_state *seq_state,
+		struct hubbub *hubbub)
+{
+	if (*seq_state->num_steps < MAX_HWSS_BLOCK_SEQUENCE_SIZE) {
+		seq_state->steps[*seq_state->num_steps].func = HUBBUB_PERFMON_ARM_OUT_OF_ORDER_BW;
+		seq_state->steps[*seq_state->num_steps].params.hubbub_perfmon_arm_out_of_order_bw_params.hubbub = hubbub;
+		(*seq_state->num_steps)++;
+	}
+}
+
+void hwss_add_hubbub_perfmon_start_out_of_order_bw(struct block_sequence_state *seq_state,
+		struct hubbub *hubbub)
+{
+	if (*seq_state->num_steps < MAX_HWSS_BLOCK_SEQUENCE_SIZE) {
+		seq_state->steps[*seq_state->num_steps].func = HUBBUB_PERFMON_START_OUT_OF_ORDER_BW;
+		seq_state->steps[*seq_state->num_steps].params.hubbub_perfmon_start_out_of_order_bw_params.hubbub = hubbub;
+		(*seq_state->num_steps)++;
+	}
+}
+
+void hwss_add_hubbub_perfmon_start_in_order_bw(struct block_sequence_state *seq_state,
+		struct hubbub *hubbub)
+{
+	if (*seq_state->num_steps < MAX_HWSS_BLOCK_SEQUENCE_SIZE) {
+		seq_state->steps[*seq_state->num_steps].func = HUBBUB_PERFMON_START_IN_ORDER_BW;
+		seq_state->steps[*seq_state->num_steps].params.hubbub_perfmon_start_in_order_bw_params.hubbub = hubbub;
+		(*seq_state->num_steps)++;
+	}
+}
+
+void hwss_add_hubbub_perfmon_start_memory_latencies(struct block_sequence_state *seq_state,
+		struct hubbub *hubbub)
+{
+	if (*seq_state->num_steps < MAX_HWSS_BLOCK_SEQUENCE_SIZE) {
+		seq_state->steps[*seq_state->num_steps].func = HUBBUB_PERFMON_START_MEMORY_LATENCIES;
+		seq_state->steps[*seq_state->num_steps].params.hubbub_perfmon_start_memory_latencies_params.hubbub = hubbub;
+		(*seq_state->num_steps)++;
+	}
+}
+
+void hwss_add_hubbub_perfmon_start_urgent_assertion_count(struct block_sequence_state *seq_state,
+		struct hubbub *hubbub)
+{
+	if (*seq_state->num_steps < MAX_HWSS_BLOCK_SEQUENCE_SIZE) {
+		seq_state->steps[*seq_state->num_steps].func = HUBBUB_PERFMON_START_URGENT_ASSERTION_COUNT;
+		seq_state->steps[*seq_state->num_steps].params.hubbub_perfmon_start_urgent_assertion_count_params.hubbub = hubbub;
+		(*seq_state->num_steps)++;
+	}
+}
+
+void hwss_add_hubbub_perfmon_start_urgent_ramp_latency(struct block_sequence_state *seq_state,
+		struct hubbub *hubbub,
+		const struct hubbub_urgent_latency_params *latency_params)
+{
+	if (*seq_state->num_steps < MAX_HWSS_BLOCK_SEQUENCE_SIZE) {
+		seq_state->steps[*seq_state->num_steps].func = HUBBUB_PERFMON_START_URGENT_RAMP_LATENCY;
+		seq_state->steps[*seq_state->num_steps].params.hubbub_perfmon_start_urgent_ramp_latency_params.hubbub = hubbub;
+		seq_state->steps[*seq_state->num_steps].params.hubbub_perfmon_start_urgent_ramp_latency_params.latency_params =
+				*latency_params;
+		(*seq_state->num_steps)++;
+	}
+}
+
+void hwss_add_hubbub_perfmon_start_prefetch_data_size(struct block_sequence_state *seq_state,
+		struct hubbub *hubbub)
+{
+	if (*seq_state->num_steps < MAX_HWSS_BLOCK_SEQUENCE_SIZE) {
+		seq_state->steps[*seq_state->num_steps].func = HUBBUB_PERFMON_START_PREFETCH_DATA_SIZE;
+		seq_state->steps[*seq_state->num_steps].params.hubbub_perfmon_start_prefetch_data_size_params.hubbub = hubbub;
+		(*seq_state->num_steps)++;
+	}
+}
+
+void hwss_add_hubbub_perfmon_get_out_of_order_bw(struct block_sequence_state *seq_state,
+		struct hubbub *hubbub, uint32_t refclk_mhz,
+		uint32_t *bandwidth_mbps, uint32_t *duration_ns)
+{
+	if (*seq_state->num_steps < MAX_HWSS_BLOCK_SEQUENCE_SIZE) {
+		seq_state->steps[*seq_state->num_steps].func = HUBBUB_PERFMON_GET_OUT_OF_ORDER_BW;
+		seq_state->steps[*seq_state->num_steps].params.hubbub_perfmon_get_out_of_order_bw_params.hubbub = hubbub;
+		seq_state->steps[*seq_state->num_steps].params.hubbub_perfmon_get_out_of_order_bw_params.refclk_mhz = refclk_mhz;
+		seq_state->steps[*seq_state->num_steps].params.hubbub_perfmon_get_out_of_order_bw_params.bandwidth_mbps = bandwidth_mbps;
+		seq_state->steps[*seq_state->num_steps].params.hubbub_perfmon_get_out_of_order_bw_params.duration_ns = duration_ns;
+		(*seq_state->num_steps)++;
+	}
+}
+
+void hwss_add_hubbub_perfmon_get_in_order_bw(struct block_sequence_state *seq_state,
+		struct hubbub *hubbub, uint32_t refclk_mhz, uint32_t min_duration_ns,
+		uint32_t *bandwidth_mbps, uint32_t *duration_ns)
+{
+	if (*seq_state->num_steps < MAX_HWSS_BLOCK_SEQUENCE_SIZE) {
+		seq_state->steps[*seq_state->num_steps].func = HUBBUB_PERFMON_GET_IN_ORDER_BW;
+		seq_state->steps[*seq_state->num_steps].params.hubbub_perfmon_get_in_order_bw_params.hubbub = hubbub;
+		seq_state->steps[*seq_state->num_steps].params.hubbub_perfmon_get_in_order_bw_params.refclk_mhz = refclk_mhz;
+		seq_state->steps[*seq_state->num_steps].params.hubbub_perfmon_get_in_order_bw_params.min_duration_ns = min_duration_ns;
+		seq_state->steps[*seq_state->num_steps].params.hubbub_perfmon_get_in_order_bw_params.bandwidth_mbps = bandwidth_mbps;
+		seq_state->steps[*seq_state->num_steps].params.hubbub_perfmon_get_in_order_bw_params.duration_ns = duration_ns;
+		(*seq_state->num_steps)++;
+	}
+}
+
+void hwss_add_hubbub_perfmon_get_memory_latencies(struct block_sequence_state *seq_state,
+		struct hubbub *hubbub, uint32_t refclk_mhz,
+		struct hubbub_system_latencies *result)
+{
+	if (*seq_state->num_steps < MAX_HWSS_BLOCK_SEQUENCE_SIZE) {
+		seq_state->steps[*seq_state->num_steps].func = HUBBUB_PERFMON_GET_MEMORY_LATENCIES;
+		seq_state->steps[*seq_state->num_steps].params.hubbub_perfmon_get_memory_latencies_params.hubbub = hubbub;
+		seq_state->steps[*seq_state->num_steps].params.hubbub_perfmon_get_memory_latencies_params.refclk_mhz = refclk_mhz;
+		seq_state->steps[*seq_state->num_steps].params.hubbub_perfmon_get_memory_latencies_params.result = result;
+		(*seq_state->num_steps)++;
+	}
+}
+
+void hwss_add_hubbub_perfmon_get_urgent_assertion_count(struct block_sequence_state *seq_state,
+		struct hubbub *hubbub, uint32_t refclk_mhz,
+		uint32_t *assertion_count)
+{
+	if (*seq_state->num_steps < MAX_HWSS_BLOCK_SEQUENCE_SIZE) {
+		seq_state->steps[*seq_state->num_steps].func = HUBBUB_PERFMON_GET_URGENT_ASSERTION_COUNT;
+		seq_state->steps[*seq_state->num_steps].params.hubbub_perfmon_get_urgent_assertion_count_params.hubbub = hubbub;
+		seq_state->steps[*seq_state->num_steps].params.hubbub_perfmon_get_urgent_assertion_count_params.refclk_mhz = refclk_mhz;
+		seq_state->steps[*seq_state->num_steps].params.hubbub_perfmon_get_urgent_assertion_count_params.assertion_count = assertion_count;
+		(*seq_state->num_steps)++;
+	}
+}
+
+void hwss_add_hubbub_perfmon_get_prefetch_data_size(struct block_sequence_state *seq_state,
+		struct hubbub *hubbub, uint32_t *prefetch_data_size)
+{
+	if (*seq_state->num_steps < MAX_HWSS_BLOCK_SEQUENCE_SIZE) {
+		seq_state->steps[*seq_state->num_steps].func = HUBBUB_PERFMON_GET_PREFETCH_DATA_SIZE;
+		seq_state->steps[*seq_state->num_steps].params.hubbub_perfmon_get_prefetch_data_size_params.hubbub = hubbub;
+		seq_state->steps[*seq_state->num_steps].params.hubbub_perfmon_get_prefetch_data_size_params.prefetch_data_size = prefetch_data_size;
+		(*seq_state->num_steps)++;
+	}
+}
+
+void hwss_add_hubbub_perfmon_get_urgent_ramp_latency(struct block_sequence_state *seq_state,
+		struct hubbub *hubbub, uint32_t refclk_mhz,
+		uint32_t *latency_ns)
+{
+	if (*seq_state->num_steps < MAX_HWSS_BLOCK_SEQUENCE_SIZE) {
+		seq_state->steps[*seq_state->num_steps].func = HUBBUB_PERFMON_GET_URGENT_RAMP_LATENCY;
+		seq_state->steps[*seq_state->num_steps].params.hubbub_perfmon_get_urgent_ramp_latency_params.hubbub = hubbub;
+		seq_state->steps[*seq_state->num_steps].params.hubbub_perfmon_get_urgent_ramp_latency_params.refclk_mhz = refclk_mhz;
+		seq_state->steps[*seq_state->num_steps].params.hubbub_perfmon_get_urgent_ramp_latency_params.latency_ns = latency_ns;
 		(*seq_state->num_steps)++;
 	}
 }

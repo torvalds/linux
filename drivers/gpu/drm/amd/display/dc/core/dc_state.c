@@ -361,6 +361,7 @@ void dc_state_destruct(struct dc_state *state)
 	state->phantom_plane_count = 0;
 
 	memset(state->probes, 0, sizeof(state->probes));
+	memset(state->probe_status, 0, sizeof(state->probe_status));
 	state->probe_count = 0;
 
 	state->stream_mask = 0;

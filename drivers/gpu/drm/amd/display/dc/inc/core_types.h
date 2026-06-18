@@ -33,6 +33,7 @@
 #include "dc_bios_types.h"
 #include "mem_input.h"
 #include "hubp.h"
+#include "hw/dchubbub.h"
 #include "mpc.h"
 #include "dwb.h"
 #include "hw/dio.h"
@@ -610,6 +611,27 @@ struct dc_dmub_cmd {
 };
 
 /**
+ * struct dc_probe_status - DC-internal latched perfmon results for a probe.
+ * @valid: true if a measurement was latched this commit.
+ * @type: type of the probe that produced this result.
+ * @u.bandwidth_mbps:         peak BW in Mbps (DC_PROBE_PEAK_MEM_BW).
+ * @u.latency:                min/max/avg memory latency in ns (DC_PROBE_MEM_LATENCY),
+ *                            stored as struct hubbub_system_latencies.
+ * @u.urgent_assertion_count: number of urgent assertion events (DC_PROBE_URGENT_ASSERTION_COUNT).
+ * @u.prefetch_data_size:     total prefetch data in bytes (DC_PROBE_PREFETCH_DATA_SIZE).
+ */
+struct dc_probe_status {
+	bool                       valid;
+	enum dc_probe_type         type;
+	union {
+		uint32_t bandwidth_mbps;
+		struct hubbub_system_latencies latency;
+		uint32_t urgent_assertion_count;
+		uint32_t prefetch_data_size;
+	} u;
+};
+
+/**
  * struct dc_state - The full description of a state requested by users
  */
 struct dc_state {
@@ -651,6 +673,11 @@ struct dc_state {
 	 * @probes: Committed absolute set of probe descriptors.
 	 */
 	struct dc_probe_state probes[MAX_PROBES];
+
+	/**
+	 * @probe_status: Committed absolute set of probe results.
+	 */
+	struct dc_probe_status probe_status[MAX_PROBES];
 
 	/**
 	 * @probe_count: Number of valid entries in @probes.

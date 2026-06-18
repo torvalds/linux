@@ -8124,24 +8124,13 @@ void dc_log_preos_dmcub_info(const struct dc *dc)
 bool dc_get_qos_info(struct dc *dc, struct dc_qos_info *info)
 {
 	const struct dc_clocks *clk = &dc->current_state->bw_ctx.bw.dcn.clk;
-	struct dc_measured_memory_qos measured = {};
 	struct dc_requested_memory_qos requested = {};
 
 	memset(info, 0, sizeof(*info));
 
-	// Check if measurement function is available
-	if (!dc->hwss.measure_memory_qos) {
-		return false;
-	}
-
-	dc->hwss.measure_memory_qos(dc, &measured);
-
-	info->actual_peak_bw_in_mbps    = measured.peak_bw_mbps;
-	info->actual_avg_bw_in_mbps     = measured.avg_bw_mbps;
-	info->actual_min_latency_in_ns  = measured.min_latency_ns;
-	info->actual_max_latency_in_ns  = measured.max_latency_ns;
-	info->actual_avg_latency_in_ns  = measured.avg_latency_ns;
-	info->dcn_bandwidth_ub_in_mbps  = (uint32_t)(clk->fclk_khz / 1000 * 64);
+	/* TODO: remove the actual_* fields from struct dc_qos_info once all callers
+	 * read measured QoS from dc_state probe_status instead of this struct. */
+	info->dcn_bandwidth_ub_in_mbps = (uint32_t)(clk->fclk_khz / 1000 * 64);
 
 	if (dc->clk_mgr && dc->clk_mgr->funcs->get_requested_memory_qos) {
 		dc->clk_mgr->funcs->get_requested_memory_qos(dc->clk_mgr, &requested);
