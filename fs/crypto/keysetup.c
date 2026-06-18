@@ -349,18 +349,17 @@ static int fscrypt_setup_iv_ino_lblk_32_key(struct fscrypt_inode_info *ci,
 
 	/* pairs with smp_store_release() below */
 	if (!smp_load_acquire(&mk->mk_ino_hash_key_initialized)) {
+		guard(mutex)(&fscrypt_mode_key_setup_mutex);
 
-		mutex_lock(&fscrypt_mode_key_setup_mutex);
-
-		if (mk->mk_ino_hash_key_initialized)
-			goto unlock;
-
-		fscrypt_derive_siphash_key(mk, HKDF_CONTEXT_INODE_HASH_KEY,
-					   NULL, 0, &mk->mk_ino_hash_key);
-		/* pairs with smp_load_acquire() above */
-		smp_store_release(&mk->mk_ino_hash_key_initialized, true);
-unlock:
-		mutex_unlock(&fscrypt_mode_key_setup_mutex);
+		if (!mk->mk_ino_hash_key_initialized) {
+			fscrypt_derive_siphash_key(mk,
+						   HKDF_CONTEXT_INODE_HASH_KEY,
+						   NULL, 0,
+						   &mk->mk_ino_hash_key);
+			/* pairs with smp_load_acquire() above */
+			smp_store_release(&mk->mk_ino_hash_key_initialized,
+					  true);
+		}
 	}
 
 	/*

@@ -323,7 +323,6 @@ EXPORT_SYMBOL(fscrypt_decrypt_block_inplace);
  */
 int fscrypt_initialize(struct super_block *sb)
 {
-	int err = 0;
 	mempool_t *pool;
 
 	/* pairs with smp_store_release() below */
@@ -334,20 +333,16 @@ int fscrypt_initialize(struct super_block *sb)
 	if (!sb->s_cop->needs_bounce_pages)
 		return 0;
 
-	mutex_lock(&fscrypt_init_mutex);
+	guard(mutex)(&fscrypt_init_mutex);
 	if (fscrypt_bounce_page_pool)
-		goto out_unlock;
+		return 0;
 
-	err = -ENOMEM;
 	pool = mempool_create_page_pool(num_prealloc_crypto_pages, 0);
 	if (!pool)
-		goto out_unlock;
+		return -ENOMEM;
 	/* pairs with smp_load_acquire() above */
 	smp_store_release(&fscrypt_bounce_page_pool, pool);
-	err = 0;
-out_unlock:
-	mutex_unlock(&fscrypt_init_mutex);
-	return err;
+	return 0;
 }
 
 void fscrypt_msg(const struct inode *inode, const char *level,
