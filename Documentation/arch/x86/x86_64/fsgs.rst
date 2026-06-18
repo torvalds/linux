@@ -197,3 +197,100 @@ be used for FS/GS based addressing mode::
 
 	mov %reg, %fs:offset
 	mov %reg, %gs:offset
+
+
+Complexities with GS handling on context switches
+=================================================
+
+History
+-------
+
+In 32-bit, data segments need reloading on entry to the kernel, and restoring
+on exit to userspace.  Only the segment selector is necessary, as all segment
+data resides in the GDT/LDT.  Bases in the GDT/LDT are 32 bits wide.  The
+segment selector values are user-chosen, and effectively arbitrary.
+
+The 32-bit mechanism is slow, so in 64-bit, segments were made mostly flat so
+as to not need reloading on entry/exit.  FS and GS segment bases were extended
+to 64 bits, and became accessible via MSRs. Also, a separate GS_SHADOW value
+was introduced.  The SWAPGS instruction swaps GS_BASE and GS_SHADOW, as the
+only action needed on entry/exit.
+
+64-bit userspace needed to make the prctl() ARCH_SET_GS have a base value
+greater than 32 bits, and a side effect of this syscall was to zero the GS
+selector.
+
+Then the FSGSBASE instructions came along, and userspace could finally choose
+an arbitrary base address not previously registered via the syscall.  Linux's
+ABI promises to preserve both the selector value and the full base, even when
+they are disconnected.
+
+When looking at the hardware capabilities, there are multiple x86 instructions
+which modify GS:
+
+* SWAPGS
+
+Swaps the value in MSR_KERNEL_GS_BASE with the active GS.base in the hidden
+portion of the GS selector register.
+
+* MOV <segment selector>, GS
+
+(legacy path, non-FRED) Loads GS with the selector specified in <segment
+selector> and fetches the GS descriptor attributes, limit and base from the
+GDT/LDT.  Writes a 32-bit base into the active GS.base, zero-extending it into
+the 64-bit base register. It does not touch MSR_KERNEL_GS_BASE.
+
+The problem with this is that because it writes the *current* GS.base, it
+corrupts the active kernel per-CPU pointer (in %gs).
+
+* LKGS <selector>
+
+(FRED path, replaces MOV GS) Like MOV GS in that it loads the selector and
+descriptor attributes, but it redirects the base write - instead of updating
+the active GS.base, it writes the descriptor base into IA32_KERNEL_GS_BASE
+(i.e. MSR_KERNEL_GS_BASE).
+
+Critical caveat: it only writes a zero-extended 32-bit value, because GDT/LDT
+descriptors only encode 32-bit bases. This means it cannot correctly represent
+a full 64-bit user-space GS base (e.g. a TLS pointer), so a full 64-bit WRMSR
+is still required afterwards.
+
+This instruction ensures that the kernel's per-CPU pointer stays good, and
+does not need custom error handling.
+
+MOV GS and LKGS are the only way to update the other fields of the GS
+descriptor.
+
+* WRGSBASE <reg>
+
+In 64-bit mode, it writes a full 64-bit value directly into the currently
+active GS.base as FS.base and GS.base in 64-bit mode are expanded to 64-bit to
+cover the full address space.
+
+The problem in kernel context: the currently active GS.base belongs to the
+kernel, not the user task. So using this during context switching would
+corrupt the kernel's own GS.base, unless surrounded by SWAPGS (only safe in
+IDT mode).
+
+In the remaining modes, the upper 32 bits of the base are cleared instead.
+
+* WRMSR MSR_KERNEL_GS_BASE / WRMSRNS MSR_KERNEL_GS_BASE
+
+Writes a full 64-bit value into MSR_KERNEL_GS_BASE, which holds the inactive
+(user-space) GS.base - the one that gets swapped into the active GS.base on
+SWAPGS. This is the only instruction that can correctly set a 64-bit user
+GS.base during a context switch from kernel mode.
+
+The non-serializing nature of the write was accomplished by the two vendors
+differently. AMD, starting with Zen4, made it the default through:
+
+  CPUID_Fn80000021_EAX [Extended Feature 2 EAX]
+  (Core::X86::Cpuid::FeatureExt2Eax)[1], FsGsKernelGsBaseNonSerializing which is
+  fixed to 1
+
+and Intel through the WRMSRNS instruction which is the non-serializing
+variant.
+
+Btw, while running in kernel mode, MSR_KERNEL_GS_BASE contains actually the
+*user* GS.base. Thus, the naming can be confusing. Unless one thinks of it as
+the kernel's access to GS.base as MSRs are accessible only in CPL0.
