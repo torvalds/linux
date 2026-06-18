@@ -514,7 +514,7 @@ static void migrate_vma_collect(struct migrate_vma *migrate)
 		migrate->pgmap_owner);
 	mmu_notifier_invalidate_range_start(&range);
 
-	walk_page_range(migrate->vma->vm_mm, migrate->start, migrate->end,
+	walk_page_range_vma(migrate->vma, migrate->start, migrate->end,
 			&migrate_vma_walk_ops, migrate);
 
 	mmu_notifier_invalidate_range_end(&range);
