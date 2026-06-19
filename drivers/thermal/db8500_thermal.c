@@ -10,7 +10,7 @@
 
 #include <linux/cpu_cooling.h>
 #include <linux/interrupt.h>
-#include <linux/mfd/dbx500-prcmu.h>
+#include <linux/mfd/db8500-prcmu.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -82,7 +82,7 @@ static void db8500_thermal_update_config(struct db8500_thermal_zone *th,
 					 unsigned long next_low,
 					 unsigned long next_high)
 {
-	prcmu_stop_temp_sense();
+	db8500_prcmu_stop_temp_sense();
 
 	th->cur_index = idx;
 	th->interpolated_temp = (next_low + next_high)/2;
@@ -91,8 +91,8 @@ static void db8500_thermal_update_config(struct db8500_thermal_zone *th,
 	 * The PRCMU accept absolute temperatures in celsius so divide
 	 * down the millicelsius with 1000
 	 */
-	prcmu_config_hotmon((u8)(next_low/1000), (u8)(next_high/1000));
-	prcmu_start_temp_sense(PRCMU_DEFAULT_MEASURE_TIME);
+	db8500_prcmu_config_hotmon((u8)(next_low / 1000), (u8)(next_high / 1000));
+	db8500_prcmu_start_temp_sense(PRCMU_DEFAULT_MEASURE_TIME);
 }
 
 static irqreturn_t prcmu_low_irq_handler(int irq, void *irq_data)
@@ -204,7 +204,7 @@ static int db8500_thermal_probe(struct platform_device *pdev)
 static int db8500_thermal_suspend(struct platform_device *pdev,
 		pm_message_t state)
 {
-	prcmu_stop_temp_sense();
+	db8500_prcmu_stop_temp_sense();
 
 	return 0;
 }

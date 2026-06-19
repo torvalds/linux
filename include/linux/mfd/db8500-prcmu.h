@@ -12,6 +12,9 @@
 
 #include <linux/interrupt.h>
 #include <linux/bitops.h>
+#include <linux/err.h>
+
+#include <dt-bindings/mfd/dbx500-prcmu.h> /* For clock identifiers */
 
 /*
  * Registers
@@ -23,6 +26,38 @@
 #define DB8500_PRCM_DSI_SW_RESET_DSI0_SW_RESETN BIT(0)
 #define DB8500_PRCM_DSI_SW_RESET_DSI1_SW_RESETN BIT(1)
 #define DB8500_PRCM_DSI_SW_RESET_DSI2_SW_RESETN BIT(2)
+
+/* Offset for the firmware version within the TCPM */
+#define DB8500_PRCMU_FW_VERSION_OFFSET 0xA4
+
+#define DB8500_PRCMU_LEGACY_OFFSET		0xDD4
+
+/*
+ * CLKOUT sources
+ */
+#define PRCMU_CLKSRC_CLK38M		0x00
+#define PRCMU_CLKSRC_ACLK		0x01
+#define PRCMU_CLKSRC_SYSCLK		0x02
+#define PRCMU_CLKSRC_LCDCLK		0x03
+#define PRCMU_CLKSRC_SDMMCCLK		0x04
+#define PRCMU_CLKSRC_TVCLK		0x05
+#define PRCMU_CLKSRC_TIMCLK		0x06
+#define PRCMU_CLKSRC_CLK009		0x07
+/* These are only valid for CLKOUT1: */
+#define PRCMU_CLKSRC_SIAMMDSPCLK	0x40
+#define PRCMU_CLKSRC_I2CCLK		0x41
+#define PRCMU_CLKSRC_MSP02CLK		0x42
+#define PRCMU_CLKSRC_ARMPLL_OBSCLK	0x43
+#define PRCMU_CLKSRC_HSIRXCLK		0x44
+#define PRCMU_CLKSRC_HSITXCLK		0x45
+#define PRCMU_CLKSRC_ARMCLKFIX		0x46
+#define PRCMU_CLKSRC_HDMICLK		0x47
+
+/*
+ * Definitions for controlling ESRAM0 in deep sleep.
+ */
+#define ESRAM0_DEEP_SLEEP_STATE_OFF 1
+#define ESRAM0_DEEP_SLEEP_STATE_RET 2
 
 /* This portion previously known as <mach/prcmu-fw-defs_v1.h> */
 
@@ -451,9 +486,172 @@ enum prcmu_power_status {
 	PRCMU_ARMPENDINGIT_ER		= 0x93,
 };
 
+/* PRCMU Wakeup defines */
+enum prcmu_wakeup_index {
+	PRCMU_WAKEUP_INDEX_RTC,
+	PRCMU_WAKEUP_INDEX_RTT0,
+	PRCMU_WAKEUP_INDEX_RTT1,
+	PRCMU_WAKEUP_INDEX_HSI0,
+	PRCMU_WAKEUP_INDEX_HSI1,
+	PRCMU_WAKEUP_INDEX_USB,
+	PRCMU_WAKEUP_INDEX_ABB,
+	PRCMU_WAKEUP_INDEX_ABB_FIFO,
+	PRCMU_WAKEUP_INDEX_ARM,
+	PRCMU_WAKEUP_INDEX_CD_IRQ,
+	NUM_PRCMU_WAKEUP_INDICES
+};
+
+#define PRCMU_WAKEUP(_name) (BIT(PRCMU_WAKEUP_INDEX_##_name))
+
+/**
+ * enum prcmu_wdog_id - PRCMU watchdog IDs
+ * @PRCMU_WDOG_ALL: use all timers
+ * @PRCMU_WDOG_CPU1: use first CPU timer only
+ * @PRCMU_WDOG_CPU2: use second CPU timer conly
+ */
+enum prcmu_wdog_id {
+	PRCMU_WDOG_ALL = 0x00,
+	PRCMU_WDOG_CPU1 = 0x01,
+	PRCMU_WDOG_CPU2 = 0x02,
+};
+
+/**
+ * enum ape_opp - APE OPP states definition
+ * @APE_OPP_INIT:
+ * @APE_NO_CHANGE: The APE operating point is unchanged
+ * @APE_100_OPP: The new APE operating point is ape100opp
+ * @APE_50_OPP: 50%
+ * @APE_50_PARTLY_25_OPP: 50%, except some clocks at 25%.
+ */
+enum ape_opp {
+	APE_OPP_INIT = 0x00,
+	APE_NO_CHANGE = 0x01,
+	APE_100_OPP = 0x02,
+	APE_50_OPP = 0x03,
+	APE_50_PARTLY_25_OPP = 0xFF,
+};
+
+/**
+ * enum arm_opp - ARM OPP states definition
+ * @ARM_OPP_INIT:
+ * @ARM_NO_CHANGE: The ARM operating point is unchanged
+ * @ARM_100_OPP: The new ARM operating point is arm100opp
+ * @ARM_50_OPP: The new ARM operating point is arm50opp
+ * @ARM_MAX_OPP: Operating point is "max" (more than 100)
+ * @ARM_MAX_FREQ100OPP: Set max opp if available, else 100
+ * @ARM_EXTCLK: The new ARM operating point is armExtClk
+ */
+enum arm_opp {
+	ARM_OPP_INIT = 0x00,
+	ARM_NO_CHANGE = 0x01,
+	ARM_100_OPP = 0x02,
+	ARM_50_OPP = 0x03,
+	ARM_MAX_OPP = 0x04,
+	ARM_MAX_FREQ100OPP = 0x05,
+	ARM_EXTCLK = 0x07
+};
+
+/**
+ * enum ddr_opp - DDR OPP states definition
+ * @DDR_100_OPP: The new DDR operating point is ddr100opp
+ * @DDR_50_OPP: The new DDR operating point is ddr50opp
+ * @DDR_25_OPP: The new DDR operating point is ddr25opp
+ */
+enum ddr_opp {
+	DDR_100_OPP = 0x00,
+	DDR_50_OPP = 0x01,
+	DDR_25_OPP = 0x02,
+};
+
+/**
+ * enum ddr_pwrst - DDR power states definition
+ * @DDR_PWR_STATE_UNCHANGED: SDRAM and DDR controller state is unchanged
+ * @DDR_PWR_STATE_ON:
+ * @DDR_PWR_STATE_OFFLOWLAT:
+ * @DDR_PWR_STATE_OFFHIGHLAT:
+ */
+enum ddr_pwrst {
+	DDR_PWR_STATE_UNCHANGED     = 0x00,
+	DDR_PWR_STATE_ON            = 0x01,
+	DDR_PWR_STATE_OFFLOWLAT     = 0x02,
+	DDR_PWR_STATE_OFFHIGHLAT    = 0x03
+};
+
 /*
  * Definitions for autonomous power management configuration.
  */
+
+/* EPOD (power domain) IDs */
+
+/*
+ * DB8500 EPODs
+ * - EPOD_ID_SVAMMDSP: power domain for SVA MMDSP
+ * - EPOD_ID_SVAPIPE: power domain for SVA pipe
+ * - EPOD_ID_SIAMMDSP: power domain for SIA MMDSP
+ * - EPOD_ID_SIAPIPE: power domain for SIA pipe
+ * - EPOD_ID_SGA: power domain for SGA
+ * - EPOD_ID_B2R2_MCDE: power domain for B2R2 and MCDE
+ * - EPOD_ID_ESRAM12: power domain for ESRAM 1 and 2
+ * - EPOD_ID_ESRAM34: power domain for ESRAM 3 and 4
+ * - NUM_EPOD_ID: number of power domains
+ *
+ * TODO: These should be prefixed.
+ */
+#define EPOD_ID_SVAMMDSP	0
+#define EPOD_ID_SVAPIPE		1
+#define EPOD_ID_SIAMMDSP	2
+#define EPOD_ID_SIAPIPE		3
+#define EPOD_ID_SGA		4
+#define EPOD_ID_B2R2_MCDE	5
+#define EPOD_ID_ESRAM12		6
+#define EPOD_ID_ESRAM34		7
+#define NUM_EPOD_ID		8
+
+/*
+ * state definition for EPOD (power domain)
+ * - EPOD_STATE_NO_CHANGE: The EPOD should remain unchanged
+ * - EPOD_STATE_OFF: The EPOD is switched off
+ * - EPOD_STATE_RAMRET: The EPOD is switched off with its internal RAM in
+ *                         retention
+ * - EPOD_STATE_ON_CLK_OFF: The EPOD is switched on, clock is still off
+ * - EPOD_STATE_ON: Same as above, but with clock enabled
+ */
+#define EPOD_STATE_NO_CHANGE	0x00
+#define EPOD_STATE_OFF		0x01
+#define EPOD_STATE_RAMRET	0x02
+#define EPOD_STATE_ON_CLK_OFF	0x03
+#define EPOD_STATE_ON		0x04
+
+#define PRCMU_FW_PROJECT_U8500		2
+#define PRCMU_FW_PROJECT_U8400		3
+#define PRCMU_FW_PROJECT_U9500		4 /* Customer specific */
+#define PRCMU_FW_PROJECT_U8500_MBB	5
+#define PRCMU_FW_PROJECT_U8500_C1	6
+#define PRCMU_FW_PROJECT_U8500_C2	7
+#define PRCMU_FW_PROJECT_U8500_C3	8
+#define PRCMU_FW_PROJECT_U8500_C4	9
+#define PRCMU_FW_PROJECT_U9500_MBL	10
+#define PRCMU_FW_PROJECT_U8500_SSG1	11 /* Samsung specific */
+#define PRCMU_FW_PROJECT_U8500_MBL2	12 /* Customer specific */
+#define PRCMU_FW_PROJECT_U8520		13
+#define PRCMU_FW_PROJECT_U8420		14
+#define PRCMU_FW_PROJECT_U8500_SSG2	15 /* Samsung specific */
+#define PRCMU_FW_PROJECT_U8420_SYSCLK	17
+#define PRCMU_FW_PROJECT_A9420		20
+/* [32..63] 9540 and derivatives */
+#define PRCMU_FW_PROJECT_U9540		32
+/* [64..95] 8540 and derivatives */
+#define PRCMU_FW_PROJECT_L8540		64
+/* [96..126] 8580 and derivatives */
+#define PRCMU_FW_PROJECT_L8580		96
+
+#define PRCMU_FW_PROJECT_NAME_LEN	20
+
+/* PRCMU QoS APE OPP class */
+#define PRCMU_QOS_APE_OPP 1
+#define PRCMU_QOS_DDR_OPP 2
+#define PRCMU_QOS_ARM_OPP 3
+#define PRCMU_QOS_DEFAULT_VALUE -1
 
 #define PRCMU_AUTO_PM_OFF 0
 #define PRCMU_AUTO_PM_ON 1
@@ -467,6 +665,14 @@ enum prcmu_auto_pm_policy {
 	PRCMU_AUTO_PM_POLICY_DSP_OFF_RAMRET_HWP_OFF,
 	PRCMU_AUTO_PM_POLICY_DSP_CLK_OFF_HWP_OFF,
 	PRCMU_AUTO_PM_POLICY_DSP_CLK_OFF_HWP_CLK_OFF,
+};
+
+struct prcmu_fw_version {
+	u32 project; /* Notice, project shifted with 8 on ux540 */
+	u8 api_version;
+	u8 func_version;
+	u8 errata;
+	char project_name[PRCMU_FW_PROJECT_NAME_LEN];
 };
 
 /**
@@ -501,6 +707,9 @@ void prcmu_configure_auto_pm(struct prcmu_auto_pm_config *sleep,
 bool prcmu_is_auto_pm_enabled(void);
 
 int prcmu_config_clkout(u8 clkout, u8 source, u8 div);
+unsigned long prcmu_clock_rate(u8 clock);
+long prcmu_round_clock_rate(u8 clock, unsigned long rate);
+int prcmu_set_clock_rate(u8 clock, unsigned long rate);
 int prcmu_set_clock_divider(u8 clock, u8 divider);
 int db8500_prcmu_config_hotdog(u8 threshold);
 int db8500_prcmu_config_hotmon(u8 low, u8 high);
@@ -508,6 +717,8 @@ int db8500_prcmu_start_temp_sense(u16 cycles32k);
 int db8500_prcmu_stop_temp_sense(void);
 int prcmu_abb_read(u8 slave, u8 reg, u8 *value, u8 size);
 int prcmu_abb_write(u8 slave, u8 reg, u8 *value, u8 size);
+int prcmu_abb_write_masked(u8 slave, u8 reg, u8 *value,
+			   u8 *mask, u8 size);
 
 int prcmu_ac_wake_req(void);
 void prcmu_ac_sleep_req(void);
@@ -610,6 +821,21 @@ static inline int prcmu_config_clkout(u8 clkout, u8 source, u8 div)
 	return 0;
 }
 
+static inline unsigned long prcmu_clock_rate(u8 clock)
+{
+	return 0;
+}
+
+static inline long prcmu_round_clock_rate(u8 clock, unsigned long rate)
+{
+	return 0;
+}
+
+static inline int prcmu_set_clock_rate(u8 clock, unsigned long rate)
+{
+	return 0;
+}
+
 static inline int prcmu_set_clock_divider(u8 clock, u8 divider)
 {
 	return 0;
@@ -637,12 +863,18 @@ static inline int db8500_prcmu_stop_temp_sense(void)
 
 static inline int prcmu_abb_read(u8 slave, u8 reg, u8 *value, u8 size)
 {
-	return -ENOSYS;
+	return -EINVAL;
 }
 
 static inline int prcmu_abb_write(u8 slave, u8 reg, u8 *value, u8 size)
 {
-	return -ENOSYS;
+	return -EINVAL;
+}
+
+static inline int prcmu_abb_write_masked(u8 slave, u8 reg,
+					 u8 *value, u8 *mask, u8 size)
+{
+	return -EINVAL;
 }
 
 static inline int prcmu_ac_wake_req(void)
@@ -744,5 +976,21 @@ static inline void db8500_prcmu_write_masked(unsigned int reg, u32 mask,
 	u32 value) {}
 
 #endif /* !CONFIG_MFD_DB8500_PRCMU */
+
+static inline int prcmu_qos_add_requirement(int prcmu_qos_class,
+					    char *name, s32 value)
+{
+	return 0;
+}
+
+static inline int prcmu_qos_update_requirement(int prcmu_qos_class,
+					       char *name, s32 new_value)
+{
+	return 0;
+}
+
+static inline void prcmu_qos_remove_requirement(int prcmu_qos_class, char *name)
+{
+}
 
 #endif /* __MFD_DB8500_PRCMU_H */
