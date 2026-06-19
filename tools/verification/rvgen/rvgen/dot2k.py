@@ -250,6 +250,30 @@ class ha2k(dot2k):
         return (f"ha_start_timer_{clock_type}(ha_mon, {rule["env"]}{self.enum_suffix},"
                 f" {value}, time_ns)")
 
+    def __parse_invariant(self, inv):
+        # by default assume the timer has ns expiration
+        clock_type = "ns"
+        if inv.unit == "j":
+            clock_type = "jiffy"
+
+        env = inv.env + self.enum_suffix
+        try:
+            val = int(inv.val)
+        except ValueError:
+            # it's a constant, a parameter or a function
+            val = inv.val.replace("()", "(ha_mon)")
+
+        match inv.unit:
+            case "us":
+                val *= 10**3
+            case "ms":
+                val *= 10**6
+            case "s":
+                val *= 10**9
+
+        return (f"ha_start_timer_{clock_type}(ha_mon, {env},"
+                f" {val}, time_ns)")
+
     def __format_guard_rules(self, rules: list[str]) -> list[str]:
         """
         Merge guard constraints as a single C return statement.
@@ -463,15 +487,14 @@ f"""static inline bool ha_verify_guards(struct ha_monitor *ha_mon,
         return conflict_guards, conflict_invs
 
     def __fill_setup_invariants_func(self) -> list[str]:
-        buff = []
-        if not self.invariants:
+        if not self.has_invariant:
             return []
 
-        buff.append(
+        buff = [
 f"""static inline void ha_setup_invariants(struct ha_monitor *ha_mon,
 \t\t\t\t       enum {self.enum_states_def} curr_state, enum {self.enum_events_def} event,
 \t\t\t\t       enum {self.enum_states_def} next_state, u64 time_ns)
-{{""")
+{{"""]
 
         conditions = ["next_state == curr_state"]
         conditions += [f"event != {e}{self.enum_suffix}"
@@ -480,13 +503,20 @@ f"""static inline void ha_setup_invariants(struct ha_monitor *ha_mon,
         buff.append(f"\tif ({condition_str})\n\t\treturn;")
 
         _else = ""
-        for state, constr in sorted(self.invariants.items()):
-            buff.append(f"\t{_else}if (next_state == {self.states[state]}{self.enum_suffix})")
-            buff.append(f"\t\t{constr};")
+        for state in self._states:
+            inv = state.inv
+            if not inv:
+                continue
+            inv = self.__parse_invariant(inv)
+            buff.append(f"\t{_else}if (next_state == {state.name}{self.enum_suffix})")
+            buff.append(f"\t\t{inv};")
             _else = "else "
 
-        for state in self.invariants:
-            buff.append(f"\telse if (curr_state == {self.states[state]}{self.enum_suffix})")
+        for state in self._states:
+            inv = state.inv
+            if not inv:
+                continue
+            buff.append(f"\telse if (curr_state == {state.name}{self.enum_suffix})")
             buff.append("\t\tha_cancel_timer(ha_mon);")
 
         buff.append("}\n")
