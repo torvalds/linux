@@ -715,7 +715,7 @@ int fscrypt_add_test_dummy_key(struct super_block *sb,
 int fscrypt_verify_key_added(struct super_block *sb,
 			     const u8 identifier[FSCRYPT_KEY_IDENTIFIER_SIZE]);
 
-int __init fscrypt_init_keyring(void);
+void __init fscrypt_init_keyring(void);
 
 /* keysetup.c */
 

@@ -1220,21 +1220,19 @@ out:
 }
 EXPORT_SYMBOL_GPL(fscrypt_ioctl_get_key_status);
 
-int __init fscrypt_init_keyring(void)
+void __init fscrypt_init_keyring(void)
 {
 	int err;
 
+	/*
+	 * Note that register_key_type() fails only if a key type with the same
+	 * name already exists, which should never happen here.
+	 */
 	err = register_key_type(&key_type_fscrypt_user);
 	if (err)
-		return err;
-
+		panic("failed to register .fscrypt key type (%d)", err);
 	err = register_key_type(&key_type_fscrypt_provisioning);
 	if (err)
-		goto err_unregister_fscrypt_user;
-
-	return 0;
-
-err_unregister_fscrypt_user:
-	unregister_key_type(&key_type_fscrypt_user);
-	return err;
+		panic("failed to register fscrypt-provisioning key type (%d)",
+		      err);
 }
