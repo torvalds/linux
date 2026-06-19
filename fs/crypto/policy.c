@@ -507,7 +507,6 @@ int fscrypt_ioctl_set_policy(struct file *filp, const void __user *arg)
 	union fscrypt_policy policy;
 	union fscrypt_policy existing_policy;
 	struct inode *inode = file_inode(filp);
-	u8 version;
 	int size;
 	int ret;
 
@@ -518,21 +517,9 @@ int fscrypt_ioctl_set_policy(struct file *filp, const void __user *arg)
 	if (size <= 0)
 		return -EINVAL;
 
-	/*
-	 * We should just copy the remaining 'size - 1' bytes here, but a
-	 * bizarre bug in gcc 7 and earlier (fixed by gcc r255731) causes gcc to
-	 * think that size can be 0 here (despite the check above!) *and* that
-	 * it's a compile-time constant.  Thus it would think copy_from_user()
-	 * is passed compile-time constant ULONG_MAX, causing the compile-time
-	 * buffer overflow check to fail, breaking the build. This only occurred
-	 * when building an i386 kernel with -Os and branch profiling enabled.
-	 *
-	 * Work around it by just copying the first byte again...
-	 */
-	version = policy.version;
-	if (copy_from_user(&policy, arg, size))
+	if (copy_from_user((u8 *)&policy + 1, (const u8 __user *)arg + 1,
+			   size - 1))
 		return -EFAULT;
-	policy.version = version;
 
 	if (!inode_owner_or_capable(&nop_mnt_idmap, inode))
 		return -EACCES;
