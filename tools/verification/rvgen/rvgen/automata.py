@@ -9,9 +9,6 @@
 #   Documentation/trace/rv/deterministic_automata.rst
 
 import ntpath
-import re
-from typing import Iterator
-from itertools import islice
 
 import lark
 
@@ -356,19 +353,6 @@ class State:
         self.name = name
         self.inv = inv
 
-class _ConstraintKey:
-    """Base class for constraint keys."""
-
-class _StateConstraintKey(_ConstraintKey, int):
-    """Key for a state constraint. Under the hood just state_id."""
-    def __new__(cls, state_id: int):
-        return super().__new__(cls, state_id)
-
-class _EventConstraintKey(_ConstraintKey, tuple):
-    """Key for an event constraint. Under the hood just tuple(state_id,event_id)."""
-    def __new__(cls, state_id: int, event_id: int):
-        return super().__new__(cls, (state_id, event_id))
-
 class AutomataError(Exception):
     """Exception raised for errors in automata parsing and validation.
 
@@ -387,28 +371,10 @@ class Automata:
 
     invalid_state_str = "INVALID_STATE"
     init_marker = "__init_"
-    node_marker = "{node"
-    # val can be numerical, uppercase (constant or macro), lowercase (parameter or function)
-    # only numerical values should have units
-    constraint_rule = re.compile(r"""
-        ^
-        (?P<env>[a-zA-Z_][a-zA-Z0-9_]+)  # C-like identifier for the env var
-        (?P<op>[!<=>]{1,2})              # operator
-        (?P<val>
-            [0-9]+ |                     # numerical value
-            [A-Z_]+\(\) |                # macro
-            [A-Z_]+ |                    # constant
-            [a-z_]+\(\) |                # function
-            [a-z_]+                      # parameter
-        )
-        (?P<unit>[a-z]{1,2})?            # optional unit for numerical values
-        """, re.VERBOSE)
-    constraint_reset = re.compile(r"^reset\((?P<env>[a-zA-Z_][a-zA-Z0-9_]+)\)")
 
     def __init__(self, file_path, model_name=None):
         self.__dot_path = file_path
         self.name = model_name or self.__get_model_name()
-        self.__dot_lines = self.__open_dot()
         self.__parse_tree = ParseTree(file_path)
         self.transitions = self.__parse_transitions()
         self.states, self.initial_state, self.final_states = self.__parse_states()
@@ -434,57 +400,6 @@ class Automata:
             raise AutomataError(f"not a dot file: {self.__dot_path}")
 
         return model_name
-
-    def __open_dot(self) -> list[str]:
-        dot_lines = []
-        try:
-            with open(self.__dot_path) as dot_file:
-                dot_lines = dot_file.readlines()
-        except OSError as exc:
-            raise AutomataError(exc.strerror) from exc
-
-        if not dot_lines:
-            raise AutomataError(f"{self.__dot_path} is empty")
-
-        # checking the first line:
-        line = dot_lines[0].split()
-
-        if len(line) < 2 or line[0] != "digraph" or line[1] != "state_automaton":
-            raise AutomataError(f"Not a valid .dot format: {self.__dot_path}")
-
-        return dot_lines
-
-    def __get_cursor_begin_states(self) -> int:
-        for cursor, line in enumerate(self.__dot_lines):
-            split_line = line.split()
-
-            if len(split_line) and split_line[0] == self.node_marker:
-                return cursor
-
-        raise AutomataError("Could not find a beginning state")
-
-    def __get_cursor_begin_events(self) -> int:
-        state = 0
-        cursor = 0 # make pyright happy
-
-        for cursor, line in enumerate(self.__dot_lines):
-            line = line.split()
-            if not line:
-                continue
-
-            if state == 0:
-                if line[0] == self.node_marker:
-                    state = 1
-            elif line[0] != self.node_marker:
-                break
-        else:
-            raise AutomataError("Could not find beginning event")
-
-        cursor += 1 # skip initial state transition
-        if cursor == len(self.__dot_lines):
-            raise AutomataError("Dot file ended after event beginning")
-
-        return cursor
 
     def __parse_transitions(self):
         transitions = []
@@ -542,51 +457,6 @@ class Automata:
         states.insert(0, initial_state)
         return states, initial_state, final_states
 
-    def __get_state_variables(self) -> tuple[list[str], str, list[str]]:
-        # wait for node declaration
-        states = []
-        final_states = []
-        initial_state = ""
-
-        has_final_states = False
-        cursor = self.__get_cursor_begin_states()
-
-        # process nodes
-        for line in islice(self.__dot_lines, cursor, None):
-            split_line = line.split()
-            if not split_line or split_line[0] != self.node_marker:
-                break
-
-            raw_state = split_line[-1]
-
-            #  "enabled_fired"}; -> enabled_fired
-            state = raw_state.replace('"', '').replace('};', '').replace(',', '_')
-            if state.startswith(self.init_marker):
-                initial_state = state[len(self.init_marker):]
-            else:
-                states.append(state)
-                if "doublecircle" in line:
-                    final_states.append(state)
-                    has_final_states = True
-
-                if "ellipse" in line:
-                    final_states.append(state)
-                    has_final_states = True
-
-        if not initial_state:
-            raise AutomataError("The automaton doesn't have an initial state")
-
-        states = sorted(set(states))
-        states.remove(initial_state)
-
-        # Insert the initial state at the beginning of the states
-        states.insert(0, initial_state)
-
-        if not has_final_states:
-            final_states.append(initial_state)
-
-        return states, initial_state, final_states
-
     def __get_event_variables(self) -> tuple[list[str], list[str]]:
         events: list[str] = []
         envs: list[str] = []
@@ -608,26 +478,6 @@ class Automata:
                 self.__extract_env_var(state.inv)
 
         return sorted(set(events)), sorted(set(envs))
-
-    def _split_constraint_expr(self, constr: list[str]) -> Iterator[tuple[str,
-                                                                          str | None]]:
-        """
-        Get a list of strings of the type constr1 && constr2 and returns a list of
-        constraints and separators: [[constr1,"&&"],[constr2,None]]
-        """
-        exprs = []
-        seps = []
-        for c in constr:
-            while "&&" in c or "||" in c:
-                a = c.find("&&")
-                o = c.find("||")
-                pos = a if o < 0 or 0 < a < o else o
-                exprs.append(c[:pos].replace(" ", ""))
-                seps.append(c[pos:pos + 2].replace(" ", ""))
-                c = c[pos + 2:].replace(" ", "")
-            exprs.append(c)
-            seps.append(None)
-        return zip(exprs, seps)
 
     def __extract_env_var(self, constraint: ConstraintCondition):
         if constraint.unit:
@@ -697,10 +547,3 @@ class Automata:
 
     def is_hybrid_automata(self) -> bool:
         return bool(self.envs)
-
-    def is_event_constraint(self, key: _ConstraintKey) -> bool:
-        """
-        Given the key in self.constraints return true if it is an event
-        constraint, false if it is a state constraint
-        """
-        return isinstance(key, _EventConstraintKey)
