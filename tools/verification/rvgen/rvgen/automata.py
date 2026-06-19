@@ -13,6 +13,191 @@ import re
 from typing import Iterator
 from itertools import islice
 
+import lark
+
+class ParseTree:
+    # based on https://graphviz.org/doc/info/lang.html
+    # with the irrelevant stuffs (port and compass) removed
+    grammar = r'''
+    start: "strict"? ("graph" | "digraph") ID? "{" stmt_list "}"
+
+    stmt_list: (stmt ";"? stmt_list)?
+
+    stmt: node_stmt
+        | edge_stmt
+        | attr_stmt
+        | ID "=" ID
+        | subgraph
+
+    attr_stmt: attr_type attr_list
+
+    attr_type: "graph" -> graph
+            | "node"  -> node
+            | "edge"  -> edge
+
+    attr_list: "[" a_list? "]" attr_list?
+
+    a_list: ID "=" ID (";" | ",")? a_list?
+
+    edge_stmt: (node_id | subgraph) edgerhs attr_list?
+
+    edgerhs: edgeop (node_id | subgraph) edgerhs?
+
+    edgeop: "->" | "--"
+
+    node_stmt: node_id attr_list?
+
+    node_id: ID
+
+    subgraph: ("subgraph" ID?)? "{" stmt_list "}"
+
+    ID: CNAME
+      | /-?(\.[0-9]+|[0-9]+(\.[0-9]*))/
+      | ESCAPED_STRING
+
+    %import common.CNAME
+    %import common.ESCAPED_STRING
+    %import common.WS
+    %ignore WS
+    '''
+
+    @staticmethod
+    def parse_edge(tree: lark.Tree) -> tuple[str, str]:
+        # only support a simple node-to-node edge
+        nodes = []
+        for node in tree.iter_subtrees_topdown():
+            if node.data == "node_id":
+                nodes.append(node.children[0].strip('"'))
+
+        if len(nodes) != 2:
+            raise AutomataError("Only state-to-state transition is supported")
+
+        return tuple(nodes)
+
+    class ParseNodes(lark.visitors.Visitor):
+        def __init__(self, *args, **kwargs):
+            self.nodes = set()
+            super().__init__(*args, **kwargs)
+
+        def node_stmt(self, tree):
+            node_id = tree.children[0]
+            node = node_id.children[0].strip('"')
+            self.nodes.add(node)
+
+    class ParseEdges(lark.visitors.Visitor):
+        def __init__(self, *args, **kwargs):
+            self.edges = set()
+            super().__init__(*args, **kwargs)
+
+        def edge_stmt(self, tree):
+            edge = ParseTree.parse_edge(tree)
+            self.edges.add(edge)
+
+    class ParseAttributes(lark.visitors.Interpreter):
+        def __init__(self, *args, **kwargs):
+            '''
+            Stacks of default attributes. [0] is the default
+            attributes for the outermost scope, while [-1] is the
+            default attributes for the current scope.
+            '''
+            self.default_node_attrs = [{}]
+            self.default_edge_attrs = [{}]
+
+            self.node_attrs = {}
+            self.edge_attrs = {}
+
+            super().__init__(*args, **kwargs)
+
+        @staticmethod
+        def __get_attrs(stmt: lark.Tree) -> dict[str, str]:
+            attrs = {}
+
+            for node in stmt.iter_subtrees():
+                if node.data == "a_list":
+                    attrs[node.children[0]] = node.children[1].strip('"')
+
+            return attrs
+
+
+        def subgraph(self, tree):
+            # We are entering a new scope, inherit the default
+            # attributes of the outer scope
+            self.default_node_attrs.append(self.default_node_attrs[-1].copy())
+            self.default_edge_attrs.append(self.default_edge_attrs[-1].copy())
+
+            children = self.visit_children(tree)
+
+            # Exiting the scope
+            del self.default_node_attrs[-1]
+            del self.default_edge_attrs[-1]
+
+            return children
+
+        def node_stmt(self, tree):
+            node_id = tree.children[0]
+            node = node_id.children[0].strip('"')
+
+            attrs = self.default_node_attrs[-1].copy()
+            attrs |= self.__get_attrs(tree)
+
+            if attrs:
+                if node in self.node_attrs:
+                    self.node_attrs[node] = attrs | self.node_attrs[node]
+                else:
+                    self.node_attrs[node] = attrs
+
+            return self.visit_children(tree)
+
+        def edge_stmt(self, tree):
+            edge = ParseTree.parse_edge(tree)
+
+            attrs = self.default_edge_attrs[-1].copy()
+            attrs |= self.__get_attrs(tree)
+
+            if attrs:
+                if edge in self.edge_attrs:
+                    self.edge_attrs[edge] = attrs | self.edge_attrs[edge]
+                else:
+                    self.edge_attrs[edge] = attrs
+
+            return self.visit_children(tree)
+
+        def attr_stmt(self, tree):
+            attr_type = tree.children[0].data
+            attrs = self.__get_attrs(tree)
+
+            if attr_type == "node":
+                self.default_node_attrs[-1] |= attrs
+            elif attr_type == "edge":
+                self.default_edge_attrs[-1] |= attrs
+            else:
+                # graph attributes are irrelevant
+                pass
+
+            self.visit_children(tree)
+
+    def __init__(self, dot_file):
+        parser = lark.Lark(self.grammar, parser='lalr')
+        node_parser = self.ParseNodes()
+        edge_parser = self.ParseEdges()
+        attributes_parser = self.ParseAttributes()
+
+        try:
+            with open(dot_file, "r") as f:
+                tree = parser.parse(f.read())
+                attributes_parser.visit(tree)
+                node_parser.visit(tree)
+                edge_parser.visit(tree)
+        except OSError as exc:
+            raise AutomataError(exc.strerror) from exc
+        except lark.exceptions.UnexpectedInput as exc:
+            raise AutomataError(str(exc))
+
+        self.nodes = node_parser.nodes
+        self.edges = edge_parser.edges
+        self.node_attrs = attributes_parser.node_attrs
+        self.edge_attrs = attributes_parser.edge_attrs
+
 class _ConstraintKey:
     """Base class for constraint keys."""
 
@@ -66,6 +251,7 @@ class Automata:
         self.__dot_path = file_path
         self.name = model_name or self.__get_model_name()
         self.__dot_lines = self.__open_dot()
+        self.__parse_tree = ParseTree(file_path)
         self.states, self.initial_state, self.final_states = self.__get_state_variables()
         self.env_types = {}
         self.env_stored = set()
