@@ -18453,6 +18453,7 @@ F:	drivers/net/ethernet/mucse/
 
 MULTIFUNCTION DEVICES (MFD)
 M:	Lee Jones <lee@kernel.org>
+L:	mfd@lists.linux.dev
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lee/mfd.git
 F:	Documentation/devicetree/bindings/mfd/
