@@ -591,45 +591,22 @@ class Automata:
     def __get_event_variables(self) -> tuple[list[str], list[str]]:
         events: list[str] = []
         envs: list[str] = []
-        # here we are at the begin of transitions, take a note, we will return later.
-        cursor = self.__get_cursor_begin_events()
 
-        for line in map(str.lstrip, islice(self.__dot_lines, cursor, None)):
-            if not line.startswith('"'):
-                break
+        for transition in self.transitions:
+            events.append(transition.event)
 
-            # transitions have the format:
-            # "all_fired" -> "both_fired" [ label = "disable_irq" ];
-            #  ------------ event is here ------------^^^^^
-            split_line = line.split()
-            if len(split_line) > 1 and split_line[1] == "->":
-                event = "".join(split_line[split_line.index("label") + 2:-1]).replace('"', '')
+            if transition.reset:
+                envs.append(transition.reset.env)
+                self.env_stored.add(transition.reset.env)
+            if transition.rule:
+                for c, _ in transition.rule.rules:
+                    envs.append(c.env)
+                    self.__extract_env_var(c)
 
-                # when a transition has more than one label, they are like this
-                # "local_irq_enable\nhw_local_irq_enable_n"
-                # so split them.
-
-                for i in event.split("\\n"):
-                    # if the event contains a constraint (hybrid automata),
-                    # it will be separated by a ";":
-                    # "sched_switch;x<1000;reset(x)"
-                    ev, *constr = i.split(";")
-                    if constr:
-                        if len(constr) > 2:
-                            raise AutomataError("Only 1 constraint and 1 reset are supported")
-                        envs += self.__extract_env_var(constr)
-                    events.append(ev)
-            else:
-                # state labels have the format:
-                # "enable_fired" [label = "enable_fired\ncondition"];
-                #  ----- label is here -----^^^^^
-                # label and node name must be the same, condition is optional
-                state = line.split("label")[1].split('"')[1]
-                _, *constr = state.split("\\n")
-                if constr:
-                    if len(constr) > 1:
-                        raise AutomataError("Only 1 constraint is supported in the state")
-                    envs += self.__extract_env_var([constr[0].replace(" ", "")])
+        for state in self._states:
+            if state.inv:
+                envs.append(state.inv.env)
+                self.__extract_env_var(state.inv)
 
         return sorted(set(events)), sorted(set(envs))
 
@@ -653,28 +630,11 @@ class Automata:
             seps.append(None)
         return zip(exprs, seps)
 
-    def __extract_env_var(self, constraint: list[str]) -> list[str]:
-        env = []
-        for c, _ in self._split_constraint_expr(constraint):
-            rule = self.constraint_rule.search(c)
-            reset = self.constraint_reset.search(c)
-            if rule:
-                env.append(rule["env"])
-                if rule.groupdict().get("unit"):
-                    self.env_types[rule["env"]] = rule["unit"]
-                if rule["val"][0].isalpha():
-                    self.constraint_vars.add(rule["val"])
-                # try to infer unit from constants or parameters
-                val_for_unit = rule["val"].lower().replace("()", "")
-                if val_for_unit.endswith("_ns"):
-                    self.env_types[rule["env"]] = "ns"
-                if val_for_unit.endswith("_jiffies"):
-                    self.env_types[rule["env"]] = "j"
-            if reset:
-                env.append(reset["env"])
-                # environment variables that are reset need a storage
-                self.env_stored.add(reset["env"])
-        return env
+    def __extract_env_var(self, constraint: ConstraintCondition):
+        if constraint.unit:
+            self.env_types[constraint.env] = constraint.unit
+        if constraint.val[0].isalpha():
+            self.constraint_vars.add(constraint.val)
 
     def __create_matrix(self) -> tuple[list[list[str]], dict[_ConstraintKey, list[str]]]:
         # transform the array into a dictionary
