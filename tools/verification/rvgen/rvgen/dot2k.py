@@ -12,6 +12,7 @@ from collections import deque
 from .dot2c import Dot2c
 from .generator import Monitor
 from .automata import _EventConstraintKey, _StateConstraintKey, AutomataError
+from .automata import ConstraintCondition
 
 
 class dot2k(Monitor, Dot2c):
@@ -177,6 +178,14 @@ class ha2k(dot2k):
             raise AutomataError("Detected deterministic automaton, use the 'da' class")
         self.trace_h = self._read_template_file("trace_hybrid.h")
         self.__parse_constraints()
+        self.has_invariant = False
+        self.has_guard = False
+        for state in self._states:
+            if state.inv:
+                self.has_invariant = True
+        for transition in self.transitions:
+            if transition.rule or transition.reset:
+                self.has_guard = True
 
     def fill_monitor_class_type(self) -> str:
         if self._is_id_monitor():
@@ -218,14 +227,13 @@ class ha2k(dot2k):
         assert env.removesuffix(f"_{self.name}") in self.envs
         return env
 
-    def __start_to_invariant_check(self, constr: str) -> str:
+    def __start_to_invariant_check(self, inv: ConstraintCondition) -> str:
         # by default assume the timer has ns expiration
-        env = self.__get_constraint_env(constr)
         clock_type = "ns"
-        if self.env_types.get(env.removesuffix(f"_{self.name}")) == "j":
+        if inv.unit == "j":
             clock_type = "jiffy"
 
-        return f"return ha_check_invariant_{clock_type}(ha_mon, {env}, time_ns)"
+        return f"return ha_check_invariant_{clock_type}(ha_mon, {inv.env}_{self.name}, time_ns)"
 
     def __start_to_conv(self, constr: str) -> str:
         """
@@ -320,20 +328,22 @@ class ha2k(dot2k):
                 self.invariants[key] = rules[0]
 
     def __fill_verify_invariants_func(self) -> list[str]:
-        buff = []
-        if not self.invariants:
+        if not self.has_invariant:
             return []
 
-        buff.append(
+        buff = [
 f"""static inline bool ha_verify_invariants(struct ha_monitor *ha_mon,
 \t\t\t\t\tenum {self.enum_states_def} curr_state, enum {self.enum_events_def} event,
 \t\t\t\t\tenum {self.enum_states_def} next_state, u64 time_ns)
-{{""")
+{{"""]
 
         _else = ""
-        for state, constr in sorted(self.invariants.items()):
-            check_str = self.__start_to_invariant_check(constr)
-            buff.append(f"\t{_else}if (curr_state == {self.states[state]}{self.enum_suffix})")
+        for state in self._states:
+            if not state.inv:
+                continue
+
+            check_str = self.__start_to_invariant_check(state.inv)
+            buff.append(f"\t{_else}if (curr_state == {state.name}{self.enum_suffix})")
             buff.append(f"\t\t{check_str};")
             _else = "else "
 
