@@ -95,7 +95,7 @@ The monitor's specification is::
   RULE = always ((RT and SLEEP) imply (RT_FRIENDLY_SLEEP or ALLOWLIST))
 
   RT_FRIENDLY_SLEEP = (RT_VALID_SLEEP_REASON or KERNEL_THREAD)
-                  and ((not WAKE) until RT_FRIENDLY_WAKE)
+                  and ((not SCHEDULE_IN) until RT_FRIENDLY_WAKE)
 
   RT_VALID_SLEEP_REASON = FUTEX_WAIT
                        or RT_FRIENDLY_NANOSLEEP

@@ -24,10 +24,10 @@ enum ltl_atom {
 	LTL_NANOSLEEP_CLOCK_TAI,
 	LTL_NANOSLEEP_TIMER_ABSTIME,
 	LTL_RT,
+	LTL_SCHEDULE_IN,
 	LTL_SLEEP,
 	LTL_TASK_IS_MIGRATION,
 	LTL_TASK_IS_RCU,
-	LTL_WAKE,
 	LTL_WOKEN_BY_EQUAL_OR_HIGHER_PRIO,
 	LTL_WOKEN_BY_HARDIRQ,
 	LTL_WOKEN_BY_NMI,
@@ -50,10 +50,10 @@ static const char *ltl_atom_str(enum ltl_atom atom)
 		"na_cl_ta",
 		"na_ti_ab",
 		"rt",
-		"sl",
+		"sch_in",
+		"sle",
 		"ta_mi",
 		"ta_rc",
-		"wak",
 		"wo_eq_hi_pr",
 		"wo_ha",
 		"wo_nm",
@@ -81,10 +81,10 @@ static void ltl_start(struct task_struct *task, struct ltl_monitor *mon)
 	bool woken_by_hardirq = test_bit(LTL_WOKEN_BY_HARDIRQ, mon->atoms);
 	bool woken_by_equal_or_higher_prio = test_bit(LTL_WOKEN_BY_EQUAL_OR_HIGHER_PRIO,
 	     mon->atoms);
-	bool wake = test_bit(LTL_WAKE, mon->atoms);
 	bool task_is_rcu = test_bit(LTL_TASK_IS_RCU, mon->atoms);
 	bool task_is_migration = test_bit(LTL_TASK_IS_MIGRATION, mon->atoms);
 	bool sleep = test_bit(LTL_SLEEP, mon->atoms);
+	bool schedule_in = test_bit(LTL_SCHEDULE_IN, mon->atoms);
 	bool rt = test_bit(LTL_RT, mon->atoms);
 	bool nanosleep_timer_abstime = test_bit(LTL_NANOSLEEP_TIMER_ABSTIME, mon->atoms);
 	bool nanosleep_clock_tai = test_bit(LTL_NANOSLEEP_CLOCK_TAI, mon->atoms);
@@ -104,7 +104,7 @@ static void ltl_start(struct task_struct *task, struct ltl_monitor *mon)
 	bool val35 = woken_by_nmi || val34;
 	bool val36 = woken_by_hardirq || val35;
 	bool val14 = woken_by_equal_or_higher_prio || val36;
-	bool val13 = !wake;
+	bool val13 = !schedule_in;
 	bool val26 = nanosleep_clock_monotonic || nanosleep_clock_tai;
 	bool val27 = nanosleep_timer_abstime && val26;
 	bool val18 = clock_nanosleep && val27;
@@ -132,10 +132,10 @@ ltl_possible_next_states(struct ltl_monitor *mon, unsigned int state, unsigned l
 	bool woken_by_hardirq = test_bit(LTL_WOKEN_BY_HARDIRQ, mon->atoms);
 	bool woken_by_equal_or_higher_prio = test_bit(LTL_WOKEN_BY_EQUAL_OR_HIGHER_PRIO,
 	     mon->atoms);
-	bool wake = test_bit(LTL_WAKE, mon->atoms);
 	bool task_is_rcu = test_bit(LTL_TASK_IS_RCU, mon->atoms);
 	bool task_is_migration = test_bit(LTL_TASK_IS_MIGRATION, mon->atoms);
 	bool sleep = test_bit(LTL_SLEEP, mon->atoms);
+	bool schedule_in = test_bit(LTL_SCHEDULE_IN, mon->atoms);
 	bool rt = test_bit(LTL_RT, mon->atoms);
 	bool nanosleep_timer_abstime = test_bit(LTL_NANOSLEEP_TIMER_ABSTIME, mon->atoms);
 	bool nanosleep_clock_tai = test_bit(LTL_NANOSLEEP_CLOCK_TAI, mon->atoms);
@@ -155,7 +155,7 @@ ltl_possible_next_states(struct ltl_monitor *mon, unsigned int state, unsigned l
 	bool val35 = woken_by_nmi || val34;
 	bool val36 = woken_by_hardirq || val35;
 	bool val14 = woken_by_equal_or_higher_prio || val36;
-	bool val13 = !wake;
+	bool val13 = !schedule_in;
 	bool val26 = nanosleep_clock_monotonic || nanosleep_clock_tai;
 	bool val27 = nanosleep_timer_abstime && val26;
 	bool val18 = clock_nanosleep && val27;

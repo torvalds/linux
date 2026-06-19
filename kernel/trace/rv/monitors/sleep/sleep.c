@@ -36,7 +36,7 @@ static void ltl_atoms_fetch(struct task_struct *task, struct ltl_monitor *mon)
 static void ltl_atoms_init(struct task_struct *task, struct ltl_monitor *mon, bool task_creation)
 {
 	ltl_atom_set(mon, LTL_SLEEP, false);
-	ltl_atom_set(mon, LTL_WAKE, false);
+	ltl_atom_set(mon, LTL_SCHEDULE_IN, false);
 	ltl_atom_set(mon, LTL_ABORT_SLEEP, false);
 	ltl_atom_set(mon, LTL_WOKEN_BY_HARDIRQ, false);
 	ltl_atom_set(mon, LTL_WOKEN_BY_NMI, false);
@@ -92,9 +92,9 @@ static void handle_sched_set_state(void *data, struct task_struct *task, int sta
 		ltl_atom_pulse(task, LTL_ABORT_SLEEP, true);
 }
 
-static void handle_sched_wakeup(void *data, struct task_struct *task)
+static void handle_sched_exit(void *data, bool is_switch)
 {
-	ltl_atom_pulse(task, LTL_WAKE, true);
+	ltl_atom_pulse(current, LTL_SCHEDULE_IN, true);
 }
 
 static void handle_sched_waking(void *data, struct task_struct *task)
@@ -200,7 +200,7 @@ static int enable_sleep(void)
 		return retval;
 
 	rv_attach_trace_probe("rtapp_sleep", sched_waking, handle_sched_waking);
-	rv_attach_trace_probe("rtapp_sleep", sched_wakeup, handle_sched_wakeup);
+	rv_attach_trace_probe("rtapp_sleep", sched_exit_tp, handle_sched_exit);
 	rv_attach_trace_probe("rtapp_sleep", sched_set_state_tp, handle_sched_set_state);
 	rv_attach_trace_probe("rtapp_sleep", contention_begin, handle_contention_begin);
 	rv_attach_trace_probe("rtapp_sleep", contention_end, handle_contention_end);
@@ -213,7 +213,7 @@ static int enable_sleep(void)
 static void disable_sleep(void)
 {
 	rv_detach_trace_probe("rtapp_sleep", sched_waking, handle_sched_waking);
-	rv_detach_trace_probe("rtapp_sleep", sched_wakeup, handle_sched_wakeup);
+	rv_detach_trace_probe("rtapp_sleep", sched_exit_tp, handle_sched_exit);
 	rv_detach_trace_probe("rtapp_sleep", sched_set_state_tp, handle_sched_set_state);
 	rv_detach_trace_probe("rtapp_sleep", contention_begin, handle_contention_begin);
 	rv_detach_trace_probe("rtapp_sleep", contention_end, handle_contention_end);
