@@ -155,8 +155,8 @@ struct link_service {
 
 
 	/*************************** DPMS *************************************/
-	void (*set_dpms_on)(struct dc_state *state, struct pipe_ctx *pipe_ctx);
-	void (*set_dpms_off)(struct pipe_ctx *pipe_ctx);
+	enum dc_status (*set_dpms_on)(struct dc_state *state, struct pipe_ctx *pipe_ctx);
+	enum dc_status (*set_dpms_off)(struct pipe_ctx *pipe_ctx);
 	void (*resume)(struct dc_link *link);
 	void (*blank_all_dp_displays)(struct dc *dc);
 	void (*blank_all_edp_displays)(struct dc *dc);
