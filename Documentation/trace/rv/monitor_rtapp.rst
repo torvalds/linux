@@ -51,12 +51,13 @@ The `sleep` monitor reports real-time threads sleeping in a manner that may
 cause undesirable latency. Real-time applications should only put a real-time
 thread to sleep for one of the following reasons:
 
-  - Cyclic work: real-time thread sleeps waiting for the next cycle. For this
-    case, only the `clock_nanosleep` syscall should be used with `TIMER_ABSTIME`
-    (to avoid time drift) and `CLOCK_MONOTONIC` (to avoid the clock being
-    changed). No other method is safe for real-time. For example, threads
-    waiting for timerfd can be woken by softirq which provides no real-time
-    guarantee.
+  - Cyclic work: real-time thread sleeps waiting for the next
+    cycle. For this case, only the `clock_nanosleep` syscall should be
+    used with `TIMER_ABSTIME` (to avoid time drift). Additionally,
+    `CLOCK_REALTIME` should not be used (to avoid the clock being
+    changed). No other method is safe for real-time. For example,
+    threads waiting for timerfd can be woken by softirq which provides
+    no real-time guarantee.
   - Real-time thread waiting for something to happen (e.g. another thread
     releasing shared resources, or a completion signal from another thread). In
     this case, only futexes (FUTEX_LOCK_PI, FUTEX_LOCK_PI2 or one of
@@ -99,14 +100,16 @@ The monitor's specification is::
 
   RT_VALID_SLEEP_REASON = FUTEX_WAIT
                        or RT_FRIENDLY_NANOSLEEP
+                       or EPOLL_WAIT
 
   RT_FRIENDLY_NANOSLEEP = CLOCK_NANOSLEEP
                       and NANOSLEEP_TIMER_ABSTIME
-                      and NANOSLEEP_CLOCK_MONOTONIC
+                      and not NANOSLEEP_CLOCK_REALTIME
 
   RT_FRIENDLY_WAKE = WOKEN_BY_EQUAL_OR_HIGHER_PRIO
                   or WOKEN_BY_HARDIRQ
                   or WOKEN_BY_NMI
+                  or ABORT_SLEEP
                   or KTHREAD_SHOULD_STOP
 
   ALLOWLIST = BLOCK_ON_RT_MUTEX

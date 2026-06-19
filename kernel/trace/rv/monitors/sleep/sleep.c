@@ -44,8 +44,7 @@ static void ltl_atoms_init(struct task_struct *task, struct ltl_monitor *mon, bo
 
 	if (task_creation) {
 		ltl_atom_set(mon, LTL_KTHREAD_SHOULD_STOP, false);
-		ltl_atom_set(mon, LTL_NANOSLEEP_CLOCK_MONOTONIC, false);
-		ltl_atom_set(mon, LTL_NANOSLEEP_CLOCK_TAI, false);
+		ltl_atom_set(mon, LTL_NANOSLEEP_CLOCK_REALTIME, false);
 		ltl_atom_set(mon, LTL_NANOSLEEP_TIMER_ABSTIME, false);
 		ltl_atom_set(mon, LTL_CLOCK_NANOSLEEP, false);
 		ltl_atom_set(mon, LTL_FUTEX_WAIT, false);
@@ -60,8 +59,7 @@ static void ltl_atoms_init(struct task_struct *task, struct ltl_monitor *mon, bo
 		/* kernel tasks do not do syscall */
 		ltl_atom_set(mon, LTL_FUTEX_WAIT, false);
 		ltl_atom_set(mon, LTL_FUTEX_LOCK_PI, false);
-		ltl_atom_set(mon, LTL_NANOSLEEP_CLOCK_MONOTONIC, false);
-		ltl_atom_set(mon, LTL_NANOSLEEP_CLOCK_TAI, false);
+		ltl_atom_set(mon, LTL_NANOSLEEP_CLOCK_REALTIME, false);
 		ltl_atom_set(mon, LTL_NANOSLEEP_TIMER_ABSTIME, false);
 		ltl_atom_set(mon, LTL_CLOCK_NANOSLEEP, false);
 		ltl_atom_set(mon, LTL_EPOLL_WAIT, false);
@@ -136,8 +134,7 @@ static void handle_sys_enter(void *data, struct pt_regs *regs, long id)
 	case __NR_clock_nanosleep_time64:
 #endif
 		syscall_get_arguments(current, regs, args);
-		ltl_atom_set(mon, LTL_NANOSLEEP_CLOCK_MONOTONIC, args[0] == CLOCK_MONOTONIC);
-		ltl_atom_set(mon, LTL_NANOSLEEP_CLOCK_TAI, args[0] == CLOCK_TAI);
+		ltl_atom_set(mon, LTL_NANOSLEEP_CLOCK_REALTIME, args[0] == CLOCK_REALTIME);
 		ltl_atom_set(mon, LTL_NANOSLEEP_TIMER_ABSTIME, args[1] == TIMER_ABSTIME);
 		ltl_atom_update(current, LTL_CLOCK_NANOSLEEP, true);
 		break;
@@ -178,8 +175,7 @@ static void handle_sys_exit(void *data, struct pt_regs *regs, long ret)
 
 	ltl_atom_set(mon, LTL_FUTEX_LOCK_PI, false);
 	ltl_atom_set(mon, LTL_FUTEX_WAIT, false);
-	ltl_atom_set(mon, LTL_NANOSLEEP_CLOCK_MONOTONIC, false);
-	ltl_atom_set(mon, LTL_NANOSLEEP_CLOCK_TAI, false);
+	ltl_atom_set(mon, LTL_NANOSLEEP_CLOCK_REALTIME, false);
 	ltl_atom_set(mon, LTL_NANOSLEEP_TIMER_ABSTIME, false);
 	ltl_atom_set(mon, LTL_EPOLL_WAIT, false);
 	ltl_atom_update(current, LTL_CLOCK_NANOSLEEP, false);

@@ -20,8 +20,7 @@ enum ltl_atom {
 	LTL_FUTEX_WAIT,
 	LTL_KERNEL_THREAD,
 	LTL_KTHREAD_SHOULD_STOP,
-	LTL_NANOSLEEP_CLOCK_MONOTONIC,
-	LTL_NANOSLEEP_CLOCK_TAI,
+	LTL_NANOSLEEP_CLOCK_REALTIME,
 	LTL_NANOSLEEP_TIMER_ABSTIME,
 	LTL_RT,
 	LTL_SCHEDULE_IN,
@@ -46,8 +45,7 @@ static const char *ltl_atom_str(enum ltl_atom atom)
 		"fu_wa",
 		"ker_th",
 		"kth_sh_st",
-		"na_cl_mo",
-		"na_cl_ta",
+		"na_cl_re",
 		"na_ti_ab",
 		"rt",
 		"sch_in",
@@ -87,8 +85,7 @@ static void ltl_start(struct task_struct *task, struct ltl_monitor *mon)
 	bool schedule_in = test_bit(LTL_SCHEDULE_IN, mon->atoms);
 	bool rt = test_bit(LTL_RT, mon->atoms);
 	bool nanosleep_timer_abstime = test_bit(LTL_NANOSLEEP_TIMER_ABSTIME, mon->atoms);
-	bool nanosleep_clock_tai = test_bit(LTL_NANOSLEEP_CLOCK_TAI, mon->atoms);
-	bool nanosleep_clock_monotonic = test_bit(LTL_NANOSLEEP_CLOCK_MONOTONIC, mon->atoms);
+	bool nanosleep_clock_realtime = test_bit(LTL_NANOSLEEP_CLOCK_REALTIME, mon->atoms);
 	bool kthread_should_stop = test_bit(LTL_KTHREAD_SHOULD_STOP, mon->atoms);
 	bool kernel_thread = test_bit(LTL_KERNEL_THREAD, mon->atoms);
 	bool futex_wait = test_bit(LTL_FUTEX_WAIT, mon->atoms);
@@ -97,17 +94,17 @@ static void ltl_start(struct task_struct *task, struct ltl_monitor *mon)
 	bool clock_nanosleep = test_bit(LTL_CLOCK_NANOSLEEP, mon->atoms);
 	bool block_on_rt_mutex = test_bit(LTL_BLOCK_ON_RT_MUTEX, mon->atoms);
 	bool abort_sleep = test_bit(LTL_ABORT_SLEEP, mon->atoms);
-	bool val42 = task_is_rcu || task_is_migration;
-	bool val43 = futex_lock_pi || val42;
-	bool val5 = block_on_rt_mutex || val43;
-	bool val34 = abort_sleep || kthread_should_stop;
-	bool val35 = woken_by_nmi || val34;
-	bool val36 = woken_by_hardirq || val35;
-	bool val14 = woken_by_equal_or_higher_prio || val36;
+	bool val41 = task_is_rcu || task_is_migration;
+	bool val42 = futex_lock_pi || val41;
+	bool val5 = block_on_rt_mutex || val42;
+	bool val33 = abort_sleep || kthread_should_stop;
+	bool val34 = woken_by_nmi || val33;
+	bool val35 = woken_by_hardirq || val34;
+	bool val14 = woken_by_equal_or_higher_prio || val35;
 	bool val13 = !schedule_in;
-	bool val26 = nanosleep_clock_monotonic || nanosleep_clock_tai;
-	bool val27 = nanosleep_timer_abstime && val26;
-	bool val18 = clock_nanosleep && val27;
+	bool val25 = !nanosleep_clock_realtime;
+	bool val26 = nanosleep_timer_abstime && val25;
+	bool val18 = clock_nanosleep && val26;
 	bool val20 = val18 || epoll_wait;
 	bool val9 = futex_wait || val20;
 	bool val11 = val9 || kernel_thread;
@@ -138,8 +135,7 @@ ltl_possible_next_states(struct ltl_monitor *mon, unsigned int state, unsigned l
 	bool schedule_in = test_bit(LTL_SCHEDULE_IN, mon->atoms);
 	bool rt = test_bit(LTL_RT, mon->atoms);
 	bool nanosleep_timer_abstime = test_bit(LTL_NANOSLEEP_TIMER_ABSTIME, mon->atoms);
-	bool nanosleep_clock_tai = test_bit(LTL_NANOSLEEP_CLOCK_TAI, mon->atoms);
-	bool nanosleep_clock_monotonic = test_bit(LTL_NANOSLEEP_CLOCK_MONOTONIC, mon->atoms);
+	bool nanosleep_clock_realtime = test_bit(LTL_NANOSLEEP_CLOCK_REALTIME, mon->atoms);
 	bool kthread_should_stop = test_bit(LTL_KTHREAD_SHOULD_STOP, mon->atoms);
 	bool kernel_thread = test_bit(LTL_KERNEL_THREAD, mon->atoms);
 	bool futex_wait = test_bit(LTL_FUTEX_WAIT, mon->atoms);
@@ -148,17 +144,17 @@ ltl_possible_next_states(struct ltl_monitor *mon, unsigned int state, unsigned l
 	bool clock_nanosleep = test_bit(LTL_CLOCK_NANOSLEEP, mon->atoms);
 	bool block_on_rt_mutex = test_bit(LTL_BLOCK_ON_RT_MUTEX, mon->atoms);
 	bool abort_sleep = test_bit(LTL_ABORT_SLEEP, mon->atoms);
-	bool val42 = task_is_rcu || task_is_migration;
-	bool val43 = futex_lock_pi || val42;
-	bool val5 = block_on_rt_mutex || val43;
-	bool val34 = abort_sleep || kthread_should_stop;
-	bool val35 = woken_by_nmi || val34;
-	bool val36 = woken_by_hardirq || val35;
-	bool val14 = woken_by_equal_or_higher_prio || val36;
+	bool val41 = task_is_rcu || task_is_migration;
+	bool val42 = futex_lock_pi || val41;
+	bool val5 = block_on_rt_mutex || val42;
+	bool val33 = abort_sleep || kthread_should_stop;
+	bool val34 = woken_by_nmi || val33;
+	bool val35 = woken_by_hardirq || val34;
+	bool val14 = woken_by_equal_or_higher_prio || val35;
 	bool val13 = !schedule_in;
-	bool val26 = nanosleep_clock_monotonic || nanosleep_clock_tai;
-	bool val27 = nanosleep_timer_abstime && val26;
-	bool val18 = clock_nanosleep && val27;
+	bool val25 = !nanosleep_clock_realtime;
+	bool val26 = nanosleep_timer_abstime && val25;
+	bool val18 = clock_nanosleep && val26;
 	bool val20 = val18 || epoll_wait;
 	bool val9 = futex_wait || val20;
 	bool val11 = val9 || kernel_thread;
