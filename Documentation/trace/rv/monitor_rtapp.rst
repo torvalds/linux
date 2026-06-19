@@ -124,3 +124,23 @@ to handle some special cases:
     real-time-safe because preemption is disabled for the duration.
   - `FUTEX_LOCK_PI` is included in the allowlist for the same reason as
     `BLOCK_ON_RT_MUTEX`.
+
+Monitor wakeup
+++++++++++++++
+
+The `wakeup` monitor reports real-time threads being woken by lower-priority threads,
+which is a hint of priority inversion. Its specification is::
+
+  RULE = always (((RT and USER_THREAD) imply
+                (not (WOKEN_BY_LOWER_PRIO or WOKEN_BY_SOFTIRQ)) or ALLOWLIST))
+
+  ALLOWLIST = BLOCK_ON_RT_MUTEX
+           or FUTEX_LOCK_PI
+
+The `sleep` monitor already reports this type of problem. The difference is the
+context in which the problem is reported. While the `sleep` monitor reports the problem
+in the context of the wakee, this `wakeup` monitor reports the problem in the context of
+the waker. This monitor complement the `sleep` monitor, giving user better
+understanding of the issue. For instance, to debug a lower-priority task waking a
+higher-priority task scenario, user can enable both `wakeup` monitor and `sleep`
+monitor to get the stack traces of both tasks.

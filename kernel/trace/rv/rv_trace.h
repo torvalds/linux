@@ -241,6 +241,7 @@ DECLARE_EVENT_CLASS(error_ltl_monitor_id,
 );
 #include <monitors/pagefault/pagefault_trace.h>
 #include <monitors/sleep/sleep_trace.h>
+#include <monitors/wakeup/wakeup_trace.h>
 // Add new monitors based on CONFIG_LTL_MON_EVENTS_ID here
 #endif /* CONFIG_LTL_MON_EVENTS_ID */
 
