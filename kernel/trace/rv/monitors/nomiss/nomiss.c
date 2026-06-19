@@ -57,22 +57,10 @@ static inline bool ha_verify_invariants(struct ha_monitor *ha_mon,
 					enum states next_state, u64 time_ns)
 {
 	if (curr_state == ready_nomiss)
-		return ha_check_invariant_ns(ha_mon, clk_nomiss, time_ns);
+		return ha_check_invariant_ns(ha_mon, clk_nomiss, time_ns, DEADLINE_NS(ha_mon));
 	else if (curr_state == running_nomiss)
-		return ha_check_invariant_ns(ha_mon, clk_nomiss, time_ns);
+		return ha_check_invariant_ns(ha_mon, clk_nomiss, time_ns, DEADLINE_NS(ha_mon));
 	return true;
-}
-
-static inline void ha_convert_inv_guard(struct ha_monitor *ha_mon,
-					enum states curr_state, enum events event,
-					enum states next_state, u64 time_ns)
-{
-	if (curr_state == next_state)
-		return;
-	if (curr_state == ready_nomiss)
-		ha_inv_to_guard(ha_mon, clk_nomiss, DEADLINE_NS(ha_mon), time_ns);
-	else if (curr_state == running_nomiss)
-		ha_inv_to_guard(ha_mon, clk_nomiss, DEADLINE_NS(ha_mon), time_ns);
 }
 
 static inline bool ha_verify_guards(struct ha_monitor *ha_mon,
@@ -121,8 +109,6 @@ static bool ha_verify_constraint(struct ha_monitor *ha_mon,
 {
 	if (!ha_verify_invariants(ha_mon, curr_state, event, next_state, time_ns))
 		return false;
-
-	ha_convert_inv_guard(ha_mon, curr_state, event, next_state, time_ns);
 
 	if (!ha_verify_guards(ha_mon, curr_state, event, next_state, time_ns))
 		return false;
