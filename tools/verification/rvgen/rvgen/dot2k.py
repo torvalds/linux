@@ -177,7 +177,6 @@ class ha2k(dot2k):
         if not self.is_hybrid_automata():
             raise AutomataError("Detected deterministic automaton, use the 'da' class")
         self.trace_h = self._read_template_file("trace_hybrid.h")
-        self.__parse_constraints()
         self.has_invariant = False
         self.has_guard = False
         for state in self._states:
@@ -308,64 +307,6 @@ class ha2k(dot2k):
         separator = "\n\t\t      " if sum(len(r) for r in rules) > 80 else " "
         return ["res = " + separator.join(rules) + ";"]
 
-    def __validate_constraint(self, key: tuple[int, int] | int, constr: str,
-                              rule, reset) -> None:
-        # event constrains are tuples and allow both rules and reset
-        # state constraints are only used for expirations (e.g. clk<N)
-        if self.is_event_constraint(key):
-            if not rule and not reset:
-                raise AutomataError("Unrecognised event constraint "
-                                    f"({self.states[key[0]]}/{self.events[key[1]]}: {constr})")
-            if rule and (rule["env"] in self.env_types and
-                         rule["env"] not in self.env_stored):
-                raise AutomataError("Clocks in hybrid automata always require a storage"
-                                    f" ({rule["env"]})")
-        else:
-            if not rule:
-                raise AutomataError("Unrecognised state constraint "
-                                    f"({self.states[key]}: {constr})")
-            if rule["env"] not in self.env_stored:
-                raise AutomataError("State constraints always require a storage "
-                                    f"({rule["env"]})")
-            if rule["op"] not in ["<", "<="]:
-                raise AutomataError("State constraints must be clock expirations like"
-                                    f" clk<N ({rule.string})")
-
-    def __parse_constraints(self) -> None:
-        self.guards: dict[_EventConstraintKey, str] = {}
-        self.invariants: dict[_StateConstraintKey, str] = {}
-        for key, constraint in self.constraints.items():
-            rules = []
-            resets = []
-            for c, sep in self._split_constraint_expr(constraint):
-                rule = self.constraint_rule.search(c)
-                reset = self.constraint_reset.search(c)
-                self.__validate_constraint(key, c, rule, reset)
-                if rule:
-                    value = rule["val"]
-                    value_len = len(rule["val"])
-                    unit = None
-                    if rule.groupdict().get("unit"):
-                        value_len += len(rule["unit"])
-                        unit = rule["unit"]
-                    c = c[:-(value_len)]
-                    value = self.__adjust_value(value, unit)
-                    if self.is_event_constraint(key):
-                        c = self.__parse_single_constraint(rule, value)
-                        if sep:
-                            c += f" {sep}"
-                    else:
-                        c = self.__parse_timer_constraint(rule, value)
-                    rules.append(c)
-                if reset:
-                    c = f"ha_reset_env(ha_mon, {reset["env"]}{self.enum_suffix}, time_ns)"
-                    resets.append(c)
-            if self.is_event_constraint(key):
-                res = self.__format_guard_rules(rules) + resets
-                self.guards[key] = ";".join(res)
-            else:
-                self.invariants[key] = rules[0]
-
     def __fill_verify_invariants_func(self) -> list[str]:
         if not self.has_invariant:
             return []
@@ -490,15 +431,15 @@ f"""static bool ha_verify_constraint(struct ha_monitor *ha_mon,
 \t\t\t\t enum {self.enum_states_def} next_state, u64 time_ns)
 {{""")
 
-        if self.invariants:
+        if self.has_invariant:
             buff.append("\tif (!ha_verify_invariants(ha_mon, curr_state, "
                         "event, next_state, time_ns))\n\t\treturn false;\n")
 
-        if self.guards:
+        if self.has_guard:
             buff.append("\tif (!ha_verify_guards(ha_mon, curr_state, event, "
                         "next_state, time_ns))\n\t\treturn false;\n")
 
-        if self.invariants:
+        if self.has_invariant:
             buff.append("\tha_setup_invariants(ha_mon, curr_state, event, next_state, time_ns);\n")
 
         buff.append("\treturn true;\n}\n")
@@ -575,7 +516,7 @@ f"""static bool ha_verify_constraint(struct ha_monitor *ha_mon,
         return self.__fill_hybrid_get_reset_functions() + self.__fill_constr_func()
 
     def _fill_timer_type(self) -> list:
-        if self.invariants:
+        if self.has_invariant:
             return [
                     "/* XXX: If the monitor has several instances, consider HA_TIMER_WHEEL */",
                     "#define HA_TIMER_TYPE HA_TIMER_HRTIMER"
