@@ -198,6 +198,164 @@ class ParseTree:
         self.node_attrs = attributes_parser.node_attrs
         self.edge_attrs = attributes_parser.edge_attrs
 
+class ConstraintCondition:
+    def __init__(self, env: str, op: str, val: str, unit=None):
+        self.env = env
+        self.op = op
+        self.val = val
+        self.unit = unit
+        if unit is None:
+            # try to infer unit from constants or parameters
+            val_for_unit = val.lower().replace("()", "")
+            if val_for_unit.endswith("_ns"):
+                self.unit = "ns"
+            if val_for_unit.endswith("_jiffies"):
+                self.unit = "j"
+
+class ConstraintRule:
+    grammar = r'''
+        rule: condition (OP condition)*
+
+        OP: "&&" | "||"
+
+        condition: ENV CMP_OP VAL UNIT?
+
+        ENV: CNAME
+
+        CMP_OP: "==" | "!=" | "<=" | "<" | ">=" | ">"
+
+        VAL: /[0-9]+/
+           | /[A-Z_]+\(\)/
+           | /[A-Z_]+/
+           | /[a-z_]+\(\)/
+           | /[a-z_]+/
+
+        UNIT: "ns" | "us" | "ms" | "s" | "j"
+    '''
+
+    def __init__(self, c: ConstraintCondition):
+        '''
+        A list of pairs of
+          - the condition (e.g. is_constr_dl == 1)
+          - the logical operator ("||" or "&&") combining this
+            condition with the next one if it exists, otherwise None
+
+        TODO: Perhaps use an abstract syntax tree instead, because
+              this representation cannot capture precedence
+        '''
+        self.rules = [[c, None]]
+
+    def chain(self, op: str, c: ConstraintCondition):
+        self.rules[-1][1] = op
+        self.rules.append([c, None])
+
+class ConstraintReset:
+    def __init__(self, env):
+        self.env = env
+
+class StateLabelParser:
+    grammar = r'''
+    label: CNAME ("\\n" condition)?
+
+    %import common.CNAME
+    %import common.WS
+    %ignore WS
+    ''' + ConstraintRule.grammar
+
+    parser = lark.Lark(grammar, parser='lalr', start="label")
+
+    def __init__(self, label: str):
+        try:
+            tree = self.parser.parse(label)
+        except lark.exceptions.UnexpectedInput as exc:
+            raise(AutomataError(f"Unrecognised state \"{label}\"\n{exc}"))
+
+        self.state = tree.children[0]
+        self.constraint = None
+
+        if len(tree.children) == 2:
+            self.constraint = ConstraintCondition(*tree.children[1].children)
+            if self.constraint.op not in ("<", "<="):
+                raise AutomataError("State constraints must be clock expirations like"
+                                    f" clk<N ({label})")
+
+class EventLabelParser:
+    grammar = r'''
+    events: event ("\\n" event)*
+
+    event: name (";" guard)?
+
+    guard: reset
+         | rule
+         | rule ";" reset
+         | reset ";" rule
+
+    name: CNAME
+
+    reset: "reset" "(" ENV ")"
+
+    %import common.CNAME
+    %import common.WS
+    %ignore WS
+    ''' + ConstraintRule.grammar
+
+    parser = lark.Lark(grammar, parser='lalr', start="events")
+
+    class GetEvents(lark.visitors.Transformer):
+        def guard(self, args):
+            reset = None
+            rule = None
+            for arg in args:
+                if arg.data == "reset":
+                    reset = ConstraintReset(arg.children[0])
+                elif arg.data == "rule":
+                    conditions = arg.children
+                    rule = ConstraintRule(conditions[0])
+                    for i in range(1, len(conditions), 2):
+                        rule.chain(conditions[i], conditions[i + 1])
+            return reset, rule
+
+        def OP(self, args):
+            return args
+
+        def condition(self, args):
+            return ConstraintCondition(*args)
+
+        def event(self, args):
+            assert(len(args) <= 2)
+            name = args[0]
+            rule, reset = None, None
+            if len(args) == 2:
+                reset, rule = args[1]
+            return name, reset, rule
+
+        def events(self, args):
+            return args
+
+        def name(self, args):
+            return args[0]
+
+    def __init__(self, label: str):
+        try:
+            tree = self.parser.parse(label)
+            self.events = self.GetEvents().transform(tree)
+        except lark.exceptions.UnexpectedInput as exc:
+            raise(AutomataError(f"Unrecognised event \"{label}\"\n{exc}"))
+
+class Transition:
+    def __init__(self, src: str, dst: str, event: str,
+                 reset: ConstraintReset, rule: ConstraintRule):
+        self.src = src
+        self.dst = dst
+        self.event = event
+        self.rule = rule
+        self.reset = reset
+
+class State:
+    def __init__(self, name: str, inv: ConstraintCondition):
+        self.name = name
+        self.inv = inv
+
 class _ConstraintKey:
     """Base class for constraint keys."""
 
@@ -252,6 +410,8 @@ class Automata:
         self.name = model_name or self.__get_model_name()
         self.__dot_lines = self.__open_dot()
         self.__parse_tree = ParseTree(file_path)
+        self.transitions = self.__parse_transitions()
+        self._states, self._initial_state, self._final_states = self.__parse_states()
         self.states, self.initial_state, self.final_states = self.__get_state_variables()
         self.env_types = {}
         self.env_stored = set()
@@ -326,6 +486,62 @@ class Automata:
             raise AutomataError("Dot file ended after event beginning")
 
         return cursor
+
+    def __parse_transitions(self):
+        transitions = []
+
+        for edge in self.__parse_tree.edges:
+            attr = self.__parse_tree.edge_attrs.get(edge)
+            if not attr:
+                continue
+
+            label = attr.get("label")
+
+            src, dst = edge
+
+            parser = EventLabelParser(label)
+            for event, reset, rule in parser.events:
+                transitions.append(Transition(src, dst, event, reset, rule))
+
+        transitions.sort(key=lambda t : (t.src, t.event))
+        return transitions
+
+    def __parse_states(self):
+        initial_state = ""
+        states = []
+        final_states = []
+
+        for node in self.__parse_tree.nodes:
+            attr = self.__parse_tree.node_attrs[node]
+            label = attr.get("label")
+
+            if node.startswith(Automata.init_marker):
+                initial_state = node[len(Automata.init_marker):]
+
+            if not label:
+                continue
+
+            parser = StateLabelParser(label)
+            state = State(parser.state, parser.constraint)
+
+            states.append(state)
+
+            shape = attr.get("shape")
+            if shape in ("doublecircle", "ellipse"):
+                final_states.append(state)
+
+
+        initial_state = next((s for s in states if s.name == initial_state), None)
+        if not initial_state:
+            raise AutomataError("The automaton doesn't have an initial state")
+
+        if not final_states:
+            final_states.append(initial_state)
+
+        states.remove(initial_state)
+        states.sort(key=lambda s : s.name)
+        states.insert(0, initial_state)
+        return states, initial_state, final_states
 
     def __get_state_variables(self) -> tuple[list[str], str, list[str]]:
         # wait for node declaration
