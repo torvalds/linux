@@ -418,7 +418,7 @@ class Automata:
         self.constraint_vars = set()
         self.self_loop_reset_events = set()
         self.events, self.envs = self.__get_event_variables()
-        self.function, self.constraints = self.__create_matrix()
+        self.function = self.__create_matrix()
         self.events_start, self.events_start_run = self.__store_init_events()
         self.env_stored = sorted(self.env_stored)
         self.constraint_vars = sorted(self.constraint_vars)
@@ -636,10 +636,10 @@ class Automata:
         if constraint.val[0].isalpha():
             self.constraint_vars.add(constraint.val)
 
-    def __create_matrix(self) -> tuple[list[list[str]], dict[_ConstraintKey, list[str]]]:
+    def __create_matrix(self) -> list[list[str]]:
         # transform the array into a dictionary
         events = self.events
-        states = self.states
+        states = [s.name for s in self._states]
         events_dict = {}
         states_dict = {}
         nr_event = 0
@@ -654,39 +654,16 @@ class Automata:
 
         # declare the matrix....
         matrix = [[self.invalid_state_str for _ in range(nr_event)] for _ in range(nr_state)]
-        constraints: dict[_ConstraintKey, list[str]] = {}
 
-        # and we are back! Let's fill the matrix
-        cursor = self.__get_cursor_begin_events()
+        for transition in self.transitions:
+            src, dst = transition.src, transition.dst
+            event = transition.event
+            if src == dst and transition.reset:
+                # those events reset also on self loops
+                self.self_loop_reset_events.add(event)
+            matrix[states_dict[src]][events_dict[event]] = dst
 
-        for line in map(str.lstrip,
-                        islice(self.__dot_lines, cursor, None)):
-
-            if not line or line[0] != '"':
-                break
-
-            split_line = line.split()
-
-            if len(split_line) > 2 and split_line[1] == "->":
-                origin_state = split_line[0].replace('"', '').replace(',', '_')
-                dest_state = split_line[2].replace('"', '').replace(',', '_')
-                possible_events = "".join(split_line[split_line.index("label") + 2:-1]).replace('"', '')
-                for event in possible_events.split("\\n"):
-                    event, *constr = event.split(";")
-                    if constr:
-                        key = _EventConstraintKey(states_dict[origin_state], events_dict[event])
-                        constraints[key] = constr
-                        # those events reset also on self loops
-                        if origin_state == dest_state and "reset" in "".join(constr):
-                            self.self_loop_reset_events.add(event)
-                    matrix[states_dict[origin_state]][events_dict[event]] = dest_state
-            else:
-                state = line.split("label")[1].split('"')[1]
-                state, *constr = state.replace(" ", "").split("\\n")
-                if constr:
-                    constraints[_StateConstraintKey(states_dict[state])] = constr
-
-        return matrix, constraints
+        return matrix
 
     def __store_init_events(self) -> tuple[list[bool], list[bool]]:
         events_start = [False] * len(self.events)

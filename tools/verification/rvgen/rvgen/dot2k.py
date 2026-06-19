@@ -407,7 +407,7 @@ f"""static inline void ha_setup_invariants(struct ha_monitor *ha_mon,
 
     def __fill_constr_func(self) -> list[str]:
         buff = []
-        if not self.constraints:
+        if not self.has_invariant and not self.has_guard:
             return []
 
         buff.append(
