@@ -246,7 +246,9 @@ class ha2k(dot2k):
         if inv.unit == "j":
             clock_type = "jiffy"
 
-        return f"return ha_check_invariant_{clock_type}(ha_mon, {inv.env}_{self.name}, time_ns)"
+        value = self.__adjust_value(inv.val, inv.unit)
+
+        return f"return ha_check_invariant_{clock_type}(ha_mon, {inv.env}_{self.name}, time_ns, {value})"
 
     def __start_to_conv(self, constr: str) -> str:
         """
@@ -387,40 +389,6 @@ f"""static inline bool ha_verify_invariants(struct ha_monitor *ha_mon,
         buff.append("\treturn true;\n}\n")
         return buff
 
-    def __fill_convert_inv_guard_func(self) -> list[str]:
-        buff = []
-        if not self.invariants:
-            return []
-
-        conflict_guards, conflict_invs = self.__find_inv_conflicts()
-        if not conflict_guards and not conflict_invs:
-            return []
-
-        buff.append(
-f"""static inline void ha_convert_inv_guard(struct ha_monitor *ha_mon,
-\t\t\t\t\tenum {self.enum_states_def} curr_state, enum {self.enum_events_def} event,
-\t\t\t\t\tenum {self.enum_states_def} next_state, u64 time_ns)
-{{""")
-        buff.append("\tif (curr_state == next_state)\n\t\treturn;")
-
-        _else = ""
-        for state, constr in sorted(self.invariants.items()):
-            # a state with invariant can reach us without reset
-            # multiple conflicts must have the same invariant, otherwise we cannot
-            # know how to reset the value
-            conf_i = [start for start, end in conflict_invs if end == state]
-            # we can reach a guard without reset
-            conf_g = [e for s, e in conflict_guards if s == state]
-            if not conf_i and not conf_g:
-                continue
-            buff.append(f"\t{_else}if (curr_state == {self.states[state]}{self.enum_suffix})")
-
-            buff.append(f"\t\t{self.__start_to_conv(constr)};")
-            _else = "else "
-
-        buff.append("}\n")
-        return buff
-
     def __fill_verify_guards_func(self) -> list[str]:
         buff = []
 
@@ -459,54 +427,6 @@ f"""static inline bool ha_verify_guards(struct ha_monitor *ha_mon,
             buff.append("\t}")
         buff.append("\treturn res;\n}\n")
         return buff
-
-    def __find_inv_conflicts(self) -> tuple[set[tuple[int, _EventConstraintKey]],
-                                            set[tuple[int, _StateConstraintKey]]]:
-        """
-        Run a breadth first search from all states with an invariant.
-        Find any conflicting constraints reachable from there, this can be
-        another state with an invariant or an edge with a non-reset guard.
-        Stop when we find a reset.
-
-        Return the set of conflicting guards and invariants as tuples of
-        conflicting state and constraint key.
-        """
-        conflict_guards: set[tuple[int, _EventConstraintKey]] = set()
-        conflict_invs: set[tuple[int, _StateConstraintKey]] = set()
-        for start_idx in self.invariants:
-            queue = deque([(start_idx, 0)])  # (state_idx, distance)
-            env = self.__get_constraint_env(self.invariants[start_idx])
-
-            while queue:
-                curr_idx, distance = queue.popleft()
-
-                # Check state condition
-                if curr_idx != start_idx and curr_idx in self.invariants:
-                    conflict_invs.add((start_idx, _StateConstraintKey(curr_idx)))
-                    continue
-
-                # Check if we should stop
-                if distance > len(self.states):
-                    break
-                if curr_idx != start_idx and distance > 1:
-                    continue
-
-                for event_idx, next_state_name in enumerate(self.function[curr_idx]):
-                    if next_state_name == self.invalid_state_str:
-                        continue
-                    curr_guard = self.guards.get((curr_idx, event_idx), "")
-                    if "reset" in curr_guard and env in curr_guard:
-                        continue
-
-                    if env in curr_guard:
-                        conflict_guards.add((start_idx,
-                                             _EventConstraintKey(curr_idx, event_idx)))
-                        continue
-
-                    next_idx = self.states.index(next_state_name)
-                    queue.append((next_idx, distance + 1))
-
-        return conflict_guards, conflict_invs
 
     def __fill_setup_invariants_func(self) -> list[str]:
         if not self.has_invariant:
@@ -558,16 +478,9 @@ f"""static inline void ha_setup_invariants(struct ha_monitor *ha_mon,
  * the next state has a constraint, cancel it in any other case and to check
  * that it didn't expire before the callback run. Transitions to the same state
  * without a reset never affect timers.
- * Due to the different representations between invariants and guards, there is
- * a function to convert it in case invariants or guards are reachable from
- * another invariant without reset. Those are not present if not required in
- * the model. This is all automatic but is worth checking because it may show
- * errors in the model (e.g. missing resets).
  */""")
 
         buff += self.__fill_verify_invariants_func()
-        inv_conflicts = self.__fill_convert_inv_guard_func()
-        buff += inv_conflicts
         buff += self.__fill_verify_guards_func()
         buff += self.__fill_setup_invariants_func()
 
@@ -580,9 +493,6 @@ f"""static bool ha_verify_constraint(struct ha_monitor *ha_mon,
         if self.invariants:
             buff.append("\tif (!ha_verify_invariants(ha_mon, curr_state, "
                         "event, next_state, time_ns))\n\t\treturn false;\n")
-        if inv_conflicts:
-            buff.append("\tha_convert_inv_guard(ha_mon, curr_state, event, "
-                        "next_state, time_ns);\n")
 
         if self.guards:
             buff.append("\tif (!ha_verify_guards(ha_mon, curr_state, event, "
