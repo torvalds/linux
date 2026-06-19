@@ -14,6 +14,7 @@ if __name__ == '__main__':
     from rvgen.container import Container
     from rvgen.ltl2k import ltl2k
     from rvgen.automata import AutomataError
+    from rvgen.ltl2ba import LTLError
     import argparse
     import sys
 
@@ -57,8 +58,8 @@ if __name__ == '__main__':
                 sys.exit(1)
         else:
             monitor = Container(vars(params))
-    except AutomataError as e:
-        print(f"There was an error processing {params.spec}: {e}", file=sys.stderr)
+    except (AutomataError, LTLError) as e:
+        print(f"There was an error processing {params.spec}:\n{e}", file=sys.stderr)
         sys.exit(1)
 
     print(f"Writing the monitor into the directory {monitor.name}")
