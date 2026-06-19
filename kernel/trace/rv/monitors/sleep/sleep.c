@@ -43,7 +43,6 @@ static void ltl_atoms_init(struct task_struct *task, struct ltl_monitor *mon, bo
 	ltl_atom_set(mon, LTL_WOKEN_BY_EQUAL_OR_HIGHER_PRIO, false);
 
 	if (task_creation) {
-		ltl_atom_set(mon, LTL_KTHREAD_SHOULD_STOP, false);
 		ltl_atom_set(mon, LTL_NANOSLEEP_CLOCK_REALTIME, false);
 		ltl_atom_set(mon, LTL_NANOSLEEP_TIMER_ABSTIME, false);
 		ltl_atom_set(mon, LTL_CLOCK_NANOSLEEP, false);
@@ -53,33 +52,7 @@ static void ltl_atoms_init(struct task_struct *task, struct ltl_monitor *mon, bo
 		ltl_atom_set(mon, LTL_BLOCK_ON_RT_MUTEX, false);
 	}
 
-	if (task->flags & PF_KTHREAD) {
-		ltl_atom_set(mon, LTL_KERNEL_THREAD, true);
-
-		/* kernel tasks do not do syscall */
-		ltl_atom_set(mon, LTL_FUTEX_WAIT, false);
-		ltl_atom_set(mon, LTL_FUTEX_LOCK_PI, false);
-		ltl_atom_set(mon, LTL_NANOSLEEP_CLOCK_REALTIME, false);
-		ltl_atom_set(mon, LTL_NANOSLEEP_TIMER_ABSTIME, false);
-		ltl_atom_set(mon, LTL_CLOCK_NANOSLEEP, false);
-		ltl_atom_set(mon, LTL_EPOLL_WAIT, false);
-
-		if (strstarts(task->comm, "migration/"))
-			ltl_atom_set(mon, LTL_TASK_IS_MIGRATION, true);
-		else
-			ltl_atom_set(mon, LTL_TASK_IS_MIGRATION, false);
-
-		if (strstarts(task->comm, "rcu"))
-			ltl_atom_set(mon, LTL_TASK_IS_RCU, true);
-		else
-			ltl_atom_set(mon, LTL_TASK_IS_RCU, false);
-	} else {
-		ltl_atom_set(mon, LTL_KTHREAD_SHOULD_STOP, false);
-		ltl_atom_set(mon, LTL_KERNEL_THREAD, false);
-		ltl_atom_set(mon, LTL_TASK_IS_RCU, false);
-		ltl_atom_set(mon, LTL_TASK_IS_MIGRATION, false);
-	}
-
+	ltl_atom_set(mon, LTL_USER_THREAD, !(task->flags & PF_KTHREAD));
 }
 
 static void handle_sched_set_state(void *data, struct task_struct *task, int state)
@@ -97,7 +70,7 @@ static void handle_sched_exit(void *data, bool is_switch)
 
 static void handle_sched_waking(void *data, struct task_struct *task)
 {
-	if (this_cpu_read(hardirq_context)) {
+	if (in_hardirq()) {
 		ltl_atom_pulse(task, LTL_WOKEN_BY_HARDIRQ, true);
 	} else if (in_task()) {
 		if (current->prio <= task->prio)
@@ -181,12 +154,6 @@ static void handle_sys_exit(void *data, struct pt_regs *regs, long ret)
 	ltl_atom_update(current, LTL_CLOCK_NANOSLEEP, false);
 }
 
-static void handle_kthread_stop(void *data, struct task_struct *task)
-{
-	/* FIXME: this could race with other tracepoint handlers */
-	ltl_atom_update(task, LTL_KTHREAD_SHOULD_STOP, true);
-}
-
 static int enable_sleep(void)
 {
 	int retval;
@@ -200,7 +167,6 @@ static int enable_sleep(void)
 	rv_attach_trace_probe("rtapp_sleep", sched_set_state_tp, handle_sched_set_state);
 	rv_attach_trace_probe("rtapp_sleep", contention_begin, handle_contention_begin);
 	rv_attach_trace_probe("rtapp_sleep", contention_end, handle_contention_end);
-	rv_attach_trace_probe("rtapp_sleep", sched_kthread_stop, handle_kthread_stop);
 	rv_attach_trace_probe("rtapp_sleep", sys_enter, handle_sys_enter);
 	rv_attach_trace_probe("rtapp_sleep", sys_exit, handle_sys_exit);
 	return 0;
@@ -213,7 +179,6 @@ static void disable_sleep(void)
 	rv_detach_trace_probe("rtapp_sleep", sched_set_state_tp, handle_sched_set_state);
 	rv_detach_trace_probe("rtapp_sleep", contention_begin, handle_contention_begin);
 	rv_detach_trace_probe("rtapp_sleep", contention_end, handle_contention_end);
-	rv_detach_trace_probe("rtapp_sleep", sched_kthread_stop, handle_kthread_stop);
 	rv_detach_trace_probe("rtapp_sleep", sys_enter, handle_sys_enter);
 	rv_detach_trace_probe("rtapp_sleep", sys_exit, handle_sys_exit);
 

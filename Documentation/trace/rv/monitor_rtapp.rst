@@ -93,9 +93,9 @@ assessment.
 
 The monitor's specification is::
 
-  RULE = always ((RT and SLEEP) imply (RT_FRIENDLY_SLEEP or ALLOWLIST))
+  RULE = always ((RT and SLEEP and USER_THREAD) imply (RT_FRIENDLY_SLEEP or ALLOWLIST))
 
-  RT_FRIENDLY_SLEEP = (RT_VALID_SLEEP_REASON or KERNEL_THREAD)
+  RT_FRIENDLY_SLEEP = RT_VALID_SLEEP_REASON
                   and ((not SCHEDULE_IN) until RT_FRIENDLY_WAKE)
 
   RT_VALID_SLEEP_REASON = FUTEX_WAIT
@@ -110,23 +110,13 @@ The monitor's specification is::
                   or WOKEN_BY_HARDIRQ
                   or WOKEN_BY_NMI
                   or ABORT_SLEEP
-                  or KTHREAD_SHOULD_STOP
 
   ALLOWLIST = BLOCK_ON_RT_MUTEX
            or FUTEX_LOCK_PI
-           or TASK_IS_RCU
-           or TASK_IS_MIGRATION
 
-Beside the scenarios described above, this specification also handle some
-special cases:
+Beside the scenarios described above, this specification also defines an allow list
+to handle some special cases:
 
-  - `KERNEL_THREAD`: kernel tasks do not have any pattern that can be recognized
-    as valid real-time sleeping reasons. Therefore sleeping reason is not
-    checked for kernel tasks.
-  - `KTHREAD_SHOULD_STOP`: a non-real-time thread may stop a real-time kernel
-    thread by waking it and waiting for it to exit (`kthread_stop()`). This
-    wakeup is safe for real-time.
-  - `ALLOWLIST`: to handle known false positives with the kernel.
   - `BLOCK_ON_RT_MUTEX` is included in the allowlist due to its implementation.
     In the release path of rt_mutex, a boosted task is de-boosted before waking
     the rt_mutex's waiter. Consequently, the monitor may see a real-time-unsafe

@@ -5,7 +5,6 @@ config RV_MON_SLEEP
 	select RV_LTL_MONITOR
 	depends on HAVE_SYSCALL_TRACEPOINTS
 	depends on RV_MON_RTAPP
-	select TRACE_IRQFLAGS
 	default y
 	select LTL_MON_EVENTS_ID
 	bool "sleep monitor"
