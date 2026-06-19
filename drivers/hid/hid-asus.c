@@ -841,7 +841,7 @@ static int mcu_parse_version_string(const u8 *response, size_t response_size)
 			dots++;
 	}
 
-	if (dots != 2 || p >= end || (p + 3) >= end)
+	if (dots != 2 || end - p < 3)
 		return -EINVAL;
 
 	memcpy(buf, p, 3);
