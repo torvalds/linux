@@ -179,7 +179,7 @@ class ha2k(dot2k):
         self.trace_h = self._read_template_file("trace_hybrid.h")
         self.has_invariant = False
         self.has_guard = False
-        for state in self._states:
+        for state in self.states:
             if state.inv:
                 self.has_invariant = True
         for transition in self.transitions:
@@ -318,7 +318,7 @@ f"""static inline bool ha_verify_invariants(struct ha_monitor *ha_mon,
 {{"""]
 
         _else = ""
-        for state in self._states:
+        for state in self.states:
             if not state.inv:
                 continue
 
@@ -386,7 +386,7 @@ f"""static inline void ha_setup_invariants(struct ha_monitor *ha_mon,
         buff.append(f"\tif ({condition_str})\n\t\treturn;")
 
         _else = ""
-        for state in self._states:
+        for state in self.states:
             inv = state.inv
             if not inv:
                 continue
@@ -395,7 +395,7 @@ f"""static inline void ha_setup_invariants(struct ha_monitor *ha_mon,
             buff.append(f"\t\t{inv};")
             _else = "else "
 
-        for state in self._states:
+        for state in self.states:
             inv = state.inv
             if not inv:
                 continue

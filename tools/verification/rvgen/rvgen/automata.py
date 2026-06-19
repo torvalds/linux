@@ -411,8 +411,7 @@ class Automata:
         self.__dot_lines = self.__open_dot()
         self.__parse_tree = ParseTree(file_path)
         self.transitions = self.__parse_transitions()
-        self._states, self._initial_state, self._final_states = self.__parse_states()
-        self.states, self.initial_state, self.final_states = self.__get_state_variables()
+        self.states, self.initial_state, self.final_states = self.__parse_states()
         self.env_types = {}
         self.env_stored = set()
         self.constraint_vars = set()
@@ -603,7 +602,7 @@ class Automata:
                     envs.append(c.env)
                     self.__extract_env_var(c)
 
-        for state in self._states:
+        for state in self.states:
             if state.inv:
                 envs.append(state.inv.env)
                 self.__extract_env_var(state.inv)
@@ -639,7 +638,7 @@ class Automata:
     def __create_matrix(self) -> list[list[str]]:
         # transform the array into a dictionary
         events = self.events
-        states = [s.name for s in self._states]
+        states = [s.name for s in self.states]
         events_dict = {}
         states_dict = {}
         nr_event = 0
@@ -675,7 +674,7 @@ class Automata:
             for j in range(len(self.states)):
                 if self.function[j][i] != self.invalid_state_str:
                     curr_event_used += 1
-                if self.function[j][i] == self.initial_state:
+                if self.function[j][i] == self.initial_state.name:
                     curr_event_will_init += 1
             if self.function[0][i] != self.invalid_state_str:
                 curr_event_from_init = True
