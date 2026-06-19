@@ -221,6 +221,19 @@ class ha2k(dot2k):
     def __parse_single_constraint(self, rule: dict, value: str) -> str:
         return f"ha_get_env(ha_mon, {rule["env"]}{self.enum_suffix}, time_ns) {rule["op"]} {value}"
 
+    def __parse_guard_rule(self, rule) -> list[str]:
+        buff = []
+        for c, sep in rule.rules:
+            env = c.env + self.enum_suffix
+            op = c.op
+            val = self.__adjust_value(c.val, c.unit)
+
+            cond = f"ha_get_env(ha_mon, {env}, time_ns) {op} {val}"
+            if sep:
+                cond += f" {sep}"
+            buff.append(cond)
+        return buff
+
     def __get_constraint_env(self, constr: str) -> str:
         """Extract the second argument from an ha_ function"""
         env = constr.split("(")[1].split()[1].rstrip(")").rstrip(",")
@@ -291,7 +304,7 @@ class ha2k(dot2k):
         rules = invalid_checks + rules
 
         separator = "\n\t\t      " if sum(len(r) for r in rules) > 80 else " "
-        return ["res = " + separator.join(rules)]
+        return ["res = " + separator.join(rules) + ";"]
 
     def __validate_constraint(self, key: tuple[int, int] | int, constr: str,
                               rule, reset) -> None:
@@ -410,7 +423,8 @@ f"""static inline void ha_convert_inv_guard(struct ha_monitor *ha_mon,
 
     def __fill_verify_guards_func(self) -> list[str]:
         buff = []
-        if not self.guards:
+
+        if not self.has_guard:
             return []
 
         buff.append(
@@ -422,14 +436,22 @@ f"""static inline bool ha_verify_guards(struct ha_monitor *ha_mon,
 """)
 
         _else = ""
-        for edge, constr in sorted(self.guards.items()):
+        for transition in self.transitions:
+            if not transition.rule and not transition.reset:
+                continue
+
             buff.append(f"\t{_else}if (curr_state == "
-                        f"{self.states[edge[0]]}{self.enum_suffix} && "
-                        f"event == {self.events[edge[1]]}{self.enum_suffix})")
-            if constr.count(";") > 0:
+                        f"{transition.src}{self.enum_suffix} && "
+                        f"event == {transition.event}{self.enum_suffix})")
+            rule = transition.rule
+            reset = transition.reset
+            if rule and reset:
                 buff[-1] += " {"
-            buff += [f"\t\t{c};" for c in constr.split(";")]
-            if constr.count(";") > 0:
+            if rule:
+                buff.append("\t\t" + self.__format_guard_rules(self.__parse_guard_rule(rule))[0])
+            if reset:
+                buff.append(f"\t\tha_reset_env(ha_mon, {reset.env}{self.enum_suffix}, time_ns);")
+            if rule and reset:
                 _else = "} else "
             else:
                 _else = "else "
