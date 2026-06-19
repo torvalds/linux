@@ -135,12 +135,6 @@ void btrfs_csum_final(struct btrfs_csum_ctx *ctx, u8 *out)
  *
  * - PAGE_SIZE
  *   The straightforward block size to support.
- *
- * And extra support for the following block sizes based on the kernel config:
- *
- * - MIN_BLOCKSIZE
- *   This is either 4K (regular builds) or 2K (debug builds)
- *   This allows testing subpage routines on x86_64.
  */
 bool __attribute_const__ btrfs_supported_blocksize(u32 blocksize)
 {
