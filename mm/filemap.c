@@ -2467,11 +2467,14 @@ static void filemap_get_read_batch(struct address_space *mapping,
 	XA_STATE(xas, &mapping->i_pages, index);
 	struct folio *folio;
 
+	if (index > max)
+		return;
+
 	rcu_read_lock();
 	for (folio = xas_load(&xas); folio; folio = xas_next(&xas)) {
 		if (xas_retry(&xas, folio))
 			continue;
-		if (xas.xa_index > max || xa_is_value(folio))
+		if (xa_is_value(folio))
 			break;
 		if (xa_is_sibling(folio))
 			break;
@@ -2488,6 +2491,8 @@ static void filemap_get_read_batch(struct address_space *mapping,
 		if (folio_test_readahead(folio))
 			break;
 		xas_advance(&xas, folio_next_index(folio) - 1);
+		if (xas.xa_index >= max)
+			break;
 		continue;
 put_folio:
 		folio_put(folio);
