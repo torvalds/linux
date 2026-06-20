@@ -411,6 +411,7 @@ struct mt7996_dev {
 	struct mt7996_phy *radio_phy[MT7996_MAX_RADIOS];
 	struct wiphy_radio radios[MT7996_MAX_RADIOS];
 	struct wiphy_radio_freq_range radio_freqs[MT7996_MAX_RADIOS];
+	struct mac_address radio_addrs[MT7996_MAX_RADIOS];
 
 	struct mt7996_hif *hif2;
 	struct mt7996_reg_desc reg;
