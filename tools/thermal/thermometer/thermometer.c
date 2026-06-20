@@ -272,6 +272,7 @@ static int thermometer_add_tz(const char *path, const char *name, int polling,
 	tz = realloc(thermometer->tz, sizeof(*thermometer->tz) * (thermometer->nr_tz + 1));
 	if (!tz) {
 		ERROR("Failed to allocate thermometer->tz\n");
+		close(fd);
 		return -1;
 	}
 
