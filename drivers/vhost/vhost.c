@@ -1137,6 +1137,9 @@ EXPORT_SYMBOL_GPL(vhost_dev_set_owner);
 
 static struct vhost_iotlb *iotlb_alloc(void)
 {
+	if (max_iotlb_entries <= 0)
+		return NULL;
+
 	return vhost_iotlb_alloc(max_iotlb_entries,
 				 VHOST_IOTLB_FLAG_RETIRE);
 }
@@ -1981,6 +1984,8 @@ static long vhost_set_memory(struct vhost_dev *d, struct vhost_memory __user *m)
 		return -EOPNOTSUPP;
 	if (mem.nregions > max_mem_regions)
 		return -E2BIG;
+	if (max_iotlb_entries <= 0)
+		return -EINVAL;
 	newmem = kvzalloc_flex(*newmem, regions, mem.nregions);
 	if (!newmem)
 		return -ENOMEM;
@@ -2274,6 +2279,9 @@ int vhost_init_device_iotlb(struct vhost_dev *d)
 {
 	struct vhost_iotlb *niotlb, *oiotlb;
 	int i;
+
+	if (max_iotlb_entries <= 0)
+		return -EINVAL;
 
 	niotlb = iotlb_alloc();
 	if (!niotlb)

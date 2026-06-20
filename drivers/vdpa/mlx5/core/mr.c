@@ -776,6 +776,9 @@ static int _mlx5_vdpa_create_mr(struct mlx5_vdpa_dev *mvdev,
 {
 	int err;
 
+	if (mlx5_vdpa_max_iotlb_entries < 2)
+		return -EINVAL;
+
 	if (iotlb)
 		err = create_user_mr(mvdev, mr, iotlb);
 	else
@@ -784,7 +787,7 @@ static int _mlx5_vdpa_create_mr(struct mlx5_vdpa_dev *mvdev,
 	if (err)
 		return err;
 
-	mr->iotlb = vhost_iotlb_alloc(0, 0);
+	mr->iotlb = vhost_iotlb_alloc(mlx5_vdpa_max_iotlb_entries, 0);
 	if (!mr->iotlb) {
 		err = -ENOMEM;
 		goto err_mr;
