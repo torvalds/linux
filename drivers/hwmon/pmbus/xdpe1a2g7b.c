@@ -57,6 +57,13 @@ static int xdpe1a2g7b_identify(struct i2c_client *client,
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_SENSORS_XDPE1A2G7B_REGULATOR)
+static const struct regulator_desc xdpe1a2g7b_reg_desc[] = {
+	PMBUS_REGULATOR("vout", 0),
+	PMBUS_REGULATOR("vout", 1),
+};
+#endif
+
 static struct pmbus_driver_info xdpe1a2g7b_info = {
 	.pages = XDPE1A2G7B_PAGE_NUM,
 	.identify = xdpe1a2g7b_identify,
@@ -72,6 +79,10 @@ static struct pmbus_driver_info xdpe1a2g7b_info = {
 	.func[1] = PMBUS_HAVE_VIN | PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT |
 		   PMBUS_HAVE_IIN | PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT |
 		   PMBUS_HAVE_PIN | PMBUS_HAVE_POUT | PMBUS_HAVE_STATUS_INPUT,
+#if IS_ENABLED(CONFIG_SENSORS_XDPE1A2G7B_REGULATOR)
+	.num_regulators = XDPE1A2G7B_PAGE_NUM,
+	.reg_desc = xdpe1a2g7b_reg_desc,
+#endif
 };
 
 static int xdpe1a2g7b_probe(struct i2c_client *client)
