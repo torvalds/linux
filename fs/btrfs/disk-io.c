@@ -3313,6 +3313,8 @@ static void invalidate_and_check_btree_folios(struct btrfs_fs_info *fs_info)
 	 */
 	rcu_read_lock();
 	xa_for_each(&fs_info->buffer_tree, index, eb) {
+		unsigned int refs;
+
 		/* Increase the ref so that the eb won't disappear. */
 		if (!refcount_inc_not_zero(&eb->refs))
 			continue;
@@ -3323,16 +3325,26 @@ static void invalidate_and_check_btree_folios(struct btrfs_fs_info *fs_info)
 			wait_on_bit_io(&eb->bflags, EXTENT_BUFFER_READING,
 				       TASK_UNINTERRUPTIBLE);
 		/*
+		 * We hold the spinlock to make sure above
+		 * EXTENT_BUFFER_READING flag is cleared with the held
+		 * ref dropped.
+		 * Or we can hit a race window and lead to false alerts.
+		 */
+		spin_lock(&eb->refs_lock);
+		refs = refcount_read(&eb->refs);
+		spin_unlock(&eb->refs_lock);
+
+		/*
 		 * The refs threshold is 2, one held by us at the beginning
 		 * of the loop, one for the ownership in the buffer tree.
 		 */
-		if (unlikely(refcount_read(&eb->refs) > 2 || extent_buffer_under_io(eb))) {
+		if (unlikely(refs > 2 || extent_buffer_under_io(eb))) {
 			WARN_ON_ONCE(IS_ENABLED(CONFIG_BTRFS_DEBUG));
 			btrfs_warn(fs_info,
 			"unable to release extent buffer %llu owner %llu gen %llu refs %u flags 0x%lx",
 				   eb->start, btrfs_header_owner(eb),
 				   btrfs_header_generation(eb),
-				   refcount_read(&eb->refs), eb->bflags);
+				   refs, eb->bflags);
 		}
 		free_extent_buffer(eb);
 		rcu_read_lock();

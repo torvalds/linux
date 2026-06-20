@@ -3853,11 +3853,30 @@ static int release_extent_buffer(struct extent_buffer *eb)
 	return 0;
 }
 
-void free_extent_buffer(struct extent_buffer *eb)
+static void clear_extent_buffer_reading(struct extent_buffer *eb)
+{
+	clear_and_wake_up_bit(EXTENT_BUFFER_READING, &eb->bflags);
+}
+
+static void free_extent_buffer_clear_reading(struct extent_buffer *eb,
+					     bool clear_reading)
 {
 	int refs;
+
 	if (!eb)
 		return;
+
+	/*
+	 * We want to clear EXTENT_BUFFER_READING flag and decrease refs
+	 * in the same critical section.
+	 * This will make sure invalidate_and_check_btree_folios() won't
+	 * see an eb with EXTENT_BUFFER_READING cleared but refs not yet
+	 * decreased.
+	 */
+	if (clear_reading) {
+		spin_lock(&eb->refs_lock);
+		clear_extent_buffer_reading(eb);
+	}
 
 	refs = refcount_read(&eb->refs);
 	while (1) {
@@ -3869,11 +3888,16 @@ void free_extent_buffer(struct extent_buffer *eb)
 		}
 
 		/* Optimization to avoid locking eb->refs_lock. */
-		if (atomic_try_cmpxchg(&eb->refs.refs, &refs, refs - 1))
+		if (atomic_try_cmpxchg(&eb->refs.refs, &refs, refs - 1)) {
+			if (clear_reading)
+				spin_unlock(&eb->refs_lock);
 			return;
+		}
 	}
 
-	spin_lock(&eb->refs_lock);
+	if (!clear_reading)
+		spin_lock(&eb->refs_lock);
+
 	if (refcount_read(&eb->refs) == 2 &&
 	    test_bit(EXTENT_BUFFER_STALE, &eb->bflags) &&
 	    !extent_buffer_under_io(eb) &&
@@ -3885,6 +3909,11 @@ void free_extent_buffer(struct extent_buffer *eb)
 	 * the uptodate bits and such for the extent buffers.
 	 */
 	release_extent_buffer(eb);
+}
+
+void free_extent_buffer(struct extent_buffer *eb)
+{
+	return free_extent_buffer_clear_reading(eb, false);
 }
 
 void free_extent_buffer_stale(struct extent_buffer *eb)
@@ -4012,11 +4041,6 @@ void set_extent_buffer_uptodate(struct extent_buffer *eb)
 		btrfs_meta_folio_set_uptodate(eb->folios[i], eb);
 }
 
-static void clear_extent_buffer_reading(struct extent_buffer *eb)
-{
-	clear_and_wake_up_bit(EXTENT_BUFFER_READING, &eb->bflags);
-}
-
 static void end_bbio_meta_read(struct btrfs_bio *bbio)
 {
 	struct extent_buffer *eb = bbio->private;
@@ -4040,8 +4064,7 @@ static void end_bbio_meta_read(struct btrfs_bio *bbio)
 	else
 		clear_extent_buffer_uptodate(eb);
 
-	clear_extent_buffer_reading(eb);
-	free_extent_buffer(eb);
+	free_extent_buffer_clear_reading(eb, true);
 
 	bio_put(&bbio->bio);
 }
