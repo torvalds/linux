@@ -98,7 +98,7 @@ check_filename(char *str, int len)
 		return nfserr_inval;
 	if (len > NFS4_MAXNAMLEN)
 		return nfserr_nametoolong;
-	if (isdotent(str, len))
+	if (name_is_dot_dotdot(str, len))
 		return nfserr_badname;
 	for (i = 0; i < len; i++)
 		if (str[i] == '/')
@@ -4629,7 +4629,7 @@ nfsd4_encode_entry4(void *ccdv, const char *name, int namlen,
 	__be32 nfserr = nfserr_toosmall;
 
 	/* In nfsv4, "." and ".." never make it onto the wire.. */
-	if (name && isdotent(name, namlen)) {
+	if (name && name_is_dot_dotdot(name, namlen)) {
 		cd->common.err = nfs_ok;
 		return 0;
 	}
