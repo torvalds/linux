@@ -538,7 +538,7 @@ const struct kernel_param_ops param_ops_string = {
 };
 EXPORT_SYMBOL(param_ops_string);
 
-/* sysfs output in /sys/modules/XYZ/parameters/ */
+/* sysfs output in /sys/module/XYZ/parameters/ */
 #define to_module_attr(n) container_of_const(n, struct module_attribute, attr)
 #define to_module_kobject(n) container_of(n, struct module_kobject, kobj)
 
