@@ -1336,7 +1336,7 @@ char *btrfs_get_mod_read_policy(void)
 	return read_policy;
 }
 
-/* Set perms to 0, disable /sys/module/btrfs/parameter/read_policy interface. */
+/* Set perms to 0, disable /sys/module/btrfs/parameters/read_policy interface. */
 module_param(read_policy, charp, 0);
 MODULE_PARM_DESC(read_policy,
 "Global read policy: pid (default), round-robin[:<min_contig_read>], devid[:<devid>]");
