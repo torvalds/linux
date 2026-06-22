@@ -9637,6 +9637,22 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 	DML_LOG_VERBOSE("DML::%s: ROBSupport = %u\n", __func__, mode_lib->ms.support.ROBSupport);
 #endif
 
+	mode_lib->ms.support.global_dram_clock_change_support_required = false;
+
+	if (!display_cfg->overrides.all_streams_blanked) {
+		for (k = 0; k < mode_lib->ms.num_active_planes; k++) {
+			if (mode_lib->ms.uclk_pstate_switch_modes[k] == dml2_pstate_method_na)
+				continue;
+
+			mode_lib->ms.support.global_dram_clock_change_support_required = true;
+
+			if ((mode_lib->ms.uclk_pstate_switch_modes[k] == dml2_pstate_method_vactive ||
+					mode_lib->ms.uclk_pstate_switch_modes[k] == dml2_pstate_method_fw_vactive_drr) &&
+					mode_lib->ms.VActiveLatencyHidingMargin[k] < 0)
+				mode_lib->ms.support.global_dram_clock_change_supported = false;
+		}
+	}
+
 	/*Mode Support, Voltage State and SOC Configuration*/
 	{
 		if (mode_lib->ms.support.ScaleRatioAndTapsSupport
@@ -9683,6 +9699,8 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 			&& mode_lib->ms.support.DCCMetaBufferSizeNotExceeded
 			&& !mode_lib->ms.support.ExceededMALLSize
 			&& mode_lib->ms.support.g6_temp_read_support
+			&& (mode_lib->ms.support.global_dram_clock_change_supported
+				|| !mode_lib->ms.support.global_dram_clock_change_support_required)
 			&& ((!display_cfg->hostvm_enable && !s->ImmediateFlipRequired) || mode_lib->ms.support.ImmediateFlipSupport)) {
 			DML_LOG_VERBOSE("DML::%s: mode is supported\n", __func__);
 			mode_lib->ms.support.ModeSupport = true;
