@@ -8,7 +8,7 @@
 #include <linux/unaligned.h>
 #include "nvmet.h"
 
-#define NVMET_PR_NOTIFI_MASK_ALL \
+#define NVMET_PR_NOTIFY_MASK_ALL \
 	(1 << NVME_PR_NOTIFY_BIT_REG_PREEMPTED | \
 	 1 << NVME_PR_NOTIFY_BIT_RESV_RELEASED | \
 	 1 << NVME_PR_NOTIFY_BIT_RESV_PREEMPTED)
@@ -44,7 +44,7 @@ u16 nvmet_set_feat_resv_notif_mask(struct nvmet_req *req, u32 mask)
 	unsigned long idx;
 	u16 status;
 
-	if (mask & ~(NVMET_PR_NOTIFI_MASK_ALL)) {
+	if (mask & ~(NVMET_PR_NOTIFY_MASK_ALL)) {
 		req->error_loc = offsetof(struct nvme_common_command, cdw11);
 		return NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
 	}
@@ -169,7 +169,7 @@ static void nvmet_pr_resv_released(struct nvmet_pr *pr, uuid_t *hostid)
 			nvmet_pr_add_resv_log(ctrl,
 				NVME_PR_LOG_RESERVATION_RELEASED, ns->nsid);
 			nvmet_add_async_event(ctrl, NVME_AER_CSS,
-				NVME_AEN_RESV_LOG_PAGE_AVALIABLE,
+				NVME_AEN_RESV_LOG_PAGE_AVAILABLE,
 				NVME_LOG_RESERVATION);
 		}
 	}
@@ -188,7 +188,7 @@ static void nvmet_pr_send_event_to_host(struct nvmet_pr *pr, uuid_t *hostid,
 		if (uuid_equal(hostid, &ctrl->hostid)) {
 			nvmet_pr_add_resv_log(ctrl, log_type, ns->nsid);
 			nvmet_add_async_event(ctrl, NVME_AER_CSS,
-				NVME_AEN_RESV_LOG_PAGE_AVALIABLE,
+				NVME_AEN_RESV_LOG_PAGE_AVAILABLE,
 				NVME_LOG_RESERVATION);
 		}
 	}
@@ -201,7 +201,7 @@ static void nvmet_pr_resv_preempted(struct nvmet_pr *pr, uuid_t *hostid)
 		return;
 
 	nvmet_pr_send_event_to_host(pr, hostid,
-		NVME_PR_LOG_RESERVATOIN_PREEMPTED);
+		NVME_PR_LOG_RESERVATION_PREEMPTED);
 }
 
 static void nvmet_pr_registration_preempted(struct nvmet_pr *pr,
