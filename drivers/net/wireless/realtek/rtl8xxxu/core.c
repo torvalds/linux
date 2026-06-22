@@ -37,7 +37,6 @@ MODULE_FIRMWARE("rtlwifi/rtl8192cufw_B.bin");
 MODULE_FIRMWARE("rtlwifi/rtl8192cufw_TMSC.bin");
 MODULE_FIRMWARE("rtlwifi/rtl8192eu_nic.bin");
 MODULE_FIRMWARE("rtlwifi/rtl8723bu_nic.bin");
-MODULE_FIRMWARE("rtlwifi/rtl8723bu_bt.bin");
 MODULE_FIRMWARE("rtlwifi/rtl8188fufw.bin");
 MODULE_FIRMWARE("rtlwifi/rtl8710bufw_SMIC.bin");
 MODULE_FIRMWARE("rtlwifi/rtl8710bufw_UMC.bin");
