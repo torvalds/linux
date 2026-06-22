@@ -1491,6 +1491,7 @@ void iov_iter_restore(struct iov_iter *i, struct iov_iter_state *state)
 		i->__iov -= state->nr_segs - i->nr_segs;
 	i->nr_segs = state->nr_segs;
 }
+EXPORT_SYMBOL_FOR_MODULES(iov_iter_restore, "vmw_vsock_virtio_transport_common");
 
 /*
  * Extract a list of contiguous pages from an ITER_FOLIOQ iterator.  This does
