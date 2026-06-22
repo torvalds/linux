@@ -192,6 +192,7 @@ struct ath12k_hw_params {
 	bool supports_shadow_regs:1;
 	bool supports_aspm:1;
 	bool current_cc_support:1;
+	bool supports_cong_ctrl_max_msdus:1;
 
 	u32 num_tcl_banks;
 	u32 max_tx_ring;
