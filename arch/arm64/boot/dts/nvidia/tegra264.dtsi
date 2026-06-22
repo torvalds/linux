@@ -3808,6 +3808,69 @@
 		};
 	};
 
+	/* VISION MMIO */
+	bus@8180000000 {
+		compatible = "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <2>;
+
+		ranges = <0x000 0x00000000 0x81 0x80000000 0x00 0x10000000>, /* MMIO (256 MiB) */
+			 <0x100 0x00000000 0x00 0x20000000 0x00 0x40000000>, /* non-prefetchable memory (32-bit) */
+			 <0x200 0x00000000 0xa8 0x80000000 0x57 0x80000000>; /* I/O, ECAM, prefetchable memory (64-bit) */
+
+		host1x@1200000 {
+			compatible = "nvidia,tegra264-host1x";
+			reg = <0x0 0x1200000 0x0 0x10000>,
+			      <0x0 0x1210000 0x0 0x10000>,
+			      <0x0 0x1240000 0x0 0x10000>;
+			reg-names = "common", "hypervisor", "vm";
+			interrupts = <GIC_SPI 327 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 328 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 329 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 330 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 331 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 332 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 333 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 334 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 325 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "syncpt0", "syncpt1", "syncpt2", "syncpt3", "syncpt4",
+					  "syncpt5", "syncpt6", "syncpt7", "host1x";
+			clocks = <&bpmp TEGRA264_CLK_HOST1X>;
+			clock-names = "host1x";
+
+			#address-cells = <2>;
+			#size-cells = <2>;
+
+			ranges = <0x000 0x00000000 0x00 0x08000000 0x00 0x01000000>,
+				 <0x000 0x02800000 0x00 0x0a800000 0x00 0x00800000>;
+
+			interconnects = <&mc TEGRA264_MEMORY_CLIENT_HOST1XR &emc>;
+			interconnect-names = "dma-mem";
+			iommus = <&smmu1 TEGRA264_SID_HOST1X>;
+			dma-coherent;
+
+			/* Context isolation domains */
+			iommu-map = <0 &smmu1 (TEGRA264_SID_VIC + 1) 16>;
+
+			vic@50000 {
+				compatible = "nvidia,tegra264-vic";
+				reg = <0x0 0x50000 0x0 0x40000>;
+				interrupts = <GIC_SPI 468 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&bpmp TEGRA264_CLK_VIC>;
+				clock-names = "vic";
+				resets = <&bpmp TEGRA264_RESET_VIC>;
+				reset-names = "vic";
+				power-domains = <&bpmp TEGRA264_POWER_DOMAIN_VIC>;
+				interconnects = <&mc TEGRA264_MEMORY_CLIENT_VICR &emc>,
+						<&mc TEGRA264_MEMORY_CLIENT_VICW &emc>;
+				interconnect-names = "dma-mem", "write";
+
+				iommus = <&smmu1 TEGRA264_SID_VIC>;
+				dma-coherent;
+			};
+		};
+	};
+
 	/* DISP_USB MMIO */
 	bus@8800000000 {
 		compatible = "simple-bus";
