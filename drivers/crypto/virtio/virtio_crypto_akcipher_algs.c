@@ -195,7 +195,8 @@ static int virtio_crypto_alg_akcipher_close_session(struct virtio_crypto_akciphe
 
 	if (ctrl_status->status != VIRTIO_CRYPTO_OK) {
 		pr_err("virtio_crypto: Close session failed status: %u, session_id: 0x%llx\n",
-			ctrl_status->status, destroy_session->session_id);
+			ctrl_status->status,
+		       le64_to_cpu(destroy_session->session_id));
 		err = -EINVAL;
 		goto out;
 	}
