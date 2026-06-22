@@ -2806,7 +2806,7 @@ static int user_seq_show(struct seq_file *m, void *p)
 	hash_for_each(group->register_table, i, user, node) {
 		status = user->status;
 
-		seq_printf(m, "%s", EVENT_TP_NAME(user));
+		seq_puts(m, EVENT_TP_NAME(user));
 
 		if (status != 0) {
 			seq_puts(m, " # Used by");
