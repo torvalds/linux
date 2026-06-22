@@ -694,9 +694,12 @@ void lru_add_drain_cpu(int cpu)
 {
 	struct cpu_fbatches *fbatches = &per_cpu(cpu_fbatches, cpu);
 	struct folio_batch *fbatch = &fbatches->lru_add;
+	unsigned int nr_folios = folio_batch_count(fbatch);
 
-	if (folio_batch_count(fbatch))
+	if (nr_folios) {
 		folio_batch_move_lru(fbatch, lru_add);
+		trace_mm_lru_add_drain_tp(cpu, nr_folios);
+	}
 
 	fbatch = &fbatches->lru_move_tail;
 	/* Disabling interrupts below acts as a compiler barrier. */
@@ -868,6 +871,8 @@ static inline void __lru_add_drain_all(bool force_all_cpus)
 	 */
 	if (WARN_ON(!mm_percpu_wq))
 		return;
+
+	trace_mm_lru_add_drain_all_tp(force_all_cpus);
 
 	/*
 	 * Guarantee folio_batch counter stores visible by this CPU
