@@ -3413,7 +3413,7 @@
 		cmdqv1: cmdqv@5200000 {
 			compatible = "nvidia,tegra264-cmdqv";
 			reg = <0x00 0x5200000 0x0 0x830000>;
-			interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 19 IRQ_TYPE_EDGE_RISING>;
 			status = "disabled";
 		};
 
@@ -3433,7 +3433,7 @@
 		cmdqv2: cmdqv@6200000 {
 			compatible = "nvidia,tegra264-cmdqv";
 			reg = <0x00 0x6200000 0x0 0x830000>;
-			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 8 IRQ_TYPE_EDGE_RISING>;
 			status = "disabled";
 		};
 
@@ -3506,7 +3506,7 @@
 		cmdqv0: cmdqv@a200000 {
 			compatible = "nvidia,tegra264-cmdqv";
 			reg = <0x00 0xa200000 0x0 0x830000>;
-			interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 28 IRQ_TYPE_EDGE_RISING>;
 			status = "disabled";
 		};
 
@@ -3526,7 +3526,7 @@
 		cmdqv4: cmdqv@b200000 {
 			compatible = "nvidia,tegra264-cmdqv";
 			reg = <0x00 0xb200000 0x0 0x830000>;
-			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 37 IRQ_TYPE_EDGE_RISING>;
 			status = "disabled";
 		};
 
@@ -3914,7 +3914,7 @@
 		cmdqv3: cmdqv@6200000 {
 			compatible = "nvidia,tegra264-cmdqv";
 			reg = <0x00 0x6200000 0x0 0x830000>;
-			interrupts = <GIC_SPI 232 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 232 IRQ_TYPE_EDGE_RISING>;
 			status = "disabled";
 		};
 
