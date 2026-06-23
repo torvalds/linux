@@ -1488,8 +1488,11 @@ static int svc_i3c_master_xfer(struct svc_i3c_master *master,
 			svc_i3c_master_emit_force_exit(master);
 
 		/* Wait idle if stop is sent. */
-		readl_poll_timeout(master->regs + SVC_I3C_MSTATUS, reg,
-				   SVC_I3C_MSTATUS_STATE_IDLE(reg), 0, 1000);
+		ret = readl_poll_timeout(master->regs + SVC_I3C_MSTATUS, reg,
+					 SVC_I3C_MSTATUS_STATE_IDLE(reg),
+					 0, 1000);
+		if (ret)
+			goto cleanup;
 	}
 
 	return 0;
@@ -1500,6 +1503,7 @@ emit_stop:
 	else
 		svc_i3c_master_emit_force_exit(master);
 
+cleanup:
 	svc_i3c_master_clear_merrwarn(master);
 	svc_i3c_master_flush_fifo(master);
 
