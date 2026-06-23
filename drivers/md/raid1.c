@@ -604,9 +604,9 @@ static void update_read_sectors(struct r1conf *conf, int disk,
 	struct raid1_info *info = &conf->mirrors[disk];
 
 	atomic_inc(&info->rdev->nr_pending);
-	if (info->next_seq_sect != this_sector)
-		info->seq_start = this_sector;
-	info->next_seq_sect = this_sector + len;
+	if (READ_ONCE(info->next_seq_sect) != this_sector)
+		WRITE_ONCE(info->seq_start, this_sector);
+	WRITE_ONCE(info->next_seq_sect, this_sector + len);
 }
 
 static int choose_first_rdev(struct r1conf *conf, struct r1bio *r1_bio,
@@ -735,8 +735,7 @@ static int choose_slow_rdev(struct r1conf *conf, struct r1bio *r1_bio,
 
 static bool is_sequential(struct r1conf *conf, int disk, struct r1bio *r1_bio)
 {
-	/* TODO: address issues with this check and concurrency. */
-	return conf->mirrors[disk].next_seq_sect == r1_bio->sector ||
+	return READ_ONCE(conf->mirrors[disk].next_seq_sect) == r1_bio->sector ||
 	       READ_ONCE(conf->mirrors[disk].head_position) == r1_bio->sector;
 }
 
@@ -747,15 +746,18 @@ static bool is_sequential(struct r1conf *conf, int disk, struct r1bio *r1_bio)
 static bool should_choose_next(struct r1conf *conf, int disk)
 {
 	struct raid1_info *mirror = &conf->mirrors[disk];
+	sector_t seq_start, next_seq_sect;
 	int opt_iosize;
 
 	if (!test_bit(Nonrot, &mirror->rdev->flags))
 		return false;
 
 	opt_iosize = bdev_io_opt(mirror->rdev->bdev) >> 9;
-	return opt_iosize > 0 && mirror->seq_start != MaxSector &&
-	       mirror->next_seq_sect > opt_iosize &&
-	       mirror->next_seq_sect - opt_iosize >= mirror->seq_start;
+	seq_start = READ_ONCE(mirror->seq_start);
+	next_seq_sect = READ_ONCE(mirror->next_seq_sect);
+	return opt_iosize > 0 && seq_start != MaxSector &&
+	       next_seq_sect > opt_iosize &&
+	       next_seq_sect - opt_iosize >= seq_start;
 }
 
 static bool rdev_readable(struct md_rdev *rdev, struct r1bio *r1_bio)
