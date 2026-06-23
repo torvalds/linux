@@ -3092,6 +3092,9 @@ static int f2fs_ioc_defragment(struct file *filp, unsigned long arg)
 	if (f2fs_readonly(sbi->sb))
 		return -EROFS;
 
+	if (IS_DEVICE_ALIASING(inode))
+		return -EOPNOTSUPP;
+
 	if (copy_from_user(&range, (struct f2fs_defragment __user *)arg,
 							sizeof(range)))
 		return -EFAULT;
@@ -3145,7 +3148,8 @@ static int f2fs_move_file_range(struct file *file_in, loff_t pos_in,
 	if (!S_ISREG(src->i_mode) || !S_ISREG(dst->i_mode))
 		return -EINVAL;
 
-	if (IS_ENCRYPTED(src) || IS_ENCRYPTED(dst))
+	if (IS_ENCRYPTED(src) || IS_ENCRYPTED(dst) ||
+		IS_DEVICE_ALIASING(src) || IS_DEVICE_ALIASING(dst))
 		return -EOPNOTSUPP;
 
 	if (pos_out < 0 || pos_in < 0)
