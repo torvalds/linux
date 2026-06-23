@@ -1538,6 +1538,33 @@ static void clear_reloc_root(struct btrfs_root *root)
 	clear_bit(BTRFS_ROOT_DEAD_RELOC_TREE, &root->state);
 }
 
+/* Drop the reloc trees of a relocation that is being deferred and retried. */
+static void abort_reloc_roots(struct reloc_control *rc, struct list_head *list)
+{
+	struct btrfs_fs_info *fs_info = rc->extent_root->fs_info;
+	struct btrfs_root *reloc_root, *tmp;
+
+	list_for_each_entry_safe(reloc_root, tmp, list, root_list) {
+		struct btrfs_root *root;
+
+		root = btrfs_get_fs_root(fs_info, reloc_root->root_key.offset, false);
+		if (!IS_ERR(root)) {
+			if (root->reloc_root == reloc_root) {
+				clear_reloc_root(root);
+				btrfs_put_root(reloc_root);
+			}
+			btrfs_put_root(root);
+		}
+
+		btrfs_set_root_refs(&reloc_root->root_item, 0);
+		memset(&reloc_root->root_item.drop_progress, 0, sizeof(struct btrfs_disk_key));
+		btrfs_set_root_drop_level(&reloc_root->root_item, 0);
+
+		list_del_init(&reloc_root->root_list);
+		list_add_tail(&reloc_root->reloc_dirty_list, &rc->dirty_subvol_roots);
+	}
+}
+
 static int clean_dirty_subvols(struct reloc_control *rc)
 {
 	struct btrfs_root *root;
@@ -1877,8 +1904,7 @@ again:
 	return err;
 }
 
-static noinline_for_stack
-void merge_reloc_roots(struct reloc_control *rc)
+static noinline_for_stack int merge_reloc_roots(struct reloc_control *rc)
 {
 	struct btrfs_fs_info *fs_info = rc->extent_root->fs_info;
 	struct btrfs_root *root;
@@ -1976,7 +2002,15 @@ again:
 		goto again;
 	}
 out:
-	if (ret) {
+	if (btrfs_is_zoned(fs_info) && ret == -EAGAIN) {
+		abort_reloc_roots(rc, &reloc_roots);
+
+		/* New reloc root may be added. */
+		mutex_lock(&fs_info->reloc_mutex);
+		list_splice_init(&rc->reloc_roots, &reloc_roots);
+		mutex_unlock(&fs_info->reloc_mutex);
+		abort_reloc_roots(rc, &reloc_roots);
+	} else if (ret) {
 		btrfs_handle_fs_error(fs_info, ret, NULL);
 		free_reloc_roots(&reloc_roots);
 
@@ -2002,6 +2036,7 @@ out:
 	 *
 	 * The remaining nodes will be cleaned up by put_reloc_control().
 	 */
+	return ret;
 }
 
 static void free_block_list(struct rb_root *blocks)
@@ -3731,7 +3766,9 @@ restart:
 	 */
 	err = prepare_to_merge(rc, err);
 
-	merge_reloc_roots(rc);
+	ret = merge_reloc_roots(rc);
+	if (ret && !err)
+		err = ret;
 
 	rc->merge_reloc_tree = false;
 	unset_reloc_control(rc);
@@ -5700,7 +5737,9 @@ int btrfs_recover_relocation(struct btrfs_fs_info *fs_info)
 	if (ret)
 		goto out_unset;
 
-	merge_reloc_roots(rc);
+	ret = merge_reloc_roots(rc);
+	if (ret)
+		goto out_unset;
 
 	unset_reloc_control(rc);
 
