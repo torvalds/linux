@@ -34,7 +34,7 @@ struct dentry_bucket {
 #define FUSE_HASH_BITS	5
 #define FUSE_HASH_SIZE	(1 << FUSE_HASH_BITS)
 static struct dentry_bucket dentry_hash[FUSE_HASH_SIZE];
-struct delayed_work dentry_tree_work;
+static struct delayed_work dentry_tree_work;
 
 /* Minimum invalidation work queue frequency */
 #define FUSE_DENTRY_INVAL_FREQ_MIN 5
