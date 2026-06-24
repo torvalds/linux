@@ -2333,6 +2333,7 @@ struct dml2_core_calcs_mode_support_ex {
 	int min_clk_index;
 	//unsigned int in_state_index;
 	struct dml2_core_internal_mode_support_info *out_evaluation_info;
+	const enum dml2_pstate_method *uclk_pstate_switch_modes;
 };
 
 struct core_display_cfg_support_info;

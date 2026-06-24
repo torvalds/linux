@@ -8057,6 +8057,16 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 	memset(&mode_lib->ms, 0, sizeof(struct dml2_core_internal_mode_support));
 
 	mode_lib->ms.num_active_planes = display_cfg->num_planes;
+
+	for (k = 0; k < mode_lib->ms.num_active_planes; k++) {
+		if (in_out_params->uclk_pstate_switch_modes &&
+				!dml_is_phantom_pipe(&display_cfg->plane_descriptors[k]))
+			mode_lib->ms.uclk_pstate_switch_modes[k] =
+				in_out_params->uclk_pstate_switch_modes[k];
+		else
+			mode_lib->ms.uclk_pstate_switch_modes[k] = dml2_pstate_method_na;
+	}
+
 	get_stream_output_bpp(s->OutputBpp, display_cfg);
 
 	mode_lib->ms.state_idx = in_out_params->min_clk_index;
@@ -9644,14 +9654,13 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 
 	if (!display_cfg->overrides.all_streams_blanked) {
 		for (k = 0; k < mode_lib->ms.num_active_planes; k++) {
-			if (mode_lib->ms.uclk_pstate_switch_modes[k] == dml2_pstate_method_na)
+			if (mode_lib->ms.uclk_pstate_switch_modes[k] != dml2_pstate_method_vactive &&
+					mode_lib->ms.uclk_pstate_switch_modes[k] != dml2_pstate_method_fw_vactive_drr)
 				continue;
 
 			mode_lib->ms.support.global_dram_clock_change_support_required = true;
 
-			if ((mode_lib->ms.uclk_pstate_switch_modes[k] == dml2_pstate_method_vactive ||
-					mode_lib->ms.uclk_pstate_switch_modes[k] == dml2_pstate_method_fw_vactive_drr) &&
-					mode_lib->ms.VActiveLatencyHidingMargin[k] < 0)
+			if (mode_lib->ms.VActiveLatencyHidingMargin[k] < 0)
 				mode_lib->ms.support.global_dram_clock_change_supported = false;
 		}
 	}

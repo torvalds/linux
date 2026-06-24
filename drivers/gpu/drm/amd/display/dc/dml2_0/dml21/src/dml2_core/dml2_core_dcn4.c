@@ -554,13 +554,9 @@ bool core_dcn4_mode_support(struct dml2_core_mode_support_in_out *in_out)
 	l->mode_support_ex_params.min_clk_index = in_out->min_clk_index;
 	l->mode_support_ex_params.out_evaluation_info = &in_out->mode_support_result.cfg_support_info.clean_me_up.support_info;
 
-	for (i = 0; i < l->svp_expanded_display_cfg.num_planes; i++) {
-		if (i < in_out->display_cfg->display_config.num_planes)
-			core->clean_me_up.mode_lib.ms.uclk_pstate_switch_modes[i] =
-				in_out->display_cfg->stage3.pstate_switch_modes[i];
-		else
-			core->clean_me_up.mode_lib.ms.uclk_pstate_switch_modes[i] = dml2_pstate_method_na;
-	}
+	l->mode_support_ex_params.uclk_pstate_switch_modes =
+		in_out->display_cfg->stage3.performed ?
+			in_out->display_cfg->stage3.pstate_switch_modes : NULL;
 
 	result = dml2_core_calcs_mode_support_ex(&l->mode_support_ex_params);
 
