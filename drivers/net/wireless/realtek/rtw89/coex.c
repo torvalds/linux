@@ -975,8 +975,8 @@ static void _reset_btc_var(struct rtw89_dev *rtwdev, u8 type)
 		}
 
 		btc->policy_len = 0;
-		btc->bt_req_len = 0;
-
+		btc->bt_req_len[RTW89_PHY_0] = 0;
+		btc->bt_req_len[RTW89_PHY_1] = 0;
 		btc->dm.coex_info_map = BTC_COEX_INFO_ALL;
 		btc->dm.wl_tx_limit.tx_time = BTC_MAX_TX_TIME_DEF;
 		btc->dm.wl_tx_limit.tx_retry = BTC_MAX_TX_RETRY_DEF;
@@ -1994,10 +1994,10 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 			/* Check diff time between real BT slot and EBT/E5G slot */
 			if (dm->tdma_now.type == CXTDMA_OFF &&
 			    dm->tdma_now.ext_ctrl == CXECTL_EXT &&
-			    btc->bt_req_len != 0) {
+			    btc->bt_req_len[RTW89_PHY_0] != 0) {
 				bt_slot_real = le16_to_cpu(pcysta->v3.cycle_time.tavg[CXT_BT]);
-				if (btc->bt_req_len > bt_slot_real) {
-					diff_t = btc->bt_req_len - bt_slot_real;
+				if (btc->bt_req_len[RTW89_PHY_0] > bt_slot_real) {
+					diff_t = btc->bt_req_len[RTW89_PHY_0] - bt_slot_real;
 					_chk_btc_err(rtwdev, BTC_DCNT_BT_SLOT_DRIFT, diff_t);
 				}
 			}
@@ -2038,11 +2038,11 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 			/* Check diff time between real BT slot and EBT/E5G slot */
 			if (dm->tdma_now.type == CXTDMA_OFF &&
 			    dm->tdma_now.ext_ctrl == CXECTL_EXT &&
-			    btc->bt_req_len != 0) {
+			    btc->bt_req_len[RTW89_PHY_0] != 0) {
 				bt_slot_real = le16_to_cpu(pcysta->v4.cycle_time.tavg[CXT_BT]);
 
-				if (btc->bt_req_len > bt_slot_real) {
-					diff_t = btc->bt_req_len - bt_slot_real;
+				if (btc->bt_req_len[RTW89_PHY_0] > bt_slot_real) {
+					diff_t = btc->bt_req_len[RTW89_PHY_0] - bt_slot_real;
 					_chk_btc_err(rtwdev, BTC_DCNT_BT_SLOT_DRIFT, diff_t);
 				}
 			}
@@ -2083,7 +2083,7 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 			_chk_btc_err(rtwdev, BTC_DCNT_WL_SLOT_DRIFT, diff_t);
 
 			/* Check diff time between real BT slot and EBT/E5G slot */
-			bt_slot_set = btc->bt_req_len;
+			bt_slot_set = btc->bt_req_len[RTW89_PHY_0];
 			bt_slot_real = le16_to_cpu(pcysta->v5.cycle_time.tavg[CXT_BT]);
 			diff_t = 0;
 			if (dm->tdma_now.type == CXTDMA_OFF &&
@@ -5861,7 +5861,7 @@ static void _action_wl_2g_scc_v1(struct rtw89_dev *rtwdev)
 				dm->wl_scc.ebt_null = 0;
 				policy_type = BTC_CXP_OFFE_2GISOB;
 			} else if (bt->link_info.a2dp_desc.exist &&
-				   dur < btc->bt_req_len) {
+				   dur < btc->bt_req_len[RTW89_PHY_0]) {
 				dm->wl_scc.ebt_null = 1; /* tx null at EBT */
 				policy_type = BTC_CXP_OFFE_2GBWMIXB2;
 			} else if (bt->link_info.a2dp_desc.exist ||
@@ -5934,7 +5934,7 @@ static void _action_wl_2g_scc_v2(struct rtw89_dev *rtwdev)
 				dm->wl_scc.ebt_null = 0;
 				policy_type = BTC_CXP_OFFE_2GISOB;
 			} else if (bt->link_info.a2dp_desc.exist &&
-				   dur < btc->bt_req_len) {
+				   dur < btc->bt_req_len[RTW89_PHY_0]) {
 				dm->wl_scc.ebt_null = 1; /* tx null at EBT */
 				policy_type = BTC_CXP_OFFE_2GBWMIXB2;
 			} else if (bt->link_info.a2dp_desc.exist ||
@@ -9694,7 +9694,7 @@ static int _show_dm_info(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 		       " %-15s : wl_tx_limit[en:%d/max_t:%dus/max_retry:%d], bt_slot_reg:%d-TU, bt_scan_rx_low_pri:%d\n",
 		       "[dm_ctrl]", dm->wl_tx_limit.enable,
 		       dm->wl_tx_limit.tx_time,
-		       dm->wl_tx_limit.tx_retry, btc->bt_req_len,
+		       dm->wl_tx_limit.tx_retry, btc->bt_req_len[RTW89_PHY_0],
 		       bt->scan_rx_low_pri);
 
 	return p - buf;

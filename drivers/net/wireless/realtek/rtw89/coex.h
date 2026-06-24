@@ -329,7 +329,7 @@ static inline u16 rtw89_coex_query_bt_req_len(struct rtw89_dev *rtwdev,
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 
-	return btc->bt_req_len;
+	return btc->bt_req_len[phy_idx];
 }
 
 static inline u32 rtw89_get_antpath_type(u8 phy_map, u8 type)

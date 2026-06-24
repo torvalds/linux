@@ -3390,7 +3390,7 @@ struct rtw89_btc {
 	struct wiphy_work dhcp_notify_work;
 	struct wiphy_work icmp_notify_work;
 
-	u32 bt_req_len;
+	u32 bt_req_len[RTW89_PHY_NUM];
 
 	u8 policy[RTW89_BTC_POLICY_MAXLEN];
 	u8 ant_type;
