@@ -3989,6 +3989,151 @@ static void dm_test_unregister_non_dp_noop(struct kunit *test)
 	amdgpu_dm_connector_unregister(&aconnector->base);
 }
 
+/* Tests for amdgpu_dm_connector_destroy() */
+
+/*
+ * amdgpu_dm_connector_destroy() ends with drm_connector_cleanup() followed by
+ * kfree(connector), so the connector must be initialised with the unmanaged
+ * drm_connector_init() and allocated with kzalloc() (the function frees it, so
+ * kunit_kzalloc() would double free at teardown). It is embedded in an
+ * amdgpu_device so drm_to_adev() resolves and a dc_link carries a dc_context so
+ * dc_sink_create() works for the sink-release branches.
+ */
+struct dm_test_destroy_ctx {
+	struct drm_device *drm;
+	struct dc_context *dc_ctx;
+	struct dc_link *link;
+};
+
+static struct dm_test_destroy_ctx *dm_test_destroy_ctx_alloc(struct kunit *test)
+{
+	struct dm_test_destroy_ctx *ctx;
+	struct amdgpu_device *adev;
+	struct device *dev;
+
+	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx);
+
+	dev = drm_kunit_helper_alloc_device(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+
+	ctx->drm = __drm_kunit_helper_alloc_drm_device(test, dev, sizeof(*adev),
+						       offsetof(struct amdgpu_device, ddev),
+						       DRIVER_MODESET);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx->drm);
+
+	ctx->dc_ctx = kunit_kzalloc(test, sizeof(*ctx->dc_ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->dc_ctx);
+
+	ctx->link = kunit_kzalloc(test, sizeof(*ctx->link), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->link);
+	ctx->link->ctx = ctx->dc_ctx;
+
+	return ctx;
+}
+
+/*
+ * Allocate a connector the destroy path can free. Uses kzalloc() (not
+ * kunit_kzalloc) and the unmanaged drm_connector_init() because the function
+ * under test calls drm_connector_cleanup() + kfree(connector).
+ *
+ * drm_connector_init() requires funcs->destroy to be set, so a dedicated funcs
+ * table wires it to amdgpu_dm_connector_destroy() (the test invokes it
+ * directly; the connector is removed from the device before teardown).
+ */
+static const struct drm_connector_funcs dm_test_destroy_funcs = {
+	.reset = amdgpu_dm_connector_funcs_reset,
+	.atomic_duplicate_state = amdgpu_dm_connector_atomic_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+	.destroy = amdgpu_dm_connector_destroy,
+};
+
+static struct amdgpu_dm_connector *
+dm_test_destroy_connector(struct kunit *test, struct drm_device *drm)
+{
+	struct amdgpu_dm_connector *aconnector;
+
+	aconnector = kzalloc(sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+
+	KUNIT_ASSERT_EQ(test,
+		drm_connector_init(drm, &aconnector->base,
+				   &dm_test_destroy_funcs,
+				   DRM_MODE_CONNECTOR_VGA), 0);
+	aconnector->bl_idx = -1;
+
+	return aconnector;
+}
+
+/**
+ * dm_test_destroy_minimal - Test destroy tears down a bare connector
+ * @test: The KUnit test context
+ *
+ * With no MST, backlight, sinks or registered AUX/CEC, destroy must clean up
+ * and free the connector without crashing.
+ */
+static void dm_test_destroy_minimal(struct kunit *test)
+{
+	struct dm_test_destroy_ctx *ctx = dm_test_destroy_ctx_alloc(test);
+	struct amdgpu_dm_connector *aconnector =
+		dm_test_destroy_connector(test, ctx->drm);
+
+	amdgpu_dm_connector_destroy(&aconnector->base);
+}
+
+/**
+ * dm_test_destroy_releases_dc_sink - Test destroy releases the dc_sink
+ * @test: The KUnit test context
+ */
+static void dm_test_destroy_releases_dc_sink(struct kunit *test)
+{
+	struct dm_test_destroy_ctx *ctx = dm_test_destroy_ctx_alloc(test);
+	struct amdgpu_dm_connector *aconnector =
+		dm_test_destroy_connector(test, ctx->drm);
+	struct dc_sink_init_data sink_init = { 0 };
+	struct dc_sink *sink;
+
+	sink_init.link = ctx->link;
+	sink_init.sink_signal = SIGNAL_TYPE_VIRTUAL;
+	sink = dc_sink_create(&sink_init);
+	KUNIT_ASSERT_NOT_NULL(test, sink);
+
+	/* Extra reference so the sink survives destroy for inspection. */
+	dc_sink_retain(sink);
+	aconnector->dc_sink = sink;
+
+	amdgpu_dm_connector_destroy(&aconnector->base);
+
+	KUNIT_EXPECT_EQ(test, (int)kref_read(&sink->refcount), 1);
+	dc_sink_release(sink);
+}
+
+/**
+ * dm_test_destroy_releases_dc_em_sink - Test destroy releases the emulated sink
+ * @test: The KUnit test context
+ */
+static void dm_test_destroy_releases_dc_em_sink(struct kunit *test)
+{
+	struct dm_test_destroy_ctx *ctx = dm_test_destroy_ctx_alloc(test);
+	struct amdgpu_dm_connector *aconnector =
+		dm_test_destroy_connector(test, ctx->drm);
+	struct dc_sink_init_data sink_init = { 0 };
+	struct dc_sink *sink;
+
+	sink_init.link = ctx->link;
+	sink_init.sink_signal = SIGNAL_TYPE_VIRTUAL;
+	sink = dc_sink_create(&sink_init);
+	KUNIT_ASSERT_NOT_NULL(test, sink);
+
+	dc_sink_retain(sink);
+	aconnector->dc_em_sink = sink;
+
+	amdgpu_dm_connector_destroy(&aconnector->base);
+
+	KUNIT_EXPECT_EQ(test, (int)kref_read(&sink->refcount), 1);
+	dc_sink_release(sink);
+}
+
 static struct kunit_case amdgpu_dm_connector_tests[] = {
 	/* get_subconnector_type */
 	KUNIT_CASE(dm_test_subconnector_type_none),
@@ -4201,6 +4346,10 @@ static struct kunit_case amdgpu_dm_connector_tests[] = {
 	KUNIT_CASE(dm_test_late_register_non_dp_succeeds),
 	/* amdgpu_dm_connector_unregister */
 	KUNIT_CASE(dm_test_unregister_non_dp_noop),
+	/* amdgpu_dm_connector_destroy */
+	KUNIT_CASE(dm_test_destroy_minimal),
+	KUNIT_CASE(dm_test_destroy_releases_dc_sink),
+	KUNIT_CASE(dm_test_destroy_releases_dc_em_sink),
 	{}
 };
 

@@ -61,6 +61,7 @@ void dc_sink_retain(struct dc_sink *sink)
 {
 	kref_get(&sink->refcount);
 }
+EXPORT_IF_KUNIT(dc_sink_retain);
 
 static void dc_sink_free(struct kref *kref)
 {

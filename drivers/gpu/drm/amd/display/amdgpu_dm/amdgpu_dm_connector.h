@@ -170,6 +170,7 @@ enum drm_connector_status
 amdgpu_dm_connector_detect(struct drm_connector *connector, bool force);
 void amdgpu_dm_connector_unregister(struct drm_connector *connector);
 int amdgpu_dm_connector_late_register(struct drm_connector *connector);
+void amdgpu_dm_connector_destroy(struct drm_connector *connector);
 enum display_content_type
 get_output_content_type(const struct drm_connector_state *connector_state);
 bool adjust_colour_depth_from_display_info(struct dc_crtc_timing *timing_out,
