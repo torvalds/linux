@@ -363,6 +363,7 @@
 	firmware {
 		scm {
 			compatible = "qcom,scm-sdm845", "qcom,scm";
+			sram = <&minidump_config>;
 		};
 	};
 
@@ -5194,6 +5195,10 @@
 			#size-cells = <1>;
 
 			ranges = <0 0 0x14680000 0x40000>;
+
+			minidump_config: minidump-sram@1c {
+				reg = <0x1c 0x4>;
+			};
 
 			ipa_modem_tables: modem-tables@3d000 {
 				reg = <0x3d000 0x2000>;
