@@ -250,7 +250,7 @@ static const struct rtw89_pmac_regs rtw8852bt_pmac_regs = {
 	.ampdu_crc_err_mask = B_CNT_AMPDU_RX_CRC32_ERR,
 };
 
-static const struct rtw89_btc_rf_trx_para rtw89_btc_8852bt_rf_ul[] = {
+static const struct rtw89_btc_rf_trx_para_v0 rtw89_btc_8852bt_rf_ul_v0[] = {
 	{255, 0, 0, 7}, /* 0 -> original */
 	{255, 2, 0, 7}, /* 1 -> for BT-connected ACI issue && BTG co-rx */
 	{255, 0, 0, 7}, /* 2 ->reserved for shared-antenna */
@@ -262,7 +262,7 @@ static const struct rtw89_btc_rf_trx_para rtw89_btc_8852bt_rf_ul[] = {
 	{13, 1, 0, 7}
 };
 
-static const struct rtw89_btc_rf_trx_para rtw89_btc_8852bt_rf_dl[] = {
+static const struct rtw89_btc_rf_trx_para_v0 rtw89_btc_8852bt_rf_dl_v0[] = {
 	{255, 0, 0, 7}, /* 0 -> original */
 	{255, 2, 0, 7}, /* 1 -> reserved for shared-antenna */
 	{255, 0, 0, 7}, /* 2 ->reserved for shared-antenna */
@@ -902,10 +902,10 @@ const struct rtw89_chip_info rtw8852bt_chip_info = {
 	.rssi_tol		= 2,
 	.mon_reg_num		= ARRAY_SIZE(rtw89_btc_8852bt_mon_reg),
 	.mon_reg		= rtw89_btc_8852bt_mon_reg,
-	.rf_para_ulink_num	= ARRAY_SIZE(rtw89_btc_8852bt_rf_ul),
-	.rf_para_ulink		= rtw89_btc_8852bt_rf_ul,
-	.rf_para_dlink_num	= ARRAY_SIZE(rtw89_btc_8852bt_rf_dl),
-	.rf_para_dlink		= rtw89_btc_8852bt_rf_dl,
+	.rf_para_ulink_v0	= rtw89_btc_8852bt_rf_ul_v0,
+	.rf_para_dlink_v0	= rtw89_btc_8852bt_rf_dl_v0,
+	.rf_para_ulink_num_v0	= ARRAY_SIZE(rtw89_btc_8852bt_rf_ul_v0),
+	.rf_para_dlink_num_v0	= ARRAY_SIZE(rtw89_btc_8852bt_rf_dl_v0),
 	.rf_para_ulink_v9	= NULL,
 	.rf_para_dlink_v9	= NULL,
 	.rf_para_ulink_num_v9	= 0,

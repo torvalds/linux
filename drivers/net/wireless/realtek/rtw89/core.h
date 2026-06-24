@@ -2275,6 +2275,14 @@ struct rtw89_btc_bt_info {
 	u32 bcnt[BTC_BCNT_NUM];
 };
 
+#define RTW89_BTC_WL_DEF_TX_PWR GENMASK(7, 0)
+struct rtw89_btc_rf_trx_para_v0 {
+	u32 wl_tx_power; /* absolute Tx power (dBm), 0xff-> no BTC control */
+	u32 wl_rx_gain;  /* rx gain table index (TBD.) */
+	u8 bt_tx_power; /* decrease Tx power (dB) */
+	u8 bt_rx_gain;  /* LNA constrain level */
+};
+
 struct rtw89_btc_rf_trx_para_v9 {
 	u32 wl_tx_power[RTW89_PHY_NUM]; /* absolute Tx power (dBm), 1's complement -5->0x85 */
 	u32 wl_rx_gain[RTW89_PHY_NUM]; /* rx gain table index (TBD.) */
@@ -2289,6 +2297,7 @@ struct rtw89_btc_cx {
 	struct rtw89_btc_bt_info bt0;
 	struct rtw89_btc_bt_info bt1;
 	struct rtw89_btc_extsoc_info bt_ext;
+	struct rtw89_btc_rf_trx_para_v9 rf_para;
 	u32 state_map;
 };
 
@@ -3068,24 +3077,18 @@ struct rtw89_btc_fbtc_btdevinfo {
 	__le32 flush_time;
 } __packed;
 
-#define RTW89_BTC_WL_DEF_TX_PWR GENMASK(7, 0)
-struct rtw89_btc_rf_trx_para {
-	u32 wl_tx_power; /* absolute Tx power (dBm), 0xff-> no BTC control */
-	u32 wl_rx_gain;  /* rx gain table index (TBD.) */
-	u8 bt_tx_power; /* decrease Tx power (dB) */
-	u8 bt_rx_gain;  /* LNA constrain level */
-};
-
 struct rtw89_btc_trx_info {
 	u8 tx_lvl;
 	u8 rx_lvl;
 	u8 wl_rssi;
 	u8 bt_rssi;
 
-	s8 tx_power; /* absolute Tx power (dBm), 0xff-> no BTC control */
-	s8 rx_gain;  /* rx gain table index (TBD.) */
-	s8 bt_tx_power; /* decrease Tx power (dB) */
-	s8 bt_rx_gain;  /* LNA constrain level */
+	s8 wl_tx_power[RTW89_PHY_NUM]; /* absolute Tx power (dBm), 0xff-> no BTC control */
+	s8 wl_rx_gain[RTW89_PHY_NUM];  /* rx gain table index (TBD.) */
+	s8 bt_tx_power[BTC_ALL_BT]; /* decrease Tx power (dB) */
+	s8 bt_rx_gain[BTC_ALL_BT];  /* LNA constrain level */
+	s8 zb_tx_power[BTC_ALL_BT];
+	s8 zb_rx_gain[BTC_ALL_BT];
 
 	u8 cn; /* condition_num */
 	s8 nhm;
@@ -3132,7 +3135,7 @@ struct rtw89_btc_dm {
 	struct rtw89_btc_fbtc_tdma tdma_now;
 	struct rtw89_mac_ax_coex_gnt gnt;
 	union rtw89_btc_init_info_u init_info; /* pass to wl_fw if offload */
-	struct rtw89_btc_rf_trx_para rf_trx_para;
+	struct rtw89_btc_rf_trx_para_v9 rf_trx_para;
 	struct rtw89_btc_wl_tx_limit_para wl_tx_limit;
 	struct rtw89_btc_dm_step dm_step;
 	struct rtw89_btc_wl_scc_ctrl wl_scc;
@@ -3169,6 +3172,7 @@ struct rtw89_btc_dm {
 
 	u8 run_reason;
 	u8 run_action;
+	u8 wl_tx_pwr_phy_map;
 
 	u8 wl_pre_agc: 2;
 	u8 wl_lna2: 1;
@@ -3367,6 +3371,7 @@ struct rtw89_btc_ver {
 	u8 fcxosi;
 	u8 fcxmlo;
 	u8 bt_desired;
+	u8 fcxtrx;
 };
 
 struct rtw89_btc_btf_fwinfo {
@@ -3424,6 +3429,7 @@ struct rtw89_btc {
 	bool update_policy_force;
 	bool lps;
 	bool manual_ctrl;
+	bool cli_h2c_cmd;
 };
 
 enum rtw89_btc_hmsg {
@@ -4772,10 +4778,10 @@ struct rtw89_chip_info {
 
 	u8 mon_reg_num;
 	const struct rtw89_btc_fbtc_mreg *mon_reg;
-	u8 rf_para_ulink_num;
-	const struct rtw89_btc_rf_trx_para *rf_para_ulink;
-	u8 rf_para_dlink_num;
-	const struct rtw89_btc_rf_trx_para *rf_para_dlink;
+	const struct rtw89_btc_rf_trx_para_v0 *rf_para_ulink_v0;
+	const struct rtw89_btc_rf_trx_para_v0 *rf_para_dlink_v0;
+	u8 rf_para_ulink_num_v0;
+	u8 rf_para_dlink_num_v0;
 	const struct rtw89_btc_rf_trx_para_v9 *rf_para_ulink_v9;
 	const struct rtw89_btc_rf_trx_para_v9 *rf_para_dlink_v9;
 	u8 rf_para_ulink_num_v9;
