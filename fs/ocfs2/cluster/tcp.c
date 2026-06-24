@@ -105,6 +105,8 @@ static struct socket *o2net_listen_sock;
  * destroying the work queue.
  */
 static struct workqueue_struct *o2net_wq;
+/* Heartbeat callbacks stay registered across local-node off/on. */
+static bool o2net_listening;
 static struct work_struct o2net_listen_work;
 
 static struct o2hb_callback_func o2net_hb_up, o2net_hb_down;
@@ -1692,6 +1694,19 @@ static void o2net_still_up(struct work_struct *work)
 
 /* ------------------------------------------------------------ */
 
+static void o2net_hb_node_up(struct o2net_node *nn)
+{
+	/* ensure an immediate connect attempt */
+	nn->nn_last_connect_attempt = jiffies -
+		(msecs_to_jiffies(o2net_reconnect_delay()) + 1);
+
+	spin_lock(&nn->nn_lock);
+	atomic_set(&nn->nn_timeout, 0);
+	if (nn->nn_persistent_error)
+		o2net_set_nn_state(nn, NULL, 0, 0);
+	spin_unlock(&nn->nn_lock);
+}
+
 void o2net_disconnect_node(struct o2nm_node *node)
 {
 	struct o2net_node *nn = o2net_nn_from_num(node->nd_num);
@@ -1713,47 +1728,76 @@ void o2net_disconnect_node(struct o2nm_node *node)
 static void o2net_hb_node_down_cb(struct o2nm_node *node, int node_num,
 				  void *data)
 {
+	u8 this_node;
+
 	o2quo_hb_down(node_num);
 
 	if (!node)
-		return;
+		goto out;
 
-	if (node_num != o2nm_this_node())
+	this_node = o2nm_this_node();
+	if (!READ_ONCE(o2net_listening) || this_node == O2NM_MAX_NODES)
+		goto out;
+
+	if (node_num != this_node)
 		o2net_disconnect_node(node);
 
+out:
 	BUG_ON(atomic_read(&o2net_connected_peers) < 0);
 }
 
 static void o2net_hb_node_up_cb(struct o2nm_node *node, int node_num,
 				void *data)
 {
-	struct o2net_node *nn = o2net_nn_from_num(node_num);
+	u8 this_node;
 
 	o2quo_hb_up(node_num);
 
 	BUG_ON(!node);
 
-	/* ensure an immediate connect attempt */
-	nn->nn_last_connect_attempt = jiffies -
-		(msecs_to_jiffies(o2net_reconnect_delay()) + 1);
+	this_node = o2nm_this_node();
+	if (!READ_ONCE(o2net_listening) || this_node == O2NM_MAX_NODES)
+		return;
 
-	if (node_num != o2nm_this_node()) {
-		/* believe it or not, accept and node heartbeating testing
-		 * can succeed for this node before we got here.. so
-		 * only use set_nn_state to clear the persistent error
-		 * if that hasn't already happened */
-		spin_lock(&nn->nn_lock);
-		atomic_set(&nn->nn_timeout, 0);
-		if (nn->nn_persistent_error)
-			o2net_set_nn_state(nn, NULL, 0, 0);
-		spin_unlock(&nn->nn_lock);
-	}
+	if (node_num != this_node)
+		o2net_hb_node_up(o2net_nn_from_num(node_num));
 }
 
 void o2net_unregister_hb_callbacks(void)
 {
 	o2hb_unregister_callback(NULL, &o2net_hb_up);
 	o2hb_unregister_callback(NULL, &o2net_hb_down);
+}
+
+/*
+ * Delay heartbeat-driven network work until the local node is fully published
+ * through o2nm_this_node(), then replay the nodes that are already live while
+ * callback delivery stays blocked.
+ */
+void o2net_complete_start_listening(struct o2nm_node *node)
+{
+	unsigned long live_nodes[BITS_TO_LONGS(O2NM_MAX_NODES)];
+	unsigned long node_num;
+	u8 local_node;
+
+	local_node = o2nm_this_node();
+	if (WARN_ON_ONCE(local_node == O2NM_MAX_NODES))
+		return;
+	if (WARN_ON_ONCE(local_node != node->nd_num))
+		return;
+	if (WARN_ON_ONCE(!o2net_wq))
+		return;
+
+	o2hb_callback_read_lock();
+	WRITE_ONCE(o2net_listening, true);
+	o2hb_fill_node_map_locked(live_nodes, O2NM_MAX_NODES);
+	for_each_set_bit(node_num, live_nodes, O2NM_MAX_NODES) {
+		if (node_num == local_node)
+			continue;
+
+		o2net_hb_node_up(o2net_nn_from_num(node_num));
+	}
+	o2hb_callback_read_unlock();
 }
 
 int o2net_register_hb_callbacks(void)
@@ -2034,6 +2078,8 @@ int o2net_start_listening(struct o2nm_node *node)
 {
 	int ret = 0;
 
+	if (WARN_ON_ONCE(READ_ONCE(o2net_listening)))
+		return -EBUSY;
 	BUG_ON(o2net_wq != NULL);
 	BUG_ON(o2net_listen_sock != NULL);
 
@@ -2064,6 +2110,9 @@ void o2net_stop_listening(struct o2nm_node *node)
 
 	BUG_ON(o2net_wq == NULL);
 	BUG_ON(o2net_listen_sock == NULL);
+
+	WRITE_ONCE(o2net_listening, false);
+	o2hb_synchronize_callbacks();
 
 	/* stop the listening socket from generating work */
 	write_lock_bh(&sock->sk->sk_callback_lock);

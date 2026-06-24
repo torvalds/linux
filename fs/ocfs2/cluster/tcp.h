@@ -96,6 +96,7 @@ struct o2nm_node;
 int o2net_register_hb_callbacks(void);
 void o2net_unregister_hb_callbacks(void);
 int o2net_start_listening(struct o2nm_node *node);
+void o2net_complete_start_listening(struct o2nm_node *node);
 void o2net_stop_listening(struct o2nm_node *node);
 void o2net_disconnect_node(struct o2nm_node *node);
 int o2net_num_connected_peers(void);
