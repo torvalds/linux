@@ -691,7 +691,7 @@ static int btrfs_extent_same_range(struct btrfs_inode *src, u64 loff, u64 len,
 	const u64 end = dst_loff + len - 1;
 	struct extent_state *cached_state = NULL;
 	struct btrfs_fs_info *fs_info = src->root->fs_info;
-	const u64 bs = fs_info->sectorsize;
+	const u32 bs = fs_info->sectorsize;
 	int ret;
 
 	/*
@@ -762,7 +762,7 @@ static noinline int btrfs_clone_files(struct file *file, struct file *file_src,
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
 	int ret;
 	u64 len = olen;
-	u64 bs = fs_info->sectorsize;
+	const u32 bs = fs_info->sectorsize;
 	u64 end;
 
 	/*
@@ -841,7 +841,7 @@ static int btrfs_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 {
 	struct btrfs_inode *inode_in = BTRFS_I(file_inode(file_in));
 	struct btrfs_inode *inode_out = BTRFS_I(file_inode(file_out));
-	u64 bs = inode_out->root->fs_info->sectorsize;
+	const u32 bs = inode_out->root->fs_info->sectorsize;
 	u64 wb_len;
 	int ret;
 
