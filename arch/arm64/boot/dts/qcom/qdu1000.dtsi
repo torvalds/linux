@@ -171,6 +171,7 @@
 	firmware {
 		scm {
 			compatible = "qcom,scm-qdu1000", "qcom,scm";
+			sram = <&minidump_config>;
 		};
 	};
 
@@ -1368,6 +1369,10 @@
 			ranges = <0 0 0x14680000 0x1000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+
+			minidump_config: minidump-sram@1c {
+				reg = <0x1c 0x4>;
+			};
 
 			pil-reloc@94c {
 				compatible = "qcom,pil-reloc-info";
