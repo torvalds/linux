@@ -3153,6 +3153,10 @@ struct rtw89_btc_dm {
 	u8 wl_pre_agc_rb: 2;
 	u8 bt_select: 2; /* 0:s0, 1:s1, 2:s0 & s1, refer to enum btc_bt_index */
 	u8 slot_req_more: 1;
+	u8 lps_ctrl_scbd: 1;
+
+	u8 lps_ctrl_scbd_last: 1;
+	u8 lps_ctrl_change: 1;
 };
 
 struct rtw89_btc_ctrl {
