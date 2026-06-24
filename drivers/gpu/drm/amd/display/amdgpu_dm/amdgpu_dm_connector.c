@@ -1802,7 +1802,7 @@ int amdgpu_dm_connector_atomic_get_property(struct drm_connector *connector,
 }
 EXPORT_IF_KUNIT(amdgpu_dm_connector_atomic_get_property);
 
-static void amdgpu_dm_connector_unregister(struct drm_connector *connector)
+STATIC_IFN_KUNIT void amdgpu_dm_connector_unregister(struct drm_connector *connector)
 {
 	struct amdgpu_dm_connector *amdgpu_dm_connector = to_amdgpu_dm_connector(connector);
 
@@ -1812,6 +1812,7 @@ static void amdgpu_dm_connector_unregister(struct drm_connector *connector)
 	cec_notifier_conn_unregister(amdgpu_dm_connector->notifier);
 	drm_dp_aux_unregister(&amdgpu_dm_connector->dm_dp_aux.aux);
 }
+EXPORT_IF_KUNIT(amdgpu_dm_connector_unregister);
 
 static void amdgpu_dm_connector_destroy(struct drm_connector *connector)
 {
@@ -1915,7 +1916,7 @@ amdgpu_dm_connector_atomic_duplicate_state(struct drm_connector *connector)
 }
 EXPORT_IF_KUNIT(amdgpu_dm_connector_atomic_duplicate_state);
 
-static int
+STATIC_IFN_KUNIT int
 amdgpu_dm_connector_late_register(struct drm_connector *connector)
 {
 	struct amdgpu_dm_connector *amdgpu_dm_connector =
@@ -1945,6 +1946,7 @@ amdgpu_dm_connector_late_register(struct drm_connector *connector)
 
 	return 0;
 }
+EXPORT_IF_KUNIT(amdgpu_dm_connector_late_register);
 
 static void amdgpu_dm_connector_funcs_force(struct drm_connector *connector)
 {

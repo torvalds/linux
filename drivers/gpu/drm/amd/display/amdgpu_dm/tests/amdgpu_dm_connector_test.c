@@ -3923,6 +3923,72 @@ static void dm_test_poll_dac_load_returns_cached(struct kunit *test)
 		(int)connector_status_connected);
 }
 
+/* Tests for amdgpu_dm_connector_late_register() and _unregister() */
+
+/*
+ * Build an amdgpu_dm_connector embedded in an amdgpu_device so drm_to_adev()
+ * resolves. A VGA connector keeps amdgpu_dm_should_create_sysfs() false (sysfs
+ * and DP AUX branches skipped) and bl_idx == -1 turns backlight registration
+ * into a no-op, leaving the register/unregister bookkeeping safe to exercise.
+ */
+static struct amdgpu_dm_connector *dm_test_reg_connector(struct kunit *test)
+{
+	struct amdgpu_device *adev;
+	struct amdgpu_dm_connector *aconnector;
+	struct drm_device *drm;
+	struct device *dev;
+
+	dev = drm_kunit_helper_alloc_device(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+
+	drm = __drm_kunit_helper_alloc_drm_device(test, dev, sizeof(*adev),
+						  offsetof(struct amdgpu_device, ddev),
+						  DRIVER_MODESET);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, drm);
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+	KUNIT_ASSERT_EQ(test,
+		drmm_connector_init(drm, &aconnector->base,
+				    &dm_test_connector_funcs,
+				    DRM_MODE_CONNECTOR_VGA, NULL), 0);
+
+	aconnector->bl_idx = -1;
+
+	return aconnector;
+}
+
+/**
+ * dm_test_late_register_non_dp_succeeds - Test late_register on a plain connector
+ * @test: The KUnit test context
+ *
+ * With sysfs, backlight and DP AUX registration all skipped, late_register
+ * completes successfully.
+ */
+static void dm_test_late_register_non_dp_succeeds(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector = dm_test_reg_connector(test);
+
+	KUNIT_EXPECT_EQ(test,
+		amdgpu_dm_connector_late_register(&aconnector->base), 0);
+}
+
+/**
+ * dm_test_unregister_non_dp_noop - Test unregister tolerates an unregistered connector
+ * @test: The KUnit test context
+ *
+ * No sysfs group was created, the CEC notifier is NULL and the DP AUX channel
+ * was never registered, so unregister must be a safe no-op.
+ */
+static void dm_test_unregister_non_dp_noop(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector = dm_test_reg_connector(test);
+
+	KUNIT_EXPECT_FALSE(test, amdgpu_dm_should_create_sysfs(aconnector));
+
+	amdgpu_dm_connector_unregister(&aconnector->base);
+}
+
 static struct kunit_case amdgpu_dm_connector_tests[] = {
 	/* get_subconnector_type */
 	KUNIT_CASE(dm_test_subconnector_type_none),
@@ -4131,6 +4197,10 @@ static struct kunit_case amdgpu_dm_connector_tests[] = {
 	KUNIT_CASE(dm_test_detect_no_sink),
 	/* amdgpu_dm_connector_poll */
 	KUNIT_CASE(dm_test_poll_dac_load_returns_cached),
+	/* amdgpu_dm_connector_late_register */
+	KUNIT_CASE(dm_test_late_register_non_dp_succeeds),
+	/* amdgpu_dm_connector_unregister */
+	KUNIT_CASE(dm_test_unregister_non_dp_noop),
 	{}
 };
 
