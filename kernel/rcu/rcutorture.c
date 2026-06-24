@@ -392,23 +392,23 @@ struct rcu_torture_ops {
 	void (*exp_current)(void);
 	unsigned long (*get_gp_state_exp)(void);
 	unsigned long (*start_gp_poll_exp)(void);
-	void (*start_gp_poll_exp_full)(struct rcu_gp_oldstate *rgosp);
+	void (*start_gp_poll_exp_full)(struct rcu_gp_seq *gsp);
 	bool (*poll_gp_state_exp)(unsigned long oldstate);
 	void (*cond_sync_exp)(unsigned long oldstate);
-	void (*cond_sync_exp_full)(struct rcu_gp_oldstate *rgosp);
+	void (*cond_sync_exp_full)(struct rcu_gp_seq *gsp);
 	unsigned long (*get_comp_state)(void);
-	void (*get_comp_state_full)(struct rcu_gp_oldstate *rgosp);
+	void (*get_comp_state_full)(struct rcu_gp_seq *gsp);
 	bool (*same_gp_state)(unsigned long oldstate1, unsigned long oldstate2);
-	bool (*same_gp_state_full)(struct rcu_gp_oldstate *rgosp1, struct rcu_gp_oldstate *rgosp2);
+	bool (*same_gp_state_full)(struct rcu_gp_seq *rgosp1, struct rcu_gp_seq *rgosp2);
 	unsigned long (*get_gp_state)(void);
-	void (*get_gp_state_full)(struct rcu_gp_oldstate *rgosp);
+	void (*get_gp_state_full)(struct rcu_gp_seq *gsp);
 	unsigned long (*start_gp_poll)(void);
-	void (*start_gp_poll_full)(struct rcu_gp_oldstate *rgosp);
+	void (*start_gp_poll_full)(struct rcu_gp_seq *gsp);
 	bool (*poll_gp_state)(unsigned long oldstate);
-	bool (*poll_gp_state_full)(struct rcu_gp_oldstate *rgosp);
+	bool (*poll_gp_state_full)(struct rcu_gp_seq *gsp);
 	bool (*poll_need_2gp)(bool poll, bool poll_full);
 	void (*cond_sync)(unsigned long oldstate);
-	void (*cond_sync_full)(struct rcu_gp_oldstate *rgosp);
+	void (*cond_sync_full)(struct rcu_gp_seq *gsp);
 	int poll_active;
 	int poll_active_full;
 	call_rcu_func_t call;
@@ -1605,7 +1605,7 @@ static void rcu_torture_write_types(void)
 static void do_rtws_sync(struct torture_random_state *trsp, void (*sync)(void))
 {
 	unsigned long cookie;
-	struct rcu_gp_oldstate cookie_full;
+	struct rcu_gp_seq cookie_full;
 	bool dopoll;
 	bool dopoll_full;
 	unsigned long r = torture_random(trsp);
@@ -1653,18 +1653,18 @@ rcu_torture_writer(void *arg)
 	bool booting_still = false;
 	bool can_expedite = !rcu_gp_is_expedited() && !rcu_gp_is_normal();
 	unsigned long cookie;
-	struct rcu_gp_oldstate cookie_full;
+	struct rcu_gp_seq cookie_full;
 	int expediting = 0;
 	unsigned long gp_snap;
 	unsigned long gp_snap1;
-	struct rcu_gp_oldstate gp_snap_full;
-	struct rcu_gp_oldstate gp_snap1_full;
+	struct rcu_gp_seq gp_snap_full;
+	struct rcu_gp_seq gp_snap1_full;
 	int i;
 	int idx;
 	unsigned long j;
 	struct work_struct lazy_work;
 	int oldnice = task_nice(current);
-	struct rcu_gp_oldstate *rgo = NULL;
+	struct rcu_gp_seq *rgo = NULL;
 	int rgo_size = 0;
 	struct rcu_torture *rp;
 	struct rcu_torture *old_rp;
@@ -1963,7 +1963,7 @@ static int
 rcu_torture_fakewriter(void *arg)
 {
 	unsigned long gp_snap;
-	struct rcu_gp_oldstate gp_snap_full;
+	struct rcu_gp_seq gp_snap_full;
 	DEFINE_TORTURE_RANDOM(rand);
 
 	VERBOSE_TOROUT_STRING("rcu_torture_fakewriter task started");
@@ -2392,7 +2392,7 @@ rcutorture_loop_extend(int *readstate, struct torture_random_state *trsp, struct
 struct rcu_torture_one_read_state {
 	bool checkpolling;
 	unsigned long cookie;
-	struct rcu_gp_oldstate cookie_full;
+	struct rcu_gp_seq cookie_full;
 	unsigned long started;
 	struct rcu_torture *p;
 	int readstate;

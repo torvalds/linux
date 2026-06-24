@@ -38,12 +38,7 @@ void synchronize_rcu_expedited(void);
 void rcu_barrier(void);
 void rcu_momentary_eqs(void);
 
-struct rcu_gp_oldstate {
-	unsigned long rgos_norm;
-	unsigned long rgos_exp;
-};
-
-// Maximum number of rcu_gp_oldstate values corresponding to
+// Maximum number of rcu_gp_seq values corresponding to
 // not-yet-completed RCU grace periods.
 #define NUM_ACTIVE_RCU_POLL_FULL_OLDSTATE 4
 
@@ -60,29 +55,29 @@ struct rcu_gp_oldstate {
  * to a list header, allowing those structures to be slightly smaller.
  *
  * Note that equality is judged on a bitwise basis, so that an
- * @rcu_gp_oldstate structure with an already-completed state in one field
+ * @rcu_gp_seq structure with an already-completed state in one field
  * will compare not-equal to a structure with an already-completed state
- * in the other field.  After all, the @rcu_gp_oldstate structure is opaque
+ * in the other field.  After all, the @rcu_gp_seq structure is opaque
  * so how did such a situation come to pass in the first place?
  */
-static inline bool same_state_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp1,
-						   struct rcu_gp_oldstate *rgosp2)
+static inline bool same_state_synchronize_rcu_full(struct rcu_gp_seq *rgosp1,
+						   struct rcu_gp_seq *rgosp2)
 {
-	return rgosp1->rgos_norm == rgosp2->rgos_norm && rgosp1->rgos_exp == rgosp2->rgos_exp;
+	return rgosp1->norm == rgosp2->norm && rgosp1->exp == rgosp2->exp;
 }
 
 unsigned long start_poll_synchronize_rcu_expedited(void);
-void start_poll_synchronize_rcu_expedited_full(struct rcu_gp_oldstate *rgosp);
+void start_poll_synchronize_rcu_expedited_full(struct rcu_gp_seq *gsp);
 void cond_synchronize_rcu_expedited(unsigned long oldstate);
-void cond_synchronize_rcu_expedited_full(struct rcu_gp_oldstate *rgosp);
+void cond_synchronize_rcu_expedited_full(struct rcu_gp_seq *gsp);
 unsigned long get_state_synchronize_rcu(void);
-void get_state_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp);
+void get_state_synchronize_rcu_full(struct rcu_gp_seq *gsp);
 unsigned long start_poll_synchronize_rcu(void);
-void start_poll_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp);
+void start_poll_synchronize_rcu_full(struct rcu_gp_seq *gsp);
 bool poll_state_synchronize_rcu(unsigned long oldstate);
-bool poll_state_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp);
+bool poll_state_synchronize_rcu_full(struct rcu_gp_seq *gsp);
 void cond_synchronize_rcu(unsigned long oldstate);
-void cond_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp);
+void cond_synchronize_rcu_full(struct rcu_gp_seq *gsp);
 
 #ifdef CONFIG_PROVE_RCU
 void rcu_irq_exit_check_preempt(void);

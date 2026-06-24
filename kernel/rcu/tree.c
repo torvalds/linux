@@ -3284,7 +3284,7 @@ EXPORT_SYMBOL_GPL(call_rcu);
  * Later on, this could in theory be the case for kernels built with
  * CONFIG_SMP=y && CONFIG_PREEMPTION=y running on a single CPU, but this
  * is not a common case.  Furthermore, this optimization would cause
- * the rcu_gp_oldstate structure to expand by 50%, so this potential
+ * the rcu_gp_seq structure to expand by 50%, so this potential
  * grace-period optimization is ignored once the scheduler is running.
  */
 static int rcu_blocking_is_gp(void)
@@ -3413,16 +3413,16 @@ EXPORT_SYMBOL_GPL(synchronize_rcu);
 
 /**
  * get_completed_synchronize_rcu_full - Return a full pre-completed polled state cookie
- * @rgosp: Place to put state cookie
+ * @gsp: Place to put state cookie
  *
- * Stores into @rgosp a value that will always be treated by functions
+ * Stores into @gsp a value that will always be treated by functions
  * like poll_state_synchronize_rcu_full() as a cookie whose grace period
  * has already completed.
  */
-void get_completed_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp)
+void get_completed_synchronize_rcu_full(struct rcu_gp_seq *gsp)
 {
-	rgosp->rgos_norm = RCU_GET_STATE_COMPLETED;
-	rgosp->rgos_exp = RCU_GET_STATE_COMPLETED;
+	gsp->norm = RCU_GET_STATE_COMPLETED;
+	gsp->exp = RCU_GET_STATE_COMPLETED;
 }
 EXPORT_SYMBOL_GPL(get_completed_synchronize_rcu_full);
 
@@ -3446,13 +3446,13 @@ EXPORT_SYMBOL_GPL(get_state_synchronize_rcu);
 
 /**
  * get_state_synchronize_rcu_full - Snapshot RCU state, both normal and expedited
- * @rgosp: location to place combined normal/expedited grace-period state
+ * @gsp: location to place combined normal/expedited grace-period state
  *
- * Places the normal and expedited grace-period states in @rgosp.  This
+ * Places the normal and expedited grace-period states in @gsp.  This
  * state value can be passed to a later call to cond_synchronize_rcu_full()
  * or poll_state_synchronize_rcu_full() to determine whether or not a
  * grace period (whether normal or expedited) has elapsed in the meantime.
- * The rcu_gp_oldstate structure takes up twice the memory of an unsigned
+ * The rcu_gp_seq structure takes up twice the memory of an unsigned
  * long, but is guaranteed to see all grace periods.  In contrast, the
  * combined state occupies less memory, but can sometimes fail to take
  * grace periods into account.
@@ -3460,7 +3460,7 @@ EXPORT_SYMBOL_GPL(get_state_synchronize_rcu);
  * This does not guarantee that the needed grace period will actually
  * start.
  */
-void get_state_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp)
+void get_state_synchronize_rcu_full(struct rcu_gp_seq *gsp)
 {
 	/*
 	 * Any prior manipulation of RCU-protected data must happen
@@ -3472,8 +3472,8 @@ void get_state_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp)
 	// in poll_state_synchronize_rcu_full() notwithstanding.  Use of
 	// the latter here would result in too-short grace periods due to
 	// interactions with newly onlined CPUs.
-	rgosp->rgos_norm = rcu_seq_snap(&rcu_state.gp_seq);
-	rgosp->rgos_exp = rcu_seq_snap(&rcu_state.expedited_sequence);
+	gsp->norm = rcu_seq_snap(&rcu_state.gp_seq);
+	gsp->exp = rcu_seq_snap(&rcu_state.expedited_sequence);
 }
 EXPORT_SYMBOL_GPL(get_state_synchronize_rcu_full);
 
@@ -3524,18 +3524,18 @@ EXPORT_SYMBOL_GPL(start_poll_synchronize_rcu);
 
 /**
  * start_poll_synchronize_rcu_full - Take a full snapshot and start RCU grace period
- * @rgosp: value from get_state_synchronize_rcu_full() or start_poll_synchronize_rcu_full()
+ * @gsp: value from get_state_synchronize_rcu_full() or start_poll_synchronize_rcu_full()
  *
- * Places the normal and expedited grace-period states in *@rgos.  This
+ * Places the normal and expedited grace-period states in *@gs.  This
  * state value can be passed to a later call to cond_synchronize_rcu_full()
  * or poll_state_synchronize_rcu_full() to determine whether or not a
  * grace period (whether normal or expedited) has elapsed in the meantime.
  * If the needed grace period is not already slated to start, notifies
  * RCU core of the need for that grace period.
  */
-void start_poll_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp)
+void start_poll_synchronize_rcu_full(struct rcu_gp_seq *gsp)
 {
-	get_state_synchronize_rcu_full(rgosp);
+	get_state_synchronize_rcu_full(gsp);
 
 	start_poll_synchronize_rcu_common();
 }
@@ -3587,19 +3587,19 @@ EXPORT_SYMBOL_GPL(poll_state_synchronize_rcu);
 
 /**
  * poll_state_synchronize_rcu_full - Has the specified RCU grace period completed?
- * @rgosp: value from get_state_synchronize_rcu_full() or start_poll_synchronize_rcu_full()
+ * @gsp: value from get_state_synchronize_rcu_full() or start_poll_synchronize_rcu_full()
  *
  * If a full RCU grace period has elapsed since the earlier call from
- * which *rgosp was obtained, return @true, otherwise return @false.
+ * which *gsp was obtained, return @true, otherwise return @false.
  * If @false is returned, it is the caller's responsibility to invoke this
  * function later on until it does return @true.  Alternatively, the caller
- * can explicitly wait for a grace period, for example, by passing @rgosp
+ * can explicitly wait for a grace period, for example, by passing @gsp
  * to cond_synchronize_rcu() or by directly invoking synchronize_rcu().
  *
  * Yes, this function does not take counter wrap into account.
  * But counter wrap is harmless.  If the counter wraps, we have waited
  * for more than a billion grace periods (and way more on a 64-bit
- * system!).  Those needing to keep rcu_gp_oldstate values for very
+ * system!).  Those needing to keep rcu_gp_seq values for very
  * long time periods (many hours even on 32-bit systems) should check
  * them occasionally and either refresh them or set a flag indicating
  * that the grace period has completed.  Alternatively, they can use
@@ -3608,7 +3608,7 @@ EXPORT_SYMBOL_GPL(poll_state_synchronize_rcu);
  *
  * This function provides the same memory-ordering guarantees that would
  * be provided by a synchronize_rcu() that was invoked at the call to
- * the function that provided @rgosp, and that returned at the end of this
+ * the function that provided @gsp, and that returned at the end of this
  * function.  And this guarantee requires that the root rcu_node structure's
  * ->gp_seq field be checked instead of that of the rcu_state structure.
  * The problem is that the just-ending grace-period's callbacks can be
@@ -3618,15 +3618,15 @@ EXPORT_SYMBOL_GPL(poll_state_synchronize_rcu);
  * cause a subsequent poll_state_synchronize_rcu_full() to return @true,
  * then the root rcu_node structure is the one that needs to be polled.
  */
-bool poll_state_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp)
+bool poll_state_synchronize_rcu_full(struct rcu_gp_seq *gsp)
 {
 	struct rcu_node *rnp = rcu_get_root();
 
 	smp_mb(); // Order against root rcu_node structure grace-period cleanup.
-	if (rgosp->rgos_norm == RCU_GET_STATE_COMPLETED ||
-	    rcu_seq_done_exact(&rnp->gp_seq, rgosp->rgos_norm) ||
-	    rgosp->rgos_exp == RCU_GET_STATE_COMPLETED ||
-	    rcu_seq_done_exact(&rcu_state.expedited_sequence, rgosp->rgos_exp)) {
+	if (gsp->norm == RCU_GET_STATE_COMPLETED ||
+	    rcu_seq_done_exact(&rnp->gp_seq, gsp->norm) ||
+	    gsp->exp == RCU_GET_STATE_COMPLETED ||
+	    rcu_seq_done_exact(&rcu_state.expedited_sequence, gsp->exp)) {
 		smp_mb(); /* Ensure GP ends before subsequent accesses. */
 		return true;
 	}
@@ -3661,11 +3661,11 @@ EXPORT_SYMBOL_GPL(cond_synchronize_rcu);
 
 /**
  * cond_synchronize_rcu_full - Conditionally wait for an RCU grace period
- * @rgosp: value from get_state_synchronize_rcu_full(), start_poll_synchronize_rcu_full(), or start_poll_synchronize_rcu_expedited_full()
+ * @gsp: value from get_state_synchronize_rcu_full(), start_poll_synchronize_rcu_full(), or start_poll_synchronize_rcu_expedited_full()
  *
  * If a full RCU grace period has elapsed since the call to
  * get_state_synchronize_rcu_full(), start_poll_synchronize_rcu_full(),
- * or start_poll_synchronize_rcu_expedited_full() from which @rgosp was
+ * or start_poll_synchronize_rcu_expedited_full() from which @gsp was
  * obtained, just return.  Otherwise, invoke synchronize_rcu() to wait
  * for a full grace period.
  *
@@ -3676,12 +3676,12 @@ EXPORT_SYMBOL_GPL(cond_synchronize_rcu);
  *
  * This function provides the same memory-ordering guarantees that
  * would be provided by a synchronize_rcu() that was invoked at the call
- * to the function that provided @rgosp and that returned at the end of
+ * to the function that provided @gsp and that returned at the end of
  * this function.
  */
-void cond_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp)
+void cond_synchronize_rcu_full(struct rcu_gp_seq *gsp)
 {
-	if (!poll_state_synchronize_rcu_full(rgosp))
+	if (!poll_state_synchronize_rcu_full(gsp))
 		synchronize_rcu();
 }
 EXPORT_SYMBOL_GPL(cond_synchronize_rcu_full);
