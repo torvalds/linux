@@ -151,8 +151,8 @@ static const char DC_BUILD_ID[] = "production-build";
 /* Private functions */
 
 static inline void elevate_update_type(
-		struct surface_update_descriptor *descriptor,
-		enum surface_update_type new_type,
+		struct dc_update_descriptor *descriptor,
+		enum dc_update_type new_type,
 		enum dc_lock_descriptor new_locks
 )
 {
@@ -2792,10 +2792,10 @@ static bool is_surface_in_context(
 	return false;
 }
 
-static struct surface_update_descriptor get_plane_info_update_type(const struct dc_surface_update *u)
+static struct dc_update_descriptor get_plane_info_update_type(const struct dc_surface_update *u)
 {
 	struct pipe_update_bits *update_bits = &u->surface->update_bits;
-	struct surface_update_descriptor update_type = { UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_NONE };
+	struct dc_update_descriptor update_type = { UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_NONE };
 
 	if (!u->plane_info)
 		return update_type;
@@ -2882,12 +2882,12 @@ static struct surface_update_descriptor get_plane_info_update_type(const struct 
 	return update_type;
 }
 
-static struct surface_update_descriptor get_scaling_info_update_type(
+static struct dc_update_descriptor get_scaling_info_update_type(
 	const struct dc_check_config *check_config,
 	const struct dc_surface_update *u)
 {
 	struct pipe_update_bits *update_bits = &u->surface->update_bits;
-	struct surface_update_descriptor update_type = { UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_NONE };
+	struct dc_update_descriptor update_type = { UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_NONE };
 
 	if (!u->scaling_info)
 		return update_type;
@@ -2938,11 +2938,11 @@ static struct surface_update_descriptor get_scaling_info_update_type(
 	return update_type;
 }
 
-static struct surface_update_descriptor det_surface_update(
+static struct dc_update_descriptor det_surface_update(
 		const struct dc_check_config *check_config,
 		struct dc_surface_update *u)
 {
-	struct surface_update_descriptor overall_type = { UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_NONE };
+	struct dc_update_descriptor overall_type = { UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_NONE };
 	struct pipe_update_bits *update_bits = &u->surface->update_bits;
 
 	if (u->surface->force_full_update) {
@@ -2953,8 +2953,7 @@ static struct surface_update_descriptor det_surface_update(
 
 	dc_pipe_update_bits_clear(update_bits);
 
-	struct surface_update_descriptor inner_type = get_plane_info_update_type(u);
-
+	struct dc_update_descriptor inner_type = get_plane_info_update_type(u);
 	elevate_update_type(&overall_type, inner_type.update_type, inner_type.lock_descriptor);
 
 	inner_type = get_scaling_info_update_type(check_config, u);
@@ -3096,13 +3095,13 @@ static void force_immediate_gsl_plane_flip(struct dc *dc, struct dc_surface_upda
 	}
 }
 
-static struct surface_update_descriptor check_update_surfaces_for_stream(
+static struct dc_update_descriptor check_update_surfaces_for_stream(
 		const struct dc_check_config *check_config,
 		struct dc_surface_update *updates,
 		int surface_count,
 		struct dc_stream_update *stream_update)
 {
-	struct surface_update_descriptor overall_type = { UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_NONE };
+	struct dc_update_descriptor overall_type = { UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_NONE };
 
 	/* When countdown finishes, promote this flip to full to trigger deferred final transition */
 	if (check_config->deferred_transition_state && !check_config->transition_countdown_to_steady_state) {
@@ -3225,7 +3224,7 @@ static struct surface_update_descriptor check_update_surfaces_for_stream(
 	}
 
 	for (int i = 0 ; i < surface_count; i++) {
-		struct surface_update_descriptor inner_type =
+		struct dc_update_descriptor inner_type =
 				det_surface_update(check_config, &updates[i]);
 
 		elevate_update_type(&overall_type, inner_type.update_type, inner_type.lock_descriptor);
@@ -3237,20 +3236,57 @@ static struct surface_update_descriptor check_update_surfaces_for_stream(
 /*
  * dc_check_update_surfaces_for_stream() - Determine update type (fast, med, or full)
  *
- * See :c:type:`enum surface_update_type <surface_update_type>` for explanation of update types
+ * See :c:type:`enum dc_update_type <dc_update_type>` for explanation of update types
  */
-struct surface_update_descriptor dc_check_update_surfaces_for_stream(
+/**
+ * dc_check_state_update - Classify a dc_state_update by locking / re-entrancy requirements.
+ * @check_config:  ASIC capabilities and display configuration context
+ * @updates:       root update object describing the full desired commit
+ *
+ * Determines whether the update requires a fast, medium, or full lock
+ * by inspecting the stream, stream_update, and surface_updates carried on
+ * the root object. Perfmon classification is reserved for a future slice.
+ *
+ * Return: dc_update_descriptor with update_type and lock_descriptor.
+ */
+struct dc_update_descriptor dc_check_state_update(
+		const struct dc_check_config *check_config,
+		struct dc_state_update *updates)
+{
+	if (updates->stream_update)
+		stream_update_flags_clear(&updates->stream_update->stream->update_flags);
+	for (int i = 0; i < updates->surface_count; i++)
+		dc_pipe_update_bits_clear(&updates->surface_updates[i].surface->update_bits);
+
+	return check_update_surfaces_for_stream(check_config, updates->surface_updates,
+			updates->surface_count, updates->stream_update);
+}
+
+/**
+ * dc_check_update_surfaces_for_stream - Shim for dc_check_state_update.
+ * @check_config:   ASIC capabilities and display configuration context
+ * @updates:        array of surface update descriptors
+ * @surface_count:  number of entries in @updates
+ * @stream_update:  optional stream update
+ *
+ * Packs the individual arguments into a dc_state_update and forwards to
+ * dc_check_state_update(). Preserved for out-of-tree and incremental callers.
+ *
+ * Return: dc_update_descriptor with update_type and lock_descriptor.
+ */
+struct dc_update_descriptor dc_check_update_surfaces_for_stream(
 		const struct dc_check_config *check_config,
 		struct dc_surface_update *updates,
 		int surface_count,
 		struct dc_stream_update *stream_update)
 {
-	if (stream_update)
-		stream_update_flags_clear(&stream_update->stream->update_flags);
-	for (int i = 0; i < surface_count; i++)
-		dc_pipe_update_bits_clear(&updates[i].surface->update_bits);
+	struct dc_state_update root = {
+		.surface_updates = updates,
+		.surface_count   = surface_count,
+		.stream_update   = stream_update,
+	};
 
-	return check_update_surfaces_for_stream(check_config, updates, surface_count, stream_update);
+	return dc_check_state_update(check_config, &root);
 }
 
 static struct dc_stream_status *stream_get_status(
@@ -3268,7 +3304,7 @@ static struct dc_stream_status *stream_get_status(
 	return NULL;
 }
 
-static const enum surface_update_type update_surface_trace_level = UPDATE_TYPE_FULL;
+static const enum dc_update_type update_surface_trace_level = UPDATE_TYPE_FULL;
 
 static void copy_surface_update_to_plane(
 		struct dc_plane_state *surface,
@@ -3736,13 +3772,13 @@ static bool update_planes_and_stream_state(struct dc *dc,
 		struct dc_surface_update *srf_updates, int surface_count,
 		struct dc_stream_state *stream,
 		struct dc_stream_update *stream_update,
-		enum surface_update_type *new_update_type,
+		enum dc_update_type *new_update_type,
 		struct dc_state **new_context)
 {
 	struct dc_state *context;
 	int i;
 	unsigned int j;
-	enum surface_update_type update_type;
+	enum dc_update_type update_type;
 	const struct dc_stream_status *stream_status;
 	struct dc_context *dc_ctx = dc->ctx;
 
@@ -4151,7 +4187,7 @@ static void add_link_update_dsc_config_sequence(
 static void commit_planes_do_stream_update_sequence(struct dc *dc,
 		struct dc_stream_state *stream,
 		struct dc_stream_update *stream_update,
-		enum surface_update_type update_type,
+		enum dc_update_type update_type,
 		struct dc_state *context,
 		struct block_sequence block_sequence[MAX_HWSS_BLOCK_SEQUENCE_SIZE],
 		unsigned int *num_steps)
@@ -4322,7 +4358,7 @@ static void commit_planes_do_stream_update_sequence(struct dc *dc,
 static void commit_planes_do_stream_update(struct dc *dc,
 		struct dc_stream_state *stream,
 		struct dc_stream_update *stream_update,
-		enum surface_update_type update_type,
+		enum dc_update_type update_type,
 		struct dc_state *context)
 {
 	unsigned int j;
@@ -4725,7 +4761,7 @@ static void commit_planes_for_stream_fast(struct dc *dc,
 		int surface_count,
 		struct dc_stream_state *stream,
 		struct dc_stream_update *stream_update,
-		enum surface_update_type update_type,
+		enum dc_update_type update_type,
 		struct dc_state *context)
 {
 	int i;
@@ -4845,7 +4881,7 @@ static void commit_planes_for_stream(struct dc *dc,
 		int surface_count,
 		struct dc_stream_state *stream,
 		struct dc_stream_update *stream_update,
-		enum surface_update_type update_type,
+		enum dc_update_type update_type,
 		struct dc_state *context)
 {
 	int i;
@@ -5928,7 +5964,7 @@ static bool update_planes_and_stream_v2(struct dc *dc,
 		struct dc_stream_update *stream_update)
 {
 	struct dc_state *context;
-	enum surface_update_type update_type;
+	enum dc_update_type update_type;
 	struct dc_fast_update fast_update[MAX_SURFACES] = {0};
 
 	/* In cases where MPO and split or ODM are used transitions can
@@ -6013,7 +6049,7 @@ static void commit_planes_and_stream_update_on_current_context(struct dc *dc,
 		struct dc_surface_update *srf_updates, int surface_count,
 		struct dc_stream_state *stream,
 		struct dc_stream_update *stream_update,
-		enum surface_update_type update_type)
+		enum dc_update_type update_type)
 {
 	struct dc_fast_update fast_update[MAX_SURFACES] = {0};
 
@@ -6045,7 +6081,7 @@ static void commit_planes_and_stream_update_with_new_context(struct dc *dc,
 		struct dc_surface_update *srf_updates, int surface_count,
 		struct dc_stream_state *stream,
 		struct dc_stream_update *stream_update,
-		enum surface_update_type update_type,
+		enum dc_update_type update_type,
 		struct dc_state *new_context)
 {
 	bool skip_new_context = false;
@@ -6113,7 +6149,7 @@ static bool update_planes_and_stream_v3(struct dc *dc,
 		struct dc_stream_update *stream_update)
 {
 	struct dc_state *new_context;
-	enum surface_update_type update_type;
+	enum dc_update_type update_type;
 
 	/*
 	 * When this function returns true and new_context is not equal to
@@ -6159,28 +6195,61 @@ static void clear_update_bits(struct dc_surface_update *srf_updates,
 			dc_pipe_update_bits_clear(&srf_updates[i].surface->update_bits);
 }
 
+/**
+ * dc_update_state - Commit an absolute dc_state_update.
+ * @dc:      DC structure
+ * @updates: root update object carrying stream, plane, and probe updates
+ *
+ * When stream is non-NULL the stream and its plane updates are committed via
+ * the init/prepare/execute/cleanup pipeline. Probe commit is reserved for a
+ * future slice. dc_update_planes_and_stream() is now a shim over this function.
+ *
+ * Return: true on success, false on failure.
+ */
+bool dc_update_state(struct dc *dc, struct dc_state_update *updates)
+{
+	if (updates->stream != NULL) {
+		struct dc_update_scratch_space *scratch = dc_update_state_init(dc, updates);
+		bool more = true;
+
+		while (more) {
+			if (!dc_update_state_prepare(scratch))
+				return false;
+
+			dc_update_state_execute(scratch);
+			more = dc_update_state_cleanup(scratch);
+		}
+	}
+
+	return true;
+}
+
+/**
+ * dc_update_planes_and_stream - Shim for dc_update_state.
+ * @dc:             DC structure
+ * @srf_updates:    array of surface update descriptors
+ * @surface_count:  number of entries in @srf_updates
+ * @stream:         target stream
+ * @stream_update:  optional stream update
+ *
+ * Packs the individual arguments into a dc_state_update and forwards to
+ * dc_update_state(). Preserved for out-of-tree and incremental callers.
+ *
+ * Return: true on success; false on failure.
+ */
 bool dc_update_planes_and_stream(struct dc *dc,
 		struct dc_surface_update *srf_updates, int surface_count,
 		struct dc_stream_state *stream,
 		struct dc_stream_update *stream_update)
 {
-	struct dc_update_scratch_space *scratch = dc_update_planes_and_stream_init(
-			dc,
-			srf_updates,
-			surface_count,
-			stream,
-			stream_update
-	);
-	bool more = true;
+	struct dc_state_update updates = {
+		.stream          = stream,
+		.stream_update   = stream_update,
+		.surface_updates = srf_updates,
+		.surface_count   = surface_count,
+	};
 
-	while (more) {
-		if (!dc_update_planes_and_stream_prepare(scratch))
-			return false;
-
-		dc_update_planes_and_stream_execute(scratch);
-		more = dc_update_planes_and_stream_cleanup(scratch);
-	}
-	return true;
+	return dc_update_state(dc, &updates);
 }
 
 void dc_commit_updates_for_stream(struct dc *dc,
@@ -8113,7 +8182,7 @@ struct dc_update_scratch_space {
 	struct dc_stream_update *stream_update;
 	bool update_v3;
 	bool do_clear_update_bits;
-	enum surface_update_type update_type;
+	enum dc_update_type update_type;
 	struct dc_state *new_context;
 	enum update_v3_flow flow;
 	struct dc_state *backup_context;
@@ -8416,23 +8485,20 @@ static bool update_planes_and_stream_cleanup_v3(
 	return false;
 }
 
-struct dc_update_scratch_space *dc_update_planes_and_stream_init(
+struct dc_update_scratch_space *dc_update_state_init(
 		struct dc *dc,
-		struct dc_surface_update *surface_updates,
-		int surface_count,
-		struct dc_stream_state *stream,
-		struct dc_stream_update *stream_update
+		const struct dc_state_update *updates
 )
 {
 	const enum dce_version version = dc->ctx->dce_version;
-	struct dc_update_scratch_space *scratch = stream->update_scratch;
+	struct dc_update_scratch_space *scratch = updates->stream->update_scratch;
 
 	*scratch = (struct dc_update_scratch_space){
 		.dc = dc,
-		.surface_updates = surface_updates,
-		.surface_count = surface_count,
-		.stream = stream,
-		.stream_update = stream_update,
+		.surface_updates = updates->surface_updates,
+		.surface_count = updates->surface_count,
+		.stream = updates->stream,
+		.stream_update = updates->stream_update,
 		.update_v3 = version >= DCN_VERSION_4_01 || version == DCN_VERSION_3_2 || version == DCN_VERSION_3_21,
 		.do_clear_update_bits = version >= DCN_VERSION_1_0,
 	};
@@ -8440,7 +8506,7 @@ struct dc_update_scratch_space *dc_update_planes_and_stream_init(
 	return scratch;
 }
 
-bool dc_update_planes_and_stream_prepare(
+bool dc_update_state_prepare(
 		struct dc_update_scratch_space *scratch
 )
 {
@@ -8449,7 +8515,7 @@ bool dc_update_planes_and_stream_prepare(
 			: update_planes_and_stream_prepare_v2(scratch);
 }
 
-void dc_update_planes_and_stream_execute(
+void dc_update_state_execute(
 		const struct dc_update_scratch_space *scratch
 )
 {
@@ -8458,7 +8524,7 @@ void dc_update_planes_and_stream_execute(
 			: update_planes_and_stream_execute_v2(scratch);
 }
 
-bool dc_update_planes_and_stream_cleanup(
+bool dc_update_state_cleanup(
 		struct dc_update_scratch_space *scratch
 )
 {

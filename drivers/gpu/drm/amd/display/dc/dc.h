@@ -519,7 +519,7 @@ struct dc_static_screen_params {
  * underscan we don't expect to see this call at all.
  */
 
-enum surface_update_type {
+enum dc_update_type {
 	UPDATE_TYPE_FAST, /* super fast, safe to execute in isr */
 	UPDATE_TYPE_MED,  /* ISR safe, most of programming needed, no bw/clk change*/
 	UPDATE_TYPE_FULL, /* may need to shuffle resources */
@@ -532,8 +532,8 @@ enum dc_lock_descriptor {
 	LOCK_DESCRIPTOR_GLOBAL = 0x4,
 };
 
-struct surface_update_descriptor {
-	enum surface_update_type update_type;
+struct dc_update_descriptor {
+	enum dc_update_type update_type;
 	enum dc_lock_descriptor lock_descriptor;
 };
 
@@ -2113,6 +2113,19 @@ struct dc_state_update {
 	int                       surface_count;
 	const struct dc_probe_updates *probe_updates;
 };
+
+/**
+ * dc_update_state - Commit an absolute dc_state_update.
+ * @dc:      DC structure
+ * @updates: root update object carrying stream, plane, and probe updates
+ *
+ * When stream is non-NULL the stream and its plane updates are committed via
+ * the init/prepare/execute/cleanup pipeline. Probe commit is reserved for a
+ * future slice. dc_update_planes_and_stream() is now a shim over this function.
+ *
+ * Return: true on success, false on failure.
+ */
+bool dc_update_state(struct dc *dc, struct dc_state_update *updates);
 
 struct dc_underflow_debug_data {
 	struct dcn_hubbub_reg_state *hubbub_reg_state;
