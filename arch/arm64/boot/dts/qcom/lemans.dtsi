@@ -514,6 +514,7 @@
 		scm {
 			compatible = "qcom,scm-sa8775p", "qcom,scm";
 			qcom,dload-mode = <&tcsr 0x13000>;
+			sram = <&minidump_config>;
 		};
 	};
 
@@ -6820,6 +6821,10 @@
 
 			#address-cells = <1>;
 			#size-cells = <1>;
+
+			minidump_config: minidump-sram@1c {
+				reg = <0x1c 0x4>;
+			};
 
 			pil-reloc@94c {
 				compatible = "qcom,pil-reloc-info";
