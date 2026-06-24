@@ -1234,16 +1234,12 @@ static int defrag_one_range(struct btrfs_inode *inode, u64 start, u32 len,
 	if (ret < 0)
 		goto unlock_extent;
 
-	list_for_each_entry(entry, &target_list, list) {
+	list_for_each_entry_safe(entry, tmp, &target_list, list) {
 		defrag_one_locked_target(inode, entry, folios, nr_pages, &cached_state);
 		if (entry->start > last_defrag_end)
 			btrfs_delalloc_release_space(inode, data_reserved, last_defrag_end,
 						     entry->start - last_defrag_end, true);
 		last_defrag_end = entry->start + entry->len;
-	}
-
-	list_for_each_entry_safe(entry, tmp, &target_list, list) {
-		list_del_init(&entry->list);
 		kfree(entry);
 	}
 unlock_extent:
