@@ -479,6 +479,7 @@
 			compatible = "qcom,scm-sm8450", "qcom,scm";
 			qcom,dload-mode = <&tcsr 0x13000>;
 			interconnects = <&aggre2_noc MASTER_CRYPTO 0 &mc_virt SLAVE_EBI1 0>;
+			sram = <&minidump_config>;
 			#reset-cells = <1>;
 		};
 	};
@@ -4963,6 +4964,10 @@
 
 			#address-cells = <1>;
 			#size-cells = <1>;
+
+			minidump_config: minidump-sram@1c {
+				reg = <0x1c 0x4>;
+			};
 
 			pil-reloc@94c {
 				compatible = "qcom,pil-reloc-info";
