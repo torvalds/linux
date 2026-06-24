@@ -416,6 +416,7 @@ struct hci_dev {
 	__u16		le_conn_max_interval;
 	__u16		le_conn_latency;
 	__u16		le_supv_timeout;
+	__u16		le_min_rate_interval;
 	__u16		le_def_tx_len;
 	__u16		le_def_tx_time;
 	__u16		le_max_tx_len;
@@ -720,6 +721,11 @@ struct hci_conn {
 	__u16		le_conn_interval;
 	__u16		le_conn_latency;
 	__u16		le_supv_timeout;
+	__u16		le_rate_interval;
+	__u16		le_subrate;
+	__u16		le_rate_latency;
+	__u16		le_cont_num;
+	__u16		le_rate_supv_timeout;
 	__u8		le_adv_data[HCI_MAX_EXT_AD_LENGTH];
 	__u8		le_adv_data_len;
 	__u8		le_per_adv_data[HCI_MAX_PER_AD_TOT_LEN];
@@ -2078,6 +2084,9 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 	((dev)->le_features[5] & HCI_LE_CS)
 #define le_cs_host_capable(dev) \
 	((dev)->le_features[5] & HCI_LE_CS_HOST)
+
+#define le_sci_capable(dev) \
+	((dev)->le_features[9] & HCI_LE_SCI)
 
 #define mws_transport_config_capable(dev) (((dev)->commands[30] & 0x08) && \
 	(!hci_test_quirk((dev), HCI_QUIRK_BROKEN_MWS_TRANSPORT_CONFIG)))

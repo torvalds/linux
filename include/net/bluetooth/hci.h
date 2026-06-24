@@ -653,6 +653,8 @@ enum {
 #define HCI_LE_LL_EXT_FEATURE		0x80
 #define HCI_LE_CS			0x40
 #define HCI_LE_CS_HOST			0x80
+#define HCI_LE_SCI			0x01	/* byte 9 - Shorter Connection Intervals */
+#define HCI_LE_SCI_HOST			0x02	/* byte 9 - Shorter Connection Intervals (Host) */
 
 /* Connection modes */
 #define HCI_CM_ACTIVE	0x0000
@@ -2489,6 +2491,46 @@ struct hci_cp_le_set_host_feature_v2 {
 	__u8	bit_value;
 } __packed;
 
+#define HCI_OP_LE_CONN_RATE			0x20a1
+struct hci_cp_le_conn_rate {
+	__le16	handle;
+	__le16	interval_min;
+	__le16	interval_max;
+	__le16	subrate_min;
+	__le16	subrate_max;
+	__le16	max_latency;
+	__le16	cont_num;
+	__le16	supv_timeout;
+	__le16	min_ce_len;
+	__le16	max_ce_len;
+} __packed;
+
+#define HCI_OP_LE_SET_DEF_RATE			0x20a2
+struct hci_cp_le_set_def_rate {
+	__le16	interval_min;
+	__le16	interval_max;
+	__le16	subrate_min;
+	__le16	subrate_max;
+	__le16	max_latency;
+	__le16	cont_num;
+	__le16	supv_timeout;
+	__le16	min_ce_len;
+	__le16	max_ce_len;
+} __packed;
+
+#define HCI_OP_LE_READ_CONN_INTERVAL		0x20a3
+struct hci_le_conn_interval_group {
+	__le16	min;
+	__le16	max;
+	__le16	stride;
+} __packed;
+
+struct hci_rp_le_read_conn_interval {
+	__u8	status;
+	__u8	num_grps;
+	struct hci_le_conn_interval_group grps[];
+} __packed;
+
 /* ---- HCI Events ---- */
 struct hci_ev_status {
 	__u8    status;
@@ -3301,6 +3343,17 @@ struct hci_evt_le_cs_subevent_result_continue {
 #define HCI_EVT_LE_CS_TEST_END_COMPLETE			0x33
 struct hci_evt_le_cs_test_end_complete {
 	__u8	status;
+} __packed;
+
+#define HCI_EVT_LE_CONN_RATE_CHANGE			0x37
+struct hci_evt_le_conn_rate_change {
+	__u8	status;
+	__le16	handle;
+	__le16	interval;
+	__le16	subrate;
+	__le16	latency;
+	__le16	cont_number;
+	__le16	supv_timeout;
 } __packed;
 
 #define HCI_EV_VENDOR			0xff

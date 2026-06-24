@@ -1241,6 +1241,39 @@ static u8 hci_cc_le_read_local_features(struct hci_dev *hdev, void *data,
 	return rp->status;
 }
 
+static u8 hci_cc_le_read_conn_interval(struct hci_dev *hdev, void *data,
+				       struct sk_buff *skb)
+{
+	struct hci_rp_le_read_conn_interval *rp = data;
+	u16 min_interval = 0;
+	int i;
+
+	bt_dev_dbg(hdev, "status 0x%2.2x", rp->status);
+
+	if (rp->status)
+		return rp->status;
+
+	if (skb->len < flex_array_size(rp, grps, rp->num_grps)) {
+		bt_dev_err(hdev, "Invalid response length for 0x%4.4x",
+			   HCI_OP_LE_READ_CONN_INTERVAL);
+		return HCI_ERROR_UNSPECIFIED;
+	}
+
+	/* Store the smallest minimum supported connection interval reported by
+	 * the controller so the default rate parameters can be clamped to it.
+	 */
+	for (i = 0; i < rp->num_grps; i++) {
+		u16 min = le16_to_cpu(rp->grps[i].min);
+
+		if (!min_interval || min < min_interval)
+			min_interval = min;
+	}
+
+	hdev->le_min_rate_interval = min_interval;
+
+	return rp->status;
+}
+
 static u8 hci_cc_le_read_adv_tx_power(struct hci_dev *hdev, void *data,
 				      struct sk_buff *skb)
 {
@@ -4153,6 +4186,9 @@ static const struct hci_cc {
 	       sizeof(struct hci_rp_le_read_buffer_size)),
 	HCI_CC(HCI_OP_LE_READ_LOCAL_FEATURES, hci_cc_le_read_local_features,
 	       sizeof(struct hci_rp_le_read_local_features)),
+	HCI_CC_VL(HCI_OP_LE_READ_CONN_INTERVAL, hci_cc_le_read_conn_interval,
+		  sizeof(struct hci_rp_le_read_conn_interval),
+		  HCI_MAX_EVENT_SIZE),
 	HCI_CC(HCI_OP_LE_READ_ADV_TX_POWER, hci_cc_le_read_adv_tx_power,
 	       sizeof(struct hci_rp_le_read_adv_tx_power)),
 	HCI_CC(HCI_OP_USER_CONFIRM_REPLY, hci_cc_user_confirm_reply,
@@ -7363,6 +7399,31 @@ unlock:
 	hci_dev_unlock(hdev);
 }
 
+static void hci_le_conn_rate_change_evt(struct hci_dev *hdev, void *data,
+					struct sk_buff *skb)
+{
+	struct hci_evt_le_conn_rate_change *ev = data;
+	struct hci_conn *conn;
+
+	bt_dev_dbg(hdev, "status 0x%2.2x", ev->status);
+
+	if (ev->status)
+		return;
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(ev->handle));
+	if (conn) {
+		conn->le_rate_interval = le16_to_cpu(ev->interval);
+		conn->le_subrate = le16_to_cpu(ev->subrate);
+		conn->le_rate_latency = le16_to_cpu(ev->latency);
+		conn->le_cont_num = le16_to_cpu(ev->cont_number);
+		conn->le_rate_supv_timeout = le16_to_cpu(ev->supv_timeout);
+	}
+
+	hci_dev_unlock(hdev);
+}
+
 #define HCI_LE_EV_VL(_op, _func, _min_len, _max_len) \
 [_op] = { \
 	.func = _func, \
@@ -7474,6 +7535,9 @@ static const struct hci_le_ev {
 		     sizeof(struct
 			    hci_evt_le_read_all_remote_features_complete),
 		     HCI_MAX_EVENT_SIZE),
+	/* [0x37 = HCI_EVT_LE_CONN_RATE_CHANGE] */
+	HCI_LE_EV(HCI_EVT_LE_CONN_RATE_CHANGE, hci_le_conn_rate_change_evt,
+		  sizeof(struct hci_evt_le_conn_rate_change)),
 };
 
 static void hci_le_meta_evt(struct hci_dev *hdev, void *data,
