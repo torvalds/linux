@@ -2907,6 +2907,45 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *a,
 }
 static DEVICE_ATTR_RO(modalias);
 
+/*
+ * Expose this as bustype instead of bus as
+ * that's the name the input subsystem uses
+ */
+static ssize_t bustype_show(struct device *dev, struct device_attribute *a,
+			     char *buf)
+{
+	struct hid_device *hdev = to_hid_device(dev);
+
+	return sysfs_emit(buf, "%04x\n", hdev->bus);
+}
+static DEVICE_ATTR_RO(bustype);
+
+#define HID_DEV_ID_ATTR(name)				\
+static ssize_t name##_show(struct device *dev,		\
+			struct device_attribute *attr,	\
+			char *buf)			\
+{							\
+	struct hid_device *hdev = to_hid_device(dev);	\
+							\
+	return sysfs_emit(buf, "%04x\n", hdev->name);	\
+}							\
+static DEVICE_ATTR_RO(name)
+
+HID_DEV_ID_ATTR(vendor);
+HID_DEV_ID_ATTR(product);
+HID_DEV_ID_ATTR(version);
+
+static struct attribute *hid_dev_id_attrs[] = {
+	&dev_attr_bustype.attr,
+	&dev_attr_vendor.attr,
+	&dev_attr_product.attr,
+	&dev_attr_version.attr,
+	NULL
+};
+static const struct attribute_group hid_dev_id_attr_group = {
+	.name	= "id",
+	.attrs	= hid_dev_id_attrs,
+};
 static struct attribute *hid_dev_attrs[] = {
 	&dev_attr_modalias.attr,
 	NULL,
@@ -2919,7 +2958,11 @@ static const struct attribute_group hid_dev_group = {
 	.attrs = hid_dev_attrs,
 	.bin_attrs = hid_dev_bin_attrs,
 };
-__ATTRIBUTE_GROUPS(hid_dev);
+static const struct attribute_group *hid_dev_groups[] = {
+	&hid_dev_group,
+	&hid_dev_id_attr_group,
+	NULL
+};
 
 static int hid_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
