@@ -38,6 +38,8 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/completion.h>
+#include <linux/mutex.h>
 #include <linux/sched/mm.h>
 #include <linux/jiffies.h>
 #include <linux/slab.h>
@@ -102,9 +104,14 @@ static struct socket *o2net_listen_sock;
  * quorum work is queued as sock containers are shutdown.. stop_listening
  * tears down all the node's sock containers, preventing future shutdowns
  * and queued quorum work, before canceling delayed quorum work and
- * destroying the work queue.
+ * destroying the work queue.  Handler teardown can also race local listener
+ * shutdown, so keep a waitable destroying pointer until the old ordered
+ * queue has finished draining.
  */
 static struct workqueue_struct *o2net_wq;
+static struct workqueue_struct *o2net_wq_destroying;
+static DEFINE_MUTEX(o2net_wq_mutex);
+static DECLARE_COMPLETION(o2net_wq_destroyed);
 /* Heartbeat callbacks stay registered across local-node off/on. */
 static bool o2net_listening;
 static struct work_struct o2net_listen_work;
@@ -885,6 +892,27 @@ void o2net_unregister_handler_list(struct list_head *list)
 	write_unlock(&o2net_handler_lock);
 }
 EXPORT_SYMBOL_GPL(o2net_unregister_handler_list);
+
+static void o2net_flush_wq(void)
+{
+	mutex_lock(&o2net_wq_mutex);
+	if (o2net_wq_destroying) {
+		mutex_unlock(&o2net_wq_mutex);
+		wait_for_completion(&o2net_wq_destroyed);
+		return;
+	}
+
+	if (o2net_wq)
+		flush_workqueue(o2net_wq);
+	mutex_unlock(&o2net_wq_mutex);
+}
+
+void o2net_unregister_and_flush_handler_list(struct list_head *list)
+{
+	o2net_unregister_handler_list(list);
+	o2net_flush_wq();
+}
+EXPORT_SYMBOL_GPL(o2net_unregister_and_flush_handler_list);
 
 static struct o2net_msg_handler *o2net_handler_get(u32 msg_type, u32 key)
 {
@@ -1717,12 +1745,10 @@ void o2net_disconnect_node(struct o2nm_node *node)
 	o2net_set_nn_state(nn, NULL, 0, -ENOTCONN);
 	spin_unlock(&nn->nn_lock);
 
-	if (o2net_wq) {
-		cancel_delayed_work(&nn->nn_connect_expired);
-		cancel_delayed_work(&nn->nn_connect_work);
-		cancel_delayed_work(&nn->nn_still_up);
-		flush_workqueue(o2net_wq);
-	}
+	cancel_delayed_work(&nn->nn_connect_expired);
+	cancel_delayed_work(&nn->nn_connect_work);
+	cancel_delayed_work(&nn->nn_still_up);
+	o2net_flush_wq();
 }
 
 static void o2net_hb_node_down_cb(struct o2nm_node *node, int node_num,
@@ -2067,6 +2093,36 @@ out:
 	return ret;
 }
 
+static void o2net_destroy_wq(void)
+{
+	struct workqueue_struct *wq;
+
+	mutex_lock(&o2net_wq_mutex);
+	if (o2net_wq_destroying) {
+		mutex_unlock(&o2net_wq_mutex);
+		wait_for_completion(&o2net_wq_destroyed);
+		return;
+	}
+
+	wq = o2net_wq;
+	if (!wq) {
+		mutex_unlock(&o2net_wq_mutex);
+		return;
+	}
+
+	reinit_completion(&o2net_wq_destroyed);
+	o2net_wq_destroying = wq;
+	mutex_unlock(&o2net_wq_mutex);
+
+	destroy_workqueue(wq);
+
+	mutex_lock(&o2net_wq_mutex);
+	o2net_wq = NULL;
+	o2net_wq_destroying = NULL;
+	complete_all(&o2net_wq_destroyed);
+	mutex_unlock(&o2net_wq_mutex);
+}
+
 /*
  * called from node manager when we should bring up our network listening
  * socket.  node manager handles all the serialization to only call this
@@ -2077,24 +2133,44 @@ out:
 int o2net_start_listening(struct o2nm_node *node)
 {
 	int ret = 0;
+	struct workqueue_struct *wq;
 
 	if (WARN_ON_ONCE(READ_ONCE(o2net_listening)))
 		return -EBUSY;
-	BUG_ON(o2net_wq != NULL);
+
+	mutex_lock(&o2net_wq_mutex);
+	if (o2net_wq_destroying) {
+		mutex_unlock(&o2net_wq_mutex);
+		return -EBUSY;
+	}
+	if (WARN_ON_ONCE(o2net_wq)) {
+		mutex_unlock(&o2net_wq_mutex);
+		return -EBUSY;
+	}
+	mutex_unlock(&o2net_wq_mutex);
+
 	BUG_ON(o2net_listen_sock != NULL);
 
 	mlog(ML_KTHREAD, "starting o2net thread...\n");
-	o2net_wq = alloc_ordered_workqueue("o2net", WQ_MEM_RECLAIM);
-	if (o2net_wq == NULL) {
+	wq = alloc_ordered_workqueue("o2net", WQ_MEM_RECLAIM);
+	if (!wq) {
 		mlog(ML_ERROR, "unable to launch o2net thread\n");
 		return -ENOMEM; /* ? */
 	}
 
+	mutex_lock(&o2net_wq_mutex);
+	if (unlikely(o2net_wq_destroying || o2net_wq)) {
+		mutex_unlock(&o2net_wq_mutex);
+		destroy_workqueue(wq);
+		return -EBUSY;
+	}
+	o2net_wq = wq;
+	mutex_unlock(&o2net_wq_mutex);
+
 	ret = o2net_open_listening_sock(node->nd_ipv4_address,
 					node->nd_ipv4_port);
 	if (ret) {
-		destroy_workqueue(o2net_wq);
-		o2net_wq = NULL;
+		o2net_destroy_wq();
 	} else
 		o2quo_conn_up(node->nd_num);
 
@@ -2130,8 +2206,7 @@ void o2net_stop_listening(struct o2nm_node *node)
 
 	/* finish all work and tear down the work queue */
 	mlog(ML_KTHREAD, "waiting for o2net thread to exit....\n");
-	destroy_workqueue(o2net_wq);
-	o2net_wq = NULL;
+	o2net_destroy_wq();
 
 	sock_release(o2net_listen_sock);
 	o2net_listen_sock = NULL;

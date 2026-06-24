@@ -89,6 +89,7 @@ int o2net_register_handler(u32 msg_type, u32 key, u32 max_len,
 			   o2net_post_msg_handler_func *post_func,
 			   struct list_head *unreg_list);
 void o2net_unregister_handler_list(struct list_head *list);
+void o2net_unregister_and_flush_handler_list(struct list_head *list);
 
 void o2net_fill_node_map(unsigned long *map, unsigned bytes);
 
