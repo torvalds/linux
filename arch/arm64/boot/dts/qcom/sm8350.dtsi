@@ -295,6 +295,7 @@
 		scm: scm {
 			compatible = "qcom,scm-sm8350", "qcom,scm";
 			qcom,dload-mode = <&tcsr 0x13000>;
+			sram = <&minidump_config>;
 			#reset-cells = <1>;
 		};
 	};
@@ -3534,6 +3535,10 @@
 			#size-cells = <1>;
 
 			ranges = <0 0 0x14680000 0x40000>;
+
+			minidump_config: minidump-sram@1c {
+				reg = <0x1c 0x4>;
+			};
 
 			ipa_modem_tables: modem-tables@3d000 {
 				reg = <0x3d000 0x2000>;
