@@ -3592,6 +3592,24 @@ bool poll_state_synchronize_rcu(unsigned long oldstate)
 }
 EXPORT_SYMBOL_GPL(poll_state_synchronize_rcu);
 
+/*
+ * Racy, memory-ordering-free test of whether the normal or expedited grace
+ * period recorded in *gsp has completed.  Callers that need the full
+ * memory-ordering guarantees must use poll_state_synchronize_rcu_full();
+ * this variant is only a hint (e.g. for rcu_pending()) and leaves any
+ * required ordering to a subsequent ordered check.
+ */
+static bool poll_state_synchronize_rcu_full_unordered(struct rcu_gp_seq *gsp)
+{
+	struct rcu_node *rnp = rcu_get_root();
+
+	return gsp->norm == RCU_GET_STATE_COMPLETED ||
+	       rcu_seq_done_exact(&rnp->gp_seq, gsp->norm) ||
+	       gsp->exp == RCU_GET_STATE_COMPLETED ||
+	       (gsp->exp != RCU_GET_STATE_NOT_TRACKED &&
+		rcu_seq_done_exact(&rcu_state.expedited_sequence, gsp->exp));
+}
+
 /**
  * poll_state_synchronize_rcu_full - Has the specified RCU grace period completed?
  * @gsp: value from get_state_synchronize_rcu_full() or start_poll_synchronize_rcu_full()
@@ -3627,14 +3645,8 @@ EXPORT_SYMBOL_GPL(poll_state_synchronize_rcu);
  */
 bool poll_state_synchronize_rcu_full(struct rcu_gp_seq *gsp)
 {
-	struct rcu_node *rnp = rcu_get_root();
-
 	smp_mb(); // Order against root rcu_node structure grace-period cleanup.
-	if (gsp->norm == RCU_GET_STATE_COMPLETED ||
-	    rcu_seq_done_exact(&rnp->gp_seq, gsp->norm) ||
-	    gsp->exp == RCU_GET_STATE_COMPLETED ||
-	    (gsp->exp != RCU_GET_STATE_NOT_TRACKED &&
-	     rcu_seq_done_exact(&rcu_state.expedited_sequence, gsp->exp))) {
+	if (poll_state_synchronize_rcu_full_unordered(gsp)) {
 		smp_mb(); /* Ensure GP ends before subsequent accesses. */
 		return true;
 	}
@@ -3704,6 +3716,7 @@ EXPORT_SYMBOL_GPL(cond_synchronize_rcu_full);
 static int rcu_pending(int user)
 {
 	bool gp_in_progress;
+	struct rcu_gp_seq gp_state;
 	struct rcu_data *rdp = this_cpu_ptr(&rcu_data);
 	struct rcu_node *rnp = rdp->mynode;
 
@@ -3732,6 +3745,17 @@ static int rcu_pending(int user)
 	/* Does this CPU have callbacks ready to invoke? */
 	if (!rcu_rdp_is_offloaded(rdp) &&
 	    rcu_segcblist_ready_cbs(&rdp->cblist))
+		return 1;
+
+	/*
+	 * Has a GP (normal or expedited) completed for pending callbacks?
+	 * This is only a racy hint to decide whether to run rcu_core(); the
+	 * ordered re-check and callback advancement happen there, so the
+	 * unordered test avoids paying for memory barriers on every tick.
+	 */
+	if (!rcu_rdp_is_offloaded(rdp) &&
+	    rcu_segcblist_nextgp(&rdp->cblist, &gp_state) &&
+	    poll_state_synchronize_rcu_full_unordered(&gp_state))
 		return 1;
 
 	/* Has RCU gone idle with this CPU needing another grace period? */
