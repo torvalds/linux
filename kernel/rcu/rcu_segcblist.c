@@ -620,3 +620,13 @@ void rcu_segcblist_merge(struct rcu_segcblist *dst_rsclp,
 
 	rcu_segcblist_init(src_rsclp);
 }
+
+void srcu_segcblist_advance(struct rcu_segcblist *rsclp, unsigned long seq)
+{
+	rcu_segcblist_advance(rsclp, seq);
+}
+
+bool srcu_segcblist_accelerate(struct rcu_segcblist *rsclp, unsigned long seq)
+{
+	return rcu_segcblist_accelerate(rsclp, seq);
+}

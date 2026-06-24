@@ -1351,7 +1351,7 @@ static unsigned long srcu_gp_start_if_needed(struct srcu_struct *ssp,
 	 *  2) The grace period for RCU_WAIT_TAIL is seen as started but not
 	 *     completed so rcu_seq_current() returns X + SRCU_STATE_SCAN1.
 	 *
-	 *  3) This value is passed to rcu_segcblist_advance() which can't move
+	 *  3) This value is passed to srcu_segcblist_advance() which can't move
 	 *     any segment forward and fails.
 	 *
 	 *  4) srcu_gp_start_if_needed() still proceeds with callback acceleration.
@@ -1360,15 +1360,15 @@ static unsigned long srcu_gp_start_if_needed(struct srcu_struct *ssp,
 	 *     RCU_NEXT_READY_TAIL segment as started (ie: X + 4 + SRCU_STATE_SCAN1)
 	 *     so it returns a snapshot of the next grace period, which is X + 12.
 	 *
-	 *  5) The value of X + 12 is passed to rcu_segcblist_accelerate() but the
+	 *  5) The value of X + 12 is passed to srcu_segcblist_accelerate() but the
 	 *     freshly enqueued callback in RCU_NEXT_TAIL can't move to
 	 *     RCU_NEXT_READY_TAIL which already has callbacks for a previous grace
 	 *     period (gp_num = X + 8). So acceleration fails.
 	 */
 	s = rcu_seq_snap(&ssp->srcu_sup->srcu_gp_seq);
 	if (rhp) {
-		rcu_segcblist_advance(&sdp->srcu_cblist,
-				      rcu_seq_current(&ssp->srcu_sup->srcu_gp_seq));
+		srcu_segcblist_advance(&sdp->srcu_cblist,
+				       rcu_seq_current(&ssp->srcu_sup->srcu_gp_seq));
 		/*
 		 * Acceleration can never fail because the base current gp_seq
 		 * used for acceleration is <= the value of gp_seq used for
@@ -1376,7 +1376,7 @@ static unsigned long srcu_gp_start_if_needed(struct srcu_struct *ssp,
 		 * always be able to be emptied by the acceleration into the
 		 * RCU_NEXT_READY_TAIL or RCU_WAIT_TAIL segments.
 		 */
-		WARN_ON_ONCE(!rcu_segcblist_accelerate(&sdp->srcu_cblist, s));
+		WARN_ON_ONCE(!srcu_segcblist_accelerate(&sdp->srcu_cblist, s));
 	}
 	if (ULONG_CMP_LT(sdp->srcu_gp_seq_needed, s)) {
 		sdp->srcu_gp_seq_needed = s;
@@ -1891,8 +1891,8 @@ static void srcu_invoke_callbacks(struct work_struct *work)
 	rcu_cblist_init(&ready_cbs);
 	raw_spin_lock_irq_rcu_node(sdp);
 	WARN_ON_ONCE(!rcu_segcblist_segempty(&sdp->srcu_cblist, RCU_NEXT_TAIL));
-	rcu_segcblist_advance(&sdp->srcu_cblist,
-			      rcu_seq_current(&ssp->srcu_sup->srcu_gp_seq));
+	srcu_segcblist_advance(&sdp->srcu_cblist,
+			       rcu_seq_current(&ssp->srcu_sup->srcu_gp_seq));
 	/*
 	 * Although this function is theoretically re-entrant, concurrent
 	 * callbacks invocation is disallowed to avoid executing an SRCU barrier

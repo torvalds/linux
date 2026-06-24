@@ -143,3 +143,5 @@ void rcu_segcblist_advance(struct rcu_segcblist *rsclp, unsigned long seq);
 bool rcu_segcblist_accelerate(struct rcu_segcblist *rsclp, unsigned long seq);
 void rcu_segcblist_merge(struct rcu_segcblist *dst_rsclp,
 			 struct rcu_segcblist *src_rsclp);
+void srcu_segcblist_advance(struct rcu_segcblist *rsclp, unsigned long seq);
+bool srcu_segcblist_accelerate(struct rcu_segcblist *rsclp, unsigned long seq);
