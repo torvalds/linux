@@ -202,7 +202,7 @@ struct ATTRIB *mi_enum_attr(struct ntfs_inode *ni, struct mft_inode *mi,
 	u32 used = le32_to_cpu(rec->used);
 	u32 t32, off, asize, prev_type;
 	u16 t16;
-	u64 data_size, alloc_size, tot_size;
+	u64 svcn, evcn, data_size, alloc_size, tot_size;
 
 	if (!attr) {
 		u32 total = le32_to_cpu(rec->total);
@@ -310,9 +310,37 @@ struct ATTRIB *mi_enum_attr(struct ntfs_inode *ni, struct mft_inode *mi,
 	if (t32 && le16_to_cpu(attr->name_off) + t32 > t16)
 		goto out;
 
-	/* Check start/end vcn. */
-	if (le64_to_cpu(attr->nres.svcn) > le64_to_cpu(attr->nres.evcn) + 1)
+	/*
+	 * Check start/end vcn.  svcn == 0 with evcn == -1 (U64_MAX) is the
+	 * sentinel for an empty non-resident attribute (no allocated
+	 * clusters) and must be accepted: "svcn > evcn + 1" tolerates it,
+	 * since "(u64)-1 + 1" is 0 and "0 > 0" is false.
+	 *
+	 * For a non-empty attribute evcn is a cluster index and must lie
+	 * within the volume (sbi->used.bitmap.nbits, set up in
+	 * ntfs_init_from_boot() before any caller of mi_enum_attr() runs).
+	 * Bounding evcn also prevents a malformed value close to U64_MAX
+	 * from slipping through the near-wrap "evcn + 1" upper bound.
+	 */
+	svcn = le64_to_cpu(attr->nres.svcn);
+	evcn = le64_to_cpu(attr->nres.evcn);
+	if (svcn > evcn + 1)
 		goto out;
+
+	if (is_attr_ext(attr)) {
+		/* sparsed/compressed attribute. */
+#ifdef CONFIG_NTFS3_64BIT_CLUSTER
+		/* No limits. */
+#else
+		/* Check evcn fits into 32 bits. */
+		if (evcn != U64_MAX && evcn >= (1ull << 32))
+			goto out;
+#endif
+	} else {
+		/* Check out of volume for normal attribute. */
+		if (evcn != U64_MAX && evcn >= mi->sbi->used.bitmap.nbits)
+			goto out;
+	}
 
 	data_size = le64_to_cpu(attr->nres.data_size);
 	if (le64_to_cpu(attr->nres.valid_size) > data_size)
