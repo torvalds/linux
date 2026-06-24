@@ -4217,7 +4217,7 @@ static int mem_cgroup_css_online(struct cgroup_subsys_state *css)
 	/*
 	 * A memcg must be visible for expand_shrinker_info()
 	 * by the time the maps are allocated. So, we allocate maps
-	 * here, when for_each_mem_cgroup() can't skip it.
+	 * here, when mem_cgroup_iter() can't skip it.
 	 */
 	if (alloc_shrinker_info(memcg))
 		goto offline_kmem;
