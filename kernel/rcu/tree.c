@@ -2885,6 +2885,23 @@ static __latent_entropy void rcu_core(void)
 	/* Update RCU state based on any recent quiescent states. */
 	rcu_check_quiescent_state(rdp);
 
+	/* Advance callbacks if an expedited GP has completed. */
+	if (!rcu_rdp_is_offloaded(rdp) && rcu_segcblist_is_enabled(&rdp->cblist)) {
+		struct rcu_gp_seq gp_state;
+
+		if (rcu_segcblist_nextgp(&rdp->cblist, &gp_state) &&
+		    poll_state_synchronize_rcu_full(&gp_state)) {
+			guard(irqsave)();
+			if (raw_spin_trylock_rcu_node(rnp)) {
+				bool needwake = rcu_advance_cbs(rnp, rdp);
+
+				raw_spin_unlock_rcu_node(rnp);
+				if (needwake)
+					rcu_gp_kthread_wake();
+			}
+		}
+	}
+
 	/* No grace period and unregistered callbacks? */
 	if (!rcu_gp_in_progress() &&
 	    rcu_segcblist_is_enabled(&rdp->cblist) && !rcu_rdp_is_offloaded(rdp)) {
