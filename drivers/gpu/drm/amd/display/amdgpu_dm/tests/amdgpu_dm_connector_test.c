@@ -3774,6 +3774,155 @@ static void dm_test_create_stream_existing_sink(struct kunit *test)
 	dc_sink_release(sink);
 }
 
+/* Tests for amdgpu_dm_connector_detect() */
+
+/*
+ * A non-DisplayPort connector keeps update_subconnector_property() a no-op and,
+ * because the kunit thread is not the poll worker, the analog poll branch is
+ * skipped. That leaves the forced-state and dc_sink presence branches as the
+ * deterministic behaviour to exercise.
+ */
+static struct amdgpu_dm_connector *dm_test_detect_connector(struct kunit *test)
+{
+	struct drm_device *drm = dm_test_alloc_drm(test);
+
+	return dm_test_add_connector(test, drm, DRM_MODE_CONNECTOR_HDMIA);
+}
+
+/**
+ * dm_test_detect_force_on - Test DRM_FORCE_ON reports connected
+ * @test: The KUnit test context
+ */
+static void dm_test_detect_force_on(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector = dm_test_detect_connector(test);
+
+	aconnector->base.force = DRM_FORCE_ON;
+
+	KUNIT_EXPECT_EQ(test,
+		(int)amdgpu_dm_connector_detect(&aconnector->base, false),
+		(int)connector_status_connected);
+}
+
+/**
+ * dm_test_detect_force_on_digital - Test DRM_FORCE_ON_DIGITAL reports connected
+ * @test: The KUnit test context
+ */
+static void dm_test_detect_force_on_digital(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector = dm_test_detect_connector(test);
+
+	aconnector->base.force = DRM_FORCE_ON_DIGITAL;
+
+	KUNIT_EXPECT_EQ(test,
+		(int)amdgpu_dm_connector_detect(&aconnector->base, false),
+		(int)connector_status_connected);
+}
+
+/**
+ * dm_test_detect_force_off - Test DRM_FORCE_OFF reports disconnected
+ * @test: The KUnit test context
+ */
+static void dm_test_detect_force_off(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector = dm_test_detect_connector(test);
+
+	aconnector->base.force = DRM_FORCE_OFF;
+
+	KUNIT_EXPECT_EQ(test,
+		(int)amdgpu_dm_connector_detect(&aconnector->base, false),
+		(int)connector_status_disconnected);
+}
+
+/**
+ * dm_test_detect_sink_present - Test a present dc_sink reports connected
+ * @test: The KUnit test context
+ */
+static void dm_test_detect_sink_present(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector = dm_test_detect_connector(test);
+	struct dc_sink *sink;
+
+	sink = kunit_kzalloc(test, sizeof(*sink), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, sink);
+
+	aconnector->base.force = DRM_FORCE_UNSPECIFIED;
+	aconnector->dc_sink = sink;
+
+	KUNIT_EXPECT_EQ(test,
+		(int)amdgpu_dm_connector_detect(&aconnector->base, false),
+		(int)connector_status_connected);
+}
+
+/**
+ * dm_test_detect_no_sink - Test a missing dc_sink reports disconnected
+ * @test: The KUnit test context
+ */
+static void dm_test_detect_no_sink(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector = dm_test_detect_connector(test);
+
+	aconnector->base.force = DRM_FORCE_UNSPECIFIED;
+	aconnector->dc_sink = NULL;
+
+	KUNIT_EXPECT_EQ(test,
+		(int)amdgpu_dm_connector_detect(&aconnector->base, false),
+		(int)connector_status_disconnected);
+}
+
+/* Tests for amdgpu_dm_connector_poll() */
+
+/**
+ * dm_test_poll_dac_load_returns_cached - Test the DAC load detection shortcut
+ * @test: The KUnit test context
+ *
+ * When the previous connection was established by analog DAC load detection and
+ * polling is not forced, the connector is not re-detected and its cached status
+ * is returned unchanged. The connector is embedded in an amdgpu_device so that
+ * drm_to_adev() resolves.
+ */
+static void dm_test_poll_dac_load_returns_cached(struct kunit *test)
+{
+	struct amdgpu_device *adev;
+	struct amdgpu_dm_connector *aconnector;
+	struct dc_link *link;
+	struct dc_sink *local_sink;
+	struct drm_device *drm;
+	struct device *dev;
+
+	dev = drm_kunit_helper_alloc_device(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+
+	drm = __drm_kunit_helper_alloc_drm_device(test, dev, sizeof(*adev),
+						  offsetof(struct amdgpu_device, ddev),
+						  DRIVER_MODESET);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, drm);
+	adev = drm_to_adev(drm);
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+	KUNIT_ASSERT_EQ(test,
+		drmm_connector_init(drm, &aconnector->base,
+				    &dm_test_connector_funcs,
+				    DRM_MODE_CONNECTOR_VGA, NULL), 0);
+
+	link = kunit_kzalloc(test, sizeof(*link), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, link);
+	local_sink = kunit_kzalloc(test, sizeof(*local_sink), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, local_sink);
+
+	link->local_sink = local_sink;
+	link->type = dc_connection_analog_load;
+	aconnector->dc_link = link;
+
+	/* The cached status that the shortcut must return unchanged. */
+	aconnector->base.status = connector_status_connected;
+
+	KUNIT_EXPECT_EQ(test,
+		(int)amdgpu_dm_connector_poll(aconnector, false),
+		(int)connector_status_connected);
+}
+
 static struct kunit_case amdgpu_dm_connector_tests[] = {
 	/* get_subconnector_type */
 	KUNIT_CASE(dm_test_subconnector_type_none),
@@ -3974,6 +4123,14 @@ static struct kunit_case amdgpu_dm_connector_tests[] = {
 	KUNIT_CASE(dm_test_create_stream_virtual_signal),
 	KUNIT_CASE(dm_test_create_stream_scaling_src),
 	KUNIT_CASE(dm_test_create_stream_existing_sink),
+	/* amdgpu_dm_connector_detect */
+	KUNIT_CASE(dm_test_detect_force_on),
+	KUNIT_CASE(dm_test_detect_force_on_digital),
+	KUNIT_CASE(dm_test_detect_force_off),
+	KUNIT_CASE(dm_test_detect_sink_present),
+	KUNIT_CASE(dm_test_detect_no_sink),
+	/* amdgpu_dm_connector_poll */
+	KUNIT_CASE(dm_test_poll_dac_load_returns_cached),
 	{}
 };
 
