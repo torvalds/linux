@@ -87,16 +87,17 @@ static int amdtp_wait_for_response(struct hid_device *hid)
 			break;
 	}
 
-	if (!cli_data->request_done[i])
+	if (!cli_data->request_done[i]) {
 		ret = wait_event_interruptible_timeout(hid_data->hid_wait,
 						       cli_data->request_done[i],
 						       msecs_to_jiffies(AMD_SFH_RESPONSE_TIMEOUT));
-	if (ret == -ERESTARTSYS)
-		return -ERESTARTSYS;
-	else if (ret < 0)
-		return -ETIMEDOUT;
-	else
-		return 0;
+		if (ret == -ERESTARTSYS)
+			return -ERESTARTSYS;
+		if (ret <= 0)
+			return -ETIMEDOUT;
+	}
+
+	return 0;
 }
 
 void amdtp_hid_wakeup(struct hid_device *hid)
