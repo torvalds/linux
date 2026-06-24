@@ -2250,6 +2250,8 @@ struct rtw89_btc_bt_info {
 	u32 scan_info_update: 1;
 	u32 lna_constrain: 3;
 	u32 rsvd: 17;
+
+	u32 bcnt[BTC_BCNT_NUM];
 };
 
 struct rtw89_btc_rf_trx_para_v9 {
@@ -2267,7 +2269,6 @@ struct rtw89_btc_cx {
 	struct rtw89_btc_bt_info bt1;
 	struct rtw89_btc_3rdcx_info other;
 	u32 state_map;
-	u32 cnt_bt[BTC_BCNT_NUM];
 };
 
 struct rtw89_btc_fbtc_tdma {
