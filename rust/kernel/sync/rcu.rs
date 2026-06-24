@@ -50,3 +50,19 @@ impl Drop for Guard {
 pub fn read_lock() -> Guard {
     Guard::new()
 }
+
+/// Wait for one RCU grace period.
+///
+/// Waits for all RCU read-side critical sections (such as those established by
+/// a [`Guard`]) at the moment of the function call to finish.
+///
+/// Does not prevent new read-side critical sections from starting, which may
+/// begin and run while this call is blocking.
+///
+/// Note that this is one of the RCU primitives which must not be called in
+/// atomic context.
+#[inline]
+pub fn synchronize_rcu() {
+    // SAFETY: `synchronize_rcu()` is always safe to be called from process context.
+    unsafe { bindings::synchronize_rcu() };
+}
