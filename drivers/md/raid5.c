@@ -801,7 +801,7 @@ static bool is_inactive_blocked(struct r5conf *conf, int hash)
 		return true;
 
 	return (atomic_read(&conf->active_stripes) <
-		(conf->max_nr_stripes * 3 / 4));
+		(READ_ONCE(conf->max_nr_stripes) * 3 / 4));
 }
 
 struct stripe_head *raid5_get_active_stripe(struct r5conf *conf,
@@ -2785,6 +2785,7 @@ static void raid5_end_read_request(struct bio * bi)
 	} else {
 		int retry = 0;
 		int set_bad = 0;
+		int max_nr_stripes = READ_ONCE(conf->max_nr_stripes);
 
 		clear_bit(R5_UPTODATE, &sh->dev[i].flags);
 		if (!(bi->bi_status == BLK_STS_PROTECTION))
@@ -2810,13 +2811,12 @@ static void raid5_end_read_request(struct bio * bi)
 				mdname(conf->mddev),
 				(unsigned long long)s,
 				rdev->bdev);
-		} else if (atomic_read(&rdev->read_errors)
-			 > conf->max_nr_stripes) {
+		} else if (atomic_read(&rdev->read_errors) > max_nr_stripes) {
 			if (!test_bit(Faulty, &rdev->flags)) {
 				pr_warn("md/raid:%s: %d read_errors > %d stripes\n",
 				    mdname(conf->mddev),
 				    atomic_read(&rdev->read_errors),
-				    conf->max_nr_stripes);
+				    max_nr_stripes);
 				pr_warn("md/raid:%s: Too many read errors, failing device %pg.\n",
 				    mdname(conf->mddev), rdev->bdev);
 			}
