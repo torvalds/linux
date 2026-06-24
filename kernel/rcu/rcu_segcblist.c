@@ -463,12 +463,42 @@ void rcu_segcblist_insert_pend_cbs(struct rcu_segcblist *rsclp,
 }
 
 /*
+ * Clean up and compact the segmented callback list after callbacks have been
+ * advanced to the RCU_DONE_TAIL segment.  The @i parameter is the index of the
+ * first segment that was NOT advanced (i.e., the segment after the last one
+ * moved to RCU_DONE_TAIL). This function fixes up tail pointers and compacts
+ * any gaps left by the moved segments.
+ */
+static void rcu_segcblist_advance_compact(struct rcu_segcblist *rsclp, int i)
+{
+	int j;
+
+	/* Clean up tail pointers that might have been misordered above. */
+	for (j = RCU_WAIT_TAIL; j < i; j++)
+		WRITE_ONCE(rsclp->tails[j], rsclp->tails[RCU_DONE_TAIL]);
+
+	/*
+	 * Callbacks moved, so there might be an empty RCU_WAIT_TAIL
+	 * and a non-empty RCU_NEXT_READY_TAIL.  If so, copy the
+	 * RCU_NEXT_READY_TAIL segment to fill the RCU_WAIT_TAIL gap
+	 * created by the now-ready-to-invoke segments.
+	 */
+	for (j = RCU_WAIT_TAIL; i < RCU_NEXT_TAIL; i++, j++) {
+		if (rsclp->tails[j] == rsclp->tails[RCU_NEXT_TAIL])
+			break;  /* No more callbacks. */
+		WRITE_ONCE(rsclp->tails[j], rsclp->tails[i]);
+		rcu_segcblist_move_seglen(rsclp, i, j);
+		rsclp->gp_seq[j] = rsclp->gp_seq[i];
+	}
+}
+
+/*
  * Advance the callbacks in the specified rcu_segcblist structure based
  * on the current value passed in for the grace-period counter.
  */
 void rcu_segcblist_advance(struct rcu_segcblist *rsclp, unsigned long seq)
 {
-	int i, j;
+	int i;
 
 	WARN_ON_ONCE(!rcu_segcblist_is_enabled(rsclp));
 	if (rcu_segcblist_restempty(rsclp, RCU_DONE_TAIL))
@@ -489,23 +519,7 @@ void rcu_segcblist_advance(struct rcu_segcblist *rsclp, unsigned long seq)
 	if (i == RCU_WAIT_TAIL)
 		return;
 
-	/* Clean up tail pointers that might have been misordered above. */
-	for (j = RCU_WAIT_TAIL; j < i; j++)
-		WRITE_ONCE(rsclp->tails[j], rsclp->tails[RCU_DONE_TAIL]);
-
-	/*
-	 * Callbacks moved, so there might be an empty RCU_WAIT_TAIL
-	 * and a non-empty RCU_NEXT_READY_TAIL.  If so, copy the
-	 * RCU_NEXT_READY_TAIL segment to fill the RCU_WAIT_TAIL gap
-	 * created by the now-ready-to-invoke segments.
-	 */
-	for (j = RCU_WAIT_TAIL; i < RCU_NEXT_TAIL; i++, j++) {
-		if (rsclp->tails[j] == rsclp->tails[RCU_NEXT_TAIL])
-			break;  /* No more callbacks. */
-		WRITE_ONCE(rsclp->tails[j], rsclp->tails[i]);
-		rcu_segcblist_move_seglen(rsclp, i, j);
-		rsclp->gp_seq[j] = rsclp->gp_seq[i];
-	}
+	rcu_segcblist_advance_compact(rsclp, i);
 }
 
 /*
