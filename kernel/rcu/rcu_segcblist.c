@@ -307,13 +307,13 @@ struct rcu_head *rcu_segcblist_first_pend_cb(struct rcu_segcblist *rsclp)
 
 /*
  * Return false if there are no CBs awaiting grace periods, otherwise,
- * return true and store the nearest waited-upon grace period into *lp.
+ * return true and store the nearest waited-upon grace period state into *gsp.
  */
-bool rcu_segcblist_nextgp(struct rcu_segcblist *rsclp, unsigned long *lp)
+bool rcu_segcblist_nextgp(struct rcu_segcblist *rsclp, struct rcu_gp_seq *gsp)
 {
 	if (!rcu_segcblist_pend_cbs(rsclp))
 		return false;
-	*lp = rsclp->gp_seq[RCU_WAIT_TAIL];
+	*gsp = rsclp->gp_seq[RCU_WAIT_TAIL];
 	return true;
 }
 
@@ -496,7 +496,7 @@ static void rcu_segcblist_advance_compact(struct rcu_segcblist *rsclp, int i)
  * Advance the callbacks in the specified rcu_segcblist structure based
  * on the current value passed in for the grace-period counter.
  */
-void rcu_segcblist_advance(struct rcu_segcblist *rsclp, unsigned long seq)
+void rcu_segcblist_advance(struct rcu_segcblist *rsclp, struct rcu_gp_seq *gsp)
 {
 	int i;
 
@@ -509,7 +509,7 @@ void rcu_segcblist_advance(struct rcu_segcblist *rsclp, unsigned long seq)
 	 * are ready to invoke, and put them into the RCU_DONE_TAIL segment.
 	 */
 	for (i = RCU_WAIT_TAIL; i < RCU_NEXT_TAIL; i++) {
-		if (ULONG_CMP_LT(seq, rsclp->gp_seq[i]))
+		if (ULONG_CMP_LT(gsp->norm, rsclp->gp_seq[i].norm))
 			break;
 		WRITE_ONCE(rsclp->tails[RCU_DONE_TAIL], rsclp->tails[i]);
 		rcu_segcblist_move_seglen(rsclp, i, RCU_DONE_TAIL);
@@ -537,7 +537,7 @@ void rcu_segcblist_advance(struct rcu_segcblist *rsclp, unsigned long seq)
  * ready to invoke.  Returns true if there are callbacks that won't be
  * ready to invoke until seq, false otherwise.
  */
-bool rcu_segcblist_accelerate(struct rcu_segcblist *rsclp, unsigned long seq)
+bool rcu_segcblist_accelerate(struct rcu_segcblist *rsclp, struct rcu_gp_seq *gsp)
 {
 	int i, j;
 
@@ -555,7 +555,7 @@ bool rcu_segcblist_accelerate(struct rcu_segcblist *rsclp, unsigned long seq)
 	 */
 	for (i = RCU_NEXT_READY_TAIL; i > RCU_DONE_TAIL; i--)
 		if (!rcu_segcblist_segempty(rsclp, i) &&
-		    ULONG_CMP_LT(rsclp->gp_seq[i], seq))
+		    ULONG_CMP_LT(rsclp->gp_seq[i].norm, gsp->norm))
 			break;
 
 	/*
@@ -595,7 +595,7 @@ bool rcu_segcblist_accelerate(struct rcu_segcblist *rsclp, unsigned long seq)
 	 */
 	for (; i < RCU_NEXT_TAIL; i++) {
 		WRITE_ONCE(rsclp->tails[i], rsclp->tails[RCU_NEXT_TAIL]);
-		rsclp->gp_seq[i] = seq;
+		rsclp->gp_seq[i].norm = gsp->norm;
 	}
 	return true;
 }
@@ -637,10 +637,14 @@ void rcu_segcblist_merge(struct rcu_segcblist *dst_rsclp,
 
 void srcu_segcblist_advance(struct rcu_segcblist *rsclp, unsigned long seq)
 {
-	rcu_segcblist_advance(rsclp, seq);
+	struct rcu_gp_seq gs = { .norm = seq };
+
+	rcu_segcblist_advance(rsclp, &gs);
 }
 
 bool srcu_segcblist_accelerate(struct rcu_segcblist *rsclp, unsigned long seq)
 {
-	return rcu_segcblist_accelerate(rsclp, seq);
+	struct rcu_gp_seq gs = { .norm = seq };
+
+	return rcu_segcblist_accelerate(rsclp, &gs);
 }
