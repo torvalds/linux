@@ -3745,6 +3745,79 @@ handle_failed_sync(struct r5conf *conf, struct stripe_head *sh,
 		md_sync_error(conf->mddev);
 }
 
+/*
+ * handle_failed_reshape - handle failed stripes when reshape failed and
+ *			   degraded devices >= max_degraded
+ *
+ * handle following kinds of stripe:
+ * 1. cleanup the following kinds of destination stripe:
+ *	- new regions past the old end of the array, zero-filled in place,
+ *	  requires no source data.
+ *		(STRIPE_EXPANDING | STRIPE_EXPAND_READY)
+ *	- prepare source data chunks already done, and writeout failed
+ *		(STRIPE_EXPAND_READY)
+ * 2. dest stripes that need source data (STRIPE_EXPANDING, no STRIPE_HANDLE)
+ *   - these kind of stripes sit idle in the stripe cache and are never seen
+ *     by handle_stripe(). So clean up indirectly when their source stripe
+ *     (type 3) is processed.
+ * 3. src stripes (STRIPE_EXPAND_SOURCE)
+ *   - hit handle_stripe() after their member disks are marked Faulty.
+ *   - clear STRIPE_EXPAND_SOURCE, finds and cleanup all dependent destination
+ *     stripes that were waiting for data.
+ *   - walks the source's data disks, compute the corresponding destination
+ *     sector, looks up the destination stripe, and do cleanup(clear flags,
+ *     dec counters, call md_done_sync())
+ */
+static void handle_failed_reshape(struct r5conf *conf, struct stripe_head *sh,
+				  struct stripe_head_state *s)
+{
+	int i;
+	bool was_expanding = test_and_clear_bit(STRIPE_EXPANDING, &sh->state);
+	bool was_ready = test_and_clear_bit(STRIPE_EXPAND_READY, &sh->state);
+
+	if (was_expanding || was_ready) {
+		atomic_dec(&conf->reshape_stripes);
+		wake_up(&conf->wait_for_reshape);
+		md_done_sync(conf->mddev, RAID5_STRIPE_SECTORS(conf));
+	}
+
+	s->expanded = 0;
+	s->expanding = 0;
+
+	/* release the destination stripes that are waiting to be filled */
+	if (test_and_clear_bit(STRIPE_EXPAND_SOURCE, &sh->state)) {
+		for (i = 0; i < sh->disks; i++) {
+			int dd_idx;
+			struct stripe_head *sh2;
+			sector_t bn, sec;
+
+			if (i == sh->pd_idx)
+				continue;
+			if (conf->level == 6 && i == sh->qd_idx)
+				continue;
+
+			bn = raid5_compute_blocknr(sh, i, 1);
+			sec = raid5_compute_sector(conf, bn, 0, &dd_idx, NULL);
+			sh2 = raid5_get_active_stripe(conf, NULL, sec,
+						      R5_GAS_NOBLOCK |
+						      R5_GAS_NOQUIESCE);
+			if (!sh2)
+				continue;
+
+			if (test_and_clear_bit(STRIPE_EXPANDING, &sh2->state)) {
+				atomic_dec(&conf->reshape_stripes);
+				wake_up(&conf->wait_for_reshape);
+				md_done_sync(conf->mddev,
+					     RAID5_STRIPE_SECTORS(conf));
+			}
+
+			clear_bit(STRIPE_EXPAND_READY, &sh2->state);
+
+			raid5_release_stripe(sh2);
+		}
+	}
+}
+
 static int want_replace(struct stripe_head *sh, int disk_idx)
 {
 	struct md_rdev *rdev;
@@ -5025,6 +5098,8 @@ static void handle_stripe(struct stripe_head *sh)
 			handle_failed_stripe(conf, sh, &s, disks);
 		if (s.syncing + s.replacing)
 			handle_failed_sync(conf, sh, &s);
+		if (s.expanding + s.expanded)
+			handle_failed_reshape(conf, sh, &s);
 	}
 
 	/* Now we check to see if any write operations have recently
