@@ -2127,6 +2127,50 @@ struct dc_state_update {
  */
 bool dc_update_state(struct dc *dc, struct dc_state_update *updates);
 
+/**
+ * enum dc_get_status_type - Bitmask selecting which status classes to populate.
+ * @DC_GET_STATUS_STREAM: populate stream_status fields in dc_state_status
+ */
+enum dc_get_status_type {
+	DC_GET_STATUS_STREAM = (1u << 0),
+};
+
+/**
+ * struct dc_get_status_options - Input selector for dc_state_get_status.
+ * @state:  source state to read status from
+ * @types:  OR of dc_get_status_type values selecting classes to populate
+ * @stream: optional stream filter for DC_GET_STATUS_STREAM. NULL means
+ *          populate status for all streams in the state
+ */
+struct dc_get_status_options {
+	struct dc_state              *state;
+	uint32_t                      types;
+	const struct dc_stream_state *stream;
+};
+
+/**
+ * struct dc_state_status - Output-only status object from dc_state_get_status.
+ * @stream_count: number of valid entries in stream_status (DC_GET_STATUS_STREAM)
+ * @stream_status: pointers to live per-stream status entries
+ */
+struct dc_state_status {
+	int                     stream_count;
+	struct dc_stream_status *stream_status[MAX_STREAMS];
+};
+
+/**
+ * dc_state_get_status - Unified status readback for dc_state.
+ * @status:  output object populated according to options->types
+ * @options: selects the source state, status classes to fill, and filters
+ *
+ * dc_state_get_stream_status() is a thin shim over this function with
+ * types = DC_GET_STATUS_STREAM and a stream filter.
+ *
+ * Return: DC_OK on success, DC_ERROR_UNEXPECTED if state is NULL.
+ */
+enum dc_status dc_state_get_status(struct dc_state_status *status,
+		const struct dc_get_status_options *options);
+
 struct dc_underflow_debug_data {
 	struct dcn_hubbub_reg_state *hubbub_reg_state;
 	struct dcn_hubp_reg_state *hubp_reg_state[MAX_PIPES];
