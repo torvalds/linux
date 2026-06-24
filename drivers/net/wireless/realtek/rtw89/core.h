@@ -3365,7 +3365,7 @@ struct rtw89_btc_ver {
 
 	u8 fwevntrptl;
 	u8 fwc2hfunc;
-	u8 drvinfo_type;
+	u8 drvinfo_ver;
 	u16 info_buf;
 	u8 max_role_num;
 	u8 fcxosi;
