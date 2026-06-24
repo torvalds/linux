@@ -1093,7 +1093,7 @@ next:
 		struct defrag_target_range *tmp;
 
 		list_for_each_entry_safe(entry, tmp, target_list, list) {
-			list_del_init(&entry->list);
+			list_del(&entry->list);
 			kfree(entry);
 		}
 	}
