@@ -2078,6 +2078,7 @@ struct rtw89_btc_wl_info {
 	bool link_mode_chg;
 	bool dbcc_chg;
 	u32 scbd;
+	u32 wcnt[BTC_WCNT_NUM];
 };
 
 struct rtw89_btc_module {
@@ -2267,7 +2268,6 @@ struct rtw89_btc_cx {
 	struct rtw89_btc_3rdcx_info other;
 	u32 state_map;
 	u32 cnt_bt[BTC_BCNT_NUM];
-	u32 cnt_wl[BTC_WCNT_NUM];
 };
 
 struct rtw89_btc_fbtc_tdma {

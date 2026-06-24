@@ -3411,7 +3411,7 @@ static void _set_bt_afh_info_v0(struct rtw89_dev *rtwdev)
 	rtw89_debug(rtwdev, RTW89_DBG_BTC,
 		    "[BTC], %s(): en=%d, ch=%d, bw=%d\n",
 		    __func__, en, ch, bw);
-	btc->cx.cnt_wl[BTC_WCNT_CH_UPDATE]++;
+	wl->wcnt[BTC_WCNT_CH_UPDATE]++;
 }
 
 static void _set_bt_afh_info_v1(struct rtw89_dev *rtwdev)
@@ -3511,7 +3511,7 @@ static void _set_bt_afh_info_v1(struct rtw89_dev *rtwdev)
 			    "[BTC], %s(): en=%d, ch=%d, bw=%d\n",
 			    __func__, en, ch, bw);
 
-		btc->cx.cnt_wl[BTC_WCNT_CH_UPDATE]++;
+		wl->wcnt[BTC_WCNT_CH_UPDATE]++;
 	}
 }
 
@@ -5630,7 +5630,7 @@ static void _action_common(struct rtw89_dev *rtwdev)
 		rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], write scbd: 0x%08x\n",
 			    wl->scbd);
 		wl->scbd_change = false;
-		btc->cx.cnt_wl[BTC_WCNT_SCBDUPDATE]++;
+		wl->wcnt[BTC_WCNT_SCBDUPDATE]++;
 	}
 
 	if (btc->ver->fcxosi) {
@@ -6877,7 +6877,7 @@ static void _update_wl_info_v7(struct rtw89_dev *rtwdev, u8 rid)
 	if (wl_rinfo->dbcc_en != rtwdev->dbcc_en) {
 		wl_rinfo->dbcc_chg = 1;
 		wl_rinfo->dbcc_en = rtwdev->dbcc_en;
-		btc->cx.cnt_wl[BTC_WCNT_DBCC_CHG]++;
+		wl->wcnt[BTC_WCNT_DBCC_CHG]++;
 	}
 
 	if (rtwdev->dbcc_en) {
@@ -7321,7 +7321,7 @@ static void _update_wl_info_v8(struct rtw89_dev *rtwdev, u8 role_id, u8 rlink_id
 
 	if (wl_rinfo->dbcc_en != dbcc_en_ori) {
 		wl->dbcc_chg = true;
-		btc->cx.cnt_wl[BTC_WCNT_DBCC_CHG]++;
+		wl->wcnt[BTC_WCNT_DBCC_CHG]++;
 	}
 }
 
@@ -7378,7 +7378,7 @@ void rtw89_coex_rfk_chk_work(struct wiphy *wiphy, struct wiphy_work *work)
 	if (wl->rfk_info.state != BTC_WRFK_STOP) {
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,
 			    "[BTC], %s(): RFK timeout\n", __func__);
-		cx->cnt_wl[BTC_WCNT_RFK_TIMEOUT]++;
+		wl->wcnt[BTC_WCNT_RFK_TIMEOUT]++;
 		dm->error.map.wl_rfk_timeout = true;
 		wl->rfk_info.state = BTC_WRFK_STOP;
 		_write_scbd(rtwdev, BTC_WSCB_WLRFK, false);
@@ -7520,13 +7520,13 @@ static bool _chk_wl_rfk_request(struct rtw89_dev *rtwdev)
 
 	_update_bt_scbd(rtwdev, true);
 
-	cx->cnt_wl[BTC_WCNT_RFK_REQ]++;
+	cx->wl.wcnt[BTC_WCNT_RFK_REQ]++;
 
 	if ((bt->rfk_info.map.run || bt->rfk_info.map.req) &&
 	    !bt->rfk_info.map.timeout) {
-		cx->cnt_wl[BTC_WCNT_RFK_REJECT]++;
+		cx->wl.wcnt[BTC_WCNT_RFK_REJECT]++;
 	} else {
-		cx->cnt_wl[BTC_WCNT_RFK_GO]++;
+		cx->wl.wcnt[BTC_WCNT_RFK_GO]++;
 		return true;
 	}
 	return false;
@@ -7934,14 +7934,14 @@ void rtw89_btc_ntfy_specific_packet(struct rtw89_dev *rtwdev,
 
 	switch (pkt_type) {
 	case PACKET_DHCP:
-		cnt = ++cx->cnt_wl[BTC_WCNT_DHCP];
+		cnt = ++wl->wcnt[BTC_WCNT_DHCP];
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,
 			    "[BTC], %s(): DHCP cnt=%d\n", __func__, cnt);
 		wl->status.map.connecting = true;
 		delay_work = true;
 		break;
 	case PACKET_EAPOL:
-		cnt = ++cx->cnt_wl[BTC_WCNT_EAPOL];
+		cnt = ++wl->wcnt[BTC_WCNT_EAPOL];
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,
 			    "[BTC], %s(): EAPOL cnt=%d\n", __func__, cnt);
 		wl->status.map._4way = true;
@@ -7950,7 +7950,7 @@ void rtw89_btc_ntfy_specific_packet(struct rtw89_dev *rtwdev,
 			delay /= 2;
 		break;
 	case PACKET_EAPOL_END:
-		cnt = ++cx->cnt_wl[BTC_WCNT_EAPOL];
+		cnt = ++wl->wcnt[BTC_WCNT_EAPOL];
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,
 			    "[BTC], %s(): EAPOL_End cnt=%d\n",
 			    __func__, cnt);
@@ -7958,7 +7958,7 @@ void rtw89_btc_ntfy_specific_packet(struct rtw89_dev *rtwdev,
 		wiphy_delayed_work_cancel(rtwdev->hw->wiphy, &rtwdev->coex_act1_work);
 		break;
 	case PACKET_ARP:
-		cnt = ++cx->cnt_wl[BTC_WCNT_ARP];
+		cnt = ++wl->wcnt[BTC_WCNT_ARP];
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,
 			    "[BTC], %s(): ARP cnt=%d\n", __func__, cnt);
 		return;
@@ -10913,7 +10913,7 @@ static int _show_mreg_v1(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 	p += scnprintf(p, end - p,
 		       " %-15s : WL->BT:0x%08x(cnt:%d), BT->WL:0x%08x(total:%d, bt_update:%d)\n",
 		       "[scoreboard]", wl->scbd,
-		       cx->cnt_wl[BTC_WCNT_SCBDUPDATE],
+		       wl->wcnt[BTC_WCNT_SCBDUPDATE],
 		       bt->scbd, cx->cnt_bt[BTC_BCNT_SCBDREAD],
 		       cx->cnt_bt[BTC_BCNT_SCBDUPDATE]);
 
@@ -10998,7 +10998,7 @@ static int _show_mreg_v2(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 	p += scnprintf(p, end - p,
 		       " %-15s : WL->BT:0x%08x(cnt:%d), BT->WL:0x%08x(total:%d, bt_update:%d)\n",
 		       "[scoreboard]", wl->scbd,
-		       cx->cnt_wl[BTC_WCNT_SCBDUPDATE],
+		       wl->wcnt[BTC_WCNT_SCBDUPDATE],
 		       bt->scbd, cx->cnt_bt[BTC_BCNT_SCBDREAD],
 		       cx->cnt_bt[BTC_BCNT_SCBDUPDATE]);
 
@@ -11083,7 +11083,7 @@ static int _show_mreg_v7(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 	p += scnprintf(p, end - p,
 		       "\n\r %-15s : WL->BT:0x%08x(cnt:%d), BT->WL:0x%08x(total:%d, bt_update:%d)",
 		       "[scoreboard]", wl->scbd,
-		       cx->cnt_wl[BTC_WCNT_SCBDUPDATE],
+		       wl->wcnt[BTC_WCNT_SCBDUPDATE],
 		       bt->scbd, cx->cnt_bt[BTC_BCNT_SCBDREAD],
 		       cx->cnt_bt[BTC_BCNT_SCBDUPDATE]);
 
@@ -11189,10 +11189,10 @@ static int _show_summary_v1(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 
 		p += scnprintf(p, end - p,
 			       " %-15s : wl_rfk[req:%d/go:%d/reject:%d/timeout:%d]",
-			       "[RFK]", cx->cnt_wl[BTC_WCNT_RFK_REQ],
-			       cx->cnt_wl[BTC_WCNT_RFK_GO],
-			       cx->cnt_wl[BTC_WCNT_RFK_REJECT],
-			       cx->cnt_wl[BTC_WCNT_RFK_TIMEOUT]);
+			       "[RFK]", wl->wcnt[BTC_WCNT_RFK_REQ],
+			       wl->wcnt[BTC_WCNT_RFK_GO],
+			       wl->wcnt[BTC_WCNT_RFK_REJECT],
+			       wl->wcnt[BTC_WCNT_RFK_TIMEOUT]);
 
 		p += scnprintf(p, end - p,
 			       ", bt_rfk[req:%d/go:%d/reject:%d/timeout:%d/fail:%d]\n",
@@ -11304,10 +11304,10 @@ static int _show_summary_v4(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 
 		p += scnprintf(p, end - p,
 			       " %-15s : wl_rfk[req:%d/go:%d/reject:%d/timeout:%d]",
-			       "[RFK]", cx->cnt_wl[BTC_WCNT_RFK_REQ],
-			       cx->cnt_wl[BTC_WCNT_RFK_GO],
-			       cx->cnt_wl[BTC_WCNT_RFK_REJECT],
-			       cx->cnt_wl[BTC_WCNT_RFK_TIMEOUT]);
+			       "[RFK]", wl->wcnt[BTC_WCNT_RFK_REQ],
+			       wl->wcnt[BTC_WCNT_RFK_GO],
+			       wl->wcnt[BTC_WCNT_RFK_REJECT],
+			       wl->wcnt[BTC_WCNT_RFK_TIMEOUT]);
 
 		p += scnprintf(p, end - p,
 			       ", bt_rfk[req:%d/go:%d/reject:%d/timeout:%d/fail:%d]\n",
@@ -11418,10 +11418,10 @@ static int _show_summary_v5(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 
 		p += scnprintf(p, end - p,
 			       " %-15s : wl_rfk[req:%d/go:%d/reject:%d/tout:%d]",
-			       "[RFK/LPS]", cx->cnt_wl[BTC_WCNT_RFK_REQ],
-			       cx->cnt_wl[BTC_WCNT_RFK_GO],
-			       cx->cnt_wl[BTC_WCNT_RFK_REJECT],
-			       cx->cnt_wl[BTC_WCNT_RFK_TIMEOUT]);
+			       "[RFK/LPS]", wl->wcnt[BTC_WCNT_RFK_REQ],
+			       wl->wcnt[BTC_WCNT_RFK_GO],
+			       wl->wcnt[BTC_WCNT_RFK_REJECT],
+			       wl->wcnt[BTC_WCNT_RFK_TIMEOUT]);
 
 		p += scnprintf(p, end - p,
 			       ", bt_rfk[req:%d]",
@@ -11539,10 +11539,10 @@ static int _show_summary_v105(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 
 		p += scnprintf(p, end - p,
 			       " %-15s : wl_rfk[req:%d/go:%d/reject:%d/tout:%d]",
-			       "[RFK/LPS]", cx->cnt_wl[BTC_WCNT_RFK_REQ],
-			       cx->cnt_wl[BTC_WCNT_RFK_GO],
-			       cx->cnt_wl[BTC_WCNT_RFK_REJECT],
-			       cx->cnt_wl[BTC_WCNT_RFK_TIMEOUT]);
+			       "[RFK/LPS]", wl->wcnt[BTC_WCNT_RFK_REQ],
+			       wl->wcnt[BTC_WCNT_RFK_GO],
+			       wl->wcnt[BTC_WCNT_RFK_REJECT],
+			       wl->wcnt[BTC_WCNT_RFK_TIMEOUT]);
 
 		p += scnprintf(p, end - p,
 			       ", bt_rfk[req:%d]",
@@ -11664,10 +11664,10 @@ static int _show_summary_v7(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 
 		p += scnprintf(p, end - p,
 			       "\n\r %-15s : wl_rfk[req:%d/go:%d/reject:%d/tout:%d/time:%dms]",
-			       "[RFK/LPS]", cx->cnt_wl[BTC_WCNT_RFK_REQ],
-			       cx->cnt_wl[BTC_WCNT_RFK_GO],
-			       cx->cnt_wl[BTC_WCNT_RFK_REJECT],
-			       cx->cnt_wl[BTC_WCNT_RFK_TIMEOUT],
+			       "[RFK/LPS]", wl->wcnt[BTC_WCNT_RFK_REQ],
+			       wl->wcnt[BTC_WCNT_RFK_GO],
+			       wl->wcnt[BTC_WCNT_RFK_REJECT],
+			       wl->wcnt[BTC_WCNT_RFK_TIMEOUT],
 			       wl->rfk_info.proc_time);
 
 		p += scnprintf(p, end - p, ", bt_rfk[req:%d]",
@@ -11777,10 +11777,10 @@ static int _show_summary_v8(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 
 		p += scnprintf(p, end - p,
 			       "\n\r %-15s : wl_rfk[req:%d/go:%d/reject:%d/tout:%d/time:%dms]",
-			       "[RFK/LPS]", cx->cnt_wl[BTC_WCNT_RFK_REQ],
-			       cx->cnt_wl[BTC_WCNT_RFK_GO],
-			       cx->cnt_wl[BTC_WCNT_RFK_REJECT],
-			       cx->cnt_wl[BTC_WCNT_RFK_TIMEOUT],
+			       "[RFK/LPS]", wl->wcnt[BTC_WCNT_RFK_REQ],
+			       wl->wcnt[BTC_WCNT_RFK_GO],
+			       wl->wcnt[BTC_WCNT_RFK_REJECT],
+			       wl->wcnt[BTC_WCNT_RFK_TIMEOUT],
 			       wl->rfk_info.proc_time);
 
 		p += scnprintf(p, end - p, ", bt_rfk[req:%d]",
