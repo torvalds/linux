@@ -158,6 +158,12 @@ void fill_stream_properties_from_drm_display_mode(
 	const struct drm_connector_state *connector_state,
 	const struct dc_stream_state *old_stream,
 	int requested_bpc);
+struct dc_stream_state *
+create_stream_for_sink(struct drm_connector *connector,
+		       const struct drm_display_mode *drm_mode,
+		       const struct dm_connector_state *dm_state,
+		       const struct dc_stream_state *old_stream,
+		       int requested_bpc);
 enum display_content_type
 get_output_content_type(const struct drm_connector_state *connector_state);
 bool adjust_colour_depth_from_display_info(struct dc_crtc_timing *timing_out,

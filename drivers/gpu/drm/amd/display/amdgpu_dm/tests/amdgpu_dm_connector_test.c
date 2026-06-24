@@ -3604,6 +3604,176 @@ static void dm_test_fill_stream_aspect_ratio(struct kunit *test)
 			(int)ASPECT_RATIO_16_9);
 }
 
+/* Tests for create_stream_for_sink() */
+
+/*
+ * Build the inputs for create_stream_for_sink(). The connector is registered
+ * against a real kunit drm_device so that to_amdgpu_dm_connector() and the drm
+ * debug helpers resolve. The DC link carries a zeroed dc_context so that
+ * dc_create_stream_for_sink() can allocate and construct a stream.
+ *
+ * By default no dc_sink is attached, so create_stream_for_sink() builds a fake
+ * VIRTUAL sink. The VIRTUAL signal keeps the DSC, audio and DP/HDMI infoframe
+ * paths as no-ops, making the exercised behaviour deterministic.
+ */
+struct dm_test_stream_ctx {
+	struct drm_device *drm;
+	struct amdgpu_dm_connector *aconnector;
+	struct dc_context *dc_ctx;
+	struct dc_link *link;
+	struct dm_connector_state *dm_state;
+	struct drm_display_mode *mode;
+};
+
+static struct dm_test_stream_ctx *dm_test_stream_ctx_alloc(struct kunit *test)
+{
+	struct dm_test_stream_ctx *ctx;
+	struct device *dev;
+
+	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx);
+
+	dev = drm_kunit_helper_alloc_device(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+
+	ctx->drm = __drm_kunit_helper_alloc_drm_device(test, dev,
+						       sizeof(*ctx->drm), 0,
+						       DRIVER_MODESET);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx->drm);
+
+	ctx->aconnector = kunit_kzalloc(test, sizeof(*ctx->aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->aconnector);
+	KUNIT_ASSERT_EQ(test,
+		drmm_connector_init(ctx->drm, &ctx->aconnector->base,
+				    &dm_test_connector_funcs,
+				    DRM_MODE_CONNECTOR_DisplayPort, NULL), 0);
+
+	ctx->dc_ctx = kunit_kzalloc(test, sizeof(*ctx->dc_ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->dc_ctx);
+
+	ctx->link = kunit_kzalloc(test, sizeof(*ctx->link), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->link);
+	ctx->link->ctx = ctx->dc_ctx;
+	ctx->link->connector_signal = SIGNAL_TYPE_DISPLAY_PORT;
+
+	ctx->aconnector->dc_link = ctx->link;
+	ctx->aconnector->dc_sink = NULL;
+
+	ctx->dm_state = kunit_kzalloc(test, sizeof(*ctx->dm_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->dm_state);
+	ctx->dm_state->scaling = RMX_OFF;
+
+	ctx->mode = kunit_kzalloc(test, sizeof(*ctx->mode), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->mode);
+	ctx->mode->hdisplay = 1920;
+	ctx->mode->vdisplay = 1080;
+	ctx->mode->clock = 148500;
+
+	return ctx;
+}
+
+/**
+ * dm_test_create_stream_fake_sink_success - Test a stream is built from a fake sink
+ * @test: The KUnit test context
+ */
+static void dm_test_create_stream_fake_sink_success(struct kunit *test)
+{
+	struct dm_test_stream_ctx *ctx = dm_test_stream_ctx_alloc(test);
+	struct dc_stream_state *stream;
+
+	stream = create_stream_for_sink(&ctx->aconnector->base, ctx->mode,
+					ctx->dm_state, NULL, 8);
+
+	KUNIT_ASSERT_NOT_NULL(test, stream);
+	dc_stream_release(stream);
+}
+
+/**
+ * dm_test_create_stream_sets_dm_context - Test dm_stream_context points to aconnector
+ * @test: The KUnit test context
+ */
+static void dm_test_create_stream_sets_dm_context(struct kunit *test)
+{
+	struct dm_test_stream_ctx *ctx = dm_test_stream_ctx_alloc(test);
+	struct dc_stream_state *stream;
+
+	stream = create_stream_for_sink(&ctx->aconnector->base, ctx->mode,
+					ctx->dm_state, NULL, 8);
+
+	KUNIT_ASSERT_NOT_NULL(test, stream);
+	KUNIT_EXPECT_PTR_EQ(test, stream->dm_stream_context, ctx->aconnector);
+	dc_stream_release(stream);
+}
+
+/**
+ * dm_test_create_stream_virtual_signal - Test the fake sink yields a VIRTUAL signal
+ * @test: The KUnit test context
+ */
+static void dm_test_create_stream_virtual_signal(struct kunit *test)
+{
+	struct dm_test_stream_ctx *ctx = dm_test_stream_ctx_alloc(test);
+	struct dc_stream_state *stream;
+
+	stream = create_stream_for_sink(&ctx->aconnector->base, ctx->mode,
+					ctx->dm_state, NULL, 8);
+
+	KUNIT_ASSERT_NOT_NULL(test, stream);
+	KUNIT_EXPECT_EQ(test, (int)stream->signal, (int)SIGNAL_TYPE_VIRTUAL);
+	dc_stream_release(stream);
+}
+
+/**
+ * dm_test_create_stream_scaling_src - Test the source rect follows the mode
+ * @test: The KUnit test context
+ *
+ * With scaling off the full-screen source viewport matches the requested mode.
+ */
+static void dm_test_create_stream_scaling_src(struct kunit *test)
+{
+	struct dm_test_stream_ctx *ctx = dm_test_stream_ctx_alloc(test);
+	struct dc_stream_state *stream;
+
+	stream = create_stream_for_sink(&ctx->aconnector->base, ctx->mode,
+					ctx->dm_state, NULL, 8);
+
+	KUNIT_ASSERT_NOT_NULL(test, stream);
+	KUNIT_EXPECT_EQ(test, (int)stream->src.width, 1920);
+	KUNIT_EXPECT_EQ(test, (int)stream->src.height, 1080);
+	dc_stream_release(stream);
+}
+
+/**
+ * dm_test_create_stream_existing_sink - Test the existing-sink retain path
+ * @test: The KUnit test context
+ *
+ * When the connector already has a dc_sink, create_stream_for_sink() reuses it
+ * instead of building a fake sink.
+ */
+static void dm_test_create_stream_existing_sink(struct kunit *test)
+{
+	struct dm_test_stream_ctx *ctx = dm_test_stream_ctx_alloc(test);
+	struct dc_sink_init_data sink_init = { 0 };
+	struct dc_stream_state *stream;
+	struct dc_sink *sink;
+
+	sink_init.link = ctx->link;
+	sink_init.sink_signal = SIGNAL_TYPE_VIRTUAL;
+	sink = dc_sink_create(&sink_init);
+	KUNIT_ASSERT_NOT_NULL(test, sink);
+	sink->sink_signal = SIGNAL_TYPE_VIRTUAL;
+
+	ctx->aconnector->dc_sink = sink;
+
+	stream = create_stream_for_sink(&ctx->aconnector->base, ctx->mode,
+					ctx->dm_state, NULL, 8);
+
+	KUNIT_ASSERT_NOT_NULL(test, stream);
+	KUNIT_EXPECT_PTR_EQ(test, stream->sink, sink);
+
+	dc_stream_release(stream);
+	dc_sink_release(sink);
+}
+
 static struct kunit_case amdgpu_dm_connector_tests[] = {
 	/* get_subconnector_type */
 	KUNIT_CASE(dm_test_subconnector_type_none),
@@ -3798,6 +3968,12 @@ static struct kunit_case amdgpu_dm_connector_tests[] = {
 	KUNIT_CASE(dm_test_fill_stream_color_depth_requested_bpc),
 	KUNIT_CASE(dm_test_fill_stream_content_type),
 	KUNIT_CASE(dm_test_fill_stream_aspect_ratio),
+	/* create_stream_for_sink */
+	KUNIT_CASE(dm_test_create_stream_fake_sink_success),
+	KUNIT_CASE(dm_test_create_stream_sets_dm_context),
+	KUNIT_CASE(dm_test_create_stream_virtual_signal),
+	KUNIT_CASE(dm_test_create_stream_scaling_src),
+	KUNIT_CASE(dm_test_create_stream_existing_sink),
 	{}
 };
 

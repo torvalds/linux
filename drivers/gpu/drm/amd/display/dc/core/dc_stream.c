@@ -24,6 +24,7 @@
  */
 
 #include "dm_services.h"
+#include "dm_helpers.h"
 #include "basics/dc_common.h"
 #include "dc.h"
 #include "core_types.h"
@@ -203,6 +204,7 @@ void dc_stream_release(struct dc_stream_state *stream)
 		kref_put(&stream->refcount, dc_stream_free);
 	}
 }
+EXPORT_IF_KUNIT(dc_stream_release);
 
 struct dc_stream_state *dc_create_stream_for_sink(
 		struct dc_sink *sink)

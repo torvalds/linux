@@ -73,6 +73,7 @@ void dc_sink_release(struct dc_sink *sink)
 {
 	kref_put(&sink->refcount, dc_sink_free);
 }
+EXPORT_IF_KUNIT(dc_sink_release);
 
 struct dc_sink *dc_sink_create(const struct dc_sink_init_data *init_params)
 {
@@ -94,6 +95,7 @@ construct_fail:
 alloc_fail:
 	return NULL;
 }
+EXPORT_IF_KUNIT(dc_sink_create);
 
 /*******************************************************************************
  * Protected functions - visible only inside of DC (not visible in DM)
