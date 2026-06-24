@@ -446,6 +446,7 @@ static void stats_handle_request(struct virtio_balloon *vb)
 	struct virtqueue *vq;
 	struct scatterlist sg;
 	unsigned int len, num_stats;
+	int err;
 
 	num_stats = update_balloon_stats(vb);
 
@@ -453,7 +454,9 @@ static void stats_handle_request(struct virtio_balloon *vb)
 	if (!virtqueue_get_buf(vq, &len))
 		return;
 	sg_init_one(&sg, vb->stats, sizeof(vb->stats[0]) * num_stats);
-	virtqueue_add_outbuf(vq, &sg, 1, vb, GFP_KERNEL);
+	err = virtqueue_add_outbuf(vq, &sg, 1, vb, GFP_KERNEL);
+	if (WARN_ON_ONCE(err))
+		return;
 	virtqueue_kick(vq);
 }
 
