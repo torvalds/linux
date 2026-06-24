@@ -313,6 +313,7 @@ static u32 chip_id_to_bt_rom_code_id(u32 id)
 	case RTL8851B:
 		return 0x8851;
 	case RTL8922A:
+	case RTL8922D:
 		return 0x8922;
 	default:
 		return 0;
@@ -347,6 +348,8 @@ static char *chip_id_str(u32 id)
 		return "RTL8851B";
 	case RTL8922A:
 		return "RTL8922A";
+	case RTL8922D:
+		return "RTL8922D";
 	default:
 		return "UNKNOWN";
 	}
