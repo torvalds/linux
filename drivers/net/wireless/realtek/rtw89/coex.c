@@ -133,6 +133,15 @@ static const u32 cxtbl[] = {
 
 static const struct rtw89_btc_ver rtw89_btc_ver_defs[] = {
 	/* firmware version must be in decreasing order for each chip */
+	{RTL8922D, RTW89_FW_VER_CODE(0, 35, 94, 0),
+	 .fcxbtcrpt = 11, .fcxtdma = 8,    .fcxslots = 7, .fcxcysta = 8,
+	 .fcxstep = 7,    .fcxnullsta = 7, .fcxmreg = 7,  .fcxgpiodbg = 8,
+	 .fcxbtver = 8,   .fcxbtscan = 8,  .fcxbtafh = 8, .fcxbtdevinfo = 8,
+	 .fwlrole = 10,    .frptmap = 5,    .fcxctrl = 9,  .fcxinit = 10,
+	 .fwevntrptl = 1,  .fwc2hfunc = 4, .drvinfo_ver = 3, .info_buf = 1800,
+	 .max_role_num = 6, .fcxosi = 6,   .fcxmlo = 2,   .bt_desired = 8,
+	 .fcxtrx = 9,
+	},
 	{RTL8852BT, RTW89_FW_VER_CODE(0, 29, 122, 0),
 	 .fcxbtcrpt = 8, .fcxtdma = 7,    .fcxslots = 7, .fcxcysta = 7,
 	 .fcxstep = 7,   .fcxnullsta = 7, .fcxmreg = 7,  .fcxgpiodbg = 7,
@@ -156,7 +165,7 @@ static const struct rtw89_btc_ver rtw89_btc_ver_defs[] = {
 	 .fcxstep = 7,   .fcxnullsta = 7, .fcxmreg = 7,  .fcxgpiodbg = 7,
 	 .fcxbtver = 7,  .fcxbtscan = 7,  .fcxbtafh = 7, .fcxbtdevinfo = 7,
 	 .fwlrole = 8,   .frptmap = 4,    .fcxctrl = 7,  .fcxinit = 7,
-	 .fwevntrptl = 1, .fwc2hfunc = 3, .drvinfo_ver = 2, .info_buf = 1800,
+	 .fwevntrptl = 1, .fwc2hfunc = 3, .drvinfo_ver = 3, .info_buf = 1800,
 	 .max_role_num = 6, .fcxosi = 1,  .fcxmlo = 1,   .bt_desired = 9,
 	 .fcxtrx = 7,
 	},
@@ -2423,6 +2432,7 @@ static u32 rtw89_btc_fw_rpt_ver(struct rtw89_dev *rtwdev, u32 rpt_map)
 			break;
 		case 3:
 		case 4:
+		case 5:
 			bit_map = BIT(5);
 			break;
 		default:
@@ -2438,6 +2448,7 @@ static u32 rtw89_btc_fw_rpt_ver(struct rtw89_dev *rtwdev, u32 rpt_map)
 			break;
 		case 3:
 		case 4:
+		case 5:
 			bit_map = BIT(6);
 			break;
 		default:
@@ -2451,6 +2462,7 @@ static u32 rtw89_btc_fw_rpt_ver(struct rtw89_dev *rtwdev, u32 rpt_map)
 			break;
 		case 3:
 		case 4:
+		case 5:
 			bit_map = BIT(7);
 			break;
 		default:
@@ -2465,6 +2477,7 @@ static u32 rtw89_btc_fw_rpt_ver(struct rtw89_dev *rtwdev, u32 rpt_map)
 		case 3:
 			break;
 		case 4:
+		case 5:
 			bit_map = BIT(8);
 			break;
 		default:
@@ -2481,6 +2494,7 @@ static u32 rtw89_btc_fw_rpt_ver(struct rtw89_dev *rtwdev, u32 rpt_map)
 			bit_map = BIT(8);
 			break;
 		case 4:
+		case 5:
 			bit_map = BIT(9);
 			break;
 		default:
@@ -2488,7 +2502,10 @@ static u32 rtw89_btc_fw_rpt_ver(struct rtw89_dev *rtwdev, u32 rpt_map)
 		}
 		break;
 	case RPT_EN_TEST:
-		bit_map = BIT(31);
+		if (ver->frptmap == 5)
+			bit_map = BIT(10);
+		else
+			bit_map = BIT(31);
 		break;
 	case RPT_EN_WL_ALL:
 		switch (ver->frptmap) {
@@ -2501,6 +2518,7 @@ static u32 rtw89_btc_fw_rpt_ver(struct rtw89_dev *rtwdev, u32 rpt_map)
 			bit_map = GENMASK(2, 0) | BIT(8);
 			break;
 		case 4:
+		case 5:
 			bit_map = GENMASK(2, 0) | BIT(9);
 			break;
 		default:
@@ -2520,6 +2538,7 @@ static u32 rtw89_btc_fw_rpt_ver(struct rtw89_dev *rtwdev, u32 rpt_map)
 			bit_map = GENMASK(7, 3);
 			break;
 		case 4:
+		case 5:
 			bit_map = GENMASK(8, 3);
 			break;
 		default:
@@ -2539,6 +2558,7 @@ static u32 rtw89_btc_fw_rpt_ver(struct rtw89_dev *rtwdev, u32 rpt_map)
 			bit_map = GENMASK(8, 0);
 			break;
 		case 4:
+		case 5:
 			bit_map = GENMASK(9, 0);
 			break;
 		default:
@@ -2558,6 +2578,7 @@ static u32 rtw89_btc_fw_rpt_ver(struct rtw89_dev *rtwdev, u32 rpt_map)
 			bit_map = GENMASK(8, 2);
 			break;
 		case 4:
+		case 5:
 			bit_map = GENMASK(9, 2);
 			break;
 		default:
@@ -2814,7 +2835,7 @@ static void _fw_set_drv_info(struct rtw89_dev *rtwdev, u8 index)
 			rtw89_fw_h2c_cxdrv_role_v8(rtwdev, index);
 		break;
 	case CXDRVINFO_CTRL:
-		if (ver->drvinfo_ver == 1)
+		if (ver->drvinfo_ver != 0)
 			index = 2;
 
 		if (ver->fcxctrl == 7)
@@ -2823,7 +2844,7 @@ static void _fw_set_drv_info(struct rtw89_dev *rtwdev, u8 index)
 			rtw89_fw_h2c_cxdrv_ctrl(rtwdev, index);
 		break;
 	case CXDRVINFO_TRX:
-		if (ver->drvinfo_ver == 1)
+		if (ver->drvinfo_ver > 1)
 			index = 3;
 
 		if (ver->fcxtrx == 7)
@@ -2832,7 +2853,7 @@ static void _fw_set_drv_info(struct rtw89_dev *rtwdev, u8 index)
 			rtw89_fw_h2c_cxdrv_trx_v9(rtwdev, index);
 		break;
 	case CXDRVINFO_RFK:
-		if (ver->drvinfo_ver == 1)
+		if (ver->drvinfo_ver != 0)
 			return;
 
 		rtw89_fw_h2c_cxdrv_rfk(rtwdev, index);
@@ -2847,12 +2868,26 @@ static void _fw_set_drv_info(struct rtw89_dev *rtwdev, u8 index)
 			rtw89_fw_h2c_cxtxpwr_v9(rtwdev, index);
 		break;
 	case CXDRVINFO_FDDT:
+		if (ver->drvinfo_ver == 3)
+			index = 5;
+		else
+			return;
+
+		rtw89_debug(rtwdev, RTW89_DBG_BTC, "drv_info FDDT index=%d\n", index);
+		break;
 	case CXDRVINFO_MLO:
+		if (ver->drvinfo_ver == 3)
+			index = 6;
+		else
+			return;
+
+		rtw89_debug(rtwdev, RTW89_DBG_BTC, "drv_info MLO index=%d\n", index);
+		break;
 	case CXDRVINFO_OSI:
 		if (!ver->fcxosi)
 			return;
 
-		if (ver->drvinfo_ver == 2)
+		if (ver->drvinfo_ver > 1)
 			index = 7;
 		else
 			return;
@@ -8828,7 +8863,7 @@ static u8 rtw89_btc_c2h_get_index_by_ver(struct rtw89_dev *rtwdev, u8 func)
 			return BTF_EVNT_BUF_OVERFLOW;
 		else if (ver->fwc2hfunc == 2)
 			return func;
-		else if (ver->fwc2hfunc == 3)
+		else if (ver->fwc2hfunc == 3 || ver->fwc2hfunc == 4)
 			return BTF_EVNT_BUF_OVERFLOW;
 		else
 			return BTF_EVNT_MAX;
@@ -8839,19 +8874,26 @@ static u8 rtw89_btc_c2h_get_index_by_ver(struct rtw89_dev *rtwdev, u8 func)
 			return BTF_EVNT_C2H_LOOPBACK;
 		else if (ver->fwc2hfunc == 2)
 			return func;
-		else if (ver->fwc2hfunc == 3)
+		else if (ver->fwc2hfunc == 3 || ver->fwc2hfunc == 4)
 			return BTF_EVNT_C2H_LOOPBACK;
 		else
 			return BTF_EVNT_MAX;
 	case BTF_EVNT_C2H_LOOPBACK:
 		if (ver->fwc2hfunc == 2)
 			return func;
-		else if (ver->fwc2hfunc == 3)
+		else if (ver->fwc2hfunc == 3 || ver->fwc2hfunc == 4)
 			return BTF_EVNT_BT_LEAUDIO_INFO;
 		else
 			return BTF_EVNT_MAX;
 	case BTF_EVNT_BT_QUERY_TXPWR:
-		if (ver->fwc2hfunc == 3)
+		if (ver->fwc2hfunc == 3 || ver->fwc2hfunc == 4)
+			return func;
+		else
+			return BTF_EVNT_MAX;
+	case BTF_EVNT_ZB_INFO:
+	case BTF_EVNT_ZB_CH:
+	case BTF_EVNT_ZB_QUERY_TXPWR:
+		if (ver->fwc2hfunc == 4)
 			return func;
 		else
 			return BTF_EVNT_MAX;
