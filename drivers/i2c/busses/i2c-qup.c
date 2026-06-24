@@ -1657,10 +1657,21 @@ static const struct i2c_adapter_quirks qup_i2c_quirks_v2 = {
 	.flags = I2C_AQ_NO_ZERO_LEN,
 };
 
-static void qup_i2c_enable_clocks(struct qup_i2c_dev *qup)
+static int qup_i2c_enable_clocks(struct qup_i2c_dev *qup)
 {
-	clk_prepare_enable(qup->clk);
-	clk_prepare_enable(qup->pclk);
+	int ret;
+
+	ret = clk_prepare_enable(qup->clk);
+	if (ret)
+		return ret;
+
+	ret = clk_prepare_enable(qup->pclk);
+	if (ret) {
+		clk_disable_unprepare(qup->clk);
+		return ret;
+	}
+
+	return 0;
 }
 
 static void qup_i2c_disable_clocks(struct qup_i2c_dev *qup)
@@ -1823,7 +1834,9 @@ nodma:
 			ret = PTR_ERR(qup->pclk);
 			goto fail_dma;
 		}
-		qup_i2c_enable_clocks(qup);
+		ret = qup_i2c_enable_clocks(qup);
+		if (ret)
+			goto fail_dma;
 		src_clk_freq = clk_get_rate(qup->clk);
 	}
 	qup->src_clk_freq = src_clk_freq;
@@ -1975,8 +1988,7 @@ static int qup_i2c_pm_resume_runtime(struct device *device)
 	struct qup_i2c_dev *qup = dev_get_drvdata(device);
 
 	dev_dbg(device, "pm_runtime: resuming...\n");
-	qup_i2c_enable_clocks(qup);
-	return 0;
+	return qup_i2c_enable_clocks(qup);
 }
 
 static int qup_i2c_suspend(struct device *device)
@@ -1988,7 +2000,12 @@ static int qup_i2c_suspend(struct device *device)
 
 static int qup_i2c_resume(struct device *device)
 {
-	qup_i2c_pm_resume_runtime(device);
+	int ret;
+
+	ret = qup_i2c_pm_resume_runtime(device);
+	if (ret)
+		return ret;
+
 	pm_request_autosuspend(device);
 	return 0;
 }
