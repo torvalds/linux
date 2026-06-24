@@ -723,6 +723,7 @@
 		scm: scm {
 			compatible = "qcom,scm-sc7280", "qcom,scm";
 			qcom,dload-mode = <&tcsr_2 0x13000>;
+			sram = <&minidump_config>;
 		};
 	};
 
@@ -6713,6 +6714,10 @@
 			#size-cells = <1>;
 
 			ranges = <0 0 0x146a5000 0x6000>;
+
+			minidump_config: minidump-sram@1c {
+				reg = <0x1c 0x4>;
+			};
 
 			ipa_modem_tables: modem-tables@3000 {
 				reg = <0x3000 0x2000>;
