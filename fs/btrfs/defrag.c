@@ -1319,10 +1319,8 @@ static int defrag_one_cluster(struct btrfs_inode *inode,
 				      inode->root->fs_info->sectorsize_bits;
 	}
 out:
-	list_for_each_entry_safe(entry, tmp, &target_list, list) {
-		list_del_init(&entry->list);
+	list_for_each_entry_safe(entry, tmp, &target_list, list)
 		kfree(entry);
-	}
 	if (ret >= 0)
 		*last_scanned_ret = max(*last_scanned_ret, start + len);
 	return ret;
