@@ -890,7 +890,6 @@ struct btrfs_fs_info {
 	u32 sectorsize_bits;
 	u32 block_min_order;
 	u32 block_max_order;
-	u32 stripesize;
 	u32 writeback_bio_size;
 	u32 csum_size;
 	u32 csums_per_leaf;

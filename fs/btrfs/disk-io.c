@@ -2905,7 +2905,6 @@ void btrfs_init_fs_info(struct btrfs_fs_info *fs_info)
 	fs_info->nodesize = 4096;
 	fs_info->sectorsize = 4096;
 	fs_info->sectorsize_bits = ilog2(4096);
-	fs_info->stripesize = 4096;
 
 	/* Default compress algorithm when user does -o compress */
 	fs_info->compress_type = BTRFS_COMPRESS_ZLIB;
@@ -3355,7 +3354,6 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 {
 	u32 sectorsize;
 	u32 nodesize;
-	u32 stripesize;
 	u64 generation;
 	u16 csum_type;
 	struct btrfs_super_block *disk_super;
@@ -3464,7 +3462,6 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	/* Set up fs_info before parsing mount options */
 	nodesize = btrfs_super_nodesize(disk_super);
 	sectorsize = btrfs_super_sectorsize(disk_super);
-	stripesize = sectorsize;
 	fs_info->dirty_metadata_batch = nodesize * (1 + ilog2(nr_cpu_ids));
 	fs_info->delalloc_batch = sectorsize * 512 * (1 + ilog2(nr_cpu_ids));
 
@@ -3483,7 +3480,6 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	else
 		fs_info->block_max_order = calc_block_max_order(fs_info->sectorsize_bits);
 	fs_info->csums_per_leaf = BTRFS_MAX_ITEM_SIZE(fs_info) / fs_info->csum_size;
-	fs_info->stripesize = stripesize;
 	fs_info->fs_devices->fs_info = fs_info;
 
 	if (fs_info->sectorsize > PAGE_SIZE)

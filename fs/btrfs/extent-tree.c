@@ -4757,7 +4757,7 @@ have_block_group:
 
 		/* Checks */
 		ffe_ctl->search_start = round_up(ffe_ctl->found_offset,
-						 fs_info->stripesize);
+						 fs_info->sectorsize);
 
 		/* move on to the next group */
 		if (ffe_ctl->search_start + ffe_ctl->num_bytes >
