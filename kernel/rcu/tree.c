@@ -1204,7 +1204,7 @@ static void rcu_accelerate_cbs_unlocked(struct rcu_node *rnp,
 /*
  * Move any callbacks whose grace period has completed to the
  * RCU_DONE_TAIL sublist, then compact the remaining sublists and
- * assign ->gp_seq numbers to any callbacks in the RCU_NEXT_TAIL
+ * assign ->gp_seq[] state to any callbacks in the RCU_NEXT_TAIL
  * sublist.  This function is idempotent, so it does not hurt to
  * invoke it repeatedly.  As long as it is not invoked -too- often...
  * Returns true if the RCU grace-period kthread needs to be awakened.
@@ -1221,8 +1221,8 @@ static bool rcu_advance_cbs(struct rcu_node *rnp, struct rcu_data *rdp)
 		return false;
 
 	/*
-	 * Find all callbacks whose ->gp_seq numbers indicate that they
-	 * are ready to invoke, and put them into the RCU_DONE_TAIL sublist.
+	 * Find all callbacks whose grace periods have completed (either
+	 * normal or expedited) and put them into the RCU_DONE_TAIL sublist.
 	 */
 	rcu_segcblist_advance(&rdp->cblist);
 
