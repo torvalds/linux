@@ -391,6 +391,7 @@
 			qcom,dload-mode = <&tcsr 0x19000>;
 			interconnects = <&aggre2_noc MASTER_CRYPTO QCOM_ICC_TAG_ALWAYS
 					 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
+			sram = <&minidump_config>;
 		};
 	};
 
@@ -5550,6 +5551,10 @@
 			#size-cells = <1>;
 
 			ranges = <0 0 0x14680000 0x2c000>;
+
+			minidump_config: minidump-sram@1c {
+				reg = <0x1c 0x4>;
+			};
 
 			ipa_modem_tables: modem-tables@8000 {
 				reg = <0x8000 0x2000>;
