@@ -11,8 +11,10 @@
 #include <drm/drm_connector.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_encoder.h>
 #include <drm/drm_kunit_helpers.h>
 #include <drm/drm_mode_object.h>
+#include <drm/drm_modes.h>
 #include <drm/drm_property.h>
 #include <linux/hdmi.h>
 
@@ -4379,6 +4381,291 @@ static void dm_test_handle_edid_mgmt_non_dp_leaves_caps(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, (int)ctx->link->verified_link_cap.link_rate, 0);
 }
 
+/*
+ * Context for the connector funcs / modes tests: a managed DRM device with a
+ * registered connector and a managed encoder attached to it, so helpers that
+ * walk connector->encoder relationships resolve correctly.
+ */
+struct dm_test_modes_ctx {
+	struct drm_device *drm;
+	struct amdgpu_dm_connector *aconnector;
+	struct amdgpu_encoder *aenc;
+};
+
+static struct dm_test_modes_ctx *
+dm_test_modes_ctx_alloc(struct kunit *test, int connector_type)
+{
+	struct dm_test_modes_ctx *ctx;
+
+	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx);
+
+	ctx->drm = dm_test_alloc_drm(test);
+	ctx->aconnector = dm_test_add_connector(test, ctx->drm, connector_type);
+
+	ctx->aenc = kunit_kzalloc(test, sizeof(*ctx->aenc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->aenc);
+	KUNIT_ASSERT_EQ(test,
+			drmm_encoder_init(ctx->drm, &ctx->aenc->base, NULL,
+					  DRM_MODE_ENCODER_TMDS, NULL), 0);
+	KUNIT_ASSERT_EQ(test,
+			drm_connector_attach_encoder(&ctx->aconnector->base,
+						     &ctx->aenc->base), 0);
+
+	return ctx;
+}
+
+/**
+ * dm_test_funcs_force_no_edid - Test force() leaves drm_edid NULL when no EDID
+ * @test: The KUnit test context
+ *
+ * A headless force-on DisplayPort connector reads no EDID, so the cached
+ * drm_edid pointer must stay NULL after the force callback runs.
+ */
+static void dm_test_funcs_force_no_edid(struct kunit *test)
+{
+	struct dm_test_edid_ctx *ctx =
+		dm_test_edid_ctx_alloc(test, DRM_MODE_CONNECTOR_DisplayPort);
+
+	amdgpu_dm_connector_funcs_force(&ctx->aconnector->base);
+
+	KUNIT_EXPECT_NULL(test, ctx->aconnector->drm_edid);
+}
+
+/**
+ * dm_test_validate_stream_null_stream - Test NULL stream returns unexpected
+ * @test: The KUnit test context
+ *
+ * With a NULL stream the validation jumps straight to cleanup without ever
+ * dereferencing the dc handle and reports DC_ERROR_UNEXPECTED.
+ */
+static void dm_test_validate_stream_null_stream(struct kunit *test)
+{
+	KUNIT_EXPECT_EQ(test,
+			(int)dm_validate_stream_and_context(NULL, NULL),
+			(int)DC_ERROR_UNEXPECTED);
+}
+
+/**
+ * dm_test_to_encoder_no_encoder - Test connector with no encoder returns NULL
+ * @test: The KUnit test context
+ */
+static void dm_test_to_encoder_no_encoder(struct kunit *test)
+{
+	struct drm_device *drm = dm_test_alloc_drm(test);
+	struct amdgpu_dm_connector *aconnector =
+		dm_test_add_connector(test, drm, DRM_MODE_CONNECTOR_HDMIA);
+
+	KUNIT_EXPECT_NULL(test,
+			  amdgpu_dm_connector_to_encoder(&aconnector->base));
+}
+
+/**
+ * dm_test_to_encoder_returns_attached - Test the attached encoder is returned
+ * @test: The KUnit test context
+ */
+static void dm_test_to_encoder_returns_attached(struct kunit *test)
+{
+	struct dm_test_modes_ctx *ctx =
+		dm_test_modes_ctx_alloc(test, DRM_MODE_CONNECTOR_HDMIA);
+
+	KUNIT_EXPECT_PTR_EQ(test,
+			    amdgpu_dm_connector_to_encoder(&ctx->aconnector->base),
+			    &ctx->aenc->base);
+}
+
+/**
+ * dm_test_native_mode_no_encoder - Test native mode resolution is a no-op
+ * @test: The KUnit test context
+ *
+ * Without an encoder there is nothing to copy into, so the call must return
+ * cleanly without dereferencing a NULL encoder.
+ */
+static void dm_test_native_mode_no_encoder(struct kunit *test)
+{
+	struct drm_device *drm = dm_test_alloc_drm(test);
+	struct amdgpu_dm_connector *aconnector =
+		dm_test_add_connector(test, drm, DRM_MODE_CONNECTOR_HDMIA);
+
+	amdgpu_dm_get_native_mode(&aconnector->base);
+}
+
+/**
+ * dm_test_native_mode_empty_probed_zeroes_clock - Test empty probed list clears mode
+ * @test: The KUnit test context
+ *
+ * With no probed modes there is no preferred mode to copy, so the encoder's
+ * native mode is memset to zero (clock becomes 0).
+ */
+static void dm_test_native_mode_empty_probed_zeroes_clock(struct kunit *test)
+{
+	struct dm_test_modes_ctx *ctx =
+		dm_test_modes_ctx_alloc(test, DRM_MODE_CONNECTOR_eDP);
+
+	ctx->aenc->native_mode.clock = 148500;
+
+	amdgpu_dm_get_native_mode(&ctx->aconnector->base);
+
+	KUNIT_EXPECT_EQ(test, ctx->aenc->native_mode.clock, 0);
+}
+
+/**
+ * dm_test_native_mode_copies_preferred - Test the preferred mode is copied
+ * @test: The KUnit test context
+ *
+ * The preferred probed mode is duplicated into the encoder's native mode.
+ */
+static void dm_test_native_mode_copies_preferred(struct kunit *test)
+{
+	struct dm_test_modes_ctx *ctx =
+		dm_test_modes_ctx_alloc(test, DRM_MODE_CONNECTOR_eDP);
+	struct drm_display_mode *mode;
+
+	mode = drm_mode_create(ctx->drm);
+	KUNIT_ASSERT_NOT_NULL(test, mode);
+	mode->type = DRM_MODE_TYPE_PREFERRED;
+	mode->clock = 148500;
+	mode->hdisplay = 1920;
+	mode->vdisplay = 1080;
+	drm_mode_probed_add(&ctx->aconnector->base, mode);
+
+	amdgpu_dm_get_native_mode(&ctx->aconnector->base);
+
+	KUNIT_EXPECT_EQ(test, ctx->aenc->native_mode.hdisplay, 1920);
+	KUNIT_EXPECT_EQ(test, ctx->aenc->native_mode.vdisplay, 1080);
+	KUNIT_EXPECT_EQ(test, ctx->aenc->native_mode.clock, 148500);
+}
+
+/**
+ * dm_test_create_common_mode_overrides - Test common mode inherits native timing
+ * @test: The KUnit test context
+ *
+ * A new common mode takes its pixel clock and porches from the encoder's
+ * native mode but overrides the visible resolution and clears PREFERRED.
+ */
+static void dm_test_create_common_mode_overrides(struct kunit *test)
+{
+	struct dm_test_modes_ctx *ctx =
+		dm_test_modes_ctx_alloc(test, DRM_MODE_CONNECTOR_eDP);
+	struct drm_display_mode *mode;
+
+	ctx->aenc->native_mode.clock = 148500;
+	ctx->aenc->native_mode.htotal = 2200;
+	ctx->aenc->native_mode.type = DRM_MODE_TYPE_PREFERRED;
+
+	mode = amdgpu_dm_create_common_mode(&ctx->aenc->base, "800x600",
+					    800, 600);
+	KUNIT_ASSERT_NOT_NULL(test, mode);
+
+	KUNIT_EXPECT_EQ(test, mode->hdisplay, 800);
+	KUNIT_EXPECT_EQ(test, mode->vdisplay, 600);
+	KUNIT_EXPECT_EQ(test, mode->clock, 148500);
+	KUNIT_EXPECT_EQ(test, mode->htotal, 2200);
+	KUNIT_EXPECT_FALSE(test, mode->type & DRM_MODE_TYPE_PREFERRED);
+	KUNIT_EXPECT_STREQ(test, mode->name, "800x600");
+
+	drm_mode_destroy(ctx->drm, mode);
+}
+
+/**
+ * dm_test_add_common_modes_non_edp_noop - Test non-eDP/LVDS adds no modes
+ * @test: The KUnit test context
+ *
+ * Common scaled modes are only added for eDP/LVDS panels; an HDMI connector
+ * is left untouched.
+ */
+static void dm_test_add_common_modes_non_edp_noop(struct kunit *test)
+{
+	struct dm_test_modes_ctx *ctx =
+		dm_test_modes_ctx_alloc(test, DRM_MODE_CONNECTOR_HDMIA);
+
+	ctx->aenc->native_mode.hdisplay = 1920;
+	ctx->aenc->native_mode.vdisplay = 1200;
+
+	amdgpu_dm_connector_add_common_modes(&ctx->aenc->base,
+					     &ctx->aconnector->base);
+
+	KUNIT_EXPECT_EQ(test, ctx->aconnector->num_modes, 0);
+}
+
+/**
+ * dm_test_add_common_modes_edp_adds - Test eDP adds the smaller common modes
+ * @test: The KUnit test context
+ *
+ * For an eDP panel with a 1920x1200 native mode every common mode strictly
+ * smaller than the native one is added (10 of the 11 entries).
+ */
+static void dm_test_add_common_modes_edp_adds(struct kunit *test)
+{
+	struct dm_test_modes_ctx *ctx =
+		dm_test_modes_ctx_alloc(test, DRM_MODE_CONNECTOR_eDP);
+
+	ctx->aenc->native_mode.hdisplay = 1920;
+	ctx->aenc->native_mode.vdisplay = 1200;
+
+	amdgpu_dm_connector_add_common_modes(&ctx->aenc->base,
+					     &ctx->aconnector->base);
+
+	KUNIT_EXPECT_EQ(test, ctx->aconnector->num_modes, 10);
+}
+
+/**
+ * dm_test_ddc_get_modes_null_edid - Test a NULL EDID resets the mode count
+ * @test: The KUnit test context
+ */
+static void dm_test_ddc_get_modes_null_edid(struct kunit *test)
+{
+	struct drm_device *drm = dm_test_alloc_drm(test);
+	struct amdgpu_dm_connector *aconnector =
+		dm_test_add_connector(test, drm, DRM_MODE_CONNECTOR_HDMIA);
+
+	aconnector->num_modes = 5;
+
+	amdgpu_dm_connector_ddc_get_modes(&aconnector->base, NULL);
+
+	KUNIT_EXPECT_EQ(test, aconnector->num_modes, 0);
+}
+
+/**
+ * dm_test_add_fs_modes_no_preferred_mode - Test no preferred mode yields no modes
+ * @test: The KUnit test context
+ *
+ * A writeback connector has no highest-refresh-rate mode, so add_fs_modes()
+ * cannot build any FreeSync video modes and returns 0.
+ */
+static void dm_test_add_fs_modes_no_preferred_mode(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector;
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+
+	aconnector->base.connector_type = DRM_MODE_CONNECTOR_WRITEBACK;
+
+	KUNIT_EXPECT_EQ(test, (int)add_fs_modes(aconnector), 0);
+}
+
+/**
+ * dm_test_add_freesync_modes_null_edid_noop - Test NULL EDID adds no modes
+ * @test: The KUnit test context
+ *
+ * Without an EDID the FreeSync video modes cannot be derived, so the mode
+ * count is left unchanged.
+ */
+static void dm_test_add_freesync_modes_null_edid_noop(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector;
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+
+	aconnector->num_modes = 7;
+
+	amdgpu_dm_connector_add_freesync_modes(&aconnector->base, NULL);
+
+	KUNIT_EXPECT_EQ(test, aconnector->num_modes, 7);
+}
+
 static struct kunit_case amdgpu_dm_connector_tests[] = {
 	/* get_subconnector_type */
 	KUNIT_CASE(dm_test_subconnector_type_none),
@@ -4608,6 +4895,28 @@ static struct kunit_case amdgpu_dm_connector_tests[] = {
 	/* handle_edid_mgmt */
 	KUNIT_CASE(dm_test_handle_edid_mgmt_dp_sets_link_caps),
 	KUNIT_CASE(dm_test_handle_edid_mgmt_non_dp_leaves_caps),
+	/* amdgpu_dm_connector_funcs_force */
+	KUNIT_CASE(dm_test_funcs_force_no_edid),
+	/* dm_validate_stream_and_context */
+	KUNIT_CASE(dm_test_validate_stream_null_stream),
+	/* amdgpu_dm_connector_to_encoder */
+	KUNIT_CASE(dm_test_to_encoder_no_encoder),
+	KUNIT_CASE(dm_test_to_encoder_returns_attached),
+	/* amdgpu_dm_get_native_mode */
+	KUNIT_CASE(dm_test_native_mode_no_encoder),
+	KUNIT_CASE(dm_test_native_mode_empty_probed_zeroes_clock),
+	KUNIT_CASE(dm_test_native_mode_copies_preferred),
+	/* amdgpu_dm_create_common_mode */
+	KUNIT_CASE(dm_test_create_common_mode_overrides),
+	/* amdgpu_dm_connector_add_common_modes */
+	KUNIT_CASE(dm_test_add_common_modes_non_edp_noop),
+	KUNIT_CASE(dm_test_add_common_modes_edp_adds),
+	/* amdgpu_dm_connector_ddc_get_modes */
+	KUNIT_CASE(dm_test_ddc_get_modes_null_edid),
+	/* add_fs_modes */
+	KUNIT_CASE(dm_test_add_fs_modes_no_preferred_mode),
+	/* amdgpu_dm_connector_add_freesync_modes */
+	KUNIT_CASE(dm_test_add_freesync_modes_null_edid_noop),
 	{}
 };
 

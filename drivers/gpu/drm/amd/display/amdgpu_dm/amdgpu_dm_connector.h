@@ -146,6 +146,21 @@ int amdgpu_dm_encoder_init(struct drm_device *dev,
 			   uint32_t link_index);
 
 #if IS_ENABLED(CONFIG_DRM_AMD_DC_KUNIT_TEST)
+void amdgpu_dm_connector_funcs_force(struct drm_connector *connector);
+enum dc_status dm_validate_stream_and_context(struct dc *dc,
+					      struct dc_stream_state *stream);
+struct drm_encoder *amdgpu_dm_connector_to_encoder(struct drm_connector *connector);
+void amdgpu_dm_get_native_mode(struct drm_connector *connector);
+struct drm_display_mode *amdgpu_dm_create_common_mode(struct drm_encoder *encoder,
+						      const char *name,
+						      int hdisplay, int vdisplay);
+void amdgpu_dm_connector_add_common_modes(struct drm_encoder *encoder,
+					  struct drm_connector *connector);
+void amdgpu_dm_connector_ddc_get_modes(struct drm_connector *connector,
+				       const struct drm_edid *drm_edid);
+uint add_fs_modes(struct amdgpu_dm_connector *aconnector);
+void amdgpu_dm_connector_add_freesync_modes(struct drm_connector *connector,
+					    const struct drm_edid *drm_edid);
 void hdmi_cec_unset_edid(struct amdgpu_dm_connector *aconnector);
 void create_eml_sink(struct amdgpu_dm_connector *aconnector);
 void handle_edid_mgmt(struct amdgpu_dm_connector *aconnector);
