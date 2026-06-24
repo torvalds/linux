@@ -7,7 +7,11 @@
 
 use pin_init::Wrapper;
 
-use crate::{bindings, prelude::*, sync::rcu, types::Opaque};
+use crate::{
+    prelude::*,
+    sync::rcu,
+    types::Opaque, //
+};
 use core::{
     marker::PhantomData,
     ops::Deref,
@@ -161,8 +165,7 @@ impl<T> Revocable<T> {
 
         if revoke {
             if SYNC {
-                // SAFETY: Just an FFI call, there are no further requirements.
-                unsafe { bindings::synchronize_rcu() };
+                rcu::synchronize_rcu();
             }
 
             // SAFETY: We know `self.data` is valid because only one CPU can succeed the
