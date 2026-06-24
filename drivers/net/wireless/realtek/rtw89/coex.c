@@ -924,7 +924,7 @@ static void _reset_btc_var(struct rtw89_dev *rtwdev, u8 type)
 	const struct rtw89_btc_ver *ver = btc->ver;
 	struct rtw89_btc_cx *cx = &btc->cx;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
-	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	struct rtw89_btc_bt_info *bt = &btc->cx.bt0;
 	struct rtw89_btc_bt_link_info *bt_linfo = &bt->link_info;
 	struct rtw89_btc_wl_link_info *wl_linfo;
 	u8 i;
@@ -1106,7 +1106,7 @@ static void _chk_btc_err(struct rtw89_dev *rtwdev, u8 type, u32 cnt)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_cx *cx = &btc->cx;
-	struct rtw89_btc_bt_info *bt = &cx->bt;
+	struct rtw89_btc_bt_info *bt = &cx->bt0;
 	struct rtw89_btc_wl_info *wl = &cx->wl;
 	struct rtw89_btc_dm *dm = &btc->dm;
 
@@ -1276,7 +1276,7 @@ static void _update_bt_report(struct rtw89_dev *rtwdev, u8 rpt_type, u8 *pfinfo)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	const struct rtw89_btc_ver *ver = btc->ver;
-	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	struct rtw89_btc_bt_info *bt = &btc->cx.bt0;
 	struct rtw89_btc_bt_link_info *bt_linfo = &bt->link_info;
 	struct rtw89_btc_bt_a2dp_desc *a2dp = &bt_linfo->a2dp_desc;
 	union  rtw89_btc_fbtc_btver *pver = &btc->fwinfo.rpt_fbtc_btver.finfo;
@@ -1417,7 +1417,7 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 	struct rtw89_btc_dm *dm = &btc->dm;
 	struct rtw89_btc_rpt_cmn_info *pcinfo = NULL;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
-	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	struct rtw89_btc_bt_info *bt = &btc->cx.bt0;
 	union rtw89_btc_fbtc_rpt_ctrl_ver_info *prpt = NULL;
 	union rtw89_btc_fbtc_cysta_info *pcysta = NULL;
 	struct rtw89_btc_prpt *btc_prpt = NULL;
@@ -3079,7 +3079,7 @@ static void _set_wl_rx_gain(struct rtw89_dev *rtwdev, u32 level)
 static void _set_bt_tx_power(struct rtw89_dev *rtwdev, u8 level)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
-	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	struct rtw89_btc_bt_info *bt = &btc->cx.bt0;
 	int ret;
 	u8 buf;
 
@@ -3106,7 +3106,7 @@ static void _set_bt_tx_power(struct rtw89_dev *rtwdev, u8 level)
 static void _set_bt_rx_gain(struct rtw89_dev *rtwdev, u8 level)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
-	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	struct rtw89_btc_bt_info *bt = &btc->cx.bt0;
 
 	if (btc->cx.cnt_bt[BTC_BCNT_INFOUPDATE] == 0)
 		return;
@@ -3138,7 +3138,7 @@ static void _set_rf_trx_para(struct rtw89_dev *rtwdev)
 	const struct rtw89_btc_ver *ver = btc->ver;
 	struct rtw89_btc_dm *dm = &btc->dm;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
-	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	struct rtw89_btc_bt_info *bt = &btc->cx.bt0;
 	struct rtw89_btc_bt_link_info *b = &bt->link_info;
 	struct rtw89_btc_wl_smap *wl_smap = &wl->status.map;
 	struct rtw89_btc_rf_trx_para para;
@@ -3224,7 +3224,7 @@ static void _update_btc_state_map(struct rtw89_dev *rtwdev)
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_cx *cx = &btc->cx;
 	struct rtw89_btc_wl_info *wl = &cx->wl;
-	struct rtw89_btc_bt_info *bt = &cx->bt;
+	struct rtw89_btc_bt_info *bt = &cx->bt0;
 	struct rtw89_btc_bt_link_info *bt_linfo = &bt->link_info;
 
 	if (wl->status.map.connecting || wl->status.map._4way ||
@@ -3251,7 +3251,7 @@ static void _set_bt_afh_info_v0(struct rtw89_dev *rtwdev)
 	struct rtw89_btc *btc = &rtwdev->btc;
 	const struct rtw89_btc_ver *ver = btc->ver;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
-	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	struct rtw89_btc_bt_info *bt = &btc->cx.bt0;
 	struct rtw89_btc_bt_link_info *b = &bt->link_info;
 	struct rtw89_btc_wl_role_info *wl_rinfo = &wl->role_info;
 	struct rtw89_btc_wl_role_info_v1 *wl_rinfo_v1 = &wl->role_info_v1;
@@ -3421,7 +3421,7 @@ static void _set_bt_afh_info_v1(struct rtw89_dev *rtwdev)
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 	struct rtw89_btc_wl_role_info_v8 *wl_rinfo = &wl->role_info_v8;
 	struct rtw89_btc_wl_afh_info *wl_afh = &wl->afh_info;
-	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	struct rtw89_btc_bt_info *bt = &btc->cx.bt0;
 	struct rtw89_btc_wl_rlink *rlink;
 	u8 en = 0, ch = 0, bw = 0, buf[3] = {};
 	u8 i, j, link_mode;
@@ -3527,7 +3527,7 @@ static bool _check_freerun(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
-	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	struct rtw89_btc_bt_info *bt = &btc->cx.bt0;
 	struct rtw89_btc_wl_role_info *wl_rinfo = &wl->role_info;
 	struct rtw89_btc_wl_role_info_v1 *wl_rinfo_v1 = &wl->role_info_v1;
 	struct rtw89_btc_wl_role_info_v2 *wl_rinfo_v2 = &wl->role_info_v2;
@@ -4000,9 +4000,9 @@ void rtw89_btc_set_policy_v1(struct rtw89_dev *rtwdev, u16 policy_type)
 	struct rtw89_btc_dm *dm = &btc->dm;
 	struct rtw89_btc_fbtc_tdma *t = &dm->tdma;
 	struct rtw89_btc_wl_role_info_v1 *wl_rinfo = &btc->cx.wl.role_info_v1;
-	struct rtw89_btc_bt_a2dp_desc *a2dp = &btc->cx.bt.link_info.a2dp_desc;
-	struct rtw89_btc_bt_hid_desc *hid = &btc->cx.bt.link_info.hid_desc;
-	struct rtw89_btc_bt_hfp_desc *hfp = &btc->cx.bt.link_info.hfp_desc;
+	struct rtw89_btc_bt_a2dp_desc *a2dp = &btc->cx.bt0.link_info.a2dp_desc;
+	struct rtw89_btc_bt_hid_desc *hid = &btc->cx.bt0.link_info.hid_desc;
+	struct rtw89_btc_bt_hfp_desc *hfp = &btc->cx.bt0.link_info.hfp_desc;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 	u8 type, null_role;
 	u32 tbl_w1, tbl_b1, tbl_b4;
@@ -4483,7 +4483,7 @@ static void _set_ant_v0(struct rtw89_dev *rtwdev, bool force_exec,
 	struct rtw89_btc_dm *dm = &btc->dm;
 	struct rtw89_btc_cx *cx = &btc->cx;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
-	struct rtw89_btc_bt_info *bt = &cx->bt;
+	struct rtw89_btc_bt_info *bt = &cx->bt0;
 	struct rtw89_btc_wl_dbcc_info *wl_dinfo = &wl->dbcc_info;
 	u8 gnt_wl_ctrl, gnt_bt_ctrl, plt_ctrl, i, b2g = 0;
 	bool dbcc_chg = false;
@@ -4611,7 +4611,7 @@ static void _set_ant_v1(struct rtw89_dev *rtwdev, bool force_exec,
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
-	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	struct rtw89_btc_bt_info *bt = &btc->cx.bt0;
 	struct rtw89_btc_wl_role_info_v8 *wl_rinfo = &wl->role_info_v8;
 	u32 ant_path_type = rtw89_get_antpath_type(phy_map, type);
 	struct rtw89_btc_wl_dbcc_info *wl_dinfo = &wl->dbcc_info;
@@ -4750,7 +4750,7 @@ static void _action_wl_off(struct rtw89_dev *rtwdev, u8 mode)
 	if (mode == BTC_WLINK_5G) {
 		_set_policy(rtwdev, BTC_CXP_OFF_EQ0, BTC_ACT_WL_OFF);
 	} else if (wl->status.map.lps == BTC_LPS_RF_ON) {
-		if (btc->cx.bt.link_info.a2dp_desc.active)
+		if (btc->cx.bt0.link_info.a2dp_desc.active)
 			_set_policy(rtwdev, BTC_CXP_OFF_BT, BTC_ACT_WL_OFF);
 		else
 			_set_policy(rtwdev, BTC_CXP_OFF_BWB1, BTC_ACT_WL_OFF);
@@ -4790,7 +4790,7 @@ static void _action_bt_off(struct rtw89_dev *rtwdev)
 static void _action_bt_idle(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
-	struct rtw89_btc_bt_link_info *b = &btc->cx.bt.link_info;
+	struct rtw89_btc_bt_link_info *b = &btc->cx.bt0.link_info;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 
 	_set_ant(rtwdev, NM_EXEC, BTC_PHY_ALL, BTC_ANT_W2G);
@@ -4838,7 +4838,7 @@ static void _action_bt_hfp(struct rtw89_dev *rtwdev)
 		if (btc->cx.wl.status.map._4way) {
 			_set_policy(rtwdev, BTC_CXP_OFF_WL, BTC_ACT_BT_HFP);
 		} else if (wl->status.map.traffic_dir & BIT(RTW89_TFC_UL)) {
-			btc->cx.bt.scan_rx_low_pri = true;
+			btc->cx.bt0.scan_rx_low_pri = true;
 			_set_policy(rtwdev, BTC_CXP_OFF_BWB2, BTC_ACT_BT_HFP);
 		} else {
 			_set_policy(rtwdev, BTC_CXP_OFF_BWB1, BTC_ACT_BT_HFP);
@@ -4858,7 +4858,7 @@ static void _action_bt_hid(struct rtw89_dev *rtwdev)
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
-	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	struct rtw89_btc_bt_info *bt = &btc->cx.bt0;
 	struct rtw89_btc_bt_hid_desc *hid = &bt->link_info.hid_desc;
 	u16 policy_type = BTC_CXP_OFF_BT;
 
@@ -4868,7 +4868,7 @@ static void _action_bt_hid(struct rtw89_dev *rtwdev)
 		if (wl->status.map._4way) {
 			policy_type = BTC_CXP_OFF_WL;
 		} else if (wl->status.map.traffic_dir & BIT(RTW89_TFC_UL)) {
-			btc->cx.bt.scan_rx_low_pri = true;
+			btc->cx.bt0.scan_rx_low_pri = true;
 			if (hid->type & BTC_HID_BLE)
 				policy_type = BTC_CXP_OFF_BWB0;
 			else
@@ -4960,7 +4960,7 @@ static void _action_bt_a2dpsink(struct rtw89_dev *rtwdev)
 static void _action_bt_pan(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
-	struct rtw89_btc_bt_link_info *bt_linfo = &btc->cx.bt.link_info;
+	struct rtw89_btc_bt_link_info *bt_linfo = &btc->cx.bt0.link_info;
 	struct rtw89_btc_bt_a2dp_desc a2dp = bt_linfo->a2dp_desc;
 	struct rtw89_btc_bt_pan_desc pan = bt_linfo->pan_desc;
 
@@ -5172,7 +5172,7 @@ static void _set_btg_ctrl(struct rtw89_dev *rtwdev)
 	struct rtw89_btc_wl_role_info *wl_rinfo_v0 = &wl->role_info;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_btc_ver *ver = btc->ver;
-	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	struct rtw89_btc_bt_info *bt = &btc->cx.bt0;
 	struct rtw89_btc_dm *dm = &btc->dm;
 	struct _wl_rinfo_now wl_rinfo;
 	u32 is_btg = BTC_BTGCTRL_DISABLE;
@@ -5249,13 +5249,13 @@ static void _set_wl_preagc_ctrl(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_fbtc_outsrc_set_info *o_info = &btc->dm.ost_info;
-	struct rtw89_btc_bt_link_info *bt_linfo = &btc->cx.bt.link_info;
+	struct rtw89_btc_bt_link_info *bt_linfo = &btc->cx.bt0.link_info;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 	struct rtw89_btc_wl_role_info_v2 *rinfo_v2 = &wl->role_info_v2;
 	struct rtw89_btc_wl_role_info_v7 *rinfo_v7 = &wl->role_info_v7;
 	struct rtw89_btc_wl_role_info_v8 *rinfo_v8 = &wl->role_info_v8;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
-	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	struct rtw89_btc_bt_info *bt = &btc->cx.bt0;
 	struct rtw89_btc_dm *dm = &btc->dm;
 	u8 is_preagc, val, link_mode, dbcc_2g_phy;
 	u8 role_ver = rtwdev->btc.ver->fwlrole;
@@ -5285,7 +5285,7 @@ static void _set_wl_preagc_ctrl(struct rtw89_dev *rtwdev)
 	} else if (link_mode == BTC_WLINK_5G) {
 		is_preagc = BTC_PREAGC_DISABLE;
 	} else if (link_mode == BTC_WLINK_NOLINK ||
-		 btc->cx.bt.link_info.profile_cnt.now == 0) {
+		 btc->cx.bt0.link_info.profile_cnt.now == 0) {
 		is_preagc = BTC_PREAGC_DISABLE;
 	} else if (dm->tdma_now.type != CXTDMA_OFF &&
 		 !bt_linfo->hfp_desc.exist &&
@@ -5435,7 +5435,7 @@ static void _set_wl_tx_limit(struct rtw89_dev *rtwdev)
 	struct rtw89_btc_cx *cx = &btc->cx;
 	struct rtw89_btc_dm *dm = &btc->dm;
 	struct rtw89_btc_wl_info *wl = &cx->wl;
-	struct rtw89_btc_bt_info *bt = &cx->bt;
+	struct rtw89_btc_bt_info *bt = &cx->bt0;
 	struct rtw89_btc_bt_link_info *b = &bt->link_info;
 	struct rtw89_btc_bt_hfp_desc *hfp = &b->hfp_desc;
 	struct rtw89_btc_bt_hid_desc *hid = &b->hid_desc;
@@ -5522,7 +5522,7 @@ static void _set_bt_rx_agc(struct rtw89_dev *rtwdev)
 	struct rtw89_btc_wl_role_info_v2 *wl_rinfo_v2 = &wl->role_info_v2;
 	struct rtw89_btc_wl_role_info_v7 *wl_rinfo_v7 = &wl->role_info_v7;
 	struct rtw89_btc_wl_role_info_v8 *wl_rinfo_v8 = &wl->role_info_v8;
-	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	struct rtw89_btc_bt_info *bt = &btc->cx.bt0;
 	bool bt_hi_lna_rx = false;
 	u8 mode;
 
@@ -5551,7 +5551,7 @@ static void _set_bt_rx_agc(struct rtw89_dev *rtwdev)
 static void _set_bt_rx_scan_pri(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
-	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	struct rtw89_btc_bt_info *bt = &btc->cx.bt0;
 
 	_write_scbd(rtwdev, BTC_WSCB_RXSCAN_PRI, (bool)(!!bt->scan_rx_low_pri));
 }
@@ -5590,7 +5590,7 @@ static void _action_common(struct rtw89_dev *rtwdev)
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 	struct rtw89_btc_wl_role_info_v8 *rinfo_v8 = &wl->role_info_v8;
 	struct rtw89_btc_wl_smap *wl_smap = &wl->status.map;
-	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	struct rtw89_btc_bt_info *bt = &btc->cx.bt0;
 	struct rtw89_btc_dm *dm = &btc->dm;
 	u32 bt_rom_code_id, bt_fw_ver;
 
@@ -5650,7 +5650,7 @@ static void _action_common(struct rtw89_dev *rtwdev)
 static void _action_by_bt(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
-	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	struct rtw89_btc_bt_info *bt = &btc->cx.bt0;
 	struct rtw89_btc_bt_link_info *bt_linfo = &bt->link_info;
 	struct rtw89_btc_bt_hid_desc hid = bt_linfo->hid_desc;
 	struct rtw89_btc_bt_a2dp_desc a2dp = bt_linfo->a2dp_desc;
@@ -5747,7 +5747,7 @@ static void _action_wl_25g_mcc(struct rtw89_dev *rtwdev)
 			policy_type = BTC_CXP_OFFE_WL;
 		else if (btc->cx.wl.status.val & btc_scanning_map.val)
 			policy_type = BTC_CXP_OFFE_2GBWMIXB;
-		else if (btc->cx.bt.link_info.status.map.connect == 0)
+		else if (btc->cx.bt0.link_info.status.map.connect == 0)
 			policy_type = BTC_CXP_OFFE_2GISOB;
 		else
 			policy_type = BTC_CXP_OFFE_2GBWISOB;
@@ -5791,7 +5791,7 @@ static void _action_wl_2g_mcc(struct rtw89_dev *rtwdev)
 	_set_ant(rtwdev, NM_EXEC, BTC_PHY_ALL, BTC_ANT_W2G);
 
 	if (btc->ant_type == BTC_ANT_SHARED) { /* shared-antenna */
-		if (btc->cx.bt.link_info.profile_cnt.now == 0)
+		if (btc->cx.bt0.link_info.profile_cnt.now == 0)
 			_set_policy(rtwdev, BTC_CXP_OFFE_DEF2,
 				    BTC_ACT_WL_2G_MCC);
 		else
@@ -5809,7 +5809,7 @@ static void _action_wl_2g_scc(struct rtw89_dev *rtwdev)
 	_set_ant(rtwdev, NM_EXEC, BTC_PHY_ALL, BTC_ANT_W2G);
 
 	if (btc->ant_type == BTC_ANT_SHARED) { /* shared-antenna */
-		if (btc->cx.bt.link_info.profile_cnt.now == 0)
+		if (btc->cx.bt0.link_info.profile_cnt.now == 0)
 			_set_policy(rtwdev,
 				    BTC_CXP_OFFE_DEF2, BTC_ACT_WL_2G_SCC);
 		else
@@ -5824,7 +5824,7 @@ static void _action_wl_2g_scc_v1(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
-	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	struct rtw89_btc_bt_info *bt = &btc->cx.bt0;
 	struct rtw89_btc_dm *dm = &btc->dm;
 	struct rtw89_btc_wl_role_info_v1 *wl_rinfo = &wl->role_info_v1;
 	u16 policy_type = BTC_CXP_OFF_BT;
@@ -5886,7 +5886,7 @@ static void _action_wl_2g_scc_v2(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
-	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	struct rtw89_btc_bt_info *bt = &btc->cx.bt0;
 	struct rtw89_btc_dm *dm = &btc->dm;
 	struct rtw89_btc_wl_role_info_v2 *rinfo_v2 = &wl->role_info_v2;
 	struct rtw89_btc_wl_role_info_v7 *rinfo_v7 = &wl->role_info_v7;
@@ -5959,7 +5959,7 @@ static void _action_wl_2g_scc_v8(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
-	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	struct rtw89_btc_bt_info *bt = &btc->cx.bt0;
 	struct rtw89_btc_dm *dm = &btc->dm;
 	u16 policy_type = BTC_CXP_OFF_BT;
 
@@ -5987,7 +5987,7 @@ static void _action_wl_2g_ap(struct rtw89_dev *rtwdev)
 	_set_ant(rtwdev, NM_EXEC, BTC_PHY_ALL, BTC_ANT_W2G);
 
 	if (btc->ant_type == BTC_ANT_SHARED) {
-		if (btc->cx.bt.link_info.profile_cnt.now == 0)
+		if (btc->cx.bt0.link_info.profile_cnt.now == 0)
 			_set_policy(rtwdev, BTC_CXP_OFFE_DEF2,
 				    BTC_ACT_WL_2G_AP);
 		else
@@ -6004,7 +6004,7 @@ static void _action_wl_2g_go(struct rtw89_dev *rtwdev)
 	_set_ant(rtwdev, NM_EXEC, BTC_PHY_ALL, BTC_ANT_W2G);
 
 	if (btc->ant_type == BTC_ANT_SHARED) { /* shared-antenna */
-		if (btc->cx.bt.link_info.profile_cnt.now == 0)
+		if (btc->cx.bt0.link_info.profile_cnt.now == 0)
 			_set_policy(rtwdev,
 				    BTC_CXP_OFFE_DEF2, BTC_ACT_WL_2G_GO);
 		else
@@ -6035,7 +6035,7 @@ static void _action_wl_2g_nan(struct rtw89_dev *rtwdev)
 	_set_ant(rtwdev, NM_EXEC, BTC_PHY_ALL, BTC_ANT_W2G);
 
 	if (btc->ant_type == BTC_ANT_SHARED) { /* shared-antenna */
-		if (btc->cx.bt.link_info.profile_cnt.now == 0)
+		if (btc->cx.bt0.link_info.profile_cnt.now == 0)
 			_set_policy(rtwdev,
 				    BTC_CXP_OFFE_DEF2, BTC_ACT_WL_2G_NAN);
 		else
@@ -7352,7 +7352,7 @@ void rtw89_coex_bt_devinfo_work(struct wiphy *wiphy, struct wiphy_work *work)
 						coex_bt_devinfo_work.work);
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_dm *dm = &rtwdev->btc.dm;
-	struct rtw89_btc_bt_a2dp_desc *a2dp = &btc->cx.bt.link_info.a2dp_desc;
+	struct rtw89_btc_bt_a2dp_desc *a2dp = &btc->cx.bt0.link_info.a2dp_desc;
 
 	lockdep_assert_wiphy(wiphy);
 
@@ -7392,7 +7392,7 @@ static void _update_bt_scbd(struct rtw89_dev *rtwdev, bool only_update)
 	const struct rtw89_btc_ver *ver = rtwdev->btc.ver;
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_cx *cx = &btc->cx;
-	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	struct rtw89_btc_bt_info *bt = &btc->cx.bt0;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 	struct rtw89_btc_dm *dm = &rtwdev->btc.dm;
 	bool bt_link_change = false, lps_ctrl = false;
@@ -7496,7 +7496,7 @@ static void _update_bt_scbd(struct rtw89_dev *rtwdev, bool only_update)
 #define BTC_BTINFO_PWR_LEN 5
 static void _update_bt_txpwr_info(struct rtw89_dev *rtwdev, u8 *buf, u32 len)
 {
-	struct rtw89_btc_bt_info *bt = &rtwdev->btc.cx.bt;
+	struct rtw89_btc_bt_info *bt = &rtwdev->btc.cx.bt0;
 	struct rtw89_btc_bt_link_info *b = &bt->link_info;
 
 	if (len != BTC_BTINFO_PWR_LEN)
@@ -7516,7 +7516,7 @@ static bool _chk_wl_rfk_request(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_cx *cx = &btc->cx;
-	struct rtw89_btc_bt_info *bt = &cx->bt;
+	struct rtw89_btc_bt_info *bt = &cx->bt0;
 
 	_update_bt_scbd(rtwdev, true);
 
@@ -7540,7 +7540,7 @@ void _run_coex(struct rtw89_dev *rtwdev, enum btc_reason_and_action reason)
 	struct rtw89_btc_dm *dm = &rtwdev->btc.dm;
 	struct rtw89_btc_cx *cx = &btc->cx;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
-	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	struct rtw89_btc_bt_info *bt = &btc->cx.bt0;
 	struct rtw89_btc_wl_role_info *wl_rinfo = &wl->role_info;
 	struct rtw89_btc_wl_role_info_v1 *wl_rinfo_v1 = &wl->role_info_v1;
 	struct rtw89_btc_wl_role_info_v2 *wl_rinfo_v2 = &wl->role_info_v2;
@@ -7657,12 +7657,12 @@ void _run_coex(struct rtw89_dev *rtwdev, enum btc_reason_and_action reason)
 		goto exit;
 	}
 
-	if (!cx->bt.enable.now && !cx->other.type) {
+	if (!cx->bt0.enable.now && !cx->other.type) {
 		_action_bt_off(rtwdev);
 		goto exit;
 	}
 
-	if (cx->bt.whql_test) {
+	if (cx->bt0.whql_test) {
 		_action_bt_whql(rtwdev);
 		goto exit;
 	}
@@ -7925,7 +7925,7 @@ void rtw89_btc_ntfy_specific_packet(struct rtw89_dev *rtwdev,
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_cx *cx = &btc->cx;
 	struct rtw89_btc_wl_info *wl = &cx->wl;
-	struct rtw89_btc_bt_link_info *b = &cx->bt.link_info;
+	struct rtw89_btc_bt_link_info *b = &cx->bt0.link_info;
 	struct rtw89_btc_bt_hfp_desc *hfp = &b->hfp_desc;
 	struct rtw89_btc_bt_hid_desc *hid = &b->hid_desc;
 	u32 cnt;
@@ -8030,7 +8030,7 @@ static u8 _update_bt_rssi_level(struct rtw89_dev *rtwdev, u8 rssi)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_btc *btc = &rtwdev->btc;
-	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	struct rtw89_btc_bt_info *bt = &btc->cx.bt0;
 	u8 *rssi_st, rssi_th, rssi_level = 0;
 	u8 i;
 
@@ -8080,7 +8080,7 @@ static void _update_bt_info(struct rtw89_dev *rtwdev, u8 *buf, u32 len)
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_cx *cx = &btc->cx;
-	struct rtw89_btc_bt_info *bt = &cx->bt;
+	struct rtw89_btc_bt_info *bt = &cx->bt0;
 	struct rtw89_btc_bt_link_info *b = &bt->link_info;
 	struct rtw89_btc_bt_hfp_desc *hfp = &b->hfp_desc;
 	struct rtw89_btc_bt_hid_desc *hid = &b->hid_desc;
@@ -8851,7 +8851,7 @@ static int _show_cx_info(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 	struct rtw89_hal *hal = &rtwdev->hal;
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_dm *dm = &btc->dm;
-	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	struct rtw89_btc_bt_info *bt = &btc->cx.bt0;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 	u32 ver_main = 0, ver_sub = 0, ver_hotfix = 0, id_branch = 0;
 	u8 cv, rfe, iso, ant_num, ant_single_pos;
@@ -9050,7 +9050,7 @@ enum btc_bt_a2dp_type {
 static int _show_bt_profile_info(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
-	struct rtw89_btc_bt_link_info *bt_linfo = &btc->cx.bt.link_info;
+	struct rtw89_btc_bt_link_info *bt_linfo = &btc->cx.bt0.link_info;
 	struct rtw89_btc_bt_hfp_desc hfp = bt_linfo->hfp_desc;
 	struct rtw89_btc_bt_hid_desc hid = bt_linfo->hid_desc;
 	struct rtw89_btc_bt_a2dp_desc a2dp = bt_linfo->a2dp_desc;
@@ -9108,7 +9108,7 @@ static int _show_bt_info(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 	struct rtw89_btc *btc = &rtwdev->btc;
 	const struct rtw89_btc_ver *ver = btc->ver;
 	struct rtw89_btc_cx *cx = &btc->cx;
-	struct rtw89_btc_bt_info *bt = &cx->bt;
+	struct rtw89_btc_bt_info *bt = &cx->bt0;
 	struct rtw89_btc_wl_info *wl = &cx->wl;
 	u32 ver_main = FIELD_GET(GENMASK(31, 24), wl->ver_info.fw_coex);
 	struct rtw89_btc_bt_link_info *bt_linfo = &bt->link_info;
@@ -9631,7 +9631,7 @@ static int _show_dm_info(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 	const struct rtw89_btc_ver *ver = btc->ver;
 	struct rtw89_btc_dm *dm = &btc->dm;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
-	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	struct rtw89_btc_bt_info *bt = &btc->cx.bt0;
 	char *p = buf, *end = buf + bufsz;
 	u8 igno_bt;
 
@@ -9853,7 +9853,7 @@ static int _show_fbtc_cysta_v2(struct rtw89_dev *rtwdev, char *buf, size_t bufsz
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_btf_fwinfo *pfwinfo = &btc->fwinfo;
 	struct rtw89_btc_dm *dm = &btc->dm;
-	struct rtw89_btc_bt_a2dp_desc *a2dp = &btc->cx.bt.link_info.a2dp_desc;
+	struct rtw89_btc_bt_a2dp_desc *a2dp = &btc->cx.bt0.link_info.a2dp_desc;
 	struct rtw89_btc_rpt_cmn_info *pcinfo = NULL;
 	struct rtw89_btc_fbtc_cysta_v2 *pcysta_le32 = NULL;
 	union rtw89_btc_fbtc_rxflct r;
@@ -9984,7 +9984,7 @@ out:
 static int _show_fbtc_cysta_v3(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
-	struct rtw89_btc_bt_a2dp_desc *a2dp = &btc->cx.bt.link_info.a2dp_desc;
+	struct rtw89_btc_bt_a2dp_desc *a2dp = &btc->cx.bt0.link_info.a2dp_desc;
 	struct rtw89_btc_btf_fwinfo *pfwinfo = &btc->fwinfo;
 	struct rtw89_btc_dm *dm = &btc->dm;
 	struct rtw89_btc_fbtc_a2dp_trx_stat *a2dp_trx;
@@ -10123,7 +10123,7 @@ out:
 static int _show_fbtc_cysta_v4(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
-	struct rtw89_btc_bt_a2dp_desc *a2dp = &btc->cx.bt.link_info.a2dp_desc;
+	struct rtw89_btc_bt_a2dp_desc *a2dp = &btc->cx.bt0.link_info.a2dp_desc;
 	struct rtw89_btc_btf_fwinfo *pfwinfo = &btc->fwinfo;
 	struct rtw89_btc_dm *dm = &btc->dm;
 	struct rtw89_btc_fbtc_a2dp_trx_stat_v4 *a2dp_trx;
@@ -10262,7 +10262,7 @@ out:
 static int _show_fbtc_cysta_v5(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
-	struct rtw89_btc_bt_a2dp_desc *a2dp = &btc->cx.bt.link_info.a2dp_desc;
+	struct rtw89_btc_bt_a2dp_desc *a2dp = &btc->cx.bt0.link_info.a2dp_desc;
 	struct rtw89_btc_btf_fwinfo *pfwinfo = &btc->fwinfo;
 	struct rtw89_btc_dm *dm = &btc->dm;
 	struct rtw89_btc_fbtc_a2dp_trx_stat_v4 *a2dp_trx;
@@ -10399,7 +10399,7 @@ out:
 
 static int _show_fbtc_cysta_v7(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 {
-	struct rtw89_btc_bt_info *bt = &rtwdev->btc.cx.bt;
+	struct rtw89_btc_bt_info *bt = &rtwdev->btc.cx.bt0;
 	struct rtw89_btc_bt_a2dp_desc *a2dp = &bt->link_info.a2dp_desc;
 	struct rtw89_btc_btf_fwinfo *pfwinfo = &rtwdev->btc.fwinfo;
 	struct rtw89_btc_fbtc_cysta_v7 *pcysta = NULL;
@@ -10898,7 +10898,7 @@ static int _show_mreg_v1(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 	struct rtw89_btc_fbtc_mreg_val_v1 *pmreg = NULL;
 	struct rtw89_btc_cx *cx = &btc->cx;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
-	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	struct rtw89_btc_bt_info *bt = &btc->cx.bt0;
 	struct rtw89_mac_ax_coex_gnt gnt_cfg = {};
 	struct rtw89_mac_ax_gnt gnt;
 	char *p = buf, *end = buf + bufsz;
@@ -10983,7 +10983,7 @@ static int _show_mreg_v2(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 	struct rtw89_btc_fbtc_mreg_val_v2 *pmreg = NULL;
 	struct rtw89_btc_cx *cx = &btc->cx;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
-	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	struct rtw89_btc_bt_info *bt = &btc->cx.bt0;
 	struct rtw89_mac_ax_coex_gnt gnt_cfg = {};
 	struct rtw89_mac_ax_gnt gnt;
 	char *p = buf, *end = buf + bufsz;
@@ -11068,7 +11068,7 @@ static int _show_mreg_v7(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 	struct rtw89_btc_rpt_cmn_info *pcinfo = NULL;
 	struct rtw89_btc_cx *cx = &btc->cx;
 	struct rtw89_btc_wl_info *wl = &cx->wl;
-	struct rtw89_btc_bt_info *bt = &cx->bt;
+	struct rtw89_btc_bt_info *bt = &cx->bt0;
 	struct rtw89_mac_ax_gnt *gnt = NULL;
 	struct rtw89_btc_dm *dm = &btc->dm;
 	char *p = buf, *end = buf + bufsz;
@@ -11146,7 +11146,7 @@ static int _show_summary_v1(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 	struct rtw89_btc_cx *cx = &btc->cx;
 	struct rtw89_btc_dm *dm = &btc->dm;
 	struct rtw89_btc_wl_info *wl = &cx->wl;
-	struct rtw89_btc_bt_info *bt = &cx->bt;
+	struct rtw89_btc_bt_info *bt = &cx->bt0;
 	u32 cnt_sum = 0, *cnt = btc->dm.cnt_notify;
 	char *p = buf, *end = buf + bufsz;
 	u8 i;
@@ -11255,7 +11255,7 @@ static int _show_summary_v4(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 	struct rtw89_btc_cx *cx = &btc->cx;
 	struct rtw89_btc_dm *dm = &btc->dm;
 	struct rtw89_btc_wl_info *wl = &cx->wl;
-	struct rtw89_btc_bt_info *bt = &cx->bt;
+	struct rtw89_btc_bt_info *bt = &cx->bt0;
 	u32 cnt_sum = 0, *cnt = btc->dm.cnt_notify;
 	char *p = buf, *end = buf + bufsz;
 	u8 i;
@@ -11929,7 +11929,7 @@ out:
 
 void rtw89_btc_ntfy_preserve_bt_time(struct rtw89_dev *rtwdev, u32 ms)
 {
-	struct rtw89_btc_bt_link_info *bt_linfo = &rtwdev->btc.cx.bt.link_info;
+	struct rtw89_btc_bt_link_info *bt_linfo = &rtwdev->btc.cx.bt0.link_info;
 	struct rtw89_btc_bt_a2dp_desc a2dp = bt_linfo->a2dp_desc;
 
 	if (test_bit(RTW89_FLAG_SER_HANDLING, rtwdev->flags))
