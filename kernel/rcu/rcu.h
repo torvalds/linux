@@ -46,16 +46,25 @@
  *					the number of pending readers that will use
  *					this inactive index is bounded).
  *
- * RCU polled GP special control value:
+ * RCU polled GP special control values:
  *
  *	RCU_GET_STATE_COMPLETED :	State value indicating an already-completed
  *					polled GP has completed.  This value covers
  *					both the state and the counter of the
  *					grace-period sequence number.
+ *
+ *	RCU_GET_STATE_NOT_TRACKED :	State value indicating that a GP component
+ *					is not tracked by this subsystem and should
+ *					not be checked.  Used by SRCU and RCU Tasks
+ *					which do not track expedited GPs, to prevent
+ *					false-positive completion when their
+ *					gp_seq entries are checked via
+ *					poll_state_synchronize_rcu_full().
  */
 
-/* Low-order bit definition for polled grace-period APIs. */
+/* Low-order bit definitions for polled grace-period APIs. */
 #define RCU_GET_STATE_COMPLETED	0x1
+#define RCU_GET_STATE_NOT_TRACKED	0x2
 
 /* A complete grace period count */
 #define RCU_SEQ_GP (RCU_SEQ_STATE_MASK + 1)

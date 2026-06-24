@@ -3629,7 +3629,8 @@ bool poll_state_synchronize_rcu_full(struct rcu_gp_seq *gsp)
 	if (gsp->norm == RCU_GET_STATE_COMPLETED ||
 	    rcu_seq_done_exact(&rnp->gp_seq, gsp->norm) ||
 	    gsp->exp == RCU_GET_STATE_COMPLETED ||
-	    rcu_seq_done_exact(&rcu_state.expedited_sequence, gsp->exp)) {
+	    (gsp->exp != RCU_GET_STATE_NOT_TRACKED &&
+	     rcu_seq_done_exact(&rcu_state.expedited_sequence, gsp->exp))) {
 		smp_mb(); /* Ensure GP ends before subsequent accesses. */
 		return true;
 	}
