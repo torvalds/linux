@@ -45,7 +45,22 @@ void dml21_init(const struct dc *in_dc, struct dml2_context *dml_ctx, const stru
 
 void dml21_reinit(const struct dc *in_dc, struct dml2_context *dml_ctx, const struct dml2_configuration_options *config)
 {
-	dml21_init(in_dc, dml_ctx, config);
+	struct dml2_instance *dml2 = dml_ctx->v21.dml_init.dml2_instance;
+
+	dml21_populate_configuration_options(in_dc, dml_ctx, config);
+
+	dml21_populate_dml_init_params(&dml_ctx->v21.dml_init, &dml_ctx->config, in_dc);
+
+	// Skip full re-initialization if soc_bb, ip_caps and pmo_options are unchanged
+	if (memcmp(&dml2->soc_bbox, &dml_ctx->v21.dml_init.soc_bb,
+			sizeof(struct dml2_soc_bb)) == 0 &&
+		memcmp(&dml2->ip_caps, &dml_ctx->v21.dml_init.ip_caps,
+			sizeof(struct dml2_ip_capabilities)) == 0 &&
+		memcmp(&dml2->pmo_options, &dml_ctx->v21.dml_init.options.pmo_options,
+			sizeof(struct dml2_pmo_options)) == 0)
+		return;
+
+	dml2_initialize_instance(&dml_ctx->v21.dml_init);
 }
 
 static void dml21_calculate_rq_and_dlg_params(const struct dc *dc, struct dc_state *context, struct resource_context *out_new_hw_state,
