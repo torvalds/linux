@@ -90,11 +90,12 @@ static const struct drm_encoder_funcs amdgpu_dm_encoder_funcs = {
 	.destroy = amdgpu_dm_encoder_destroy,
 };
 
-static void dm_encoder_helper_disable(struct drm_encoder *encoder)
+STATIC_IFN_KUNIT void dm_encoder_helper_disable(struct drm_encoder *encoder)
 {
 }
+EXPORT_IF_KUNIT(dm_encoder_helper_disable);
 
-static int dm_encoder_helper_atomic_check(struct drm_encoder *encoder,
+STATIC_IFN_KUNIT int dm_encoder_helper_atomic_check(struct drm_encoder *encoder,
 					  struct drm_crtc_state *crtc_state,
 					  struct drm_connector_state *conn_state)
 {
@@ -164,6 +165,7 @@ static int dm_encoder_helper_atomic_check(struct drm_encoder *encoder,
 	}
 	return 0;
 }
+EXPORT_IF_KUNIT(dm_encoder_helper_atomic_check);
 
 const struct drm_encoder_helper_funcs amdgpu_dm_encoder_helper_funcs = {
 	.disable = dm_encoder_helper_disable,

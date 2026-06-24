@@ -4134,6 +4134,139 @@ static void dm_test_destroy_releases_dc_em_sink(struct kunit *test)
 	dc_sink_release(sink);
 }
 
+/* Tests for dm_encoder_helper_disable() */
+
+/**
+ * dm_test_encoder_disable_noop - Test the disable hook is a no-op
+ * @test: The KUnit test context
+ *
+ * dm_encoder_helper_disable() has an empty body; calling it must neither touch
+ * the encoder nor crash.
+ */
+static void dm_test_encoder_disable_noop(struct kunit *test)
+{
+	struct drm_encoder *encoder;
+
+	encoder = kunit_kzalloc(test, sizeof(*encoder), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, encoder);
+
+	dm_encoder_helper_disable(encoder);
+}
+
+/* Tests for dm_encoder_helper_atomic_check() */
+
+/*
+ * dm_encoder_helper_atomic_check() reads back through to_amdgpu_encoder(),
+ * to_amdgpu_dm_connector() and to_dm_connector_state(), so the encoder,
+ * connector and connector-state are stacked in their containers and wired
+ * together through conn_state->connector.
+ */
+struct dm_test_atomic_check_ctx {
+	struct drm_device *drm;
+	struct amdgpu_encoder *aenc;
+	struct amdgpu_dm_connector *aconnector;
+	struct dm_connector_state *dm_state;
+	struct drm_crtc_state *crtc_state;
+};
+
+static struct dm_test_atomic_check_ctx *
+dm_test_atomic_check_ctx_alloc(struct kunit *test, int connector_type)
+{
+	struct dm_test_atomic_check_ctx *ctx;
+
+	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx);
+
+	ctx->drm = dm_test_alloc_drm(test);
+
+	ctx->aenc = kunit_kzalloc(test, sizeof(*ctx->aenc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->aenc);
+	ctx->aenc->base.dev = ctx->drm;
+
+	ctx->aconnector = kunit_kzalloc(test, sizeof(*ctx->aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->aconnector);
+	ctx->aconnector->base.connector_type = connector_type;
+
+	ctx->dm_state = kunit_kzalloc(test, sizeof(*ctx->dm_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->dm_state);
+	ctx->dm_state->base.connector = &ctx->aconnector->base;
+
+	ctx->crtc_state = kunit_kzalloc(test, sizeof(*ctx->crtc_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->crtc_state);
+
+	return ctx;
+}
+
+/**
+ * dm_test_atomic_check_edp_native_keeps_scaling - Test native eDP mode is left alone
+ * @test: The KUnit test context
+ *
+ * On an eDP connector whose adjusted mode matches the panel's native mode,
+ * drm_crtc_helper_mode_valid_fixed() returns MODE_OK so scaling is untouched.
+ */
+static void dm_test_atomic_check_edp_native_keeps_scaling(struct kunit *test)
+{
+	struct dm_test_atomic_check_ctx *ctx =
+		dm_test_atomic_check_ctx_alloc(test, DRM_MODE_CONNECTOR_eDP);
+
+	ctx->aenc->native_mode.hdisplay = 1920;
+	ctx->aenc->native_mode.vdisplay = 1080;
+	ctx->crtc_state->adjusted_mode.hdisplay = 1920;
+	ctx->crtc_state->adjusted_mode.vdisplay = 1080;
+	ctx->dm_state->scaling = RMX_OFF;
+
+	KUNIT_EXPECT_EQ(test,
+		dm_encoder_helper_atomic_check(&ctx->aenc->base,
+					       ctx->crtc_state,
+					       &ctx->dm_state->base), 0);
+	KUNIT_EXPECT_EQ(test, (int)ctx->dm_state->scaling, (int)RMX_OFF);
+}
+
+/**
+ * dm_test_atomic_check_lvds_non_native_enables_scaling - Test non-native LVDS turns on scaling
+ * @test: The KUnit test context
+ *
+ * On an LVDS connector whose adjusted mode differs from the native mode and is
+ * currently RMX_OFF, the check enables RMX_ASPECT scaling and still returns 0.
+ */
+static void dm_test_atomic_check_lvds_non_native_enables_scaling(struct kunit *test)
+{
+	struct dm_test_atomic_check_ctx *ctx =
+		dm_test_atomic_check_ctx_alloc(test, DRM_MODE_CONNECTOR_LVDS);
+
+	ctx->aenc->native_mode.hdisplay = 1920;
+	ctx->aenc->native_mode.vdisplay = 1080;
+	ctx->crtc_state->adjusted_mode.hdisplay = 1280;
+	ctx->crtc_state->adjusted_mode.vdisplay = 720;
+	ctx->dm_state->scaling = RMX_OFF;
+
+	KUNIT_EXPECT_EQ(test,
+		dm_encoder_helper_atomic_check(&ctx->aenc->base,
+					       ctx->crtc_state,
+					       &ctx->dm_state->base), 0);
+	KUNIT_EXPECT_EQ(test, (int)ctx->dm_state->scaling, (int)RMX_ASPECT);
+}
+
+/**
+ * dm_test_atomic_check_non_mst_returns_zero - Test non-MST connectors short-circuit
+ * @test: The KUnit test context
+ *
+ * A non-eDP/LVDS connector with no MST output port hits the early ``return 0``
+ * before any topology state is touched.
+ */
+static void dm_test_atomic_check_non_mst_returns_zero(struct kunit *test)
+{
+	struct dm_test_atomic_check_ctx *ctx =
+		dm_test_atomic_check_ctx_alloc(test, DRM_MODE_CONNECTOR_HDMIA);
+
+	ctx->aconnector->mst_output_port = NULL;
+
+	KUNIT_EXPECT_EQ(test,
+		dm_encoder_helper_atomic_check(&ctx->aenc->base,
+					       ctx->crtc_state,
+					       &ctx->dm_state->base), 0);
+}
+
 static struct kunit_case amdgpu_dm_connector_tests[] = {
 	/* get_subconnector_type */
 	KUNIT_CASE(dm_test_subconnector_type_none),
@@ -4350,6 +4483,12 @@ static struct kunit_case amdgpu_dm_connector_tests[] = {
 	KUNIT_CASE(dm_test_destroy_minimal),
 	KUNIT_CASE(dm_test_destroy_releases_dc_sink),
 	KUNIT_CASE(dm_test_destroy_releases_dc_em_sink),
+	/* dm_encoder_helper_disable */
+	KUNIT_CASE(dm_test_encoder_disable_noop),
+	/* dm_encoder_helper_atomic_check */
+	KUNIT_CASE(dm_test_atomic_check_edp_native_keeps_scaling),
+	KUNIT_CASE(dm_test_atomic_check_lvds_non_native_enables_scaling),
+	KUNIT_CASE(dm_test_atomic_check_non_mst_returns_zero),
 	{}
 };
 
