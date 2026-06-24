@@ -4267,6 +4267,118 @@ static void dm_test_atomic_check_non_mst_returns_zero(struct kunit *test)
 					       &ctx->dm_state->base), 0);
 }
 
+/* Tests for hdmi_cec_unset_edid() */
+
+/**
+ * dm_test_hdmi_cec_unset_edid_no_notifier - Test the no-notifier no-op path
+ * @test: The KUnit test context
+ *
+ * With aconnector->notifier NULL the function returns early and must not crash.
+ */
+static void dm_test_hdmi_cec_unset_edid_no_notifier(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector;
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+
+	hdmi_cec_unset_edid(aconnector);
+}
+
+/* Tests for create_eml_sink() and handle_edid_mgmt() */
+
+/*
+ * create_eml_sink() reads EDID off the connector's DDC. Forcing the connector
+ * DRM_FORCE_OFF makes drm_edid_read_ddc() return NULL before touching any i2c
+ * adapter, exercising the "no EDID" branch without real hardware. aux_mode is
+ * set so the embedded DP AUX ddc is selected (no i2c adapter pointer needed).
+ */
+struct dm_test_edid_ctx {
+	struct drm_device *drm;
+	struct amdgpu_dm_connector *aconnector;
+	struct dc_link *link;
+};
+
+static struct dm_test_edid_ctx *
+dm_test_edid_ctx_alloc(struct kunit *test, int connector_type)
+{
+	struct dm_test_edid_ctx *ctx;
+
+	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx);
+
+	ctx->drm = dm_test_alloc_drm(test);
+	ctx->aconnector = dm_test_add_connector(test, ctx->drm, connector_type);
+
+	ctx->link = kunit_kzalloc(test, sizeof(*ctx->link), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->link);
+	ctx->link->aux_mode = true;
+	ctx->aconnector->dc_link = ctx->link;
+
+	ctx->aconnector->base.force = DRM_FORCE_OFF;
+
+	return ctx;
+}
+
+/**
+ * dm_test_create_eml_sink_no_edid - Test the no-EDID branch creates no sink
+ * @test: The KUnit test context
+ *
+ * When no EDID can be read the function logs an error and returns without
+ * allocating an emulated sink.
+ */
+static void dm_test_create_eml_sink_no_edid(struct kunit *test)
+{
+	struct dm_test_edid_ctx *ctx =
+		dm_test_edid_ctx_alloc(test, DRM_MODE_CONNECTOR_DisplayPort);
+
+	create_eml_sink(ctx->aconnector);
+
+	KUNIT_EXPECT_NULL(test, ctx->aconnector->dc_em_sink);
+}
+
+/**
+ * dm_test_handle_edid_mgmt_dp_sets_link_caps - Test DP seeds verified link caps
+ * @test: The KUnit test context
+ *
+ * For a DisplayPort link the function primes verified_link_cap before reading
+ * EDID so a headless force-on connector can still modeset.
+ */
+static void dm_test_handle_edid_mgmt_dp_sets_link_caps(struct kunit *test)
+{
+	struct dm_test_edid_ctx *ctx =
+		dm_test_edid_ctx_alloc(test, DRM_MODE_CONNECTOR_DisplayPort);
+
+	ctx->link->connector_signal = SIGNAL_TYPE_DISPLAY_PORT;
+
+	handle_edid_mgmt(ctx->aconnector);
+
+	KUNIT_EXPECT_EQ(test, (int)ctx->link->verified_link_cap.lane_count,
+			(int)LANE_COUNT_FOUR);
+	KUNIT_EXPECT_EQ(test, (int)ctx->link->verified_link_cap.link_rate,
+			(int)LINK_RATE_HIGH2);
+	KUNIT_EXPECT_NULL(test, ctx->aconnector->dc_em_sink);
+}
+
+/**
+ * dm_test_handle_edid_mgmt_non_dp_leaves_caps - Test non-DP links keep zeroed caps
+ * @test: The KUnit test context
+ *
+ * A non-DisplayPort link skips the verified_link_cap seeding entirely.
+ */
+static void dm_test_handle_edid_mgmt_non_dp_leaves_caps(struct kunit *test)
+{
+	struct dm_test_edid_ctx *ctx =
+		dm_test_edid_ctx_alloc(test, DRM_MODE_CONNECTOR_HDMIA);
+
+	ctx->link->connector_signal = SIGNAL_TYPE_HDMI_TYPE_A;
+
+	handle_edid_mgmt(ctx->aconnector);
+
+	KUNIT_EXPECT_EQ(test, (int)ctx->link->verified_link_cap.lane_count, 0);
+	KUNIT_EXPECT_EQ(test, (int)ctx->link->verified_link_cap.link_rate, 0);
+}
+
 static struct kunit_case amdgpu_dm_connector_tests[] = {
 	/* get_subconnector_type */
 	KUNIT_CASE(dm_test_subconnector_type_none),
@@ -4489,6 +4601,13 @@ static struct kunit_case amdgpu_dm_connector_tests[] = {
 	KUNIT_CASE(dm_test_atomic_check_edp_native_keeps_scaling),
 	KUNIT_CASE(dm_test_atomic_check_lvds_non_native_enables_scaling),
 	KUNIT_CASE(dm_test_atomic_check_non_mst_returns_zero),
+	/* hdmi_cec_unset_edid */
+	KUNIT_CASE(dm_test_hdmi_cec_unset_edid_no_notifier),
+	/* create_eml_sink */
+	KUNIT_CASE(dm_test_create_eml_sink_no_edid),
+	/* handle_edid_mgmt */
+	KUNIT_CASE(dm_test_handle_edid_mgmt_dp_sets_link_caps),
+	KUNIT_CASE(dm_test_handle_edid_mgmt_non_dp_leaves_caps),
 	{}
 };
 

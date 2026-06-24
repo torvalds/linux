@@ -146,6 +146,9 @@ int amdgpu_dm_encoder_init(struct drm_device *dev,
 			   uint32_t link_index);
 
 #if IS_ENABLED(CONFIG_DRM_AMD_DC_KUNIT_TEST)
+void hdmi_cec_unset_edid(struct amdgpu_dm_connector *aconnector);
+void create_eml_sink(struct amdgpu_dm_connector *aconnector);
+void handle_edid_mgmt(struct amdgpu_dm_connector *aconnector);
 void dm_encoder_helper_disable(struct drm_encoder *encoder);
 int dm_encoder_helper_atomic_check(struct drm_encoder *encoder,
 				   struct drm_crtc_state *crtc_state,

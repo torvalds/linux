@@ -334,7 +334,7 @@ int amdgpu_dm_detect_mst_link_for_all_connectors(struct drm_device *dev)
 }
 EXPORT_IF_KUNIT(amdgpu_dm_detect_mst_link_for_all_connectors);
 
-static void hdmi_cec_unset_edid(struct amdgpu_dm_connector *aconnector)
+STATIC_IFN_KUNIT void hdmi_cec_unset_edid(struct amdgpu_dm_connector *aconnector)
 {
 	struct cec_notifier *n = aconnector->notifier;
 
@@ -343,6 +343,7 @@ static void hdmi_cec_unset_edid(struct amdgpu_dm_connector *aconnector)
 
 	cec_notifier_phys_addr_invalidate(n);
 }
+EXPORT_IF_KUNIT(hdmi_cec_unset_edid);
 
 void amdgpu_dm_hdmi_cec_set_edid(struct amdgpu_dm_connector *aconnector)
 {
@@ -2007,7 +2008,7 @@ static int get_modes(struct drm_connector *connector)
 	return amdgpu_dm_connector_get_modes(connector);
 }
 
-static void create_eml_sink(struct amdgpu_dm_connector *aconnector)
+STATIC_IFN_KUNIT void create_eml_sink(struct amdgpu_dm_connector *aconnector)
 {
 	struct drm_connector *connector = &aconnector->base;
 	struct dc_link *dc_link = aconnector->dc_link;
@@ -2052,8 +2053,9 @@ static void create_eml_sink(struct amdgpu_dm_connector *aconnector)
 			dc_sink_retain(aconnector->dc_sink);
 	}
 }
+EXPORT_IF_KUNIT(create_eml_sink);
 
-static void handle_edid_mgmt(struct amdgpu_dm_connector *aconnector)
+STATIC_IFN_KUNIT void handle_edid_mgmt(struct amdgpu_dm_connector *aconnector)
 {
 	struct dc_link *link = (struct dc_link *)aconnector->dc_link;
 
@@ -2068,6 +2070,7 @@ static void handle_edid_mgmt(struct amdgpu_dm_connector *aconnector)
 
 	create_eml_sink(aconnector);
 }
+EXPORT_IF_KUNIT(handle_edid_mgmt);
 
 static enum dc_status dm_validate_stream_and_context(struct dc *dc,
 						struct dc_stream_state *stream)
