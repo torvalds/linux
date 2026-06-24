@@ -7655,7 +7655,7 @@ void _run_coex(struct rtw89_dev *rtwdev, enum btc_reason_and_action reason)
 		goto exit;
 	}
 
-	if (!cx->bt0.enable.now && !cx->other.type) {
+	if (!cx->bt0.enable.now && !cx->bt_ext.func_type) {
 		_action_bt_off(rtwdev);
 		goto exit;
 	}
@@ -7776,7 +7776,7 @@ static void _set_init_info(struct rtw89_dev *rtwdev)
 		dm->init_info.init_v7.wl_only = (u8)dm->wl_only;
 		dm->init_info.init_v7.bt_only = (u8)dm->bt_only;
 		dm->init_info.init_v7.wl_init_ok = (u8)wl->status.map.init_ok;
-		dm->init_info.init_v7.cx_other = btc->cx.other.type;
+		dm->init_info.init_v7.cx_other = btc->cx.bt_ext.func_type;
 		dm->init_info.init_v7.wl_guard_ch = chip->afh_guard_ch;
 		dm->init_info.init_v7.module = btc->mdinfo.md_v7;
 	} else {
@@ -7784,7 +7784,7 @@ static void _set_init_info(struct rtw89_dev *rtwdev)
 		dm->init_info.init.bt_only = (u8)dm->bt_only;
 		dm->init_info.init.wl_init_ok = (u8)wl->status.map.init_ok;
 		dm->init_info.init.dbcc_en = rtwdev->dbcc_en;
-		dm->init_info.init.cx_other = btc->cx.other.type;
+		dm->init_info.init.cx_other = btc->cx.bt_ext.func_type;
 		dm->init_info.init.wl_guard_ch = chip->afh_guard_ch;
 		dm->init_info.init.module = btc->mdinfo.md;
 	}
@@ -8927,7 +8927,7 @@ static int _show_cx_info(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 
 	p += scnprintf(p, end - p,
 		       "3rd_coex:%d, dbcc:%d, tx_num:%d, rx_num:%d\n",
-		       btc->cx.other.type, rtwdev->dbcc_en, hal->tx_nss,
+		       btc->cx.bt_ext.func_type, rtwdev->dbcc_en, hal->tx_nss,
 		       hal->rx_nss);
 
 	return p - buf;

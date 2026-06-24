@@ -1445,6 +1445,12 @@ enum rtw89_btc_bt_state_cnt {
 	BTC_BCNT_NUM,
 };
 
+enum rtw89_btc_bt_rf_band {
+	BTC_BT_B2G = 0x0, /* 2.4GHz */
+	BTC_BT_B5G = 0x1, /* 5GHz or 6GHz */
+	BTC_BT_BMAX = 0x2
+};
+
 enum rtw89_btc_bt_profile {
 	BTC_BT_NOPROFILE = 0,
 	BTC_BT_HFP = BIT(0),
@@ -1975,10 +1981,25 @@ struct rtw89_btc_bt_link_info {
 	u32 rsvd: 19;
 };
 
-struct rtw89_btc_3rdcx_info {
-	u8 type;   /* 0: none, 1:zigbee, 2:LTE  */
-	u8 hw_coex;
-	u16 rsvd;
+struct rtw89_btc_extsoc_info {
+	u8 chip_id;
+	u8 max_tx_pwr;
+	u8 rf_band_map;
+	u8 ant_iso_to_wl;
+
+	u8 link_weight[BTC_BT_BMAX];
+
+	u8 func_type; /* 0: none, 1:zigbee, 2:LTE */
+	u8 hw_coex; /* Hard-Wire coex interface support */
+	u8 pta_type; /* 0: RTK 4-wire mode, 1: 3-wire mode */
+	u8 pta_req_exist;
+
+	u32 hpta_cfg;
+	u32 hmbx_cfg;
+	u32 swout_cfg;
+	u32 swin_cfg;
+	u32 profile_map[BTC_BT_BMAX];
+	u32 bcnt[BTC_BCNT_NUM];
 };
 
 struct rtw89_btc_dm_emap {
@@ -2267,7 +2288,7 @@ struct rtw89_btc_cx {
 	struct rtw89_btc_wl_info wl;
 	struct rtw89_btc_bt_info bt0;
 	struct rtw89_btc_bt_info bt1;
-	struct rtw89_btc_3rdcx_info other;
+	struct rtw89_btc_extsoc_info bt_ext;
 	u32 state_map;
 };
 

@@ -2745,7 +2745,7 @@ static void rtw8922a_btc_set_rfe(struct rtw89_dev *rtwdev)
 	if (module->kt_ver <= 1)
 		module->wa_type |= BTC_WA_HFP_ZB;
 
-	rtwdev->btc.cx.other.type = BTC_3CX_NONE;
+	rtwdev->btc.cx.bt_ext.func_type = BTC_3CX_NONE;
 
 	if (module->rfe_type == 0) {
 		rtwdev->btc.dm.error.map.rfe_type0 = true;

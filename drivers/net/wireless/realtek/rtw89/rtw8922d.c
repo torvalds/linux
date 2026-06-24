@@ -2997,6 +2997,46 @@ static u32 rtw8922d_chan_to_rf18_val(struct rtw89_dev *rtwdev,
 
 static void rtw8922d_btc_set_rfe(struct rtw89_dev *rtwdev)
 {
+	union rtw89_btc_module_info *md = &rtwdev->btc.mdinfo;
+	struct rtw89_btc_module_v7 *module = &md->md_v7;
+
+	module->rfe_type = rtwdev->efuse.rfe_type;
+	module->kt_ver = rtwdev->hal.cv;
+	module->bt_solo = 0;
+	module->switch_type = BTC_SWITCH_INTERNAL;
+	module->wa_type = 0;
+
+	module->ant.type = BTC_ANT_SHARED;
+	module->ant.num = 2;
+	module->ant.isolation = 10;
+	module->ant.diversity = 0;
+	module->ant.single_pos = RF_PATH_A;
+	module->ant.btg_pos = RF_PATH_B;
+
+	if (module->kt_ver <= 1)
+		module->wa_type |= BTC_WA_HFP_ZB;
+
+	rtwdev->btc.cx.bt_ext.func_type = BTC_3CX_NONE;
+
+	if (module->rfe_type == 0) {
+		rtwdev->btc.dm.error.map.rfe_type0 = true;
+		return;
+	}
+
+	module->ant.num = (module->rfe_type % 2) ?  2 : 3;
+
+	if (module->kt_ver == 0)
+		module->ant.num = 2;
+
+	if (module->ant.num == 3) {
+		module->ant.type = BTC_ANT_DEDICATED;
+		module->bt_pos = BTC_BT_ALONE;
+	} else {
+		module->ant.type = BTC_ANT_SHARED;
+		module->bt_pos = BTC_BT_BTG;
+	}
+	rtwdev->btc.btg_pos = module->ant.btg_pos;
+	rtwdev->btc.ant_type = module->ant.type;
 }
 
 static void rtw8922d_btc_init_cfg(struct rtw89_dev *rtwdev)
