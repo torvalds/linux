@@ -1814,6 +1814,7 @@ static void tb_xdomain_state_work(struct work_struct *work)
 			tb_xdomain_failed(xd);
 		} else {
 			xd->state = XDOMAIN_STATE_ENUMERATED;
+			tb_xdomain_queue_properties_changed(xd);
 		}
 		break;
 
