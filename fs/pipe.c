@@ -1589,7 +1589,7 @@ static int u2k_pipe_maxsz(const ulong *u_ptr, uint *k_ptr)
 	return proc_uint_u2k_conv_uop(u_ptr, k_ptr, round_pipe_size_ul);
 }
 
-static int do_proc_uint_conv_pipe_maxsz(ulong *u_ptr, uint *k_ptr,
+static int do_proc_uint_conv_pipe_maxsz(bool *negp, ulong *u_ptr, uint *k_ptr,
 					int dir, const struct ctl_table *table)
 {
 	return proc_uint_conv(u_ptr, k_ptr, dir, table, true,

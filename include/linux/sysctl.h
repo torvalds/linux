@@ -102,7 +102,7 @@ int proc_douintvec_minmax(const struct ctl_table *table, int write, void *buffer
 		size_t *lenp, loff_t *ppos);
 int proc_douintvec_conv(const struct ctl_table *table, int write, void *buffer,
 			size_t *lenp, loff_t *ppos,
-			int (*conv)(unsigned long *lvalp, unsigned int *valp,
+			int (*conv)(bool *negp, ulong *lvalp, uint *valp,
 				    int write, const struct ctl_table *table));
 int proc_uint_k2u_conv(ulong *u_ptr, const uint *k_ptr);
 int proc_uint_u2k_conv_uop(const ulong *u_ptr, uint *k_ptr,
