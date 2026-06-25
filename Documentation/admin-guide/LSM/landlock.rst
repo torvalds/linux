@@ -52,6 +52,7 @@ AUDIT_LANDLOCK_ACCESS
         - fs.refer (ABI 2+)
         - fs.truncate (ABI 3+)
         - fs.ioctl_dev (ABI 5+)
+        - fs.resolve_unix (ABI 9+)
 
     **net.*** - Network access rights (ABI 4+):
         - net.bind_tcp - TCP port binding was denied
