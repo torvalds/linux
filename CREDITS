@@ -3096,6 +3096,10 @@ N: Jens Osterkamp
 E: jens@de.ibm.com
 D: Maintainer of Spidernet network driver for Cell
 
+N: Kent Overstreet
+E: kent.overstreet@linux.dev
+D: Co-authored and contributed to Memory Allocation Profiling
+
 N: Gadi Oxman
 E: gadio@netvision.net.il
 D: Original author and maintainer of IDE/ATAPI floppy/tape drivers

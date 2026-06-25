@@ -16889,7 +16889,6 @@ F:	tools/testing/memblock/
 
 MEMORY ALLOCATION PROFILING
 M:	Suren Baghdasaryan <surenb@google.com>
-M:	Kent Overstreet <kent.overstreet@linux.dev>
 R:	Hao Ge <hao.ge@linux.dev>
 L:	linux-mm@kvack.org
 S:	Maintained
