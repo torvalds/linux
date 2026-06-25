@@ -1847,15 +1847,14 @@ void idpf_deinit_task(struct idpf_adapter *adapter)
 
 /**
  * idpf_check_reset_complete - check that reset is complete
- * @hw: pointer to hw struct
+ * @adapter: adapter to check
  * @reset_reg: struct with reset registers
  *
  * Returns 0 if device is ready to use, or -EBUSY if it's in reset.
  **/
-static int idpf_check_reset_complete(struct idpf_hw *hw,
+static int idpf_check_reset_complete(struct idpf_adapter *adapter,
 				     struct idpf_reset_reg *reset_reg)
 {
-	struct idpf_adapter *adapter = hw->back;
 	int i;
 
 	for (i = 0; i < 2000; i++) {
@@ -1918,7 +1917,7 @@ static void idpf_init_hard_reset(struct idpf_adapter *adapter)
 	}
 
 	/* Wait for reset to complete */
-	err = idpf_check_reset_complete(&adapter->hw, &adapter->reset_reg);
+	err = idpf_check_reset_complete(adapter, &adapter->reset_reg);
 	if (err) {
 		dev_err(dev, "The driver was unable to contact the device's firmware. Check that the FW is running. Driver state= 0x%x\n",
 			adapter->state);

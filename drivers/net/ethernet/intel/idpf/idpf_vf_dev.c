@@ -15,31 +15,28 @@
 static void idpf_vf_ctlq_reg_init(struct idpf_adapter *adapter,
 				  struct idpf_ctlq_create_info *cq)
 {
-	resource_size_t mbx_start = adapter->dev_ops.static_reg_info[0].start;
-	int i;
-
-	for (i = 0; i < IDPF_NUM_DFLT_MBX_Q; i++) {
+	for (int i = 0; i < IDPF_NUM_DFLT_MBX_Q; i++) {
 		struct idpf_ctlq_create_info *ccq = cq + i;
 
 		switch (ccq->type) {
 		case IDPF_CTLQ_TYPE_MAILBOX_TX:
 			/* set head and tail registers in our local struct */
-			ccq->reg.head = VF_ATQH - mbx_start;
-			ccq->reg.tail = VF_ATQT - mbx_start;
-			ccq->reg.len = VF_ATQLEN - mbx_start;
-			ccq->reg.bah = VF_ATQBAH - mbx_start;
-			ccq->reg.bal = VF_ATQBAL - mbx_start;
+			ccq->reg.head = VF_ATQH;
+			ccq->reg.tail = VF_ATQT;
+			ccq->reg.len = VF_ATQLEN;
+			ccq->reg.bah = VF_ATQBAH;
+			ccq->reg.bal = VF_ATQBAL;
 			ccq->reg.len_mask = VF_ATQLEN_ATQLEN_M;
 			ccq->reg.len_ena_mask = VF_ATQLEN_ATQENABLE_M;
 			ccq->reg.head_mask = VF_ATQH_ATQH_M;
 			break;
 		case IDPF_CTLQ_TYPE_MAILBOX_RX:
 			/* set head and tail registers in our local struct */
-			ccq->reg.head = VF_ARQH - mbx_start;
-			ccq->reg.tail = VF_ARQT - mbx_start;
-			ccq->reg.len = VF_ARQLEN - mbx_start;
-			ccq->reg.bah = VF_ARQBAH - mbx_start;
-			ccq->reg.bal = VF_ARQBAL - mbx_start;
+			ccq->reg.head = VF_ARQH;
+			ccq->reg.tail = VF_ARQT;
+			ccq->reg.len = VF_ARQLEN;
+			ccq->reg.bah = VF_ARQBAH;
+			ccq->reg.bal = VF_ARQBAL;
 			ccq->reg.len_mask = VF_ARQLEN_ARQLEN_M;
 			ccq->reg.len_ena_mask = VF_ARQLEN_ARQENABLE_M;
 			ccq->reg.head_mask = VF_ARQH_ARQH_M;
@@ -56,13 +53,14 @@ static void idpf_vf_ctlq_reg_init(struct idpf_adapter *adapter,
  */
 static void idpf_vf_mb_intr_reg_init(struct idpf_adapter *adapter)
 {
+	struct libie_mmio_info *mmio = &adapter->ctlq_ctx.mmio_info;
 	struct idpf_intr_reg *intr = &adapter->mb_vector.intr_reg;
 	u32 dyn_ctl = le32_to_cpu(adapter->caps.mailbox_dyn_ctl);
 
-	intr->dyn_ctl = idpf_get_reg_addr(adapter, dyn_ctl);
+	intr->dyn_ctl = libie_pci_get_mmio_addr(mmio, dyn_ctl);
 	intr->dyn_ctl_intena_m = VF_INT_DYN_CTL0_INTENA_M;
 	intr->dyn_ctl_itridx_m = VF_INT_DYN_CTL0_ITR_INDX_M;
-	intr->icr_ena = idpf_get_reg_addr(adapter, VF_INT_ICR0_ENA1);
+	intr->icr_ena = libie_pci_get_mmio_addr(mmio, VF_INT_ICR0_ENA1);
 	intr->icr_ena_ctlq_m = VF_INT_ICR0_ENA1_ADMINQ_M;
 }
 
@@ -77,6 +75,7 @@ static int idpf_vf_intr_reg_init(struct idpf_vport *vport,
 	struct idpf_adapter *adapter = vport->adapter;
 	u16 num_vecs = rsrc->num_q_vectors;
 	struct idpf_vec_regs *reg_vals;
+	struct libie_mmio_info *mmio;
 	int num_regs, i, err = 0;
 	u32 rx_itr, tx_itr, val;
 	u16 total_vecs;
@@ -92,14 +91,17 @@ static int idpf_vf_intr_reg_init(struct idpf_vport *vport,
 		goto free_reg_vals;
 	}
 
+	mmio = &adapter->ctlq_ctx.mmio_info;
+
 	for (i = 0; i < num_vecs; i++) {
 		struct idpf_q_vector *q_vector = &rsrc->q_vectors[i];
 		u16 vec_id = rsrc->q_vector_idxs[i] - IDPF_MBX_Q_VEC;
 		struct idpf_intr_reg *intr = &q_vector->intr_reg;
+		struct idpf_vec_regs *reg = &reg_vals[vec_id];
 		u32 spacing;
 
-		intr->dyn_ctl = idpf_get_reg_addr(adapter,
-						  reg_vals[vec_id].dyn_ctl_reg);
+		intr->dyn_ctl = libie_pci_get_mmio_addr(mmio,
+							reg->dyn_ctl_reg);
 		intr->dyn_ctl_intena_m = VF_INT_DYN_CTLN_INTENA_M;
 		intr->dyn_ctl_intena_msk_m = VF_INT_DYN_CTLN_INTENA_MSK_M;
 		intr->dyn_ctl_itridx_s = VF_INT_DYN_CTLN_ITR_INDX_S;
@@ -109,22 +111,21 @@ static int idpf_vf_intr_reg_init(struct idpf_vport *vport,
 		intr->dyn_ctl_sw_itridx_ena_m =
 			VF_INT_DYN_CTLN_SW_ITR_INDX_ENA_M;
 
-		spacing = IDPF_ITR_IDX_SPACING(reg_vals[vec_id].itrn_index_spacing,
+		spacing = IDPF_ITR_IDX_SPACING(reg->itrn_index_spacing,
 					       IDPF_VF_ITR_IDX_SPACING);
 		rx_itr = VF_INT_ITRN_ADDR(VIRTCHNL2_ITR_IDX_0,
-					  reg_vals[vec_id].itrn_reg,
-					  spacing);
+					  reg->itrn_reg, spacing);
 		tx_itr = VF_INT_ITRN_ADDR(VIRTCHNL2_ITR_IDX_1,
-					  reg_vals[vec_id].itrn_reg,
-					  spacing);
-		intr->rx_itr = idpf_get_reg_addr(adapter, rx_itr);
-		intr->tx_itr = idpf_get_reg_addr(adapter, tx_itr);
+					  reg->itrn_reg, spacing);
+		intr->rx_itr = libie_pci_get_mmio_addr(mmio, rx_itr);
+		intr->tx_itr = libie_pci_get_mmio_addr(mmio, tx_itr);
 	}
 
 	/* Data vector for NOIRQ queues */
 
 	val = reg_vals[rsrc->q_vector_idxs[i] - IDPF_MBX_Q_VEC].dyn_ctl_reg;
-	rsrc->noirq_dyn_ctl = idpf_get_reg_addr(adapter, val);
+	rsrc->noirq_dyn_ctl =
+		libie_pci_get_mmio_addr(&adapter->ctlq_ctx.mmio_info, val);
 
 	val = VF_INT_DYN_CTLN_WB_ON_ITR_M | VF_INT_DYN_CTLN_INTENA_MSK_M |
 	      FIELD_PREP(VF_INT_DYN_CTLN_ITR_INDX_M, IDPF_NO_ITR_UPDATE_IDX);
@@ -142,7 +143,9 @@ free_reg_vals:
  */
 static void idpf_vf_reset_reg_init(struct idpf_adapter *adapter)
 {
-	adapter->reset_reg.rstat = idpf_get_rstat_reg_addr(adapter, VFGEN_RSTAT);
+	adapter->reset_reg.rstat =
+		libie_pci_get_mmio_addr(&adapter->ctlq_ctx.mmio_info,
+					VFGEN_RSTAT);
 	adapter->reset_reg.rstat_m = VFGEN_RSTAT_VFR_STATE_M;
 }
 

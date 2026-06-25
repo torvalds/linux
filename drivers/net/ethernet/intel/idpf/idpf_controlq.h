@@ -109,8 +109,6 @@ struct idpf_mmio_reg {
  * Align to ctlq_hw_info
  */
 struct idpf_hw {
-	struct idpf_mmio_reg mbx;
-	struct idpf_mmio_reg rstat;
 	/* Array of remaining LAN BAR regions */
 	int num_lan_regs;
 	struct idpf_mmio_reg *lan_regs;

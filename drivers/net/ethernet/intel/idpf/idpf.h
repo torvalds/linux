@@ -23,6 +23,7 @@ struct idpf_rss_data;
 
 #include <linux/net/intel/iidc_rdma.h>
 #include <linux/net/intel/iidc_rdma_idpf.h>
+#include <linux/net/intel/libie/controlq.h>
 #include <linux/net/intel/virtchnl2.h>
 
 #include "idpf_txrx.h"
@@ -625,6 +626,7 @@ struct idpf_vc_xn_manager;
  * @flags: See enum idpf_flags
  * @reset_reg: See struct idpf_reset_reg
  * @hw: Device access data
+ * @ctlq_ctx: controlq context
  * @num_avail_msix: Available number of MSIX vectors
  * @num_msix_entries: Number of entries in MSIX table
  * @msix_entries: MSIX table
@@ -682,6 +684,7 @@ struct idpf_adapter {
 	DECLARE_BITMAP(flags, IDPF_FLAGS_NBITS);
 	struct idpf_reset_reg reset_reg;
 	struct idpf_hw hw;
+	struct libie_ctlq_ctx ctlq_ctx;
 	u16 num_avail_msix;
 	u16 num_msix_entries;
 	struct msix_entry *msix_entries;
@@ -871,70 +874,6 @@ static inline u8 idpf_get_min_tx_pkt_len(struct idpf_adapter *adapter)
 }
 
 /**
- * idpf_get_mbx_reg_addr - Get BAR0 mailbox register address
- * @adapter: private data struct
- * @reg_offset: register offset value
- *
- * Return: BAR0 mailbox register address based on register offset.
- */
-static inline void __iomem *idpf_get_mbx_reg_addr(struct idpf_adapter *adapter,
-						  resource_size_t reg_offset)
-{
-	return adapter->hw.mbx.vaddr + reg_offset;
-}
-
-/**
- * idpf_get_rstat_reg_addr - Get BAR0 rstat register address
- * @adapter: private data struct
- * @reg_offset: register offset value
- *
- * Return: BAR0 rstat register address based on register offset.
- */
-static inline void __iomem *idpf_get_rstat_reg_addr(struct idpf_adapter *adapter,
-						    resource_size_t reg_offset)
-{
-	reg_offset -= adapter->dev_ops.static_reg_info[1].start;
-
-	return adapter->hw.rstat.vaddr + reg_offset;
-}
-
-/**
- * idpf_get_reg_addr - Get BAR0 register address
- * @adapter: private data struct
- * @reg_offset: register offset value
- *
- * Based on the register offset, return the actual BAR0 register address
- */
-static inline void __iomem *idpf_get_reg_addr(struct idpf_adapter *adapter,
-					      resource_size_t reg_offset)
-{
-	struct idpf_hw *hw = &adapter->hw;
-
-	for (int i = 0; i < hw->num_lan_regs; i++) {
-		struct idpf_mmio_reg *region = &hw->lan_regs[i];
-
-		if (reg_offset >= region->addr_start &&
-		    reg_offset < (region->addr_start + region->addr_len)) {
-			/* Convert the offset so that it is relative to the
-			 * start of the region.  Then add the base address of
-			 * the region to get the final address.
-			 */
-			reg_offset -= region->addr_start;
-
-			return region->vaddr + reg_offset;
-		}
-	}
-
-	/* It's impossible to hit this case with offsets from the CP. But if we
-	 * do for any other reason, the kernel will panic on that register
-	 * access. Might as well do it here to make it clear what's happening.
-	 */
-	BUG();
-
-	return NULL;
-}
-
-/**
  * idpf_is_reset_detected - check if we were reset at some point
  * @adapter: driver specific private structure
  *
@@ -945,7 +884,8 @@ static inline bool idpf_is_reset_detected(struct idpf_adapter *adapter)
 	if (!adapter->hw.arq)
 		return true;
 
-	return !(readl(idpf_get_mbx_reg_addr(adapter, adapter->hw.arq->reg.len)) &
+	return !(readl(libie_pci_get_mmio_addr(&adapter->ctlq_ctx.mmio_info,
+					       adapter->hw.arq->reg.len)) &
 		 adapter->hw.arq->reg.len_mask);
 }
 

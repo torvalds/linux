@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (C) 2023 Intel Corporation */
 
-#include "idpf_controlq.h"
+#include "idpf.h"
 
 /**
  * idpf_ctlq_setup_regs - initialize control queue registers
@@ -34,21 +34,27 @@ static void idpf_ctlq_setup_regs(struct idpf_ctlq_info *cq,
 static void idpf_ctlq_init_regs(struct idpf_hw *hw, struct idpf_ctlq_info *cq,
 				bool is_rxq)
 {
+	struct libie_mmio_info *mmio = &hw->back->ctlq_ctx.mmio_info;
+
 	/* Update tail to post pre-allocated buffers for rx queues */
 	if (is_rxq)
-		idpf_mbx_wr32(hw, cq->reg.tail, (u32)(cq->ring_size - 1));
+		writel((u32)(cq->ring_size - 1),
+		       libie_pci_get_mmio_addr(mmio, cq->reg.tail));
 
 	/* For non-Mailbox control queues only TAIL need to be set */
 	if (cq->q_id != -1)
 		return;
 
 	/* Clear Head for both send or receive */
-	idpf_mbx_wr32(hw, cq->reg.head, 0);
+	writel(0, libie_pci_get_mmio_addr(mmio, cq->reg.head));
 
 	/* set starting point */
-	idpf_mbx_wr32(hw, cq->reg.bal, lower_32_bits(cq->desc_ring.pa));
-	idpf_mbx_wr32(hw, cq->reg.bah, upper_32_bits(cq->desc_ring.pa));
-	idpf_mbx_wr32(hw, cq->reg.len, (cq->ring_size | cq->reg.len_ena_mask));
+	writel(lower_32_bits(cq->desc_ring.pa),
+	       libie_pci_get_mmio_addr(mmio, cq->reg.bal));
+	writel(upper_32_bits(cq->desc_ring.pa),
+	       libie_pci_get_mmio_addr(mmio, cq->reg.bah));
+	writel((cq->ring_size | cq->reg.len_ena_mask),
+	       libie_pci_get_mmio_addr(mmio, cq->reg.len));
 }
 
 /**
@@ -326,7 +332,9 @@ int idpf_ctlq_send(struct idpf_hw *hw, struct idpf_ctlq_info *cq,
 	 */
 	dma_wmb();
 
-	idpf_mbx_wr32(hw, cq->reg.tail, cq->next_to_use);
+	writel(cq->next_to_use,
+	       libie_pci_get_mmio_addr(&hw->back->ctlq_ctx.mmio_info,
+				       cq->reg.tail));
 
 err_unlock:
 	spin_unlock(&cq->cq_lock);
@@ -518,7 +526,9 @@ post_buffs_out:
 
 		dma_wmb();
 
-		idpf_mbx_wr32(hw, cq->reg.tail, cq->next_to_post);
+		writel(cq->next_to_post,
+		       libie_pci_get_mmio_addr(&hw->back->ctlq_ctx.mmio_info,
+					       cq->reg.tail));
 	}
 
 	spin_unlock(&cq->cq_lock);
