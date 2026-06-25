@@ -1148,11 +1148,21 @@ static int mshv_vtl_hvcall_call(struct mshv_vtl_hvcall_fd *fd,
 	 */
 	in = (void *)__get_free_page(GFP_KERNEL);
 	out = (void *)__get_free_page(GFP_KERNEL);
+	if (!in || !out) {
+		ret = -ENOMEM;
+		goto free_pages;
+	}
 
 	if (copy_from_user(in, (void __user *)hvcall.input_ptr, hvcall.input_size)) {
 		ret = -EFAULT;
 		goto free_pages;
 	}
+
+	/*
+	 * The caller supplies output_size, so clear the range copied back to
+	 * userspace in case the hypercall writes fewer bytes than requested.
+	 */
+	memset(out, 0, hvcall.output_size);
 
 	hvcall.status = hv_do_hypercall(hvcall.control, in, out);
 
