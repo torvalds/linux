@@ -14,19 +14,32 @@
  * @init_task: Delayed initialization after reset
  * @init_task.init_work: Delayed initialization work
  * @init_task.reset_retries: How many times to check, whether reset is completed
+ * @init_task.vc_retries: Number of retries to establish mailbox communication
+ * @mbx_task: Control queue Rx handling
  * @xnm: virtchnl transaction manager
  * @asq: Send control queue info
  * @arq: Receive control queue info
+ * @vc_ver: Negotiated virtchnl version
+ * @vc_ver.major: Negotiated major virtchnl version
+ * @vc_ver.minor: Negotiated minor virtchnl version
+ * @caps: Negotiated virtchnl capabilities
  */
 struct ixd_adapter {
 	struct libie_ctlq_ctx cp_ctx;
 	struct {
 		struct delayed_work init_work;
 		u8 reset_retries;
+		u8 vc_retries;
 	} init_task;
+	struct delayed_work mbx_task;
 	struct libie_ctlq_xn_manager *xnm;
 	struct libie_ctlq_info *asq;
 	struct libie_ctlq_info *arq;
+	struct {
+		u32 major;
+		u32 minor;
+	} vc_ver;
+	struct virtchnl2_get_capabilities caps;
 };
 
 /**
