@@ -872,7 +872,8 @@ static __be32 nlm4svc_proc_granted_msg(struct svc_rqst *rqstp)
 	struct nlm4_testargs_wrapper *argp = rqstp->rq_argp;
 	struct nlm_host *host;
 
-	host = nlm4svc_lookup_host(rqstp, argp->xdrgen.alock.caller_name, false);
+	host = nlmsvc_lookup_host(rqstp, argp->xdrgen.alock.caller_name.data,
+				  argp->xdrgen.alock.caller_name.len);
 	if (!host)
 		return rpc_system_err;
 
