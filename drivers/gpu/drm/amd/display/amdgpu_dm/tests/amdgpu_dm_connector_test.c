@@ -4900,6 +4900,103 @@ static void dm_test_parse_displayid_vrr_sets_range(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, connector->display_info.monitor_range.max_vfreq, 144);
 }
 
+/**
+ * dm_test_mode_valid_interlace_rejected - Test interlaced modes are rejected
+ * @test: The KUnit test context
+ *
+ * Interlaced modes are rejected up front with MODE_ERROR before any sink or
+ * stream validation is attempted.
+ */
+static void dm_test_mode_valid_interlace_rejected(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector;
+	struct drm_display_mode *mode;
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+	mode = kunit_kzalloc(test, sizeof(*mode), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, mode);
+
+	mode->flags = DRM_MODE_FLAG_INTERLACE;
+
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_connector_mode_valid(&aconnector->base, mode),
+			MODE_ERROR);
+}
+
+/**
+ * dm_test_mode_valid_dblscan_rejected - Test doublescan modes are rejected
+ * @test: The KUnit test context
+ *
+ * Doublescan modes are rejected up front with MODE_ERROR.
+ */
+static void dm_test_mode_valid_dblscan_rejected(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector;
+	struct drm_display_mode *mode;
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+	mode = kunit_kzalloc(test, sizeof(*mode), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, mode);
+
+	mode->flags = DRM_MODE_FLAG_DBLSCAN;
+
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_connector_mode_valid(&aconnector->base, mode),
+			MODE_ERROR);
+}
+
+/**
+ * dm_test_hdmi_cec_set_edid_no_notifier - Test the no-notifier no-op path
+ * @test: The KUnit test context
+ *
+ * With aconnector->notifier NULL the function returns early and must not crash.
+ */
+static void dm_test_hdmi_cec_set_edid_no_notifier(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector;
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+
+	amdgpu_dm_hdmi_cec_set_edid(aconnector);
+}
+
+/**
+ * dm_test_s3_handle_hdmi_cec_suspend - Test the suspend pass over connectors
+ * @test: The KUnit test context
+ *
+ * Suspend iterates all connectors, skipping writeback ones and calling the
+ * unset path on the rest; with NULL notifiers this is a crash-free no-op.
+ */
+static void dm_test_s3_handle_hdmi_cec_suspend(struct kunit *test)
+{
+	struct drm_device *drm = dm_test_alloc_drm(test);
+
+	dm_test_add_connector(test, drm, DRM_MODE_CONNECTOR_WRITEBACK);
+	dm_test_add_connector(test, drm, DRM_MODE_CONNECTOR_HDMIA);
+
+	amdgpu_dm_s3_handle_hdmi_cec(drm, true);
+}
+
+/**
+ * dm_test_s3_handle_hdmi_cec_resume - Test the resume pass over connectors
+ * @test: The KUnit test context
+ *
+ * Resume iterates all connectors, skipping writeback ones and calling the set
+ * path on the rest; with NULL notifiers this is a crash-free no-op.
+ */
+static void dm_test_s3_handle_hdmi_cec_resume(struct kunit *test)
+{
+	struct drm_device *drm = dm_test_alloc_drm(test);
+
+	dm_test_add_connector(test, drm, DRM_MODE_CONNECTOR_WRITEBACK);
+	dm_test_add_connector(test, drm, DRM_MODE_CONNECTOR_HDMIA);
+
+	amdgpu_dm_s3_handle_hdmi_cec(drm, false);
+}
+
 static struct kunit_case amdgpu_dm_connector_tests[] = {
 	/* get_subconnector_type */
 	KUNIT_CASE(dm_test_subconnector_type_none),
@@ -5166,6 +5263,14 @@ static struct kunit_case amdgpu_dm_connector_tests[] = {
 	KUNIT_CASE(dm_test_parse_displayid_vrr_null_edid),
 	KUNIT_CASE(dm_test_parse_displayid_vrr_no_displayid),
 	KUNIT_CASE(dm_test_parse_displayid_vrr_sets_range),
+	/* amdgpu_dm_connector_mode_valid */
+	KUNIT_CASE(dm_test_mode_valid_interlace_rejected),
+	KUNIT_CASE(dm_test_mode_valid_dblscan_rejected),
+	/* amdgpu_dm_hdmi_cec_set_edid */
+	KUNIT_CASE(dm_test_hdmi_cec_set_edid_no_notifier),
+	/* amdgpu_dm_s3_handle_hdmi_cec */
+	KUNIT_CASE(dm_test_s3_handle_hdmi_cec_suspend),
+	KUNIT_CASE(dm_test_s3_handle_hdmi_cec_resume),
 	{}
 };
 
