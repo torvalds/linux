@@ -16887,16 +16887,6 @@ F:	mm/mm_init.c
 F:	mm/rodata_test.c
 F:	tools/testing/memblock/
 
-MEMORY ALLOCATION PROFILING
-M:	Suren Baghdasaryan <surenb@google.com>
-R:	Hao Ge <hao.ge@linux.dev>
-L:	linux-mm@kvack.org
-S:	Maintained
-F:	Documentation/mm/allocation-profiling.rst
-F:	include/linux/alloc_tag.h
-F:	include/linux/pgalloc_tag.h
-F:	lib/alloc_tag.c
-
 MEMORY CONTROLLER DRIVERS
 M:	Krzysztof Kozlowski <krzk@kernel.org>
 L:	linux-kernel@vger.kernel.org
@@ -16940,6 +16930,16 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/akpm/mm
 T:	quilt git://git.kernel.org/pub/scm/linux/kernel/git/akpm/25-new
 F:	mm/
 F:	tools/mm/
+
+MEMORY MANAGEMENT - ALLOCATION PROFILING (ALLOC TAG)
+M:	Suren Baghdasaryan <surenb@google.com>
+R:	Hao Ge <hao.ge@linux.dev>
+L:	linux-mm@kvack.org
+S:	Maintained
+F:	Documentation/mm/allocation-profiling.rst
+F:	include/linux/alloc_tag.h
+F:	include/linux/pgalloc_tag.h
+F:	mm/alloc_tag.c
 
 MEMORY MANAGEMENT - BALLOON
 M:	Andrew Morton <akpm@linux-foundation.org>
