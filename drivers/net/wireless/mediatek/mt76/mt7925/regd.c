@@ -217,6 +217,36 @@ mt7925_regd_is_valid_alpha2(const char *alpha2)
 	return false;
 }
 
+bool
+mt7925_regd_is_valid_channel(struct mt792x_dev *dev,
+			     enum nl80211_band band,
+			     struct ieee80211_channel *chan)
+{
+	struct ieee80211_hw *hw = mt76_hw(dev);
+	struct wiphy *wiphy = hw->wiphy;
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_channel *ch;
+	int i;
+
+	if (!chan)
+		return false;
+
+	sband = wiphy->bands[band];
+	if (!sband)
+		return false;
+
+	for (i = 0; i < sband->n_channels; i++) {
+		ch = &sband->channels[i];
+
+		if (ch->hw_value == chan->hw_value &&
+		    ((ch->flags & IEEE80211_CHAN_DISABLED) == 0))
+			return true;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(mt7925_regd_is_valid_channel);
+
 int mt7925_regd_change(struct mt792x_phy *phy, char *alpha2)
 {
 	struct wiphy *wiphy = phy->mt76->hw->wiphy;
