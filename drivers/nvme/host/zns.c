@@ -155,7 +155,8 @@ static int nvme_zone_parse_entry(struct nvme_ns *ns,
 	struct blk_zone zone = { };
 
 	if ((entry->zt & 0xf) != NVME_ZONE_TYPE_SEQWRITE_REQ) {
-		dev_err(ns->ctrl->device, "invalid zone type %#x\n", entry->zt);
+		dev_err(ns->ctrl->device, "invalid zone type %#x at zone %u\n",
+			entry->zt, idx);
 		return -EINVAL;
 	}
 
