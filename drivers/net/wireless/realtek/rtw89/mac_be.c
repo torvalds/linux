@@ -641,6 +641,7 @@ static void set_cpu_en(struct rtw89_dev *rtwdev, bool include_bb)
 static int wcpu_on(struct rtw89_dev *rtwdev, u8 boot_reason, bool dlfw)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
+	struct rtw89_hal *hal = &rtwdev->hal;
 	u32 val32;
 	int ret;
 
@@ -683,6 +684,8 @@ static int wcpu_on(struct rtw89_dev *rtwdev, u8 boot_reason, bool dlfw)
 	if (chip->chip_id != RTL8922A)
 		rtw89_write32_set(rtwdev, R_BE_WCPU_FW_CTRL, B_BE_HOST_EXIST);
 
+	rtw89_write32_mask(rtwdev, R_BE_WCPU_FW_CTRL,
+			   B_BE_WCPU_ROM_CUT_VAL_MASK, hal->cv + 1);
 	rtw89_write16_mask(rtwdev, R_BE_BOOT_REASON, B_BE_BOOT_REASON_MASK, boot_reason);
 	rtw89_write32_clr(rtwdev, R_BE_PLATFORM_ENABLE, B_BE_WCPU_EN);
 	rtw89_write32_clr(rtwdev, R_BE_PLATFORM_ENABLE, B_BE_HOLD_AFTER_RESET);
