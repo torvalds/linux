@@ -116,6 +116,7 @@ torture_param(int, n_barrier_cbs, 0, "# of callbacks/kthreads for barrier testin
 torture_param(int, n_up_down, 32, "# of concurrent up/down hrtimer-based RCU readers");
 torture_param(int, nfakewriters, 4, "Number of RCU fake writer threads");
 torture_param(int, nreaders, -1, "Number of RCU reader threads");
+torture_param(bool, nwriters, 1, "Number of RCU writer threads (0 or 1)");
 torture_param(int, object_debug, 0, "Enable debug-object double call_rcu() testing");
 torture_param(int, onoff_holdoff, 0, "Time after boot before CPU hotplugs (s)");
 torture_param(int, onoff_interval, 0, "Time between CPU hotplugs (jiffies), 0=disable");
@@ -3163,7 +3164,7 @@ static void
 rcu_torture_print_module_parms(struct rcu_torture_ops *cur_ops, const char *tag)
 {
 	pr_alert("%s" TORTURE_FLAG
-		 "--- %s: nreaders=%d nfakewriters=%d "
+		 "--- %s: nreaders=%d nwriters=%d nfakewriters=%d "
 		 "stat_interval=%d verbose=%d test_no_idle_hz=%d "
 		 "shuffle_interval=%d stutter=%d irqreader=%d "
 		 "fqs_duration=%d fqs_holdoff=%d fqs_stutter=%d "
@@ -3178,7 +3179,7 @@ rcu_torture_print_module_parms(struct rcu_torture_ops *cur_ops, const char *tag)
 		 "nocbs_nthreads=%d nocbs_toggle=%d "
 		 "test_nmis=%d "
 		 "preempt_duration=%d preempt_interval=%d n_up_down=%d\n",
-		 torture_type, tag, nrealreaders, nrealfakewriters,
+		 torture_type, tag, nrealreaders, nwriters, nrealfakewriters,
 		 stat_interval, verbose, test_no_idle_hz, shuffle_interval,
 		 stutter, irqreader, fqs_duration, fqs_holdoff, fqs_stutter,
 		 test_boost, cur_ops->can_boost,
@@ -4754,10 +4755,11 @@ rcu_torture_init(void)
 			goto unwind;
 	}
 
-	firsterr = torture_create_kthread(rcu_torture_writer, NULL,
-					  writer_task);
-	if (torture_init_error(firsterr))
-		goto unwind;
+	if (nwriters) {
+		firsterr = torture_create_kthread(rcu_torture_writer, NULL, writer_task);
+		if (torture_init_error(firsterr))
+			goto unwind;
+	}
 
 	firsterr = rcu_torture_updown_init();
 	if (torture_init_error(firsterr))

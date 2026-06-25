@@ -6117,6 +6117,11 @@ Kernel parameters
 			the number of CPUs.  For example, -2 selects N
 			(the number of CPUs), -3 selects N+1, and so on.
 
+	rcutorture.nwriters= [KNL]
+			Set number of RCU writers, which must be either
+			zero or one.  For additional writers, use instead
+			the rcutorture.nfakewriters parameter.
+
 	rcutorture.object_debug= [KNL]
 			Enable debug-object double-call_rcu() testing.
 
