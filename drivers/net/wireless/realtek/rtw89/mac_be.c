@@ -1333,7 +1333,7 @@ static int rx_fltr_init_be(struct rtw89_dev *rtwdev, u8 mac_idx)
 
 	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_RX_FLTR_OPT, mac_idx);
 	val = B_BE_A_BC_CAM_MATCH | B_BE_A_UC_CAM_MATCH | B_BE_A_MC |
-	      B_BE_A_BC | B_BE_A_A1_MATCH | B_BE_SNIFFER_MODE |
+	      B_BE_A_BC | B_BE_A_A1_MATCH |
 	      u32_encode_bits(15, B_BE_UID_FILTER_MASK);
 	rtw89_write32(rtwdev, reg, val);
 	u32p_replace_bits(&rtwdev->hal.rx_fltr, 15, B_BE_UID_FILTER_MASK);
