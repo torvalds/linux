@@ -3,6 +3,7 @@
 
 #include "ixd.h"
 #include "ixd_ctlq.h"
+#include "ixd_devlink.h"
 #include "ixd_virtchnl.h"
 
 #define IXD_DFLT_MBX_Q_LEN 64
@@ -151,6 +152,8 @@ void ixd_init_task(struct work_struct *work)
 	err = ixd_vc_dev_init(adapter);
 	if (!err) {
 		adapter->init_task.vc_retries = 0;
+		adapter->init_task.success = true;
+		ixd_devlink_register(adapter);
 		return;
 	}
 

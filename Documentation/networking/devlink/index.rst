@@ -87,6 +87,7 @@ parameters, info versions, and other features it supports.
    ice
    ionic
    iosm
+   ixd
    ixgbe
    kvaser_pciefd
    kvaser_usb

@@ -15,6 +15,7 @@
  * @init_task.init_work: Delayed initialization work
  * @init_task.reset_retries: How many times to check, whether reset is completed
  * @init_task.vc_retries: Number of retries to establish mailbox communication
+ * @init_task.success: init_work completion status
  * @mbx_task: Control queue Rx handling
  * @xnm: virtchnl transaction manager
  * @asq: Send control queue info
@@ -30,6 +31,7 @@ struct ixd_adapter {
 		struct delayed_work init_work;
 		u8 reset_retries;
 		u8 vc_retries;
+		bool success;
 	} init_task;
 	struct delayed_work mbx_task;
 	struct libie_ctlq_xn_manager *xnm;
