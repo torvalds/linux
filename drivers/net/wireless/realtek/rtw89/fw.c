@@ -3454,7 +3454,7 @@ int rtw89_fw_h2c_lps_ml_cmn_info_v1(struct rtw89_dev *rtwdev,
 	h2c->rfe_type = efuse->rfe_type;
 	h2c->rssi_main = U8_MAX;
 
-	memset(h2c->link_id, 0xfe, RTW89_BB_PS_LINK_BUF_MAX);
+	memset(h2c->link_id, RTW89_BB_PS_LINK_ID_SKIP, RTW89_BB_PS_LINK_BUF_MAX);
 
 	rtw89_vif_for_each_link(rtwvif, rtwvif_link, link_id) {
 		u8 phy_idx = rtwvif_link->phy_idx;
@@ -3462,7 +3462,7 @@ int rtw89_fw_h2c_lps_ml_cmn_info_v1(struct rtw89_dev *rtwdev,
 		bb = rtw89_get_bb_ctx(rtwdev, phy_idx);
 		chan = rtw89_chan_get(rtwdev, rtwvif_link->chanctx_idx);
 
-		h2c->link_id[phy_idx] = phy_idx;
+		h2c->link_id[phy_idx] = link_id;
 		h2c->central_ch[phy_idx] = chan->channel;
 		h2c->pri_ch[phy_idx] = chan->primary_channel;
 		h2c->band[phy_idx] = chan->band_type;

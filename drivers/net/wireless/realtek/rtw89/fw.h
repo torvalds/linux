@@ -2053,6 +2053,8 @@ enum rtw89_bb_link_rx_gain_table_type {
 	RTW89_BB_PS_LINK_RX_GAIN_TAB_MAX,
 };
 
+#define RTW89_BB_PS_LINK_ID_SKIP 0xfe
+
 enum rtw89_bb_ps_link_buf_id {
 	RTW89_BB_PS_LINK_BUF_0 = 0x00,
 	RTW89_BB_PS_LINK_BUF_1 = 0x01,
