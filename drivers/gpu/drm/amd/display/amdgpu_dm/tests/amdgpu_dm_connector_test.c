@@ -4997,6 +4997,69 @@ static void dm_test_s3_handle_hdmi_cec_resume(struct kunit *test)
 	amdgpu_dm_s3_handle_hdmi_cec(drm, false);
 }
 
+/**
+ * dm_test_create_validate_stream_null_dm_state - Test NULL state returns NULL
+ * @test: The KUnit test context
+ *
+ * Without a connector state there is nothing to validate against, so the
+ * helper bails out with NULL before touching the dc handle.
+ */
+static void dm_test_create_validate_stream_null_dm_state(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector;
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+
+	KUNIT_EXPECT_NULL(test,
+			  amdgpu_dm_create_validate_stream_for_sink(&aconnector->base,
+								    NULL, NULL, NULL));
+}
+
+/**
+ * dm_test_update_after_detect_mst_noop - Test MST connectors are left to drm_mst
+ * @test: The KUnit test context
+ *
+ * An MST connector is handled by the drm_mst framework, so the function
+ * returns immediately and never dereferences the (NULL) dc_link.
+ */
+static void dm_test_update_after_detect_mst_noop(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector;
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+
+	aconnector->mst_mgr.mst_state = true;
+
+	amdgpu_dm_update_connector_after_detect(aconnector);
+}
+
+/**
+ * dm_test_update_after_detect_sink_unchanged - Test the short-pulse no-op path
+ * @test: The KUnit test context
+ *
+ * When the link reports no local sink and the connector already has no
+ * dc_sink, the "sink didn't change" path returns without touching DC.
+ */
+static void dm_test_update_after_detect_sink_unchanged(struct kunit *test)
+{
+	struct drm_device *drm = dm_test_alloc_drm(test);
+	struct amdgpu_dm_connector *aconnector;
+	struct dc_link *link;
+
+	aconnector = dm_test_add_connector(test, drm, DRM_MODE_CONNECTOR_HDMIA);
+	link = kunit_kzalloc(test, sizeof(*link), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, link);
+
+	aconnector->dc_link = link;
+
+	/* link->local_sink and aconnector->dc_sink are both NULL. */
+	amdgpu_dm_update_connector_after_detect(aconnector);
+
+	KUNIT_EXPECT_NULL(test, aconnector->dc_sink);
+}
+
 static struct kunit_case amdgpu_dm_connector_tests[] = {
 	/* get_subconnector_type */
 	KUNIT_CASE(dm_test_subconnector_type_none),
@@ -5271,6 +5334,11 @@ static struct kunit_case amdgpu_dm_connector_tests[] = {
 	/* amdgpu_dm_s3_handle_hdmi_cec */
 	KUNIT_CASE(dm_test_s3_handle_hdmi_cec_suspend),
 	KUNIT_CASE(dm_test_s3_handle_hdmi_cec_resume),
+	/* amdgpu_dm_create_validate_stream_for_sink */
+	KUNIT_CASE(dm_test_create_validate_stream_null_dm_state),
+	/* amdgpu_dm_update_connector_after_detect */
+	KUNIT_CASE(dm_test_update_after_detect_mst_noop),
+	KUNIT_CASE(dm_test_update_after_detect_sink_unchanged),
 	{}
 };
 

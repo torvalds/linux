@@ -659,6 +659,7 @@ void amdgpu_dm_update_connector_after_detect(
 	if (!drm_kms_helper_is_poll_worker())
 		mutex_unlock(&dev->mode_config.mutex);
 }
+EXPORT_IF_KUNIT(amdgpu_dm_update_connector_after_detect);
 
 enum dc_color_depth
 amdgpu_dm_convert_color_depth_from_display_info(const struct drm_connector *connector,
@@ -2276,6 +2277,7 @@ amdgpu_dm_create_validate_stream_for_sink(struct drm_connector *connector,
 
 	return stream;
 }
+EXPORT_IF_KUNIT(amdgpu_dm_create_validate_stream_for_sink);
 
 enum drm_mode_status amdgpu_dm_connector_mode_valid(struct drm_connector *connector,
 				   const struct drm_display_mode *mode)
