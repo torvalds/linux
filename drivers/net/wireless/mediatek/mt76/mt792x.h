@@ -23,6 +23,7 @@
 #define MT792x_CFEND_RATE_11B		0x03	/* 11B LP, 11M */
 
 #define MT792x_FW_TAG_FEATURE	4
+#define MT792x_FW_CAP_NAN	BIT(5)
 #define MT792x_FW_CAP_CNM	BIT(7)
 
 #define MT792x_CHIP_CAP_CLC_EVT_EN BIT(0)
@@ -121,10 +122,12 @@ struct mt792x_link_sta {
 };
 
 struct mt792x_sta_nan_sched {
+	/* protects NAN peer schedule state */
 	u16 committed_dw;
 	u32 sch_idx;
 	bool idx_assigned;
 	unsigned long ndp_ctx_bitmap;
+	bool ndp_ctx_assigned;
 	u8 ndp_ctx_id;		/* assigned NDP context ID (for NDI sta) */
 	struct {
 		u8 map_id;

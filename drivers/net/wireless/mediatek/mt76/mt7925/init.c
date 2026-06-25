@@ -152,6 +152,33 @@ static int mt7925_init_hardware(struct mt792x_dev *dev)
 	return 0;
 }
 
+static int mt7925_init_nan_cap(struct mt76_dev *mdev)
+{
+	struct mt792x_dev *dev = container_of(mdev, struct mt792x_dev, mt76);
+	const struct ieee80211_sta_he_cap *he_cap;
+	struct ieee80211_supported_band *sband;
+	struct wiphy *wiphy = mdev->hw->wiphy;
+
+	if (!(dev->fw_features & MT792x_FW_CAP_NAN))
+		return 0;
+
+	sband = wiphy->bands[NL80211_BAND_2GHZ];
+	if (sband)
+		wiphy->nan_capa.phy.ht = sband->ht_cap;
+
+	sband = wiphy->bands[NL80211_BAND_5GHZ];
+	if (sband)
+		wiphy->nan_capa.phy.vht = sband->vht_cap;
+
+	sband = wiphy->bands[NL80211_BAND_2GHZ];
+	he_cap = sband ? ieee80211_get_he_iftype_cap(sband, NL80211_IFTYPE_NAN)
+		       : NULL;
+	if (he_cap)
+		wiphy->nan_capa.phy.he = *he_cap;
+
+	return 0;
+}
+
 static void mt7925_init_work(struct work_struct *work)
 {
 	struct mt792x_dev *dev = container_of(work, struct mt792x_dev,
@@ -171,6 +198,8 @@ static void mt7925_init_work(struct work_struct *work)
 		dev_err(dev->mt76.dev, "MLO init failed\n");
 		return;
 	}
+
+	dev->mt76.init_wiphy = mt7925_init_nan_cap;
 
 	ret = mt76_register_device(&dev->mt76, true, mt76_rates,
 				   ARRAY_SIZE(mt76_rates));
