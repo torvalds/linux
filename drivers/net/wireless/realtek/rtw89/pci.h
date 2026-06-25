@@ -58,7 +58,7 @@
 #define B_AX_DIV			GENMASK(15, 14)
 #define RAC_SET_PPR_V1			0x31
 #define RAC_ANA40			0x40
-#define PHY_ERR_IMR_DIS			(BIT(9) | BIT(8) | BIT(0))
+#define PHY_ERR_IMR_DIS			(BIT(9) | BIT(2) | BIT(1) | BIT(0))
 #define RAC_ANA41			0x41
 #define PHY_ERR_FLAG_EN		        BIT(6)
 
