@@ -708,6 +708,17 @@ enum dc_status dc_state_get_status(struct dc_state_status *status,
 		}
 	}
 
+	if (options->types & DC_GET_STATUS_PROBE) {
+		status->probe_count = 0;
+		for (i = 0; i < options->state->probe_count; i++) {
+			if (options->probe &&
+					options->probe->type != options->state->probes[i].type)
+				continue;
+			status->probe_status[status->probe_count++] =
+					&options->state->probe_status[i];
+		}
+	}
+
 	return DC_OK;
 }
 

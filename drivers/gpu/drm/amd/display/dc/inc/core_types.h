@@ -611,27 +611,6 @@ struct dc_dmub_cmd {
 };
 
 /**
- * struct dc_probe_status - DC-internal latched perfmon results for a probe.
- * @valid: true if a measurement was latched this commit.
- * @type: type of the probe that produced this result.
- * @u.bandwidth_mbps:         peak BW in Mbps (DC_PROBE_PEAK_MEM_BW).
- * @u.latency:                min/max/avg memory latency in ns (DC_PROBE_MEM_LATENCY),
- *                            stored as struct hubbub_system_latencies.
- * @u.urgent_assertion_count: number of urgent assertion events (DC_PROBE_URGENT_ASSERTION_COUNT).
- * @u.prefetch_data_size:     total prefetch data in bytes (DC_PROBE_PREFETCH_DATA_SIZE).
- */
-struct dc_probe_status {
-	bool                       valid;
-	enum dc_probe_type         type;
-	union {
-		uint32_t bandwidth_mbps;
-		struct hubbub_system_latencies latency;
-		uint32_t urgent_assertion_count;
-		uint32_t prefetch_data_size;
-	} u;
-};
-
-/**
  * struct dc_state - The full description of a state requested by users
  */
 struct dc_state {
@@ -772,6 +751,41 @@ struct dc_requested_memory_qos {
 	uint32_t max_latency_ub_in_ns;
 	uint32_t avg_latency_ub_in_ns;
 	uint32_t max_bw_budget_in_mbps;
+};
+
+enum update_v3_flow {
+	UPDATE_V3_FLOW_INVALID,
+	UPDATE_V3_FLOW_NO_NEW_CONTEXT_CONTEXT_FAST,
+	UPDATE_V3_FLOW_NO_NEW_CONTEXT_CONTEXT_FULL,
+	UPDATE_V3_FLOW_NEW_CONTEXT_SEAMLESS,
+	UPDATE_V3_FLOW_NEW_CONTEXT_MINIMAL_NEW,
+	UPDATE_V3_FLOW_NEW_CONTEXT_MINIMAL_CURRENT,
+};
+
+struct pipe_split_policy_backup {
+	bool dynamic_odm_policy;
+	bool subvp_policy;
+	enum pipe_split_policy mpc_policy;
+	char force_odm[MAX_PIPES];
+};
+
+struct dc_update_scratch_space {
+	struct dc *dc;
+	struct dc_surface_update *surface_updates;
+	int surface_count;
+	struct dc_stream_state *stream;
+	struct dc_stream_update *stream_update;
+	const struct dc_probe_updates *probe_updates;
+	bool update_v3;
+	bool do_clear_update_bits;
+	enum dc_update_type update_type;
+	struct dc_state *new_context;
+	enum update_v3_flow flow;
+	struct dc_state *backup_context;
+	struct dc_state *intermediate_context;
+	struct pipe_split_policy_backup intermediate_policy;
+	struct dc_surface_update intermediate_updates[MAX_SURFACES];
+	int intermediate_count;
 };
 
 #endif /* _CORE_TYPES_H_ */

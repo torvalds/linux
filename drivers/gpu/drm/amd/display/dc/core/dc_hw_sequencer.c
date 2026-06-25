@@ -3388,7 +3388,7 @@ void hwss_hubbub_perfmon_get_memory_latencies(union block_sequence_params *param
 {
 	struct hubbub *hubbub = params->hubbub_perfmon_get_memory_latencies_params.hubbub;
 	uint32_t refclk_mhz  = params->hubbub_perfmon_get_memory_latencies_params.refclk_mhz;
-	struct hubbub_system_latencies *result = params->hubbub_perfmon_get_memory_latencies_params.result;
+	struct dc_probe_latencies *result = params->hubbub_perfmon_get_memory_latencies_params.result;
 
 	if (hubbub && hubbub->funcs->perfmon.get_memory_latencies_ns && result)
 		hubbub->funcs->perfmon.get_memory_latencies_ns(
@@ -4711,7 +4711,7 @@ void hwss_add_hubbub_perfmon_get_in_order_bw(struct block_sequence_state *seq_st
 
 void hwss_add_hubbub_perfmon_get_memory_latencies(struct block_sequence_state *seq_state,
 		struct hubbub *hubbub, uint32_t refclk_mhz,
-		struct hubbub_system_latencies *result)
+		struct dc_probe_latencies *result)
 {
 	if (*seq_state->num_steps < MAX_HWSS_BLOCK_SEQUENCE_SIZE) {
 		seq_state->steps[*seq_state->num_steps].func = HUBBUB_PERFMON_GET_MEMORY_LATENCIES;

@@ -530,6 +530,7 @@ enum dc_lock_descriptor {
 	LOCK_DESCRIPTOR_STREAM = 0x1,
 	LOCK_DESCRIPTOR_LINK = 0x2,
 	LOCK_DESCRIPTOR_GLOBAL = 0x4,
+	LOCK_DESCRIPTOR_PROBE = 0x8,
 };
 
 struct dc_update_descriptor {
@@ -1018,14 +1019,9 @@ struct dc_bounding_box_overrides {
 };
 
 struct dc_qos_info {
-	uint32_t actual_peak_bw_in_mbps;
 	uint32_t qos_bandwidth_lb_in_mbps;
-	uint32_t actual_avg_bw_in_mbps;
 	uint32_t calculated_avg_bw_in_mbps;
-	uint32_t actual_max_latency_in_ns;
-	uint32_t actual_min_latency_in_ns;
 	uint32_t qos_max_latency_ub_in_ns;
-	uint32_t actual_avg_latency_in_ns;
 	uint32_t qos_avg_latency_ub_in_ns;
 	uint32_t dcn_bandwidth_ub_in_mbps;
 	uint32_t qos_max_bw_budget_in_mbps;
@@ -1987,6 +1983,12 @@ struct dc {
 	struct dc_state *current_state;
 	struct resource_pool *res_pool;
 
+	/**
+	 * @update_scratch_pool: Per-commit scratch buffers for dc_update_state.
+	 */
+	struct dc_update_scratch_space *update_scratch_pool[MAX_STREAMS + 1];
+	bool update_scratch_in_use[MAX_STREAMS + 1];
+
 	struct clk_mgr *clk_mgr;
 
 	/* Display Engine Clock levels */
@@ -2115,24 +2117,106 @@ struct dc_state_update {
 };
 
 /**
+ * dc_check_state_update() - Classify an update without committing it.
+ * @check_config: DC check configuration
+ * @updates:      root update object to classify
+ *
+ * Return: descriptor indicating update type and required lock scope.
+ */
+struct dc_update_descriptor dc_check_state_update(
+		const struct dc_check_config *check_config,
+		struct dc_state_update *updates);
+
+/**
  * dc_update_state - Commit an absolute dc_state_update.
  * @dc:      DC structure
  * @updates: root update object carrying stream, plane, and probe updates
- *
- * When stream is non-NULL the stream and its plane updates are committed via
- * the init/prepare/execute/cleanup pipeline. Probe commit is reserved for a
- * future slice. dc_update_planes_and_stream() is now a shim over this function.
  *
  * Return: true on success, false on failure.
  */
 bool dc_update_state(struct dc *dc, struct dc_state_update *updates);
 
+struct dc_update_scratch_space;
+
+/**
+ * dc_update_state_init - Acquire and initialise a commit scratch buffer.
+ * @dc:      DC structure
+ * @updates: update descriptor; validated before the slot is acquired
+ *
+ * Return: a scratch slot on success, NULL if validation fails or the pool
+ * is exhausted. The slot must be released via dc_update_state_cleanup() on
+ * success, or automatically by dc_update_state_prepare() on failure.
+ */
+struct dc_update_scratch_space *dc_update_state_init(
+		struct dc *dc,
+		const struct dc_state_update *updates
+);
+
+/**
+ * dc_update_state_prepare - Prepare the commit under the global lock.
+ * @scratch: commit scratch from dc_update_state_init()
+ *
+ * On failure the scratch slot is released and false is returned; the caller
+ * must not call execute or cleanup.
+ */
+bool dc_update_state_prepare(struct dc_update_scratch_space *scratch);
+
+/**
+ * dc_update_state_execute - Program hardware; called without the global lock.
+ * @scratch: commit scratch from dc_update_state_init()
+ */
+void dc_update_state_execute(const struct dc_update_scratch_space *scratch);
+
+/**
+ * dc_update_state_cleanup - Finalise the commit and release the scratch slot.
+ * @scratch: commit scratch from dc_update_state_init()
+ *
+ * Must be called with the global lock held. Returns true if the caller must
+ * loop back to prepare (SEAMLESS continuation).
+ */
+bool dc_update_state_cleanup(struct dc_update_scratch_space *scratch);
+
+/**
+ * struct dc_probe_latencies - min/max/avg memory latency in ns.
+ * @max_latency_ns: maximum latency in nanoseconds
+ * @avg_latency_ns: average latency in nanoseconds
+ * @min_latency_ns: minimum latency in nanoseconds
+ */
+struct dc_probe_latencies {
+	uint32_t max_latency_ns;
+	uint32_t avg_latency_ns;
+	uint32_t min_latency_ns;
+};
+
+/**
+ * struct dc_probe_status - results for a probe.
+ * @valid: true if a measurement was latched.
+ * @type: type of the probe that produced this result.
+ * @u.bandwidth_mbps:         peak BW in Mbps (DC_PROBE_PEAK_MEM_BW).
+ * @u.latency:                min/max/avg memory latency in ns (DC_PROBE_MEM_LATENCY),
+ *                            stored as struct dc_probe_latencies.
+ * @u.urgent_assertion_count: number of urgent assertion events (DC_PROBE_URGENT_ASSERTION_COUNT).
+ * @u.prefetch_data_size:     total prefetch data in bytes (DC_PROBE_PREFETCH_DATA_SIZE).
+ */
+struct dc_probe_status {
+	bool                       valid;
+	enum dc_probe_type         type;
+	union {
+		uint32_t bandwidth_mbps;
+		struct dc_probe_latencies latency;
+		uint32_t urgent_assertion_count;
+		uint32_t prefetch_data_size;
+	} u;
+};
+
 /**
  * enum dc_get_status_type - Bitmask selecting which status classes to populate.
  * @DC_GET_STATUS_STREAM: populate stream_status fields in dc_state_status
+ * @DC_GET_STATUS_PROBE:  populate probe_status fields in dc_state_status
  */
 enum dc_get_status_type {
 	DC_GET_STATUS_STREAM = (1u << 0),
+	DC_GET_STATUS_PROBE  = (1u << 1),
 };
 
 /**
@@ -2141,30 +2225,34 @@ enum dc_get_status_type {
  * @types:  OR of dc_get_status_type values selecting classes to populate
  * @stream: optional stream filter for DC_GET_STATUS_STREAM. NULL means
  *          populate status for all streams in the state
+ * @probe:  optional probe filter for DC_GET_STATUS_PROBE. NULL means
+ *          populate status for all probes in the state
  */
 struct dc_get_status_options {
 	struct dc_state              *state;
 	uint32_t                      types;
 	const struct dc_stream_state *stream;
+	const struct dc_probe_state  *probe;
 };
 
 /**
  * struct dc_state_status - Output-only status object from dc_state_get_status.
  * @stream_count: number of valid entries in stream_status (DC_GET_STATUS_STREAM)
  * @stream_status: pointers to live per-stream status entries
+ * @probe_count: number of valid entries in probe_status (DC_GET_STATUS_PROBE)
+ * @probe_status: pointers to live per-probe status entries
  */
 struct dc_state_status {
 	int                     stream_count;
 	struct dc_stream_status *stream_status[MAX_STREAMS];
+	int                     probe_count;
+	struct dc_probe_status *probe_status[MAX_PROBES];
 };
 
 /**
  * dc_state_get_status - Unified status readback for dc_state.
  * @status:  output object populated according to options->types
  * @options: selects the source state, status classes to fill, and filters
- *
- * dc_state_get_stream_status() is a thin shim over this function with
- * types = DC_GET_STATUS_STREAM and a stream filter.
  *
  * Return: DC_OK on success, DC_ERROR_UNEXPECTED if state is NULL.
  */
@@ -2258,6 +2346,16 @@ struct dc_validation_set {
 	 * @stream_count: Number of active entries in @streams
 	 */
 	uint8_t stream_count;
+
+	/**
+	 * @probes: Global probe descriptors to validate alongside the streams
+	 */
+	struct dc_probe_state probes[MAX_PROBES];
+
+	/**
+	 * @probe_count: Number of active entries in @probes
+	 */
+	uint8_t probe_count;
 };
 
 bool dc_validate_boot_timing(const struct dc *dc,

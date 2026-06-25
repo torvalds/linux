@@ -4384,6 +4384,40 @@ static bool add_all_planes_for_stream(
 }
 
 /**
+ * resource_validate_probe_set - Validate a probe descriptor set against the ASIC.
+ * @dc:          DC instance providing the HWSS capability hooks
+ * @probes:      desired probe descriptors
+ * @probe_count: number of valid entries in @probes
+ *
+ * Return: DC_OK if achievable, otherwise a DC error.
+ */
+enum dc_status resource_validate_probe_set(struct dc *dc,
+		const struct dc_probe_state *probes,
+		uint8_t probe_count)
+{
+	uint8_t i;
+
+	if (probe_count == 0)
+		return DC_OK;
+
+	if (!dc->hwss.program_perfmon)
+		return DC_NOT_SUPPORTED;
+
+	if (probe_count > MAX_PROBES)
+		return DC_NOT_SUPPORTED;
+
+	for (i = 0; i < probe_count; i++) {
+		if (probes[i].target_state == DC_PROBE_MEASURING)
+			return DC_NOT_SUPPORTED;
+
+		if (probes[i].scope.type != DC_PROBE_SCOPE_GLOBAL)
+			return DC_NOT_SUPPORTED;
+	}
+
+	return DC_OK;
+}
+
+/**
  * dc_validate_with_context - Validate and update the potential new stream in the context object
  *
  * @dc: Used to get the current state status
@@ -4753,6 +4787,10 @@ enum dc_status dc_validate_global_state(
 
 	if (result == DC_OK)
 		result = dc->res_pool->funcs->validate_bandwidth(dc, new_ctx, validate_mode);
+
+	if (result == DC_OK)
+		result = resource_validate_probe_set(dc, new_ctx->probes,
+				(uint8_t)new_ctx->probe_count);
 
 	return result;
 }

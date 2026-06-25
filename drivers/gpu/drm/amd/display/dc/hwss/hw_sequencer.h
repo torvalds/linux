@@ -631,7 +631,7 @@ struct hubbub_perfmon_get_in_order_bw_params {
 struct hubbub_perfmon_get_memory_latencies_params {
 	struct hubbub                        *hubbub;
 	uint32_t                              refclk_mhz;
-	struct hubbub_system_latencies       *result;
+	struct dc_probe_latencies            *result;
 };
 
 struct hubbub_perfmon_get_urgent_assertion_count_params {
@@ -2377,7 +2377,7 @@ void hwss_add_hubbub_perfmon_get_in_order_bw(struct block_sequence_state *seq_st
 
 void hwss_add_hubbub_perfmon_get_memory_latencies(struct block_sequence_state *seq_state,
 		struct hubbub *hubbub, uint32_t refclk_mhz,
-		struct hubbub_system_latencies *result);
+		struct dc_probe_latencies *result);
 
 void hwss_add_hubbub_perfmon_get_urgent_assertion_count(struct block_sequence_state *seq_state,
 		struct hubbub *hubbub, uint32_t refclk_mhz,

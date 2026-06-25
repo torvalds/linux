@@ -145,12 +145,6 @@ struct dcn_hubbub_reg_state {
 	uint32_t compbuf_ctrl;
 };
 
-struct hubbub_system_latencies {
-	uint32_t max_latency_ns;
-	uint32_t avg_latency_ns;
-	uint32_t min_latency_ns;
-};
-
 struct hubbub_urgent_latency_params {
 	uint32_t refclk_mhz;
 	uint32_t t_win_ns;

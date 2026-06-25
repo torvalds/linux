@@ -582,6 +582,10 @@ bool resource_validate_attach_surfaces(
 		struct dc_state *context,
 		const struct resource_pool *pool);
 
+enum dc_status resource_validate_probe_set(struct dc *dc,
+		const struct dc_probe_state *probes,
+		uint8_t probe_count);
+
 enum dc_status resource_map_clock_resources(
 		const struct dc *dc,
 		struct dc_state *context,

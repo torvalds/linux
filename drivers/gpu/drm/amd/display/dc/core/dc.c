@@ -898,12 +898,40 @@ void dc_stream_set_static_screen_params(struct dc *dc,
 	dc->hwss.set_static_screen_control(pipes_affected, num_pipes_affected, params);
 }
 
+static void dc_destruct_update_scratch_pool(struct dc *dc)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(dc->update_scratch_pool); i++) {
+		kfree(dc->update_scratch_pool[i]);
+		dc->update_scratch_pool[i] = NULL;
+		dc->update_scratch_in_use[i] = false;
+	}
+}
+
+static bool dc_construct_update_scratch_pool(struct dc *dc)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(dc->update_scratch_pool); i++) {
+		dc->update_scratch_pool[i] = kzalloc(
+				sizeof(struct dc_update_scratch_space), GFP_KERNEL);
+		if (!dc->update_scratch_pool[i])
+			return false;
+		dc->update_scratch_in_use[i] = false;
+	}
+
+	return true;
+}
+
 static void dc_destruct(struct dc *dc)
 {
 	// reset link encoder assignment table on destruct
 	if (dc->res_pool && dc->res_pool->funcs->link_encs_assign &&
 			!dc->config.unify_link_enc_assignment)
 		link_enc_cfg_init(dc, dc->current_state);
+
+	dc_destruct_update_scratch_pool(dc);
 
 	if (dc->current_state) {
 		dc_state_release(dc->current_state);
@@ -1145,6 +1173,11 @@ static bool dc_construct(struct dc *dc,
 
 	if (!dc->current_state) {
 		dm_error("%s: failed to create validate ctx\n", __func__);
+		goto fail;
+	}
+
+	if (!dc_construct_update_scratch_pool(dc)) {
+		dm_error("%s: failed to create update scratch pool\n", __func__);
 		goto fail;
 	}
 
@@ -3234,11 +3267,6 @@ static struct dc_update_descriptor check_update_surfaces_for_stream(
 	return overall_type;
 }
 
-/*
- * dc_check_update_surfaces_for_stream() - Determine update type (fast, med, or full)
- *
- * See :c:type:`enum dc_update_type <dc_update_type>` for explanation of update types
- */
 /**
  * dc_check_state_update - Classify a dc_state_update by locking / re-entrancy requirements.
  * @check_config:  ASIC capabilities and display configuration context
@@ -3246,7 +3274,8 @@ static struct dc_update_descriptor check_update_surfaces_for_stream(
  *
  * Determines whether the update requires a fast, medium, or full lock
  * by inspecting the stream, stream_update, and surface_updates carried on
- * the root object. Perfmon classification is reserved for a future slice.
+ * the root object. A probe update elevates the result to at least MED with
+ * the PROBE lock, so a probe-carrying commit takes the probe mutex.
  *
  * Return: dc_update_descriptor with update_type and lock_descriptor.
  */
@@ -3254,13 +3283,20 @@ struct dc_update_descriptor dc_check_state_update(
 		const struct dc_check_config *check_config,
 		struct dc_state_update *updates)
 {
+	struct dc_update_descriptor desc = {0};
+
 	if (updates->stream_update)
 		stream_update_flags_clear(&updates->stream_update->stream->update_flags);
 	for (int i = 0; i < updates->surface_count; i++)
 		dc_pipe_update_bits_clear(&updates->surface_updates[i].surface->update_bits);
 
-	return check_update_surfaces_for_stream(check_config, updates->surface_updates,
+	desc = check_update_surfaces_for_stream(check_config, updates->surface_updates,
 			updates->surface_count, updates->stream_update);
+
+	if (updates->probe_updates && updates->probe_updates->probe_count > 0)
+		elevate_update_type(&desc, UPDATE_TYPE_MED, LOCK_DESCRIPTOR_PROBE);
+
+	return desc;
 }
 
 /**
@@ -3282,9 +3318,11 @@ struct dc_update_descriptor dc_check_update_surfaces_for_stream(
 		struct dc_stream_update *stream_update)
 {
 	struct dc_state_update root = {
+		.stream          = stream_update ? stream_update->stream : NULL,
+		.stream_update   = stream_update,
 		.surface_updates = updates,
 		.surface_count   = surface_count,
-		.stream_update   = stream_update,
+		.probe_updates   = NULL
 	};
 
 	return dc_check_state_update(check_config, &root);
@@ -3702,13 +3740,6 @@ static bool full_update_required_weak(
 		int surface_count,
 		const struct dc_stream_update *stream_update,
 		const struct dc_stream_state *stream);
-
-struct pipe_split_policy_backup {
-	bool dynamic_odm_policy;
-	bool subvp_policy;
-	enum pipe_split_policy mpc_policy;
-	char force_odm[MAX_PIPES];
-};
 
 static void backup_and_set_minimal_pipe_split_policy(struct dc *dc,
 		struct dc_state *context,
@@ -6196,30 +6227,60 @@ static void clear_update_bits(struct dc_surface_update *srf_updates,
 			dc_pipe_update_bits_clear(&srf_updates[i].surface->update_bits);
 }
 
+static struct dc_update_scratch_space *dc_update_scratch_acquire(struct dc *dc)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(dc->update_scratch_pool); i++) {
+		if (dc->update_scratch_in_use[i])
+			continue;
+
+		dc->update_scratch_in_use[i] = true;
+		return dc->update_scratch_pool[i];
+	}
+
+	/* TODO: add recoverable scratch acquisition failure handling. */
+	ASSERT(false);
+	return NULL;
+}
+
+static void dc_update_scratch_release(struct dc *dc,
+		struct dc_update_scratch_space *scratch)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(dc->update_scratch_pool); i++) {
+		if (dc->update_scratch_pool[i] == scratch) {
+			dc->update_scratch_in_use[i] = false;
+			return;
+		}
+	}
+}
+
 /**
  * dc_update_state - Commit an absolute dc_state_update.
  * @dc:      DC structure
  * @updates: root update object carrying stream, plane, and probe updates
- *
- * When stream is non-NULL the stream and its plane updates are committed via
- * the init/prepare/execute/cleanup pipeline. Probe commit is reserved for a
- * future slice. dc_update_planes_and_stream() is now a shim over this function.
- *
  * Return: true on success, false on failure.
  */
 bool dc_update_state(struct dc *dc, struct dc_state_update *updates)
 {
-	if (updates->stream != NULL) {
-		struct dc_update_scratch_space *scratch = dc_update_state_init(dc, updates);
-		bool more = true;
+	struct dc_update_scratch_space *scratch;
+	bool more = true;
 
-		while (more) {
-			if (!dc_update_state_prepare(scratch))
-				return false;
+	if (!dc || !updates)
+		return false;
 
-			dc_update_state_execute(scratch);
-			more = dc_update_state_cleanup(scratch);
-		}
+	scratch = dc_update_state_init(dc, updates);
+	if (!scratch)
+		return false;
+
+	while (more) {
+		if (!dc_update_state_prepare(scratch))
+			return false;
+
+		dc_update_state_execute(scratch);
+		more = dc_update_state_cleanup(scratch);
 	}
 
 	return true;
@@ -8128,8 +8189,6 @@ bool dc_get_qos_info(struct dc *dc, struct dc_qos_info *info)
 
 	memset(info, 0, sizeof(*info));
 
-	/* TODO: remove the actual_* fields from struct dc_qos_info once all callers
-	 * read measured QoS from dc_state probe_status instead of this struct. */
 	info->dcn_bandwidth_ub_in_mbps = (uint32_t)(clk->fclk_khz / 1000 * 64);
 
 	if (dc->clk_mgr && dc->clk_mgr->funcs->get_requested_memory_qos) {
@@ -8153,38 +8212,6 @@ unsigned int dc_override_memory_bandwidth_request(
 
 	return dc->clk_mgr->funcs->override_memory_bandwidth_request(
 			dc->clk_mgr, bw_mbps * 1000) / 1000;
-}
-
-enum update_v3_flow {
-	UPDATE_V3_FLOW_INVALID,
-	UPDATE_V3_FLOW_NO_NEW_CONTEXT_CONTEXT_FAST,
-	UPDATE_V3_FLOW_NO_NEW_CONTEXT_CONTEXT_FULL,
-	UPDATE_V3_FLOW_NEW_CONTEXT_SEAMLESS,
-	UPDATE_V3_FLOW_NEW_CONTEXT_MINIMAL_NEW,
-	UPDATE_V3_FLOW_NEW_CONTEXT_MINIMAL_CURRENT,
-};
-
-struct dc_update_scratch_space {
-	struct dc *dc;
-	struct dc_surface_update *surface_updates;
-	int surface_count;
-	struct dc_stream_state *stream;
-	struct dc_stream_update *stream_update;
-	bool update_v3;
-	bool do_clear_update_bits;
-	enum dc_update_type update_type;
-	struct dc_state *new_context;
-	enum update_v3_flow flow;
-	struct dc_state *backup_context;
-	struct dc_state *intermediate_context;
-	struct pipe_split_policy_backup intermediate_policy;
-	struct dc_surface_update intermediate_updates[MAX_SURFACES];
-	int intermediate_count;
-};
-
-size_t dc_update_scratch_space_size(void)
-{
-	return sizeof(struct dc_update_scratch_space);
 }
 
 static bool update_planes_and_stream_prepare_v2(
@@ -8353,6 +8380,19 @@ static bool update_planes_and_stream_prepare_v3(
 	return false;
 }
 
+/**
+ * should_commit_intermediate_context - Does this flow commit a transient
+ * minimal-transition intermediate context
+ * @flow: the commit flow selected for this iteration
+ *
+ * Return: true if this iteration commits the intermediate context.
+ */
+static bool should_commit_intermediate_context(enum update_v3_flow flow)
+{
+	return flow == UPDATE_V3_FLOW_NEW_CONTEXT_MINIMAL_NEW
+			|| flow == UPDATE_V3_FLOW_NEW_CONTEXT_MINIMAL_CURRENT;
+}
+
 static void update_planes_and_stream_execute_v3_commit(
 		const struct dc_update_scratch_space *scratch,
 		bool intermediate_update,
@@ -8376,6 +8416,8 @@ static void update_planes_and_stream_execute_v3(
 		const struct dc_update_scratch_space *scratch
 )
 {
+	bool intermediate_context = should_commit_intermediate_context(scratch->flow);
+
 	switch (scratch->flow) {
 	case UPDATE_V3_FLOW_NO_NEW_CONTEXT_CONTEXT_FAST:
 		commit_planes_for_stream_fast(
@@ -8391,16 +8433,16 @@ static void update_planes_and_stream_execute_v3(
 
 	case UPDATE_V3_FLOW_NO_NEW_CONTEXT_CONTEXT_FULL:
 	case UPDATE_V3_FLOW_NEW_CONTEXT_SEAMLESS:
-		update_planes_and_stream_execute_v3_commit(scratch, false, false, true);
+		update_planes_and_stream_execute_v3_commit(scratch, false, intermediate_context, true);
 		break;
 
 	case UPDATE_V3_FLOW_NEW_CONTEXT_MINIMAL_NEW:
-		update_planes_and_stream_execute_v3_commit(scratch, false, true,
+		update_planes_and_stream_execute_v3_commit(scratch, false, intermediate_context,
 				scratch->dc->check_config.deferred_transition_state);
 		break;
 
 	case UPDATE_V3_FLOW_NEW_CONTEXT_MINIMAL_CURRENT:
-		update_planes_and_stream_execute_v3_commit(scratch, true, true, false);
+		update_planes_and_stream_execute_v3_commit(scratch, true, intermediate_context, false);
 		break;
 
 	case UPDATE_V3_FLOW_INVALID:
@@ -8481,45 +8523,139 @@ struct dc_update_scratch_space *dc_update_state_init(
 )
 {
 	const enum dce_version version = dc->ctx->dce_version;
-	struct dc_update_scratch_space *scratch = updates->stream->update_scratch;
+	struct dc_update_scratch_space *scratch = dc_update_scratch_acquire(dc);
+	bool has_stream_or_plane = updates->stream || updates->stream_update || updates->surface_updates;
+	bool has_probe = updates->probe_updates;
+	bool surface_without_stream = updates->surface_updates && !updates->stream;
+	bool stream_update_without_stream = updates->stream_update && !updates->stream;
+	bool bad_surface_count = updates->surface_count > 0 && !updates->surface_updates;
 
-	*scratch = (struct dc_update_scratch_space){
-		.dc = dc,
-		.surface_updates = updates->surface_updates,
-		.surface_count = updates->surface_count,
-		.stream = updates->stream,
-		.stream_update = updates->stream_update,
-		.update_v3 = version >= DCN_VERSION_4_01 || version == DCN_VERSION_3_2 || version == DCN_VERSION_3_21,
-		.do_clear_update_bits = version >= DCN_VERSION_1_0,
-	};
+	if (!scratch)
+		return NULL;
+
+	if (!has_stream_or_plane && !has_probe) {
+		dc_update_scratch_release(dc, scratch);
+		return NULL;
+	}
+
+	if (surface_without_stream || stream_update_without_stream || bad_surface_count) {
+		dc_update_scratch_release(dc, scratch);
+		return NULL;
+	}
+
+	memset(scratch, 0, sizeof(*scratch));
+
+	scratch->dc = dc;
+	scratch->surface_updates = updates->surface_updates;
+	scratch->surface_count = updates->surface_count;
+	scratch->stream = updates->stream;
+	scratch->stream_update = updates->stream_update;
+	scratch->probe_updates = updates->probe_updates;
+	scratch->update_v3 = version >= DCN_VERSION_4_01
+			|| version == DCN_VERSION_3_2
+			|| version == DCN_VERSION_3_21;
+	scratch->do_clear_update_bits = version >= DCN_VERSION_1_0;
+	scratch->new_context = NULL;
+	scratch->flow = UPDATE_V3_FLOW_INVALID;
 
 	return scratch;
 }
 
-bool dc_update_state_prepare(
-		struct dc_update_scratch_space *scratch
-)
+/**
+ * dc_update_probes_prepare - Commit the desired probe set into new_context.
+ * @scratch: commit scratch carrying the probe updates
+ *
+ * Return: true on success or when there is nothing to do; false when the
+ * desired set is unachievable.
+ */
+static bool dc_update_probes_prepare(struct dc_update_scratch_space *scratch)
 {
-	return scratch->update_v3
-			? update_planes_and_stream_prepare_v3(scratch)
-			: update_planes_and_stream_prepare_v2(scratch);
+	struct dc *dc = scratch->dc;
+	const struct dc_probe_updates *probe_updates = scratch->probe_updates;
+	uint8_t i;
+
+	if (!probe_updates)
+		return true;
+
+	if (resource_validate_probe_set(dc, probe_updates->probes,
+			(uint8_t)probe_updates->probe_count) != DC_OK)
+		return false;
+
+	if (!scratch->new_context)
+		scratch->new_context = dc->current_state;
+
+	for (i = 0; i < probe_updates->probe_count && i < MAX_PROBES; i++)
+		scratch->new_context->probes[i] = probe_updates->probes[i];
+	scratch->new_context->probe_count = probe_updates->probe_count;
+
+	return true;
+}
+
+/**
+ * dc_update_probes_execute - Program the committed probes.
+ * @scratch: commit scratch carrying the probe updates
+ *
+ */
+static void dc_update_probes_execute(const struct dc_update_scratch_space *scratch)
+{
+	struct dc *dc = scratch->dc;
+
+	if (should_commit_intermediate_context(scratch->flow))
+		return;
+
+	if (dc->hwss.program_perfmon)
+		dc->hwss.program_perfmon(dc, scratch->new_context);
+}
+
+bool dc_update_state_prepare(struct dc_update_scratch_space *scratch)
+{
+	if (scratch->stream) {
+		bool ok = scratch->update_v3
+				? update_planes_and_stream_prepare_v3(scratch)
+				: update_planes_and_stream_prepare_v2(scratch);
+
+		if (!ok)
+			goto release_scratch;
+	}
+
+	if (!dc_update_probes_prepare(scratch))
+		goto release_scratch;
+
+	return true;
+
+release_scratch:
+	/* execute and cleanup never run on this path, so release here. */
+	dc_update_scratch_release(scratch->dc, scratch);
+	return false;
 }
 
 void dc_update_state_execute(
 		const struct dc_update_scratch_space *scratch
 )
 {
-	scratch->update_v3
-			? update_planes_and_stream_execute_v3(scratch)
-			: update_planes_and_stream_execute_v2(scratch);
+	if (scratch->stream)
+		scratch->update_v3
+				? update_planes_and_stream_execute_v3(scratch)
+				: update_planes_and_stream_execute_v2(scratch);
+
+	if (scratch->probe_updates)
+		dc_update_probes_execute(scratch);
 }
 
 bool dc_update_state_cleanup(
 		struct dc_update_scratch_space *scratch
 )
 {
-	return scratch->update_v3
-			? update_planes_and_stream_cleanup_v3(scratch)
-			: update_planes_and_stream_cleanup_v2(scratch);
+	bool more = false;
+
+	if (scratch->stream)
+		more = scratch->update_v3
+				? update_planes_and_stream_cleanup_v3(scratch)
+				: update_planes_and_stream_cleanup_v2(scratch);
+
+	if (!more)
+		dc_update_scratch_release(scratch->dc, scratch);
+
+	return more;
 }
 
