@@ -6652,8 +6652,8 @@ int rtw89_fw_h2c_del_pkt_offload(struct rtw89_dev *rtwdev, u8 id)
 	return 0;
 }
 
-int rtw89_fw_h2c_add_pkt_offload(struct rtw89_dev *rtwdev, u8 *id,
-				 struct sk_buff *skb_ofld)
+static int __rtw89_fw_h2c_add_pkt_offload(struct rtw89_dev *rtwdev, u8 *id,
+					  struct sk_buff *skb_ofld)
 {
 	struct rtw89_wait_info *wait = &rtwdev->mac.fw_ofld_wait;
 	struct sk_buff *skb;
@@ -6695,11 +6695,31 @@ int rtw89_fw_h2c_add_pkt_offload(struct rtw89_dev *rtwdev, u8 *id,
 		rtw89_debug(rtwdev, RTW89_DBG_FW,
 			    "failed to add pkt ofld: id %d, ret %d\n",
 			    alloc_id, ret);
+		/*
+		 * Firmware may consider that it has added this entry
+		 * successfully even though the H2C return timeout.
+		 * Send a delete H2C command to drop it, and thus the
+		 * next add on the same id won't be rejected as duplicate.
+		 */
+		rtw89_fw_h2c_del_pkt_offload(rtwdev, alloc_id);
 		rtw89_core_release_bit_map(rtwdev->pkt_offload, alloc_id);
-		return ret;
+
+		return -EAGAIN;
 	}
 
 	return 0;
+}
+
+int rtw89_fw_h2c_add_pkt_offload(struct rtw89_dev *rtwdev, u8 *id,
+				 struct sk_buff *skb_ofld)
+{
+	int ret;
+
+	ret = __rtw89_fw_h2c_add_pkt_offload(rtwdev, id, skb_ofld);
+	if (ret == -EAGAIN)
+		ret = __rtw89_fw_h2c_add_pkt_offload(rtwdev, id, skb_ofld);
+
+	return ret;
 }
 
 static
