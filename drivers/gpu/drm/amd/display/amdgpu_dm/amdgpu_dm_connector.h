@@ -146,6 +146,16 @@ int amdgpu_dm_encoder_init(struct drm_device *dev,
 			   uint32_t link_index);
 
 #if IS_ENABLED(CONFIG_DRM_AMD_DC_KUNIT_TEST)
+int amdgpu_dm_i2c_xfer(struct i2c_adapter *i2c_adap,
+		       struct i2c_msg *msgs, int num);
+u32 amdgpu_dm_i2c_func(struct i2c_adapter *adap);
+void parse_edid_displayid_vrr(struct drm_connector *connector,
+			      const struct edid *edid);
+int get_amd_vsdb(struct amdgpu_dm_connector *aconnector,
+		 struct amdgpu_hdmi_vsdb_info *vsdb_info);
+int parse_hdmi_amd_vsdb(struct amdgpu_dm_connector *aconnector,
+			const struct edid *edid,
+			struct amdgpu_hdmi_vsdb_info *vsdb_info);
 void amdgpu_dm_connector_funcs_force(struct drm_connector *connector);
 enum dc_status dm_validate_stream_and_context(struct dc *dc,
 					      struct dc_stream_state *stream);

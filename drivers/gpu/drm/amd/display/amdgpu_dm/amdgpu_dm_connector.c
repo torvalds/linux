@@ -3087,7 +3087,7 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
 	}
 }
 
-static int amdgpu_dm_i2c_xfer(struct i2c_adapter *i2c_adap,
+STATIC_IFN_KUNIT int amdgpu_dm_i2c_xfer(struct i2c_adapter *i2c_adap,
 			      struct i2c_msg *msgs, int num)
 {
 	struct amdgpu_i2c_adapter *i2c = i2c_get_adapdata(i2c_adap);
@@ -3131,11 +3131,13 @@ static int amdgpu_dm_i2c_xfer(struct i2c_adapter *i2c_adap,
 	kfree(cmd.payloads);
 	return result;
 }
+EXPORT_IF_KUNIT(amdgpu_dm_i2c_xfer);
 
-static u32 amdgpu_dm_i2c_func(struct i2c_adapter *adap)
+STATIC_IFN_KUNIT u32 amdgpu_dm_i2c_func(struct i2c_adapter *adap)
 {
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
+EXPORT_IF_KUNIT(amdgpu_dm_i2c_func);
 
 static const struct i2c_algorithm amdgpu_dm_i2c_algo = {
 	.master_xfer = amdgpu_dm_i2c_xfer,
@@ -3496,7 +3498,7 @@ static bool parse_edid_cea(struct amdgpu_dm_connector *aconnector,
 	return ret;
 }
 
-static void parse_edid_displayid_vrr(struct drm_connector *connector,
+STATIC_IFN_KUNIT void parse_edid_displayid_vrr(struct drm_connector *connector,
 				     const struct edid *edid)
 {
 	u8 *edid_ext = NULL;
@@ -3538,8 +3540,9 @@ static void parse_edid_displayid_vrr(struct drm_connector *connector,
 		j++;
 	}
 }
+EXPORT_IF_KUNIT(parse_edid_displayid_vrr);
 
-static int get_amd_vsdb(struct amdgpu_dm_connector *aconnector,
+STATIC_IFN_KUNIT int get_amd_vsdb(struct amdgpu_dm_connector *aconnector,
 			struct amdgpu_hdmi_vsdb_info *vsdb_info)
 {
 	struct drm_connector *connector = &aconnector->base;
@@ -3549,8 +3552,9 @@ static int get_amd_vsdb(struct amdgpu_dm_connector *aconnector,
 
 	return connector->display_info.amd_vsdb.version != 0;
 }
+EXPORT_IF_KUNIT(get_amd_vsdb);
 
-static int parse_hdmi_amd_vsdb(struct amdgpu_dm_connector *aconnector,
+STATIC_IFN_KUNIT int parse_hdmi_amd_vsdb(struct amdgpu_dm_connector *aconnector,
 			       const struct edid *edid,
 			       struct amdgpu_hdmi_vsdb_info *vsdb_info)
 {
@@ -3581,6 +3585,7 @@ static int parse_hdmi_amd_vsdb(struct amdgpu_dm_connector *aconnector,
 
 	return valid_vsdb_found ? i : -ENODEV;
 }
+EXPORT_IF_KUNIT(parse_hdmi_amd_vsdb);
 
 /**
  * amdgpu_dm_update_freesync_caps - Update Freesync capabilities

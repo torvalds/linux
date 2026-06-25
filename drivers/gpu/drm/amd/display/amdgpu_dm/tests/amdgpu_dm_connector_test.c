@@ -17,6 +17,7 @@
 #include <drm/drm_modes.h>
 #include <drm/drm_property.h>
 #include <linux/hdmi.h>
+#include <linux/i2c.h>
 
 #include "dc.h"
 #include "amdgpu.h"
@@ -4666,6 +4667,239 @@ static void dm_test_add_freesync_modes_null_edid_noop(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, aconnector->num_modes, 7);
 }
 
+/* EDID extension block tag values (avoids pulling in private drm headers). */
+#define DM_TEST_CEA_EXT		0x02
+#define DM_TEST_DISPLAYID_EXT	0x70
+
+/**
+ * dm_test_i2c_func_returns_flags - Test the i2c functionality flags
+ * @test: The KUnit test context
+ *
+ * The algorithm advertises plain I2C plus emulated SMBUS regardless of the
+ * adapter argument, which it never dereferences.
+ */
+static void dm_test_i2c_func_returns_flags(struct kunit *test)
+{
+	KUNIT_EXPECT_EQ(test, amdgpu_dm_i2c_func(NULL),
+			I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL);
+}
+
+/**
+ * dm_test_i2c_xfer_no_ddc_pin - Test transfers without a DDC pin are rejected
+ * @test: The KUnit test context
+ *
+ * When the backing ddc_service has no ddc_pin the transfer bails out early
+ * with -EIO before touching the message buffers or the dc handle.
+ */
+static void dm_test_i2c_xfer_no_ddc_pin(struct kunit *test)
+{
+	struct amdgpu_i2c_adapter *i2c;
+	struct ddc_service *ddc;
+
+	i2c = kunit_kzalloc(test, sizeof(*i2c), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, i2c);
+	ddc = kunit_kzalloc(test, sizeof(*ddc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ddc);
+
+	i2c->ddc_service = ddc;
+	i2c_set_adapdata(&i2c->base, i2c);
+
+	/* ddc->ddc_pin is NULL -> transfer is rejected with -EIO. */
+	KUNIT_EXPECT_EQ(test, amdgpu_dm_i2c_xfer(&i2c->base, NULL, 0), -EIO);
+}
+
+/**
+ * dm_test_get_amd_vsdb_unsupported - Test a zero VSDB version reports no support
+ * @test: The KUnit test context
+ */
+static void dm_test_get_amd_vsdb_unsupported(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector;
+	struct amdgpu_hdmi_vsdb_info vsdb_info = {0};
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+
+	aconnector->base.display_info.amd_vsdb.version = 0;
+	aconnector->base.display_info.amd_vsdb.replay_mode = false;
+
+	KUNIT_EXPECT_EQ(test, get_amd_vsdb(aconnector, &vsdb_info), 0);
+	KUNIT_EXPECT_EQ(test, vsdb_info.amd_vsdb_version, 0);
+}
+
+/**
+ * dm_test_get_amd_vsdb_supported - Test a non-zero VSDB version is reported
+ * @test: The KUnit test context
+ *
+ * The display info's VSDB version and replay mode are copied out and a
+ * non-zero version reports support.
+ */
+static void dm_test_get_amd_vsdb_supported(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector;
+	struct amdgpu_hdmi_vsdb_info vsdb_info = {0};
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+
+	aconnector->base.display_info.amd_vsdb.version = 2;
+	aconnector->base.display_info.amd_vsdb.replay_mode = true;
+
+	KUNIT_EXPECT_EQ(test, get_amd_vsdb(aconnector, &vsdb_info), 1);
+	KUNIT_EXPECT_EQ(test, vsdb_info.amd_vsdb_version, 2);
+	KUNIT_EXPECT_TRUE(test, vsdb_info.replay_mode);
+}
+
+/**
+ * dm_test_parse_hdmi_amd_vsdb_null_edid - Test NULL EDID returns -ENODEV
+ * @test: The KUnit test context
+ */
+static void dm_test_parse_hdmi_amd_vsdb_null_edid(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector;
+	struct amdgpu_hdmi_vsdb_info vsdb_info = {0};
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+
+	KUNIT_EXPECT_EQ(test,
+			parse_hdmi_amd_vsdb(aconnector, NULL, &vsdb_info),
+			-ENODEV);
+}
+
+/**
+ * dm_test_parse_hdmi_amd_vsdb_no_extensions - Test EDID without extensions
+ * @test: The KUnit test context
+ *
+ * An EDID that declares no extension blocks has no CEA block to parse.
+ */
+static void dm_test_parse_hdmi_amd_vsdb_no_extensions(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector;
+	struct amdgpu_hdmi_vsdb_info vsdb_info = {0};
+	struct edid *edid;
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+	edid = kunit_kzalloc(test, sizeof(*edid), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, edid);
+
+	edid->extensions = 0;
+
+	KUNIT_EXPECT_EQ(test,
+			parse_hdmi_amd_vsdb(aconnector, edid, &vsdb_info),
+			-ENODEV);
+}
+
+/**
+ * dm_test_parse_hdmi_amd_vsdb_no_cea_ext - Test EDID with no CEA extension
+ * @test: The KUnit test context
+ *
+ * An extension block that is not a CEA block leaves no VSDB to parse.
+ */
+static void dm_test_parse_hdmi_amd_vsdb_no_cea_ext(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector;
+	struct amdgpu_hdmi_vsdb_info vsdb_info = {0};
+	struct edid *edid;
+	u8 *raw;
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+
+	/* Base block + one extension block that is NOT a CEA extension. */
+	raw = kunit_kzalloc(test, 2 * EDID_LENGTH, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, raw);
+	edid = (struct edid *)raw;
+	edid->extensions = 1;
+	raw[EDID_LENGTH] = DM_TEST_DISPLAYID_EXT;
+
+	KUNIT_EXPECT_EQ(test,
+			parse_hdmi_amd_vsdb(aconnector, edid, &vsdb_info),
+			-ENODEV);
+}
+
+/**
+ * dm_test_parse_displayid_vrr_null_edid - Test NULL EDID leaves range untouched
+ * @test: The KUnit test context
+ */
+static void dm_test_parse_displayid_vrr_null_edid(struct kunit *test)
+{
+	struct drm_connector *connector;
+
+	connector = kunit_kzalloc(test, sizeof(*connector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, connector);
+
+	parse_edid_displayid_vrr(connector, NULL);
+
+	KUNIT_EXPECT_EQ(test, connector->display_info.monitor_range.max_vfreq, 0);
+	KUNIT_EXPECT_EQ(test, connector->display_info.monitor_range.min_vfreq, 0);
+}
+
+/**
+ * dm_test_parse_displayid_vrr_no_displayid - Test EDID without a DisplayID ext
+ * @test: The KUnit test context
+ *
+ * Without a DisplayID extension block there is no dynamic range to extract.
+ */
+static void dm_test_parse_displayid_vrr_no_displayid(struct kunit *test)
+{
+	struct drm_connector *connector;
+	struct edid *edid;
+	u8 *raw;
+
+	connector = kunit_kzalloc(test, sizeof(*connector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, connector);
+	raw = kunit_kzalloc(test, 2 * EDID_LENGTH, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, raw);
+	edid = (struct edid *)raw;
+	edid->extensions = 1;
+	raw[EDID_LENGTH] = DM_TEST_CEA_EXT;
+
+	parse_edid_displayid_vrr(connector, edid);
+
+	KUNIT_EXPECT_EQ(test, connector->display_info.monitor_range.max_vfreq, 0);
+}
+
+/**
+ * dm_test_parse_displayid_vrr_sets_range - Test a DisplayID VRR block is parsed
+ * @test: The KUnit test context
+ *
+ * A DisplayID dynamic video timing range descriptor populates the connector's
+ * monitor refresh range.
+ */
+static void dm_test_parse_displayid_vrr_sets_range(struct kunit *test)
+{
+	struct drm_connector *connector;
+	struct edid *edid;
+	u8 *raw, *ext;
+
+	connector = kunit_kzalloc(test, sizeof(*connector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, connector);
+	raw = kunit_kzalloc(test, 2 * EDID_LENGTH, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, raw);
+	edid = (struct edid *)raw;
+	edid->extensions = 1;
+
+	ext = raw + EDID_LENGTH;
+	ext[0] = DM_TEST_DISPLAYID_EXT;
+	/*
+	 * DisplayID dynamic video timing range descriptor, parsed from offset
+	 * 1: tag 0x25, flags 0 (single-byte max), payload length 9, then the
+	 * min/max vfreq bytes.
+	 */
+	ext[1] = 0x25;
+	ext[2] = 0x00;
+	ext[3] = 9;
+	ext[10] = 40;
+	ext[11] = 144;
+
+	parse_edid_displayid_vrr(connector, edid);
+
+	KUNIT_EXPECT_EQ(test, connector->display_info.monitor_range.min_vfreq, 40);
+	KUNIT_EXPECT_EQ(test, connector->display_info.monitor_range.max_vfreq, 144);
+}
+
 static struct kunit_case amdgpu_dm_connector_tests[] = {
 	/* get_subconnector_type */
 	KUNIT_CASE(dm_test_subconnector_type_none),
@@ -4917,6 +5151,21 @@ static struct kunit_case amdgpu_dm_connector_tests[] = {
 	KUNIT_CASE(dm_test_add_fs_modes_no_preferred_mode),
 	/* amdgpu_dm_connector_add_freesync_modes */
 	KUNIT_CASE(dm_test_add_freesync_modes_null_edid_noop),
+	/* amdgpu_dm_i2c_func */
+	KUNIT_CASE(dm_test_i2c_func_returns_flags),
+	/* amdgpu_dm_i2c_xfer */
+	KUNIT_CASE(dm_test_i2c_xfer_no_ddc_pin),
+	/* get_amd_vsdb */
+	KUNIT_CASE(dm_test_get_amd_vsdb_unsupported),
+	KUNIT_CASE(dm_test_get_amd_vsdb_supported),
+	/* parse_hdmi_amd_vsdb */
+	KUNIT_CASE(dm_test_parse_hdmi_amd_vsdb_null_edid),
+	KUNIT_CASE(dm_test_parse_hdmi_amd_vsdb_no_extensions),
+	KUNIT_CASE(dm_test_parse_hdmi_amd_vsdb_no_cea_ext),
+	/* parse_edid_displayid_vrr */
+	KUNIT_CASE(dm_test_parse_displayid_vrr_null_edid),
+	KUNIT_CASE(dm_test_parse_displayid_vrr_no_displayid),
+	KUNIT_CASE(dm_test_parse_displayid_vrr_sets_range),
 	{}
 };
 
