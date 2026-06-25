@@ -652,8 +652,10 @@ static int wcpu_on(struct rtw89_dev *rtwdev, u8 boot_reason, bool dlfw)
 	}
 	val32 = rtw89_read32(rtwdev, R_BE_UDM1);
 	if (val32) {
-		rtw89_warn(rtwdev, "[SER] AON L2 Debug register not empty before Boot.\n");
-		rtw89_warn(rtwdev, "[SER] %s: R_BE_UDM1 = 0x%x\n", __func__, val32);
+		rtw89_debug(rtwdev, RTW89_DBG_UNEXP,
+			    "[SER] AON L2 Debug register not empty before Boot.\n");
+		rtw89_debug(rtwdev, RTW89_DBG_UNEXP,
+			    "[SER] %s: R_BE_UDM1 = 0x%x\n", __func__, val32);
 	}
 	val32 = rtw89_read32(rtwdev, R_BE_UDM2);
 	if (val32) {
