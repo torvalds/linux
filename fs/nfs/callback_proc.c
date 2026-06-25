@@ -317,7 +317,7 @@ out:
 	nfs_iput_and_deactive(ino);
 out_noput:
 	trace_nfs4_cb_layoutrecall_file(clp, &args->cbl_fh, ino,
-			&args->cbl_stateid, -rv);
+			&args->cbl_stateid, args->cbl_layoutchanged, -rv);
 	return rv;
 }
 
