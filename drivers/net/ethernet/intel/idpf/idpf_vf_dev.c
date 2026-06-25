@@ -9,42 +9,32 @@
 
 /**
  * idpf_vf_ctlq_reg_init - initialize default mailbox registers
- * @adapter: adapter structure
- * @cq: pointer to the array of create control queues
+ * @mmio: struct that contains MMIO region info
+ * @cci: struct where the register offset pointer to be copied to
  */
-static void idpf_vf_ctlq_reg_init(struct idpf_adapter *adapter,
-				  struct idpf_ctlq_create_info *cq)
+static void idpf_vf_ctlq_reg_init(struct libie_mmio_info *mmio,
+				  struct libie_ctlq_create_info *cci)
 {
-	for (int i = 0; i < IDPF_NUM_DFLT_MBX_Q; i++) {
-		struct idpf_ctlq_create_info *ccq = cq + i;
+	struct libie_ctlq_reg *tx_reg = &cci[LIBIE_CTLQ_TYPE_TX].reg;
+	struct libie_ctlq_reg *rx_reg = &cci[LIBIE_CTLQ_TYPE_RX].reg;
 
-		switch (ccq->type) {
-		case IDPF_CTLQ_TYPE_MAILBOX_TX:
-			/* set head and tail registers in our local struct */
-			ccq->reg.head = VF_ATQH;
-			ccq->reg.tail = VF_ATQT;
-			ccq->reg.len = VF_ATQLEN;
-			ccq->reg.bah = VF_ATQBAH;
-			ccq->reg.bal = VF_ATQBAL;
-			ccq->reg.len_mask = VF_ATQLEN_ATQLEN_M;
-			ccq->reg.len_ena_mask = VF_ATQLEN_ATQENABLE_M;
-			ccq->reg.head_mask = VF_ATQH_ATQH_M;
-			break;
-		case IDPF_CTLQ_TYPE_MAILBOX_RX:
-			/* set head and tail registers in our local struct */
-			ccq->reg.head = VF_ARQH;
-			ccq->reg.tail = VF_ARQT;
-			ccq->reg.len = VF_ARQLEN;
-			ccq->reg.bah = VF_ARQBAH;
-			ccq->reg.bal = VF_ARQBAL;
-			ccq->reg.len_mask = VF_ARQLEN_ARQLEN_M;
-			ccq->reg.len_ena_mask = VF_ARQLEN_ARQENABLE_M;
-			ccq->reg.head_mask = VF_ARQH_ARQH_M;
-			break;
-		default:
-			break;
-		}
-	}
+	tx_reg->head		= libie_pci_get_mmio_addr(mmio, VF_ATQH);
+	tx_reg->tail		= libie_pci_get_mmio_addr(mmio, VF_ATQT);
+	tx_reg->len		= libie_pci_get_mmio_addr(mmio, VF_ATQLEN);
+	tx_reg->addr_high	= libie_pci_get_mmio_addr(mmio, VF_ATQBAH);
+	tx_reg->addr_low	= libie_pci_get_mmio_addr(mmio, VF_ATQBAL);
+	tx_reg->len_mask	= VF_ATQLEN_ATQLEN_M;
+	tx_reg->len_ena_mask	= VF_ATQLEN_ATQENABLE_M;
+	tx_reg->head_mask	= VF_ATQH_ATQH_M;
+
+	rx_reg->head		= libie_pci_get_mmio_addr(mmio, VF_ARQH);
+	rx_reg->tail		= libie_pci_get_mmio_addr(mmio, VF_ARQT);
+	rx_reg->len		= libie_pci_get_mmio_addr(mmio, VF_ARQLEN);
+	rx_reg->addr_high	= libie_pci_get_mmio_addr(mmio, VF_ARQBAH);
+	rx_reg->addr_low	= libie_pci_get_mmio_addr(mmio, VF_ARQBAL);
+	rx_reg->len_mask	= VF_ARQLEN_ARQLEN_M;
+	rx_reg->len_ena_mask	= VF_ARQLEN_ARQENABLE_M;
+	rx_reg->head_mask	= VF_ARQH_ARQH_M;
 }
 
 /**
@@ -160,8 +150,7 @@ static void idpf_vf_trigger_reset(struct idpf_adapter *adapter,
 	/* Do not send VIRTCHNL2_OP_RESET_VF message on driver unload */
 	if (trig_cause == IDPF_HR_FUNC_RESET &&
 	    !test_bit(IDPF_REMOVE_IN_PROG, adapter->flags))
-		idpf_send_mb_msg(adapter, adapter->hw.asq,
-				 VIRTCHNL2_OP_RESET_VF, 0, NULL, 0);
+		idpf_send_vf_reset_msg(adapter);
 }
 
 /**

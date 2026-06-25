@@ -27,7 +27,6 @@ struct idpf_rss_data;
 #include <linux/net/intel/virtchnl2.h>
 
 #include "idpf_txrx.h"
-#include "idpf_controlq.h"
 
 #define GETMAXVAL(num_bits)		GENMASK((num_bits) - 1, 0)
 
@@ -37,11 +36,10 @@ struct idpf_rss_data;
 #define IDPF_NUM_FILTERS_PER_MSG	20
 #define IDPF_NUM_DFLT_MBX_Q		2	/* includes both TX and RX */
 #define IDPF_DFLT_MBX_Q_LEN		64
-#define IDPF_DFLT_MBX_ID		-1
 /* maximum number of times to try before resetting mailbox */
 #define IDPF_MB_MAX_ERR			20
 #define IDPF_NUM_CHUNKS_PER_MSG(struct_sz, chunk_sz)	\
-	((IDPF_CTLQ_MAX_BUF_LEN - (struct_sz)) / (chunk_sz))
+	((LIBIE_CTLQ_MAX_BUF_LEN - (struct_sz)) / (chunk_sz))
 
 #define IDPF_WAIT_FOR_MARKER_TIMEO	500
 #define IDPF_MAX_WAIT			500
@@ -202,8 +200,8 @@ struct idpf_vport_max_q {
  * @ptp_reg_init: PTP register initialization
  */
 struct idpf_reg_ops {
-	void (*ctlq_reg_init)(struct idpf_adapter *adapter,
-			      struct idpf_ctlq_create_info *cq);
+	void (*ctlq_reg_init)(struct libie_mmio_info *mmio,
+			      struct libie_ctlq_create_info *cctlq_info);
 	int (*intr_reg_init)(struct idpf_vport *vport,
 			     struct idpf_q_vec_rsrc *rsrc);
 	void (*mb_intr_reg_init)(struct idpf_adapter *adapter);
@@ -606,8 +604,6 @@ struct idpf_vport_config {
 	DECLARE_BITMAP(flags, IDPF_VPORT_CONFIG_FLAGS_NBITS);
 };
 
-struct idpf_vc_xn_manager;
-
 #define idpf_for_each_vport(adapter, iter) \
 	for (struct idpf_vport **__##iter = &(adapter)->vports[0], \
 	     *iter = (adapter)->max_vports ? *__##iter : NULL; \
@@ -625,8 +621,10 @@ struct idpf_vc_xn_manager;
  * @state: Init state machine
  * @flags: See enum idpf_flags
  * @reset_reg: See struct idpf_reset_reg
- * @hw: Device access data
  * @ctlq_ctx: controlq context
+ * @asq: Send control queue info
+ * @arq: Receive control queue info
+ * @xnm: Xn transaction manager
  * @num_avail_msix: Available number of MSIX vectors
  * @num_msix_entries: Number of entries in MSIX table
  * @msix_entries: MSIX table
@@ -659,7 +657,6 @@ struct idpf_vc_xn_manager;
  * @stats_task: Periodic statistics retrieval task
  * @stats_wq: Workqueue for statistics task
  * @caps: Negotiated capabilities with device
- * @vcxn_mngr: Virtchnl transaction manager
  * @dev_ops: See idpf_dev_ops
  * @cdev_info: IDC core device info pointer
  * @num_vfs: Number of allocated VFs through sysfs. PF does not directly talk
@@ -683,8 +680,10 @@ struct idpf_adapter {
 	enum idpf_state state;
 	DECLARE_BITMAP(flags, IDPF_FLAGS_NBITS);
 	struct idpf_reset_reg reset_reg;
-	struct idpf_hw hw;
 	struct libie_ctlq_ctx ctlq_ctx;
+	struct libie_ctlq_info *asq;
+	struct libie_ctlq_info *arq;
+	struct libie_ctlq_xn_manager *xnm;
 	u16 num_avail_msix;
 	u16 num_msix_entries;
 	struct msix_entry *msix_entries;
@@ -721,7 +720,6 @@ struct idpf_adapter {
 	struct delayed_work stats_task;
 	struct workqueue_struct *stats_wq;
 	struct virtchnl2_get_capabilities caps;
-	struct idpf_vc_xn_manager *vcxn_mngr;
 
 	struct idpf_dev_ops dev_ops;
 	struct iidc_rdma_core_dev_info *cdev_info;
@@ -881,12 +879,12 @@ static inline u8 idpf_get_min_tx_pkt_len(struct idpf_adapter *adapter)
  */
 static inline bool idpf_is_reset_detected(struct idpf_adapter *adapter)
 {
-	if (!adapter->hw.arq)
+	struct libie_ctlq_info *arq = adapter->arq;
+
+	if (!arq)
 		return true;
 
-	return !(readl(libie_pci_get_mmio_addr(&adapter->ctlq_ctx.mmio_info,
-					       adapter->hw.arq->reg.len)) &
-		 adapter->hw.arq->reg.len_mask);
+	return !(readl(arq->reg.len) & arq->reg.len_mask);
 }
 
 /**

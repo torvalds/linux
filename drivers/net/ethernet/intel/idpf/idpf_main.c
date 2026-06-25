@@ -170,8 +170,6 @@ destroy_wqs:
 	adapter->vport_config = NULL;
 	kfree(adapter->netdevs);
 	adapter->netdevs = NULL;
-	kfree(adapter->vcxn_mngr);
-	adapter->vcxn_mngr = NULL;
 
 	mutex_destroy(&adapter->vport_ctrl_lock);
 	mutex_destroy(&adapter->vector_lock);
@@ -239,7 +237,6 @@ static int idpf_cfg_device(struct idpf_adapter *adapter)
 		pci_dbg(pdev, "PCIe PTM is not supported by PCIe bus/controller\n");
 
 	pci_set_drvdata(pdev, adapter);
-	adapter->hw.back = adapter;
 
 	return 0;
 }

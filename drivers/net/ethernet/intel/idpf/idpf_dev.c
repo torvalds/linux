@@ -10,44 +10,32 @@
 
 /**
  * idpf_ctlq_reg_init - initialize default mailbox registers
- * @adapter: adapter structure
- * @cq: pointer to the array of create control queues
+ * @mmio: struct that contains MMIO region info
+ * @cci: struct where the register offset pointer to be copied to
  */
-static void idpf_ctlq_reg_init(struct idpf_adapter *adapter,
-			       struct idpf_ctlq_create_info *cq)
+static void idpf_ctlq_reg_init(struct libie_mmio_info *mmio,
+			       struct libie_ctlq_create_info *cci)
 {
-	int i;
+	struct libie_ctlq_reg *tx_reg = &cci[LIBIE_CTLQ_TYPE_TX].reg;
+	struct libie_ctlq_reg *rx_reg = &cci[LIBIE_CTLQ_TYPE_RX].reg;
 
-	for (i = 0; i < IDPF_NUM_DFLT_MBX_Q; i++) {
-		struct idpf_ctlq_create_info *ccq = cq + i;
+	tx_reg->head		= libie_pci_get_mmio_addr(mmio, PF_FW_ATQH);
+	tx_reg->tail		= libie_pci_get_mmio_addr(mmio, PF_FW_ATQT);
+	tx_reg->len		= libie_pci_get_mmio_addr(mmio, PF_FW_ATQLEN);
+	tx_reg->addr_high	= libie_pci_get_mmio_addr(mmio, PF_FW_ATQBAH);
+	tx_reg->addr_low	= libie_pci_get_mmio_addr(mmio, PF_FW_ATQBAL);
+	tx_reg->len_mask	= PF_FW_ATQLEN_ATQLEN_M;
+	tx_reg->len_ena_mask	= PF_FW_ATQLEN_ATQENABLE_M;
+	tx_reg->head_mask	= PF_FW_ATQH_ATQH_M;
 
-		switch (ccq->type) {
-		case IDPF_CTLQ_TYPE_MAILBOX_TX:
-			/* set head and tail registers in our local struct */
-			ccq->reg.head = PF_FW_ATQH;
-			ccq->reg.tail = PF_FW_ATQT;
-			ccq->reg.len = PF_FW_ATQLEN;
-			ccq->reg.bah = PF_FW_ATQBAH;
-			ccq->reg.bal = PF_FW_ATQBAL;
-			ccq->reg.len_mask = PF_FW_ATQLEN_ATQLEN_M;
-			ccq->reg.len_ena_mask = PF_FW_ATQLEN_ATQENABLE_M;
-			ccq->reg.head_mask = PF_FW_ATQH_ATQH_M;
-			break;
-		case IDPF_CTLQ_TYPE_MAILBOX_RX:
-			/* set head and tail registers in our local struct */
-			ccq->reg.head = PF_FW_ARQH;
-			ccq->reg.tail = PF_FW_ARQT;
-			ccq->reg.len = PF_FW_ARQLEN;
-			ccq->reg.bah = PF_FW_ARQBAH;
-			ccq->reg.bal = PF_FW_ARQBAL;
-			ccq->reg.len_mask = PF_FW_ARQLEN_ARQLEN_M;
-			ccq->reg.len_ena_mask = PF_FW_ARQLEN_ARQENABLE_M;
-			ccq->reg.head_mask = PF_FW_ARQH_ARQH_M;
-			break;
-		default:
-			break;
-		}
-	}
+	rx_reg->head		= libie_pci_get_mmio_addr(mmio, PF_FW_ARQH);
+	rx_reg->tail		= libie_pci_get_mmio_addr(mmio, PF_FW_ARQT);
+	rx_reg->len		= libie_pci_get_mmio_addr(mmio, PF_FW_ARQLEN);
+	rx_reg->addr_high	= libie_pci_get_mmio_addr(mmio, PF_FW_ARQBAH);
+	rx_reg->addr_low	= libie_pci_get_mmio_addr(mmio, PF_FW_ARQBAL);
+	rx_reg->len_mask	= PF_FW_ARQLEN_ARQLEN_M;
+	rx_reg->len_ena_mask	= PF_FW_ARQLEN_ARQENABLE_M;
+	rx_reg->head_mask	= PF_FW_ARQH_ARQH_M;
 }
 
 /**
