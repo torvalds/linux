@@ -15,6 +15,14 @@ config LIBIE_ADMINQ
 	  Helper functions used by Intel Ethernet drivers for administration
 	  queue command interface (aka adminq).
 
+config LIBIE_CP
+	tristate
+	select LIBETH
+	select LIBIE_PCI
+	help
+	  Common helper routines to communicate with the device Control Plane
+	  using virtchnl2 or related mailbox protocols.
+
 config LIBIE_FWLOG
 	tristate
 	select LIBIE_ADMINQ
