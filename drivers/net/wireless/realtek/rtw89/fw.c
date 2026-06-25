@@ -2982,9 +2982,9 @@ static struct sk_buff *rtw89_arp_response_get(struct rtw89_dev *rtwdev,
 	arp_hdr->ar_pln = 4;
 	arp_hdr->ar_op = htons(ARPOP_REPLY);
 
-	ether_addr_copy(arp_skb->sender_hw, rtwvif_link->mac_addr);
+	ether_addr_copy(arp_skb->sender_hw, rtwvif->mac_addr);
 	arp_skb->sender_ip = rtwvif->ip_addr;
-	ether_addr_copy(arp_skb->target_hw, rtwvif_link->mac_addr);
+	ether_addr_copy(arp_skb->target_hw, rtwvif->mac_addr);
 	arp_skb->target_ip = rtwvif->ip_addr;
 
 	return skb;
