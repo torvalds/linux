@@ -219,17 +219,15 @@ static int __init mv_rtc_probe(struct platform_device *pdev)
 	if (IS_ERR(pdata->ioaddr))
 		return PTR_ERR(pdata->ioaddr);
 
-	pdata->clk = devm_clk_get(&pdev->dev, NULL);
-	/* Not all SoCs require a clock.*/
-	if (!IS_ERR(pdata->clk))
-		clk_prepare_enable(pdata->clk);
+	pdata->clk = devm_clk_get_optional_prepared(&pdev->dev, NULL);
+	if (IS_ERR(pdata->clk))
+		return PTR_ERR(pdata->clk);
 
 	/* make sure the 24 hour mode is enabled */
 	rtc_time = readl(pdata->ioaddr + RTC_TIME_REG_OFFS);
 	if (rtc_time & RTC_HOURS_12H_MODE) {
 		dev_err(&pdev->dev, "12 Hour mode is enabled but not supported.\n");
-		ret = -EINVAL;
-		goto out;
+		return  -EINVAL;
 	}
 
 	/* make sure it is actually functional */
@@ -238,8 +236,7 @@ static int __init mv_rtc_probe(struct platform_device *pdev)
 		rtc_time = readl(pdata->ioaddr + RTC_TIME_REG_OFFS);
 		if (rtc_time == 0x01000000) {
 			dev_err(&pdev->dev, "internal RTC not ticking\n");
-			ret = -ENODEV;
-			goto out;
+			return -ENODEV;
 		}
 	}
 
@@ -249,8 +246,7 @@ static int __init mv_rtc_probe(struct platform_device *pdev)
 
 	pdata->rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(pdata->rtc)) {
-		ret = PTR_ERR(pdata->rtc);
-		goto out;
+		return PTR_ERR(pdata->rtc);
 	}
 
 	if (pdata->irq >= 0) {
@@ -275,9 +271,6 @@ static int __init mv_rtc_probe(struct platform_device *pdev)
 	ret = devm_rtc_register_device(pdata->rtc);
 	if (!ret)
 		return 0;
-out:
-	if (!IS_ERR(pdata->clk))
-		clk_disable_unprepare(pdata->clk);
 
 	return ret;
 }
@@ -288,9 +281,6 @@ static void __exit mv_rtc_remove(struct platform_device *pdev)
 
 	if (pdata->irq >= 0)
 		device_init_wakeup(&pdev->dev, false);
-
-	if (!IS_ERR(pdata->clk))
-		clk_disable_unprepare(pdata->clk);
 }
 
 #ifdef CONFIG_OF
