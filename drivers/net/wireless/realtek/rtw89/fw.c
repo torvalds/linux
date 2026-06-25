@@ -2943,6 +2943,7 @@ static struct sk_buff *rtw89_sa_query_get(struct rtw89_dev *rtwdev,
 static struct sk_buff *rtw89_arp_response_get(struct rtw89_dev *rtwdev,
 					      struct rtw89_vif_link *rtwvif_link)
 {
+	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link->rtwvif);
 	struct rtw89_vif *rtwvif = rtwvif_link->rtwvif;
 	u8 sec_hdr_len = rtw89_wow_get_sec_hdr_len(rtwdev);
 	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
@@ -2950,26 +2951,42 @@ static struct sk_buff *rtw89_arp_response_get(struct rtw89_dev *rtwdev,
 	struct rtw89_arp_rsp *arp_skb;
 	struct arphdr *arp_hdr;
 	struct sk_buff *skb;
-	__le16 fc;
+	bool with_qos;
+	u16 fc;
 
-	skb = dev_alloc_skb(sizeof(*hdr) + sec_hdr_len + sizeof(*arp_skb));
+	with_qos = ieee80211_vif_is_mld(vif);
+
+	rtw89_debug(rtwdev, RTW89_DBG_WOW, "[arp_reply] with qos field: %s\n",
+		    str_yes_no(with_qos));
+
+	skb = dev_alloc_skb(sizeof(*hdr) + sec_hdr_len + sizeof(*arp_skb) +
+			    (with_qos ? 2 : 0));
 	if (!skb)
 		return NULL;
 
 	hdr = skb_put_zero(skb, sizeof(*hdr));
 
-	if (rtw_wow->ptk_alg)
-		fc = cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_FCTL_TODS |
-				 IEEE80211_FCTL_PROTECTED);
-	else
-		fc = cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_FCTL_TODS);
+	fc = IEEE80211_FTYPE_DATA | IEEE80211_FCTL_TODS;
 
-	hdr->frame_control = fc;
+	if (rtw_wow->ptk_alg)
+		fc |= IEEE80211_FCTL_PROTECTED;
+
+	if (with_qos)
+		fc |= IEEE80211_STYPE_QOS_DATA;
+	else
+		fc |= IEEE80211_STYPE_DATA;
+
+	hdr->frame_control = cpu_to_le16(fc);
+
 	ether_addr_copy(hdr->addr1, rtwvif_link->bssid);
 	ether_addr_copy(hdr->addr2, rtwvif_link->mac_addr);
 	ether_addr_copy(hdr->addr3, rtwvif_link->bssid);
 
-	skb_put_zero(skb, sec_hdr_len);
+	if (with_qos)
+		skb_put_zero(skb, sizeof(__le16));
+
+	if (sec_hdr_len)
+		skb_put_zero(skb, sec_hdr_len);
 
 	arp_skb = skb_put_zero(skb, sizeof(*arp_skb));
 	memcpy(arp_skb->llc_hdr, rfc1042_header, sizeof(rfc1042_header));
