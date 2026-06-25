@@ -1196,6 +1196,9 @@ static int scheduler_init_be(struct rtw89_dev *rtwdev, u8 mac_idx)
 
 	rtw89_io_pack(rtwdev);
 
+	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_MISC_1, mac_idx);
+	rtw89_write32_set(rtwdev, reg, B_BE_EN_TX_FINISH_PRD_RESP);
+
 	if (chip->chip_id == RTL8922D) {
 		reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_SCH_EXT_CTRL, mac_idx);
 		rtw89_write32_set(rtwdev, reg, B_BE_CWCNT_PLUS_MODE);
