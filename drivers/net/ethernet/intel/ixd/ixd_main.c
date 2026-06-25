@@ -5,6 +5,7 @@
 #include "ixd_lan_regs.h"
 
 MODULE_DESCRIPTION("Intel(R) Control Plane Function Device Driver");
+MODULE_IMPORT_NS("LIBIE_CP");
 MODULE_IMPORT_NS("LIBIE_PCI");
 MODULE_LICENSE("GPL");
 
@@ -16,7 +17,15 @@ static void ixd_remove(struct pci_dev *pdev)
 {
 	struct ixd_adapter *adapter = pci_get_drvdata(pdev);
 
-	libie_pci_unmap_all_mmio_regions(&adapter->hw);
+	/* Do not mix removal with (re)initialization */
+	cancel_delayed_work_sync(&adapter->init_task.init_work);
+	/* Leave the device clean on exit */
+	if (adapter->xnm)
+		libie_ctlq_xn_shutdown(adapter->xnm);
+	ixd_trigger_reset(adapter);
+	ixd_deinit_dflt_mbx(adapter);
+
+	libie_pci_unmap_all_mmio_regions(&adapter->cp_ctx.mmio_info);
 }
 
 /**
@@ -51,7 +60,7 @@ static int ixd_iomap_regions(struct ixd_adapter *adapter)
 	};
 
 	for (int i = 0; i < ARRAY_SIZE(regions); i++) {
-		struct libie_mmio_info *mmio_info = &adapter->hw;
+		struct libie_mmio_info *mmio_info = &adapter->cp_ctx.mmio_info;
 		bool map_ok;
 
 		map_ok = libie_pci_map_mmio_region(mmio_info,
@@ -84,8 +93,9 @@ static int ixd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter = devm_kzalloc(&pdev->dev, sizeof(*adapter), GFP_KERNEL);
 	if (!adapter)
 		return -ENOMEM;
-	adapter->hw.pdev = pdev;
-	INIT_LIST_HEAD(&adapter->hw.mmio_list);
+
+	adapter->cp_ctx.mmio_info.pdev = pdev;
+	INIT_LIST_HEAD(&adapter->cp_ctx.mmio_info.mmio_list);
 
 	err = libie_pci_init_dev(pdev);
 	if (err)
@@ -93,7 +103,18 @@ static int ixd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, adapter);
 
-	return ixd_iomap_regions(adapter);
+	err = ixd_iomap_regions(adapter);
+	if (err)
+		return err;
+
+	INIT_DELAYED_WORK(&adapter->init_task.init_work,
+			  ixd_init_task);
+
+	ixd_trigger_reset(adapter);
+	queue_delayed_work(system_dfl_wq, &adapter->init_task.init_work,
+			   IXD_INIT_TASK_DELAY_JIFFIES);
+
+	return 0;
 }
 
 static const struct pci_device_id ixd_pci_tbl[] = {

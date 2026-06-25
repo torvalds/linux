@@ -4,6 +4,7 @@
 config IXD
 	tristate "Intel(R) Control Plane Function Support"
 	depends on PCI_MSI
+	select LIBIE_CP
 	select LIBIE_PCI
 	help
 	  This driver supports Intel(R) Control Plane PCI Function

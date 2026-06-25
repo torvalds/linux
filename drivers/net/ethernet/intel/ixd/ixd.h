@@ -4,14 +4,29 @@
 #ifndef _IXD_H_
 #define _IXD_H_
 
-#include <linux/net/intel/libie/pci.h>
+#include <linux/net/intel/libie/controlq.h>
+
+#define IXD_INIT_TASK_DELAY_JIFFIES	msecs_to_jiffies(500)
 
 /**
  * struct ixd_adapter - Data structure representing a CPF
- * @hw: Device access data
+ * @cp_ctx: Control plane communication context
+ * @init_task: Delayed initialization after reset
+ * @init_task.init_work: Delayed initialization work
+ * @init_task.reset_retries: How many times to check, whether reset is completed
+ * @xnm: virtchnl transaction manager
+ * @asq: Send control queue info
+ * @arq: Receive control queue info
  */
 struct ixd_adapter {
-	struct libie_mmio_info hw;
+	struct libie_ctlq_ctx cp_ctx;
+	struct {
+		struct delayed_work init_work;
+		u8 reset_retries;
+	} init_task;
+	struct libie_ctlq_xn_manager *xnm;
+	struct libie_ctlq_info *asq;
+	struct libie_ctlq_info *arq;
 };
 
 /**
@@ -22,7 +37,16 @@ struct ixd_adapter {
  */
 static inline struct device *ixd_to_dev(struct ixd_adapter *adapter)
 {
-	return &adapter->hw.pdev->dev;
+	return &adapter->cp_ctx.mmio_info.pdev->dev;
 }
+
+void ixd_ctlq_reg_init(struct ixd_adapter *adapter,
+		       struct libie_ctlq_reg *ctlq_reg_tx,
+		       struct libie_ctlq_reg *ctlq_reg_rx);
+void ixd_trigger_reset(struct ixd_adapter *adapter);
+bool ixd_check_reset_complete(struct ixd_adapter *adapter);
+void ixd_init_task(struct work_struct *work);
+int ixd_init_dflt_mbx(struct ixd_adapter *adapter);
+void ixd_deinit_dflt_mbx(struct ixd_adapter *adapter);
 
 #endif /* _IXD_H_ */
