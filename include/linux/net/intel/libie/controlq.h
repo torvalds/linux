@@ -4,6 +4,7 @@
 #ifndef __LIBIE_CONTROLQ_H
 #define __LIBIE_CONTROLQ_H
 
+#include <linux/dmapool.h>
 #include <net/libeth/rx.h>
 
 #include <linux/net/intel/libie/pci.h>
@@ -26,6 +27,8 @@ enum libie_ctlq_type {
 /* Opcode used to send controlq message to the control plane */
 #define LIBIE_CTLQ_SEND_MSG_TO_CP		0x801
 #define LIBIE_CTLQ_SEND_MSG_TO_PEER		0x804
+
+#define LIBIE_CP_TX_COPYBREAK		128
 
 /**
  * struct libie_ctlq_ctx - contains controlq info and MMIO region info
@@ -272,5 +275,162 @@ u32 libie_ctlq_recv(struct libie_ctlq_info *ctlq, struct libie_ctlq_msg *msg,
 		    u32 num_q_msg);
 
 int libie_ctlq_post_rx_buffs(struct libie_ctlq_info *ctlq);
+
+/* Only 8 bits are available in descriptor for Xn index */
+#define LIBIE_CTLQ_MAX_XN_ENTRIES		256
+#define LIBIE_CTLQ_XN_COOKIE_M			GENMASK(15, 8)
+#define LIBIE_CTLQ_XN_INDEX_M			GENMASK(7, 0)
+
+/**
+ * enum libie_ctlq_xn_state - Transaction state of a virtchnl message
+ * @LIBIE_CTLQ_XN_IDLE: transaction is available to use
+ * @LIBIE_CTLQ_XN_WAITING: waiting for transaction to complete
+ * @LIBIE_CTLQ_XN_COMPLETED_SUCCESS: transaction completed with success
+ * @LIBIE_CTLQ_XN_COMPLETED_FAILED: transaction completed with failure
+ * @LIBIE_CTLQ_XN_ASYNC: asynchronous virtchnl message transaction type
+ * @LIBIE_CTLQ_XN_SHUTDOWN: transaction cannot be used anymore
+ */
+enum libie_ctlq_xn_state {
+	LIBIE_CTLQ_XN_IDLE = 0,
+	LIBIE_CTLQ_XN_WAITING,
+	LIBIE_CTLQ_XN_COMPLETED_SUCCESS,
+	LIBIE_CTLQ_XN_COMPLETED_FAILED,
+	LIBIE_CTLQ_XN_ASYNC,
+	LIBIE_CTLQ_XN_SHUTDOWN,
+};
+
+/**
+ * struct libie_ctlq_xn - structure representing a virtchnl transaction entry
+ * @resp_cb: non-sleeping callback to handle the response to an async message
+ * @xn_lock: lock to protect the transaction entry state
+ * @cmd_completion_event: wait until reply is received or xn is terminated
+ * @small_dma_mem: DMA memory for copying small send buffers from stack,
+ *		   is recycled when response is received or on timeout
+ * @send_dma_mem: DMA memory of send buffer
+ * @recv_mem: receive buffer
+ * @send_ctx: context for callback function
+ * @timeout_ms: Xn transaction timeout in msecs
+ * @timestamp: timestamp to record the Xn send
+ * @tx_msg: control queue Tx message slot to track small DMA usage
+ * @virtchnl_opcode: virtchnl command opcode used for Xn transaction
+ * @state: transaction state of a virtchnl message
+ * @cookie: unique message identifier, incremented every time the slot is used
+ * @index: index of the transaction entry
+ */
+struct libie_ctlq_xn {
+	void (*resp_cb)(void *ctx, struct kvec *mem, int status);
+	spinlock_t			xn_lock;	/* protects state */
+	struct completion		cmd_completion_event;
+	struct libie_cp_dma_mem	small_dma_mem;
+	struct libie_cp_dma_mem	send_dma_mem;
+	struct kvec			recv_mem;
+	void				*send_ctx;
+	u64				timeout_ms;
+	ktime_t				timestamp;
+	struct libie_ctlq_msg		*tx_msg;
+	u32				virtchnl_opcode;
+	enum libie_ctlq_xn_state	state;
+	u8				cookie;
+	u8				index;
+};
+
+/**
+ * struct libie_ctlq_xn_manager - structure representing the array of virtchnl
+ *				   transaction entries
+ * @ctx: pointer to controlq context structure
+ * @free_xns_bm_lock: lock to protect the free Xn entries bit map
+ * @free_xns_bm: bitmap that represents the free Xn entries
+ * @ring: array of Xn entries
+ * @small_buff_pool: DMA pool for small send buffers
+ * @can_destroy: completion, triggered by the last released transaction
+ * @shutdown: shutdown process has been started, no new transactions allowed
+ */
+struct libie_ctlq_xn_manager {
+	struct libie_ctlq_ctx	*ctx;
+	spinlock_t		free_xns_bm_lock;	/* get/check entries */
+	DECLARE_BITMAP(free_xns_bm, LIBIE_CTLQ_MAX_XN_ENTRIES);
+	struct libie_ctlq_xn	ring[LIBIE_CTLQ_MAX_XN_ENTRIES];
+	struct dma_pool		*small_buff_pool;
+	struct completion	can_destroy;
+	bool			shutdown;
+};
+
+/**
+ * struct libie_ctlq_xn_send_params - structure representing send Xn entry
+ * @resp_cb: non-sleeping callback to handle the response to an async message
+ * @rel_tx_buf: non-sleeping callback for freeing the send buffer
+ * @xnm: Xn manager to process Xn entries
+ * @ctlq: send control queue information
+ * @ctlq_msg: control queue message information
+ * @send_buf: buffer that carries outgoing message data, buffers larger than
+ *	      LIBIE_CP_TX_COPYBREAK bytes will always be consumed
+ * @recv_mem: receive buffer
+ * @send_ctx: context for callback function
+ * @timeout_ms: virtchnl transaction timeout in msecs
+ * @chnl_opcode: virtchnl message opcode
+ */
+struct libie_ctlq_xn_send_params {
+	void (*resp_cb)(void *ctx, struct kvec *mem, int status);
+	void (*rel_tx_buf)(const void *buf_va);
+	struct libie_ctlq_xn_manager		*xnm;
+	struct libie_ctlq_info			*ctlq;
+	struct libie_ctlq_msg			*ctlq_msg;
+	struct kvec				send_buf;
+	struct kvec				recv_mem;
+	void					*send_ctx;
+	u64					timeout_ms;
+	u32					chnl_opcode;
+};
+
+/**
+ * libie_cp_can_send_onstack - can a message be sent using a stack variable
+ * @size: ctlq data buffer size
+ *
+ * Return: %true if the message size is small enough for caller to pass
+ *	   an on-stack buffer, %false if kmalloc is needed
+ */
+static inline bool libie_cp_can_send_onstack(u32 size)
+{
+	return size <= LIBIE_CP_TX_COPYBREAK;
+}
+
+/**
+ * struct libie_ctlq_xn_recv_params - request to receive xn responses
+ * @ctlq_msg_handler: handler for Rx messages with no matching xn (mandatory)
+ * @xnm: Xn manager to process Xn entries
+ * @ctlq: control queue information
+ * @budget: maximum number of messages to process
+ */
+struct libie_ctlq_xn_recv_params {
+	void (*ctlq_msg_handler)(struct libie_ctlq_ctx *ctx,
+				 struct libie_ctlq_msg *msg);
+	struct libie_ctlq_xn_manager		*xnm;
+	struct libie_ctlq_info			*ctlq;
+	u32					budget;
+};
+
+/**
+ * struct libie_ctlq_xn_init_params - xn transaction manager parameters
+ * @cctlq_info: control queue information
+ * @ctx: pointer to controlq context structure
+ * @xnm: Xn manager to process Xn entries
+ * @num_qs: number of control queues to be initialized
+ */
+struct libie_ctlq_xn_init_params {
+	struct libie_ctlq_create_info		*cctlq_info;
+	struct libie_ctlq_ctx			*ctx;
+	struct libie_ctlq_xn_manager		*xnm;
+	u32					num_qs;
+};
+
+int libie_ctlq_xn_init(struct libie_ctlq_xn_init_params *params);
+void libie_ctlq_xn_deinit(struct libie_ctlq_xn_manager *xnm,
+			  struct libie_ctlq_ctx *ctx);
+void libie_ctlq_xn_shutdown(struct libie_ctlq_xn_manager *xnm);
+int libie_ctlq_xn_send(struct libie_ctlq_xn_send_params *params);
+u32 libie_ctlq_xn_recv(struct libie_ctlq_xn_recv_params *params);
+u32 libie_ctlq_xn_send_clean(struct libie_ctlq_info *ctlq,
+			     void (*rel_tx_buf)(const void *buf_va),
+			     bool force);
 
 #endif /* __LIBIE_CONTROLQ_H */
