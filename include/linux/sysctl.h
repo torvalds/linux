@@ -117,11 +117,20 @@ int proc_dou8vec_minmax(const struct ctl_table *table, int write, void *buffer,
 int proc_doulongvec_minmax(const struct ctl_table *, int, void *, size_t *, loff_t *);
 int proc_doulongvec_minmax_conv(const struct ctl_table *table, int dir,
 				void *buffer, size_t *lenp, loff_t *ppos,
-				unsigned long convmul, unsigned long convdiv);
+				int (*conv)(bool *negp, ulong *u_ptr, ulong *k_ptr,
+					    int dir, const struct ctl_table *table));
 int proc_do_large_bitmap(const struct ctl_table *, int, void *, size_t *, loff_t *);
 int proc_do_static_key(const struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos);
 
+int proc_ulong_u2k_conv_uop(const ulong *u_ptr, ulong *k_ptr,
+			    ulong (*u_ptr_op)(const ulong));
+int proc_ulong_k2u_conv_kop(ulong *u_ptr, const ulong *k_ptr,
+			    ulong (*k_ptr_op)(const ulong));
+int proc_ulong_conv(ulong *u_ptr, ulong *k_ptr, int dir,
+		    const struct ctl_table *tbl, bool k_ptr_range_check,
+		    int (*user_to_kern)(const ulong *u_ptr, ulong *k_ptr),
+		    int (*kern_to_user)(ulong *u_ptr, const ulong *k_ptr));
 /*
  * Register a set of sysctl names by calling register_sysctl
  * with an initialised array of struct ctl_table's.
