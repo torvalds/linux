@@ -94,8 +94,8 @@ static inline bool kvm_vcpu_has_mediated_pmu(struct kvm_vcpu *vcpu)
  * is tracked internally via index 32.  On Intel, (AMD doesn't support fixed
  * counters), this mirrors how fixed counters are mapped to PERF_GLOBAL_CTRL
  * and similar MSRs, i.e. tracking fixed counters at base index 32 reduces the
- * amounter of boilerplate needed to iterate over PMCs *and* simplifies common
- * enabling/disable/reset operations.
+ * amount of boilerplate needed to iterate over PMCs *and* simplifies common
+ * enable/disable/reset operations.
  *
  * WARNING!  This helper is only for lookups that are initiated by KVM, it is
  * NOT safe for guest lookups, e.g. will do the wrong thing if passed a raw
