@@ -33,6 +33,9 @@ description: |
     https://fscdn.rohm.com/en/products/databook/datasheet/ic/power/power_switch/bd12780muv-lb-e.pdf
     https://fscdn.rohm.com/en/products/databook/datasheet/ic/power/power_switch/bd12780amuv-lb-e.pdf
 
+  The BD12790 is a ROHM hot-swap controller, functionally similar to the
+  ADM1272.
+
 properties:
   compatible:
     oneOf:
@@ -47,6 +50,7 @@ properties:
           - adi,adm1293
           - adi,adm1294
           - rohm,bd12780
+          - rohm,bd12790
           - silergy,mc09c
 
       # Require BD12780 as a fall-back for BD12780A.
@@ -103,6 +107,7 @@ allOf:
             enum:
               - adi,adm1272
               - adi,adm1273
+              - rohm,bd12790
     then:
       properties:
         adi,volt-curr-sample-average:
