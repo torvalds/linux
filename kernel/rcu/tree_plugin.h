@@ -614,9 +614,35 @@ static notrace bool rcu_preempt_need_deferred_qs(struct task_struct *t)
 notrace void rcu_preempt_deferred_qs(struct task_struct *t)
 {
 	unsigned long flags;
+	struct rcu_data *rdp;
 
-	if (!rcu_preempt_need_deferred_qs(t))
+	if (!rcu_preempt_need_deferred_qs(t)) {
+		/*
+		 * If we got here from a softirq/irq_work that fired while
+		 * rcu_preempt_depth() > 0, the deferred-QS mechanism has been
+		 * consumed without doing any work: rcu_preempt_need_deferred_qs()
+		 * just returned false because the task is still in a reader, so
+		 * the actual QS report has to wait for the next
+		 * rcu_read_unlock().
+		 *
+		 * Clear ->defer_qs_pending here so the next outer
+		 * rcu_read_unlock_special() can re-arm a fresh mechanism (in
+		 * particular the irq_work path, which the local_irq_enable()
+		 * recovery boundary cannot itself reschedule from).
+		 *
+		 * Recursion safety: rcu_preempt_depth() > 0 means we are inside
+		 * an outer reader, so any inner rcu_read_unlock() reached via
+		 * tracing (bpf programs attached to trace points) brings
+		 * nesting to outer (> 0), never to 0, so no recursive
+		 * raise_softirq_irqoff()/irq_work_queue_on() can be triggered
+		 * by this clear.
+		 */
+		if (rcu_preempt_depth() > 0) {
+			rdp = this_cpu_ptr(&rcu_data);
+			rcu_defer_qs_clear(rdp);
+		}
 		return;
+	}
 	local_irq_save(flags);
 	rcu_preempt_deferred_qs_irqrestore(t, flags);
 }
