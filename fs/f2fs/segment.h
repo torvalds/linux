@@ -796,20 +796,6 @@ F2FS_IPU_POLICY(F2FS_IPU_ASYNC);
 F2FS_IPU_POLICY(F2FS_IPU_NOCACHE);
 F2FS_IPU_POLICY(F2FS_IPU_HONOR_OPU_WRITE);
 
-static inline unsigned int curseg_segno(struct f2fs_sb_info *sbi,
-		int type)
-{
-	struct curseg_info *curseg = CURSEG_I(sbi, type);
-	return curseg->segno;
-}
-
-static inline unsigned char curseg_alloc_type(struct f2fs_sb_info *sbi,
-		int type)
-{
-	struct curseg_info *curseg = CURSEG_I(sbi, type);
-	return curseg->alloc_type;
-}
-
 static inline bool valid_main_segno(struct f2fs_sb_info *sbi,
 		unsigned int segno)
 {
