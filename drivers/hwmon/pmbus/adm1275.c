@@ -19,7 +19,7 @@
 #include "pmbus.h"
 
 enum chips { adm1075, adm1272, adm1273, adm1275, adm1276, adm1278, adm1281,
-	 adm1293, adm1294, bd12780, sq24905c };
+	 adm1293, adm1294, bd12780, bd12790, sq24905c };
 
 #define ADM1275_MFR_STATUS_IOUT_WARN2	BIT(0)
 #define ADM1293_MFR_STATUS_VAUX_UV_WARN	BIT(5)
@@ -47,7 +47,7 @@ enum chips { adm1075, adm1272, adm1273, adm1275, adm1276, adm1278, adm1281,
 #define ADM1278_VOUT_EN			BIT(1)
 
 #define ADM1278_PMON_DEFCONFIG		(ADM1278_VOUT_EN | ADM1278_TEMP1_EN | ADM1278_TSFILT)
-/* The BD12780 data sheets mark TSFILT bit as reserved. */
+/* The BD127[89]0 data sheets mark TSFILT bit as reserved. */
 #define BD12780_PMON_DEFCONFIG		(ADM1278_VOUT_EN | ADM1278_TEMP1_EN)
 
 #define ADM1293_IRANGE_25		0
@@ -134,6 +134,30 @@ static const struct coefficients adm1272_coefficients[] = {
 	[7] = { 10535, 0, -3 },		/* power, vrange 100V, irange 30mV */
 	[8] = { 42, 31871, -1 },	/* temperature */
 
+};
+
+/*
+ * BD12790 coefficients derived from preliminary datasheet, Table 1 (p.18)
+ * and the PMBus direct-format relationship X = (Y * 10^(-R) - b) / m.
+ *
+ * Voltage: V[V] = 14.77e-3 * code (60V) / 24.62e-3 * code (100V)
+ *   -> m = 6770, R=-2 / m = 4062, R=-2
+ * Current: code = I[A] * RS * 132802.1 + 2048 (15mV) / * 66401.06 + 2048 (30mV)
+ *   -> m = 1328, b = 2048 * 10^(-R) = 20480, R=-1 / m = 664, same b and R
+ * Power: code = k * RS * PIN, k = 35119.94 / 17559.97 / 21071.44 / 10535.72
+ *   -> m = round(k * 10^(-3-R)), R=-2 for 60V/15mV, R=-3 for the other three
+ * Temperature: code = 4.2 * T + 3188 -> m = 42, b = 3188 * 10 = 31880, R=-1
+ */
+static const struct coefficients bd12790_coefficients[] = {
+	[0] = { 6770, 0, -2 },		/* voltage, vrange 60V */
+	[1] = { 4062, 0, -2 },		/* voltage, vrange 100V */
+	[2] = { 1328, 20480, -1 },	/* current, vsense range 15mV */
+	[3] = { 664, 20480, -1 },	/* current, vsense range 30mV */
+	[4] = { 3512, 0, -2 },		/* power, vrange 60V, irange 15mV */
+	[5] = { 21071, 0, -3 },		/* power, vrange 100V, irange 15mV */
+	[6] = { 17560, 0, -3 },		/* power, vrange 60V, irange 30mV */
+	[7] = { 10536, 0, -3 },		/* power, vrange 100V, irange 30mV */
+	[8] = { 42, 31880, -1 },	/* temperature */
 };
 
 static const struct coefficients adm1275_coefficients[] = {
@@ -490,6 +514,7 @@ static const struct i2c_device_id adm1275_id[] = {
 	{ .name = "adm1293", .driver_data = adm1293 },
 	{ .name = "adm1294", .driver_data = adm1294 },
 	{ .name = "bd12780", .driver_data = bd12780 },
+	{ .name = "bd12790", .driver_data = bd12790 },
 	{ .name = "mc09c", .driver_data = sq24905c },
 	{ }
 };
@@ -567,7 +592,8 @@ static int adm1275_probe(struct i2c_client *client)
 	if (mid->driver_data == adm1272 || mid->driver_data == adm1273 ||
 	    mid->driver_data == adm1278 || mid->driver_data == adm1281 ||
 	    mid->driver_data == adm1293 || mid->driver_data == adm1294 ||
-	    mid->driver_data == bd12780 || mid->driver_data == sq24905c)
+	    mid->driver_data == bd12780 || mid->driver_data == bd12790 ||
+	    mid->driver_data == sq24905c)
 		config_read_fn = i2c_smbus_read_word_data;
 	else
 		config_read_fn = i2c_smbus_read_byte_data;
@@ -647,6 +673,7 @@ static int adm1275_probe(struct i2c_client *client)
 		data->have_power_sampling = true;
 
 		coefficients = adm1272_coefficients;
+
 		vindex = (config & ADM1275_VRANGE) ? 1 : 0;
 		cindex = (config & ADM1272_IRANGE) ? 3 : 2;
 		/* pindex depends on the combination of the above */
@@ -673,6 +700,51 @@ static int adm1275_probe(struct i2c_client *client)
 
 		ret = adm1275_enable_vout_temp(data, client, config,
 					       ADM1278_PMON_DEFCONFIG);
+		if (ret)
+			return ret;
+
+		if (config & ADM1278_VIN_EN)
+			info->func[0] |= PMBUS_HAVE_VIN;
+		break;
+
+	/*
+	 * The BD12790 is almost identical to the adm1272. Only the defconfig
+	 * and coefficients have minor differences.
+	 */
+	case bd12790:
+		data->have_vout = true;
+		data->have_pin_max = true;
+		data->have_temp_max = true;
+		data->have_power_sampling = true;
+
+		coefficients = bd12790_coefficients;
+
+		vindex = (config & ADM1275_VRANGE) ? 1 : 0;
+		cindex = (config & ADM1272_IRANGE) ? 3 : 2;
+		/* pindex depends on the combination of the above */
+		switch (config & (ADM1275_VRANGE | ADM1272_IRANGE)) {
+		case 0:
+		default:
+			pindex = 4;
+			break;
+		case ADM1275_VRANGE:
+			pindex = 5;
+			break;
+		case ADM1272_IRANGE:
+			pindex = 6;
+			break;
+		case ADM1275_VRANGE | ADM1272_IRANGE:
+			pindex = 7;
+			break;
+		}
+		tindex = 8;
+
+		info->func[0] |= PMBUS_HAVE_PIN | PMBUS_HAVE_STATUS_INPUT |
+			PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT |
+			PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP;
+
+		ret = adm1275_enable_vout_temp(data, client, config,
+					       BD12780_PMON_DEFCONFIG);
 		if (ret)
 			return ret;
 
@@ -919,6 +991,7 @@ static const struct of_device_id adm1275_of_match[] = {
 	{ .compatible = "adi,adm1293", },
 	{ .compatible = "adi,adm1294", },
 	{ .compatible = "rohm,bd12780", },
+	{ .compatible = "rohm,bd12790", },
 	{ .compatible = "silergy,mc09c", },
 	{ }
 };
