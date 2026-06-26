@@ -106,6 +106,7 @@ struct f54_data {
 	u8 *report_data;
 	size_t max_report_size;
 	int report_size;
+	int report_error;
 
 	bool is_busy;
 	struct mutex status_mutex;
@@ -338,6 +339,12 @@ static void rmi_f54_buffer_queue(struct vb2_buffer *vb)
 			goto done;
 		}
 		mutex_lock(&f54->data_mutex);
+	}
+
+	if (f54->report_error) {
+		dev_err(&f54->fn->dev, "Error acquiring report: %d\n", f54->report_error);
+		state = VB2_BUF_STATE_ERROR;
+		goto data_done;
 	}
 
 	ptr = vb2_plane_vaddr(vb, 0);
@@ -610,6 +617,7 @@ out:
 		report_size = 0;
 
 	f54->report_size = report_size;
+	f54->report_error = error;
 
 	if (report_size == 0 && !error) {
 		queue_delayed_work(f54->workqueue, &f54->work,
