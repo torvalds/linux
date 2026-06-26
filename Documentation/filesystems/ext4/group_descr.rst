@@ -20,11 +20,10 @@ group of the flex group.
 
 If the meta_bg feature flag is set, then several block groups are
 grouped together into a meta group. Note that in the meta_bg case,
-however, the first and last two block groups within the larger meta
-group contain only group descriptors for the groups inside the meta
-group.
-
-flex_bg and meta_bg do not appear to be mutually exclusive features.
+however, the superblock and a single block group descriptor block is
+placed at the beginning of the first, second, and last block groups in a
+meta-block group.  The flex_bg and meta_bg features are not mutually
+exclusive.
 
 In ext2, ext3, and ext4 (when the 64bit feature is not enabled), the
 block group descriptor was only 32 bytes long and therefore ends at
