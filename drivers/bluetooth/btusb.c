@@ -3892,16 +3892,13 @@ static bool btusb_wakeup(struct hci_dev *hdev)
 
 static int btusb_shutdown_qca(struct hci_dev *hdev)
 {
-	struct sk_buff *skb;
+	int err;
 
-	skb = __hci_cmd_sync(hdev, HCI_OP_RESET, 0, NULL, HCI_INIT_TIMEOUT);
-	if (IS_ERR(skb)) {
+	err = __hci_reset_sync(hdev);
+	if (err)
 		bt_dev_err(hdev, "HCI reset during shutdown failed");
-		return PTR_ERR(skb);
-	}
-	kfree_skb(skb);
 
-	return 0;
+	return err;
 }
 
 static ssize_t force_poll_sync_read(struct file *file, char __user *user_buf,
