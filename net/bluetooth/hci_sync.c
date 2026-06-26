@@ -3754,16 +3754,10 @@ static const struct hci_init_stage hci_init0[] = {
 
 int hci_reset_sync(struct hci_dev *hdev)
 {
-	int err;
-
 	set_bit(HCI_RESET, &hdev->flags);
 
-	err = __hci_cmd_sync_status(hdev, HCI_OP_RESET, 0, NULL,
-				    HCI_CMD_TIMEOUT);
-	if (err)
-		return err;
-
-	return 0;
+	return __hci_cmd_sync_status(hdev, HCI_OP_RESET, 0, NULL,
+				     HCI_CMD_TIMEOUT);
 }
 
 /* Send a raw HCI reset for use by vendor drivers */
