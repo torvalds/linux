@@ -870,9 +870,25 @@ static int adm1275_probe(struct i2c_client *client)
 	return pmbus_do_probe(client, info);
 }
 
+static const struct of_device_id adm1275_of_match[] = {
+	{ .compatible = "adi,adm1075", },
+	{ .compatible = "adi,adm1272", },
+	{ .compatible = "adi,adm1273", },
+	{ .compatible = "adi,adm1275", },
+	{ .compatible = "adi,adm1276", },
+	{ .compatible = "adi,adm1278", },
+	{ .compatible = "adi,adm1281", },
+	{ .compatible = "adi,adm1293", },
+	{ .compatible = "adi,adm1294", },
+	{ .compatible = "silergy,mc09c", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, adm1275_of_match);
+
 static struct i2c_driver adm1275_driver = {
 	.driver = {
 		   .name = "adm1275",
+		   .of_match_table = adm1275_of_match,
 		   },
 	.probe = adm1275_probe,
 	.id_table = adm1275_id,
