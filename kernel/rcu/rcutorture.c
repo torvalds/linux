@@ -140,6 +140,7 @@ torture_param(int, stall_cpu_irqsoff, 0, "Disable interrupts while stalling.");
 torture_param(int, stall_cpu_block, 0, "Sleep while stalling.");
 torture_param(int, stall_cpu_repeat, 0, "Number of additional stalls after the first one.");
 torture_param(int, stall_gp_kthread, 0, "Grace-period kthread stall duration (s).");
+torture_param(bool, stall_only, 0, "Suppress all non-CPU-stall kthreads.");
 torture_param(int, stat_interval, 60, "Number of seconds between stats printk()s");
 torture_param(int, stutter, 5, "Number of seconds to run/halt test");
 torture_param(int, test_boost, 1, "Test RCU prio boost: 0=no, 1=maybe, 2=yes.");
@@ -4648,6 +4649,23 @@ rcu_torture_init(void)
 		firsterr = -EINVAL;
 		cur_ops = NULL;
 		goto unwind;
+	}
+	if (stall_only) {
+		pr_alert("rcu-torture: stall_only specified, suppressing all else.\n");
+		fqs_stutter = 0;
+		fwd_progress = 0;
+		n_barrier_cbs = 0;
+		nfakewriters = 0;
+		nocbs_nthreads = 0;
+		nreaders = 0;
+		n_up_down = 0;
+		nwriters = 0;
+		onoff_interval = 0;
+		preempt_duration = 0;
+		read_exit_burst = 0;
+		shuffle_interval = 0;
+		stutter = 0;
+		test_boost = 0;
 	}
 	if (cur_ops->fqs == NULL && fqs_duration != 0) {
 		pr_alert("rcu-torture: ->fqs NULL and non-zero fqs_duration, fqs disabled.\n");
