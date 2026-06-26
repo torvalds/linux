@@ -4082,7 +4082,7 @@ static int btusb_probe(struct usb_interface *intf,
 	struct btusb_data *data;
 	struct hci_dev *hdev;
 	unsigned ifnum_base;
-	int err, priv_size;
+	int err, priv_size = 0;
 
 	BT_DBG("intf %p id %p", intf, id);
 
@@ -4152,8 +4152,6 @@ static int btusb_probe(struct usb_interface *intf,
 	init_usb_anchor(&data->diag_anchor);
 	init_usb_anchor(&data->ctrl_anchor);
 	spin_lock_init(&data->rxlock);
-
-	priv_size = 0;
 
 	data->recv_event = hci_recv_frame;
 	data->recv_bulk = btusb_recv_bulk;
