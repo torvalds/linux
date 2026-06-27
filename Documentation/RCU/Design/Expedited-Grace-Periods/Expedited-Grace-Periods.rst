@@ -410,7 +410,7 @@ workqueues (see Documentation/core-api/workqueue.rst).
 
 The requesting task still does counter snapshotting and funnel-lock
 processing, but the task reaching the top of the funnel lock does a
-``schedule_work()`` (from ``_synchronize_rcu_expedited()`` so that a
+``schedule_work()`` (from ``_synchronize_rcu_expedited()``) so that a
 workqueue kthread does the actual grace-period processing. Because
 workqueue kthreads do not accept POSIX signals, grace-period-wait
 processing need not allow for POSIX signals. In addition, this approach
