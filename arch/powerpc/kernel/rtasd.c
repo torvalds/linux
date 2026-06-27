@@ -10,6 +10,7 @@
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
+#include <linux/overflow.h>
 #include <linux/poll.h>
 #include <linux/proc_fs.h>
 #include <linux/init.h>
@@ -160,25 +161,17 @@ static void printk_log_rtas(char *buf, int len)
 
 static int log_rtas_len(char * buf)
 {
-	int len;
+	size_t len;
 	struct rtas_error_log *err;
-	uint32_t extended_log_length;
+	u32 extended_log_length;
 
-	/* rtas fixed header */
-	len = 8;
 	err = (struct rtas_error_log *)buf;
-	extended_log_length = rtas_error_extended_log_length(err);
-	if (rtas_error_extended(err) && extended_log_length) {
-
-		/* extended header */
-		len += extended_log_length;
-	}
+	extended_log_length = rtas_error_extended(err) ? rtas_error_extended_log_length(err) : 0;
+	len = struct_size(err, buffer, extended_log_length);
 
 	if (rtas_error_log_max == 0)
 		rtas_error_log_max = rtas_get_error_log_max();
-
-	if (len > rtas_error_log_max)
-		len = rtas_error_log_max;
+	len = min(len, rtas_error_log_max);
 
 	return len;
 }
