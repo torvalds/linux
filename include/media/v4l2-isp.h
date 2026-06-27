@@ -55,17 +55,22 @@ int v4l2_isp_params_validate_buffer_size(struct device *dev,
 /**
  * struct v4l2_isp_params_block_type_info - V4L2 ISP per-block-type info
  * @size: the block type expected size
+ * @block_validate: driver's callback to implement per-block validation
  *
  * The v4l2_isp_params_block_type_info collects information of the ISP
- * configuration block types for validation purposes. It currently only contains
- * the expected block type size.
+ * configuration block types for validation purposes. It contains the expected
+ * block type size and a function pointer where drivers can register a callback
+ * for additional per-block validation purposes. The validation function is
+ * expected to return 0 on success or a negative error number for errors.
  *
  * Drivers shall prepare a list of block type info, indexed by block type, one
  * for each supported ISP block type and correctly populate them with the
- * expected block type size.
+ * expected block type size and the optional callback.
  */
 struct v4l2_isp_params_block_type_info {
 	size_t size;
+	int (*block_validate)(struct device *dev,
+			      const struct v4l2_isp_block_header *block);
 };
 
 /**
