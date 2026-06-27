@@ -16,6 +16,7 @@
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
+#include <linux/async.h>
 #include <linux/scatterlist.h>
 #include <linux/nvme.h>
 #include <linux/unaligned.h>
@@ -98,6 +99,11 @@ struct nvme_rdma_queue {
 	bool			pi_support;
 	int			cq_size;
 	struct mutex		queue_lock;
+};
+
+struct nvme_rdma_setup_ctx {
+	struct nvme_rdma_queue	*queue;
+	int			*err;
 };
 
 struct nvme_rdma_ctrl {
@@ -690,60 +696,68 @@ static int nvme_rdma_start_queue(struct nvme_rdma_ctrl *ctrl, int idx)
 	return ret;
 }
 
-static int nvme_rdma_start_io_queues(struct nvme_rdma_ctrl *ctrl,
-				     int first, int last)
+static void nvme_rdma_setup_queue_async(void *data, async_cookie_t cookie)
 {
-	int i, ret = 0;
+	struct nvme_rdma_setup_ctx *ctx = data;
+	struct nvme_rdma_queue *queue;
+	int ret;
 
-	for (i = first; i < last; i++) {
-		ret = nvme_rdma_start_queue(ctrl, i);
-		if (ret)
-			goto out_stop_queues;
-	}
+	queue = ctx->queue;
+	ret = nvme_rdma_alloc_queue(queue);
+	if (ret)
+		goto out_err;
 
-	return 0;
+	ret = nvme_rdma_start_queue(queue->ctrl, nvme_rdma_queue_idx(queue));
+	if (ret)
+		goto out_err;
 
-out_stop_queues:
-	for (i--; i >= first; i--)
-		nvme_rdma_stop_queue(&ctrl->queues[i]);
-	return ret;
+	return;
+out_err:
+	WRITE_ONCE(*ctx->err, ret);
 }
 
-static int nvme_rdma_alloc_io_queues(struct nvme_rdma_ctrl *ctrl)
+static int nvme_rdma_setup_io_queues(struct nvme_rdma_ctrl *ctrl,
+		unsigned int first, unsigned int last, size_t queue_size)
 {
-	struct nvmf_ctrl_options *opts = ctrl->ctrl.opts;
-	unsigned int nr_io_queues;
-	int i, ret;
+	ASYNC_DOMAIN_EXCLUSIVE(queue_domain);
+	struct nvme_rdma_setup_ctx *ctxs;
+	int nr_queues = last - first;
+	int err = 0, i, ret;
 
-	nr_io_queues = nvmf_nr_io_queues(opts);
-	ret = nvme_set_queue_count(&ctrl->ctrl, &nr_io_queues);
-	if (ret)
-		return ret;
-
-	if (nr_io_queues == 0) {
-		dev_err(ctrl->ctrl.device,
-			"unable to set any I/O queues\n");
+	ctxs = kmalloc_objs(*ctxs, nr_queues);
+	if (!ctxs)
 		return -ENOMEM;
+
+	for (i = 0; i < nr_queues; i++) {
+		struct nvme_rdma_queue *queue = &ctrl->queues[first + i];
+
+		queue->ctrl = ctrl;
+		queue->queue_size = queue_size;
+
+		ctxs[i].queue = queue;
+		ctxs[i].err = &err;
+		async_schedule_domain(nvme_rdma_setup_queue_async, &ctxs[i],
+				&queue_domain);
 	}
 
-	ctrl->ctrl.queue_count = nr_io_queues + 1;
-	dev_info(ctrl->ctrl.device,
-		"creating %d I/O queues.\n", nr_io_queues);
+	async_synchronize_full_domain(&queue_domain);
+	kfree(ctxs);
 
-	nvmf_set_io_queues(opts, nr_io_queues, ctrl->io_queues);
-	for (i = 1; i < ctrl->ctrl.queue_count; i++) {
-		ctrl->queues[i].ctrl = ctrl;
-		ctrl->queues[i].queue_size = ctrl->ctrl.sqsize + 1;
-		ret = nvme_rdma_alloc_queue(&ctrl->queues[i]);
-		if (ret)
-			goto out_free_queues;
-	}
+	ret = READ_ONCE(err);
+	if (ret)
+		goto out_free_queues;
 
 	return 0;
-
 out_free_queues:
-	for (i--; i >= 1; i--)
-		nvme_rdma_free_queue(&ctrl->queues[i]);
+	for (i = 0; i < nr_queues; i++) {
+		struct nvme_rdma_queue *queue =
+			&ctrl->queues[first + i];
+
+		if (test_bit(NVME_RDMA_Q_LIVE, &queue->flags))
+			nvme_rdma_stop_queue(queue);
+		if (test_bit(NVME_RDMA_Q_ALLOCATED, &queue->flags))
+			nvme_rdma_free_queue(queue);
+	}
 
 	return ret;
 }
@@ -862,11 +876,22 @@ out_free_queue:
 
 static int nvme_rdma_configure_io_queues(struct nvme_rdma_ctrl *ctrl, bool new)
 {
+	unsigned int nr_io_queues;
 	int ret, nr_queues;
 
-	ret = nvme_rdma_alloc_io_queues(ctrl);
+	nr_io_queues = nvmf_nr_io_queues(ctrl->ctrl.opts);
+	ret = nvme_set_queue_count(&ctrl->ctrl, &nr_io_queues);
 	if (ret)
 		return ret;
+
+	if (nr_io_queues == 0) {
+		dev_err(ctrl->ctrl.device, "unable to set any I/O queues\n");
+		return -ENOMEM;
+	}
+
+	ctrl->ctrl.queue_count = nr_io_queues + 1;
+	dev_info(ctrl->ctrl.device, "creating %d I/O queues.\n", nr_io_queues);
+	nvmf_set_io_queues(ctrl->ctrl.opts, nr_io_queues, ctrl->io_queues);
 
 	if (new) {
 		ret = nvme_rdma_alloc_tag_set(&ctrl->ctrl);
@@ -880,7 +905,9 @@ static int nvme_rdma_configure_io_queues(struct nvme_rdma_ctrl *ctrl, bool new)
 	 * queue number might have changed.
 	 */
 	nr_queues = min(ctrl->tag_set.nr_hw_queues + 1, ctrl->ctrl.queue_count);
-	ret = nvme_rdma_start_io_queues(ctrl, 1, nr_queues);
+	ret = nvme_rdma_setup_io_queues(ctrl, 1, nr_queues,
+			ctrl->ctrl.sqsize + 1);
+
 	if (ret)
 		goto out_cleanup_tagset;
 
@@ -904,12 +931,15 @@ static int nvme_rdma_configure_io_queues(struct nvme_rdma_ctrl *ctrl, bool new)
 
 	/*
 	 * If the number of queues has increased (reconnect case)
-	 * start all new queues now.
+	 * setup all new queues now.
 	 */
-	ret = nvme_rdma_start_io_queues(ctrl, nr_queues,
-					ctrl->tag_set.nr_hw_queues + 1);
-	if (ret)
-		goto out_wait_freeze_timed_out;
+	if (ctrl->tag_set.nr_hw_queues + 1 > nr_queues) {
+		ret = nvme_rdma_setup_io_queues(ctrl, nr_queues,
+				ctrl->tag_set.nr_hw_queues + 1,
+				ctrl->ctrl.sqsize + 1);
+		if (ret)
+			goto out_wait_freeze_timed_out;
+	}
 
 	return 0;
 
