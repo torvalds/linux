@@ -1080,6 +1080,11 @@ unsigned int batadv_mcast_forw_packet_hdrlen(unsigned int num_dests)
  * Tries to expand an skb's headroom so that its head to tail is 1298
  * bytes (minimum IPv6 MTU + vlan ethernet header size) large.
  *
+ * Warning: This function may reallocate the skb data buffer via
+ * skb_cow()/skb_linearize()/... Any pointer into the skb data (e.g.
+ * obtained from skb->data or eth_hdr()) before this call must be
+ * considered invalid afterwards and has to be reacquired.
+ *
  * Return: -EINVAL if the given skb's length is too large or -ENOMEM on memory
  * allocation failure. Otherwise, on success, zero is returned.
  */
@@ -1119,6 +1124,11 @@ static int batadv_mcast_forw_expand_head(struct batadv_priv *bat_priv,
  * A multicast tracker TVLV with destination originator addresses for any node
  * that signaled interest in it, that is either via the translation table or the
  * according want-all flags, is attached accordingly.
+ *
+ * Warning: This function may reallocate the skb data buffer via
+ * batadv_mcast_forw_expand_head()/... Any pointer into the skb data (e.g.
+ * obtained from skb->data or eth_hdr()) before this call must be
+ * considered invalid afterwards and has to be reacquired.
  *
  * Return: true on success, false otherwise.
  */

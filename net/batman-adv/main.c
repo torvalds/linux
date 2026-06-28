@@ -610,6 +610,11 @@ void batadv_recv_handler_unregister(u8 packet_type)
  * The caller must ensure that at least @header_len + ETH_HLEN bytes are
  * accessible after skb->data.
  *
+ * Warning: This function may reallocate the skb data buffer via
+ * pskb_may_pull()/... Any pointer into the skb data (e.g. obtained from skb->data
+ * or eth_hdr()) before this call must be considered invalid afterwards and has
+ * to be reacquired.
+ *
  * Return: VID with the BATADV_VLAN_HAS_TAG flag when the packet embedded in the
  * skb is vlan tagged. Otherwise BATADV_NO_FLAGS.
  */

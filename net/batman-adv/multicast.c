@@ -951,7 +951,10 @@ static void batadv_mcast_mla_update(struct work_struct *work)
  * batadv_mcast_is_report_ipv4() - check for IGMP reports
  * @skb: the ethernet frame destined for the mesh
  *
- * This call might reallocate skb data.
+ * Warning: This function may reallocate the skb data buffer via
+ * ip_mc_check_igmp()/... Any pointer into the skb data (e.g.
+ * obtained from skb->data or eth_hdr()) before this call must be considered
+ * invalid afterwards and has to be reacquired.
  *
  * Checks whether the given frame is a valid IGMP report.
  *
@@ -1017,7 +1020,10 @@ static int batadv_mcast_forw_mode_check_ipv4(struct batadv_priv *bat_priv,
  * batadv_mcast_is_report_ipv6() - check for MLD reports
  * @skb: the ethernet frame destined for the mesh
  *
- * This call might reallocate skb data.
+ * Warning: This function may reallocate the skb data buffer via
+ * ipv6_mc_check_mld()/... Any pointer into the skb data (e.g.
+ * obtained from skb->data or eth_hdr()) before this call must be considered
+ * invalid afterwards and has to be reacquired.
  *
  * Checks whether the given frame is a valid MLD report.
  *
