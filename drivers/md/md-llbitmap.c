@@ -1574,19 +1574,13 @@ static void llbitmap_end_behind_write(struct mddev *mddev)
 		wake_up(&llbitmap->behind_wait);
 }
 
-static bool llbitmap_wait_behind_writes(struct mddev *mddev, bool nowait)
+static void llbitmap_wait_behind_writes(struct mddev *mddev)
 {
 	struct llbitmap *llbitmap = mddev->bitmap;
 
-	if (llbitmap && atomic_read(&llbitmap->behind_writes) > 0) {
-		if (nowait)
-			return false;
-
+	if (llbitmap && atomic_read(&llbitmap->behind_writes) > 0)
 		wait_event(llbitmap->behind_wait,
 			   atomic_read(&llbitmap->behind_writes) == 0);
-	}
-
-	return true;
 }
 
 static ssize_t bits_show(struct mddev *mddev, char *page)
