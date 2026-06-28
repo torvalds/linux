@@ -78,6 +78,28 @@ static const char *session_user_name(struct ksmbd_session *session)
 	return session->user->name;
 }
 
+static const char *session_account_type(struct ksmbd_session *session)
+{
+	if (user_guest(session->user))
+		return "guest";
+	if (ksmbd_anonymous_user(session->user))
+		return "anonymous";
+	return "user";
+}
+
+static unsigned int session_open_file_count(struct ksmbd_session *session)
+{
+	struct ksmbd_file *fp;
+	unsigned int count = 0;
+	unsigned int id;
+
+	read_lock(&session->file_table.lock);
+	idr_for_each_entry(session->file_table.idr, fp, id)
+		count++;
+	read_unlock(&session->file_table.lock);
+	return count;
+}
+
 static int show_proc_session(struct seq_file *m, void *v)
 {
 	struct ksmbd_session *sess;
@@ -90,9 +112,16 @@ static int show_proc_session(struct seq_file *m, void *v)
 	sess = (struct ksmbd_session *)m->private;
 	ksmbd_user_session_get(sess);
 
-	seq_printf(m, "%-20s\t%s\n", "user", session_user_name(sess));
-	seq_printf(m, "%-20s\t%llu\n", "id", sess->id);
-	seq_printf(m, "%-20s\t%s\n", "state", session_state_string(sess));
+	seq_printf(m, "user:\t%s\n", session_user_name(sess));
+	seq_printf(m, "account_type:\t%s\n",
+		   session_account_type(sess));
+	seq_printf(m, "id:\t%llu\n", sess->id);
+	seq_printf(m, "state:\t%s\n", session_state_string(sess));
+	seq_printf(m, "dialect:\t0x%04x\n", sess->dialect);
+	seq_printf(m, "last_active_seconds:\t%lu\n",
+		   jiffies_to_msecs(jiffies - sess->last_active) / MSEC_PER_SEC);
+	seq_printf(m, "open_files:\t%u\n",
+		   session_open_file_count(sess));
 
 	i = 0;
 	down_read(&sess->chann_lock);
@@ -101,21 +130,23 @@ static int show_proc_session(struct seq_file *m, void *v)
 
 #if IS_ENABLED(CONFIG_IPV6)
 		if (chan->conn->inet_addr)
-			seq_printf(m, "%-20s\t%pI4\n", "client",
+			seq_printf(m, "client:\t%pI4\n",
 					&chan->conn->inet_addr);
 		else
-			seq_printf(m, "%-20s\t%pI6c\n", "client",
+			seq_printf(m, "client:\t%pI6c\n",
 					&chan->conn->inet6_addr);
 #else
-		seq_printf(m, "%-20s\t%pI4\n", "client",
+		seq_printf(m, "client:\t%pI4\n",
 				&chan->conn->inet_addr);
 #endif
-		seq_printf(m, "%-20s\t", "capabilities");
+		seq_puts(m, "capabilities:\t");
 		ksmbd_proc_show_flag_names(m,
 				ksmbd_sess_cap_const_names,
 				ARRAY_SIZE(ksmbd_sess_cap_const_names),
 				chan->conn->vals->req_capabilities);
 		seq_putc(m, '\n');
+		seq_printf(m, "posix_extensions:\t%s\n",
+			   chan->conn->posix_ext_supported ? "yes" : "no");
 
 		if (sess->sign) {
 			unsigned int algorithm =
@@ -125,9 +156,9 @@ static int show_proc_session(struct seq_file *m, void *v)
 						     ARRAY_SIZE(ksmbd_signing_const_names),
 						     algorithm);
 			if (name)
-				seq_printf(m, "%-20s\t%s\n", "signing", name);
+				seq_printf(m, "signing:\t%s\n", name);
 			else
-				seq_printf(m, "%-20s\t0x%04x\n", "signing",
+				seq_printf(m, "signing:\t0x%04x\n",
 					   algorithm);
 		}
 		if (sess->enc) {
@@ -137,30 +168,30 @@ static int show_proc_session(struct seq_file *m, void *v)
 						     ARRAY_SIZE(ksmbd_cipher_const_names),
 						     cipher);
 			if (name)
-				seq_printf(m, "%-20s\t%s\n", "encryption", name);
+				seq_printf(m, "encryption:\t%s\n", name);
 			else
-				seq_printf(m, "%-20s\t0x%04x\n", "encryption",
+				seq_printf(m, "encryption:\t0x%04x\n",
 					   cipher);
 		}
 		i++;
 	}
 	up_read(&sess->chann_lock);
 
-	seq_printf(m, "%-20s\t%d\n", "channels", i);
+	seq_printf(m, "channels:\t%d\n", i);
 
 	i = 0;
 	down_read(&sess->tree_conns_lock);
 	xa_for_each(&sess->tree_conns, id, tree_conn) {
 		share_conf = tree_conn->share_conf;
-		seq_printf(m, "%-20s\t%s\t%8d", "share",
-			   share_conf->name, tree_conn->id);
-		if (test_share_config_flag(share_conf, KSMBD_SHARE_FLAG_PIPE))
-			seq_printf(m, " %s ", "pipe");
-		else
-			seq_printf(m, " %s ", "disk");
-		seq_putc(m, '\n');
+		seq_printf(m, "share:\t%s\n", share_conf->name);
+		seq_printf(m, "tree_id:\t%d\n", tree_conn->id);
+		seq_printf(m, "share_type:\t%s\n",
+			   test_share_config_flag(share_conf, KSMBD_SHARE_FLAG_PIPE) ?
+			   "pipe" : "disk");
+		i++;
 	}
 	up_read(&sess->tree_conns_lock);
+	seq_printf(m, "tree_connects:\t%d\n", i);
 
 	ksmbd_user_session_put(sess);
 	return 0;
@@ -189,9 +220,6 @@ static int show_proc_sessions(struct seq_file *m, void *v)
 	int i;
 	unsigned long id;
 
-	seq_printf(m, "#%-40s %-15s %-10s %-10s\n",
-		   "<client>", "<user>", "<sess_id>", "<state>");
-
 	down_read(&sessions_table_lock);
 	hash_for_each(sessions_table, i, session, hlist) {
 		down_read(&session->chann_lock);
@@ -201,13 +229,13 @@ static int show_proc_sessions(struct seq_file *m, void *v)
 
 #if IS_ENABLED(CONFIG_IPV6)
 			if (!chan->conn->inet_addr)
-				seq_printf(m, " %-40pI6c", &chan->conn->inet6_addr);
+				seq_printf(m, "client:\t%pI6c\n", &chan->conn->inet6_addr);
 			else
 #endif
-				seq_printf(m, " %-40pI4", &chan->conn->inet_addr);
-			seq_printf(m, " %-15s %-10llu %-10s\n",
-				   session_user_name(session),
-				   session->id,
+				seq_printf(m, "client:\t%pI4\n", &chan->conn->inet_addr);
+			seq_printf(m, "user:\t%s\n", session_user_name(session));
+			seq_printf(m, "id:\t%llu\n", session->id);
+			seq_printf(m, "state:\t%s\n\n",
 				   session_state_string(session));
 
 			ksmbd_user_session_put(session);
