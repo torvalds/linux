@@ -90,9 +90,15 @@ static int show_proc_session(struct seq_file *m, void *v)
 	sess = (struct ksmbd_session *)m->private;
 	ksmbd_user_session_get(sess);
 
+	seq_printf(m, "%-20s\t%s\n", "user", session_user_name(sess));
+	seq_printf(m, "%-20s\t%llu\n", "id", sess->id);
+	seq_printf(m, "%-20s\t%s\n", "state", session_state_string(sess));
+
 	i = 0;
 	down_read(&sess->chann_lock);
 	xa_for_each(&sess->ksmbd_chann_list, id, chan) {
+		const char *name;
+
 #if IS_ENABLED(CONFIG_IPV6)
 		if (chan->conn->inet_addr)
 			seq_printf(m, "%-20s\t%pI4\n", "client",
@@ -104,29 +110,37 @@ static int show_proc_session(struct seq_file *m, void *v)
 		seq_printf(m, "%-20s\t%pI4\n", "client",
 				&chan->conn->inet_addr);
 #endif
-		seq_printf(m, "%-20s\t%s\n", "user", session_user_name(sess));
-		seq_printf(m, "%-20s\t%llu\n", "id", sess->id);
-		seq_printf(m, "%-20s\t%s\n", "state",
-				session_state_string(sess));
-
 		seq_printf(m, "%-20s\t", "capabilities");
 		ksmbd_proc_show_flag_names(m,
 				ksmbd_sess_cap_const_names,
 				ARRAY_SIZE(ksmbd_sess_cap_const_names),
 				chan->conn->vals->req_capabilities);
+		seq_putc(m, '\n');
 
 		if (sess->sign) {
-			seq_printf(m, "%-20s\t", "signing");
-			ksmbd_proc_show_const_name(m, "%s\t",
-					ksmbd_signing_const_names,
-					ARRAY_SIZE(ksmbd_signing_const_names),
-					le16_to_cpu(chan->conn->signing_algorithm));
-		} else if (sess->enc) {
-			seq_printf(m, "%-20s\t", "encryption");
-			ksmbd_proc_show_const_name(m, "%s\t",
-					ksmbd_cipher_const_names,
-					ARRAY_SIZE(ksmbd_cipher_const_names),
-					le16_to_cpu(chan->conn->cipher_type));
+			unsigned int algorithm =
+				le16_to_cpu(chan->conn->signing_algorithm);
+
+			name = ksmbd_proc_const_name(ksmbd_signing_const_names,
+						     ARRAY_SIZE(ksmbd_signing_const_names),
+						     algorithm);
+			if (name)
+				seq_printf(m, "%-20s\t%s\n", "signing", name);
+			else
+				seq_printf(m, "%-20s\t0x%04x\n", "signing",
+					   algorithm);
+		}
+		if (sess->enc) {
+			unsigned int cipher = le16_to_cpu(chan->conn->cipher_type);
+
+			name = ksmbd_proc_const_name(ksmbd_cipher_const_names,
+						     ARRAY_SIZE(ksmbd_cipher_const_names),
+						     cipher);
+			if (name)
+				seq_printf(m, "%-20s\t%s\n", "encryption", name);
+			else
+				seq_printf(m, "%-20s\t0x%04x\n", "encryption",
+					   cipher);
 		}
 		i++;
 	}
@@ -150,35 +164,6 @@ static int show_proc_session(struct seq_file *m, void *v)
 
 	ksmbd_user_session_put(sess);
 	return 0;
-}
-
-void ksmbd_proc_show_flag_names(struct seq_file *m,
-				const struct ksmbd_const_name *table,
-				int count,
-				unsigned int flags)
-{
-	int i;
-
-	for (i = 0; i < count; i++) {
-		if (table[i].const_value & flags)
-			seq_printf(m, "0x%08x\t", table[i].const_value);
-	}
-	seq_putc(m, '\n');
-}
-
-void ksmbd_proc_show_const_name(struct seq_file *m,
-				const char *format,
-				const struct ksmbd_const_name *table,
-				int count,
-				unsigned int const_value)
-{
-	int i;
-
-	for (i = 0; i < count; i++) {
-		if (table[i].const_value & const_value)
-			seq_printf(m, format, table[i].name);
-	}
-	seq_putc(m, '\n');
 }
 
 static int create_proc_session(struct ksmbd_session *sess)

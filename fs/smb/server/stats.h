@@ -52,8 +52,10 @@ static inline void ksmbd_counter_sub(int type, s64 value)
 
 static inline void ksmbd_counter_inc_reqs(unsigned int cmd)
 {
-	if (cmd < KSMBD_COUNTER_MAX_REQS)
+	if (cmd < KSMBD_COUNTER_MAX_REQS) {
+		percpu_counter_inc(&ksmbd_counters.counters[KSMBD_COUNTER_REQUESTS]);
 		percpu_counter_inc(&ksmbd_counters.counters[KSMBD_COUNTER_FIRST_REQ + cmd]);
+	}
 }
 
 static inline s64 ksmbd_counter_sum(int type)

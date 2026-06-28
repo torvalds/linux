@@ -53,11 +53,8 @@ void ksmbd_proc_show_flag_names(struct seq_file *m,
 				const struct ksmbd_const_name *table,
 				int count,
 				unsigned int flags);
-void ksmbd_proc_show_const_name(struct seq_file *m,
-				const char *format,
-				const struct ksmbd_const_name *table,
-				int count,
-				unsigned int const_value);
+const char *ksmbd_proc_const_name(const struct ksmbd_const_name *table,
+				  int count, unsigned int const_value);
 #else
 static inline void ksmbd_proc_init(void) {}
 static inline void ksmbd_proc_cleanup(void) {}

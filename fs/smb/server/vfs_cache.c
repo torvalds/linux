@@ -66,7 +66,7 @@ static const struct ksmbd_const_name ksmbd_lease_const_names[] = {
 static const struct ksmbd_const_name ksmbd_oplock_const_names[] = {
 	{SMB2_OPLOCK_LEVEL_NONE, "OPLOCK_NONE"},
 	{SMB2_OPLOCK_LEVEL_II, "OPLOCK_II"},
-	{SMB2_OPLOCK_LEVEL_EXCLUSIVE, "OPLOCK_EXECL"},
+	{SMB2_OPLOCK_LEVEL_EXCLUSIVE, "OPLOCK_EXCLUSIVE"},
 	{SMB2_OPLOCK_LEVEL_BATCH, "OPLOCK_BATCH"},
 };
 
@@ -76,14 +76,14 @@ static int proc_show_files(struct seq_file *m, void *v)
 	unsigned int id;
 	struct oplock_info *opinfo;
 
-	seq_printf(m, "#%-10s %-10s %-10s %-10s %-15s %-10s %-10s %s\n",
+	seq_printf(m, "#%-10s %-18s %-18s %-10s %-16s %-10s %-10s %s\n",
 		   "<tree id>", "<pid>", "<vid>", "<refcnt>",
 		   "<oplock>", "<daccess>", "<saccess>",
 		   "<name>");
 
 	read_lock(&global_ft.lock);
 	idr_for_each_entry(global_ft.idr, fp, id) {
-		seq_printf(m, "%#-10x %#-10llx %#-10llx %#-10x",
+		seq_printf(m, " %#-10x %#-18llx %#-18llx %#-10x",
 			   fp->tcon ? fp->tcon->id : 0,
 			   fp->persistent_id,
 			   fp->volatile_id,
@@ -93,6 +93,7 @@ static int proc_show_files(struct seq_file *m, void *v)
 		opinfo = rcu_dereference(fp->f_opinfo);
 		if (opinfo) {
 			const struct ksmbd_const_name *const_names;
+			const char *name;
 			int count;
 			unsigned int level;
 
@@ -106,11 +107,14 @@ static int proc_show_files(struct seq_file *m, void *v)
 				level = opinfo->level;
 			}
 			rcu_read_unlock();
-			ksmbd_proc_show_const_name(m, " %-15s",
-						   const_names, count, level);
+			name = ksmbd_proc_const_name(const_names, count, level);
+			if (name)
+				seq_printf(m, " %-16s", name);
+			else
+				seq_printf(m, " 0x%-14x", level);
 		} else {
 			rcu_read_unlock();
-			seq_printf(m, " %-15s", " ");
+			seq_printf(m, " %-16s", " ");
 		}
 
 		seq_printf(m, " %#010x %#010x %s\n",

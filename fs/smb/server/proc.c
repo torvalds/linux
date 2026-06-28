@@ -27,6 +27,42 @@ struct proc_dir_entry *ksmbd_proc_create(const char *name,
 			   show, v);
 }
 
+void ksmbd_proc_show_flag_names(struct seq_file *m,
+				const struct ksmbd_const_name *table,
+				int count, unsigned int flags)
+{
+	unsigned int remaining = flags;
+	bool separator = false;
+	int i;
+
+	for (i = 0; i < count; i++) {
+		unsigned int flag = table[i].const_value;
+
+		if (!flag || (remaining & flag) != flag)
+			continue;
+		seq_printf(m, "%s%s", separator ? "," : "", table[i].name);
+		separator = true;
+		remaining &= ~flag;
+	}
+
+	if (remaining)
+		seq_printf(m, "%s0x%08x", separator ? "," : "", remaining);
+	else if (!separator)
+		seq_puts(m, "none");
+}
+
+const char *ksmbd_proc_const_name(const struct ksmbd_const_name *table,
+				  int count, unsigned int const_value)
+{
+	int i;
+
+	for (i = 0; i < count; i++) {
+		if (table[i].const_value == const_value)
+			return table[i].name;
+	}
+	return NULL;
+}
+
 struct ksmbd_const_smb2_process_req {
 	unsigned int const_value;
 	const char *name;
@@ -71,6 +107,8 @@ static int proc_show_ksmbd_stats(struct seq_file *m, void *v)
 		   ksmbd_counter_sum(KSMBD_COUNTER_SESSIONS));
 	seq_printf(m, "tree connects: %lld\n",
 		   ksmbd_counter_sum(KSMBD_COUNTER_TREE_CONNS));
+	seq_printf(m, "requests: %lld\n",
+		   ksmbd_counter_sum(KSMBD_COUNTER_REQUESTS));
 	seq_printf(m, "read bytes: %lld\n",
 		   ksmbd_counter_sum(KSMBD_COUNTER_READ_BYTES));
 	seq_printf(m, "written bytes: %lld\n",
