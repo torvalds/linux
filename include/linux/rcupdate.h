@@ -490,12 +490,12 @@ context_unsafe(								\
  */
 #define unrcu_pointer(p) __unrcu_pointer(p, __UNIQUE_ID(rcu))
 
-#define __rcu_access_pointer(p, local, space) \
+#define __rcu_access_pointer(p, local, space) context_unsafe( \
 ({ \
 	typeof(*p) *local = (typeof(*p) *__force)READ_ONCE(p); \
 	rcu_check_sparse(p, space); \
 	((typeof(*p) __force __kernel *)(local)); \
-})
+}) )
 #define __rcu_dereference_check(p, local, c, space) \
 ({ \
 	/* Dependency order vs. p above. */ \
