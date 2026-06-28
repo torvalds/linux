@@ -156,8 +156,11 @@ andx_again:
 	}
 
 	ret = cmds->proc(work);
-	if (conn->ops->inc_reqs)
-		conn->ops->inc_reqs(command);
+	if (conn->ops->inc_reqs) {
+		struct smb2_hdr *rsp = ksmbd_resp_buf_curr(work);
+
+		conn->ops->inc_reqs(command, rsp->Status);
+	}
 
 	if (ret < 0)
 		ksmbd_debug(CONN, "Failed to process %u [%d]\n", command, ret);

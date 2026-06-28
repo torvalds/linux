@@ -191,6 +191,16 @@ static bool durable_scavenger_running;
 static DEFINE_MUTEX(durable_scavenger_lock);
 static wait_queue_head_t dh_wq;
 
+bool ksmbd_durable_scavenger_active(void)
+{
+	bool active;
+
+	mutex_lock(&durable_scavenger_lock);
+	active = durable_scavenger_running;
+	mutex_unlock(&durable_scavenger_lock);
+	return active;
+}
+
 void ksmbd_set_fd_limit(unsigned long limit)
 {
 	limit = min(limit, get_max_files());
