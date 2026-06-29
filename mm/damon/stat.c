@@ -138,7 +138,7 @@ static int damon_stat_damon_call_fn(void *data)
 
 	/* avoid unnecessarily frequent stat update */
 	if (time_before_eq(jiffies, damon_stat_last_refresh_jiffies +
-				msecs_to_jiffies(5 * MSEC_PER_SEC)))
+				secs_to_jiffies(5)))
 		return 0;
 	damon_stat_last_refresh_jiffies = jiffies;
 
