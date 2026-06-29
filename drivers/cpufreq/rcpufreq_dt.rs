@@ -194,7 +194,6 @@ impl cpufreq::Driver for CPUFreqDTDriver {
 
 kernel::of_device_table!(
     OF_TABLE,
-    MODULE_OF_TABLE,
     <CPUFreqDTDriver as platform::Driver>::IdInfo,
     [(of::DeviceId::new(c"operating-points-v2"), ())]
 );

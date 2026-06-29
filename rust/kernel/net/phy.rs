@@ -867,7 +867,7 @@ macro_rules! module_phy_driver {
     (@device_table [$($dev:expr),+]) => {
         $crate::module_device_table!(
             "mdio", $crate::net::phy::DeviceId,
-            phydev, TABLE, @none, [$($dev),+]
+            TABLE, @none, [$($dev),+]
         );
     };
 

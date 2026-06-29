@@ -20,14 +20,12 @@ struct SampleDriver {
 
 kernel::of_device_table!(
     OF_TABLE,
-    MODULE_OF_TABLE,
     <SampleDriver as serdev::Driver>::IdInfo,
     [(of::DeviceId::new(c"test,rust_driver_serdev"), ())]
 );
 
 kernel::acpi_device_table!(
     ACPI_TABLE,
-    MODULE_ACPI_TABLE,
     <SampleDriver as serdev::Driver>::IdInfo,
     [(acpi::DeviceId::new(c"LNUXBEEF"), ())]
 );

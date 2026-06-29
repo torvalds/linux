@@ -261,7 +261,6 @@ macro_rules! pci_device_table {
 ///
 /// kernel::pci_device_table!(
 ///     PCI_TABLE,
-///     MODULE_PCI_TABLE,
 ///     <MyDriver as pci::Driver>::IdInfo,
 ///     [
 ///         (

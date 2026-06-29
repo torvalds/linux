@@ -177,7 +177,7 @@ impl<T: RawDeviceId, U, const N: usize> IdTable<T, U> for IdArray<T, U, N> {
 macro_rules! module_device_table {
     (
         $table_type: literal, $device_id_ty: ty,
-        $table_name: ident, $module_table_name: ident, $id_info_type: ty,
+        $table_name: ident, $id_info_type: ty,
         [$(($id: expr, $info:expr $(,)?)),* $(,)?]
     ) => {
         const $table_name: $crate::device_id::IdArray<
@@ -186,13 +186,13 @@ macro_rules! module_device_table {
             { <[$device_id_ty]>::len(&[$($id,)*]) },
         > = $crate::device_id::IdArray::new([$(($id, $info),)*]);
 
-        $crate::module_device_table!($table_type, $module_table_name, $table_name);
+        $crate::module_device_table!($table_type, $table_name);
     };
 
     // Case for no ID info.
     (
         $table_type: literal, $device_id_ty: ty,
-        $table_name: ident, $module_table_name: ident, @none,
+        $table_name: ident, @none,
         [$($id: expr),* $(,)?]
     ) => {
         const $table_name: $crate::device_id::IdArray<
@@ -201,18 +201,20 @@ macro_rules! module_device_table {
             { <[$device_id_ty]>::len(&[$($id,)*]) },
         > = $crate::device_id::IdArray::new_without_index([$($id),*]);
 
-        $crate::module_device_table!($table_type, $module_table_name, $table_name);
+        $crate::module_device_table!($table_type, $table_name);
     };
 
-    ($table_type: literal, $module_table_name: ident, $table_name:ident) => {
-        #[rustfmt::skip]
-        #[export_name =
-            concat!("__mod_device_table__", line!(),
-                    "__kmod_", module_path!(),
-                    "__", $table_type,
-                    "__", stringify!($table_name))
-        ]
-        static $module_table_name: [::core::mem::MaybeUninit<u8>; $table_name.raw_ids().size()] =
-            unsafe { ::core::mem::transmute_copy($table_name.raw_ids()) };
+    ($table_type: literal, $table_name:ident) => {
+        const _: () = {
+            #[rustfmt::skip]
+            #[export_name =
+                concat!("__mod_device_table__", line!(),
+                        "__kmod_", module_path!(),
+                        "__", $table_type,
+                        "__", stringify!($table_name))
+            ]
+            static MOD_DEVICE_TABLE: [::core::mem::MaybeUninit<u8>; $table_name.raw_ids().size()] =
+                unsafe { ::core::mem::transmute_copy($table_name.raw_ids()) };
+        };
     };
 }

@@ -176,7 +176,6 @@ macro_rules! module_platform_driver {
 ///
 /// kernel::of_device_table!(
 ///     OF_TABLE,
-///     MODULE_OF_TABLE,
 ///     <MyDriver as platform::Driver>::IdInfo,
 ///     [
 ///         (of::DeviceId::new(c"test,device"), ())
@@ -185,7 +184,6 @@ macro_rules! module_platform_driver {
 ///
 /// kernel::acpi_device_table!(
 ///     ACPI_TABLE,
-///     MODULE_ACPI_TABLE,
 ///     <MyDriver as platform::Driver>::IdInfo,
 ///     [
 ///         (acpi::DeviceId::new(c"LNUXBEEF"), ())

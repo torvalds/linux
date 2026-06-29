@@ -19,7 +19,6 @@ struct SampleDriver {
 
 kernel::usb_device_table!(
     USB_TABLE,
-    MODULE_USB_TABLE,
     <SampleDriver as usb::Driver>::IdInfo,
     [(usb::DeviceId::from_id(0x1234, 0x5678), ()),]
 );

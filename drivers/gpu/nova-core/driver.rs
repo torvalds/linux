@@ -40,7 +40,6 @@ pub(crate) type Bar0<'a> = &'a pci::Bar<'a, BAR0_SIZE>;
 
 kernel::pci_device_table!(
     PCI_TABLE,
-    MODULE_PCI_TABLE,
     <NovaCoreDriver as pci::Driver>::IdInfo,
     [
         // Modern NVIDIA GPUs will show up as either VGA or 3D controllers.

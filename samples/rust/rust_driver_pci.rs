@@ -74,7 +74,6 @@ struct SampleDriver;
 
 kernel::pci_device_table!(
     PCI_TABLE,
-    MODULE_PCI_TABLE,
     <SampleDriver as pci::Driver>::IdInfo,
     [(
         pci::DeviceId::from_id(pci::Vendor::REDHAT, 0x5),

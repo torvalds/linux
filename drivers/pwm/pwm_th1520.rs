@@ -299,7 +299,6 @@ struct Th1520PwmPlatformDriver;
 
 kernel::of_device_table!(
     OF_TABLE,
-    MODULE_OF_TABLE,
     <Th1520PwmPlatformDriver as platform::Driver>::IdInfo,
     [(of::DeviceId::new(c"thead,th1520-pwm"), ())]
 );

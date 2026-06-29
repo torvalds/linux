@@ -110,7 +110,6 @@ impl FromStr for Inner {
 
 kernel::acpi_device_table!(
     ACPI_TABLE,
-    MODULE_ACPI_TABLE,
     <RustDebugFs as platform::Driver>::IdInfo,
     [(acpi::DeviceId::new(c"LNUXBEEF"), ())]
 );

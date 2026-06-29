@@ -31,7 +31,6 @@ struct AuxiliaryDriver;
 
 kernel::auxiliary_device_table!(
     AUX_TABLE,
-    MODULE_AUX_TABLE,
     <AuxiliaryDriver as auxiliary::Driver>::IdInfo,
     [(auxiliary::DeviceId::new(MODULE_NAME, AUXILIARY_NAME), ())]
 );
@@ -87,7 +86,6 @@ struct ParentData<'bound> {
 
 kernel::pci_device_table!(
     PCI_TABLE,
-    MODULE_PCI_TABLE,
     <ParentDriver as pci::Driver>::IdInfo,
     [(pci::DeviceId::from_id(pci::Vendor::REDHAT, 0x5), ())]
 );

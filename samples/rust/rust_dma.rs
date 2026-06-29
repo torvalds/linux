@@ -61,7 +61,6 @@ unsafe impl kernel::transmute::FromBytes for MyStruct {}
 
 kernel::pci_device_table!(
     PCI_TABLE,
-    MODULE_PCI_TABLE,
     <DmaSampleDriver as pci::Driver>::IdInfo,
     [(pci::DeviceId::from_id(pci::Vendor::REDHAT, 0x5), ())]
 );
