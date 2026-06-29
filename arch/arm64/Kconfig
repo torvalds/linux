@@ -701,12 +701,34 @@ config ARM64_ERRATUM_1530923
 
 	  If unsure, say Y.
 
-config ARM64_WORKAROUND_REPEAT_TLBI
+config ARM64_WORKAROUND_REPEAT_TLBI_SYNC
 	bool
+	# This workaround is (only) suitable for TLB invalidation errata where
+	# all of the following conditions are true:
+	#
+	# - The effects of the errata are only a loss of ordering/completion
+	#   for explicit memory accesses when the TLBI is completed with a DSB.
+	#   The removal of TLB entries is not affected.
+	#
+	#   Note that architecturally, S2-only invalidation does not remove
+	#   combined S1+S2 entries, and does not complete accesses translated
+	#   via those S1+S2 entries. Consequently, where this condition holds,
+	#   the errata do not affect S2-only invalidation.
+	#
+	# - The errata only affect broadcast TLB invalidation operations (e.g.
+	#   TLBI VMALLE1IS), and do not affect local TLB invalidation
+	#   operations (e.g. TLBI VMALLE1).
+	#
+	# - After any number of affected TLBI operations are completed with a
+	#   DSB, the errata can be mitigated by executing a single arbitrary
+	#   broadcast TLBI (which targets an arbitrary translation regime),
+	#   followed by a DSB.
+	#
+	# For more rationale, see commit a8f78680ee6bf795.
 
 config ARM64_ERRATUM_2441007
 	bool "Cortex-A55: Completion of affected memory accesses might not be guaranteed by completion of a TLBI (rare)"
-	select ARM64_WORKAROUND_REPEAT_TLBI
+	select ARM64_WORKAROUND_REPEAT_TLBI_SYNC
 	help
 	  This option adds a workaround for ARM Cortex-A55 erratum #2441007.
 
@@ -722,7 +744,7 @@ config ARM64_ERRATUM_2441007
 
 config ARM64_ERRATUM_1286807
 	bool "Cortex-A76: Modification of the translation table for a virtual address might lead to read-after-read ordering violation (rare)"
-	select ARM64_WORKAROUND_REPEAT_TLBI
+	select ARM64_WORKAROUND_REPEAT_TLBI_SYNC
 	help
 	  This option adds a workaround for ARM Cortex-A76 erratum 1286807.
 
@@ -944,7 +966,7 @@ config ARM64_ERRATUM_2224489
 
 config ARM64_ERRATUM_2441009
 	bool "Cortex-A510: Completion of affected memory accesses might not be guaranteed by completion of a TLBI (rare)"
-	select ARM64_WORKAROUND_REPEAT_TLBI
+	select ARM64_WORKAROUND_REPEAT_TLBI_SYNC
 	help
 	  This option adds a workaround for ARM Cortex-A510 erratum #2441009.
 
@@ -1156,7 +1178,7 @@ config ARM64_ERRATUM_4193714
 config ARM64_ERRATUM_4118414
 	bool "Various: Completion of affected memory accesses might not be guaranteed by completion of a TLBI"
 	default y
-	select ARM64_WORKAROUND_REPEAT_TLBI
+	select ARM64_WORKAROUND_REPEAT_TLBI_SYNC
 	help
 	  This option adds a workaround for the following errata:
 
@@ -1340,7 +1362,7 @@ config QCOM_FALKOR_ERRATUM_1003
 config QCOM_FALKOR_ERRATUM_1009
 	bool "Falkor E1009: Prematurely complete a DSB after a TLBI"
 	default y
-	select ARM64_WORKAROUND_REPEAT_TLBI
+	select ARM64_WORKAROUND_REPEAT_TLBI_SYNC
 	help
 	  On Falkor v1, the CPU may prematurely complete a DSB following a
 	  TLBI xxIS invalidate maintenance operation. Repeat the TLBI operation
