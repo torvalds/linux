@@ -113,7 +113,6 @@
 #define VER_WZRD_VCO_MAX		4320000000ULL
 #define VER_WZRD_O_MIN			2
 #define VER_WZRD_O_MAX			511
-#define WZRD_MIN_ERR			20000
 #define WZRD_FRAC_POINTS		1000
 
 /* Get the mask from width */
@@ -428,7 +427,7 @@ static int clk_wzrd_get_divisors(struct clk_hw *hw, unsigned long rate,
 			}
 		}
 	}
-	return best_diff < WZRD_MIN_ERR ? 0 : -EBUSY;
+	return best_diff != -1ULL ? 0 : -EBUSY;
 }
 
 static int clk_wzrd_reconfig(struct clk_wzrd_divider *divider, void __iomem *div_addr)
