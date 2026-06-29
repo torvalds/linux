@@ -800,62 +800,6 @@ impl DeviceMask {
 /// }
 /// # }
 /// ```
-///
-/// This expands to the following code:
-///
-/// ```ignore
-/// use kernel::net::phy::{self, DeviceId};
-/// use kernel::prelude::*;
-///
-/// struct Module {
-///     _reg: ::kernel::net::phy::Registration,
-/// }
-///
-/// module! {
-///     type: Module,
-///     name: "rust_sample_phy",
-///     authors: ["Rust for Linux Contributors"],
-///     description: "Rust sample PHYs driver",
-///     license: "GPL",
-/// }
-///
-/// struct PhySample;
-///
-/// #[vtable]
-/// impl phy::Driver for PhySample {
-///     const NAME: &'static CStr = c"PhySample";
-///     const PHY_DEVICE_ID: phy::DeviceId = phy::DeviceId::new_with_exact_mask(0x00000001);
-/// }
-///
-/// const _: () = {
-///     static mut DRIVERS: [::kernel::net::phy::DriverVTable; 1] =
-///         [::kernel::net::phy::create_phy_driver::<PhySample>()];
-///
-///     impl ::kernel::Module for Module {
-///         fn init(module: &'static ::kernel::ThisModule) -> Result<Self> {
-///             let drivers = unsafe { &mut DRIVERS };
-///             let mut reg = ::kernel::net::phy::Registration::register(
-///                 module,
-///                 ::core::pin::Pin::static_mut(drivers),
-///             )?;
-///             Ok(Module { _reg: reg })
-///         }
-///     }
-/// };
-///
-/// const N: usize = 1;
-///
-/// const TABLE: ::kernel::device_id::IdArray<::kernel::net::phy::DeviceId, (), N> =
-///     ::kernel::device_id::IdArray::new_without_index([
-///         ::kernel::net::phy::DeviceId(
-///             ::kernel::bindings::mdio_device_id {
-///                 phy_id: 0x00000001,
-///                 phy_id_mask: 0xffffffff,
-///             }),
-///     ]);
-///
-/// ::kernel::module_device_table!("mdio", phydev, TABLE);
-/// ```
 #[macro_export]
 macro_rules! module_phy_driver {
     (@replace_expr $_t:tt $sub:expr) => {$sub};
