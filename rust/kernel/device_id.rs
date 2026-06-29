@@ -86,28 +86,23 @@ pub unsafe trait RawDeviceIdIndex: RawDeviceId {
     }
 }
 
-/// A zero-terminated device id array.
+/// A zero-terminated device id array, followed by context data.
 #[repr(C)]
-pub struct RawIdArray<T: RawDeviceId, const N: usize> {
+pub struct IdArray<T: RawDeviceId, U: 'static, const N: usize> {
     // This is `MaybeUninit<T::RawType>` so any bytes inside it can carry provenance in CTFE.
     // If this were `T::RawType`, integer fields would not be able to contain pointers.
     ids: [MaybeUninit<T::RawType>; N],
     sentinel: MaybeUninit<T::RawType>,
-}
-
-impl<T: RawDeviceId, const N: usize> RawIdArray<T, N> {
-    #[doc(hidden)]
-    pub const fn size(&self) -> usize {
-        core::mem::size_of::<Self>()
-    }
-}
-
-/// A zero-terminated device id array, followed by context data.
-#[repr(C)]
-pub struct IdArray<T: RawDeviceId, U: 'static, const N: usize> {
-    raw_ids: RawIdArray<T, N>,
     phantom: PhantomData<&'static U>,
 }
+
+// SAFETY: device ID is plain data plus a `&'static U` and can thus be sent between threads safely
+// if `&U` can.
+unsafe impl<T: RawDeviceId, U: Sync + 'static, const N: usize> Send for IdArray<T, U, N> {}
+
+// SAFETY: device ID is plain data plus a `&'static U` and can thus be shared between threads safely
+// if `&U` can.
+unsafe impl<T: RawDeviceId, U: Sync + 'static, const N: usize> Sync for IdArray<T, U, N> {}
 
 impl<T: RawDeviceId + RawDeviceIdIndex, U: 'static, const N: usize> IdArray<T, U, N> {
     /// Creates a new instance of the array.
@@ -137,19 +132,10 @@ impl<T: RawDeviceId + RawDeviceIdIndex, U: 'static, const N: usize> IdArray<T, U
         core::mem::forget(ids);
 
         Self {
-            raw_ids: RawIdArray {
-                ids: raw_ids,
-                sentinel: MaybeUninit::zeroed(),
-            },
+            ids: raw_ids,
+            sentinel: MaybeUninit::zeroed(),
             phantom: PhantomData,
         }
-    }
-}
-
-impl<T: RawDeviceId, U: 'static, const N: usize> IdArray<T, U, N> {
-    /// Reference to the contained [`RawIdArray`].
-    pub const fn raw_ids(&self) -> &RawIdArray<T, N> {
-        &self.raw_ids
     }
 }
 
@@ -164,10 +150,8 @@ impl<T: RawDeviceId, const N: usize> IdArray<T, (), N> {
         core::mem::forget(ids);
 
         Self {
-            raw_ids: RawIdArray {
-                ids: raw_ids,
-                sentinel: MaybeUninit::zeroed(),
-            },
+            ids: raw_ids,
+            sentinel: MaybeUninit::zeroed(),
             phantom: PhantomData,
         }
     }
@@ -200,13 +184,17 @@ macro_rules! module_device_table {
         $table_name: ident, $id_info_type: ty,
         [$(($id: expr, $info:expr $(,)?)),* $(,)?]
     ) => {
-        const $table_name: $crate::device_id::IdArray<
+        #[export_name =
+            concat!("__mod_device_table__", ::core::line!(),
+                    "__kmod_", module_path!(),
+                    "__", $table_type,
+                    "__", stringify!($table_name))
+        ]
+        static $table_name: $crate::device_id::IdArray<
             $device_id_ty,
             $id_info_type,
             { <[$device_id_ty]>::len(&[$($id,)*]) },
         > = $crate::device_id::IdArray::new([$(($id, &$info),)*]);
-
-        $crate::module_device_table!($table_type, $table_name);
     };
 
     // Case for no ID info.
@@ -215,26 +203,16 @@ macro_rules! module_device_table {
         $table_name: ident, @none,
         [$($id: expr),* $(,)?]
     ) => {
-        const $table_name: $crate::device_id::IdArray<
+        #[export_name =
+            concat!("__mod_device_table__", ::core::line!(),
+                    "__kmod_", module_path!(),
+                    "__", $table_type,
+                    "__", stringify!($table_name))
+        ]
+        static $table_name: $crate::device_id::IdArray<
             $device_id_ty,
             (),
             { <[$device_id_ty]>::len(&[$($id,)*]) },
         > = $crate::device_id::IdArray::new_without_index([$($id),*]);
-
-        $crate::module_device_table!($table_type, $table_name);
-    };
-
-    ($table_type: literal, $table_name:ident) => {
-        const _: () = {
-            #[rustfmt::skip]
-            #[export_name =
-                concat!("__mod_device_table__", line!(),
-                        "__kmod_", module_path!(),
-                        "__", $table_type,
-                        "__", stringify!($table_name))
-            ]
-            static MOD_DEVICE_TABLE: [::core::mem::MaybeUninit<u8>; $table_name.raw_ids().size()] =
-                unsafe { ::core::mem::transmute_copy($table_name.raw_ids()) };
-        };
     };
 }
