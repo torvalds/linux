@@ -38,7 +38,7 @@ is_enabled() {
 }
 
 # Nice output in kbuild format
-# Will be supressed by "make -s"
+# Will be suppressed by "make -s"
 info()
 {
 	printf "  %-7s %s\n" "${1}" "${2}"
