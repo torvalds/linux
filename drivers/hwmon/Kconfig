@@ -942,6 +942,19 @@ config SENSORS_JC42
 	  This driver can also be built as a module. If so, the module
 	  will be called jc42.
 
+config SENSORS_POLARFIRE_SOC_TVS
+	tristate "PolarFire SoC (MPFS) temperature and voltage sensor"
+	depends on POLARFIRE_SOC_SYSCONS || COMPILE_TEST
+	depends on MFD_SYSCON
+	help
+	  This driver adds support for the PolarFire SoC (MPFS) Temperature and
+	  Voltage Sensor.
+
+	  To compile this driver as a module, choose M here. the
+	  module will be called tvs-mpfs.
+
+	  If unsure, say N.
+
 config SENSORS_POWERZ
 	tristate "ChargerLAB POWER-Z USB-C tester"
 	depends on USB

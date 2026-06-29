@@ -273,6 +273,7 @@ Hardware Monitoring Kernel Drivers
    tps53679
    tps546d24
    tsc1641
+   tvs-mpfs
    twl4030-madc-hwmon
    ucd9000
    ucd9200
