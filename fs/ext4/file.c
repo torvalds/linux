@@ -435,16 +435,27 @@ static const struct iomap_dio_ops ext4_dio_write_ops = {
  * condition requires an exclusive inode lock. If yes, then we restart the
  * whole operation by releasing the shared lock and acquiring exclusive lock.
  *
- * - For unaligned_io we never take shared lock as it may cause data corruption
- *   when two unaligned IO tries to modify the same block e.g. while zeroing.
+ * The decision is layered, evaluated in this order:
  *
- * - For extending writes case we don't take the shared lock, since it requires
- *   updating inode i_disksize and/or orphan handling with exclusive lock.
+ * 1. If file_modified() needs to update security info (!IS_NOSEC), upgrade
+ *    to the exclusive lock -- the security update itself requires it,
+ *    regardless of whether the write extends the file or is aligned.
  *
- * - shared locking will only be true mostly with overwrites, including
- *   initialized blocks and unwritten blocks.
+ * 2. If the write extends i_size or i_disksize, upgrade to the exclusive
+ *    lock to safely update i_disksize and the orphan list, regardless of
+ *    alignment.
  *
- * - Otherwise we will switch to exclusive i_rwsem lock.
+ * 3. Otherwise, for aligned non-extending writes, shared lock is always
+ *    sufficient regardless of extent state (written, unwritten, or hole).
+ *    truncate/punch_hole cannot run while we hold the shared i_rwsem
+ *    (they need it exclusively); after we release it, inode_dio_begin()
+ *    keeps their inode_dio_wait() blocked until in-flight bios complete.
+ *    i_data_sem serializes concurrent extent tree modifications.
+ *
+ * 4. Otherwise, the write is unaligned and non-extending. Shared lock is
+ *    only safe for pure written-extent overwrites. Unwritten extents or
+ *    holes require exclusive lock because concurrent partial block zeroing
+ *    in the DIO layer could corrupt data.
  */
 static ssize_t ext4_dio_write_checks(struct kiocb *iocb, struct iov_iter *from,
 				     bool *ilock_shared, bool *extend,
@@ -455,7 +466,7 @@ static ssize_t ext4_dio_write_checks(struct kiocb *iocb, struct iov_iter *from,
 	loff_t offset;
 	size_t count;
 	ssize_t ret;
-	bool overwrite, unaligned_io, unwritten;
+	bool overwrite = true, unaligned_io, unwritten = false;
 
 restart:
 	ret = ext4_generic_write_checks(iocb, from);
@@ -467,22 +478,19 @@ restart:
 
 	unaligned_io = ext4_unaligned_io(inode, from, offset);
 	*extend = ext4_extending_io(inode, offset, count);
-	overwrite = ext4_overwrite_io(inode, offset, count, &unwritten);
 
 	/*
-	 * Determine whether we need to upgrade to an exclusive lock. This is
-	 * required to change security info in file_modified(), for extending
-	 * I/O, any form of non-overwrite I/O, and unaligned I/O to unwritten
-	 * extents (as partial block zeroing may be required).
-	 *
-	 * Note that unaligned writes are allowed under shared lock so long as
-	 * they are pure overwrites. Otherwise, concurrent unaligned writes risk
-	 * data corruption due to partial block zeroing in the dio layer, and so
-	 * the I/O must occur exclusively.
+	 * For unaligned writes we need to know the extent state to determine
+	 * whether shared lock is safe. For aligned writes we skip this check
+	 * entirely since allocation under shared lock is safe.
 	 */
+	if (unaligned_io)
+		overwrite = ext4_overwrite_io(inode, offset, count, &unwritten);
+
+	/* Determine whether we need to upgrade to an exclusive lock. */
 	if (*ilock_shared &&
-	    ((!IS_NOSEC(inode) || *extend || !overwrite ||
-	     (unaligned_io && unwritten)))) {
+	    ((!IS_NOSEC(inode) || *extend ||
+	     (unaligned_io && (!overwrite || unwritten))))) {
 		if (iocb->ki_flags & IOCB_NOWAIT) {
 			ret = -EAGAIN;
 			goto out;
@@ -497,8 +505,8 @@ restart:
 	 * Now that locking is settled, determine dio flags and exclusivity
 	 * requirements. We don't use DIO_OVERWRITE_ONLY because we enforce
 	 * behavior already. The inode lock is already held exclusive if the
-	 * write is non-overwrite or extending, so drain all outstanding dio and
-	 * set the force wait dio flag.
+	 * write is unaligned non-overwrite or extending, so drain all
+	 * outstanding dio and set the force wait dio flag.
 	 */
 	if (!*ilock_shared && (unaligned_io || *extend)) {
 		if (iocb->ki_flags & IOCB_NOWAIT) {
