@@ -339,6 +339,16 @@ static void _ipi_unmask_cpu(void *ignored)
 	sdei_unmask_local_cpu();
 }
 
+/*
+ * Was SDEI firmware probed and is it usable?  Lets optional consumers skip
+ * registering an event -- and the warning a failed registration emits -- on
+ * systems with no SDEI.
+ */
+bool sdei_is_present(void)
+{
+	return sdei_firmware_call;
+}
+
 static void _ipi_private_reset(void *ignored)
 {
 	int err;
