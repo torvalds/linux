@@ -32,7 +32,7 @@ impl usb::Driver for SampleDriver {
     fn probe<'bound>(
         intf: &'bound usb::Interface<Core<'_>>,
         _id: &usb::DeviceId,
-        _info: &'bound Self::IdInfo,
+        _info: Option<&'bound Self::IdInfo>,
     ) -> impl PinInit<Self, Error> + 'bound {
         let dev: &device::Device<Core<'_>> = intf.as_ref();
         dev_info!(dev, "Rust USB driver sample probed\n");

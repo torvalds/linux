@@ -90,7 +90,7 @@ impl<T: Driver> Adapter<T> {
             let id = unsafe { &*id.cast::<DeviceId>() };
 
             let info = T::ID_TABLE.info(id.index());
-            let data = T::probe(intf, id, info);
+            let data = T::probe(intf, id, Some(info));
 
             let dev: &device::Device<device::CoreInternal<'_>> = intf.as_ref();
             dev.set_drvdata(data)?;
@@ -293,7 +293,7 @@ macro_rules! usb_device_table {
 ///     fn probe<'bound>(
 ///         _interface: &'bound usb::Interface<Core<'_>>,
 ///         _id: &usb::DeviceId,
-///         _info: &'bound Self::IdInfo,
+///         _info: Option<&'bound Self::IdInfo>,
 ///     ) -> impl PinInit<Self::Data<'bound>, Error> + 'bound {
 ///         Err(ENODEV)
 ///     }
@@ -322,7 +322,7 @@ pub trait Driver {
     fn probe<'bound>(
         interface: &'bound Interface<device::Core<'_>>,
         id: &DeviceId,
-        id_info: &'bound Self::IdInfo,
+        id_info: Option<&'bound Self::IdInfo>,
     ) -> impl PinInit<Self::Data<'bound>, Error> + 'bound;
 
     /// USB driver disconnect.
