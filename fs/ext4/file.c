@@ -725,6 +725,11 @@ ext4_dax_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	count = iov_iter_count(from);
 
 	if (offset + count > EXT4_I(inode)->i_disksize) {
+		if (iocb->ki_flags & IOCB_NOWAIT) {
+			ret = -EAGAIN;
+			goto out;
+		}
+
 		handle = ext4_journal_start(inode, EXT4_HT_INODE, 2);
 		if (IS_ERR(handle)) {
 			ret = PTR_ERR(handle);
