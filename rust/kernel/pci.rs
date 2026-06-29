@@ -113,7 +113,7 @@ impl<T: Driver> Adapter<T> {
         let info = T::ID_TABLE.info(id.index());
 
         from_result(|| {
-            let data = T::probe(pdev, info);
+            let data = T::probe(pdev, Some(info));
 
             pdev.as_ref().set_drvdata(data)?;
             Ok(0)
@@ -284,7 +284,7 @@ macro_rules! pci_device_table {
 ///
 ///     fn probe<'bound>(
 ///         _pdev: &'bound pci::Device<Core<'_>>,
-///         _id_info: &'bound Self::IdInfo,
+///         _id_info: Option<&'bound Self::IdInfo>,
 ///     ) -> impl PinInit<Self::Data<'bound>, Error> + 'bound {
 ///         Err(ENODEV)
 ///     }
@@ -313,7 +313,7 @@ pub trait Driver {
     /// attempt to initialize the device here.
     fn probe<'bound>(
         dev: &'bound Device<device::Core<'_>>,
-        id_info: &'bound Self::IdInfo,
+        id_info: Option<&'bound Self::IdInfo>,
     ) -> impl PinInit<Self::Data<'bound>, Error> + 'bound;
 
     /// PCI driver unbind.

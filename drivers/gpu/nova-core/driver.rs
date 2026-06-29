@@ -70,7 +70,7 @@ impl pci::Driver for NovaCoreDriver {
 
     fn probe<'bound>(
         pdev: &'bound pci::Device<Core<'_>>,
-        _info: &'bound Self::IdInfo,
+        _info: Option<&'bound Self::IdInfo>,
     ) -> impl PinInit<Self::Data<'bound>, Error> + 'bound {
         pin_init::pin_init_scope(move || {
             dev_dbg!(pdev, "Probe Nova Core GPU driver.\n");
