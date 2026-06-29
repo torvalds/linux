@@ -751,10 +751,6 @@ static int bq24190_set_config(struct bq24190_dev_info *bdi)
 	int ret;
 	u8 v;
 
-	ret = bq24190_read(bdi, BQ24190_REG_CTTC, &v);
-	if (ret < 0)
-		return ret;
-
 	/*
 	 * According to the "Host Mode and default Mode" section of the
 	 * manual, a write to any register causes the bq24190 to switch
@@ -763,9 +759,9 @@ static int bq24190_set_config(struct bq24190_dev_info *bdi)
 	 * So, by simply turning off the WDT, we accomplish both with the
 	 * same write.
 	 */
-	v &= ~BQ24190_REG_CTTC_WATCHDOG_MASK;
-
-	ret = bq24190_write(bdi, BQ24190_REG_CTTC, v);
+	ret = bq24190_write_mask(bdi, BQ24190_REG_CTTC,
+				 BQ24190_REG_CTTC_WATCHDOG_MASK,
+				 BQ24190_REG_CTTC_WATCHDOG_SHIFT, 0);
 	if (ret < 0)
 		return ret;
 
