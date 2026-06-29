@@ -73,19 +73,11 @@ pub struct IdArray<T: RawDeviceId, U, const N: usize> {
     id_infos: [U; N],
 }
 
-impl<T: RawDeviceId, U, const N: usize> IdArray<T, U, N> {
+impl<T: RawDeviceId + RawDeviceIdIndex, U, const N: usize> IdArray<T, U, N> {
     /// Creates a new instance of the array.
     ///
     /// The contents are derived from the given identifiers and context information.
-    ///
-    /// # Safety
-    ///
-    /// `data_offset` as `None` is always safe.
-    /// If `data_offset` is `Some(data_offset)`, then:
-    /// - `data_offset` must be the correct offset (in bytes) to the context/data field
-    ///   (e.g., the `driver_data` field) within the raw device ID structure.
-    /// - The field at `data_offset` must be correctly sized to hold a `usize`.
-    const unsafe fn build(ids: [(T, U); N], data_offset: Option<usize>) -> Self {
+    pub const fn new(ids: [(T, U); N]) -> Self {
         let mut raw_ids = [const { MaybeUninit::<T::RawType>::uninit() }; N];
         let mut infos = [const { MaybeUninit::uninit() }; N];
 
@@ -94,16 +86,14 @@ impl<T: RawDeviceId, U, const N: usize> IdArray<T, U, N> {
             // SAFETY: by the safety requirement of `RawDeviceId`, we're guaranteed that `T` is
             // layout-wise compatible with `RawType`.
             raw_ids[i] = unsafe { core::mem::transmute_copy(&ids[i].0) };
-            if let Some(data_offset) = data_offset {
-                // SAFETY: by the safety requirement of this function, this would be effectively
-                // `raw_ids[i].driver_data = i;`.
-                unsafe {
-                    raw_ids[i]
-                        .as_mut_ptr()
-                        .byte_add(data_offset)
-                        .cast::<usize>()
-                        .write(i);
-                }
+            // SAFETY: by the safety requirement of `RawDeviceIdIndex`, this would be effectively
+            // `raw_ids[i].driver_data = i;`.
+            unsafe {
+                raw_ids[i]
+                    .as_mut_ptr()
+                    .byte_add(T::DRIVER_DATA_OFFSET)
+                    .cast::<usize>()
+                    .write(i);
             }
 
             // SAFETY: this is effectively a move: `infos[i] = ids[i].1`. We make a copy here but
@@ -127,32 +117,32 @@ impl<T: RawDeviceId, U, const N: usize> IdArray<T, U, N> {
             id_infos: unsafe { core::mem::transmute_copy(&infos) },
         }
     }
+}
 
-    /// Creates a new instance of the array without writing index values.
-    ///
-    /// The contents are derived from the given identifiers and context information.
-    /// If the device implements [`RawDeviceIdIndex`], consider using [`IdArray::new`] instead.
-    pub const fn new_without_index(ids: [(T, U); N]) -> Self {
-        // SAFETY: Calling `Self::build` with `offset = None` is always safe,
-        // because no raw memory writes are performed in this case.
-        unsafe { Self::build(ids, None) }
-    }
-
+impl<T: RawDeviceId, U, const N: usize> IdArray<T, U, N> {
     /// Reference to the contained [`RawIdArray`].
     pub const fn raw_ids(&self) -> &RawIdArray<T, N> {
         &self.raw_ids
     }
 }
 
-impl<T: RawDeviceId + RawDeviceIdIndex, U, const N: usize> IdArray<T, U, N> {
-    /// Creates a new instance of the array.
+impl<T: RawDeviceId, const N: usize> IdArray<T, (), N> {
+    /// Creates a new instance of the array without writing index values.
     ///
     /// The contents are derived from the given identifiers and context information.
-    pub const fn new(ids: [(T, U); N]) -> Self {
-        // SAFETY: by the safety requirement of `RawDeviceIdIndex`,
-        // `T::DRIVER_DATA_OFFSET` is guaranteed to be the correct offset (in bytes) to
-        // a field within `T::RawType`.
-        unsafe { Self::build(ids, Some(T::DRIVER_DATA_OFFSET)) }
+    /// If the device implements [`RawDeviceIdIndex`], consider using [`IdArray::new`] instead.
+    pub const fn new_without_index(ids: [T; N]) -> Self {
+        // SAFETY: `T` is layout-wise compatible with `T::RawType`, so is the array of them.
+        let raw_ids: [T::RawType; N] = unsafe { core::mem::transmute_copy(&ids) };
+        core::mem::forget(ids);
+
+        Self {
+            raw_ids: RawIdArray {
+                ids: raw_ids,
+                sentinel: MaybeUninit::zeroed(),
+            },
+            id_infos: [(); N],
+        }
     }
 }
 

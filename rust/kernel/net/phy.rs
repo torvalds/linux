@@ -868,7 +868,7 @@ macro_rules! module_phy_driver {
         const N: usize = $crate::module_phy_driver!(@count_devices $($dev),+);
 
         const TABLE: $crate::device_id::IdArray<$crate::net::phy::DeviceId, (), N> =
-            $crate::device_id::IdArray::new_without_index([ $(($dev,())),+, ]);
+            $crate::device_id::IdArray::new_without_index([ $($dev),+, ]);
 
         $crate::module_device_table!("mdio", phydev, TABLE);
     };
