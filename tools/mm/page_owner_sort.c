@@ -237,7 +237,8 @@ static int remove_pattern(regex_t *pattern, char *buf, int len)
 	return len - (pmatch[1].rm_eo - pmatch[1].rm_so);
 }
 
-static int search_pattern(regex_t *pattern, char *pattern_str, char *buf)
+static int search_pattern(regex_t *pattern, char *pattern_str,
+			  size_t pattern_str_size, char *buf)
 {
 	int err, val_len;
 	regmatch_t pmatch[2];
@@ -249,8 +250,14 @@ static int search_pattern(regex_t *pattern, char *pattern_str, char *buf)
 		return -1;
 	}
 	val_len = pmatch[1].rm_eo - pmatch[1].rm_so;
+	if ((size_t)val_len >= pattern_str_size) {
+		if (debug_on)
+			fprintf(stderr, "pattern too long in %s\n", buf);
+		return -1;
+	}
 
 	memcpy(pattern_str, buf + pmatch[1].rm_so, val_len);
+	pattern_str[val_len] = '\0';
 
 	return 0;
 }
@@ -307,7 +314,8 @@ static int get_page_num(char *buf)
 	char order_str[FIELD_BUFF] = {0};
 	char *endptr;
 
-	search_pattern(&order_pattern, order_str, buf);
+	if (search_pattern(&order_pattern, order_str, sizeof(order_str), buf) < 0)
+		return 0;
 	errno = 0;
 	order_val = strtol(order_str, &endptr, 10);
 	if (order_val > 64 || errno != 0 || endptr == order_str || *endptr != '\0') {
@@ -325,7 +333,8 @@ static pid_t get_pid(char *buf)
 	char pid_str[FIELD_BUFF] = {0};
 	char *endptr;
 
-	search_pattern(&pid_pattern, pid_str, buf);
+	if (search_pattern(&pid_pattern, pid_str, sizeof(pid_str), buf) < 0)
+		return -1;
 	errno = 0;
 	pid = strtol(pid_str, &endptr, 10);
 	if (errno != 0 || endptr == pid_str || *endptr != '\0') {
@@ -344,7 +353,8 @@ static pid_t get_tgid(char *buf)
 	char tgid_str[FIELD_BUFF] = {0};
 	char *endptr;
 
-	search_pattern(&tgid_pattern, tgid_str, buf);
+	if (search_pattern(&tgid_pattern, tgid_str, sizeof(tgid_str), buf) < 0)
+		return -1;
 	errno = 0;
 	tgid = strtol(tgid_str, &endptr, 10);
 	if (errno != 0 || endptr == tgid_str || *endptr != '\0') {
@@ -363,7 +373,9 @@ static __u64 get_ts_nsec(char *buf)
 	char ts_nsec_str[FIELD_BUFF] = {0};
 	char *endptr;
 
-	search_pattern(&ts_nsec_pattern, ts_nsec_str, buf);
+	if (search_pattern(&ts_nsec_pattern, ts_nsec_str,
+			   sizeof(ts_nsec_str), buf) < 0)
+		return -1;
 	errno = 0;
 	ts_nsec = strtoull(ts_nsec_str, &endptr, 10);
 	if (errno != 0 || endptr == ts_nsec_str || *endptr != '\0') {
@@ -384,7 +396,10 @@ static char *get_comm(char *buf)
 
 	memset(comm_str, 0, TASK_COMM_LEN);
 
-	search_pattern(&comm_pattern, comm_str, buf);
+	if (search_pattern(&comm_pattern, comm_str, TASK_COMM_LEN, buf) < 0) {
+		free(comm_str);
+		return NULL;
+	}
 	errno = 0;
 	if (errno != 0) {
 		if (debug_on)
