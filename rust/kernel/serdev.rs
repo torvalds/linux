@@ -162,7 +162,8 @@ impl<T: Driver> Adapter<T> {
         //
         // INVARIANT: `sdev` is valid for the duration of `probe_callback()`.
         let sdev = unsafe { &*sdev.cast::<Device<device::CoreInternal<'_>>>() };
-        let info = <Self as driver::Adapter>::id_info(sdev.as_ref());
+        // SAFETY: `sdev` matched data is of type `Self::IdInfo`.
+        let info = unsafe { <Self as driver::Adapter>::id_info(sdev.as_ref()) };
 
         from_result(|| {
             sdev.as_ref().set_drvdata(try_pin_init!(PrivateData::<T> {

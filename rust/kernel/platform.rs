@@ -100,7 +100,8 @@ impl<T: Driver> Adapter<T> {
         //
         // INVARIANT: `pdev` is valid for the duration of `probe_callback()`.
         let pdev = unsafe { &*pdev.cast::<Device<device::CoreInternal<'_>>>() };
-        let info = <Self as driver::Adapter>::id_info(pdev.as_ref());
+        // SAFETY: `pdev` matched data is of type `Self::IdInfo`.
+        let info = unsafe { <Self as driver::Adapter>::id_info(pdev.as_ref()) };
 
         from_result(|| {
             let data = T::probe(pdev, info);

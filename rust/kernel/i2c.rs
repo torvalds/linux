@@ -149,8 +149,10 @@ impl<T: Driver> Adapter<T> {
         // INVARIANT: `idev` is valid for the duration of `probe_callback()`.
         let idev = unsafe { &*idev.cast::<I2cClient<device::CoreInternal<'_>>>() };
 
-        let info =
-            Self::i2c_id_info(idev).or_else(|| <Self as driver::Adapter>::id_info(idev.as_ref()));
+        let info = Self::i2c_id_info(idev).or_else(|| {
+            // SAFETY: `idev` matched data is of type `Self::IdInfo`.
+            unsafe { <Self as driver::Adapter>::id_info(idev.as_ref()) }
+        });
 
         from_result(|| {
             let data = T::probe(idev, info);
