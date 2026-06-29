@@ -1,5 +1,22 @@
 .. SPDX-License-Identifier: GPL-2.0
 
+UNSETTING OPTIONS
+=================
+
+The effect of most command line options can be reverted by prepending "no-" to
+the long variant of the option, for example:
+
+$ rtla timerlat top -p 100 --no-period
+
+resets the period back to the default value of 1000 us.
+
+If a command line option sets multiple RTLA parameters at once, the inverted
+option will revert all of them, even if they were not set by the particular
+option. For example, since using "--auto" implies "--trace", specifying
+"--trace --no-auto" will also disable trace output, just like if "--no-trace"
+was specified.
+
+
 SIGINT BEHAVIOR
 ===============
 
