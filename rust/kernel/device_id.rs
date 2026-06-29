@@ -175,7 +175,36 @@ impl<T: RawDeviceId, U, const N: usize> IdTable<T, U> for IdArray<T, U, N> {
 /// Create device table alias for modpost.
 #[macro_export]
 macro_rules! module_device_table {
-    ($table_type: literal, $module_table_name:ident, $table_name:ident) => {
+    (
+        $table_type: literal, $device_id_ty: ty,
+        $table_name: ident, $module_table_name: ident, $id_info_type: ty,
+        [$(($id: expr, $info:expr $(,)?)),* $(,)?]
+    ) => {
+        const $table_name: $crate::device_id::IdArray<
+            $device_id_ty,
+            $id_info_type,
+            { <[$device_id_ty]>::len(&[$($id,)*]) },
+        > = $crate::device_id::IdArray::new([$(($id, $info),)*]);
+
+        $crate::module_device_table!($table_type, $module_table_name, $table_name);
+    };
+
+    // Case for no ID info.
+    (
+        $table_type: literal, $device_id_ty: ty,
+        $table_name: ident, $module_table_name: ident, @none,
+        [$($id: expr),* $(,)?]
+    ) => {
+        const $table_name: $crate::device_id::IdArray<
+            $device_id_ty,
+            (),
+            { <[$device_id_ty]>::len(&[$($id,)*]) },
+        > = $crate::device_id::IdArray::new_without_index([$($id),*]);
+
+        $crate::module_device_table!($table_type, $module_table_name, $table_name);
+    };
+
+    ($table_type: literal, $module_table_name: ident, $table_name:ident) => {
         #[rustfmt::skip]
         #[export_name =
             concat!("__mod_device_table__", line!(),

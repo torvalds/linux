@@ -77,14 +77,8 @@ pub type IdTable<T> = &'static dyn kernel::device_id::IdTable<DeviceId, T>;
 /// Create a I2C `IdTable` with its alias for modpost.
 #[macro_export]
 macro_rules! i2c_device_table {
-    ($table_name:ident, $module_table_name:ident, $id_info_type: ty, $table_data: expr) => {
-        const $table_name: $crate::device_id::IdArray<
-            $crate::i2c::DeviceId,
-            $id_info_type,
-            { $table_data.len() },
-        > = $crate::device_id::IdArray::new($table_data);
-
-        $crate::module_device_table!("i2c", $module_table_name, $table_name);
+    ($($tt:tt)*) => {
+        $crate::module_device_table!("i2c", $crate::i2c::DeviceId, $($tt)*);
     };
 }
 

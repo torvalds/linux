@@ -865,12 +865,10 @@ macro_rules! module_phy_driver {
     };
 
     (@device_table [$($dev:expr),+]) => {
-        const N: usize = $crate::module_phy_driver!(@count_devices $($dev),+);
-
-        const TABLE: $crate::device_id::IdArray<$crate::net::phy::DeviceId, (), N> =
-            $crate::device_id::IdArray::new_without_index([ $($dev),+, ]);
-
-        $crate::module_device_table!("mdio", phydev, TABLE);
+        $crate::module_device_table!(
+            "mdio", $crate::net::phy::DeviceId,
+            phydev, TABLE, @none, [$($dev),+]
+        );
     };
 
     (drivers: [$($driver:ident),+ $(,)?], device_table: [$($dev:expr),+ $(,)?], $($f:tt)*) => {

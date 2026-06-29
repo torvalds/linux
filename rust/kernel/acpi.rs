@@ -53,13 +53,7 @@ impl DeviceId {
 /// Create an ACPI `IdTable` with an "alias" for modpost.
 #[macro_export]
 macro_rules! acpi_device_table {
-    ($table_name:ident, $module_table_name:ident, $id_info_type: ty, $table_data: expr) => {
-        const $table_name: $crate::device_id::IdArray<
-            $crate::acpi::DeviceId,
-            $id_info_type,
-            { $table_data.len() },
-        > = $crate::device_id::IdArray::new($table_data);
-
-        $crate::module_device_table!("acpi", $module_table_name, $table_name);
+    ($($tt:tt)*) => {
+        $crate::module_device_table!("acpi", $crate::acpi::DeviceId, $($tt)*);
     };
 }
