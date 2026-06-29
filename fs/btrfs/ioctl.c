@@ -1664,13 +1664,11 @@ static noinline int btrfs_ioctl_tree_search_v2(struct btrfs_root *root,
 }
 
 /*
- * Search INODE_REFs to identify path name of 'dirid' directory
- * in a 'tree_id' tree. and sets path name to 'name'.
+ * Search for an INODE_REF in a 'root' tree which identifies the path name of
+ * 'dirid'. When found, it sets 'name' with the path name.
  */
-static noinline int btrfs_search_path_in_tree(struct btrfs_fs_info *info,
-				u64 tree_id, u64 dirid, char *name)
+static noinline int btrfs_search_path_in_tree(struct btrfs_root *root, u64 dirid, char *name)
 {
-	struct btrfs_root *root;
 	struct btrfs_key key;
 	char *ptr;
 	int ret = -1;
@@ -1692,13 +1690,6 @@ static noinline int btrfs_search_path_in_tree(struct btrfs_fs_info *info,
 
 	ptr = &name[BTRFS_INO_LOOKUP_PATH_MAX - 1];
 
-	root = btrfs_get_fs_root(info, tree_id, true);
-	if (IS_ERR(root)) {
-		ret = PTR_ERR(root);
-		root = NULL;
-		goto out;
-	}
-
 	key.objectid = dirid;
 	key.type = BTRFS_INODE_REF_KEY;
 	key.offset = (u64)-1;
@@ -1706,11 +1697,9 @@ static noinline int btrfs_search_path_in_tree(struct btrfs_fs_info *info,
 	while (1) {
 		ret = btrfs_search_backwards(root, &key, path);
 		if (ret < 0)
-			goto out;
-		else if (ret > 0) {
-			ret = -ENOENT;
-			goto out;
-		}
+			return ret;
+		else if (ret > 0)
+			return -ENOENT;
 
 		l = path->nodes[0];
 		slot = path->slots[0];
@@ -1719,10 +1708,8 @@ static noinline int btrfs_search_path_in_tree(struct btrfs_fs_info *info,
 		len = btrfs_inode_ref_name_len(l, iref);
 		ptr -= len + 1;
 		total_len += len + 1;
-		if (ptr < name) {
-			ret = -ENAMETOOLONG;
-			goto out;
-		}
+		if (ptr < name)
+			return -ENAMETOOLONG;
 
 		*(ptr + len) = '/';
 		read_extent_buffer(l, ptr, (unsigned long)(iref + 1), len);
@@ -1737,10 +1724,8 @@ static noinline int btrfs_search_path_in_tree(struct btrfs_fs_info *info,
 	}
 	memmove(name, ptr, total_len);
 	name[total_len] = '\0';
-	ret = 0;
-out:
-	btrfs_put_root(root);
-	return ret;
+
+	return 0;
 }
 
 static int btrfs_search_path_in_tree_user(struct mnt_idmap *idmap,
@@ -1884,6 +1869,7 @@ out_put:
 static noinline int btrfs_ioctl_ino_lookup(struct btrfs_root *root,
 					   void __user *argp)
 {
+	bool new_root = false;
 	struct btrfs_ioctl_ino_lookup_args AUTO_KFREE(args);
 	int ret = 0;
 
@@ -1897,6 +1883,8 @@ static noinline int btrfs_ioctl_ino_lookup(struct btrfs_root *root,
 	 */
 	if (args->treeid == 0)
 		args->treeid = btrfs_root_id(root);
+	else
+		new_root = true;
 
 	if (args->objectid == BTRFS_FIRST_FREE_OBJECTID) {
 		args->name[0] = 0;
@@ -1908,9 +1896,14 @@ static noinline int btrfs_ioctl_ino_lookup(struct btrfs_root *root,
 		goto out;
 	}
 
-	ret = btrfs_search_path_in_tree(root->fs_info,
-					args->treeid, args->objectid,
-					args->name);
+	if (new_root) {
+		root = btrfs_get_fs_root(root->fs_info, args->treeid, true);
+		if (IS_ERR(root))
+			return PTR_ERR(root);
+	}
+	ret = btrfs_search_path_in_tree(root, args->objectid, args->name);
+	if (new_root)
+		btrfs_put_root(root);
 
 out:
 	if (ret == 0 && copy_to_user(argp, args, sizeof(*args)))
