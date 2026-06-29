@@ -243,7 +243,6 @@ struct bq24190_dev_info {
 	struct mutex			f_reg_lock;
 	u8				f_reg;
 	u8				ss_reg;
-	u8				watchdog;
 	const struct bq24190_chip_info	*info;
 };
 
@@ -755,9 +754,6 @@ static int bq24190_set_config(struct bq24190_dev_info *bdi)
 	ret = bq24190_read(bdi, BQ24190_REG_CTTC, &v);
 	if (ret < 0)
 		return ret;
-
-	bdi->watchdog = ((v & BQ24190_REG_CTTC_WATCHDOG_MASK) >>
-					BQ24190_REG_CTTC_WATCHDOG_SHIFT);
 
 	/*
 	 * According to the "Host Mode and default Mode" section of the
