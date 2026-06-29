@@ -166,9 +166,6 @@ pub trait IdTable<T: RawDeviceId, U> {
     /// Obtain the pointer to the ID table.
     fn as_ptr(&self) -> *const T::RawType;
 
-    /// Obtain the pointer to the bus specific device ID from an index.
-    fn id(&self, index: usize) -> &T::RawType;
-
     /// Obtain the pointer to the driver-specific information from an index.
     fn info(&self, index: usize) -> &U;
 }
@@ -178,10 +175,6 @@ impl<T: RawDeviceId, U, const N: usize> IdTable<T, U> for IdArray<T, U, N> {
         // This cannot be `self.ids.as_ptr()`, as the return pointer must have correct provenance
         // to access the sentinel.
         core::ptr::from_ref(self).cast()
-    }
-
-    fn id(&self, index: usize) -> &T::RawType {
-        &self.raw_ids.ids[index]
     }
 
     fn info(&self, index: usize) -> &U {
