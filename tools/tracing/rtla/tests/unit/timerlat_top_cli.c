@@ -55,6 +55,22 @@ START_TEST(test_period_long)
 }
 END_TEST
 
+START_TEST(test_period_unset_short)
+{
+	PARSE_ARGS("timerlat", "top", "-p", "200", "--no-period");
+
+	ck_assert_int_eq(tlat_params->timerlat_period_us, 0);
+}
+END_TEST
+
+START_TEST(test_period_unset_long)
+{
+	PARSE_ARGS("timerlat", "top", "--period", "200", "--no-period");
+
+	ck_assert_int_eq(tlat_params->timerlat_period_us, 0);
+}
+END_TEST
+
 START_TEST(test_stack_short)
 {
 	PARSE_ARGS("timerlat", "top", "-s", "20");
@@ -571,6 +587,8 @@ Suite *timerlat_top_cli_suite(void)
 	tcase_add_test(tc, test_irq_long);
 	tcase_add_test(tc, test_period_short);
 	tcase_add_test(tc, test_period_long);
+	tcase_add_test(tc, test_period_unset_short);
+	tcase_add_test(tc, test_period_unset_long);
 	tcase_add_test(tc, test_stack_short);
 	tcase_add_test(tc, test_stack_long);
 	tcase_add_test(tc, test_thread_short);
