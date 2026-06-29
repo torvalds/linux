@@ -65,10 +65,6 @@ unsafe impl RawDeviceId for DeviceId {
 // SAFETY: `DRIVER_DATA_OFFSET` is the offset to the `driver_data` field.
 unsafe impl RawDeviceIdIndex for DeviceId {
     const DRIVER_DATA_OFFSET: usize = core::mem::offset_of!(bindings::i2c_device_id, driver_data);
-
-    fn index(&self) -> usize {
-        self.0.driver_data
-    }
 }
 
 /// IdTable type for I2C
@@ -212,7 +208,8 @@ impl<T: Driver> Adapter<T> {
         // does not add additional invariants, so it's safe to transmute.
         let id = unsafe { &*raw_id.cast::<DeviceId>() };
 
-        Some(table.info(<DeviceId as RawDeviceIdIndex>::index(id)))
+        // SAFETY: `id` comes from `table` which is of type `IdArray<_, Self::IdInfo>`.
+        Some(unsafe { id.info_unchecked::<T::IdInfo>() })
     }
 }
 

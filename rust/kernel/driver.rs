@@ -107,6 +107,7 @@
 use crate::{
     acpi,
     device,
+    device_id::RawDeviceIdIndex,
     of,
     prelude::*,
     types::Opaque,
@@ -350,7 +351,8 @@ pub trait Adapter {
                 // and does not add additional invariants, so it's safe to transmute.
                 let id = unsafe { &*raw_id.cast::<acpi::DeviceId>() };
 
-                Some(table.info(<acpi::DeviceId as crate::device_id::RawDeviceIdIndex>::index(id)))
+                // SAFETY: `id` comes from `table` which is of type `IdArray<_, Self::IdInfo>`.
+                Some(unsafe { id.info_unchecked::<Self::IdInfo>() })
             }
         }
     }
@@ -381,9 +383,8 @@ pub trait Adapter {
                 // and does not add additional invariants, so it's safe to transmute.
                 let id = unsafe { &*raw_id.cast::<of::DeviceId>() };
 
-                return Some(table.info(
-                    <of::DeviceId as crate::device_id::RawDeviceIdIndex>::index(id),
-                ));
+                // SAFETY: `id` comes from `table` which is of type `IdArray<_, Self::IdInfo>`.
+                return Some(unsafe { id.info_unchecked::<Self::IdInfo>() });
             }
         }
 
@@ -412,9 +413,8 @@ pub trait Adapter {
                 //   and does not add additional invariants, so it's safe to transmute.
                 let id = unsafe { &*raw_id.cast::<of::DeviceId>() };
 
-                return Some(table.info(
-                    <of::DeviceId as crate::device_id::RawDeviceIdIndex>::index(id),
-                ));
+                // SAFETY: `id` comes from `table` which is of type `IdArray<_, Self::IdInfo>`.
+                return Some(unsafe { id.info_unchecked::<Self::IdInfo>() });
             }
         }
 

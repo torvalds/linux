@@ -110,10 +110,14 @@ impl<T: Driver> Adapter<T> {
         // SAFETY: `DeviceId` is a `#[repr(transparent)]` wrapper of `struct pci_device_id` and
         // does not add additional invariants, so it's safe to transmute.
         let id = unsafe { &*id.cast::<DeviceId>() };
-        let info = T::ID_TABLE.info(id.index());
+
+        // SAFETY: `id` comes from `T::ID_TABLE` which is of type `IdArray<_, T::IdInfo>` or
+        // `pci_device_id_any` which has 0 as driver_data. It can also come from dynamic IDs, which
+        // will ensure that `driver_data` exists in `T::ID_TABLE`.
+        let info = unsafe { id.info_unchecked_opt::<T::IdInfo>() };
 
         from_result(|| {
-            let data = T::probe(pdev, Some(info));
+            let data = T::probe(pdev, info);
 
             pdev.as_ref().set_drvdata(data)?;
             Ok(0)
@@ -233,10 +237,6 @@ unsafe impl RawDeviceId for DeviceId {
 // SAFETY: `DRIVER_DATA_OFFSET` is the offset to the `driver_data` field.
 unsafe impl RawDeviceIdIndex for DeviceId {
     const DRIVER_DATA_OFFSET: usize = core::mem::offset_of!(bindings::pci_device_id, driver_data);
-
-    fn index(&self) -> usize {
-        self.0.driver_data
-    }
 }
 
 /// `IdTable` type for PCI.
