@@ -262,14 +262,15 @@ int aa_profile_af_perm(struct aa_profile *profile,
 	AA_BUG(type < 0 || type >= SOCK_MAX);
 	AA_BUG(profile_unconfined(profile));
 
-	if (profile_unconfined(profile))
-		return 0;
 	state = RULE_MEDIATES_NET(rules);
-	if (!state)
-		return 0;
-	state = aa_match_to_prot(rules->policy, state, request, family, type,
-				 protocol, &p, &ad->info);
-	return aa_do_perms(profile, rules->policy, state, request, p, ad);
+	if (state) {
+		state = aa_match_to_prot(rules->policy, state, request, family,
+					 type, protocol, &p, &ad->info);
+		return aa_do_perms(profile, rules->policy, state, request, p,
+				   ad);
+	} /* else */
+
+	return 0;
 }
 
 int aa_af_perm(const struct cred *subj_cred, struct aa_label *label,
@@ -298,7 +299,8 @@ int aa_label_sk_perm(const struct cred *subj_cred, struct aa_label *label,
 
 		ad.subj_cred = subj_cred;
 		error = fn_for_each_confined(label, profile,
-			    aa_profile_af_sk_perm(profile, &ad, request, sk));
+			    aa_profile_af_perm(profile, &ad, request, sk->sk_family,
+					    sk->sk_type, sk->sk_protocol));
 	}
 
 	return error;
