@@ -23,6 +23,38 @@ struct timerlat_cb_data {
 };
 
 /*
+ * Non-zero default values for parameters
+ */
+static const int default_dma_latency = -1; /* -1 = unset */
+static const int default_deepest_idle_state = -2; /* -1 = disable all, -2 = unset */
+static const int default_output_divisor = 1000;
+static const int default_bucket_size = 1;
+static const int default_entries = 256;
+static const enum stack_format default_stack_format = STACK_FORMAT_TRUNCATE;
+
+/*
+ * Shorthand macros for integer/long long command line options using
+ * opt_int_callback/opt_llong_callback, with variants that set defval.
+ *
+ * Note: defval's type is intptr_t. opt_int_callback interprets it directly as
+ * an int, opt_llong_callback interprets it as a pointer to a long long, as
+ * long long does not fit into intptr_t on 32-bit architectures.
+ */
+#define RTLA_OPT_LLONG(s, l, v, a, h) \
+	OPT_CALLBACK(s, l, v, a, h, opt_llong_callback)
+
+#define RTLA_OPT_LLONG_DEFVAL(s, l, v, a, h, d) { .type = OPTION_CALLBACK, \
+	.short_name = (s), .long_name = (l), .value = (v), .argh = (a), \
+	.help = (h), .callback = opt_llong_callback, .defval = (intptr_t)(d) }
+
+#define RTLA_OPT_INT(s, l, v, a, h) \
+	OPT_CALLBACK(s, l, v, a, h, opt_int_callback)
+
+#define RTLA_OPT_INT_DEFVAL(s, l, v, a, h, d) { .type = OPTION_CALLBACK, \
+	.short_name = (s), .long_name = (l), .value = (v), .argh = (a), \
+	.help = (h), .callback = opt_int_callback, .defval = (intptr_t)(d) }
+
+/*
  * Macros for command line options common to all tools
  *
  * Note: Some of the options are common to both timerlat and osnoise, but
@@ -108,14 +140,12 @@ struct timerlat_cb_data {
 #define RTLA_OPT_QUIET OPT_BOOLEAN('q', "quiet", &params->common.quiet, \
 	"print only a summary at the end")
 
-#define RTLA_OPT_TRACE_BUFFER_SIZE OPT_CALLBACK(0, "trace-buffer-size", \
+#define RTLA_OPT_TRACE_BUFFER_SIZE RTLA_OPT_INT(0, "trace-buffer-size", \
 	&params->common.buffer_size, "kB", \
-	"set the per-cpu trace buffer size in kB", \
-	opt_int_callback)
+	"set the per-cpu trace buffer size in kB")
 
-#define RTLA_OPT_WARM_UP OPT_CALLBACK(0, "warm-up", &params->common.warmup, "s", \
-	"let the workload run for s seconds before collecting data", \
-	opt_int_callback)
+#define RTLA_OPT_WARM_UP RTLA_OPT_INT(0, "warm-up", &params->common.warmup, "s", \
+	"let the workload run for s seconds before collecting data")
 
 #define RTLA_OPT_AUTO(cb) OPT_CALLBACK('a', "auto", &cb_data, "us", \
 	"set automatic trace mode, stopping the session if argument in us sample is hit", \
@@ -143,7 +173,12 @@ static int opt_llong_callback(const struct option *opt, const char *arg, int uns
 {
 	long long *value = opt->value;
 
-	if (unset || !arg)
+	if (unset) {
+		*value = opt->defval ? *(long long *)opt->defval : 0;
+		return 0;
+	}
+
+	if (!arg)
 		return -1;
 
 	*value = get_llong_from_str((char *)arg);
@@ -154,7 +189,12 @@ static int opt_int_callback(const struct option *opt, const char *arg, int unset
 {
 	int *value = opt->value;
 
-	if (unset || !arg)
+	if (unset) {
+		*value = (int)opt->defval;
+		return 0;
+	}
+
+	if (!arg)
 		return -1;
 
 	if (strtoi(arg, value))
@@ -168,7 +208,13 @@ static int opt_cpus_cb(const struct option *opt, const char *arg, int unset)
 	struct common_params *params = opt->value;
 	int retval;
 
-	if (unset || !arg)
+	if (unset) {
+		CPU_ZERO(&params->monitored_cpus);
+		params->cpus = NULL;
+		return 0;
+	}
+
+	if (!arg)
 		return -1;
 
 	retval = parse_cpu_set((char *)arg, &params->monitored_cpus);
@@ -183,8 +229,11 @@ static int opt_cgroup_cb(const struct option *opt, const char *arg, int unset)
 {
 	struct common_params *params = opt->value;
 
-	if (unset)
-		return -1;
+	if (unset) {
+		params->cgroup = 0;
+		params->cgroup_name = NULL;
+		return 0;
+	}
 
 	params->cgroup = 1;
 	params->cgroup_name = (char *)arg;
@@ -199,7 +248,12 @@ static int opt_duration_cb(const struct option *opt, const char *arg, int unset)
 {
 	struct common_params *params = opt->value;
 
-	if (unset || !arg)
+	if (unset) {
+		params->duration = 0;
+		return 0;
+	}
+
+	if (!arg)
 		return -1;
 
 	params->duration = parse_seconds_duration((char *)arg);
@@ -233,7 +287,13 @@ static int opt_housekeeping_cb(const struct option *opt, const char *arg, int un
 	struct common_params *params = opt->value;
 	int retval;
 
-	if (unset || !arg)
+	if (unset) {
+		params->hk_cpus = 0;
+		CPU_ZERO(&params->hk_cpu_set);
+		return 0;
+	}
+
+	if (!arg)
 		return -1;
 
 	params->hk_cpus = 1;
@@ -249,7 +309,13 @@ static int opt_priority_cb(const struct option *opt, const char *arg, int unset)
 	struct common_params *params = opt->value;
 	int retval;
 
-	if (unset || !arg)
+	if (unset) {
+		memset(&params->sched_param, 0, sizeof(params->sched_param));
+		params->set_sched = 0;
+		return 0;
+	}
+
+	if (!arg)
 		return -1;
 
 	retval = parse_prio((char *)arg, &params->sched_param);
@@ -301,9 +367,8 @@ static int opt_filter_cb(const struct option *opt, const char *arg, int unset)
 	"osnoise runtime in us", \
 	opt_osnoise_runtime_cb)
 
-#define OSNOISE_OPT_THRESHOLD OPT_CALLBACK('T', "threshold", &params->threshold, "us", \
-	"the minimum delta to be considered a noise", \
-	opt_llong_callback)
+#define OSNOISE_OPT_THRESHOLD RTLA_OPT_LLONG('T', "threshold", &params->threshold, "us", \
+	"the minimum delta to be considered a noise")
 
 /*
  * Callback functions for command line options for osnoise tools
@@ -315,7 +380,14 @@ static int opt_osnoise_auto_cb(const struct option *opt, const char *arg, int un
 	struct osnoise_params *params = cb_data->params;
 	long long auto_thresh;
 
-	if (unset || !arg)
+	if (unset) {
+		params->common.stop_us = 0;
+		params->threshold = 0;
+		cb_data->trace_output = NULL;
+		return 0;
+	}
+
+	if (!arg)
 		return -1;
 
 	auto_thresh = get_llong_from_str((char *)arg);
@@ -332,7 +404,12 @@ static int opt_osnoise_period_cb(const struct option *opt, const char *arg, int 
 {
 	unsigned long long *period = opt->value;
 
-	if (unset || !arg)
+	if (unset) {
+		*period = 0;
+		return 0;
+	}
+
+	if (!arg)
 		return -1;
 
 	*period = get_llong_from_str((char *)arg);
@@ -346,7 +423,12 @@ static int opt_osnoise_runtime_cb(const struct option *opt, const char *arg, int
 {
 	unsigned long long *runtime = opt->value;
 
-	if (unset || !arg)
+	if (unset) {
+		*runtime = 0;
+		return 0;
+	}
+
+	if (!arg)
 		return -1;
 
 	*runtime = get_llong_from_str((char *)arg);
@@ -360,8 +442,10 @@ static int opt_osnoise_trace_output_cb(const struct option *opt, const char *arg
 {
 	const char **trace_output = opt->value;
 
-	if (unset)
-		return -1;
+	if (unset) {
+		*trace_output = NULL;
+		return 0;
+	}
 
 	if (!arg) {
 		*trace_output = "osnoise_trace.txt";
@@ -412,9 +496,8 @@ static int opt_osnoise_on_end_cb(const struct option *opt, const char *arg, int 
 	"timerlat period in us", \
 	opt_timerlat_period_cb)
 
-#define TIMERLAT_OPT_STACK OPT_CALLBACK('s', "stack", &params->print_stack, "us", \
-	"save the stack trace at the IRQ if a thread latency is higher than the argument in us", \
-	opt_llong_callback)
+#define TIMERLAT_OPT_STACK RTLA_OPT_LLONG('s', "stack", &params->print_stack, "us", \
+	"save the stack trace at the IRQ if a thread latency is higher than the argument in us")
 
 #define TIMERLAT_OPT_NANO OPT_CALLBACK_NOOPT('n', "nano", params, NULL, \
 	"display data in nanoseconds", \
@@ -424,10 +507,10 @@ static int opt_osnoise_on_end_cb(const struct option *opt, const char *arg, int 
 	"set /dev/cpu_dma_latency latency <us> to reduce exit from idle latency", \
 	opt_dma_latency_cb)
 
-#define TIMERLAT_OPT_DEEPEST_IDLE_STATE OPT_CALLBACK(0, "deepest-idle-state", \
+#define TIMERLAT_OPT_DEEPEST_IDLE_STATE RTLA_OPT_INT_DEFVAL(0, "deepest-idle-state", \
 	&params->deepest_idle_state, "n", \
 	"only go down to idle state n on cpus used by timerlat to reduce exit from idle latency", \
-	opt_int_callback)
+	default_deepest_idle_state)
 
 #define TIMERLAT_OPT_AA_ONLY OPT_CALLBACK(0, "aa-only", params, "us", \
 	"stop if <us> latency is hit, only printing the auto analysis (reduces CPU usage)", \
@@ -459,7 +542,12 @@ static int opt_timerlat_period_cb(const struct option *opt, const char *arg, int
 {
 	long long *period = opt->value;
 
-	if (unset || !arg)
+	if (unset) {
+		*period = 0;
+		return 0;
+	}
+
+	if (!arg)
 		return -1;
 
 	*period = get_llong_from_str((char *)arg);
@@ -475,7 +563,15 @@ static int opt_timerlat_auto_cb(const struct option *opt, const char *arg, int u
 	struct timerlat_params *params = cb_data->params;
 	long long auto_thresh;
 
-	if (unset || !arg)
+	if (unset) {
+		params->common.stop_total_us = 0;
+		params->common.stop_us = 0;
+		params->print_stack = 0;
+		cb_data->trace_output = NULL;
+		return 0;
+	}
+
+	if (!arg)
 		return -1;
 
 	auto_thresh = get_llong_from_str((char *)arg);
@@ -494,7 +590,12 @@ static int opt_dma_latency_cb(const struct option *opt, const char *arg, int uns
 	int *dma_latency = opt->value;
 	int retval;
 
-	if (unset || !arg)
+	if (unset) {
+		*dma_latency = default_dma_latency;
+		return 0;
+	}
+
+	if (!arg)
 		return -1;
 
 	retval = strtoi((char *)arg, dma_latency);
@@ -511,7 +612,15 @@ static int opt_aa_only_cb(const struct option *opt, const char *arg, int unset)
 	struct timerlat_params *params = opt->value;
 	long long auto_thresh;
 
-	if (unset || !arg)
+	if (unset) {
+		params->common.stop_total_us = 0;
+		params->common.stop_us = 0;
+		params->print_stack = 0;
+		params->common.aa_only = 0;
+		return 0;
+	}
+
+	if (!arg)
 		return -1;
 
 	auto_thresh = get_llong_from_str((char *)arg);
@@ -527,8 +636,10 @@ static int opt_timerlat_trace_output_cb(const struct option *opt, const char *ar
 {
 	const char **trace_output = opt->value;
 
-	if (unset)
-		return -1;
+	if (unset) {
+		*trace_output = NULL;
+		return 0;
+	}
 
 	if (!arg) {
 		*trace_output = "timerlat_trace.txt";
@@ -576,8 +687,11 @@ static int opt_user_threads_cb(const struct option *opt, const char *arg, int un
 {
 	struct timerlat_params *params = opt->value;
 
-	if (unset)
-		return -1;
+	if (unset) {
+		params->common.user_workload = false;
+		params->common.user_data = false;
+		return 0;
+	}
 
 	params->common.user_workload = true;
 	params->common.user_data = true;
@@ -589,8 +703,10 @@ static int opt_nano_cb(const struct option *opt, const char *arg, int unset)
 {
 	struct timerlat_params *params = opt->value;
 
-	if (unset)
-		return -1;
+	if (unset) {
+		params->common.output_divisor = default_output_divisor;
+		return 0;
+	}
 
 	params->common.output_divisor = 1;
 
@@ -601,7 +717,12 @@ static int opt_stack_format_cb(const struct option *opt, const char *arg, int un
 {
 	int *format = opt->value;
 
-	if (unset || !arg)
+	if (unset) {
+		*format = default_stack_format;
+		return 0;
+	}
+
+	if (!arg)
 		return -1;
 
 	*format = parse_stack_format((char *)arg);
@@ -616,7 +737,13 @@ static int opt_timerlat_align_cb(const struct option *opt, const char *arg, int 
 {
 	struct timerlat_params *params = opt->value;
 
-	if (unset || !arg)
+	if (unset) {
+		params->timerlat_align = false;
+		params->timerlat_align_us = 0;
+		return 0;
+	}
+
+	if (!arg)
 		return -1;
 
 	params->timerlat_align = true;
@@ -662,7 +789,12 @@ static int opt_bucket_size_cb(const struct option *opt, const char *arg, int uns
 {
 	int *bucket_size = opt->value;
 
-	if (unset || !arg)
+	if (unset) {
+		*bucket_size = default_bucket_size;
+		return 0;
+	}
+
+	if (!arg)
 		return -1;
 
 	*bucket_size = get_llong_from_str((char *)arg);
@@ -676,7 +808,12 @@ static int opt_entries_cb(const struct option *opt, const char *arg, int unset)
 {
 	int *entries = opt->value;
 
-	if (unset || !arg)
+	if (unset) {
+		*entries = default_entries;
+		return 0;
+	}
+
+	if (!arg)
 		return -1;
 
 	*entries = get_llong_from_str((char *)arg);

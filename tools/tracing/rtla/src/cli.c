@@ -192,10 +192,10 @@ struct common_params *osnoise_hist_parse_args(int argc, char **argv)
 	actions_init(&params->common.threshold_actions);
 	actions_init(&params->common.end_actions);
 
-	/* display data in microseconds */
-	params->common.output_divisor = 1000;
-	params->common.hist.bucket_size = 1;
-	params->common.hist.entries = 256;
+	/* set default values */
+	params->common.output_divisor = default_output_divisor;
+	params->common.hist.bucket_size = default_bucket_size;
+	params->common.hist.entries = default_entries;
 
 	argc = parse_options(argc, (const char **)argv,
 			     osnoise_hist_options, osnoise_hist_usage,
@@ -280,18 +280,14 @@ struct common_params *timerlat_top_parse_args(int argc, char **argv)
 	actions_init(&params->common.threshold_actions);
 	actions_init(&params->common.end_actions);
 
-	/* disabled by default */
-	params->dma_latency = -1;
-	params->deepest_idle_state = -2;
-
-	/* display data in microseconds */
-	params->common.output_divisor = 1000;
+	/* set default values */
+	params->dma_latency = default_dma_latency;
+	params->deepest_idle_state = default_deepest_idle_state;
+	params->common.output_divisor = default_output_divisor;
+	params->stack_format = default_stack_format;
 
 	/* default to BPF mode */
 	params->mode = TRACING_MODE_BPF;
-
-	/* default to truncate stack format */
-	params->stack_format = STACK_FORMAT_TRUNCATE;
 
 	argc = parse_options(argc, (const char **)argv,
 			     timerlat_top_options, timerlat_top_usage,
@@ -403,22 +399,16 @@ struct common_params *timerlat_hist_parse_args(int argc, char **argv)
 	actions_init(&params->common.threshold_actions);
 	actions_init(&params->common.end_actions);
 
-	/* disabled by default */
-	params->dma_latency = -1;
-
-	/* disabled by default */
-	params->deepest_idle_state = -2;
-
-	/* display data in microseconds */
-	params->common.output_divisor = 1000;
-	params->common.hist.bucket_size = 1;
-	params->common.hist.entries = 256;
+	/* set default values */
+	params->dma_latency = default_dma_latency;
+	params->deepest_idle_state = default_deepest_idle_state;
+	params->common.output_divisor = default_output_divisor;
+	params->common.hist.bucket_size = default_bucket_size;
+	params->common.hist.entries = default_entries;
+	params->stack_format = default_stack_format;
 
 	/* default to BPF mode */
 	params->mode = TRACING_MODE_BPF;
-
-	/* default to truncate stack format */
-	params->stack_format = STACK_FORMAT_TRUNCATE;
 
 	argc = parse_options(argc, (const char **)argv,
 			     timerlat_hist_options, timerlat_hist_usage,
