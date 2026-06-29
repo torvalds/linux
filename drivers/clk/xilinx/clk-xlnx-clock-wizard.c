@@ -422,6 +422,9 @@ static int clk_wzrd_get_divisors(struct clk_hw *hw, unsigned long rate,
 				divider->d = d;
 				divider->o = o >> 3;
 				divider->o_frac = (o - (divider->o << 3)) * 125;
+
+				if (!diff)
+					return 0;
 			}
 		}
 	}
