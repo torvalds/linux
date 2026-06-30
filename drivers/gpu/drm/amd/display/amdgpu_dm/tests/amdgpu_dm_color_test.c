@@ -1979,6 +1979,109 @@ static void dm_test_update_crtc_color_mgmt_ctm(struct kunit *test)
 	KUNIT_EXPECT_FALSE(test, f.stream->csc_color_matrix.enable_adjustment);
 }
 
+/**
+ * dm_test_update_plane_color_mgmt_bad_lut3d - Bad 3D LUT size fails early
+ * @test: KUnit test context
+ */
+static void dm_test_update_plane_color_mgmt_bad_lut3d(struct kunit *test)
+{
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+
+	f.adev->dm.dc->caps.color.dpp.hw_3d_lut = true;
+	f.dm_plane_state->lut3d = dm_test_make_lut_blob(test, 128);
+
+	KUNIT_EXPECT_EQ(test,
+		amdgpu_dm_update_plane_color_mgmt(f.crtc_state, &f.dm_plane_state->base,
+						  f.dc_plane_state),
+		-EINVAL);
+}
+
+/**
+ * dm_test_update_plane_color_mgmt_fallback_defaults - Legacy fallback default path
+ * @test: KUnit test context
+ */
+static void dm_test_update_plane_color_mgmt_fallback_defaults(struct kunit *test)
+{
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_update_plane_color_mgmt(f.crtc_state, &f.dm_plane_state->base, f.dc_plane_state),
+			0);
+	KUNIT_EXPECT_EQ(test, f.dc_plane_state->hdr_mult.value, 0LL);
+	KUNIT_EXPECT_FALSE(test, f.dc_plane_state->cm.flags.bits.shaper_enable);
+	KUNIT_EXPECT_FALSE(test, f.dc_plane_state->cm.flags.bits.blend_enable);
+	KUNIT_EXPECT_FALSE(test, f.dc_plane_state->cm.flags.bits.lut3d_enable);
+	KUNIT_EXPECT_FALSE(test, f.dc_plane_state->gamut_remap_matrix.enable_remap);
+}
+
+/**
+ * dm_test_update_plane_color_mgmt_maps_crtc_degamma - CRTC implicit degamma path
+ * @test: KUnit test context
+ */
+static void dm_test_update_plane_color_mgmt_maps_crtc_degamma(struct kunit *test)
+{
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+
+	f.crtc_state->cm_is_degamma_srgb = true;
+
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_update_plane_color_mgmt(f.crtc_state, &f.dm_plane_state->base, f.dc_plane_state),
+			0);
+	KUNIT_EXPECT_EQ(test,
+			(int)f.dc_plane_state->in_transfer_func.type,
+			(int)TF_TYPE_PREDEFINED);
+	KUNIT_EXPECT_EQ(test,
+			(int)f.dc_plane_state->in_transfer_func.tf,
+			(int)TRANSFER_FUNCTION_SRGB);
+}
+
+/**
+ * dm_test_update_plane_color_mgmt_uses_color_caps - DC context provides color caps
+ * @test: KUnit test context
+ */
+static void dm_test_update_plane_color_mgmt_uses_color_caps(struct kunit *test)
+{
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+	struct dc_context *ctx;
+
+	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx);
+	ctx->dc = f.adev->dm.dc;
+	f.dc_plane_state->ctx = ctx;
+
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_update_plane_color_mgmt(f.crtc_state, &f.dm_plane_state->base, f.dc_plane_state),
+			0);
+}
+
+/**
+ * dm_test_update_plane_color_mgmt_plane_ctm - Plane CTM maps to gamut remap
+ * @test: KUnit test context
+ *
+ * When the plane has a CTM blob, the update path programs the DPP gamut
+ * remap matrix and enables remapping (and disables the input CSC).
+ */
+static void dm_test_update_plane_color_mgmt_plane_ctm(struct kunit *test)
+{
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+	struct drm_color_ctm_3x4 *ctm;
+
+	ctm = kunit_kzalloc(test, sizeof(*ctm), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctm);
+	/* Identity-ish entries; values are irrelevant to the branch taken. */
+	ctm->matrix[0] = 0x100000000ULL;
+	ctm->matrix[5] = 0x100000000ULL;
+	ctm->matrix[10] = 0x100000000ULL;
+
+	f.dm_plane_state->ctm = dm_test_make_ctm_blob(test, ctm, sizeof(*ctm));
+
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_update_plane_color_mgmt(f.crtc_state, &f.dm_plane_state->base, f.dc_plane_state),
+			0);
+	KUNIT_EXPECT_TRUE(test, f.dc_plane_state->gamut_remap_matrix.enable_remap);
+	KUNIT_EXPECT_FALSE(test, f.dc_plane_state->input_csc_color_matrix.enable_adjustment);
+}
+
 static struct kunit_case dm_color_test_cases[] = {
 	/* amdgpu_dm_fixpt_from_s3132 */
 	KUNIT_CASE(dm_test_fixpt_from_s3132_zero),
@@ -2096,6 +2199,11 @@ static struct kunit_case dm_color_test_cases[] = {
 	KUNIT_CASE(dm_test_check_crtc_color_mgmt_no_luts),
 	KUNIT_CASE(dm_test_update_crtc_color_mgmt_no_ctm),
 	KUNIT_CASE(dm_test_update_crtc_color_mgmt_ctm),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_bad_lut3d),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_fallback_defaults),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_maps_crtc_degamma),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_uses_color_caps),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_plane_ctm),
 	{}
 };
 

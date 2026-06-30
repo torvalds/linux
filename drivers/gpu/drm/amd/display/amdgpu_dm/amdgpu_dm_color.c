@@ -2132,3 +2132,4 @@ int amdgpu_dm_update_plane_color_mgmt(struct dm_crtc_state *crtc,
 
 	return amdgpu_dm_plane_set_color_properties(plane_state, dc_plane_state);
 }
+EXPORT_IF_KUNIT(amdgpu_dm_update_plane_color_mgmt);
