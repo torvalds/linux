@@ -1143,13 +1143,13 @@ out_drop:
 }
 
 static noinline int __btrfs_ioctl_snap_create(struct file *file,
-				struct mnt_idmap *idmap,
 				const char *name, unsigned long fd, bool subvol,
 				bool readonly,
 				struct btrfs_qgroup_inherit *inherit)
 {
 	int ret;
 	struct qstr qname = QSTR(name);
+	struct mnt_idmap *idmap = file_mnt_idmap(file);
 
 	if (!S_ISDIR(file_inode(file)->i_mode))
 		return -ENOTDIR;
@@ -1227,8 +1227,7 @@ static noinline int btrfs_ioctl_snap_create(struct file *file,
 	if (ret < 0)
 		return ret;
 
-	return __btrfs_ioctl_snap_create(file, file_mnt_idmap(file),
-					 vol_args->name, vol_args->fd, subvol,
+	return __btrfs_ioctl_snap_create(file, vol_args->name, vol_args->fd, subvol,
 					 false, NULL);
 }
 
@@ -1271,8 +1270,7 @@ static noinline int btrfs_ioctl_snap_create_v2(struct file *file,
 			return ret;
 	}
 
-	return __btrfs_ioctl_snap_create(file, file_mnt_idmap(file),
-					 vol_args->name, vol_args->fd, subvol,
+	return __btrfs_ioctl_snap_create(file, vol_args->name, vol_args->fd, subvol,
 					 readonly, inherit);
 }
 
