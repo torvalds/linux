@@ -403,6 +403,11 @@ static int w1_atoreg_num(struct device *dev, const char *buf, size_t count,
 	const char *error_msg = "bad slave string format, expecting "
 		"ff-dddddddddddd\n";
 
+	if (count < 3) {
+		dev_err(dev, "%s", error_msg);
+		return -EINVAL;
+	}
+
 	if (buf[2] != '-') {
 		dev_err(dev, "%s", error_msg);
 		return -EINVAL;
