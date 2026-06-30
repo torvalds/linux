@@ -23,6 +23,19 @@ static void virtio_pmem_req_release(struct kref *kref)
 	kfree(req);
 }
 
+static void virtio_pmem_signal_done(struct virtio_pmem_request *req)
+{
+	/* Pairs with smp_load_acquire() in virtio_pmem_req_done(). */
+	smp_store_release(&req->done, true);
+	wake_up(&req->host_acked);
+}
+
+static bool virtio_pmem_req_done(struct virtio_pmem_request *req)
+{
+	/* Pairs with smp_store_release() in virtio_pmem_signal_done(). */
+	return smp_load_acquire(&req->done);
+}
+
 static void virtio_pmem_wake_one_waiter(struct virtio_pmem *vpmem)
 {
 	struct virtio_pmem_request *req_buf;
@@ -48,8 +61,7 @@ void virtio_pmem_host_ack(struct virtqueue *vq)
 	spin_lock_irqsave(&vpmem->pmem_lock, flags);
 	while ((req_data = virtqueue_get_buf(vq, &len)) != NULL) {
 		virtio_pmem_wake_one_waiter(vpmem);
-		WRITE_ONCE(req_data->done, true);
-		wake_up(&req_data->host_acked);
+		virtio_pmem_signal_done(req_data);
 		kref_put(&req_data->kref, virtio_pmem_req_release);
 	}
 	spin_unlock_irqrestore(&vpmem->pmem_lock, flags);
@@ -136,7 +148,8 @@ static int virtio_pmem_flush(struct nd_region *nd_region)
 		err = -EIO;
 	} else {
 		/* A host response results in "host_ack" getting called */
-		wait_event(req_data->host_acked, READ_ONCE(req_data->done));
+		wait_event(req_data->host_acked,
+			   virtio_pmem_req_done(req_data));
 		err = le32_to_cpu(req_data->resp.ret);
 	}
 
