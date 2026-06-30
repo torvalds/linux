@@ -2083,6 +2083,17 @@ config SENSORS_DME1737
 	  This driver can also be built as a module. If so, the module
 	  will be called dme1737.
 
+config SENSORS_EIC7700_PVT
+	tristate "Eswin EIC7700 Voltage, Temperature sensor driver"
+	depends on ARCH_ESWIN || COMPILE_TEST
+	select POLYNOMIAL
+	help
+	  If you say yes here you get support for Eswin EIC7700 PVT sensor
+	  embedded into the SoC.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called eic7700-pvt.
+
 config SENSORS_EMC1403
 	tristate "SMSC EMC1403/23 thermal sensor"
 	depends on I2C
