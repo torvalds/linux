@@ -34,6 +34,8 @@ static const u8 ac_to_hwq[] = {
 static const struct pci_device_id rtl_aspm_quirks[] = {
 	/* ASUSTek F441U/X555UQ */
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_REALTEK, 0xb723, 0x11ad, 0x1723) },
+	/* Razer Blade 14 2017 */
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_REALTEK, 0xb723, 0x17aa, 0xb736) },
 	{}
 };
 
