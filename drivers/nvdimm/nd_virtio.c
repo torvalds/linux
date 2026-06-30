@@ -99,6 +99,9 @@ void virtio_pmem_drain(struct virtio_pmem *vpmem)
 	struct virtio_pmem_request *req;
 	unsigned int len;
 
+	if (!vpmem->req_vq)
+		return;
+
 	while ((req = virtqueue_get_buf(vpmem->req_vq, &len)) != NULL) {
 		virtio_pmem_clear_inflight(vpmem, req);
 		virtio_pmem_complete_err(req);
@@ -218,6 +221,8 @@ static int virtio_pmem_flush(struct nd_region *nd_region)
 			break;
 	}
 
+	if (READ_ONCE(vpmem->broken))
+		err = -EIO;
 	if (err == -EIO || virtqueue_is_broken(vpmem->req_vq))
 		virtio_pmem_mark_broken(vpmem);
 
