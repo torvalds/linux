@@ -401,6 +401,31 @@ static bool process_string(const char *fmt, int len, struct trace_event_call *ca
 	return true;
 }
 
+static void test_double_dereference(const char *str, int len,
+				    struct trace_event_call *call)
+{
+	const char *ptr;
+	const char *end = str + len;
+
+	ptr = strstr(str, "REC->");
+
+	while (ptr && ptr < end) {
+
+		ptr += 5;
+		for (; ptr < end; ptr++) {
+			if (ptr[0] == '-' && ptr[1] == '>') {
+				WARN_ONCE(1, "Event %s has double dereference in TP_printk: %.*s\n",
+					  trace_event_name(call), len, str);
+				return;
+			}
+			if (!isalnum(*ptr) && *ptr != '_')
+				break;
+		}
+
+		ptr = strstr(ptr, "REC->");
+	}
+}
+
 static void handle_dereference_arg(const char *arg_str, u64 string_flags, int len,
 				   u64 *dereference_flags, int arg,
 				   struct trace_event_call *call)
@@ -460,12 +485,6 @@ static void test_event_printk(struct trace_event_call *call)
 				if (in_quote) {
 					arg = 0;
 					first = false;
-					/*
-					 * If there was no %p* uses
-					 * the fmt is OK.
-					 */
-					if (!dereference_flags)
-						return;
 				}
 			}
 			if (in_quote) {
@@ -577,6 +596,8 @@ static void test_event_printk(struct trace_event_call *call)
 				continue;
 			}
 
+			test_double_dereference(fmt + start_arg, e - start_arg, call);
+
 			if (dereference_flags & (1ULL << arg)) {
 				handle_dereference_arg(fmt + start_arg, string_flags,
 						       e - start_arg,
@@ -589,6 +610,8 @@ static void test_event_printk(struct trace_event_call *call)
 			i--;
 		}
 	}
+
+	test_double_dereference(fmt + start_arg, i - start_arg, call);
 
 	if (dereference_flags & (1ULL << arg)) {
 		handle_dereference_arg(fmt + start_arg, string_flags,
