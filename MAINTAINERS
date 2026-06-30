@@ -2881,7 +2881,7 @@ W:	http://www.armlinux.org.uk/
 F:	arch/arm/include/asm/hardware/dec21285.h
 F:	arch/arm/mach-footbridge/
 
-ARM/FREESCALE IMX / MXC ARM ARCHITECTURE
+ARM/FREESCALE IMX / MXC / LAYERSCAPE ARM ARCHITECTURE
 M:	Frank Li <Frank.Li@nxp.com>
 M:	Sascha Hauer <s.hauer@pengutronix.de>
 R:	Pengutronix Kernel Team <kernel@pengutronix.de>
@@ -2895,21 +2895,10 @@ F:	Documentation/devicetree/bindings/firmware/nxp*
 F:	arch/arm/boot/dts/nxp/
 F:	arch/arm64/boot/dts/freescale/
 X:	Documentation/devicetree/bindings/media/i2c/
-X:	arch/arm64/boot/dts/freescale/fsl-*
-X:	arch/arm64/boot/dts/freescale/qoriq-*
 X:	drivers/media/i2c/
 N:	imx
 N:	mxs
 N:	\bmxc[^\d]
-
-ARM/FREESCALE LAYERSCAPE ARM ARCHITECTURE
-M:	Frank Li <Frank.Li@nxp.com>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/frank.li/linux.git
-F:	arch/arm/boot/dts/nxp/ls/
-F:	arch/arm64/boot/dts/freescale/fsl-*
-F:	arch/arm64/boot/dts/freescale/qoriq-*
 
 ARM/FREESCALE VYBRID ARM ARCHITECTURE
 M:	Frank Li <Frank.Li@nxp.com>
