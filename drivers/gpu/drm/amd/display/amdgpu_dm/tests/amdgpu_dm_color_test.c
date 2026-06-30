@@ -2082,6 +2082,221 @@ static void dm_test_update_plane_color_mgmt_plane_ctm(struct kunit *test)
 	KUNIT_EXPECT_FALSE(test, f.dc_plane_state->input_csc_color_matrix.enable_adjustment);
 }
 
+/**
+ * dm_test_colorop_pipeline_add - append one colorop to a fabricated pipeline
+ * @test: KUnit test context
+ * @f: color update fixture that owns the atomic state
+ * @index: colorop array index to populate
+ * @type: colorop type
+ * @curve_1d_type: 1D curve type for DRM_COLOROP_1D_CURVE states
+ * @bypass: bypass flag for the new colorop state
+ *
+ * Returns: the newly allocated colorop.
+ */
+static struct drm_colorop *
+dm_test_colorop_pipeline_add(struct kunit *test,
+			     struct dm_test_color_update_fixture *f,
+			     int index, enum drm_colorop_type type,
+			     enum drm_colorop_curve_1d_type curve_1d_type,
+			     bool bypass)
+{
+	struct drm_colorop_state *colorop_state;
+	struct drm_colorop *colorop;
+
+	colorop = kunit_kzalloc(test, sizeof(*colorop), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, colorop);
+	colorop->dev = &f->adev->ddev;
+	colorop->type = type;
+	colorop->size = MAX_COLOR_LUT_ENTRIES;
+
+	colorop_state = kunit_kzalloc(test, sizeof(*colorop_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, colorop_state);
+	colorop_state->colorop = colorop;
+	colorop_state->curve_1d_type = curve_1d_type;
+	colorop_state->bypass = bypass;
+
+	f->state->colorops[index].ptr = colorop;
+	f->state->colorops[index].new_state = colorop_state;
+
+	return colorop;
+}
+
+/**
+ * dm_test_colorop_pipeline_setup - build a linked colorop pipeline prefix
+ * @test: KUnit test context
+ * @f: color update fixture that owns the atomic state
+ * @types: colorop types to create
+ * @curves: curve type for each colorop state
+ * @bypass: bypass flag for each colorop state
+ * @count: number of colorops to create
+ *
+ * Returns: the first colorop in the linked pipeline.
+ */
+static struct drm_colorop *
+dm_test_colorop_pipeline_setup(struct kunit *test,
+			       struct dm_test_color_update_fixture *f,
+			       const enum drm_colorop_type *types,
+			       const enum drm_colorop_curve_1d_type *curves,
+			       const bool *bypass,
+			       int count)
+{
+	struct drm_colorop **colorops;
+	int i;
+
+	f->state->colorops = kunit_kcalloc(test, count, sizeof(*f->state->colorops),
+					   GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, f->state->colorops);
+	f->adev->ddev.mode_config.num_colorop = count;
+
+	colorops = kunit_kcalloc(test, count, sizeof(*colorops), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, colorops);
+
+	for (i = 0; i < count; i++)
+		colorops[i] = dm_test_colorop_pipeline_add(test, f, i, types[i], curves[i], bypass[i]);
+
+	for (i = 0; i < count - 1; i++)
+		colorops[i]->next = colorops[i + 1];
+
+	return colorops[0];
+}
+
+/**
+ * dm_test_update_plane_color_mgmt_colorop_bypass_pipeline - bypassed pipeline succeeds
+ * @test: KUnit test context
+ */
+static void dm_test_update_plane_color_mgmt_colorop_bypass_pipeline(struct kunit *test)
+{
+	static const enum drm_colorop_type types[] = {
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_MULTIPLIER,
+		DRM_COLOROP_CTM_3X4,
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_1D_LUT,
+		DRM_COLOROP_3D_LUT,
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_1D_LUT,
+	};
+	static const enum drm_colorop_curve_1d_type curves[] = {
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_INV_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+	};
+	static const bool bypass[] = {
+		true, true, true, true, true, true, true, true,
+	};
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+
+	f.adev->dm.dc->caps.color.dpp.hw_3d_lut = true;
+	f.dm_plane_state->base.color_pipeline =
+		dm_test_colorop_pipeline_setup(test, &f, types, curves, bypass, ARRAY_SIZE(types));
+
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_update_plane_color_mgmt(f.crtc_state, &f.dm_plane_state->base, f.dc_plane_state),
+			0);
+	KUNIT_EXPECT_FALSE(test, f.dc_plane_state->cm.flags.bits.shaper_enable);
+	KUNIT_EXPECT_FALSE(test, f.dc_plane_state->cm.flags.bits.lut3d_enable);
+	KUNIT_EXPECT_FALSE(test, f.dc_plane_state->cm.flags.bits.blend_enable);
+}
+
+/**
+ * dm_test_update_plane_color_mgmt_colorop_missing_multiplier - missing second op falls back
+ * @test: KUnit test context
+ */
+static void dm_test_update_plane_color_mgmt_colorop_missing_multiplier(struct kunit *test)
+{
+	static const enum drm_colorop_type types[] = { DRM_COLOROP_1D_CURVE };
+	static const enum drm_colorop_curve_1d_type curves[] = {
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+	};
+	static const bool bypass[] = { true };
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+
+	f.dm_plane_state->base.color_pipeline =
+		dm_test_colorop_pipeline_setup(test, &f, types, curves, bypass, ARRAY_SIZE(types));
+
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_update_plane_color_mgmt(f.crtc_state, &f.dm_plane_state->base, f.dc_plane_state),
+			0);
+	KUNIT_EXPECT_FALSE(test, f.dc_plane_state->cm.flags.bits.shaper_enable);
+	KUNIT_EXPECT_FALSE(test, f.dc_plane_state->cm.flags.bits.blend_enable);
+}
+
+/**
+ * dm_test_update_plane_color_mgmt_colorop_missing_3x4 - missing third op falls back
+ * @test: KUnit test context
+ */
+static void dm_test_update_plane_color_mgmt_colorop_missing_3x4(struct kunit *test)
+{
+	static const enum drm_colorop_type types[] = {
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_MULTIPLIER,
+	};
+	static const enum drm_colorop_curve_1d_type curves[] = {
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+	};
+	static const bool bypass[] = { true, true };
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+
+	f.dm_plane_state->base.color_pipeline =
+		dm_test_colorop_pipeline_setup(test, &f, types, curves, bypass, ARRAY_SIZE(types));
+
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_update_plane_color_mgmt(f.crtc_state, &f.dm_plane_state->base, f.dc_plane_state),
+			0);
+	KUNIT_EXPECT_FALSE(test, f.dc_plane_state->cm.flags.bits.shaper_enable);
+	KUNIT_EXPECT_FALSE(test, f.dc_plane_state->cm.flags.bits.blend_enable);
+}
+
+/**
+ * dm_test_update_plane_color_mgmt_colorop_no_3dlut_hw - no 3D LUT skips 3D ops
+ * @test: KUnit test context
+ */
+static void dm_test_update_plane_color_mgmt_colorop_no_3dlut_hw(struct kunit *test)
+{
+	static const enum drm_colorop_type types[] = {
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_MULTIPLIER,
+		DRM_COLOROP_CTM_3X4,
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_1D_LUT,
+		DRM_COLOROP_3D_LUT,
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_1D_LUT,
+	};
+	static const enum drm_colorop_curve_1d_type curves[] = {
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+	};
+	static const bool bypass[] = {
+		true, true, true, true, true, false, true, true,
+	};
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+
+	f.adev->dm.dc->caps.color.dpp.hw_3d_lut = true;
+	f.dm_plane_state->base.color_pipeline =
+		dm_test_colorop_pipeline_setup(test, &f, types, curves, bypass,
+					       ARRAY_SIZE(types));
+	f.adev->dm.dc->caps.color.dpp.hw_3d_lut = false;
+
+	KUNIT_EXPECT_EQ(test,
+		amdgpu_dm_update_plane_color_mgmt(f.crtc_state, &f.dm_plane_state->base,
+						  f.dc_plane_state),
+		0);
+	KUNIT_EXPECT_FALSE(test, f.dc_plane_state->cm.flags.bits.lut3d_enable);
+}
+
 static struct kunit_case dm_color_test_cases[] = {
 	/* amdgpu_dm_fixpt_from_s3132 */
 	KUNIT_CASE(dm_test_fixpt_from_s3132_zero),
@@ -2204,6 +2419,10 @@ static struct kunit_case dm_color_test_cases[] = {
 	KUNIT_CASE(dm_test_update_plane_color_mgmt_maps_crtc_degamma),
 	KUNIT_CASE(dm_test_update_plane_color_mgmt_uses_color_caps),
 	KUNIT_CASE(dm_test_update_plane_color_mgmt_plane_ctm),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_colorop_bypass_pipeline),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_colorop_missing_multiplier),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_colorop_missing_3x4),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_colorop_no_3dlut_hw),
 	{}
 };
 
