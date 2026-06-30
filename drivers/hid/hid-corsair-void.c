@@ -92,6 +92,9 @@
 #define CORSAIR_VOID_STATUS_REPORT_ID		0x64
 #define CORSAIR_VOID_FIRMWARE_REPORT_ID		0x66
 
+#define CORSAIR_VOID_STATUS_REPORT_SIZE		5
+#define CORSAIR_VOID_FIRMWARE_REPORT_SIZE	5
+
 #define CORSAIR_VOID_USB_SIDETONE_REQUEST	0x1
 #define CORSAIR_VOID_USB_SIDETONE_REQUEST_TYPE	0x21
 #define CORSAIR_VOID_USB_SIDETONE_VALUE		0x200
@@ -742,6 +745,13 @@ static int corsair_void_raw_event(struct hid_device *hid_dev,
 
 	/* Description of packets are documented at the top of this file */
 	if (hid_report->id == CORSAIR_VOID_STATUS_REPORT_ID) {
+		if (size < CORSAIR_VOID_STATUS_REPORT_SIZE) {
+			hid_warn_ratelimited(hid_dev,
+			                     "unexpected status report of size %d",
+			                     size);
+			return 1;
+		}
+
 		drvdata->mic_up = FIELD_GET(CORSAIR_VOID_MIC_MASK, data[2]);
 		drvdata->connected = (data[3] == CORSAIR_VOID_WIRELESS_CONNECTED) ||
 				     drvdata->is_wired;
@@ -750,6 +760,13 @@ static int corsair_void_raw_event(struct hid_device *hid_dev,
 					      FIELD_GET(CORSAIR_VOID_CAPACITY_MASK, data[2]),
 					      data[3], data[4]);
 	} else if (hid_report->id == CORSAIR_VOID_FIRMWARE_REPORT_ID) {
+		if (size < CORSAIR_VOID_FIRMWARE_REPORT_SIZE) {
+			hid_warn_ratelimited(hid_dev,
+			                     "unexpected firmware report of size %d",
+			                     size);
+			return 1;
+		}
+
 		drvdata->fw_receiver_major = data[1];
 		drvdata->fw_receiver_minor = data[2];
 		drvdata->fw_headset_major = data[3];
