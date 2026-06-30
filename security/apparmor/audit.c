@@ -52,7 +52,7 @@ static const char *const aa_class_names[] = {
 	"unknown",
 	"unknown",
 	"net",
-	"unknown",
+	"netv9",
 	"label",
 	"posix_mqueue",
 	"io_uring",
