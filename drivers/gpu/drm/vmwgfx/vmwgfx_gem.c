@@ -187,7 +187,7 @@ struct drm_gem_object *vmw_prime_import_sg_table(struct drm_device *dev,
 {
 	int ret;
 	struct vmw_private *dev_priv = vmw_priv(dev);
-	struct drm_gem_object *gem = NULL;
+	struct drm_gem_object *gem;
 	struct vmw_bo *vbo;
 	struct vmw_bo_params params = {
 		.domain = (dev_priv->has_mob) ? VMW_BO_DOMAIN_SYS : VMW_BO_DOMAIN_VRAM,
@@ -204,8 +204,10 @@ struct drm_gem_object *vmw_prime_import_sg_table(struct drm_device *dev,
 	dma_resv_lock(params.resv, NULL);
 
 	ret = vmw_bo_create(dev_priv, &params, &vbo);
-	if (ret != 0)
+	if (ret != 0) {
+		gem = ERR_PTR(ret);
 		goto out_no_bo;
+	}
 
 	vbo->tbo.base.funcs = &vmw_gem_object_funcs;
 
