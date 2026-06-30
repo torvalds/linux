@@ -15,6 +15,7 @@
 #include <linux/libnvdimm.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
+#include <linux/workqueue.h>
 
 struct virtio_pmem_request {
 	struct virtio_pmem_req req;
@@ -38,6 +39,9 @@ struct virtio_pmem {
 
 	/* Serialize flush requests to the device. */
 	struct mutex flush_lock;
+
+	/* Complete asynchronous FUA flushes outside the submit path. */
+	struct workqueue_struct *flush_wq;
 
 	/* nvdimm bus registers virtio pmem device */
 	struct nvdimm_bus *nvdimm_bus;
