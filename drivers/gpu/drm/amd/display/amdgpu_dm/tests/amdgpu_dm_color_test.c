@@ -7,14 +7,17 @@
 
 #include <kunit/test.h>
 #include <linux/types.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_colorop.h>
 #include <drm/drm_property.h>
 #include <uapi/drm/drm_mode.h>
 
 #include "dc.h"
+#include "amdgpu.h"
 #include "amdgpu_mode.h"
 #include "amdgpu_dm.h"
 #include "amdgpu_dm_color.h"
+#include "amdgpu_dm_kunit_test_helpers.h"
 
 /* ---- Tests for amdgpu_dm_fixpt_from_s3132 ---- */
 
@@ -1527,6 +1530,119 @@ static void dm_test_set_colorop_in_tf_1d_curve_bypass(struct kunit *test)
 		(int)TRANSFER_FUNCTION_LINEAR);
 }
 
+/* ---- Tests for amdgpu_dm_init_color_mod ---- */
+
+/**
+ * dm_test_init_color_mod - Smoke test: must initialize x-points without crashing
+ * @test: KUnit test context
+ */
+static void dm_test_init_color_mod(struct kunit *test)
+{
+	amdgpu_dm_init_color_mod();
+	KUNIT_SUCCEED(test);
+}
+
+/* ---- Tests for amdgpu_dm_verify_lut3d_size ---- */
+
+/**
+ * dm_test_verify_lut3d_alloc_plane - Allocate a dm_plane_state for lut3d tests
+ * @test: KUnit test context
+ *
+ * Returns: a drm_plane_state pointer embedded in a zeroed dm_plane_state.
+ */
+static struct drm_plane_state *
+dm_test_verify_lut3d_alloc_plane(struct kunit *test)
+{
+	struct dm_plane_state *dm_plane_state;
+
+	dm_plane_state = kunit_kzalloc(test, sizeof(*dm_plane_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dm_plane_state);
+
+	return &dm_plane_state->base;
+}
+
+/**
+ * dm_test_verify_lut3d_alloc_adev - Allocate adev with a DC and given 3D LUT cap
+ * @test: KUnit test context
+ * @has_3dlut: value to program into caps.color.dpp.hw_3d_lut
+ *
+ * Returns: an amdgpu_device with adev->dm.dc allocated.
+ */
+static struct amdgpu_device *
+dm_test_verify_lut3d_alloc_adev(struct kunit *test, bool has_3dlut)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+
+	adev->dm.dc = kunit_kzalloc(test, sizeof(*adev->dm.dc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, adev->dm.dc);
+	adev->dm.dc->caps.color.dpp.hw_3d_lut = has_3dlut;
+
+	return adev;
+}
+
+/**
+ * dm_test_verify_lut3d_no_luts - No shaper/3D LUT blobs: must succeed
+ * @test: KUnit test context
+ */
+static void dm_test_verify_lut3d_no_luts(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_test_verify_lut3d_alloc_adev(test, false);
+	struct drm_plane_state *plane_state = dm_test_verify_lut3d_alloc_plane(test);
+
+	KUNIT_EXPECT_EQ(test, amdgpu_dm_verify_lut3d_size(adev, plane_state), 0);
+}
+
+/**
+ * dm_test_verify_lut3d_bad_shaper - Shaper LUT with wrong size: must return -EINVAL
+ * @test: KUnit test context
+ */
+static void dm_test_verify_lut3d_bad_shaper(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_test_verify_lut3d_alloc_adev(test, true);
+	struct drm_plane_state *plane_state = dm_test_verify_lut3d_alloc_plane(test);
+	struct dm_plane_state *dm_plane_state = to_dm_plane_state(plane_state);
+
+	/* has_3dlut => expected shaper size is MAX_COLOR_LUT_ENTRIES */
+	dm_plane_state->shaper_lut = dm_test_make_lut_blob(test, 128);
+
+	KUNIT_EXPECT_EQ(test, amdgpu_dm_verify_lut3d_size(adev, plane_state), -EINVAL);
+}
+
+/**
+ * dm_test_verify_lut3d_bad_lut3d - 3D LUT with wrong size: must return -EINVAL
+ * @test: KUnit test context
+ */
+static void dm_test_verify_lut3d_bad_lut3d(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_test_verify_lut3d_alloc_adev(test, true);
+	struct drm_plane_state *plane_state = dm_test_verify_lut3d_alloc_plane(test);
+	struct dm_plane_state *dm_plane_state = to_dm_plane_state(plane_state);
+
+	/* Valid shaper, but wrong 3D LUT size */
+	dm_plane_state->shaper_lut = dm_test_make_lut_blob(test, MAX_COLOR_LUT_ENTRIES);
+	dm_plane_state->lut3d = dm_test_make_lut_blob(test, 128);
+
+	KUNIT_EXPECT_EQ(test, amdgpu_dm_verify_lut3d_size(adev, plane_state), -EINVAL);
+}
+
+/**
+ * dm_test_verify_lut3d_valid - Correct shaper and 3D LUT sizes: must succeed
+ * @test: KUnit test context
+ */
+static void dm_test_verify_lut3d_valid(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_test_verify_lut3d_alloc_adev(test, true);
+	struct drm_plane_state *plane_state = dm_test_verify_lut3d_alloc_plane(test);
+	struct dm_plane_state *dm_plane_state = to_dm_plane_state(plane_state);
+	const uint32_t lut3d_entries =
+		MAX_COLOR_3DLUT_SIZE * MAX_COLOR_3DLUT_SIZE * MAX_COLOR_3DLUT_SIZE;
+
+	dm_plane_state->shaper_lut = dm_test_make_lut_blob(test, MAX_COLOR_LUT_ENTRIES);
+	dm_plane_state->lut3d = dm_test_make_lut_blob(test, lut3d_entries);
+
+	KUNIT_EXPECT_EQ(test, amdgpu_dm_verify_lut3d_size(adev, plane_state), 0);
+}
+
 static struct kunit_case dm_color_test_cases[] = {
 	/* amdgpu_dm_fixpt_from_s3132 */
 	KUNIT_CASE(dm_test_fixpt_from_s3132_zero),
@@ -1624,6 +1740,13 @@ static struct kunit_case dm_color_test_cases[] = {
 	KUNIT_CASE(dm_test_set_colorop_in_tf_1d_curve_invalid_type),
 	KUNIT_CASE(dm_test_set_colorop_in_tf_1d_curve_unsupported_curve),
 	KUNIT_CASE(dm_test_set_colorop_in_tf_1d_curve_bypass),
+	/* amdgpu_dm_init_color_mod */
+	KUNIT_CASE(dm_test_init_color_mod),
+	/* amdgpu_dm_verify_lut3d_size */
+	KUNIT_CASE(dm_test_verify_lut3d_no_luts),
+	KUNIT_CASE(dm_test_verify_lut3d_bad_shaper),
+	KUNIT_CASE(dm_test_verify_lut3d_bad_lut3d),
+	KUNIT_CASE(dm_test_verify_lut3d_valid),
 	{}
 };
 
