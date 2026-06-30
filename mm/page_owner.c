@@ -815,7 +815,7 @@ read_page_owner(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 			 */
 			if (page_flags.f == PAGE_POISON_PATTERN)
 				goto ext_put_continue;
-			nid = memdesc_nid(page_flags);
+			nid = memdesc_nid(&page_flags);
 			if (!node_isset(nid, state->nid_filter))
 				goto ext_put_continue;
 		}
