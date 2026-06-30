@@ -355,24 +355,17 @@ out:
  */
 static int ecryptfs_write_inode_size_to_header(struct inode *ecryptfs_inode)
 {
-	char *file_size_virt;
+	__be64 file_size;
 	int rc;
 
-	file_size_virt = kmalloc(sizeof(u64), GFP_KERNEL);
-	if (!file_size_virt) {
-		rc = -ENOMEM;
-		goto out;
-	}
-	put_unaligned_be64(i_size_read(ecryptfs_inode), file_size_virt);
-	rc = ecryptfs_write_lower(ecryptfs_inode, file_size_virt, 0,
-				  sizeof(u64));
-	kfree(file_size_virt);
+	file_size = cpu_to_be64(i_size_read(ecryptfs_inode));
+	rc = ecryptfs_write_lower(ecryptfs_inode, (char *)&file_size, 0,
+				  sizeof(file_size));
 	if (rc < 0)
 		printk(KERN_ERR "%s: Error writing file size to header; "
 		       "rc = [%d]\n", __func__, rc);
 	else
 		rc = 0;
-out:
 	return rc;
 }
 
