@@ -113,6 +113,17 @@ int amdgpu_dm_atomic_blend_lut(const struct drm_color_lut *blend_lut,
 			       struct dc_plane_cm *cm);
 int __set_colorop_in_tf_1d_curve(struct dc_plane_state *dc_plane_state,
 				 struct drm_colorop_state *colorop_state);
+struct drm_plane_state;
+struct drm_colorop;
+int __set_dm_plane_colorop_degamma(struct drm_plane_state *plane_state,
+				   struct dc_plane_state *dc_plane_state,
+				   struct drm_colorop *colorop);
+int __set_dm_plane_colorop_3x4_matrix(struct drm_plane_state *plane_state,
+				      struct dc_plane_state *dc_plane_state,
+				      struct drm_colorop *colorop);
+int __set_dm_plane_colorop_multiplier(struct drm_plane_state *plane_state,
+				      struct dc_plane_state *dc_plane_state,
+				      struct drm_colorop *colorop);
 #endif
 
 #endif /* __AMDGPU_DM_COLOR_H__ */
