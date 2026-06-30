@@ -3229,6 +3229,7 @@ loff_t mapping_seek_hole_data(struct address_space *mapping, loff_t start,
 	while ((folio = find_get_entry(&xas, max, XA_PRESENT))) {
 		loff_t pos = (u64)xas.xa_index << PAGE_SHIFT;
 		size_t seek_size;
+		u64 next;
 
 		if (start < pos) {
 			if (!seek_data)
@@ -3237,7 +3238,11 @@ loff_t mapping_seek_hole_data(struct address_space *mapping, loff_t start,
 		}
 
 		seek_size = seek_folio_size(&xas, folio);
-		pos = round_up((u64)pos + 1, seek_size);
+		next = round_up((u64)pos + 1, seek_size);
+		if (next > (u64)end)
+			pos = end;
+		else
+			pos = next;
 		start = folio_seek_hole_data(&xas, mapping, folio, start, pos,
 				seek_data);
 		if (start < pos)
