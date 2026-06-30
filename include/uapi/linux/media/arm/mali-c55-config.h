@@ -219,6 +219,7 @@ struct mali_c55_stats_buffer {
  * @MALI_C55_PARAM_BLOCK_AWB_GAINS_AEXP: Auto-white balance gains for AEXP-0 tap
  * @MALI_C55_PARAM_MESH_SHADING_CONFIG : Mesh shading tables configuration
  * @MALI_C55_PARAM_MESH_SHADING_SELECTION: Mesh shading table selection
+ * @MALI_C55_PARAM_BLOCK_CCM: Colour correction matrix
  */
 enum mali_c55_param_block_type {
 	MALI_C55_PARAM_BLOCK_SENSOR_OFFS,
@@ -232,6 +233,7 @@ enum mali_c55_param_block_type {
 	MALI_C55_PARAM_BLOCK_AWB_GAINS_AEXP,
 	MALI_C55_PARAM_MESH_SHADING_CONFIG,
 	MALI_C55_PARAM_MESH_SHADING_SELECTION,
+	MALI_C55_PARAM_BLOCK_CCM,
 };
 
 /**
@@ -758,6 +760,42 @@ struct mali_c55_params_mesh_shading_selection {
 };
 
 /**
+ * struct mali_c55_params_ccm - Coefficients, offsets and gains for the colour
+ *				correction matrix
+ *
+ * The colour correction module converts images data from a sensor-specific
+ * colour space to known one.
+ *
+ * Colour correction is applied after demosaicing and each pixel is represented
+ * as a column vector of the three RGB colour channels on which the following
+ * operations take place:
+ * 1) An offset is subtracted from each colour channel
+ * 2) Each colour channel is multiplied by a gain
+ * 3) The pixel column vector is multiplied by the colour correction matrix
+ *
+ * This struct allows users to configure the coefficients for CCM and the
+ * per-channel offsets and gains. The nine matrix coefficients are expressed as
+ * 13 bits signed Q4.8 Sign/Magnitude fixed-point numbers, the three gain
+ * multipliers are expressed as 12 bits unsigned Q4.8 fixed-point numbers and
+ * the three offsets are expressed as a 12 bits unsigned integers.
+ *
+ * header.type should be set to MALI_C55_PARAM_BLOCK_CCM from
+ * :c:type:`mali_c55_param_block_type`.
+ *
+ * @header:	The Mali-C55 parameters block header
+ * @coeffs:	3x3 color conversion matrix coefficients in sign/magnitude
+ *		Q4.8 format
+ * @gains:	Gains for red, green and blue channels in unsigned Q4.8 format
+ * @offs:	Offsets for red, green and blue channels
+ */
+struct mali_c55_params_ccm {
+	struct v4l2_isp_params_block_header header;
+	__u16 coeffs[3][3];
+	__u16 gains[3];
+	__u16 offs[3];
+};
+
+/**
  * define MALI_C55_PARAMS_MAX_SIZE - Maximum size of all Mali C55 Parameters
  *
  * Though the parameters for the Mali-C55 are passed as optional blocks, the
@@ -780,6 +818,7 @@ struct mali_c55_params_mesh_shading_selection {
 	sizeof(struct mali_c55_params_awb_config) +		\
 	sizeof(struct mali_c55_params_awb_gains) +		\
 	sizeof(struct mali_c55_params_mesh_shading_config) +	\
-	sizeof(struct mali_c55_params_mesh_shading_selection))
+	sizeof(struct mali_c55_params_mesh_shading_selection) +	\
+	sizeof(struct mali_c55_params_ccm))
 
 #endif /* __UAPI_MALI_C55_CONFIG_H */
