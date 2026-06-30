@@ -10,6 +10,7 @@
 #ifndef _LINUX_VIRTIO_PMEM_H
 #define _LINUX_VIRTIO_PMEM_H
 
+#include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <uapi/linux/virtio_pmem.h>
 #include <linux/kref.h>
@@ -20,8 +21,6 @@
 
 struct virtio_pmem_request {
 	struct kref kref;
-	struct virtio_pmem_req req;
-	struct virtio_pmem_resp resp;
 
 	/* Wait queue to process deferred work after ack from host */
 	wait_queue_head_t host_acked;
@@ -31,6 +30,11 @@ struct virtio_pmem_request {
 	wait_queue_head_t wq_buf;
 	bool wq_buf_avail;
 	struct list_head list;
+
+	struct virtio_pmem_req req;
+	__dma_from_device_group_begin(resp);
+	struct virtio_pmem_resp resp;
+	__dma_from_device_group_end(resp);
 };
 
 struct virtio_pmem {
