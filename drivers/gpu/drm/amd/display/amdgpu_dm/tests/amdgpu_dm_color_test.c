@@ -1841,6 +1841,144 @@ static void dm_test_colorop_degamma_no_match(struct kunit *test)
 			-EINVAL);
 }
 
+/* ---- Tests for CRTC and plane color management update paths ---- */
+
+/**
+ * struct dm_test_color_update_fixture - minimal color update fixture
+ * @adev: backing amdgpu device
+ * @state: DRM atomic state with @adev's DRM device
+ * @crtc_state: DM CRTC state under test
+ * @stream: DC stream referenced by @crtc_state
+ * @dm_plane_state: DM plane state under test
+ * @plane: DRM plane referenced by @dm_plane_state
+ * @dc_plane_state: DC plane state under test
+ */
+struct dm_test_color_update_fixture {
+	struct amdgpu_device *adev;
+	struct drm_atomic_commit *state;
+	struct dm_crtc_state *crtc_state;
+	struct dc_stream_state *stream;
+	struct dm_plane_state *dm_plane_state;
+	struct drm_plane *plane;
+	struct dc_plane_state *dc_plane_state;
+};
+
+/**
+ * dm_test_color_update_setup - allocate a minimal color update fixture
+ * @test: KUnit test context
+ *
+ * Returns: a populated fixture with all large DC/DRM state heap-allocated.
+ */
+static struct dm_test_color_update_fixture
+dm_test_color_update_setup(struct kunit *test)
+{
+	struct dm_test_color_update_fixture f = {0};
+
+	f.adev = dm_kunit_alloc_adev(test);
+	f.adev->dm.dc = kunit_kzalloc(test, sizeof(*f.adev->dm.dc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, f.adev->dm.dc);
+
+	f.state = kunit_kzalloc(test, sizeof(*f.state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, f.state);
+	f.state->dev = &f.adev->ddev;
+
+	f.stream = kunit_kzalloc(test, sizeof(*f.stream), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, f.stream);
+
+	f.crtc_state = kunit_kzalloc(test, sizeof(*f.crtc_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, f.crtc_state);
+	f.crtc_state->base.state = f.state;
+	f.crtc_state->stream = f.stream;
+
+	f.plane = kunit_kzalloc(test, sizeof(*f.plane), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, f.plane);
+	f.plane->dev = &f.adev->ddev;
+
+	f.dm_plane_state = kunit_kzalloc(test, sizeof(*f.dm_plane_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, f.dm_plane_state);
+	f.dm_plane_state->base.state = f.state;
+	f.dm_plane_state->base.plane = f.plane;
+
+	f.dc_plane_state = kunit_kzalloc(test, sizeof(*f.dc_plane_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, f.dc_plane_state);
+
+	return f;
+}
+
+/**
+ * dm_test_make_ctm_blob - Allocate a fake drm_property_blob for CTM data
+ * @test: KUnit test context
+ * @data: CTM data pointer
+ * @size: CTM data size in bytes
+ *
+ * Returns: a fake property blob pointing at @data.
+ */
+static struct drm_property_blob *
+dm_test_make_ctm_blob(struct kunit *test, void *data, size_t size)
+{
+	struct drm_property_blob *blob;
+
+	blob = kunit_kzalloc(test, sizeof(*blob), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, blob);
+	blob->data = data;
+	blob->length = size;
+
+	return blob;
+}
+
+/**
+ * dm_test_check_crtc_color_mgmt_no_luts - No CRTC LUTs check succeeds
+ * @test: KUnit test context
+ */
+static void dm_test_check_crtc_color_mgmt_no_luts(struct kunit *test)
+{
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+
+	f.crtc_state->cm_has_degamma = true;
+	f.crtc_state->cm_is_degamma_srgb = true;
+
+	KUNIT_EXPECT_EQ(test, amdgpu_dm_check_crtc_color_mgmt(f.crtc_state, true), 0);
+	KUNIT_EXPECT_FALSE(test, f.crtc_state->cm_has_degamma);
+	KUNIT_EXPECT_FALSE(test, f.crtc_state->cm_is_degamma_srgb);
+}
+
+/**
+ * dm_test_update_crtc_color_mgmt_no_ctm - No CRTC CTM leaves remap bypassed
+ * @test: KUnit test context
+ */
+static void dm_test_update_crtc_color_mgmt_no_ctm(struct kunit *test)
+{
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+
+	f.stream->gamut_remap_matrix.enable_remap = true;
+	f.stream->csc_color_matrix.enable_adjustment = true;
+
+	KUNIT_EXPECT_EQ(test, amdgpu_dm_update_crtc_color_mgmt(f.crtc_state), 0);
+	KUNIT_EXPECT_FALSE(test, f.stream->gamut_remap_matrix.enable_remap);
+	KUNIT_EXPECT_FALSE(test, f.stream->csc_color_matrix.enable_adjustment);
+}
+
+/**
+ * dm_test_update_crtc_color_mgmt_ctm - CRTC CTM enables stream gamut remap
+ * @test: KUnit test context
+ */
+static void dm_test_update_crtc_color_mgmt_ctm(struct kunit *test)
+{
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+	struct drm_color_ctm *ctm;
+
+	ctm = kunit_kzalloc(test, sizeof(*ctm), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctm);
+	ctm->matrix[0] = 1ULL << 32;
+	ctm->matrix[4] = 1ULL << 32;
+	ctm->matrix[8] = 1ULL << 32;
+	f.crtc_state->base.ctm = dm_test_make_ctm_blob(test, ctm, sizeof(*ctm));
+
+	KUNIT_EXPECT_EQ(test, amdgpu_dm_update_crtc_color_mgmt(f.crtc_state), 0);
+	KUNIT_EXPECT_TRUE(test, f.stream->gamut_remap_matrix.enable_remap);
+	KUNIT_EXPECT_FALSE(test, f.stream->csc_color_matrix.enable_adjustment);
+}
+
 static struct kunit_case dm_color_test_cases[] = {
 	/* amdgpu_dm_fixpt_from_s3132 */
 	KUNIT_CASE(dm_test_fixpt_from_s3132_zero),
@@ -1954,6 +2092,10 @@ static struct kunit_case dm_color_test_cases[] = {
 	/* __set_dm_plane_colorop_degamma */
 	KUNIT_CASE(dm_test_colorop_degamma_predefined),
 	KUNIT_CASE(dm_test_colorop_degamma_no_match),
+	/* CRTC and plane color management update paths */
+	KUNIT_CASE(dm_test_check_crtc_color_mgmt_no_luts),
+	KUNIT_CASE(dm_test_update_crtc_color_mgmt_no_ctm),
+	KUNIT_CASE(dm_test_update_crtc_color_mgmt_ctm),
 	{}
 };
 
