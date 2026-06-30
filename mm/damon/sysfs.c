@@ -1909,15 +1909,10 @@ static int damon_sysfs_set_attrs(struct damon_ctx *ctx,
 	return damon_set_attrs(ctx, &attrs);
 }
 
-static int damon_sysfs_set_probe(struct damon_probe *probe,
-		struct damon_sysfs_probe *sys_probe)
+static int damon_sysfs_set_filters(struct damon_probe *probe,
+		struct damon_sysfs_filters *sys_filters)
 {
-	struct damon_sysfs_filters *sys_filters;
 	int i;
-
-	sys_filters = sys_probe->filters;
-	if (!sys_filters)
-		return 0;
 
 	for (i = 0; i < sys_filters->nr; i++) {
 		struct damon_sysfs_filter *sys_filter =
@@ -1943,6 +1938,17 @@ static int damon_sysfs_set_probe(struct damon_probe *probe,
 		damon_add_filter(probe, filter);
 	}
 	return 0;
+}
+
+static int damon_sysfs_set_probe(struct damon_probe *probe,
+		struct damon_sysfs_probe *sys_probe)
+{
+	struct damon_sysfs_filters *sys_filters;
+
+	sys_filters = sys_probe->filters;
+	if (!sys_filters)
+		return 0;
+	return damon_sysfs_set_filters(probe, sys_filters);
 }
 
 static int damon_sysfs_set_probes(struct damon_ctx *ctx,
