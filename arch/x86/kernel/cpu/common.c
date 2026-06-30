@@ -1651,7 +1651,7 @@ static inline bool parse_set_clear_cpuid(char *arg, bool set)
 	int taint = 0;
 
 	while (arg) {
-		bool found __maybe_unused = false;
+		bool found = false;
 		unsigned int bit;
 
 		opt = strsep(&arg, ",");

@@ -136,8 +136,7 @@ struct cont_desc {
  * Microcode patch container file is prepended to the initrd in cpio
  * format. See Documentation/arch/x86/microcode.rst
  */
-static const char
-ucode_path[] __maybe_unused = "kernel/x86/microcode/AuthenticAMD.bin";
+static const char ucode_path[] = "kernel/x86/microcode/AuthenticAMD.bin";
 
 /*
  * This is CPUID(1).EAX on the BSP. It is used in two ways:

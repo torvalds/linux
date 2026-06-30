@@ -62,7 +62,7 @@ const char *get_topology_cpu_type_name(struct cpuinfo_x86 *c)
 	}
 }
 
-static unsigned int __maybe_unused parse_num_cores_legacy(struct cpuinfo_x86 *c)
+static unsigned int parse_num_cores_legacy(struct cpuinfo_x86 *c)
 {
 	struct {
 		u32	cache_type	:  5,
