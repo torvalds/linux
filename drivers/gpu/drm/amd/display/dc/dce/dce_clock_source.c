@@ -1117,6 +1117,10 @@ static bool dcn401_program_pix_clk(
 		if (clock_source->ctx->dc->caps.is_apu &&
 			pix_clk_params->requested_pix_clk_100hz &&
 			dc_is_hdmi_frl_signal(pix_clk_params->signal_type)) {
+			//make sure dtbclk is enabled
+			if (clock_source->ctx->dc->clk_mgr->funcs->request_dtbclk)
+				clock_source->ctx->dc->clk_mgr->funcs->request_dtbclk(
+					clock_source->ctx->dc->clk_mgr, true);
 			/*need hdmistreamclk before vpg block register access*/
 			clock_source->ctx->dc->res_pool->dccg->funcs->set_hdmistreamclk(
 				clock_source->ctx->dc->res_pool->dccg,

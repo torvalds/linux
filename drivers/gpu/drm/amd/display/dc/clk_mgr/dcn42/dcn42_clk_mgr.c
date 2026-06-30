@@ -220,6 +220,7 @@ void dcn42_update_clocks(struct clk_mgr *clk_mgr_base,
 	bool update_dispclk = false;
 	bool dpp_clock_lowered = false;
 	bool has_active_display;
+	int actual_dtbclk = 0;
 
 	if (dc->work_arounds.skip_clock_update)
 		return;
@@ -260,8 +261,9 @@ void dcn42_update_clocks(struct clk_mgr *clk_mgr_base,
 		 * For dcn42b (no dtbclk hardware), init_clk_states sets dtbclk_en=false and
 		 * new_clocks->dtbclk_en should always be false, so this block never executes.
 		 */
-		if (!clk_mgr_base->clks.dtbclk_en && new_clocks->dtbclk_en) {
-			int actual_dtbclk = 0;
+		actual_dtbclk = dcn42_get_clock_freq_from_clkip(clk_mgr_base, clock_type_dtbclk);
+
+		if (new_clocks->dtbclk_en && actual_dtbclk < 590000) {
 
 			dcn42_update_clocks_update_dtb_dto(clk_mgr, context, new_clocks->ref_dtbclk_khz);
 			dcn42_smu_set_dtbclk(clk_mgr, true);
@@ -343,7 +345,6 @@ void dcn42_update_clocks(struct clk_mgr *clk_mgr_base,
 		dcn42_update_clocks_update_dtb_dto(clk_mgr, context, new_clocks->ref_dtbclk_khz);
 		clk_mgr_base->clks.ref_dtbclk_khz = new_clocks->ref_dtbclk_khz;
 	}
-
 	if (dpp_clock_lowered) {
 		// increase per DPP DTO before lowering global dppclk
 		dcn42_update_clocks_update_dpp_dto(clk_mgr, context, safe_to_lower);
@@ -1051,7 +1052,27 @@ void dcn42_get_smu_clocks(struct clk_mgr_internal *clk_mgr_int)
 		dm_helpers_free_gpu_mem(clk_mgr_base->ctx, DC_MEM_ALLOC_TYPE_GART,
 				smu_dpm_clks.dpm_clks);
 }
+void dcn42_request_dtbclk(struct clk_mgr *clk_mgr_base, bool enable)
+{
+	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 
+	/*pmfw might turn off dtblck based on allow_dtbstop*/
+	clk_mgr_base->clks.dtbclk_en = false;
+
+	if (enable) {
+		int actual_dtbclk = 0;
+
+		dcn42_smu_set_dtbclk(clk_mgr, true);
+		actual_dtbclk = dcn42_get_clock_freq_from_clkip(clk_mgr_base, clock_type_dtbclk);
+		if (actual_dtbclk > 590000) {
+			clk_mgr_base->clks.ref_dtbclk_khz = actual_dtbclk;
+			clk_mgr_base->clks.dtbclk_en = true;
+		}
+	} else {
+		clk_mgr_base->clks.dtbclk_en = false;
+		dcn42_smu_set_dtbclk(clk_mgr, false);
+	}
+}
 static struct clk_mgr_funcs dcn42_funcs = {
 	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
 	.get_dtb_ref_clk_frequency = dcn31_get_dtb_ref_freq_khz,
@@ -1065,6 +1086,7 @@ static struct clk_mgr_funcs dcn42_funcs = {
 	.get_max_clock_khz = dcn42_get_max_clock_khz,
 	.get_dispclk_from_dentist = dcn42_get_dispclk_from_dentist,
 	.is_smu_present = dcn42_is_smu_present,
+	.request_dtbclk = dcn42_request_dtbclk,
 	.notify_cstate_disable = dcn42_notify_cstate_disable,
 };
 

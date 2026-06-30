@@ -84,4 +84,5 @@ void dcn42_get_dpm_table_from_smu(struct clk_mgr_internal *clk_mgr, struct dcn42
 void dcn42_get_smu_clocks(struct clk_mgr_internal *clk_mgr_int);
 void dcn42_update_clocks_fpga(struct clk_mgr *clk_mgr, struct dc_state *context, bool safe_to_lower);
 int dcn42_get_dispclk_from_dentist(struct clk_mgr *clk_mgr_base);
+void dcn42_request_dtbclk(struct clk_mgr *clk_mgr_base, bool enable);
 #endif //__DCN42_CLK_MGR_H__

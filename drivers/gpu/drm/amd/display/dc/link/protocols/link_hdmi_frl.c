@@ -415,6 +415,18 @@ void hdmi_frl_LTS_clear_Link_Setting(struct ddc_service *ddc_service)
 
 }
 
+static uint8_t hdmi_frl_get_max_ffe_level(struct dc_link *link,
+		struct dc_hdmi_frl_link_settings *link_settings)
+{
+	uint8_t max_ffe_level =
+			(link_settings->frl_link_rate > HDMI_FRL_LINK_RATE_12GBPS) ? 7 : 3;
+
+	if ((uint8_t)link->dc->debug.limit_ffe < max_ffe_level)
+		max_ffe_level = (uint8_t)link->dc->debug.limit_ffe;
+
+	return max_ffe_level;
+}
+
 static enum link_result hdmi_frl_perform_link_training(struct ddc_service *ddc_service,
 		struct dc_hdmi_frl_link_settings *link_settings)
 {
@@ -436,7 +448,7 @@ static enum link_result hdmi_frl_perform_link_training(struct ddc_service *ddc_s
 	struct hpo_frl_link_encoder *hpo_frl_link_enc = ddc_service->link->hpo_frl_link_enc;
 	struct link_encoder *dio_link_enc = ddc_service->link->link_enc;
 	uint8_t sink_version = 0;
-	uint8_t FFE_Levels = (uint8_t)ddc_service->link->dc->debug.limit_ffe;
+	uint8_t FFE_Levels = hdmi_frl_get_max_ffe_level(ddc_service->link, link_settings);
 	uint8_t current_FFE = 0;
 	bool override_FFE = false;
 	bool flt_no_timeout = false;
@@ -616,7 +628,7 @@ static enum link_result hdmi_frl_perform_link_training(struct ddc_service *ddc_s
 						}
 						current_FFE++;
 						override_FFE = true;
-						if (current_FFE > 3)
+						if (current_FFE > FFE_Levels)
 							current_FFE = 0;
 						if (flt_no_timeout)
 							current_FFE = 0;
@@ -642,7 +654,7 @@ static enum link_result hdmi_frl_perform_link_training(struct ddc_service *ddc_s
 						}
 						current_FFE++;
 						override_FFE = true;
-						if (current_FFE > 3)
+						if (current_FFE > FFE_Levels)
 							current_FFE = 0;
 						if (flt_no_timeout)
 							current_FFE = 0;
