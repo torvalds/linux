@@ -312,17 +312,21 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 	char *tok, *resname;
 	int ret = 0;
 
-	/* Valid input requires a trailing newline */
-	if (nbytes == 0 || buf[nbytes - 1] != '\n')
-		return -EINVAL;
-	buf[nbytes - 1] = '\0';
-
 	rdtgrp = rdtgroup_kn_lock_live(of->kn);
 	if (!rdtgrp) {
 		rdtgroup_kn_unlock(of->kn);
 		return -ENOENT;
 	}
 	rdt_last_cmd_clear();
+
+	/* Valid input requires a trailing newline */
+	if (nbytes == 0 || buf[nbytes - 1] != '\n') {
+		rdt_last_cmd_puts("schemata: Invalid input\n");
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	buf[nbytes - 1] = '\0';
 
 	/*
 	 * No changes to pseudo-locked region allowed. It has to be removed
@@ -466,17 +470,21 @@ ssize_t rdtgroup_mba_mbps_event_write(struct kernfs_open_file *of,
 	struct rdtgroup *rdtgrp;
 	int ret = 0;
 
-	/* Valid input requires a trailing newline */
-	if (nbytes == 0 || buf[nbytes - 1] != '\n')
-		return -EINVAL;
-	buf[nbytes - 1] = '\0';
-
 	rdtgrp = rdtgroup_kn_lock_live(of->kn);
 	if (!rdtgrp) {
 		rdtgroup_kn_unlock(of->kn);
 		return -ENOENT;
 	}
 	rdt_last_cmd_clear();
+
+	/* Valid input requires a trailing newline */
+	if (nbytes == 0 || buf[nbytes - 1] != '\n') {
+		rdt_last_cmd_puts("mba_MBps_event: Invalid input\n");
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	buf[nbytes - 1] = '\0';
 
 	if (!strcmp(buf, "mbm_local_bytes")) {
 		if (resctrl_is_mon_event_enabled(QOS_L3_MBM_LOCAL_EVENT_ID))
@@ -495,6 +503,7 @@ ssize_t rdtgroup_mba_mbps_event_write(struct kernfs_open_file *of,
 	if (ret)
 		rdt_last_cmd_printf("Unsupported event id '%s'\n", buf);
 
+out_unlock:
 	rdtgroup_kn_unlock(of->kn);
 
 	return ret ?: nbytes;
@@ -858,15 +867,17 @@ ssize_t resctrl_io_alloc_write(struct kernfs_open_file *of, char *buf,
 	bool enable;
 	int ret;
 
-	ret = kstrtobool(buf, &enable);
-	if (ret)
-		return ret;
-
 	if (!info_kn_lock(of->kn))
 		return -ENOENT;
 
 	r = s->res;
 	rdt_last_cmd_clear();
+
+	ret = kstrtobool(buf, &enable);
+	if (ret) {
+		rdt_last_cmd_puts("io_alloc: Invalid input\n");
+		goto out_unlock;
+	}
 
 	if (!r->cache.io_alloc_capable) {
 		rdt_last_cmd_printf("io_alloc is not supported on %s\n", s->name);
@@ -1022,17 +1033,21 @@ ssize_t resctrl_io_alloc_cbm_write(struct kernfs_open_file *of, char *buf,
 	u32 io_alloc_closid;
 	int ret = 0;
 
-	/* Valid input requires a trailing newline */
-	if (nbytes == 0 || buf[nbytes - 1] != '\n')
-		return -EINVAL;
-
-	buf[nbytes - 1] = '\0';
-
 	if (!info_kn_lock(of->kn))
 		return -ENOENT;
 	rdt_last_cmd_clear();
 
 	r = s->res;
+
+	/* Valid input requires a trailing newline */
+	if (nbytes == 0 || buf[nbytes - 1] != '\n') {
+		rdt_last_cmd_puts("io_alloc_cbm: Invalid input\n");
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	buf[nbytes - 1] = '\0';
+
 	if (!r->cache.io_alloc_capable) {
 		rdt_last_cmd_printf("io_alloc is not supported on %s\n", s->name);
 		ret = -ENODEV;
