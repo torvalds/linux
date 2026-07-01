@@ -1299,14 +1299,20 @@ static ssize_t max_threshold_occ_write(struct kernfs_open_file *of,
 	unsigned int bytes;
 	int ret;
 
-	ret = kstrtouint(buf, 0, &bytes);
-	if (ret)
-		return ret;
-
 	if (!info_kn_lock(of->kn))
 		return -ENOENT;
 
+	rdt_last_cmd_clear();
+
+	ret = kstrtouint(buf, 0, &bytes);
+	if (ret) {
+		rdt_last_cmd_puts("max_threshold_occupancy: Invalid input\n");
+		goto out_unlock;
+	}
+
 	if (bytes > resctrl_rmid_realloc_limit) {
+		rdt_last_cmd_printf("max_threshold_occupancy: Exceeds limit (before adjustment) of %u bytes\n",
+				    resctrl_rmid_realloc_limit);
 		ret = -EINVAL;
 		goto out_unlock;
 	}
