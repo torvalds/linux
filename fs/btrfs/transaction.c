@@ -698,8 +698,6 @@ again:
 		goto alloc_fail;
 	}
 
-	xa_init(&h->writeback_inhibited_ebs);
-
 	/*
 	 * If we are JOIN_NOLOCK we're already committing a transaction and
 	 * waiting on this guy, so we don't need to do the sb_start_intwrite

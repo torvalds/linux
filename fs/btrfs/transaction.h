@@ -7,12 +7,12 @@
 #define BTRFS_TRANSACTION_H
 
 #include <linux/atomic.h>
+#include <linux/build_bug.h>
 #include <linux/refcount.h>
 #include <linux/list.h>
 #include <linux/time64.h>
 #include <linux/mutex.h>
 #include <linux/wait.h>
-#include <linux/xarray.h>
 #include "btrfs_inode.h"
 #include "delayed-ref.h"
 
@@ -23,6 +23,7 @@ struct btrfs_fs_info;
 struct btrfs_root_item;
 struct btrfs_root;
 struct btrfs_path;
+struct extent_buffer;
 
 /*
  * Signal that a direct IO write is in progress, to avoid deadlock for sync
@@ -136,6 +137,18 @@ enum {
 
 #define TRANS_EXTWRITERS	(__TRANS_START | __TRANS_ATTACH)
 
+/*
+ * Number of extent buffers a transaction handle tracks for writeback
+ * inhibition. The CLOCK reference bits pack into a u32 so this must not exceed
+ * 32, and keeping it a power of two lets the compiler reduce the CLOCK hand
+ * modulo to a mask.
+ */
+#define BTRFS_INHIBITED_EBS_SLOTS				8
+
+static_assert(BTRFS_INHIBITED_EBS_SLOTS <= 32);
+static_assert(BTRFS_INHIBITED_EBS_SLOTS != 0 &&
+	      (BTRFS_INHIBITED_EBS_SLOTS & (BTRFS_INHIBITED_EBS_SLOTS - 1)) == 0);
+
 struct btrfs_trans_handle {
 	u64 transid;
 	u64 bytes_reserved;
@@ -163,8 +176,14 @@ struct btrfs_trans_handle {
 	struct btrfs_fs_info *fs_info;
 	struct list_head new_bgs;
 	struct btrfs_block_rsv delayed_rsv;
-	/* Extent buffers with writeback inhibited by this handle. */
-	struct xarray writeback_inhibited_ebs;
+
+	/* Extent buffers this handle has inhibited writeback on. */
+	struct extent_buffer *inhibited_ebs[BTRFS_INHIBITED_EBS_SLOTS];
+	/* CLOCK reference bit per slot. */
+	u32 inhibited_ebs_referenced;
+	u32 nr_inhibited_ebs;
+	/* CLOCK hand. */
+	u32 inhibited_ebs_hand;
 };
 
 /*

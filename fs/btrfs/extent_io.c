@@ -3141,46 +3141,70 @@ static inline void btrfs_release_extent_buffer(struct extent_buffer *eb)
 }
 
 /*
+ * Claim a slot to track an extent buffer in, evicting the coldest tracked buffer
+ * when the array is full.
+ *
+ * Slots fill in order until the array is full. After that a CLOCK (second
+ * chance) scan advances the hand, clearing one reference bit per step, until
+ * it lands on an unreferenced slot whose buffer is evicted. Clearing a bit per
+ * step bounds the scan to BTRFS_INHIBITED_EBS_SLOTS iterations.
+ */
+static int btrfs_inhibit_claim_slot(struct btrfs_trans_handle *trans)
+{
+	int slot;
+
+	if (trans->nr_inhibited_ebs < BTRFS_INHIBITED_EBS_SLOTS)
+		return trans->nr_inhibited_ebs++;
+
+	while (trans->inhibited_ebs_referenced & (1U << trans->inhibited_ebs_hand)) {
+		trans->inhibited_ebs_referenced &= ~(1U << trans->inhibited_ebs_hand);
+		trans->inhibited_ebs_hand =
+			(trans->inhibited_ebs_hand + 1) % BTRFS_INHIBITED_EBS_SLOTS;
+	}
+	slot = trans->inhibited_ebs_hand;
+	trans->inhibited_ebs_hand = (trans->inhibited_ebs_hand + 1) % BTRFS_INHIBITED_EBS_SLOTS;
+
+	atomic_dec(&trans->inhibited_ebs[slot]->writeback_inhibitors);
+	free_extent_buffer(trans->inhibited_ebs[slot]);
+
+	return slot;
+}
+
+/*
  * Inhibit writeback on buffer during transaction.
  *
  * @trans:  transaction handle that will own the inhibitor
  * @eb:      extent buffer to inhibit writeback on
  *
- * Attempt to track this extent buffer in the transaction's inhibited set.  If
- * memory allocation fails, the buffer is simply not tracked. It may be written
- * back and need re-COW, which is the original behavior.  This is acceptable
- * since inhibiting writeback is an optimization.
+ * Attempt to track this extent buffer in the transaction's inhibited set.  When
+ * the set is full the coldest tracked buffer is evicted instead.  An untracked
+ * buffer may be written back and need re-COW, which is the original behavior.
+ * This is acceptable since inhibiting writeback is an optimization.
  */
 void btrfs_inhibit_eb_writeback(struct btrfs_trans_handle *trans, struct extent_buffer *eb)
 {
-	unsigned long index = eb->start >> trans->fs_info->nodesize_bits;
-	void *old;
+	int slot;
 
 	lockdep_assert_held(&eb->lock);
-	/* Check if already inhibited by this handle. */
-	old = xa_load(&trans->writeback_inhibited_ebs, index);
-	if (old == eb)
-		return;
 
-	/* Take reference for the xarray entry. */
+	/* Already tracked: set its reference bit (second chance) and return. */
+	for (int i = 0; i < trans->nr_inhibited_ebs; i++) {
+		if (trans->inhibited_ebs[i] == eb) {
+			trans->inhibited_ebs_referenced |= 1U << i;
+			return;
+		}
+	}
+
+	slot = btrfs_inhibit_claim_slot(trans);
+
+	/*
+	 * Pin the eb while the array holds a raw pointer to it; the counter is
+	 * what lock_extent_buffer_for_io() checks.
+	 */
 	refcount_inc(&eb->refs);
-
-	old = xa_store(&trans->writeback_inhibited_ebs, index, eb, GFP_NOFS);
-	if (xa_is_err(old)) {
-		/* Allocation failed, just skip inhibiting this buffer. */
-		free_extent_buffer(eb);
-		return;
-	}
-
-	/* Handle replacement of different eb at same index. */
-	if (old && old != eb) {
-		struct extent_buffer *old_eb = old;
-
-		atomic_dec(&old_eb->writeback_inhibitors);
-		free_extent_buffer(old_eb);
-	}
-
 	atomic_inc(&eb->writeback_inhibitors);
+	trans->inhibited_ebs[slot] = eb;
+	trans->inhibited_ebs_referenced |= 1U << slot;
 }
 
 /*
@@ -3188,14 +3212,13 @@ void btrfs_inhibit_eb_writeback(struct btrfs_trans_handle *trans, struct extent_
  */
 void btrfs_uninhibit_all_eb_writeback(struct btrfs_trans_handle *trans)
 {
-	struct extent_buffer *eb;
-	unsigned long index;
-
-	xa_for_each(&trans->writeback_inhibited_ebs, index, eb) {
-		atomic_dec(&eb->writeback_inhibitors);
-		free_extent_buffer(eb);
+	for (int i = 0; i < trans->nr_inhibited_ebs; i++) {
+		atomic_dec(&trans->inhibited_ebs[i]->writeback_inhibitors);
+		free_extent_buffer(trans->inhibited_ebs[i]);
 	}
-	xa_destroy(&trans->writeback_inhibited_ebs);
+	trans->nr_inhibited_ebs = 0;
+	trans->inhibited_ebs_referenced = 0;
+	trans->inhibited_ebs_hand = 0;
 }
 
 static struct extent_buffer *__alloc_extent_buffer(struct btrfs_fs_info *fs_info,
