@@ -21,6 +21,7 @@
 #define SWINF_WFVLDCLR	0x06
 
 #define GET_SWINF(x)	(((x) >> 1) & 0x7)
+#define GET_SWINFERR(x) (((x) >> 18) & 0x1)
 
 #define PMIF_CMD_REG_0		0
 #define PMIF_CMD_REG		1
@@ -349,6 +350,7 @@ static int pmif_spmi_read_cmd(struct spmi_controller *ctrl, u8 opc, u8 sid,
 	struct pmif *arb = to_mtk_pmif(ctrl);
 	struct ch_reg *inf_reg;
 	int ret;
+	u8 retry = 0;
 	u32 data, cmd;
 	unsigned long flags;
 
@@ -385,17 +387,35 @@ static int pmif_spmi_read_cmd(struct spmi_controller *ctrl, u8 opc, u8 sid,
 		return ret;
 	}
 
-	/* Send the command. */
 	cmd = (opc << 30) | (sid << 24) | ((len - 1) << 16) | addr;
-	pmif_writel(arb, pbus, cmd, inf_reg->ch_send);
+	do {
+		/* Send the command. */
+		pmif_writel(arb, pbus, cmd, inf_reg->ch_send);
 
-	/*
-	 * Wait for Software Interface FSM state to be WFVLDCLR,
-	 * read the data and clear the valid flag.
-	 */
-	ret = readl_poll_timeout_atomic(pbus->base + arb->data->regs[inf_reg->ch_sta],
-					data, GET_SWINF(data) == SWINF_WFVLDCLR,
-					PMIF_DELAY_US, PMIF_TIMEOUT_US);
+		/*
+		 * Wait for Software Interface FSM state to be WFVLDCLR or to
+		 * return an error.
+		 *
+		 * If this is WFVLDCLR, read the data and clear the valid flag;
+		 * If error or timeout, retry for a maximum of 3 times as a
+		 * workaround for an hardware issue.
+		 */
+		ret = readl_poll_timeout_atomic(pbus->base + arb->data->regs[inf_reg->ch_sta],
+						data,
+						GET_SWINF(data) == SWINF_WFVLDCLR ||
+						GET_SWINFERR(data),
+						PMIF_DELAY_US, PMIF_TIMEOUT_US / 2);
+		if (ret < 0)
+			continue;
+
+		if (GET_SWINFERR(data)) {
+			ret = -EIO;
+			continue;
+		}
+
+		break;
+	} while (++retry < 3);
+
 	if (ret < 0) {
 		raw_spin_unlock_irqrestore(&pbus->lock, flags);
 		dev_err(&ctrl->dev, "failed to wait for SWINF_WFVLDCLR\n");
