@@ -4174,6 +4174,9 @@ static bool __wp_can_reuse_large_anon_folio(struct folio *folio,
 static bool wp_can_reuse_anon_folio(struct folio *folio,
 				    struct vm_area_struct *vma)
 {
+	const bool maybe_in_lru_cache = !folio_test_lru(folio);
+	const bool in_swapcache = folio_test_swapcache(folio);
+
 	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) && folio_test_large(folio))
 		return __wp_can_reuse_large_anon_folio(folio, vma);
 
@@ -4184,15 +4187,16 @@ static bool wp_can_reuse_anon_folio(struct folio *folio,
 	 *
 	 * KSM doesn't necessarily raise the folio refcount.
 	 */
-	if (folio_test_ksm(folio) || folio_ref_count(folio) > 3)
+	if (folio_test_ksm(folio) ||
+	    folio_ref_count(folio) > 1 + maybe_in_lru_cache + in_swapcache)
 		return false;
-	if (!folio_test_lru(folio))
+	if (maybe_in_lru_cache)
 		/*
 		 * We cannot easily detect+handle references from
 		 * remote LRU caches or references to LRU folios.
 		 */
 		lru_add_drain();
-	if (folio_ref_count(folio) > 1 + folio_test_swapcache(folio))
+	if (folio_ref_count(folio) > 1 + in_swapcache)
 		return false;
 	if (!folio_trylock(folio))
 		return false;
