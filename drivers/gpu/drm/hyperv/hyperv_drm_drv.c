@@ -51,8 +51,8 @@ static void hv_drm_pci_remove(struct pci_dev *pdev)
 
 static const struct pci_device_id hv_drm_pci_tbl[] = {
 	{
-		.vendor = PCI_VENDOR_ID_MICROSOFT,
-		.device = PCI_DEVICE_ID_HYPERV_VIDEO,
+		PCI_VDEVICE_SUB(MICROSOFT, PCI_DEVICE_ID_HYPERV_VIDEO,
+				0, 0),
 	},
 	{ /* end of list */ }
 };
