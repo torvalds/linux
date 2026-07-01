@@ -221,6 +221,10 @@ MODULE_DEVICE_TABLE(of, of_sky1_pcie_match);
 static void sky1_pcie_remove(struct platform_device *pdev)
 {
 	struct sky1_pcie *pcie = platform_get_drvdata(pdev);
+	struct cdns_pcie_rc *rc;
+
+	rc = container_of(pcie->cdns_pcie, struct cdns_pcie_rc, pcie);
+	cdns_pcie_hpa_host_disable(rc);
 
 	pci_ecam_free(pcie->cfg);
 }
