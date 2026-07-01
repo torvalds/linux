@@ -2256,7 +2256,7 @@
 			qcom,bcm-voters = <&apps_bcm_voter>;
 		};
 
-		pcie0: pci@1c00000 {
+		pcie0: pcie@1c00000 {
 			device_type = "pci";
 			compatible = "qcom,pcie-qcs8300", "qcom,pcie-sa8775p";
 			reg = <0x0 0x01c00000 0x0 0x3000>,
@@ -2435,7 +2435,7 @@
 			status = "disabled";
 		};
 
-		pcie1: pci@1c10000 {
+		pcie1: pcie@1c10000 {
 			device_type = "pci";
 			compatible = "qcom,pcie-qcs8300", "qcom,pcie-sa8775p";
 			reg = <0x0 0x01c10000 0x0 0x3000>,

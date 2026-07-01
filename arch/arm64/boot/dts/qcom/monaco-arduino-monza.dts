@@ -421,7 +421,7 @@
 &pcieport0 {
 	reset-gpios = <&tlmm 2 GPIO_ACTIVE_LOW>;
 
-	pci@0,0 {
+	pcie@0,0 {
 		#address-cells = <3>;
 		#size-cells = <2>;
 		device_type = "pci";
@@ -429,7 +429,7 @@
 		ranges;
 		reg = <0x010000 0x00 0x00 0x00 0x00>;
 
-		pci@2,0 {
+		pcie@2,0 {
 			#address-cells = <3>;
 			#size-cells = <2>;
 			device_type = "pci";
