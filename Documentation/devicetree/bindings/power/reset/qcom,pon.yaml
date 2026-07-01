@@ -79,6 +79,10 @@ allOf:
         reg-names:
           items:
             - const: pon
+      patternProperties:
+        # Negative look-ahead to disallow unsupported modes. The '$' has to be
+        # part of lookahead group to work, instead of trailing outside of ().
+        "^mode-(?!(bootloader$|recovery$))": false
     else:
       patternProperties:
         "^mode-.*$": false
