@@ -516,7 +516,7 @@ int get_futex_key(u32 __user *uaddr, unsigned int flags, union futex_key *key,
 	 * The futex address must be "naturally" aligned.
 	 */
 	key->both.offset = address % PAGE_SIZE;
-	if (unlikely((address % size) != 0))
+	if (unlikely((address & (size-1)) != 0))
 		return -EINVAL;
 	address -= key->both.offset;
 
