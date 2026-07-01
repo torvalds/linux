@@ -4199,7 +4199,7 @@ int vfs_create(struct mnt_idmap *idmap, struct dentry *dentry, umode_t mode,
 	error = try_break_deleg(dir, LEASE_BREAK_DIR_CREATE, di);
 	if (error)
 		return error;
-	error = dir->i_op->create(idmap, dir, dentry, mode, true);
+	error = dir->i_op->create(idmap, dir, dentry, mode);
 	if (!error)
 		fsnotify_create(dir, dentry);
 	return error;
@@ -4564,8 +4564,7 @@ retry:
 		goto out_dput;
 	}
 
-	error = dir_inode->i_op->create(idmap, dir_inode, dentry,
-					mode, open_flag & O_EXCL);
+	error = dir_inode->i_op->create(idmap, dir_inode, dentry, mode);
 	if (error)
 		goto out_dput;
 out:

@@ -2427,9 +2427,9 @@ out_err:
 }
 
 int nfs_create(struct mnt_idmap *idmap, struct inode *dir,
-	       struct dentry *dentry, umode_t mode, bool excl)
+	       struct dentry *dentry, umode_t mode)
 {
-	return nfs_do_create(dir, dentry, mode, excl ? O_EXCL : 0);
+	return nfs_do_create(dir, dentry, mode, O_EXCL);
 }
 EXPORT_SYMBOL_GPL(nfs_create);
 

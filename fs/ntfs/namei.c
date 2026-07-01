@@ -736,7 +736,7 @@ err_out:
 }
 
 static int ntfs_create(struct mnt_idmap *idmap, struct inode *dir,
-		struct dentry *dentry, umode_t mode, bool excl)
+		struct dentry *dentry, umode_t mode)
 {
 	struct ntfs_volume *vol = NTFS_SB(dir->i_sb);
 	struct ntfs_inode *ni;

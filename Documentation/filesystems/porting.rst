@@ -1401,3 +1401,11 @@ as with d_dispose_if_unused() these are not trivial; with this variant
 of API it's more explicit, since grabbing ->d_lock is caller-side, but
 d_dispose_if_unused() had all the same issues.  It's a low-level primitive;
 use only if you have no alternative.
+
+---
+
+**mandatory**
+
+The .create inode_operation no longer receives the 'excl' arg.  It must
+always assume the file does not already exist.  If the filesystem needs
+to be involved in non-exclusive create, it should provide atomic_open.

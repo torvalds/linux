@@ -86,7 +86,7 @@ nilfs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
  * with d_instantiate().
  */
 static int nilfs_create(struct mnt_idmap *idmap, struct inode *dir,
-			struct dentry *dentry, umode_t mode, bool excl)
+			struct dentry *dentry, umode_t mode)
 {
 	struct inode *inode;
 	struct nilfs_transaction_info ti;

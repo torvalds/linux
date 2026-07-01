@@ -75,7 +75,7 @@ static bool efivarfs_valid_name(const char *str, int len)
 }
 
 static int efivarfs_create(struct mnt_idmap *idmap, struct inode *dir,
-			   struct dentry *dentry, umode_t mode, bool excl)
+			   struct dentry *dentry, umode_t mode)
 {
 	struct inode *inode = NULL;
 	struct efivar_entry *var;

@@ -562,7 +562,7 @@ out:
 }
 
 static int hfsplus_create(struct mnt_idmap *idmap, struct inode *dir,
-			  struct dentry *dentry, umode_t mode, bool excl)
+			  struct dentry *dentry, umode_t mode)
 {
 	return hfsplus_mknod(&nop_mnt_idmap, dir, dentry, mode, 0);
 }

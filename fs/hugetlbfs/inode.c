@@ -979,7 +979,7 @@ static struct dentry *hugetlbfs_mkdir(struct mnt_idmap *idmap, struct inode *dir
 
 static int hugetlbfs_create(struct mnt_idmap *idmap,
 			    struct inode *dir, struct dentry *dentry,
-			    umode_t mode, bool excl)
+			    umode_t mode)
 {
 	return hugetlbfs_mknod(idmap, dir, dentry, mode | S_IFREG, 0);
 }
