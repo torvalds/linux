@@ -4509,7 +4509,7 @@ static vm_fault_t remove_device_exclusive_entry(struct vm_fault *vmf)
 static inline bool should_try_to_free_swap(struct swap_info_struct *si,
 					   struct folio *folio,
 					   struct vm_area_struct *vma,
-					   unsigned int extra_refs,
+					   bool exclusive,
 					   unsigned int fault_flags)
 {
 	if (!folio_test_swapcache(folio))
@@ -4525,14 +4525,12 @@ static inline bool should_try_to_free_swap(struct swap_info_struct *si,
 	if (mem_cgroup_swap_full(folio) || (vma->vm_flags & VM_LOCKED) ||
 	    folio_test_mlocked(folio))
 		return true;
+
 	/*
-	 * If we want to map a page that's in the swapcache writable, we
-	 * have to detect via the refcount if we're really the exclusive
-	 * user. Try freeing the swapcache to get rid of the swapcache
-	 * reference only in case it's likely that we'll be the exclusive user.
+	 * Free the swapcache only if we are the exclusive user and
+	 * this is a write fault.
 	 */
-	return (fault_flags & FAULT_FLAG_WRITE) && !folio_test_ksm(folio) &&
-		folio_ref_count(folio) == (extra_refs + folio_nr_pages(folio));
+	return (fault_flags & FAULT_FLAG_WRITE) && exclusive;
 }
 
 static vm_fault_t pte_marker_clear(struct vm_fault *vmf)
@@ -5036,10 +5034,8 @@ check_folio:
 		if ((vma->vm_flags & VM_WRITE) && !userfaultfd_pte_wp(vma, pte) &&
 		    !pte_needs_soft_dirty_wp(vma, pte)) {
 			pte = pte_mkwrite(pte, vma);
-			if (vmf->flags & FAULT_FLAG_WRITE) {
+			if (vmf->flags & FAULT_FLAG_WRITE)
 				pte = pte_mkdirty(pte);
-				vmf->flags &= ~FAULT_FLAG_WRITE;
-			}
 		}
 		rmap_flags |= RMAP_EXCLUSIVE;
 	}
@@ -5079,7 +5075,7 @@ check_folio:
 	 * Do it after mapping, so raced page faults will likely see the folio
 	 * in swap cache and wait on the folio lock.
 	 */
-	if (should_try_to_free_swap(si, folio, vma, nr_pages, vmf->flags))
+	if (should_try_to_free_swap(si, folio, vma, exclusive, vmf->flags))
 		folio_free_swap(folio);
 
 	folio_unlock(folio);
@@ -5096,7 +5092,7 @@ check_folio:
 		folio_put(swapcache);
 	}
 
-	if (vmf->flags & FAULT_FLAG_WRITE) {
+	if ((vmf->flags & FAULT_FLAG_WRITE) && !pte_write(pte)) {
 		ret |= do_wp_page(vmf);
 		if (ret & VM_FAULT_ERROR)
 			ret &= VM_FAULT_ERROR;
