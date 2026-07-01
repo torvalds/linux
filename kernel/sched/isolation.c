@@ -8,6 +8,7 @@
  *
  */
 #include <linux/sched/isolation.h>
+#include <linux/llist.h>
 #include <linux/pci.h>
 #include "sched.h"
 
@@ -27,6 +28,7 @@ struct housekeeping {
 };
 
 static struct housekeeping housekeeping;
+static __initdata LLIST_HEAD(memblock_freelist);
 
 bool housekeeping_enabled(enum hk_type type)
 {
@@ -189,9 +191,21 @@ void __init housekeeping_init(void)
 		WARN_ON_ONCE(cpumask_empty(omask));
 		cpumask_copy(nmask, omask);
 		RCU_INIT_POINTER(housekeeping.cpumasks[type], nmask);
-		memblock_free(omask, cpumask_size());
+		__llist_add((struct llist_node *)omask, &memblock_freelist);
 	}
 }
+
+static int __init housekeeping_late_init(void)
+{
+	struct llist_node *llnode, *pos, *t;
+
+	/* Free allocated memblock memory, if any */
+	llnode = __llist_del_all(&memblock_freelist);
+	llist_for_each_safe(pos, t, llnode)
+		memblock_free(pos, cpumask_size());
+	return 0;
+}
+pure_initcall(housekeeping_late_init);
 
 static void __init housekeeping_setup_type(enum hk_type type,
 					   cpumask_var_t housekeeping_staging)
