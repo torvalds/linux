@@ -77,6 +77,9 @@ static int migrate_vma_collect_hole(unsigned long start,
  * @folio: the folio to split
  * @fault_page: struct page associated with the fault if any
  *
+ * If @folio is not the folio containing @fault_page, the caller must hold a
+ * reference on @folio. The helper consumes that reference.
+ *
  * Returns 0 on success
  */
 static int migrate_vma_split_folio(struct folio *folio,
@@ -86,10 +89,8 @@ static int migrate_vma_split_folio(struct folio *folio,
 	struct folio *fault_folio = fault_page ? page_folio(fault_page) : NULL;
 	struct folio *new_fault_folio = NULL;
 
-	if (folio != fault_folio) {
-		folio_get(folio);
+	if (folio != fault_folio)
 		folio_lock(folio);
-	}
 
 	ret = split_folio(folio);
 	if (ret) {
@@ -310,6 +311,9 @@ again:
 			if (folio_test_large(folio)) {
 				int ret;
 
+				/* migrate_vma_split_folio() consumes this reference */
+				if (folio != fault_folio)
+					folio_get(folio);
 				lazy_mmu_mode_disable();
 				pte_unmap_unlock(ptep, ptl);
 				ret = migrate_vma_split_folio(folio,
@@ -353,6 +357,9 @@ again:
 			if (folio && folio_test_large(folio)) {
 				int ret;
 
+				/* migrate_vma_split_folio() consumes this reference */
+				if (folio != fault_folio)
+					folio_get(folio);
 				lazy_mmu_mode_disable();
 				pte_unmap_unlock(ptep, ptl);
 				ret = migrate_vma_split_folio(folio,
