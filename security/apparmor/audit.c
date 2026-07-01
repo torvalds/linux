@@ -67,7 +67,7 @@ static const char *const aa_class_names[] = {
 	"unknown",
 	"unknown",
 	"unknown",
-	"unknown",
+	"netv9_packet",
 	"X",
 	"dbus",
 };
