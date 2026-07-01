@@ -249,7 +249,11 @@ static int __init hv_drm_init(void)
 	if (ret != 0)
 		return ret;
 
-	return vmbus_driver_register(&hv_drm_hv_driver);
+	ret = vmbus_driver_register(&hv_drm_hv_driver);
+	if (ret)
+		pci_unregister_driver(&hv_drm_pci_driver);
+
+	return ret;
 }
 
 static void __exit hv_drm_exit(void)
