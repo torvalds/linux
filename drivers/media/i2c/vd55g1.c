@@ -686,12 +686,6 @@ adapt_bayer_pattern:
 	return vd55g1_mbus_formats_bayer[i][j];
 }
 
-static s32 vd55g1_get_pixel_rate(struct vd55g1 *sensor,
-				 struct v4l2_mbus_framefmt *format)
-{
-	return sensor->mipi_rate / vd55g1_get_fmt_bpp(format->code);
-}
-
 static unsigned int vd55g1_get_hblank_min(struct vd55g1 *sensor,
 					  struct v4l2_mbus_framefmt *format,
 					  struct v4l2_rect *crop)
@@ -1329,12 +1323,6 @@ static int vd55g1_new_format_change_controls(struct vd55g1 *sensor,
 	if (ret)
 		return ret;
 
-	/* Update pixel rate to reflect new bpp */
-	ret = __v4l2_ctrl_s_ctrl_int64(sensor->pixel_rate_ctrl,
-				       vd55g1_get_pixel_rate(sensor, format));
-	if (ret)
-		return ret;
-
 	/* Update hblank according to new width */
 	hblank = vd55g1_get_hblank_min(sensor, format, crop);
 	ret = __v4l2_ctrl_modify_range(sensor->hblank_ctrl, hblank, hblank, 1,
@@ -1598,7 +1586,6 @@ static int vd55g1_init_ctrls(struct vd55g1 *sensor)
 		v4l2_subdev_state_get_crop(state, 0);
 	struct v4l2_mbus_framefmt *format =
 		v4l2_subdev_state_get_format(state, 0);
-	s32 pixel_rate = vd55g1_get_pixel_rate(sensor, format);
 	int ret;
 
 	v4l2_ctrl_handler_init(hdl, 16);
@@ -1640,7 +1627,7 @@ static int vd55g1_init_ctrls(struct vd55g1 *sensor)
 	sensor->pixel_rate_ctrl = v4l2_ctrl_new_std(hdl, ops,
 						    V4L2_CID_PIXEL_RATE, 1,
 						    INT_MAX, 1,
-						    pixel_rate);
+						    sensor->pixel_clock);
 	if (sensor->pixel_rate_ctrl)
 		sensor->pixel_rate_ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 	sensor->ae_lock_ctrl = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_3A_LOCK,
