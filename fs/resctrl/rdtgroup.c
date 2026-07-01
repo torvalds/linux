@@ -359,7 +359,6 @@ static int rdtgroup_cpus_show(struct kernfs_open_file *of,
 	if (rdtgrp) {
 		if (rdtgrp->mode == RDT_MODE_PSEUDO_LOCKED) {
 			if (!rdtgrp->plr->d) {
-				rdt_last_cmd_clear();
 				rdt_last_cmd_puts("Cache domain offline\n");
 				ret = -ENODEV;
 			} else {
@@ -521,8 +520,6 @@ static ssize_t rdtgroup_cpus_write(struct kernfs_open_file *of,
 		ret = -ENOENT;
 		goto out_unlock;
 	}
-
-	rdt_last_cmd_clear();
 
 	if (!buf) {
 		rdt_last_cmd_printf("%s: Invalid input\n",
@@ -788,7 +785,6 @@ static ssize_t rdtgroup_tasks_write(struct kernfs_open_file *of,
 		rdtgroup_kn_unlock(of->kn);
 		return -ENOENT;
 	}
-	rdt_last_cmd_clear();
 
 	if (rdtgrp->mode == RDT_MODE_PSEUDO_LOCKED ||
 	    rdtgrp->mode == RDT_MODE_PSEUDO_LOCKSETUP) {
@@ -1529,7 +1525,6 @@ static ssize_t rdtgroup_mode_write(struct kernfs_open_file *of,
 		return -ENOENT;
 	}
 
-	rdt_last_cmd_clear();
 	/* Valid input requires a trailing newline */
 	if (nbytes == 0 || buf[nbytes - 1] != '\n') {
 		rdt_last_cmd_puts("mode: Invalid input\n");
@@ -1666,7 +1661,6 @@ static int rdtgroup_size_show(struct kernfs_open_file *of,
 
 	if (rdtgrp->mode == RDT_MODE_PSEUDO_LOCKED) {
 		if (!rdtgrp->plr->d) {
-			rdt_last_cmd_clear();
 			rdt_last_cmd_puts("Cache domain offline\n");
 			ret = -ENODEV;
 		} else {
@@ -2726,10 +2720,20 @@ struct rdtgroup *rdtgroup_kn_lock_live(struct kernfs_node *kn)
 
 	cpus_read_lock();
 	mutex_lock(&rdtgroup_mutex);
+	rdt_last_cmd_clear();
 
 	/* Was this group deleted while we waited? */
-	if (rdtgrp->flags & RDT_DELETED)
+	if (rdtgrp->flags & RDT_DELETED) {
+		/*
+		 * It is safe to dereference kn to obtain the resource group's
+		 * name because one extra reference to kn is obtained
+		 * during resource group creation that will be released by
+		 * rdtgroup_remove() called by rdtgroup_kn_put().
+		 */
+		rdt_last_cmd_printf("Resource group %s deleted. No commands possible.\n",
+				    rdt_kn_name(rdtgrp->kn));
 		return NULL;
+	}
 
 	return rdtgrp;
 }
@@ -3942,8 +3946,6 @@ static int mkdir_rdt_prepare(struct kernfs_node *parent_kn,
 		ret = -ENODEV;
 		goto out_unlock;
 	}
-
-	rdt_last_cmd_clear();
 
 	/*
 	 * Check that the parent directory for a monitor group is a "mon_groups"
