@@ -90,8 +90,6 @@ static void __restore_cpu_cpufeatures(void)
 		init_pmu_registers();
 }
 
-static char dt_cpu_name[64];
-
 static struct cpu_spec __initdata base_cpu_spec = {
 	.cpu_name		= NULL,
 	.cpu_features		= CPU_FTRS_DT_CPU_BASE,
@@ -1078,6 +1076,7 @@ static int __init count_cpufeatures_subnodes(unsigned long node,
 static int __init dt_cpu_ftrs_scan_callback(unsigned long node, const char
 					    *uname, int depth, void *data)
 {
+	static char dt_cpu_name[64];
 	const __be32 *prop;
 	int count, i;
 	u32 isa;
@@ -1115,8 +1114,8 @@ static int __init dt_cpu_ftrs_scan_callback(unsigned long node, const char
 	}
 
 	prop = of_get_flat_dt_prop(node, "display-name", NULL);
-	if (prop && strlen((char *)prop) != 0) {
-		strscpy(dt_cpu_name, (char *)prop, sizeof(dt_cpu_name));
+	if (prop && *(char *)prop != 0) {
+		strscpy(dt_cpu_name, (char *)prop);
 		cur_cpu_spec->cpu_name = dt_cpu_name;
 	}
 
