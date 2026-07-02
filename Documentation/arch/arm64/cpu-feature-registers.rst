@@ -113,7 +113,7 @@ infrastructure:
 4. List of registers with visible features
 -------------------------------------------
 
-  1) ID_AA64ISAR0_EL1 - Instruction Set Attribute Register 0
+  ID_AA64ISAR0_EL1 - Instruction Set Attribute Register 0
 
      +------------------------------+---------+---------+
      | Name                         |  bits   | visible |
@@ -146,7 +146,7 @@ infrastructure:
      +------------------------------+---------+---------+
 
 
-  2) ID_AA64PFR0_EL1 - Processor Feature Register 0
+  ID_AA64PFR0_EL1 - Processor Feature Register 0
 
      +------------------------------+---------+---------+
      | Name                         |  bits   | visible |
@@ -173,7 +173,7 @@ infrastructure:
      +------------------------------+---------+---------+
 
 
-  3) ID_AA64PFR1_EL1 - Processor Feature Register 1
+  ID_AA64PFR1_EL1 - Processor Feature Register 1
 
      +------------------------------+---------+---------+
      | Name                         |  bits   | visible |
@@ -188,7 +188,7 @@ infrastructure:
      +------------------------------+---------+---------+
 
 
-  4) MIDR_EL1 - Main ID Register
+  MIDR_EL1 - Main ID Register
 
      +------------------------------+---------+---------+
      | Name                         |  bits   | visible |
@@ -208,7 +208,7 @@ infrastructure:
    as available on the CPU where it is fetched and is not a system
    wide safe value.
 
-  5) ID_AA64ISAR1_EL1 - Instruction set attribute register 1
+  ID_AA64ISAR1_EL1 - Instruction set attribute register 1
 
      +------------------------------+---------+---------+
      | Name                         |  bits   | visible |
@@ -240,7 +240,7 @@ infrastructure:
      | DPB                          | [3-0]   |    y    |
      +------------------------------+---------+---------+
 
-  6) ID_AA64MMFR0_EL1 - Memory model feature register 0
+  ID_AA64MMFR0_EL1 - Memory model feature register 0
 
      +------------------------------+---------+---------+
      | Name                         |  bits   | visible |
@@ -248,7 +248,7 @@ infrastructure:
      | ECV                          | [63-60] |    y    |
      +------------------------------+---------+---------+
 
-  7) ID_AA64MMFR2_EL1 - Memory model feature register 2
+  ID_AA64MMFR2_EL1 - Memory model feature register 2
 
      +------------------------------+---------+---------+
      | Name                         |  bits   | visible |
@@ -256,7 +256,7 @@ infrastructure:
      | AT                           | [35-32] |    y    |
      +------------------------------+---------+---------+
 
-  8) ID_AA64ZFR0_EL1 - SVE feature ID register 0
+  ID_AA64ZFR0_EL1 - SVE feature ID register 0
 
      +------------------------------+---------+---------+
      | Name                         |  bits   | visible |
@@ -282,7 +282,7 @@ infrastructure:
      | SVEVer                       | [3-0]   |    y    |
      +------------------------------+---------+---------+
 
-  8) ID_AA64MMFR1_EL1 - Memory model feature register 1
+  ID_AA64MMFR1_EL1 - Memory model feature register 1
 
      +------------------------------+---------+---------+
      | Name                         |  bits   | visible |
@@ -290,7 +290,7 @@ infrastructure:
      | AFP                          | [47-44] |    y    |
      +------------------------------+---------+---------+
 
-  9) ID_AA64ISAR2_EL1 - Instruction set attribute register 2
+  ID_AA64ISAR2_EL1 - Instruction set attribute register 2
 
      +------------------------------+---------+---------+
      | Name                         |  bits   | visible |
@@ -312,7 +312,7 @@ infrastructure:
      | WFXT                         | [3-0]   |    y    |
      +------------------------------+---------+---------+
 
-  10) MVFR0_EL1 - AArch32 Media and VFP Feature Register 0
+  MVFR0_EL1 - AArch32 Media and VFP Feature Register 0
 
      +------------------------------+---------+---------+
      | Name                         |  bits   | visible |
@@ -320,7 +320,7 @@ infrastructure:
      | FPDP                         | [11-8]  |    y    |
      +------------------------------+---------+---------+
 
-  11) MVFR1_EL1 - AArch32 Media and VFP Feature Register 1
+  MVFR1_EL1 - AArch32 Media and VFP Feature Register 1
 
      +------------------------------+---------+---------+
      | Name                         |  bits   | visible |
@@ -334,7 +334,7 @@ infrastructure:
      | SIMDLS                       | [11-8]  |    y    |
      +------------------------------+---------+---------+
 
-  12) ID_ISAR5_EL1 - AArch32 Instruction Set Attribute Register 5
+  ID_ISAR5_EL1 - AArch32 Instruction Set Attribute Register 5
 
      +------------------------------+---------+---------+
      | Name                         |  bits   | visible |
