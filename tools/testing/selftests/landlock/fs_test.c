@@ -6927,7 +6927,7 @@ TEST_F_FORK(layout2_overlay, same_content_different_file)
 		ASSERT_EQ(0, test_open(path_entry, O_RDWR));
 	}
 
-	/* Only allowes access to the merge hierarchy. */
+	/* Only allows access to the merge hierarchy. */
 	enforce_fs(_metadata, ACCESS_RW, layer5_merge_only);
 
 	/* Checks new accesses on lower layer. */
