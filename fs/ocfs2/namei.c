@@ -945,7 +945,10 @@ static int ocfs2_unlink(struct inode *dir,
 	child_locked = 1;
 
 	if (S_ISDIR(inode->i_mode)) {
-		if (inode->i_nlink != 2 || !ocfs2_empty_dir(inode)) {
+		status = ocfs2_empty_dir(inode);
+		if (status < 0)
+			goto leave;
+		if (inode->i_nlink != 2 || !status) {
 			status = -ENOTEMPTY;
 			goto leave;
 		}
@@ -1499,8 +1502,10 @@ static int ocfs2_rename(struct mnt_idmap *idmap,
 
 	if (target_exists) {
 		if (S_ISDIR(new_inode->i_mode)) {
-			if (new_inode->i_nlink != 2 ||
-			    !ocfs2_empty_dir(new_inode)) {
+			status = ocfs2_empty_dir(new_inode);
+			if (status < 0)
+				goto bail;
+			if (new_inode->i_nlink != 2 || !status) {
 				status = -ENOTEMPTY;
 				goto bail;
 			}
