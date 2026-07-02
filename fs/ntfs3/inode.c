@@ -127,10 +127,16 @@ next_attr:
 
 	if (le && le->vcn) {
 		/* This is non primary attribute segment. Ignore if not MFT. */
-		if (ino != MFT_REC_MFT || attr->type != ATTR_DATA)
+		if (ino != MFT_REC_MFT)
 			goto next_attr;
 
-		run = &ni->file.run;
+		if (attr->type == ATTR_DATA)
+			run = &ni->file.run;
+		else if (attr->type == ATTR_BITMAP)
+			run = &sbi->mft.bitmap.run;
+		else
+			goto next_attr;
+
 		asize = le32_to_cpu(attr->size);
 		goto attr_unpack_run;
 	}
