@@ -101,6 +101,7 @@ typedef int (*print_type_func_t)(struct trace_seq *, void *, void *);
 	/* Stage 2 (dereference) ops */					\
 	FETCH_OP(DEREF, offset),	/* Dereference: .offset */	\
 	FETCH_OP(UDEREF, offset),	/* User-space dereference: .offset */\
+	FETCH_OP(CPU_PTR, none),	/* Per-CPU pointer: .offset */	\
 	/* Stage 3 (store) ops */					\
 	FETCH_OP(ST_RAW, store),	/* Raw value: .size */		\
 	FETCH_OP(ST_MEM, store),	/* Memory: .offset, .size */	\
@@ -598,7 +599,8 @@ extern int traceprobe_define_arg_fields(struct trace_event_call *event_call,
 	C(TOO_MANY_NESTED,	"Too many nested typecasts/dereferences"), \
 	C(TYPECAST_SYM_OFFSET,	"@SYM+/-OFFSET with typecast needs parentheses"), \
 	C(TYPECAST_NOT_ALIGNED,	"Typecast field option is not byte-aligned"), \
-	C(TYPECAST_BAD_ARROW,	"Typecast field option does not support -> operator"),
+	C(TYPECAST_BAD_ARROW,	"Typecast field option does not support -> operator"), \
+	C(NOSUP_PERCPU,		"Per-cpu variable access is only for kernel probes"),
 
 #undef C
 #define C(a, b)		TP_ERR_##a
