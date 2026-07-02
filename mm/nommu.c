@@ -1393,6 +1393,10 @@ static int split_vma(struct vma_iterator *vmi, struct vm_area_struct *vma,
 	setup_vma_to_mm(vma, mm);
 	setup_vma_to_mm(new, mm);
 	vma_iter_store_new(vmi, new);
+
+	/* vmi should point lower address */
+	if (new_below)
+		vma_next(vmi);
 	mm->map_count++;
 	return 0;
 
