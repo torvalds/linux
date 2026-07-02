@@ -347,12 +347,8 @@ static int bq256xx_array_parse(int array_size, int val, const int array[])
 		if (val == array[i])
 			return i;
 
-		if (val > array[i - 1] && val < array[i]) {
-			if (val < array[i])
-				return i - 1;
-			else
-				return i;
-		}
+		if (val > array[i - 1] && val < array[i])
+			return i - 1;
 	}
 	return -EINVAL;
 }
