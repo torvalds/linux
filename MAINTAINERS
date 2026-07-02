@@ -29787,8 +29787,11 @@ M:	Minchan Kim <minchan@kernel.org>
 M:	Sergey Senozhatsky <senozhatsky@chromium.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
+F:	Documentation/ABI/testing/sysfs-block-zram
+F:	Documentation/ABI/testing/sysfs-class-zram
 F:	Documentation/admin-guide/blockdev/zram.rst
 F:	drivers/block/zram/
+F:	tools/testing/selftests/zram/
 
 ZS DECSTATION Z85C30 SERIAL DRIVER
 M:	"Maciej W. Rozycki" <macro@orcam.me.uk>
