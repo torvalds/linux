@@ -690,7 +690,8 @@ show_shared_cpumap(struct kobject *k, struct kobj_attribute *attr, char *buf, bo
 
 	mask = &cache->shared_cpu_map;
 
-	return cpumap_print_to_pagebuf(list, buf, mask);
+	return sysfs_emit(buf, list ? "%*pbl\n" : "%*pb\n",
+			  cpumask_pr_args(mask));
 }
 
 static ssize_t shared_cpu_map_show(struct kobject *k, struct kobj_attribute *attr, char *buf)

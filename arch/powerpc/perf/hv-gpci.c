@@ -100,7 +100,7 @@ static ssize_t kernel_version_show(struct device *dev,
 static ssize_t cpumask_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
-	return cpumap_print_to_pagebuf(true, buf, &hv_gpci_cpumask);
+	return sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(&hv_gpci_cpumask));
 }
 
 /* Interface attribute array index to store system information */
