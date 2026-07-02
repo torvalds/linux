@@ -1035,6 +1035,9 @@ unsigned long do_mmap(struct file *file,
 	if (ret < 0)
 		return ret;
 
+	if (current->mm->map_count >= get_sysctl_max_map_count())
+		return -ENOMEM;
+
 	/* we ignore the address hint */
 	addr = 0;
 	len = PAGE_ALIGN(len);
