@@ -92,6 +92,7 @@ typedef int (*print_type_func_t)(struct trace_seq *, void *, void *);
 	FETCH_OP(RETVAL, none),		/* Return value */		\
 	FETCH_OP(IMM, imm),		/* Immediate: .immediate */	\
 	FETCH_OP(COMM, none),		/* Current comm */		\
+	FETCH_OP(CURRENT, none),	/* Current task_struct address */\
 	FETCH_OP(ARG, param),		/* Argument: .param = index */	\
 	FETCH_OP(FOFFS, imm),		/* File offset: .immediate */	\
 	FETCH_OP(IMMSTR, string),	/* Allocated string: .data */	\
