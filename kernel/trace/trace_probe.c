@@ -684,19 +684,6 @@ static int parse_btf_arg(char *varname,
 		return -EOPNOTSUPP;
 	}
 
-	if (ctx->flags & TPARG_FL_TEVENT) {
-		ret = parse_trace_event(varname, code, ctx);
-		if (ret < 0) {
-			trace_probe_log_err(ctx->offset, BAD_ATTACH_ARG);
-			return ret;
-		}
-		/* TEVENT is only here via a typecast */
-		if (WARN_ON_ONCE(ctx->struct_btf == NULL))
-			return -EINVAL;
-		type = ctx->last_struct;
-		goto found_type;
-	}
-
 	if (ctx->flags & TPARG_FL_RETURN && !strcmp(varname, "$retval")) {
 		code->op = FETCH_OP_RETVAL;
 		/* Check whether the function return type is not void, even with typecast. */
@@ -708,13 +695,6 @@ static int parse_btf_arg(char *varname,
 			tid = ctx->proto->type;
 			goto found;
 		}
-		/*
-		 * Even if we can not find appropriate BTF info, we can still access
-		 * the field via typecast.
-		 */
-		if (ctx->struct_btf)
-			goto found;
-
 		if (field) {
 			trace_probe_log_err(ctx->offset + field - varname,
 					    NO_BTF_ENTRY);
@@ -759,11 +739,7 @@ static int parse_btf_arg(char *varname,
 	return -ENOENT;
 
 found:
-	if (ctx->struct_btf)
-		type = ctx->last_struct;
-	else
-		type = btf_type_skip_modifiers(ctx->btf, tid, NULL);
-found_type:
+	type = btf_type_skip_modifiers(ctx->btf, tid, NULL);
 	if (!type) {
 		trace_probe_log_err(ctx->offset, BAD_BTF_TID);
 		return -EINVAL;
@@ -860,7 +836,7 @@ static int handle_typecast(char *arg, struct fetch_insn **pcode,
 			   struct traceprobe_parse_context *ctx)
 {
 	int orig_offset = ctx->offset;
-	bool nested = false;
+	char *close;
 	char *tmp;
 	int ret;
 
@@ -871,6 +847,17 @@ static int handle_typecast(char *arg, struct fetch_insn **pcode,
 		return -EOPNOTSUPP;
 	}
 
+	/*
+	 * Always consider the token after typecast as a nested call
+	 * For example: (STRUCT)VAR->FIELD and (STRUCT)(VAR)->FIELD are same.
+	 * VAR is solved in the nested call.
+	 */
+	ctx->nested_level++;
+	if (ctx->nested_level > TRACEPROBE_MAX_NESTED_LEVEL) {
+		trace_probe_log_err(ctx->offset, TOO_MANY_NESTED);
+		return -E2BIG;
+	}
+
 	tmp = strchr(arg, ')');
 	if (!tmp) {
 		trace_probe_log_err(ctx->offset + strlen(arg),
@@ -879,11 +866,10 @@ static int handle_typecast(char *arg, struct fetch_insn **pcode,
 	}
 	*tmp++ = '\0';
 
-	/* Handle the nested structure like (STRUCT)(VAR->FIELD)->... */
+	ctx->offset += tmp - arg;
 	if (*tmp == '(') {
-		char *close = find_matched_close_paren(tmp);
+		close = find_matched_close_paren(tmp);
 
-		ctx->offset += tmp - arg;
 		if (!close) {
 			trace_probe_log_err(ctx->offset, DEREF_OPEN_BRACE);
 			return -EINVAL;
@@ -894,27 +880,66 @@ static int handle_typecast(char *arg, struct fetch_insn **pcode,
 					    TYPECAST_REQ_FIELD);
 			return -EINVAL;
 		}
+		/* Skip '(' */
+		ctx->offset += 1;
+		tmp++;
+	} else if (*tmp == '+' || *tmp == '-') {
+		/* Dereference can have another field access inside it. */
+		char *open = strchr(tmp + 1, '(');
 
-		ctx->nested_level++;
-		if (ctx->nested_level > TRACEPROBE_MAX_NESTED_LEVEL) {
-			trace_probe_log_err(ctx->offset, TOO_MANY_NESTED);
-			return -E2BIG;
+		if (!open) {
+			trace_probe_log_err(ctx->offset,
+					    DEREF_NEED_BRACE);
+			return -EINVAL;
 		}
-		*close = '\0';
-
-		ctx->offset += 1;	/* for the '(' */
-		/* We need to parse the nested one */
-		ret = parse_probe_arg(tmp + 1, find_fetch_type(NULL, ctx->flags),
-				pcode, end, ctx);
-		if (ret < 0)
-			return ret;
-		ctx->nested_level--;
-		clear_struct_btf(ctx);
-
-		tmp = close + 3;/* Skip "->" after closing parenthesis */
-		nested = true;
+		close = find_matched_close_paren(open);
+		if (!close) {
+			trace_probe_log_err(ctx->offset + strlen(tmp),
+					    DEREF_OPEN_BRACE);
+			return -EINVAL;
+		}
+		close++;
+		/* We expect a field access for typecast */
+		if (close[0] != '-' || close[1] != '>') {
+			trace_probe_log_err(ctx->offset + close - tmp,
+					    TYPECAST_REQ_FIELD);
+			return -EINVAL;
+		}
+	} else {
+		if (tmp[0] == '@') {
+			/* @sym+offset is not allowed without parenthesized */
+			close = strpbrk(tmp, "+-");
+			if (close && isdigit(close[1])) {
+				trace_probe_log_err(ctx->offset,
+						    TYPECAST_SYM_OFFSET);
+				return -EINVAL;
+			}
+		}
+		/* Inner variable name */
+		close = strchr(tmp, '-');
+		if (!close || close[1] != '>') {
+			trace_probe_log_err(ctx->offset + strlen(tmp),
+					    TYPECAST_REQ_FIELD);
+			return -EINVAL;
+		}
 	}
+	*close = '\0';
 
+	/* We need to parse the nested one */
+	ret = parse_probe_arg(tmp, find_fetch_type(NULL, ctx->flags),
+			      pcode, end, ctx);
+	if (ret < 0)
+		return ret;
+	ctx->nested_level--;
+	clear_struct_btf(ctx);
+
+	/* Let tmp point the field name. */
+	if (close[1] == '-')
+		tmp = close + 3; /* Skip "->" after closing parenthesis */
+	else
+		tmp = close + 2; /* Skip ">" after inner variable name */
+
+	/* resolve the typecast struct name */
 	ret = query_btf_struct(arg + 1, ctx);
 	if (ret < 0) {
 		trace_probe_log_err(orig_offset + 1, NO_PTR_STRCT);
@@ -922,11 +947,7 @@ static int handle_typecast(char *arg, struct fetch_insn **pcode,
 	}
 
 	ctx->offset = orig_offset + tmp - arg;
-	/* If it is nested, tmp points to the field name. */
-	if (nested)
-		ret = parse_btf_field(tmp, ctx->last_struct, pcode, end, ctx);
-	else
-		ret = parse_btf_arg(tmp, pcode, end, ctx);
+	ret = parse_btf_field(tmp, ctx->last_struct, pcode, end, ctx);
 	return ret;
 }
 
