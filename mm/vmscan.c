@@ -7912,6 +7912,10 @@ int user_proactive_reclaim(char *buf,
 		if (signal_pending(current))
 			return -ERESTARTSYS;
 
+		/* cgroup_rmdir() waits for us with cgroup_mutex held. */
+		if (memcg && memcg_is_dying(memcg))
+			return -EAGAIN;
+
 		/*
 		 * This is the final attempt, drain percpu lru caches in the
 		 * hope of introducing more evictable pages.
