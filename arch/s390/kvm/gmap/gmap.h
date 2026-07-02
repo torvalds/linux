@@ -85,7 +85,6 @@ struct gmap_cache {
 	for (pos = (head); n = pos ? pos->next : NULL, pos; pos = n)
 
 int s390_replace_asce(struct gmap *gmap);
-bool _gmap_unmap_prefix(struct gmap *gmap, gfn_t gfn, gfn_t end, bool hint);
 bool gmap_age_gfn(struct gmap *gmap, gfn_t start, gfn_t end);
 bool gmap_unmap_gfn_range(struct gmap *gmap, struct kvm_memory_slot *slot, gfn_t start, gfn_t end);
 int gmap_try_fixup_minor(struct gmap *gmap, struct guest_fault *fault);
@@ -163,6 +162,14 @@ static inline void gmap_handle_vsie_unshadow_event(struct gmap *parent, gfn_t gf
 		_gmap_handle_vsie_unshadow_event(parent, gfn);
 }
 
+#if KVM_S390_MANAGES_S390_GUEST
+bool _gmap_unmap_prefix(struct gmap *gmap, gfn_t gfn, gfn_t end, bool hint);
+#else
+static inline bool _gmap_unmap_prefix(struct gmap *gmap, gfn_t gfn, gfn_t end, bool hint)
+{
+	return true;
+}
+#endif /* KVM_S390_MANAGES_S390_GUEST */
 static inline bool gmap_mkold_prefix(struct gmap *gmap, gfn_t gfn, gfn_t end)
 {
 	return _gmap_unmap_prefix(gmap, gfn, end, true);

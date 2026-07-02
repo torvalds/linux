@@ -24,11 +24,6 @@
 #include "s390.h"
 #include "faultin.h"
 
-static inline bool kvm_s390_is_in_sie(struct kvm_vcpu *vcpu)
-{
-	return vcpu->arch.sie_block->prog0c & PROG_IN_SIE;
-}
-
 static int gmap_limit_to_type(gfn_t limit)
 {
 	if (!limit)
@@ -256,6 +251,12 @@ int s390_replace_asce(struct gmap *gmap)
 	return 0;
 }
 
+#if KVM_S390_MANAGES_S390_GUEST
+static inline bool kvm_s390_is_in_sie(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.sie_block->prog0c & PROG_IN_SIE;
+}
+
 bool _gmap_unmap_prefix(struct gmap *gmap, gfn_t gfn, gfn_t end, bool hint)
 {
 	struct kvm *kvm = gmap->kvm;
@@ -278,6 +279,7 @@ bool _gmap_unmap_prefix(struct gmap *gmap, gfn_t gfn, gfn_t end, bool hint)
 	}
 	return true;
 }
+#endif /* KVM_S390_MANAGES_S390_GUEST */
 
 struct clear_young_pte_priv {
 	struct gmap *gmap;
