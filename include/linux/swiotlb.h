@@ -32,8 +32,12 @@ struct scatterlist;
 #define IO_TLB_SHIFT 11
 #define IO_TLB_SIZE (1 << IO_TLB_SHIFT)
 
-/* default to 64MB */
-#define IO_TLB_DEFAULT_SIZE (64UL<<20)
+/* compile-time default; overridable via CONFIG_SWIOTLB_DEFAULT_SIZE_MB */
+#ifdef CONFIG_SWIOTLB
+#define IO_TLB_DEFAULT_SIZE ((unsigned long)CONFIG_SWIOTLB_DEFAULT_SIZE_MB << 20)
+#else
+#define IO_TLB_DEFAULT_SIZE (64UL << 20)
+#endif
 
 unsigned long swiotlb_size_or_default(void);
 void __init swiotlb_init_remap(bool addressing_limit, unsigned int flags,
