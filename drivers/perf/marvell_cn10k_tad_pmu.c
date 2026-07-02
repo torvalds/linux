@@ -258,7 +258,7 @@ static ssize_t tad_pmu_cpumask_show(struct device *dev,
 {
 	struct tad_pmu *tad_pmu = to_tad_pmu(dev_get_drvdata(dev));
 
-	return cpumap_print_to_pagebuf(true, buf, cpumask_of(tad_pmu->cpu));
+	return sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(cpumask_of(tad_pmu->cpu)));
 }
 
 static DEVICE_ATTR(cpumask, 0444, tad_pmu_cpumask_show, NULL);

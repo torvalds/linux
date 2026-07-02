@@ -343,7 +343,7 @@ static ssize_t cpumask_show(struct device *dev,
 {
 	struct arm_spe_pmu *spe_pmu = dev_get_drvdata(dev);
 
-	return cpumap_print_to_pagebuf(true, buf, &spe_pmu->supported_cpus);
+	return sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(&spe_pmu->supported_cpus));
 }
 static DEVICE_ATTR_RO(cpumask);
 

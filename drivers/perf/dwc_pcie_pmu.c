@@ -117,7 +117,7 @@ static ssize_t cpumask_show(struct device *dev,
 {
 	struct dwc_pcie_pmu *pcie_pmu = to_dwc_pcie_pmu(dev_get_drvdata(dev));
 
-	return cpumap_print_to_pagebuf(true, buf, cpumask_of(pcie_pmu->on_cpu));
+	return sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(cpumask_of(pcie_pmu->on_cpu)));
 }
 static DEVICE_ATTR_RO(cpumask);
 

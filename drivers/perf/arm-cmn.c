@@ -1327,7 +1327,7 @@ static ssize_t arm_cmn_cpumask_show(struct device *dev,
 {
 	struct arm_cmn *cmn = to_cmn(dev_get_drvdata(dev));
 
-	return cpumap_print_to_pagebuf(true, buf, cpumask_of(cmn->cpu));
+	return sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(cpumask_of(cmn->cpu)));
 }
 
 static struct device_attribute arm_cmn_cpumask_attr =

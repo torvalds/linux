@@ -164,7 +164,7 @@ static ssize_t pem_perf_cpumask_show(struct device *dev,
 {
 	struct pem_pmu *pmu = dev_get_drvdata(dev);
 
-	return cpumap_print_to_pagebuf(true, buf, cpumask_of(pmu->cpu));
+	return sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(cpumask_of(pmu->cpu)));
 }
 
 static struct device_attribute pem_perf_cpumask_attr =
