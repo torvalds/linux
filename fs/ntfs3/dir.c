@@ -273,6 +273,12 @@ out:
 	return err == -ENOENT ? NULL : err ? ERR_PTR(err) : inode;
 }
 
+static inline bool de_fname_fits(const struct NTFS_DE *e, u32 e_size,
+				 const struct ATTR_FILE_NAME *fname)
+{
+	return sizeof(struct NTFS_DE) + fname_full_size(fname) <= e_size;
+}
+
 /*
  * returns false if 'ctx' if full
  */
@@ -305,9 +311,7 @@ static inline bool ntfs_dir_emit(struct ntfs_sb_info *sbi,
 	if (sbi->options->nohidden && (fname->dup.fa & FILE_ATTRIBUTE_HIDDEN))
 		return true;
 
-	if (sizeof(struct NTFS_DE) + offsetof(struct ATTR_FILE_NAME, name) +
-		    fname->name_len * sizeof(short) >
-	    le16_to_cpu(e->size))
+	if (!de_fname_fits(e, le16_to_cpu(e->size), fname))
 		return true;
 
 	name_len = ntfs_utf16_to_nls(sbi, fname->name, fname->name_len, name,
@@ -576,6 +580,23 @@ out:
 	return err;
 }
 
+/*
+ * Return fname when @e passes the same checks as ntfs_dir_emit() before
+ * exposing an entry (valid key, non-DOS, fname fits in e->size).
+ */
+static inline const struct ATTR_FILE_NAME *
+de_countable_fname(const struct NTFS_DE *e, u32 e_size)
+{
+	const struct ATTR_FILE_NAME *fname;
+
+	fname = de_get_fname(e);
+	if (!fname || fname->type == FILE_NAME_DOS ||
+	    !de_fname_fits(e, e_size, fname))
+		return NULL;
+
+	return fname;
+}
+
 static int ntfs_dir_count(struct inode *dir, bool *is_empty, size_t *dirs,
 			  size_t *files)
 {
@@ -615,11 +636,8 @@ static int ntfs_dir_count(struct inode *dir, bool *is_empty, size_t *dirs,
 			if (de_is_last(e))
 				break;
 
-			fname = de_get_fname(e);
+			fname = de_countable_fname(e, e_size);
 			if (!fname)
-				continue;
-
-			if (fname->type == FILE_NAME_DOS)
 				continue;
 
 			if (is_empty) {
