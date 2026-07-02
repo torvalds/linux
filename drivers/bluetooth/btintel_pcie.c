@@ -1446,72 +1446,134 @@ exit_on_error:
 	return err;
 }
 
+/* Queue a coredump dump_traces() pass.
+ *
+ * Returns true if a new coredump was queued, false if one was already
+ * in-flight (the BTINTEL_PCIE_COREDUMP_INPROGRESS bit serves as the
+ * single-writer guard for the @coredump_work item) or the workqueue is
+ * disabled (reset / remove in progress).
+ *
+ * Always queue this AFTER any companion event-reader work (hwexp /
+ * fwtrigger) so that, on the ordered @dump_workqueue, the event reader
+ * runs first and populates dmp_hdr.event_type / event_id before
+ * dump_traces consumes them.
+ */
+static bool btintel_pcie_queue_coredump(struct btintel_pcie_data *data,
+					u16 trigger_reason)
+{
+	if (test_and_set_bit(BTINTEL_PCIE_COREDUMP_INPROGRESS, &data->flags))
+		return false;
+
+	data->dmp_hdr.trigger_reason = trigger_reason;
+
+	if (queue_work(data->dump_workqueue, &data->coredump_work))
+		return true;
+
+	/* Workqueue is disabled (reset/remove drained it). Release the
+	 * guard so a later trigger, after re-probe, can succeed.
+	 */
+	clear_bit(BTINTEL_PCIE_COREDUMP_INPROGRESS, &data->flags);
+	return false;
+}
+
 static void btintel_pcie_msix_fw_trigger_handler(struct btintel_pcie_data *data)
 {
 	bt_dev_dbg(data->hdev, "Received firmware smart trigger cause");
 
-	if (test_and_set_bit(BTINTEL_PCIE_FWTRIGGER_DUMP_INPROGRESS, &data->flags))
+	/* Per-work guard: deduplicate concurrent FW-trigger interrupts.
+	 * Cleared at the tail of btintel_pcie_fwtrigger_worker().
+	 */
+	if (test_and_set_bit(BTINTEL_PCIE_FWTRIGGER_DUMP_INPROGRESS,
+			     &data->flags))
 		return;
 
-	/* Trigger device core dump when there is FW assert */
-	if (!test_and_set_bit(BTINTEL_PCIE_COREDUMP_INPROGRESS, &data->flags))
-		data->dmp_hdr.trigger_reason = BTINTEL_PCIE_TRIGGER_REASON_FW_ASSERT;
+	if (!queue_work(data->dump_workqueue, &data->fwtrigger_work)) {
+		clear_bit(BTINTEL_PCIE_FWTRIGGER_DUMP_INPROGRESS, &data->flags);
+		return;
+	}
 
-	queue_work(data->coredump_workqueue, &data->coredump_work);
+	/* Queue coredump after the fwtrigger event reader so dmp_hdr.event_*
+	 * is populated before dump_traces consumes it.
+	 */
+	btintel_pcie_queue_coredump(data, BTINTEL_PCIE_TRIGGER_REASON_FW_ASSERT);
 }
 
 static void btintel_pcie_msix_hw_exp_handler(struct btintel_pcie_data *data)
 {
 	bt_dev_err(data->hdev, "Received hw exception interrupt");
 
+	/* CORE_HALTED is the single-writer guard for this handler. It is
+	 * set once on first HW exception and cleared only by re-probe
+	 * (data is reallocated), so it also serializes hwexp_work
+	 * scheduling without needing a separate bit.
+	 */
 	if (test_and_set_bit(BTINTEL_PCIE_CORE_HALTED, &data->flags))
 		return;
 
-	if (test_and_set_bit(BTINTEL_PCIE_HWEXP_INPROGRESS, &data->flags))
-		return;
+	/* Queue companion coredump first so it is appended after hwexp_work
+	 * on the ordered @dump_workqueue (preserves the original
+	 * coredump-then-hwexp ordering).
+	 */
+	btintel_pcie_queue_coredump(data, BTINTEL_PCIE_TRIGGER_REASON_FW_ASSERT);
 
-	/* Trigger device core dump when there is HW  exception */
-	if (!test_and_set_bit(BTINTEL_PCIE_COREDUMP_INPROGRESS, &data->flags))
-		data->dmp_hdr.trigger_reason = BTINTEL_PCIE_TRIGGER_REASON_FW_ASSERT;
-
-	queue_work(data->coredump_workqueue, &data->coredump_work);
+	queue_work(data->dump_workqueue, &data->hwexp_work);
 }
 
 static void btintel_pcie_coredump_worker(struct work_struct *work)
 {
 	struct btintel_pcie_data *data = container_of(work,
 					struct btintel_pcie_data, coredump_work);
-	int err;
 
 	/* hdev is NULL until setup_hdev() succeeds, and is cleared on
 	 * teardown after disable_work_sync() drains us; bail in that case.
 	 */
 	if (!data->hdev)
+		goto out;
+
+	btintel_pcie_dump_traces(data->hdev);
+out:
+	/* Release guard last so a new trigger can run only after this
+	 * pass has fully completed (including dev_coredumpv()).
+	 */
+	clear_bit(BTINTEL_PCIE_COREDUMP_INPROGRESS, &data->flags);
+}
+
+static void btintel_pcie_hwexp_worker(struct work_struct *work)
+{
+	struct btintel_pcie_data *data = container_of(work,
+					struct btintel_pcie_data, hwexp_work);
+
+	if (!data->hdev)
 		return;
 
-	if (test_bit(BTINTEL_PCIE_FWTRIGGER_DUMP_INPROGRESS, &data->flags)) {
-		err = btintel_pcie_dump_fwtrigger_event(data);
-		if (err)
-			bt_dev_warn(data->hdev, "failed to log fwtrigger event");
-		clear_bit(BTINTEL_PCIE_FWTRIGGER_DUMP_INPROGRESS, &data->flags);
-	}
+	/* Unlike usb products, controller will not send hardware exception
+	 * event on exception. Instead controller writes the hardware event
+	 * to device memory along with optional debug events, raises MSIX
+	 * and halts. Driver shall read the exception event from device
+	 * memory and passes it to the stack for further processing.
+	 *
+	 * Re-entry is gated by BTINTEL_PCIE_CORE_HALTED in the IRQ
+	 * handler, which is only cleared by re-probe; no per-work bit
+	 * is needed here.
+	 */
+	btintel_pcie_read_hwexp(data);
+}
 
-	if (test_bit(BTINTEL_PCIE_COREDUMP_INPROGRESS, &data->flags)) {
-		btintel_pcie_dump_traces(data->hdev);
-		clear_bit(BTINTEL_PCIE_COREDUMP_INPROGRESS, &data->flags);
-	}
+static void btintel_pcie_fwtrigger_worker(struct work_struct *work)
+{
+	struct btintel_pcie_data *data = container_of(work,
+					struct btintel_pcie_data, fwtrigger_work);
+	int err;
 
-	if (test_bit(BTINTEL_PCIE_HWEXP_INPROGRESS, &data->flags)) {
-		/* Unlike usb products, controller will not send hardware
-		 * exception event on exception. Instead controller writes the
-		 * hardware event to device memory along with optional debug
-		 * events, raises MSIX and halts. Driver shall read the
-		 * exception event from device memory and passes it stack for
-		 * further processing.
-		 */
-		btintel_pcie_read_hwexp(data);
-		clear_bit(BTINTEL_PCIE_HWEXP_INPROGRESS, &data->flags);
-	}
+	if (!data->hdev)
+		goto out;
+
+	err = btintel_pcie_dump_fwtrigger_event(data);
+	if (err)
+		bt_dev_warn(data->hdev, "failed to log fwtrigger event");
+out:
+	/* Release guard last; matches set in fw_trigger handler. */
+	clear_bit(BTINTEL_PCIE_FWTRIGGER_DUMP_INPROGRESS, &data->flags);
 }
 
 static void btintel_pcie_rx_work(struct work_struct *work)
@@ -2650,20 +2712,22 @@ static void btintel_pcie_reset_work(struct work_struct *wk)
 	btintel_pcie_synchronize_irqs(data);
 
 	flush_work(&data->rx_work);
-	/* Drain any in-flight coredump and block new ones across reset.
-	 * Safe from self-deadlock: coredump_work runs on a separate wq.
+	/* Drain any in-flight dump workers and block new ones across reset.
+	 * Safe from self-deadlock: they all run on a separate wq.
 	 */
 	disable_work_sync(&data->coredump_work);
+	disable_work_sync(&data->hwexp_work);
+	disable_work_sync(&data->fwtrigger_work);
 
 	bt_dev_dbg(data->hdev, "Release bluetooth interface");
 
 	/* Both reset paths follow the same contract: on success they
 	 * destroy 'data' via device_reprobe() (a fresh probe re-INIT_WORKs
-	 * the coredump_work with disable count 0), so enable_work() must
+	 * the dump workers with disable count 0), so enable_work() must
 	 * NOT be called on the success path. Only the FLR path can fail
 	 * with 'data' still alive, in which case we balance the
-	 * disable_work_sync() above so a later successful reset is not
-	 * permanently blocked.
+	 * disable_work_sync() calls above so a later successful reset is
+	 * not permanently blocked.
 	 *
 	 * pci_lock_rescan_remove() (held above) serializes against PCI
 	 * device addition/removal (hotplug), so no device can be added to
@@ -2674,8 +2738,11 @@ static void btintel_pcie_reset_work(struct work_struct *wk)
 		goto out;
 	}
 
-	if (btintel_pcie_perform_flr(data))
+	if (btintel_pcie_perform_flr(data)) {
 		enable_work(&data->coredump_work);
+		enable_work(&data->hwexp_work);
+		enable_work(&data->fwtrigger_work);
+	}
 
 out:
 	pci_dev_put(pdev);
@@ -2869,8 +2936,8 @@ static int btintel_pcie_probe(struct pci_dev *pdev,
 	if (!data->workqueue)
 		return -ENOMEM;
 
-	data->coredump_workqueue = alloc_ordered_workqueue(KBUILD_MODNAME "_cd", 0);
-	if (!data->coredump_workqueue) {
+	data->dump_workqueue = alloc_ordered_workqueue(KBUILD_MODNAME "_cd", 0);
+	if (!data->dump_workqueue) {
 		destroy_workqueue(data->workqueue);
 		return -ENOMEM;
 	}
@@ -2879,6 +2946,8 @@ static int btintel_pcie_probe(struct pci_dev *pdev,
 	INIT_WORK(&data->rx_work, btintel_pcie_rx_work);
 	INIT_WORK(&data->reset_work, btintel_pcie_reset_work);
 	INIT_WORK(&data->coredump_work, btintel_pcie_coredump_worker);
+	INIT_WORK(&data->hwexp_work, btintel_pcie_hwexp_worker);
+	INIT_WORK(&data->fwtrigger_work, btintel_pcie_fwtrigger_worker);
 
 	data->boot_stage_cache = 0x00;
 	data->img_resp_cache = 0x00;
@@ -2921,7 +2990,7 @@ exit_error:
 	/* reset device before exit */
 	btintel_pcie_reset_bt(data);
 
-	destroy_workqueue(data->coredump_workqueue);
+	destroy_workqueue(data->dump_workqueue);
 
 	pci_clear_master(pdev);
 
@@ -2940,12 +3009,14 @@ static void btintel_pcie_remove(struct pci_dev *pdev)
 		return;
 	}
 
-	/* Permanently block coredump triggers and drain the worker before
-	 * tearing down. Must run before cancel_work_sync(&reset_work) so
-	 * the disable counter stays >= 1 even after reset_work()'s
+	/* Permanently block all dump triggers and drain the workers before
+	 * tearing down. Must run before disable_work_sync(&reset_work) so
+	 * the disable counters stay >= 1 even after reset_work()'s
 	 * balanced enable_work() (counter 2 -> 1, never reaching 0).
 	 */
 	disable_work_sync(&data->coredump_work);
+	disable_work_sync(&data->hwexp_work);
+	disable_work_sync(&data->fwtrigger_work);
 
 	/* Cancel pending reset work. Skip only when remove() is called from
 	 * within the reset work itself (PLDR device_reprobe path) to avoid
@@ -2973,7 +3044,7 @@ static void btintel_pcie_remove(struct pci_dev *pdev)
 
 	btintel_pcie_release_hdev(data);
 
-	destroy_workqueue(data->coredump_workqueue);
+	destroy_workqueue(data->dump_workqueue);
 	destroy_workqueue(data->workqueue);
 
 	btintel_pcie_free(data);
@@ -2992,16 +3063,8 @@ static void btintel_pcie_coredump(struct device *dev)
 	if (!data)
 		return;
 
-	if (test_and_set_bit(BTINTEL_PCIE_COREDUMP_INPROGRESS, &data->flags))
-		return;
-
-	data->dmp_hdr.trigger_reason  = BTINTEL_PCIE_TRIGGER_REASON_USER_TRIGGER;
-	/* queue_work() returns false if the work is disabled (reset or
-	 * remove in progress); clear the in-progress bit so a later
-	 * trigger can succeed once the work is re-enabled.
-	 */
-	if (!queue_work(data->coredump_workqueue, &data->coredump_work))
-		clear_bit(BTINTEL_PCIE_COREDUMP_INPROGRESS, &data->flags);
+	btintel_pcie_queue_coredump(data,
+				    BTINTEL_PCIE_TRIGGER_REASON_USER_TRIGGER);
 }
 #endif
 
@@ -3138,12 +3201,8 @@ static int btintel_pcie_resume(struct device *dev)
 	if (btintel_pcie_in_error(data) ||
 			btintel_pcie_in_device_halt(data)) {
 		bt_dev_err(data->hdev, "Controller in error state for D0 entry");
-		if (!test_and_set_bit(BTINTEL_PCIE_COREDUMP_INPROGRESS,
-				      &data->flags)) {
-			data->dmp_hdr.trigger_reason =
-				BTINTEL_PCIE_TRIGGER_REASON_FW_ASSERT;
-			queue_work(data->coredump_workqueue, &data->coredump_work);
-		}
+		btintel_pcie_queue_coredump(data,
+					    BTINTEL_PCIE_TRIGGER_REASON_FW_ASSERT);
 		set_bit(BTINTEL_PCIE_CORE_HALTED, &data->flags);
 		btintel_pcie_reset(data->hdev);
 	}

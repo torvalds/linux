@@ -118,7 +118,6 @@ enum {
 
 enum {
 	BTINTEL_PCIE_CORE_HALTED,
-	BTINTEL_PCIE_HWEXP_INPROGRESS,
 	BTINTEL_PCIE_COREDUMP_INPROGRESS,
 	BTINTEL_PCIE_FWTRIGGER_DUMP_INPROGRESS,
 	BTINTEL_PCIE_RECOVERY_IN_PROGRESS,
@@ -466,8 +465,11 @@ struct btintel_pcie_dump_header {
  * @workqueue: workqueue for RX work
  * @rx_skb_q: SKB queue for RX packet
  * @rx_work: RX work struct to process the RX packet in @rx_skb_q
- * @coredump_workqueue: dedicated workqueue for coredump collection
- * @coredump_work: work struct for coredump trace collection
+ * @dump_workqueue: dedicated ordered workqueue serializing the coredump,
+ *	hardware exception, and firmware-trigger dump workers
+ * @coredump_work: work struct for DRAM trace coredump collection
+ * @hwexp_work: work struct for hardware exception event read
+ * @fwtrigger_work: work struct for firmware-triggered diagnostic event read
  * @dma_pool: DMA pool for descriptors, index array and ci
  * @dma_p_addr: DMA address for pool
  * @dma_v_addr: address of pool
@@ -516,8 +518,10 @@ struct btintel_pcie_data {
 	struct work_struct	rx_work;
 	struct work_struct      reset_work;
 
-	struct workqueue_struct	*coredump_workqueue;
+	struct workqueue_struct	*dump_workqueue;
 	struct work_struct	coredump_work;
+	struct work_struct	hwexp_work;
+	struct work_struct	fwtrigger_work;
 
 	struct dma_pool	*dma_pool;
 	dma_addr_t	dma_p_addr;
