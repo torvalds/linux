@@ -28,4 +28,9 @@ if grep -q ".*symstr.*" README; then
 check_error 'p /bin/sh:10 $stack0:^symstr'	# BAD_TYPE
 fi
 
+# $current is not supported by uprobe
+if grep -q "\$current.*" README; then
+check_error 'p /bin/sh:10 ^$current:u8'	# BAD_VAR
+fi
+
 exit 0
