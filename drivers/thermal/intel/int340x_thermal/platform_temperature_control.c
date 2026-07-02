@@ -227,17 +227,12 @@ static ssize_t ptc_temperature_write(struct file *file, const char __user *data,
 {
 	struct ptc_data *ptc_instance = file->private_data;
 	struct pci_dev *pdev = ptc_instance->pdev;
-	char buf[32];
-	ssize_t len;
 	u32 value;
+	int ret;
 
-	len = min(count, sizeof(buf) - 1);
-	if (copy_from_user(buf, data, len))
-		return -EFAULT;
-
-	buf[len] = '\0';
-	if (kstrtouint(buf, 0, &value))
-		return -EINVAL;
+	ret = kstrtou32_from_user(data, count, 0, &value);
+	if (unlikely(ret))
+		return ret;
 
 	if (ptc_mmio_regs[PTC_TEMP_OVERRIDE_INDEX].units)
 		value /= ptc_mmio_regs[PTC_TEMP_OVERRIDE_INDEX].units;
