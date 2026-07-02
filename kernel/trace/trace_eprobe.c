@@ -87,6 +87,8 @@ static int eprobe_dyn_event_show(struct seq_file *m, struct dyn_event *ev)
 		seq_printf(m, " %s=%s", ep->tp.args[i].name, ep->tp.args[i].comm);
 	seq_putc(m, '\n');
 
+	trace_probe_dump_args(m, &ep->tp);
+
 	return 0;
 }
 

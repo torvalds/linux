@@ -83,38 +83,46 @@ static nokprobe_inline u32 update_data_loc(u32 loc, int consumed)
 /* Printing function type */
 typedef int (*print_type_func_t)(struct trace_seq *, void *, void *);
 
-enum fetch_op {
-	FETCH_OP_NOP = 0,
-	// Stage 1 (load) ops
-	FETCH_OP_REG,		/* Register : .param = offset */
-	FETCH_OP_STACK,		/* Stack : .param = index */
-	FETCH_OP_STACKP,	/* Stack pointer */
-	FETCH_OP_RETVAL,	/* Return value */
-	FETCH_OP_IMM,		/* Immediate : .immediate */
-	FETCH_OP_COMM,		/* Current comm */
-	FETCH_OP_ARG,		/* Function argument : .param */
-	FETCH_OP_FOFFS,		/* File offset: .immediate */
-	FETCH_OP_IMMSTR,	/* Allocated string: .data */
-	FETCH_OP_EDATA,		/* Entry data: .offset */
-	// Stage 2 (dereference) op
-	FETCH_OP_DEREF,		/* Dereference: .offset */
-	FETCH_OP_UDEREF,	/* User-space Dereference: .offset */
-	// Stage 3 (store) ops
-	FETCH_OP_ST_RAW,	/* Raw: .size */
-	FETCH_OP_ST_MEM,	/* Mem: .offset, .size */
-	FETCH_OP_ST_UMEM,	/* Mem: .offset, .size */
-	FETCH_OP_ST_STRING,	/* String: .offset, .size */
-	FETCH_OP_ST_USTRING,	/* User String: .offset, .size */
-	FETCH_OP_ST_SYMSTR,	/* Kernel Symbol String: .offset, .size */
-	FETCH_OP_ST_EDATA,	/* Store Entry Data: .offset */
-	// Stage 4 (modify) op
-	FETCH_OP_MOD_BF,	/* Bitfield: .basesize, .lshift, .rshift */
-	// Stage 5 (loop) op
-	FETCH_OP_LP_ARRAY,	/* Array: .param = loop count */
-	FETCH_OP_TP_ARG,	/* Trace Point argument */
-	FETCH_OP_END,
-	FETCH_NOP_SYMBOL,	/* Unresolved Symbol holder */
-};
+#define FETCH_OP_LIST	{						\
+	/* Stage 1 (load) ops */					\
+	FETCH_OP(NOP, none),		/* NOP */			\
+	FETCH_OP(REG, param),		/* Register: .param = offset */	\
+	FETCH_OP(STACK, param),		/* Stack: .param = index */	\
+	FETCH_OP(STACKP, none),		/* Stack pointer */		\
+	FETCH_OP(RETVAL, none),		/* Return value */		\
+	FETCH_OP(IMM, imm),		/* Immediate: .immediate */	\
+	FETCH_OP(COMM, none),		/* Current comm */		\
+	FETCH_OP(ARG, param),		/* Argument: .param = index */	\
+	FETCH_OP(FOFFS, imm),		/* File offset: .immediate */	\
+	FETCH_OP(IMMSTR, string),	/* Allocated string: .data */	\
+	FETCH_OP(EDATA, offset),	/* Entry data: .offset */	\
+	FETCH_OP(TP_ARG, tp_arg),	/* Tracepoint argument: .data */\
+	/* Stage 2 (dereference) ops */					\
+	FETCH_OP(DEREF, offset),	/* Dereference: .offset */	\
+	FETCH_OP(UDEREF, offset),	/* User-space dereference: .offset */\
+	/* Stage 3 (store) ops */					\
+	FETCH_OP(ST_RAW, store),	/* Raw value: .size */		\
+	FETCH_OP(ST_MEM, store),	/* Memory: .offset, .size */	\
+	FETCH_OP(ST_UMEM, store),	/* User memory: .offset, .size */\
+	FETCH_OP(ST_STRING, store),	/* String: .offset, .size */	\
+	FETCH_OP(ST_USTRING, store),	/* User string: .offset, .size */\
+	FETCH_OP(ST_SYMSTR, store),	/* Symbol name: .offset, .size */\
+	FETCH_OP(ST_EDATA, offset),	/* Entry data: .offset */	\
+	/* Stage 4 (modify) op */					\
+	FETCH_OP(MOD_BF, bf),		/* Bitfield: .basesize, .lshift, .rshift*/\
+	/* Stage 5 (loop) op */						\
+	FETCH_OP(LP_ARRAY, param),	/* Loop array: .param = count */\
+	/* End */							\
+	FETCH_OP(END, none),						\
+	/* Unresolved Symbol holder */					\
+	FETCH_OP(NOP_SYMBOL, symbol),	/* Non loaded symbol: .data = symbol name */\
+}
+
+#define FETCH_OP(opname, decode_fn) FETCH_OP_##opname
+enum fetch_op FETCH_OP_LIST;
+#undef FETCH_OP
+
+#define FETCH_NOP_SYMBOL FETCH_OP_NOP_SYMBOL
 
 struct fetch_insn {
 	enum fetch_op op;
@@ -370,6 +378,13 @@ bool trace_probe_match_command_args(struct trace_probe *tp,
 int trace_probe_create(const char *raw_command, int (*createfn)(int, const char **));
 int trace_probe_print_args(struct trace_seq *s, struct probe_arg *args, int nr_args,
 		 u8 *data, void *field);
+#ifdef CONFIG_PROBE_EVENTS_DUMP_FETCHARG
+void trace_probe_dump_args(struct seq_file *m, struct trace_probe *tp);
+#else
+static inline void trace_probe_dump_args(struct seq_file *m, struct trace_probe *tp)
+{
+}
+#endif
 
 #ifdef CONFIG_HAVE_FUNCTION_ARG_ACCESS_API
 int traceprobe_get_entry_data_size(struct trace_probe *tp);

@@ -2403,3 +2403,99 @@ int trace_probe_print_args(struct trace_seq *s, struct probe_arg *args, int nr_a
 	}
 	return 0;
 }
+
+#ifdef CONFIG_PROBE_EVENTS_DUMP_FETCHARG
+
+struct fetch_op_decode {
+	const char *name;
+	void (*decode)(struct seq_file *m, struct fetch_insn *insn);
+};
+
+static const struct fetch_op_decode fetch_op_decode[];
+
+static void fetcharg_decode_none(struct seq_file *m, struct fetch_insn *insn)
+{
+	seq_puts(m, fetch_op_decode[insn->op].name);
+}
+
+static void fetcharg_decode_param(struct seq_file *m, struct fetch_insn *insn)
+{
+	seq_printf(m, "%s(%u)", fetch_op_decode[insn->op].name, insn->param);
+}
+
+static void fetcharg_decode_imm(struct seq_file *m, struct fetch_insn *insn)
+{
+	seq_printf(m, "%s(0x%lx)", fetch_op_decode[insn->op].name, insn->immediate);
+}
+
+static void fetcharg_decode_string(struct seq_file *m, struct fetch_insn *insn)
+{
+	seq_printf(m, "%s(%s)", fetch_op_decode[insn->op].name, (char *)insn->data);
+}
+
+static void fetcharg_decode_symbol(struct seq_file *m, struct fetch_insn *insn)
+{
+	seq_printf(m, "%s(%s)", fetch_op_decode[insn->op].name, (char *)insn->data);
+}
+
+static void fetcharg_decode_offset(struct seq_file *m, struct fetch_insn *insn)
+{
+	seq_printf(m, "%s(offset=%d)", fetch_op_decode[insn->op].name, insn->offset);
+}
+
+static void fetcharg_decode_store(struct seq_file *m, struct fetch_insn *insn)
+{
+	if (insn->op == FETCH_OP_ST_RAW)
+		seq_printf(m, "%s(size=%u)", fetch_op_decode[insn->op].name, insn->size);
+	else
+		seq_printf(m, "%s(offset=%d,size=%u)", fetch_op_decode[insn->op].name,
+			  insn->offset, insn->size);
+}
+
+static void fetcharg_decode_bf(struct seq_file *m, struct fetch_insn *insn)
+{
+	seq_printf(m, "%s(basesize=%u,lshift=%u,rshift=%u)",
+		   fetch_op_decode[insn->op].name, insn->basesize, insn->lshift, insn->rshift);
+}
+
+static void fetcharg_decode_tp_arg(struct seq_file *m, struct fetch_insn *insn)
+{
+	struct ftrace_event_field *field = insn->data;
+
+	seq_printf(m, "%s(%s)", fetch_op_decode[insn->op].name, field->name);
+}
+
+#define FETCH_OP(opname, decode_fn) \
+	[FETCH_OP_##opname] = { .name = #opname, .decode = fetcharg_decode_##decode_fn }
+
+static const struct fetch_op_decode fetch_op_decode[] = FETCH_OP_LIST;
+#undef FETCH_OP
+
+static void trace_probe_dump_arg(struct seq_file *m, struct probe_arg *parg)
+{
+	int i;
+
+	seq_printf(m, "#  %s: ", parg->name);
+	for (i = 0; i < FETCH_INSN_MAX; i++) {
+		struct fetch_insn *insn = parg->code + i;
+
+		if (insn->op >= ARRAY_SIZE(fetch_op_decode) || !fetch_op_decode[insn->op].decode)
+			seq_printf(m, "unknown(%d)", insn->op);
+		else
+			fetch_op_decode[insn->op].decode(m, insn);
+
+		if (insn->op == FETCH_OP_END)
+			break;
+		seq_puts(m, " -> ");
+	}
+	seq_putc(m, '\n');
+}
+
+void trace_probe_dump_args(struct seq_file *m, struct trace_probe *tp)
+{
+	int i;
+
+	for (i = 0; i < tp->nr_args; i++)
+		trace_probe_dump_arg(m, &tp->args[i]);
+}
+#endif /* CONFIG_PROBE_EVENTS_DUMP_FETCHARG */

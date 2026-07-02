@@ -1449,6 +1449,8 @@ static int trace_fprobe_show(struct seq_file *m, struct dyn_event *ev)
 		seq_printf(m, " %s=%s", tf->tp.args[i].name, tf->tp.args[i].comm);
 	seq_putc(m, '\n');
 
+	trace_probe_dump_args(m, &tf->tp);
+
 	return 0;
 }
 

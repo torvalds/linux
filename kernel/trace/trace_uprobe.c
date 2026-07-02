@@ -765,6 +765,9 @@ static int trace_uprobe_show(struct seq_file *m, struct dyn_event *ev)
 		seq_printf(m, " %s=%s", tu->tp.args[i].name, tu->tp.args[i].comm);
 
 	seq_putc(m, '\n');
+
+	trace_probe_dump_args(m, &tu->tp);
+
 	return 0;
 }
 
