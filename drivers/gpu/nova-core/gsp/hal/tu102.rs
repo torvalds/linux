@@ -320,12 +320,7 @@ impl GspHal for Tu102 {
         ctx: &mut GspBootContext<'_, '_>,
         gsp_fw: &GspFirmware,
     ) -> Result {
-        GspSequencer::run(
-            &gsp.cmdq,
-            ctx,
-            gsp.libos.dma_handle(),
-            gsp_fw.bootloader.app_version,
-        )?;
+        GspSequencer::run(&gsp.cmdq, ctx, &gsp.libos, gsp_fw.bootloader.app_version)?;
 
         Ok(())
     }

@@ -6,6 +6,7 @@ use core::array;
 
 use kernel::{
     device,
+    dma::Coherent,
     io::{
         poll::read_poll_timeout,
         Io, //
@@ -31,7 +32,8 @@ use crate::{
             MessageFromGsp, //
         },
         fw,
-        GspBootContext, //
+        GspBootContext,
+        LibosMemoryRegionInitArgument, //
     },
     num::FromSafeCast,
     sbuffer::SBufferIter,
@@ -135,8 +137,8 @@ pub(crate) struct GspSequencer<'a> {
     sec2_falcon: &'a Falcon<'a, Sec2>,
     /// GSP falcon for core operations.
     gsp_falcon: &'a Falcon<'a, Gsp>,
-    /// LibOS DMA handle address.
-    libos_dma_handle: u64,
+    /// LibOS memory region init arguments.
+    libos: &'a Coherent<[LibosMemoryRegionInitArgument]>,
     /// Bootloader application version.
     bootloader_app_version: u32,
     /// Device for logging.
@@ -232,10 +234,12 @@ impl GspSeqCmd {
                 // Reset the GSP to prepare it for resuming.
                 seq.gsp_falcon.reset()?;
 
+                let libos_dma_handle = seq.libos.dma_handle();
+
                 // Write the libOS DMA handle to GSP mailboxes.
                 seq.gsp_falcon.write_mailboxes(
-                    Some(seq.libos_dma_handle as u32),
-                    Some((seq.libos_dma_handle >> 32) as u32),
+                    Some(libos_dma_handle as u32),
+                    Some((libos_dma_handle >> 32) as u32),
                 );
 
                 // Start the SEC2 falcon which will trigger GSP-RM to resume on the GSP.
@@ -336,7 +340,7 @@ impl<'a> GspSequencer<'a> {
     pub(crate) fn run(
         cmdq: &Cmdq,
         ctx: &'a GspBootContext<'_, '_>,
-        libos_dma_handle: u64,
+        libos: &'a Coherent<[LibosMemoryRegionInitArgument]>,
         bootloader_app_version: u32,
     ) -> Result {
         let seq_info = loop {
@@ -351,7 +355,7 @@ impl<'a> GspSequencer<'a> {
             bar: ctx.bar,
             sec2_falcon: ctx.sec2_falcon,
             gsp_falcon: ctx.gsp_falcon,
-            libos_dma_handle,
+            libos,
             bootloader_app_version,
             dev: ctx.dev(),
         };
