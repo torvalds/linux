@@ -16,6 +16,7 @@
 #include <linux/vmstat.h>
 
 #include "internal.h"
+#include "page_alloc.h"
 #include "swap.h"
 
 atomic_long_t _totalram_pages __read_mostly;

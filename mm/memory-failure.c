@@ -66,6 +66,7 @@
 #include <trace/events/memory-failure.h>
 
 #include "swap.h"
+#include "page_alloc.h"
 #include "internal.h"
 
 static int sysctl_memory_failure_early_kill __read_mostly;

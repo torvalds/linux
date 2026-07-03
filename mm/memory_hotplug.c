@@ -40,6 +40,7 @@
 #include <asm/tlbflush.h>
 
 #include "internal.h"
+#include "page_alloc.h"
 #include "shuffle.h"
 
 enum {

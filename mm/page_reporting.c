@@ -8,6 +8,7 @@
 #include <linux/delay.h>
 #include <linux/scatterlist.h>
 
+#include "page_alloc.h"
 #include "page_reporting.h"
 #include "internal.h"
 

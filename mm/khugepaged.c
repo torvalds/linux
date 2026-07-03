@@ -26,6 +26,7 @@
 
 #include <asm/tlb.h>
 #include "internal.h"
+#include "page_alloc.h"
 #include "mm_slot.h"
 
 enum scan_result {

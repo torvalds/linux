@@ -24,6 +24,7 @@
 #include <linux/page_owner.h>
 #include <linux/psi.h>
 #include <linux/cpuset.h>
+#include "page_alloc.h"
 #include "internal.h"
 
 #ifdef CONFIG_COMPACTION

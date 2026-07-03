@@ -49,6 +49,7 @@
 #include <trace/events/migrate.h>
 
 #include "internal.h"
+#include "page_alloc.h"
 #include "swap.h"
 
 static const struct movable_operations *offline_movable_ops;

@@ -33,6 +33,7 @@
 #include <linux/kexec_handover.h>
 #include <linux/hugetlb.h>
 #include "internal.h"
+#include "page_alloc.h"
 #include "slab.h"
 #include "shuffle.h"
 

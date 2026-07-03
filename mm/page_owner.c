@@ -13,7 +13,7 @@
 #include <linux/memcontrol.h>
 #include <linux/sched/clock.h>
 
-#include "internal.h"
+#include "page_alloc.h"
 
 /*
  * TODO: teach PAGE_OWNER_STACK_DEPTH (__dump_page_owner and save_stack)
