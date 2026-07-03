@@ -15,6 +15,9 @@
 #include <linux/vmalloc.h>
 #include <linux/kmemleak.h>
 
+#include "internal.h"
+#include "page_alloc.h"
+
 #define ALLOCINFO_FILE_NAME		"allocinfo"
 #define MODULE_ALLOC_TAG_VMAP_SIZE	(100000UL * sizeof(struct alloc_tag))
 #define SECTION_START(NAME)		(CODETAG_SECTION_START_PREFIX NAME)
@@ -792,19 +795,6 @@ struct pfn_pool {
 
 #define PFN_POOL_SIZE			((PAGE_SIZE - offsetof(struct pfn_pool, pfns)) / \
 					 sizeof(unsigned long))
-
-/*
- * Skip early PFN recording for a page allocation.  Reuses the
- * %__GFP_NO_OBJ_EXT bit.  Used by __alloc_tag_add_early_pfn() to avoid
- * recursion when allocating pages for the early PFN tracking list
- * itself.
- *
- * Codetags of the pages allocated with __GFP_NO_CODETAG should be
- * cleared (via clear_page_tag_ref()) before freeing the pages to prevent
- * alloc_tag_sub_check() from triggering a warning.
- */
-#define __GFP_NO_CODETAG		__GFP_NO_OBJ_EXT
-
 static struct pfn_pool *current_pfn_pool __initdata;
 
 static void __init __alloc_tag_add_early_pfn(unsigned long pfn)
@@ -815,7 +805,8 @@ static void __init __alloc_tag_add_early_pfn(unsigned long pfn)
 	do {
 		pool = READ_ONCE(current_pfn_pool);
 		if (!pool || atomic_read(&pool->count) >= PFN_POOL_SIZE) {
-			struct page *new_page = alloc_page(__GFP_HIGH | __GFP_NO_CODETAG);
+			struct page *new_page = __alloc_pages(__GFP_HIGH, 0, numa_mem_id(),
+							      NULL, ALLOC_NO_CODETAG);
 			struct pfn_pool *new;
 
 			if (!new_page) {
@@ -846,7 +837,7 @@ typedef void alloc_tag_add_func(unsigned long pfn);
 static alloc_tag_add_func __rcu *alloc_tag_add_early_pfn_ptr __refdata =
 	RCU_INITIALIZER(__alloc_tag_add_early_pfn);
 
-void alloc_tag_add_early_pfn(unsigned long pfn, gfp_t gfp_flags)
+void alloc_tag_add_early_pfn(unsigned long pfn, unsigned int alloc_flags)
 {
 	alloc_tag_add_func *alloc_tag_add;
 
@@ -854,7 +845,7 @@ void alloc_tag_add_early_pfn(unsigned long pfn, gfp_t gfp_flags)
 		return;
 
 	/* Skip allocations for the tracking list itself to avoid recursion. */
-	if (gfp_flags & __GFP_NO_CODETAG)
+	if (alloc_flags & ALLOC_NO_CODETAG)
 		return;
 
 	rcu_read_lock();
