@@ -430,4 +430,85 @@ TEST_F(migrate, ksm)
 	propagate_children(_metadata, data);
 }
 
+static bool range_maps_the_same_pfn(int pagemap_fd, void *region, int nr_pages)
+{
+	int i;
+	int retries = 0;
+	unsigned long first_pfn;
+
+retry:
+	if (retries > 10)
+		return false;
+
+	first_pfn = pagemap_get_pfn(pagemap_fd, region);
+	for (i = 0; i < nr_pages; i++) {
+		if (pagemap_get_pfn(pagemap_fd, region + i * getpagesize()) != first_pfn) {
+			/*
+			 * Retry up to 10 times at most in case of the low chance of page
+			 * compaction migrating the page while we check for pfn.
+			 */
+			retries++;
+			goto retry;
+		}
+	}
+
+	return true;
+}
+
+TEST_F(migrate, ksm_and_mremap)
+{
+	unsigned long old_pfn, new_pfn;
+	void *region, *mremap_region;
+	const int nr_pages = 16;
+	size_t mmap_size;
+	int pagemap_fd;
+
+	/* Skip if KSM is not available */
+	if (ksm_stop() < 0)
+		SKIP(return, "accessing \"/sys/kernel/mm/ksm/run\" failed");
+	if (ksm_get_full_scans() < 0)
+		SKIP(return, "accessing \"/sys/kernel/mm/ksm/full_scan\" failed");
+
+	pagemap_fd = open("/proc/self/pagemap", O_RDONLY);
+	if (pagemap_fd < 0)
+		SKIP(return, "opening pagemap failed");
+
+	/* Allocate and populate twice the anon pages initially. */
+	mmap_size = 2 * nr_pages * getpagesize();
+	region = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE,
+		      MAP_PRIVATE | MAP_ANON, -1, 0);
+	ASSERT_NE(region, MAP_FAILED);
+	memset(region, 0x77, mmap_size);
+
+	/* mremap the second half over the first half, to stress rmap handling */
+	mmap_size /= 2;
+	mremap_region = mremap(region + mmap_size, mmap_size, mmap_size,
+			       MREMAP_MAYMOVE | MREMAP_FIXED, region);
+	ASSERT_EQ(mremap_region, region);
+
+	/* Merge all pages into a single KSM page. */
+	madvise(region, mmap_size, MADV_MERGEABLE);
+	ASSERT_EQ(ksm_start(), 0);
+
+	/* The whole range should map the same KSM page. */
+	old_pfn = pagemap_get_pfn(pagemap_fd, region);
+	if (old_pfn == -1ul)
+		SKIP(return, "Obtaining PFN failed");
+	ksm_start();
+	ASSERT_TRUE(range_maps_the_same_pfn(pagemap_fd, region, nr_pages));
+
+	/*
+	 * Migrate the KSM page; the whole range should map the new (migrated)
+	 * KSM page.
+	 */
+	ASSERT_EQ(try_to_move_page(region), 0);
+
+	new_pfn = pagemap_get_pfn(pagemap_fd, region);
+	if (new_pfn == -1ul)
+		SKIP(return, "Obtaining PFN failed");
+	ASSERT_NE(new_pfn, old_pfn);
+	ASSERT_TRUE(range_maps_the_same_pfn(pagemap_fd, region, nr_pages));
+}
+
+
 TEST_HARNESS_MAIN
