@@ -503,21 +503,8 @@ static sector_t ecryptfs_bmap(struct address_space *mapping, sector_t block)
 	return block;
 }
 
-#include <linux/buffer_head.h>
-
 const struct address_space_operations ecryptfs_aops = {
-	/*
-	 * XXX: This is pretty broken for multiple reasons: ecryptfs does not
-	 * actually use buffer_heads, and ecryptfs will crash without
-	 * CONFIG_BLOCK.  But it matches the behavior before the default for
-	 * address_space_operations without the ->dirty_folio method was
-	 * cleaned up, so this is the best we can do without maintainer
-	 * feedback.
-	 */
-#ifdef CONFIG_BLOCK
-	.dirty_folio	= block_dirty_folio,
-	.invalidate_folio = block_invalidate_folio,
-#endif
+	.dirty_folio	= filemap_dirty_folio,
 	.writepages = ecryptfs_writepages,
 	.read_folio = ecryptfs_read_folio,
 	.write_begin = ecryptfs_write_begin,
