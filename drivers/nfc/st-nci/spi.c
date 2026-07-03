@@ -271,8 +271,8 @@ static void st_nci_spi_remove(struct spi_device *dev)
 }
 
 static struct spi_device_id st_nci_spi_id_table[] = {
-	{ST_NCI_SPI_DRIVER_NAME, 0},
-	{"st21nfcb-spi", 0},
+	{ ST_NCI_SPI_DRIVER_NAME },
+	{ "st21nfcb-spi" },
 	{}
 };
 MODULE_DEVICE_TABLE(spi, st_nci_spi_id_table);
