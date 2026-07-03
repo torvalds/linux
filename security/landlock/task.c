@@ -242,6 +242,17 @@ static bool sock_is_scoped(struct sock *const other,
 
 	/* The credentials will not change. */
 	lockdep_assert_held(&unix_sk(other)->lock);
+
+	/*
+	 * A live kernel socket (e.g. from sock_create_kern()) has no backing
+	 * file, hence no Landlock domain, so treat it as unscoped.  The
+	 * sk_socket check only guards that dereference; sk_socket is NULL
+	 * solely for a dead peer, which the caller already excludes under the
+	 * held lock, so no separate SOCK_DEAD check is needed.
+	 */
+	if (unlikely(!other->sk_socket || !other->sk_socket->file))
+		return false;
+
 	dom_other = landlock_cred(other->sk_socket->file->f_cred)->domain;
 	return domain_is_scoped(domain, dom_other,
 				LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET);
