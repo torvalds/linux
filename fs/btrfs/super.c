@@ -129,7 +129,6 @@ enum {
 
 	/* Rescue options */
 	Opt_rescue,
-	Opt_usebackuproot,
 
 	/* Debugging options */
 	Opt_enospc_debug,
@@ -249,8 +248,6 @@ static const struct fs_parameter_spec btrfs_fs_parameters[] = {
 
 	/* Rescue options. */
 	fsparam_enum("rescue", Opt_rescue, btrfs_parameter_rescue),
-	/* Deprecated, with alias rescue=usebackuproot */
-	__fsparam(NULL, "usebackuproot", Opt_usebackuproot, fs_param_deprecated, NULL),
 	/* For compatibility only, alias for "rescue=nologreplay". */
 	fsparam_flag("norecovery", Opt_norecovery),
 
@@ -560,14 +557,6 @@ static int btrfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 			btrfs_clear_opt(ctx->mount_opt, AUTO_DEFRAG);
 		else
 			btrfs_set_opt(ctx->mount_opt, AUTO_DEFRAG);
-		break;
-	case Opt_usebackuproot:
-		btrfs_warn(NULL,
-			   "'usebackuproot' is deprecated, use 'rescue=usebackuproot' instead");
-		btrfs_set_opt(ctx->mount_opt, USEBACKUPROOT);
-
-		/* If we're loading the backup roots we can't trust the space cache. */
-		btrfs_set_opt(ctx->mount_opt, CLEAR_CACHE);
 		break;
 	case Opt_skip_balance:
 		btrfs_set_opt(ctx->mount_opt, SKIP_BALANCE);
