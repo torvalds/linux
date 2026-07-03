@@ -30,6 +30,7 @@ mod sequencer;
 pub(crate) use fw::{
     GspFmcBootParams,
     GspFwWprMeta,
+    LibosMemoryRegionInitArgument,
     LibosParams, //
 };
 pub(crate) use hal::boot_firmware_files;
@@ -45,10 +46,7 @@ use crate::{
     gpu::Chipset,
     gsp::{
         cmdq::Cmdq,
-        fw::{
-            GspArgumentsPadded,
-            LibosMemoryRegionInitArgument, //
-        },
+        fw::GspArgumentsPadded, //
     },
     num,
 };

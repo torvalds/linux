@@ -40,7 +40,11 @@ use crate::{
         FIRMWARE_VERSION, //
     },
     gpu::Chipset,
-    gsp::GspFmcBootParams,
+    gsp::{
+        GspFmcBootParams,
+        GspFwWprMeta,
+        LibosMemoryRegionInitArgument, //
+    },
     mctp::{
         MctpHeader,
         NvdmHeader,
@@ -134,7 +138,7 @@ impl FspCotMessage {
     fn new<'a>(
         fb_layout: &FbLayout,
         fsp_fw: &'a FspFirmware,
-        args: &'a FmcBootArgs,
+        args: &'a FmcBootArgs<'_>,
     ) -> Result<impl Init<Self> + 'a> {
         // frts_vidmem_offset is measured from the end of FB, so FRTS sits at
         // (end of FB) - frts_vidmem_offset.
@@ -188,35 +192,39 @@ impl MessageToFsp for FspCotMessage {
 }
 
 /// Bundled arguments for FMC boot via FSP Chain of Trust.
-pub(crate) struct FmcBootArgs {
+pub(crate) struct FmcBootArgs<'a> {
     chipset: Chipset,
     fmc_boot_params: Coherent<GspFmcBootParams>,
     resume: bool,
+    // Additional dependencies required to be kept alive for FMC boot.
+    _wpr_meta: &'a Coherent<GspFwWprMeta>,
+    _libos: &'a Coherent<[LibosMemoryRegionInitArgument]>,
 }
 
-impl FmcBootArgs {
+impl<'a> FmcBootArgs<'a> {
     /// Builds FMC boot arguments, allocating the DMA-coherent boot parameter
     /// structure that FSP will read.
     pub(crate) fn new(
         dev: &device::Device<device::Bound>,
         chipset: Chipset,
-        wpr_meta_addr: u64,
-        libos_addr: u64,
+        wpr_meta: &'a Coherent<GspFwWprMeta>,
+        libos: &'a Coherent<[LibosMemoryRegionInitArgument]>,
         resume: bool,
     ) -> Result<Self> {
-        let init = GspFmcBootParams::new(wpr_meta_addr, libos_addr);
+        let init = GspFmcBootParams::new(wpr_meta.dma_handle(), libos.dma_handle());
 
         Ok(Self {
             chipset,
             fmc_boot_params: Coherent::<GspFmcBootParams>::init(dev, GFP_KERNEL, init)?,
             resume,
+            _wpr_meta: wpr_meta,
+            _libos: libos,
         })
     }
 
-    /// DMA address of the FMC boot parameters, needed after boot for lockdown
-    /// release polling.
-    pub(crate) fn boot_params_dma_handle(&self) -> u64 {
-        self.fmc_boot_params.dma_handle()
+    /// Returns the FMC boot parameters allocation.
+    pub(crate) fn boot_params(&self) -> &Coherent<GspFmcBootParams> {
+        &self.fmc_boot_params
     }
 }
 
@@ -350,7 +358,7 @@ impl<'a> Fsp<'a> {
         &mut self,
         dev: &device::Device<device::Bound>,
         fb_layout: &FbLayout,
-        args: &FmcBootArgs,
+        args: &FmcBootArgs<'_>,
     ) -> Result {
         dev_dbg!(dev, "Starting FSP boot sequence for {}\n", args.chipset);
 
