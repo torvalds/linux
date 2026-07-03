@@ -621,6 +621,7 @@ static int btrfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 			btrfs_set_opt(ctx->mount_opt, IGNORESUPERFLAGS);
 			btrfs_set_opt(ctx->mount_opt, IGNOREBADROOTS);
 			btrfs_set_opt(ctx->mount_opt, NOLOGREPLAY);
+			btrfs_set_opt(ctx->mount_opt, USEBACKUPROOT);
 			break;
 		default:
 			btrfs_info(NULL, "unrecognized rescue option '%s'",
