@@ -2310,7 +2310,7 @@ static const struct of_device_id trf7970a_of_match[] = {
 MODULE_DEVICE_TABLE(of, trf7970a_of_match);
 
 static const struct spi_device_id trf7970a_id_table[] = {
-	{ "trf7970a" },
+	{ .name = "trf7970a" },
 	{}
 };
 
