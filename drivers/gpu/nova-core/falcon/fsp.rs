@@ -111,18 +111,22 @@ impl<'a> Falcon<'a, Fsp> {
     ///
     /// Returns the size of available data in bytes, or 0 if no data is available.
     ///
+    /// Returns [`EIO`] if the queue pointers are bogus (`tail < head`).
+    ///
     /// The FSP message queue is not circular. Pointers are reset to 0 after each
     /// message exchange, so `tail >= head` is always true when data is present.
-    fn poll_msgq(&self) -> u32 {
+    fn poll_msgq(&self) -> Result<u32> {
         let head = self.bar.read(regs::NV_PFSP_MSGQ_HEAD::at(0)).val();
         let tail = self.bar.read(regs::NV_PFSP_MSGQ_TAIL::at(0)).val();
 
         if head == tail {
-            return 0;
+            Ok(0)
+        } else {
+            // TAIL points at the last DWORD written, so the size is `tail - head + 4`.
+            tail.checked_sub(head)
+                .and_then(|delta| delta.checked_add(4))
+                .ok_or(EIO)
         }
-
-        // TAIL points at last DWORD written, so add 4 to get total size.
-        tail.saturating_sub(head).saturating_add(4)
     }
 
     /// Writes `packet` to FSP EMEM and updates the queue pointers to notify FSP.
@@ -156,7 +160,7 @@ impl<'a> Falcon<'a, Fsp> {
     /// memory allocation error occurred.
     pub(crate) fn recv_msg(&mut self) -> Result<KVec<u8>> {
         let msg_size = read_poll_timeout(
-            || Ok(self.poll_msgq()),
+            || self.poll_msgq(),
             |&size| size > 0,
             Delta::from_millis(10),
             Delta::from_millis(FSP_MSG_TIMEOUT_MS),
