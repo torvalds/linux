@@ -131,7 +131,6 @@ enum {
 	BTRFS_ROOT_ORPHAN_ITEM_INSERTED,
 	BTRFS_ROOT_DEFRAG_RUNNING,
 	BTRFS_ROOT_FORCE_COW,
-	BTRFS_ROOT_MULTI_LOG_TASKS,
 	BTRFS_ROOT_DIRTY,
 	BTRFS_ROOT_DELETING,
 
@@ -216,7 +215,6 @@ struct btrfs_root {
 	 * to access this field.
 	 */
 	int last_log_commit;
-	pid_t log_start_pid;
 
 	u64 last_trans;
 

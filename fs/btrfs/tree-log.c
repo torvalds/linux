@@ -316,13 +316,6 @@ again:
 			wait_log_commit(root, root->log_transid - 1);
 			goto again;
 		}
-
-		if (!root->log_start_pid) {
-			clear_bit(BTRFS_ROOT_MULTI_LOG_TASKS, &root->state);
-			root->log_start_pid = current->pid;
-		} else if (root->log_start_pid != current->pid) {
-			set_bit(BTRFS_ROOT_MULTI_LOG_TASKS, &root->state);
-		}
 	} else {
 		/*
 		 * This means fs_info->log_root_tree was already created
@@ -340,8 +333,6 @@ again:
 			goto out;
 
 		set_bit(BTRFS_ROOT_HAS_LOG_TREE, &root->state);
-		clear_bit(BTRFS_ROOT_MULTI_LOG_TASKS, &root->state);
-		root->log_start_pid = current->pid;
 	}
 
 	atomic_inc(&root->log_writers);
@@ -3347,13 +3338,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 
 	while (1) {
 		int batch = atomic_read(&root->log_batch);
-		/* when we're on an ssd, just kick the log commit out */
-		if (!btrfs_test_opt(fs_info, SSD) &&
-		    test_bit(BTRFS_ROOT_MULTI_LOG_TASKS, &root->state)) {
-			mutex_unlock(&root->log_mutex);
-			schedule_timeout_uninterruptible(1);
-			mutex_lock(&root->log_mutex);
-		}
+
 		wait_for_writer(root);
 		if (batch == atomic_read(&root->log_batch))
 			break;
@@ -3414,7 +3399,6 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 
 	btrfs_set_root_log_transid(root, root->log_transid + 1);
 	log->log_transid = root->log_transid;
-	root->log_start_pid = 0;
 	/*
 	 * IO has been started, blocks of the log tree have WRITTEN flag set
 	 * in their headers. new modifications of the log will be written to
