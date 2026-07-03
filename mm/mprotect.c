@@ -699,14 +699,20 @@ static int prot_none_pte_entry(pte_t *pte, unsigned long addr,
 		0 : -EACCES;
 }
 
+#ifdef CONFIG_HUGETLB_PAGE
 static int prot_none_hugetlb_entry(pte_t *pte, unsigned long hmask,
 				   unsigned long addr, unsigned long next,
 				   struct mm_walk *walk)
 {
-	return pfn_modify_allowed(pte_pfn(ptep_get(pte)),
-				  *(pgprot_t *)(walk->private)) ?
-		0 : -EACCES;
+	const pte_t entry = huge_ptep_get(walk->mm, addr, pte);
+
+	if (pfn_modify_allowed(pte_pfn(entry), *(pgprot_t *)(walk->private)))
+		return 0;
+	return -EACCES;
 }
+#else
+#define prot_none_hugetlb_entry	NULL
+#endif
 
 static const struct mm_walk_ops prot_none_walk_ops = {
 	.pte_entry		= prot_none_pte_entry,
