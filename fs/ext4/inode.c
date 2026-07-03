@@ -3174,7 +3174,7 @@ static int ext4_da_write_begin(const struct kiocb *iocb,
 
 	if (ext4_test_inode_state(inode, EXT4_STATE_MAY_INLINE_DATA)) {
 		ret = ext4_generic_write_inline_data(mapping, inode, pos, len,
-						     foliop, fsdata, true);
+						     foliop, true);
 		if (ret < 0)
 			return ret;
 		if (ret == 1) {

@@ -3137,8 +3137,7 @@ int do_journal_get_write_access(handle_t *handle, struct inode *inode,
 				struct buffer_head *bh);
 void ext4_set_inode_mapping_order(struct inode *inode);
 #define FALL_BACK_TO_NONDELALLOC 1
-#define CONVERT_INLINE_DATA	 2
-#define EXT4_WRITE_DATA_INLINE	 4
+#define EXT4_WRITE_DATA_INLINE	 2
 
 typedef enum {
 	EXT4_IGET_NORMAL =	0,
@@ -3756,7 +3755,7 @@ extern int ext4_generic_write_inline_data(struct address_space *mapping,
 					  struct inode *inode,
 					  loff_t pos, unsigned len,
 					  struct folio **foliop,
-					  void **fsdata, bool da);
+					  bool da);
 extern int ext4_try_add_inline_entry(handle_t *handle,
 				     struct ext4_filename *fname,
 				     struct inode *dir, struct inode *inode);
