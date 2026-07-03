@@ -51,7 +51,7 @@ static const struct i2c_device_id pn544_hci_i2c_id_table[] = {
 MODULE_DEVICE_TABLE(i2c, pn544_hci_i2c_id_table);
 
 static const struct acpi_device_id pn544_hci_i2c_acpi_match[] = {
-	{ "NXP5440" },
+	{ .id = "NXP5440" },
 	{}
 };
 MODULE_DEVICE_TABLE(acpi, pn544_hci_i2c_acpi_match);

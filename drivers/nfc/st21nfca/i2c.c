@@ -578,7 +578,7 @@ static const struct i2c_device_id st21nfca_hci_i2c_id_table[] = {
 MODULE_DEVICE_TABLE(i2c, st21nfca_hci_i2c_id_table);
 
 static const struct acpi_device_id st21nfca_hci_i2c_acpi_match[] = {
-	{ "SMO2100" },
+	{ .id = "SMO2100" },
 	{}
 };
 MODULE_DEVICE_TABLE(acpi, st21nfca_hci_i2c_acpi_match);
