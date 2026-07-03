@@ -277,7 +277,7 @@ static struct spi_device_id st_nci_spi_id_table[] = {
 };
 MODULE_DEVICE_TABLE(spi, st_nci_spi_id_table);
 
-static const struct acpi_device_id st_nci_spi_acpi_match[] __maybe_unused = {
+static const struct acpi_device_id st_nci_spi_acpi_match[] = {
 	{"SMO2101", 0},
 	{}
 };
