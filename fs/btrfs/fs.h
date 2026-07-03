@@ -289,7 +289,8 @@ enum {
 	 BTRFS_MOUNT_IGNOREBADROOTS |		\
 	 BTRFS_MOUNT_IGNOREDATACSUMS |		\
 	 BTRFS_MOUNT_IGNOREMETACSUMS |		\
-	 BTRFS_MOUNT_IGNORESUPERFLAGS)
+	 BTRFS_MOUNT_IGNORESUPERFLAGS |		\
+	 BTRFS_MOUNT_USEBACKUPROOT)
 
 /*
  * Compat flags that we support.  If any incompat flags are set other than the
