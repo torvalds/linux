@@ -556,7 +556,7 @@ register! {
     /// GA102 and later.
     pub(crate) NV_PRISCV_RISCV_CPUCTL(u32) @ PFalcon2Base + 0x00000388 {
         7:7     active_stat => bool;
-        0:0     halted => bool;
+        4:4     halted => bool;
     }
 
     /// GA102 and later.
