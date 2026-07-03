@@ -2311,9 +2311,8 @@ MODULE_DEVICE_TABLE(of, trf7970a_of_match);
 
 static const struct spi_device_id trf7970a_id_table[] = {
 	{ .name = "trf7970a" },
-	{}
+	{ }
 };
-
 MODULE_DEVICE_TABLE(spi, trf7970a_id_table);
 
 static struct spi_driver trf7970a_spi_driver = {

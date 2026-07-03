@@ -1050,7 +1050,7 @@ static const struct nfc_digital_ops st95hf_nfc_digital_ops = {
 
 static const struct spi_device_id st95hf_id[] = {
 	{ .name = "st95hf" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, st95hf_id);
 
