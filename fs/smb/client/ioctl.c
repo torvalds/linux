@@ -133,8 +133,7 @@ static int cifs_set_compression_by_path(unsigned int xid, struct file *filep,
 
 close:
 	server->ops->close(xid, tcon, &fid);
-	if (tmp_cfile)
-		kfree(tmp_cfile);
+	kfree(tmp_cfile);
 	cifs_free_open_info(&data);
 out:
 	free_dentry_path(page);
