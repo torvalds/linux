@@ -1056,7 +1056,7 @@ MODULE_DEVICE_TABLE(spi, st95hf_id);
 
 static const struct of_device_id st95hf_spi_of_match[] = {
 	{ .compatible = "st,st95hf" },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, st95hf_spi_of_match);
 

@@ -938,8 +938,8 @@ static void pn544_hci_i2c_remove(struct i2c_client *client)
 }
 
 static const struct of_device_id of_pn544_i2c_match[] = {
-	{ .compatible = "nxp,pn544-i2c", },
-	{},
+	{ .compatible = "nxp,pn544-i2c" },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, of_pn544_i2c_match);
 

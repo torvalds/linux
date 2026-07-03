@@ -85,8 +85,8 @@ static const struct serdev_device_ops s3fwrn82_serdev_ops = {
 };
 
 static const struct of_device_id s3fwrn82_uart_of_match[] = {
-	{ .compatible = "samsung,s3fwrn82", },
-	{},
+	{ .compatible = "samsung,s3fwrn82" },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, s3fwrn82_uart_of_match);
 

@@ -357,8 +357,8 @@ static const struct i2c_device_id nxp_nci_i2c_id_table[] = {
 MODULE_DEVICE_TABLE(i2c, nxp_nci_i2c_id_table);
 
 static const struct of_device_id of_nxp_nci_i2c_match[] = {
-	{ .compatible = "nxp,nxp-nci-i2c", },
-	{}
+	{ .compatible = "nxp,nxp-nci-i2c" },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, of_nxp_nci_i2c_match);
 

@@ -246,8 +246,8 @@ static void nfcmrvl_i2c_remove(struct i2c_client *client)
 
 
 static const struct of_device_id of_nfcmrvl_i2c_match[] = {
-	{ .compatible = "marvell,nfc-i2c", },
-	{},
+	{ .compatible = "marvell,nfc-i2c" },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, of_nfcmrvl_i2c_match);
 
