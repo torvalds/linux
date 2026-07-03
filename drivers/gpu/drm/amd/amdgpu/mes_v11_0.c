@@ -1017,6 +1017,8 @@ static int mes_v11_0_set_hw_resources(struct amdgpu_mes *mes)
 	mes_set_hw_res_pkt.enable_reg_active_poll = 1;
 	mes_set_hw_res_pkt.enable_level_process_quantum_check = 1;
 	mes_set_hw_res_pkt.oversubscription_timer = 50;
+	if (adev->mes.use_rs64mem)
+		mes_set_hw_res_pkt.use_rs64mem_for_proc_gang_ctx = 1;
 
 	if (amdgpu_mes_log_enable) {
 		mes_set_hw_res_pkt.enable_mes_event_int_logging = 1;
@@ -1952,6 +1954,8 @@ static int mes_v11_0_hw_init(struct amdgpu_ip_block *ip_block)
 	if (adev->mes.ring[0].sched.ready)
 		goto out;
 
+	adev->mes.use_rs64mem = true;
+
 	if (!adev->enable_mes_kiq) {
 		if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
 			r = mes_v11_0_load_microcode(adev,
@@ -1971,11 +1975,12 @@ static int mes_v11_0_hw_init(struct amdgpu_ip_block *ip_block)
 
 	/* Allocate GPU buffer for array size query results */
 	r = amdgpu_mes_rs64mem_init(&adev->mes);
-	if (r)
+	if (r) {
 		dev_warn(adev->dev,
 			 "RS64 local memory init failed (%d),"
 			 "falling back to system memory path\n", r);
-
+		adev->mes.use_rs64mem = false;
+	}
 	r = mes_v11_0_set_hw_resources(&adev->mes);
 
 	if (r)
@@ -1992,6 +1997,7 @@ static int mes_v11_0_hw_init(struct amdgpu_ip_block *ip_block)
 				 "Failed to query ctx array sizes (%d),"
 				 "disabling RS64 local memory\n", r);
 			/* Continue without optimization - not fatal */
+			adev->mes.use_rs64mem = false;
 		}
 	}
 
