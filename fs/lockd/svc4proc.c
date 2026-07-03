@@ -1079,7 +1079,9 @@ static __be32 nlm4svc_proc_unshare(struct svc_rqst *rqstp)
 	if (resp->xdrgen.stat)
 		goto out;
 
-	resp->xdrgen.stat = nlmsvc_unshare_file(host, file, &lock->oh);
+	resp->xdrgen.stat = nlmsvc_unshare_file(host, file, &lock->oh,
+						argp->xdrgen.share.access,
+						argp->xdrgen.share.mode);
 
 	nlmsvc_release_lockowner(lock);
 

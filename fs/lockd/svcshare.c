@@ -25,6 +25,25 @@ nlm_cmp_owner(struct lockd_share *share, struct xdr_netobj *oh)
 	    && !memcmp(share->s_owner.data, oh->data, oh->len);
 }
 
+/*
+ * Recompute s_access / s_mode as the union of every (access, deny) pair
+ * whose bit is currently set in s_access_deny_bmap.
+ */
+static void nlm_recompute_share(struct lockd_share *share)
+{
+	u32 new_access = 0, new_mode = 0;
+	unsigned int i;
+
+	for (i = 0; i < 16; i++) {
+		if (share->s_access_deny_bmap & BIT(i)) {
+			new_access |= i >> 2;
+			new_mode   |= i & 3;
+		}
+	}
+	share->s_access = new_access;
+	share->s_mode = new_mode;
+}
+
 /**
  * nlmsvc_share_file - create a share
  * @host: Network client peer
@@ -64,12 +83,13 @@ nlmsvc_share_file(struct nlm_host *host, struct nlm_file *file,
 	share->s_host       = host;
 	share->s_owner.data = ohdata;
 	share->s_owner.len  = oh->len;
+	share->s_access_deny_bmap  = 0;
 	share->s_next       = file->f_shares;
 	file->f_shares      = share;
 
 update:
-	share->s_access = access;
-	share->s_mode = mode;
+	share->s_access_deny_bmap |= LOCKD_FSH_BIT(access, mode);
+	nlm_recompute_share(share);
 	return nlm_granted;
 }
 
@@ -78,12 +98,14 @@ update:
  * @host: Network client peer
  * @file: File to be unshared
  * @oh: Share owner handle
+ * @access: Access mode of the SHARE being released
+ * @mode: Deny mode of the SHARE being released
  *
  * Returns an NLM status code.
  */
 __be32
 nlmsvc_unshare_file(struct nlm_host *host, struct nlm_file *file,
-		    struct xdr_netobj *oh)
+		    struct xdr_netobj *oh, u32 access, u32 mode)
 {
 	struct lockd_share	*share, **shpp;
 
@@ -93,8 +115,12 @@ nlmsvc_unshare_file(struct nlm_host *host, struct nlm_file *file,
 	for (shpp = &file->f_shares; (share = *shpp) != NULL;
 					shpp = &share->s_next) {
 		if (share->s_host == host && nlm_cmp_owner(share, oh)) {
-			*shpp = share->s_next;
-			kfree(share);
+			share->s_access_deny_bmap &= ~LOCKD_FSH_BIT(access, mode);
+			nlm_recompute_share(share);
+			if (!share->s_access_deny_bmap) {
+				*shpp = share->s_next;
+				kfree(share);
+			}
 			return nlm_granted;
 		}
 	}
