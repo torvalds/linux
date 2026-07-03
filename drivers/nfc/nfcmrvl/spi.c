@@ -185,7 +185,7 @@ static void nfcmrvl_spi_remove(struct spi_device *spi)
 	nfcmrvl_nci_unregister_dev(drv_data->priv);
 }
 
-static const struct of_device_id of_nfcmrvl_spi_match[] __maybe_unused = {
+static const struct of_device_id of_nfcmrvl_spi_match[] = {
 	{ .compatible = "marvell,nfc-spi", },
 	{},
 };

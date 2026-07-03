@@ -583,7 +583,7 @@ static const struct acpi_device_id st21nfca_hci_i2c_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, st21nfca_hci_i2c_acpi_match);
 
-static const struct of_device_id of_st21nfca_i2c_match[] __maybe_unused = {
+static const struct of_device_id of_st21nfca_i2c_match[] = {
 	{ .compatible = "st,st21nfca-i2c", },
 	{ .compatible = "st,st21nfca_i2c", },
 	{}

@@ -236,7 +236,7 @@ static void pn533_i2c_remove(struct i2c_client *client)
 	pn53x_common_clean(phy->priv);
 }
 
-static const struct of_device_id of_pn533_i2c_match[] __maybe_unused = {
+static const struct of_device_id of_pn533_i2c_match[] = {
 	{ .compatible = "nxp,pn532", },
 	/*
 	 * NOTE: The use of the compatibles with the trailing "...-i2c" is
