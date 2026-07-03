@@ -116,8 +116,15 @@ impl UnloadBundle for FspUnloadBundle {
     fn run(&self, ctx: &mut GspBootContext<'_, '_>) -> Result {
         // GSP falcon does most of the work of resetting, so just wait for it to finish.
         read_poll_timeout(
-            || Ok(ctx.gsp_falcon.is_riscv_active()),
-            |&active| !active,
+            || {
+                // GSP register reads are not meaningful until the PRIV target mask is released.
+                if !ctx.gsp_falcon.priv_target_mask_released() {
+                    return Ok(false);
+                }
+
+                ctx.gsp_falcon.is_riscv_halted()
+            },
+            |&halted| halted,
             Delta::from_millis(10),
             Delta::from_secs(5),
         )

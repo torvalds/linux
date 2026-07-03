@@ -139,6 +139,13 @@ impl<E: FalconEngine> FalconHal<E> for Ga102<E> {
             .active_stat()
     }
 
+    fn is_riscv_halted(&self, falcon: &Falcon<'_, E>) -> Result<bool> {
+        Ok(falcon
+            .bar
+            .read(regs::NV_PRISCV_RISCV_CPUCTL::of::<E>())
+            .halted())
+    }
+
     fn reset_wait_mem_scrubbing(&self, falcon: &Falcon<'_, E>) -> Result {
         // TIMEOUT: memory scrubbing should complete in less than 20ms.
         read_poll_timeout(

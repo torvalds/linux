@@ -749,9 +749,20 @@ impl<'a, E: FalconEngine + 'static> Falcon<'a, E> {
 
     /// Check if the RISC-V core is active.
     ///
+    /// Note that this does not guarantee that the RISC-V core is halted if it returns `false`.
+    ///
     /// Returns `true` if the RISC-V core is active, `false` otherwise.
     pub(crate) fn is_riscv_active(&self) -> bool {
         self.hal.is_riscv_active(self)
+    }
+
+    /// Checks whether the RISC-V core is halted.
+    ///
+    /// Note that this does not guarantee that the RISC-V core is active if it returns `false`.
+    ///
+    /// Returns [`ENOTSUPP`] if the status is not available.
+    pub(crate) fn is_riscv_halted(&self) -> Result<bool> {
+        self.hal.is_riscv_halted(self)
     }
 
     /// Load a firmware image into Falcon memory, using the preferred method for the current

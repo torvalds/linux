@@ -55,6 +55,10 @@ impl<E: FalconEngine> FalconHal<E> for Tu102<E> {
             .active_stat()
     }
 
+    fn is_riscv_halted(&self, _falcon: &Falcon<'_, E>) -> Result<bool> {
+        Err(ENOTSUPP)
+    }
+
     fn reset_wait_mem_scrubbing(&self, falcon: &Falcon<'_, E>) -> Result {
         // TIMEOUT: memory scrubbing should complete in less than 10ms.
         read_poll_timeout(

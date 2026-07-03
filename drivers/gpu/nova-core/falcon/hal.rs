@@ -53,6 +53,11 @@ pub(crate) trait FalconHal<E: FalconEngine>: Send + Sync {
     /// Returns `true` if the RISC-V core is active, `false` otherwise.
     fn is_riscv_active(&self, falcon: &Falcon<'_, E>) -> bool;
 
+    /// Checks whether the RISC-V core is halted.
+    ///
+    /// Returns [`ENOTSUPP`] if the chipset does not expose RISC-V halt status.
+    fn is_riscv_halted(&self, falcon: &Falcon<'_, E>) -> Result<bool>;
+
     /// Wait for memory scrubbing to complete.
     fn reset_wait_mem_scrubbing(&self, falcon: &Falcon<'_, E>) -> Result;
 
