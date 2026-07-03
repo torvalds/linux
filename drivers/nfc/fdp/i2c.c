@@ -349,7 +349,7 @@ static void fdp_nci_i2c_remove(struct i2c_client *client)
 }
 
 static const struct acpi_device_id fdp_nci_i2c_acpi_match[] = {
-	{"INT339A", 0},
+	{ "INT339A" },
 	{}
 };
 MODULE_DEVICE_TABLE(acpi, fdp_nci_i2c_acpi_match);
