@@ -17,6 +17,7 @@ use kernel::{
         Io, //
     },
     prelude::*,
+    sizes::SZ_1K,
     time::Delta,
 };
 
@@ -33,6 +34,9 @@ use crate::{
 
 /// FSP message timeout in milliseconds.
 const FSP_MSG_TIMEOUT_MS: i64 = 2000;
+
+/// Size of the FSP EMEM channel 0 that we can use.
+const FSP_EMEM_CHANNEL_0_SIZE: usize = SZ_1K;
 
 /// Type specifying the `Fsp` falcon engine. Cannot be instantiated.
 pub(crate) struct Fsp(());
@@ -158,6 +162,11 @@ impl<'a> Falcon<'a, Fsp> {
             Delta::from_millis(FSP_MSG_TIMEOUT_MS),
         )
         .map(num::u32_as_usize)?;
+
+        // Don't blindly allocate more than the maximum we expect from FSP.
+        if msg_size > FSP_EMEM_CHANNEL_0_SIZE {
+            return Err(EMSGSIZE);
+        }
 
         let mut buffer = KVec::<u8>::new();
         buffer.resize(msg_size, 0, GFP_KERNEL)?;
