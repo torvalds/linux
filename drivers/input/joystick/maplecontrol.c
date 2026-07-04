@@ -118,25 +118,18 @@ static int probe_maple_controller(struct device *dev)
 	idev->close = dc_pad_close;
 
 	for (i = 0; i < 32; i++) {
-		if (data & (1 << i)) {
+		if (data & BIT(i)) {
 			if (btn_bit[i] >= 0)
 				__set_bit(btn_bit[i], idev->keybit);
-			else if (abs_bit[i] >= 0)
-				__set_bit(abs_bit[i], idev->absbit);
+			else if (abs_bit[i] >= ABS_X && abs_bit[i] <= ABS_BRAKE)
+				input_set_abs_params(idev, abs_bit[i], 0, 255, 0, 0);
+			else if (abs_bit[i] >= ABS_HAT0X && abs_bit[i] <= ABS_HAT3Y)
+				input_set_abs_params(idev, abs_bit[i], -1, 1, 0, 0);
 		}
 	}
 
 	if (idev->keybit[BIT_WORD(BTN_JOYSTICK)])
 		idev->evbit[0] |= BIT_MASK(EV_KEY);
-
-	if (idev->absbit[0])
-		idev->evbit[0] |= BIT_MASK(EV_ABS);
-
-	for (i = ABS_X; i <= ABS_BRAKE; i++)
-		input_set_abs_params(idev, i, 0, 255, 0, 0);
-
-	for (i = ABS_HAT0X; i <= ABS_HAT3Y; i++)
-		input_set_abs_params(idev, i, 1, -1, 0, 0);
 
 	idev->dev.platform_data = pad;
 	idev->dev.parent = &mdev->dev;
