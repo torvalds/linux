@@ -60,8 +60,7 @@ static void dc_mouse_close(struct input_dev *dev)
 {
 	struct dc_mouse *mse = input_get_drvdata(dev);
 
-	maple_getcond_callback(mse->mdev, dc_mouse_callback, 0,
-		MAPLE_FUNC_MOUSE);
+	maple_getcond_callback(mse->mdev, NULL, 0, MAPLE_FUNC_MOUSE);
 }
 
 /* allow the mouse to be used */
@@ -122,7 +121,6 @@ static int remove_maple_mouse(struct device *dev)
 	struct maple_device *mdev = to_maple_dev(dev);
 	struct dc_mouse *mse = maple_get_drvdata(mdev);
 
-	mdev->callback = NULL;
 	input_unregister_device(mse->dev);
 	maple_set_drvdata(mdev, NULL);
 	kfree(mse);
