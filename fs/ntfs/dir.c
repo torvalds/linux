@@ -966,13 +966,14 @@ filldir:
 			 */
 			private = file->private_data;
 			kfree(private->key);
-			private->key = kmalloc(le16_to_cpu(next->key_length), GFP_KERNEL);
+			private->key = kmemdup(&next->key.file_name,
+					le16_to_cpu(next->key_length),
+					GFP_KERNEL);
 			if (!private->key) {
 				err = -ENOMEM;
 				goto out;
 			}
 
-			memcpy(private->key, &next->key.file_name, le16_to_cpu(next->key_length));
 			private->key_length = next->key_length;
 			break;
 		}
