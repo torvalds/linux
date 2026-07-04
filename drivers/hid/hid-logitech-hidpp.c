@@ -3624,14 +3624,30 @@ static int hidpp10_extra_mouse_buttons_raw_event(struct hidpp_device *hidpp,
 
 #define HIDPP_REPROG_CONTROLS_EVENT_DIVERTED		0x00
 
+#define HIDPP_REPROG_CONTROL_BACK			0x0053
+#define HIDPP_REPROG_CONTROL_FORWARD			0x0056
+
+#define HIDPP_PRODUCT_SIGNATURE_M650			0xb02a
+
 struct hidpp_reprog_control_mapping {
 	u16 control;
 	u16 code;
 };
 
+static const struct hidpp_reprog_control_mapping m650_reprog_control_mappings[] = {
+	{ HIDPP_REPROG_CONTROL_BACK, BTN_BACK },
+	{ HIDPP_REPROG_CONTROL_FORWARD, BTN_FORWARD },
+	{ }
+};
+
 static const struct hidpp_reprog_control_mapping *
 hidpp20_reprog_controls_get_mappings(struct hidpp_device *hidpp)
 {
+	switch (hidpp->hid_dev->product) {
+	case HIDPP_PRODUCT_SIGNATURE_M650:
+		return m650_reprog_control_mappings;
+	}
+
 	return NULL;
 }
 
@@ -4912,7 +4928,9 @@ static const struct hid_device_id hidpp_devices[] = {
 	{ /* MX Vertical mouse over Bluetooth */
 	  HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_LOGITECH, 0xb020) },
 	{ /* Signature M650 over Bluetooth */
-	  HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_LOGITECH, 0xb02a) },
+	  HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_LOGITECH,
+			       HIDPP_PRODUCT_SIGNATURE_M650),
+	  .driver_data = HIDPP_QUIRK_HIDPP_REPROG_CONTROLS_BTNS },
 	{ /* MX Master 3 mouse over Bluetooth */
 	  HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_LOGITECH, 0xb023) },
 	{ /* MX Anywhere 3 mouse over Bluetooth */
