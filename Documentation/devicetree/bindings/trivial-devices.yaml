@@ -362,6 +362,8 @@ properties:
           - mps,mp9941
             # Monolithic Power Systems Inc. digital step-down converter mp9945
           - mps,mp9945
+            # Monolithic Power Systems Inc. digital step-down converter mpq82d00
+          - mps,mpq82d00
             # Murata D1U74T-W power supply unit
           - murata,d1u74t
             # Temperature sensor with integrated fan control
