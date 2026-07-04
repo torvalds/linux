@@ -67,7 +67,6 @@ static void dc_mouse_close(struct input_dev *dev)
 static int probe_maple_mouse(struct device *dev)
 {
 	struct maple_device *mdev = to_maple_dev(dev);
-	struct maple_driver *mdrv = to_maple_driver(dev->driver);
 	int error;
 	struct input_dev *input_dev;
 	struct dc_mouse *mse;
@@ -102,9 +101,6 @@ static int probe_maple_mouse(struct device *dev)
 	error =	input_register_device(input_dev);
 	if (error)
 		goto fail_register;
-
-	mdev->driver = mdrv;
-
 	return error;
 
 fail_register:
