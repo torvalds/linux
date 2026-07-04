@@ -97,7 +97,6 @@ static int probe_maple_controller(struct device *dev)
 	};
 
 	struct maple_device *mdev = to_maple_dev(dev);
-	struct maple_driver *mdrv = to_maple_driver(dev->driver);
 	int i, error;
 	struct dc_pad *pad;
 	struct input_dev *idev;
@@ -140,9 +139,6 @@ static int probe_maple_controller(struct device *dev)
 	error = input_register_device(idev);
 	if (error)
 		goto fail;
-
-	mdev->driver = mdrv;
-
 	return 0;
 
 fail:
