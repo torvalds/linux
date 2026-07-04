@@ -1229,6 +1229,8 @@ int ath12k_wmi_vdev_start(struct ath12k *ar, struct wmi_vdev_start_req_arg *arg,
 						    ATH12K_WMI_FLAG_MLO_MCAST_VDEV) |
 				   le32_encode_bits(arg->ml.link_add,
 						    ATH12K_WMI_FLAG_MLO_LINK_ADD) |
+				   le32_encode_bits(arg->ml.assoc_link,
+						    ATH12K_WMI_FLAG_MLO_START_AS_ACTIVE) |
 				   cpu_to_le32(ATH12K_WMI_FLAG_MLO_IEEE_LINK_IDX_VALID);
 
 		ml_params->ieee_link_id = cpu_to_le32(arg->ml.ieee_link_id);
