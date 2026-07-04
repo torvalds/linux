@@ -64,6 +64,9 @@ static void __wbuf(struct ksmbd_work *work, void **req, void **rsp)
 /* Windows reports automatic write-time updates at roughly 15 ms resolution. */
 #define KSMBD_WRITE_TIME_RESOLUTION	(15ULL * 10000)
 
+/* MAXFILESIZE in [MS-FSA] 2.1.5.3 Server Requests a Write. */
+#define SMB2_MAX_FILE_SIZE		0xfffffff0000ULL
+
 /**
  * check_session_id() - check for valid session id in smb header
  * @conn:	connection instance
@@ -7685,8 +7688,10 @@ int smb2_write(struct ksmbd_work *work)
 	}
 
 	offset = le64_to_cpu(req->Offset);
-	if (offset < 0)
-		return -EINVAL;
+	if (offset < 0) {
+		err = -EINVAL;
+		goto out;
+	}
 	length = le32_to_cpu(req->Length);
 
 	if (req->Channel == SMB2_CHANNEL_RDMA_V1 ||
@@ -7698,6 +7703,19 @@ int smb2_write(struct ksmbd_work *work)
 			goto out;
 		}
 		length = le32_to_cpu(req->RemainingBytes);
+	}
+
+	if (length) {
+		u64 end = (u64)offset + length;
+
+		if (end > SMB2_MAX_FILE_SIZE) {
+			err = -EINVAL;
+			goto out;
+		}
+		if (end == SMB2_MAX_FILE_SIZE) {
+			err = -EFBIG;
+			goto out;
+		}
 	}
 
 	if (is_rdma_channel == true) {
