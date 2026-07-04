@@ -161,13 +161,11 @@ static void dc_kbd_close(struct input_dev *dev)
 static int probe_maple_kbd(struct device *dev)
 {
 	struct maple_device *mdev;
-	struct maple_driver *mdrv;
 	int i, error;
 	struct dc_kbd *kbd;
 	struct input_dev *idev;
 
 	mdev = to_maple_dev(dev);
-	mdrv = to_maple_driver(dev->driver);
 
 	kbd = kzalloc_obj(*kbd);
 	if (!kbd) {
@@ -206,9 +204,6 @@ static int probe_maple_kbd(struct device *dev)
 	error = input_register_device(idev);
 	if (error)
 		goto fail_register;
-
-	mdev->driver = mdrv;
-
 	return error;
 
 fail_register:
