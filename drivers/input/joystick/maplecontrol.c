@@ -76,8 +76,7 @@ static void dc_pad_close(struct input_dev *dev)
 {
 	struct dc_pad *pad = dev_get_platdata(&dev->dev);
 
-	maple_getcond_callback(pad->mdev, dc_pad_callback, 0,
-		MAPLE_FUNC_CONTROLLER);
+	maple_getcond_callback(pad->mdev, NULL, 0, MAPLE_FUNC_CONTROLLER);
 }
 
 /* allow the controller to be used */
@@ -158,7 +157,6 @@ static int remove_maple_controller(struct device *dev)
 	struct maple_device *mdev = to_maple_dev(dev);
 	struct dc_pad *pad = maple_get_drvdata(mdev);
 
-	mdev->callback = NULL;
 	input_unregister_device(pad->dev);
 	maple_set_drvdata(mdev, NULL);
 	kfree(pad);
