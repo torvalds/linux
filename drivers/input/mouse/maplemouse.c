@@ -109,7 +109,6 @@ static int probe_maple_mouse(struct device *dev)
 
 fail_register:
 	input_free_device(input_dev);
-	maple_set_drvdata(mdev, NULL);
 fail_nomem:
 	kfree(mse);
 fail:
@@ -122,7 +121,6 @@ static int remove_maple_mouse(struct device *dev)
 	struct dc_mouse *mse = maple_get_drvdata(mdev);
 
 	input_unregister_device(mse->dev);
-	maple_set_drvdata(mdev, NULL);
 	kfree(mse);
 
 	return 0;
