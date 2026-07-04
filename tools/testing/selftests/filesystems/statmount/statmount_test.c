@@ -82,6 +82,9 @@ static void cleanup_namespace(void)
 {
 	int ret;
 
+	if (f_mountinfo)
+		fclose(f_mountinfo);
+
 	ret = fchdir(orig_root);
 	if (ret == -1)
 		ksft_perror("fchdir to original root");
