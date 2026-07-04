@@ -140,6 +140,24 @@ static void dc_kbd_callback(struct mapleq *mq)
 	}
 }
 
+static int dc_kbd_open(struct input_dev *dev)
+{
+	struct maple_device *mdev = input_get_drvdata(dev);
+
+	/* Maple polling is locked to VBLANK - which may be just 50/s */
+	maple_getcond_callback(mdev, dc_kbd_callback, HZ / 50,
+			       MAPLE_FUNC_KEYBOARD);
+
+	return 0;
+}
+
+static void dc_kbd_close(struct input_dev *dev)
+{
+	struct maple_device *mdev = input_get_drvdata(dev);
+
+	maple_getcond_callback(mdev, NULL, 0, MAPLE_FUNC_KEYBOARD);
+}
+
 static int probe_maple_kbd(struct device *dev)
 {
 	struct maple_device *mdev;
@@ -167,6 +185,7 @@ static int probe_maple_kbd(struct device *dev)
 	memcpy(kbd->keycode, dc_kbd_keycode, sizeof(kbd->keycode));
 
 	maple_set_drvdata(mdev, kbd);
+	input_set_drvdata(idev, mdev);
 
 	idev->name = mdev->product_name;
 	idev->evbit[0] = BIT(EV_KEY) | BIT(EV_REP);
@@ -175,6 +194,8 @@ static int probe_maple_kbd(struct device *dev)
 	idev->keycodemax = ARRAY_SIZE(kbd->keycode);
 	idev->id.bustype = BUS_HOST;
 	idev->dev.parent = &mdev->dev;
+	idev->open = dc_kbd_open;
+	idev->close = dc_kbd_close;
 
 	for (i = 0; i < NR_SCANCODES; i++)
 		__set_bit(dc_kbd_keycode[i], idev->keybit);
@@ -185,10 +206,6 @@ static int probe_maple_kbd(struct device *dev)
 	error = input_register_device(idev);
 	if (error)
 		goto fail_register;
-
-	/* Maple polling is locked to VBLANK - which may be just 50/s */
-	maple_getcond_callback(mdev, dc_kbd_callback, HZ/50,
-		MAPLE_FUNC_KEYBOARD);
 
 	mdev->driver = mdrv;
 
