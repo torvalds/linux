@@ -212,7 +212,6 @@ static int probe_maple_kbd(struct device *dev)
 	return error;
 
 fail_register:
-	maple_set_drvdata(mdev, NULL);
 	input_free_device(idev);
 fail_idev_alloc:
 	kfree(kbd);
@@ -230,7 +229,6 @@ static int remove_maple_kbd(struct device *dev)
 	input_unregister_device(kbd->dev);
 	kfree(kbd);
 
-	maple_set_drvdata(mdev, NULL);
 	return 0;
 }
 
