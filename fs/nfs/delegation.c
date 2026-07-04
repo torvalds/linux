@@ -604,7 +604,7 @@ delay:
 	spin_lock(&server->delegations_lock);
 	if (list_empty(&delegation->entry))
 		refcount_inc(&delegation->refcount);
-	list_move_tail(&delegation->entry, &server->delegations_return);
+	list_move_tail(&delegation->entry, &server->delegations_delayed);
 	spin_unlock(&server->delegations_lock);
 	set_bit(NFS4CLNT_DELEGRETURN_DELAYED, &server->nfs_client->cl_state);
 abort:
