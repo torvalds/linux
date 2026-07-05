@@ -864,16 +864,19 @@ static void scrub_verify_one_stripe(struct scrub_stripe *stripe, unsigned long b
 	}
 }
 
-static int calc_sector_number(struct scrub_stripe *stripe, struct bio_vec *first_bvec)
+static unsigned int calc_sector_number(const struct btrfs_bio *bbio)
 {
-	int i;
+	const struct scrub_stripe *stripe = bbio->private;
+	const struct btrfs_fs_info *fs_info = stripe->bg->fs_info;
 
-	for (i = 0; i < stripe->nr_sectors; i++) {
-		if (scrub_stripe_get_kaddr(stripe, i) == bvec_virt(first_bvec))
-			break;
-	}
-	ASSERT(i < stripe->nr_sectors);
-	return i;
+	/* Scrub bbios all have their @file_offset set to the logical bytenr. */
+	ASSERT(bbio->file_offset >= stripe->logical &&
+	       bbio->file_offset < stripe->logical + (stripe->nr_sectors <<
+						      fs_info->sectorsize_bits),
+	       "scrub bio logical=%llu stripe logical=%llu stripe len=%u",
+	       bbio->file_offset, stripe->logical,
+	       stripe->nr_sectors << fs_info->sectorsize_bits);
+	return (bbio->file_offset - stripe->logical) >> fs_info->sectorsize_bits;
 }
 
 /*
@@ -885,11 +888,9 @@ static void scrub_read_endio_common(struct btrfs_bio *bbio)
 {
 	struct scrub_stripe *stripe = bbio->private;
 	struct btrfs_fs_info *fs_info = stripe->bg->fs_info;
-	int sector_nr = calc_sector_number(stripe, bio_first_bvec_all(&bbio->bio));
+	unsigned int sector_nr = calc_sector_number(bbio);
 	const u32 bio_size = bio_get_size(&bbio->bio);
 	const u32 sectors = bio_size >> fs_info->sectorsize_bits;
-
-	ASSERT(sector_nr < stripe->nr_sectors);
 
 	if (bbio->bio.bi_status) {
 		scrub_bitmap_set_io_error(stripe, sector_nr, sectors);
@@ -1264,7 +1265,7 @@ static void scrub_write_endio(struct btrfs_bio *bbio)
 {
 	struct scrub_stripe *stripe = bbio->private;
 	struct btrfs_fs_info *fs_info = stripe->bg->fs_info;
-	int sector_nr = calc_sector_number(stripe, bio_first_bvec_all(&bbio->bio));
+	unsigned int sector_nr = calc_sector_number(bbio);
 	const u32 bio_size = bio_get_size(&bbio->bio);
 
 	if (bbio->bio.bi_status) {
