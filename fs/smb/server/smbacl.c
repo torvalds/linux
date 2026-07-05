@@ -27,6 +27,9 @@ static const struct smb_sid creator_owner = {
 /* security id for everyone/world system group */
 static const struct smb_sid creator_group = {
 	1, 1, {0, 0, 0, 0, 0, 3}, {cpu_to_le32(1)} };
+/* security id for owner rights */
+static const struct smb_sid sid_owner_rights = {
+	1, 1, {0, 0, 0, 0, 0, 3}, {cpu_to_le32(4)} };
 
 /* security id for everyone/world system group */
 static const struct smb_sid sid_everyone = {
@@ -1452,6 +1455,8 @@ int smb_check_perm_dacl(struct ksmbd_conn *conn, const struct path *path,
 	struct posix_acl_entry *pa_entry;
 	unsigned int sid_type = SIDOWNER;
 	unsigned short ace_size;
+	bool is_owner, owner_rights = false;
+	vfsuid_t vfsuid;
 
 	ksmbd_debug(SMB, "check permission using windows acl\n");
 	pntsd_size = ksmbd_vfs_get_sd_xattr(conn, idmap,
@@ -1484,10 +1489,10 @@ int smb_check_perm_dacl(struct ksmbd_conn *conn, const struct path *path,
 	if (!uid)
 		sid_type = SIDUNIX_USER;
 	id_to_sid(uid, sid_type, &sid);
+	vfsuid = i_uid_into_vfsuid(idmap, d_inode(path->dentry));
+	is_owner = uid == from_kuid(&init_user_ns, vfsuid_into_kuid(vfsuid));
 
 	if (*pdaccess & FILE_MAXIMAL_ACCESS_LE) {
-		access_bits = READ_CONTROL | WRITE_DAC | FILE_READ_ATTRIBUTES |
-			DELETE;
 		ace = (struct smb_ace *)((char *)pdacl + sizeof(struct smb_acl));
 		aces_size = acl_size - sizeof(struct smb_acl);
 		for (i = 0; i < le16_to_cpu(pdacl->num_aces); i++) {
@@ -1507,11 +1512,18 @@ int smb_check_perm_dacl(struct ksmbd_conn *conn, const struct path *path,
 				      sizeof(__le32) * ace->sid.num_subauth)
 				break;
 
+			if (!compare_sids(&sid_owner_rights, &ace->sid)) {
+				owner_rights = true;
+				if (!is_owner)
+					goto next_ace;
+			}
+
 			if (ace->flags & INHERIT_ONLY_ACE ||
 			    (compare_sids(&sid, &ace->sid) &&
 			     compare_sids(&sid_unix_NFS_mode, &ace->sid) &&
 			     compare_sids(&sid_everyone, &ace->sid) &&
-			     compare_sids(&sid_authusers, &ace->sid)))
+			     compare_sids(&sid_authusers, &ace->sid) &&
+			     compare_sids(&sid_owner_rights, &ace->sid)))
 				goto next_ace;
 
 			switch (ace->type) {
@@ -1527,6 +1539,9 @@ int smb_check_perm_dacl(struct ksmbd_conn *conn, const struct path *path,
 next_ace:
 			ace = (struct smb_ace *)((char *)ace + le16_to_cpu(ace->size));
 		}
+		if (is_owner && !owner_rights)
+			access_bits |= READ_CONTROL | WRITE_DAC |
+				FILE_READ_ATTRIBUTES | DELETE;
 		access_bits &= ~denied;
 		if ((raw_daccess & FILE_GENERIC_EXECUTE_LE) &&
 		    S_ISREG(d_inode(path->dentry)->i_mode) &&

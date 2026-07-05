@@ -3627,6 +3627,14 @@ int smb2_open(struct ksmbd_work *work)
 					 sess->user->uid, false);
 		if (rc)
 			goto err_out;
+
+		if (maximal_access_ctxt) {
+			maximal_access = FILE_MAXIMAL_ACCESS_LE;
+			rc = smb_check_perm_dacl(conn, &path, &maximal_access,
+						 0, sess->user->uid, false);
+			if (rc)
+				goto err_out;
+		}
 	}
 
 	if (daccess & FILE_MAXIMAL_ACCESS_LE) {
