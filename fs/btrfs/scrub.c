@@ -877,6 +877,30 @@ static int calc_sector_number(struct scrub_stripe *stripe, struct bio_vec *first
 }
 
 /*
+ * Common handling of read endio.
+ *
+ * The bbio will be released, so no more access to @bbio after this function.
+ */
+static void scrub_read_endio_common(struct btrfs_bio *bbio)
+{
+	struct scrub_stripe *stripe = bbio->private;
+	struct btrfs_fs_info *fs_info = stripe->bg->fs_info;
+	int sector_nr = calc_sector_number(stripe, bio_first_bvec_all(&bbio->bio));
+	const u32 bio_size = bio_get_size(&bbio->bio);
+	const u32 sectors = bio_size >> fs_info->sectorsize_bits;
+
+	ASSERT(sector_nr < stripe->nr_sectors);
+
+	if (bbio->bio.bi_status) {
+		scrub_bitmap_set_io_error(stripe, sector_nr, sectors);
+		scrub_bitmap_set_error(stripe, sector_nr, sectors);
+	} else {
+		scrub_bitmap_clear_io_error(stripe, sector_nr, sectors);
+	}
+	bio_put(&bbio->bio);
+}
+
+/*
  * Repair read is different to the regular read:
  *
  * - Only reads the failed sectors
@@ -885,22 +909,9 @@ static int calc_sector_number(struct scrub_stripe *stripe, struct bio_vec *first
 static void scrub_repair_read_endio(struct btrfs_bio *bbio)
 {
 	struct scrub_stripe *stripe = bbio->private;
-	struct btrfs_fs_info *fs_info = stripe->bg->fs_info;
-	int sector_nr = calc_sector_number(stripe, bio_first_bvec_all(&bbio->bio));
-	const u32 bio_size = bio_get_size(&bbio->bio);
 
-	ASSERT(sector_nr < stripe->nr_sectors);
+	scrub_read_endio_common(bbio);
 
-	if (bbio->bio.bi_status) {
-		scrub_bitmap_set_io_error(stripe, sector_nr,
-					  bio_size >> fs_info->sectorsize_bits);
-		scrub_bitmap_set_error(stripe, sector_nr,
-				       bio_size >> fs_info->sectorsize_bits);
-	} else {
-		scrub_bitmap_clear_io_error(stripe, sector_nr,
-					  bio_size >> fs_info->sectorsize_bits);
-	}
-	bio_put(&bbio->bio);
 	if (atomic_dec_and_test(&stripe->pending_io))
 		wake_up(&stripe->io_wait);
 }
@@ -1239,20 +1250,9 @@ out:
 static void scrub_read_endio(struct btrfs_bio *bbio)
 {
 	struct scrub_stripe *stripe = bbio->private;
-	int sector_nr = calc_sector_number(stripe, bio_first_bvec_all(&bbio->bio));
-	int num_sectors;
-	const u32 bio_size = bio_get_size(&bbio->bio);
 
-	ASSERT(sector_nr < stripe->nr_sectors);
-	num_sectors = bio_size >> stripe->bg->fs_info->sectorsize_bits;
+	scrub_read_endio_common(bbio);
 
-	if (bbio->bio.bi_status) {
-		scrub_bitmap_set_io_error(stripe, sector_nr, num_sectors);
-		scrub_bitmap_set_error(stripe, sector_nr, num_sectors);
-	} else {
-		scrub_bitmap_clear_io_error(stripe, sector_nr, num_sectors);
-	}
-	bio_put(&bbio->bio);
 	if (atomic_dec_and_test(&stripe->pending_io)) {
 		wake_up(&stripe->io_wait);
 		INIT_WORK(&stripe->work, scrub_stripe_read_repair_worker);
