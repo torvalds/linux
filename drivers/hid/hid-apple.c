@@ -368,6 +368,8 @@ static const struct apple_non_apple_keyboard non_apple_keyboards[] = {
 	{ "TH87" },			/* EPOMAKER TH87 BT mode */
 	{ "HFD Epomaker TH87" },	/* EPOMAKER TH87 USB mode */
 	{ "2.4G Wireless Receiver" },	/* EPOMAKER TH87 dongle */
+	{ "Thock TKL Wireless" },	/* ENDORFY THOCK TKL BT mode */
+	{ "USB Dongle" },		/* ENDORFY THOCK TKL dongle */
 };
 
 static bool apple_is_non_apple_keyboard(struct hid_device *hdev)
