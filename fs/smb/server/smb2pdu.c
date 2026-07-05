@@ -3534,6 +3534,8 @@ int smb2_open(struct ksmbd_work *work)
 		file_present = true;
 
 		if (req->CreateOptions & FILE_DELETE_ON_CLOSE_LE) {
+			struct xattr_dos_attrib da;
+
 			/*
 			 * If file exists with under flags, return access
 			 * denied error.
@@ -3547,6 +3549,16 @@ int smb2_open(struct ksmbd_work *work)
 			if (!test_tree_conn_flag(tcon, KSMBD_TREE_CONN_FLAG_WRITABLE)) {
 				ksmbd_debug(SMB,
 					    "User does not have write permission\n");
+					rc = -EACCES;
+					goto err_out;
+				}
+
+			if (test_share_config_flag(tcon->share_conf,
+						   KSMBD_SHARE_FLAG_STORE_DOS_ATTRS) &&
+			    ksmbd_vfs_get_dos_attrib_xattr(mnt_idmap(path.mnt),
+							 path.dentry, &da) > 0 &&
+			    da.attr & FILE_ATTRIBUTE_READONLY) {
+				rsp->hdr.Status = STATUS_CANNOT_DELETE;
 				rc = -EACCES;
 				goto err_out;
 			}
@@ -3562,6 +3574,13 @@ int smb2_open(struct ksmbd_work *work)
 		ksmbd_debug(SMB, "can not get linux path for %s, rc = %d\n",
 			    name, rc);
 		rc = 0;
+	}
+
+	if (!file_present && req->CreateOptions & FILE_DELETE_ON_CLOSE_LE &&
+	    req->FileAttributes & FILE_ATTRIBUTE_READONLY_LE) {
+		rsp->hdr.Status = STATUS_CANNOT_DELETE;
+		rc = -EACCES;
+		goto err_out;
 	}
 
 	/*
@@ -4204,7 +4223,8 @@ err_out2:
 			rsp->hdr.Status = STATUS_INVALID_PARAMETER;
 		else if (rc == -EOPNOTSUPP)
 			rsp->hdr.Status = STATUS_NOT_SUPPORTED;
-		else if (rc == -EACCES || rc == -ESTALE || rc == -EXDEV) {
+		else if ((rc == -EACCES || rc == -ESTALE || rc == -EXDEV) &&
+			 !rsp->hdr.Status) {
 			if (req->DesiredAccess & FILE_ACCESS_SYSTEM_SECURITY_LE)
 				rsp->hdr.Status = STATUS_PRIVILEGE_NOT_HELD;
 			else
@@ -6953,6 +6973,9 @@ static int set_file_disposition_info(struct ksmbd_work *work,
 		return -EACCES;
 	}
 
+	if (fp->f_ci->m_fattr & FILE_ATTRIBUTE_READONLY_LE)
+		return -EACCES;
+
 	inode = file_inode(fp->filp);
 	if (file_info->DeletePending) {
 		if (ksmbd_has_stream_without_delete_share(fp))
@@ -7223,8 +7246,14 @@ int smb2_set_info(struct ksmbd_work *work)
 	return 0;
 
 err_out:
-	if (rc == -EACCES || rc == -EPERM || rc == -EXDEV)
-		rsp->hdr.Status = STATUS_ACCESS_DENIED;
+	if (rc == -EACCES || rc == -EPERM || rc == -EXDEV) {
+		if (fp && req->InfoType == SMB2_O_INFO_FILE &&
+		    req->FileInfoClass == FILE_DISPOSITION_INFORMATION &&
+		    fp->f_ci->m_fattr & FILE_ATTRIBUTE_READONLY_LE)
+			rsp->hdr.Status = STATUS_CANNOT_DELETE;
+		else
+			rsp->hdr.Status = STATUS_ACCESS_DENIED;
+	}
 	else if (rc == -EINVAL)
 		rsp->hdr.Status = STATUS_INVALID_PARAMETER;
 	else if (rc == -EMSGSIZE)
