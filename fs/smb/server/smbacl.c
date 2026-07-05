@@ -1432,7 +1432,8 @@ bool smb_inherit_flags(int flags, bool is_dir)
 }
 
 int smb_check_perm_dacl(struct ksmbd_conn *conn, const struct path *path,
-			__le32 *pdaccess, __le32 raw_daccess, int uid)
+			__le32 *pdaccess, __le32 raw_daccess, int uid,
+			bool strict)
 {
 	struct mnt_idmap *idmap = mnt_idmap(path->mnt);
 	struct smb_ntsd *pntsd = NULL;
@@ -1617,8 +1618,14 @@ next_ace:
 	}
 
 check_access_bits:
-	if (granted &
-	    ~(access_bits | FILE_READ_ATTRIBUTES | READ_CONTROL | WRITE_DAC | DELETE)) {
+	if (strict) {
+		access_bits &= granted;
+	} else {
+		access_bits |= FILE_READ_ATTRIBUTES | READ_CONTROL |
+			WRITE_DAC | DELETE;
+	}
+
+	if (granted & ~access_bits) {
 		ksmbd_debug(SMB, "Access denied with winACL, granted : %x, access_req : %x\n",
 			    granted, le32_to_cpu(ace->access_req));
 		rc = -EACCES;

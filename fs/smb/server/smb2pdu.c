@@ -2346,6 +2346,10 @@ out_err1:
 	if (conn->dialect == SMB311_PROT_ID &&
 	    conn->compress_algorithm != SMB3_COMPRESS_NONE)
 		rsp->ShareFlags |= cpu_to_le32(SMB2_SHAREFLAG_COMPRESS_DATA);
+	if (share && test_share_config_flag(share,
+					  KSMBD_SHARE_FLAG_HIDE_UNREADABLE))
+		rsp->ShareFlags |=
+			cpu_to_le32(SMB2_SHAREFLAG_ACCESS_BASED_DIRECTORY_ENUM);
 
 	rc = ksmbd_iov_pin_rsp(work, rsp, sizeof(struct smb2_tree_connect_rsp));
 	if (rc)
@@ -3620,7 +3624,7 @@ int smb2_open(struct ksmbd_work *work)
 	if (file_present && !(req->CreateOptions & FILE_DELETE_ON_CLOSE_LE)) {
 		rc = smb_check_perm_dacl(conn, &path, &daccess,
 					 req->DesiredAccess,
-					 sess->user->uid);
+					 sess->user->uid, false);
 		if (rc)
 			goto err_out;
 	}
@@ -4595,6 +4599,7 @@ static int process_query_dir_entries(struct smb2_query_dir_private *priv)
 
 	for (i = 0; i < priv->d_info->num_entry; i++) {
 		struct dentry *dent;
+		struct path path;
 
 		if (dentry_name(priv->d_info, priv->info_level))
 			return -EINVAL;
@@ -4615,6 +4620,23 @@ static int process_query_dir_entries(struct smb2_query_dir_private *priv)
 			ksmbd_debug(SMB, "Negative dentry `%s'\n",
 				    priv->d_info->name);
 			continue;
+		}
+
+		if (test_share_config_flag(priv->work->tcon->share_conf,
+					   KSMBD_SHARE_FLAG_HIDE_UNREADABLE)) {
+			__le32 daccess = FILE_READ_DATA_LE | FILE_READ_EA_LE |
+				FILE_READ_ATTRIBUTES_LE;
+
+			path.mnt = priv->dir_fp->filp->f_path.mnt;
+			path.dentry = dent;
+			rc = smb_check_perm_dacl(priv->work->conn, &path,
+						 &daccess, daccess,
+						 priv->work->sess->user->uid,
+						 true);
+			if (rc) {
+				dput(dent);
+				continue;
+			}
 		}
 
 		ksmbd_kstat.kstat = &kstat;
