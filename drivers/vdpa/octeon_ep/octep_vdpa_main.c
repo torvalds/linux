@@ -979,6 +979,7 @@ static struct pci_device_id octep_pci_vdpa_map[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_CAVIUM, OCTEP_VDPA_DEVID_CN103K_VF) },
 	{ 0 },
 };
+MODULE_DEVICE_TABLE(pci, octep_pci_vdpa_map);
 
 static struct pci_driver octep_pci_vdpa = {
 	.name     = OCTEP_VDPA_DRIVER_NAME,
