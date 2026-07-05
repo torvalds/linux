@@ -1173,7 +1173,7 @@ these conditions don't require explicit checks:
  - if LOOKUP_CREATE is NOT given, then the dentry won't be negative,
    ERR_PTR(-ENOENT) is returned instead
  - if LOOKUP_EXCL IS given, then the dentry won't be positive,
-   ERR_PTR(-EEXIST) is rreturned instread
+   ERR_PTR(-EEXIST) is returned instead
 
 LOOKUP_EXCL now means "target must not exist".  It can be combined with
 LOOK_CREATE or LOOKUP_RENAME_TARGET.
