@@ -247,6 +247,7 @@ static const struct pci_device_id wdt_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_VX855) },
 	{ 0 }
 };
+MODULE_DEVICE_TABLE(pci, wdt_pci_table);
 
 static struct pci_driver wdt_driver = {
 	.name		= "via_wdt",
