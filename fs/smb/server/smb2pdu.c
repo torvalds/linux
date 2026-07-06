@@ -3618,7 +3618,7 @@ int smb2_open(struct ksmbd_work *work)
 			}
 		} else {
 			if (file_present && S_ISDIR(d_inode(path.dentry)->i_mode) &&
-			    s_type == DATA_STREAM) {
+			    !stream_name && s_type == DATA_STREAM) {
 				rc = -EIO;
 				rsp->hdr.Status = STATUS_FILE_IS_A_DIRECTORY;
 			}
@@ -5578,6 +5578,80 @@ static void get_file_alternate_info(struct ksmbd_work *work,
 		cpu_to_le32(struct_size(file_info, FileName, conv_len));
 }
 
+static char *smb2_get_normalized_stream_name(struct ksmbd_file *fp)
+{
+	char *name, *stream_name = NULL, *xattr_list = NULL;
+	ssize_t xattr_list_len;
+
+	if (!ksmbd_stream_fd(fp))
+		return NULL;
+
+	xattr_list_len = ksmbd_vfs_listxattr(fp->filp->f_path.dentry,
+					     &xattr_list);
+	if (xattr_list_len <= 0)
+		goto out;
+
+	for (name = xattr_list; name - xattr_list < xattr_list_len;
+	     name += strlen(name) + 1) {
+		char *type;
+
+		if (strlen(name) + 1 != fp->stream.size ||
+		    strncasecmp(name, fp->stream.name, fp->stream.size - 1))
+			continue;
+
+		name += XATTR_NAME_STREAM_LEN;
+		type = strrchr(name, ':');
+		if (type)
+			stream_name = kstrndup(name, type - name,
+						  KSMBD_DEFAULT_GFP);
+		break;
+	}
+out:
+	kvfree(xattr_list);
+	return stream_name;
+}
+
+static int get_file_normalized_name_info(struct ksmbd_work *work,
+					 struct smb2_query_info_rsp *rsp,
+					 struct ksmbd_file *fp)
+{
+	struct smb2_file_alt_name_info *file_info;
+	char *filename, *normalized, *stream_name;
+	int conv_len, filename_len;
+
+	if (work->conn->dialect < SMB311_PROT_ID) {
+		rsp->hdr.Status = STATUS_NOT_SUPPORTED;
+		return -EOPNOTSUPP;
+	}
+
+	filename = convert_to_nt_pathname(work->tcon->share_conf,
+					  &fp->filp->f_path);
+	if (IS_ERR(filename))
+		return PTR_ERR(filename);
+	if (filename[0] == '\\')
+		memmove(filename, filename + 1, strlen(filename));
+
+	stream_name = smb2_get_normalized_stream_name(fp);
+	normalized = kasprintf(KSMBD_DEFAULT_GFP, "%s%s%s", filename,
+			      stream_name ? ":" : "",
+			      stream_name ? stream_name : "");
+	kfree(stream_name);
+	kfree(filename);
+	if (!normalized)
+		return -ENOMEM;
+
+	filename_len = strlen(normalized);
+	file_info = (struct smb2_file_alt_name_info *)rsp->Buffer;
+	conv_len = smbConvertToUTF16((__le16 *)file_info->FileName,
+				     normalized, filename_len,
+				     work->conn->local_nls, 0);
+	kfree(normalized);
+	conv_len *= 2;
+	file_info->FileNameLength = cpu_to_le32(conv_len);
+	rsp->OutputBufferLength = cpu_to_le32(sizeof(*file_info) + conv_len);
+	return 0;
+}
+
 static int get_file_stream_info(struct ksmbd_work *work,
 				struct smb2_query_info_rsp *rsp,
 				struct ksmbd_file *fp,
@@ -5968,6 +6042,9 @@ static int smb2_get_info_file(struct ksmbd_work *work,
 
 	case FILE_ALTERNATE_NAME_INFORMATION:
 		get_file_alternate_info(work, rsp, fp, work->response_buf);
+		break;
+	case FILE_NORMALIZED_NAME_INFORMATION:
+		rc = get_file_normalized_name_info(work, rsp, fp);
 		break;
 
 	case FILE_STREAM_INFORMATION:
@@ -6478,7 +6555,7 @@ err_out:
 			rsp->hdr.Status = STATUS_INSUFFICIENT_RESOURCES;
 		else if (rc == -EINVAL && rsp->hdr.Status == 0)
 			rsp->hdr.Status = STATUS_INVALID_PARAMETER;
-		else if (rc == -EOPNOTSUPP || rsp->hdr.Status == 0)
+		else if (rsp->hdr.Status == 0)
 			rsp->hdr.Status = STATUS_INVALID_INFO_CLASS;
 		smb2_set_err_rsp(work);
 
