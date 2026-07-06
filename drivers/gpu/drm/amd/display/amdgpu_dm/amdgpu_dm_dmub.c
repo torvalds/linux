@@ -829,6 +829,7 @@ out:
 	mutex_unlock(&adev->dm.dpia_aux_lock);
 	return ret;
 }
+EXPORT_IF_KUNIT(amdgpu_dm_process_dmub_aux_transfer_sync);
 
 STATIC_IFN_KUNIT void abort_fused_io(
 		struct dc_context *ctx,
@@ -932,6 +933,7 @@ int amdgpu_dm_process_dmub_set_config_sync(
 	mutex_unlock(&adev->dm.dpia_aux_lock);
 	return ret;
 }
+EXPORT_IF_KUNIT(amdgpu_dm_process_dmub_set_config_sync);
 
 bool dm_execute_dmub_cmd(const struct dc_context *ctx, union dmub_rb_cmd *cmd, enum dm_dmub_wait_type wait_type)
 {
@@ -940,6 +942,7 @@ bool dm_execute_dmub_cmd(const struct dc_context *ctx, union dmub_rb_cmd *cmd, e
 	guard(spinlock_irqsave)(&adev->dm.dmub_lock);
 	return dc_dmub_srv_cmd_run(ctx->dmub_srv, cmd, wait_type);
 }
+EXPORT_IF_KUNIT(dm_execute_dmub_cmd);
 
 bool dm_execute_dmub_cmd_list(const struct dc_context *ctx, unsigned int count, union dmub_rb_cmd *cmd, enum dm_dmub_wait_type wait_type)
 {

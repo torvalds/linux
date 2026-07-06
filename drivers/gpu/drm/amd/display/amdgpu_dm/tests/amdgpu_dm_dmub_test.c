@@ -932,6 +932,366 @@ static void dm_test_init_microcode_unsupported_asic(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, dm_init_microcode(adev), 0);
 }
 
+/* Tests for dm_execute_dmub_cmd() */
+
+/**
+ * dm_test_execute_dmub_cmd_null_dmub_srv - Test command execution fails without DMUB service
+ * @test: The KUnit test context
+ *
+ * With no DC DMUB service on the context, dc_dmub_srv_cmd_run() returns false
+ * and dm_execute_dmub_cmd() propagates that failure.
+ */
+static void dm_test_execute_dmub_cmd_null_dmub_srv(struct kunit *test)
+{
+	struct amdgpu_device *adev;
+	struct dc_context *ctx;
+	union dmub_rb_cmd *cmd;
+
+	adev = kunit_kzalloc(test, sizeof(*adev), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx);
+
+	cmd = kunit_kzalloc(test, sizeof(*cmd), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, cmd);
+
+	spin_lock_init(&adev->dm.dmub_lock);
+	ctx->driver_context = adev;
+	ctx->dmub_srv = NULL;
+
+	KUNIT_EXPECT_FALSE(test,
+			   dm_execute_dmub_cmd(ctx, cmd, DM_DMUB_WAIT_TYPE_NO_WAIT));
+}
+
+/* Tests for amdgpu_dm_process_dmub_aux_transfer_sync() */
+
+/**
+ * dm_test_process_dmub_aux_transfer_sync_engine_acquire - Test AUX transfer engine-acquire failure
+ * @test: The KUnit test context
+ *
+ * With dc->link_count == 0, dc_process_dmub_aux_transfer_async() rejects the
+ * link index and amdgpu_dm_process_dmub_aux_transfer_sync() reports an
+ * engine-acquire error and returns -1.
+ */
+static void dm_test_process_dmub_aux_transfer_sync_engine_acquire(struct kunit *test)
+{
+	struct amdgpu_device *adev;
+	struct dc_context *ctx;
+	struct dc *dc;
+	struct aux_payload *payload;
+	struct dmub_notification *notify;
+	enum aux_return_code_type result = AUX_RET_SUCCESS;
+	int ret;
+
+	adev = kunit_kzalloc(test, sizeof(*adev), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx);
+
+	dc = kunit_kzalloc(test, sizeof(*dc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dc);
+
+	payload = kunit_kzalloc(test, sizeof(*payload), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, payload);
+
+	notify = kunit_kzalloc(test, sizeof(*notify), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, notify);
+
+	dc->link_count = 0;
+	ctx->dc = dc;
+	ctx->driver_context = adev;
+	adev->dm.dmub_notify = notify;
+	mutex_init(&adev->dm.dpia_aux_lock);
+	init_completion(&adev->dm.dmub_aux_transfer_done);
+
+	ret = amdgpu_dm_process_dmub_aux_transfer_sync(ctx, 0, payload, &result);
+
+	KUNIT_EXPECT_EQ(test, ret, -1);
+	KUNIT_EXPECT_EQ(test, result, AUX_RET_ERROR_ENGINE_ACQUIRE);
+}
+
+/**
+ * dm_test_process_dmub_aux_transfer_sync_protocol_error - Test AUX protocol error result
+ * @test: The KUnit test context
+ *
+ * With the completion pre-signaled and a fake DC DMUB service that rejects the
+ * command after construction, the sync helper should propagate the notification
+ * result without waiting for real firmware.
+ */
+static void dm_test_process_dmub_aux_transfer_sync_protocol_error(struct kunit *test)
+{
+	struct amdgpu_device *adev;
+	struct dc_context *ctx;
+	struct dc_context *dc_ctx;
+	struct dc *dc;
+	struct dc_link *link;
+	struct ddc_service *ddc;
+	struct aux_payload *payload;
+	struct dmub_notification *notify;
+	enum aux_return_code_type result = AUX_RET_SUCCESS;
+	int ret;
+
+	adev = kunit_kzalloc(test, sizeof(*adev), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx);
+
+	dc_ctx = kunit_kzalloc(test, sizeof(*dc_ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dc_ctx);
+
+	dc = kunit_kzalloc(test, sizeof(*dc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dc);
+
+	link = kunit_kzalloc(test, sizeof(*link), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, link);
+
+	ddc = kunit_kzalloc(test, sizeof(*ddc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ddc);
+
+	payload = kunit_kzalloc(test, sizeof(*payload), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, payload);
+
+	notify = kunit_kzalloc(test, sizeof(*notify), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, notify);
+
+	link->ddc = ddc;
+	dc->ctx = dc_ctx;
+	dc->link_count = 1;
+	dc->links[0] = link;
+	dc_ctx->dc = dc;
+	dc_ctx->driver_context = adev;
+	dc_ctx->dmub_srv = NULL;
+	ctx->dc = dc;
+	ctx->driver_context = adev;
+	spin_lock_init(&adev->dm.dmub_lock);
+	adev->dm.dmub_notify = notify;
+	mutex_init(&adev->dm.dpia_aux_lock);
+	init_completion(&adev->dm.dmub_aux_transfer_done);
+	complete(&adev->dm.dmub_aux_transfer_done);
+	notify->result = AUX_RET_ERROR_PROTOCOL_ERROR;
+
+	ret = amdgpu_dm_process_dmub_aux_transfer_sync(ctx, 0, payload, &result);
+
+	KUNIT_EXPECT_EQ(test, ret, -1);
+	KUNIT_EXPECT_EQ(test, result, AUX_RET_ERROR_PROTOCOL_ERROR);
+}
+
+/**
+ * dm_test_process_dmub_aux_transfer_sync_copies_data - Test AUX reply data copy
+ * @test: The KUnit test context
+ *
+ * On a successful notification, the sync helper should copy the bounded reply
+ * data and report the high-nibble command reply when present.
+ */
+static void dm_test_process_dmub_aux_transfer_sync_copies_data(struct kunit *test)
+{
+	struct amdgpu_device *adev;
+	struct dc_context *ctx;
+	struct dc_context *dc_ctx;
+	struct dc *dc;
+	struct dc_link *link;
+	struct ddc_service *ddc;
+	struct aux_payload *payload;
+	struct dmub_notification *notify;
+	enum aux_return_code_type result = AUX_RET_ERROR_UNKNOWN;
+	u8 data[4] = { 0 };
+	u8 reply = 0;
+	int ret;
+
+	adev = kunit_kzalloc(test, sizeof(*adev), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx);
+
+	dc_ctx = kunit_kzalloc(test, sizeof(*dc_ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dc_ctx);
+
+	dc = kunit_kzalloc(test, sizeof(*dc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dc);
+
+	link = kunit_kzalloc(test, sizeof(*link), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, link);
+
+	ddc = kunit_kzalloc(test, sizeof(*ddc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ddc);
+
+	payload = kunit_kzalloc(test, sizeof(*payload), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, payload);
+
+	notify = kunit_kzalloc(test, sizeof(*notify), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, notify);
+
+	link->ddc = ddc;
+	dc->ctx = dc_ctx;
+	dc->link_count = 1;
+	dc->links[0] = link;
+	dc_ctx->dc = dc;
+	dc_ctx->driver_context = adev;
+	dc_ctx->dmub_srv = NULL;
+	ctx->dc = dc;
+	ctx->driver_context = adev;
+	spin_lock_init(&adev->dm.dmub_lock);
+	adev->dm.dmub_notify = notify;
+	mutex_init(&adev->dm.dpia_aux_lock);
+	init_completion(&adev->dm.dmub_aux_transfer_done);
+	complete(&adev->dm.dmub_aux_transfer_done);
+	payload->data = data;
+	payload->reply = &reply;
+	payload->length = sizeof(data);
+	notify->result = AUX_RET_SUCCESS;
+	notify->aux_reply.command = 0xA4;
+	notify->aux_reply.length = 3;
+	notify->aux_reply.data[0] = 0x11;
+	notify->aux_reply.data[1] = 0x22;
+	notify->aux_reply.data[2] = 0x33;
+
+	ret = amdgpu_dm_process_dmub_aux_transfer_sync(ctx, 0, payload, &result);
+
+	KUNIT_EXPECT_EQ(test, ret, 3);
+	KUNIT_EXPECT_EQ(test, result, AUX_RET_SUCCESS);
+	KUNIT_EXPECT_EQ(test, reply, 0xA);
+	KUNIT_EXPECT_EQ(test, data[0], 0x11);
+	KUNIT_EXPECT_EQ(test, data[1], 0x22);
+	KUNIT_EXPECT_EQ(test, data[2], 0x33);
+}
+
+/**
+ * dm_test_process_dmub_aux_transfer_sync_zero_length - Test AUX reply with no data
+ * @test: The KUnit test context
+ *
+ * On a successful notification whose reply carries no data, the sync helper
+ * takes the zero-length branch and returns the reply length (0) without
+ * copying any payload data.
+ */
+static void dm_test_process_dmub_aux_transfer_sync_zero_length(struct kunit *test)
+{
+	struct amdgpu_device *adev;
+	struct dc_context *ctx;
+	struct dc_context *dc_ctx;
+	struct dc *dc;
+	struct dc_link *link;
+	struct ddc_service *ddc;
+	struct aux_payload *payload;
+	struct dmub_notification *notify;
+	enum aux_return_code_type result = AUX_RET_ERROR_UNKNOWN;
+	u8 data[4] = { 0 };
+	u8 reply = 0;
+	int ret;
+
+	adev = kunit_kzalloc(test, sizeof(*adev), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx);
+
+	dc_ctx = kunit_kzalloc(test, sizeof(*dc_ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dc_ctx);
+
+	dc = kunit_kzalloc(test, sizeof(*dc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dc);
+
+	link = kunit_kzalloc(test, sizeof(*link), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, link);
+
+	ddc = kunit_kzalloc(test, sizeof(*ddc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ddc);
+
+	payload = kunit_kzalloc(test, sizeof(*payload), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, payload);
+
+	notify = kunit_kzalloc(test, sizeof(*notify), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, notify);
+
+	link->ddc = ddc;
+	dc->ctx = dc_ctx;
+	dc->link_count = 1;
+	dc->links[0] = link;
+	dc_ctx->dc = dc;
+	dc_ctx->driver_context = adev;
+	dc_ctx->dmub_srv = NULL;
+	ctx->dc = dc;
+	ctx->driver_context = adev;
+	spin_lock_init(&adev->dm.dmub_lock);
+	adev->dm.dmub_notify = notify;
+	mutex_init(&adev->dm.dpia_aux_lock);
+	init_completion(&adev->dm.dmub_aux_transfer_done);
+	complete(&adev->dm.dmub_aux_transfer_done);
+	payload->data = data;
+	payload->reply = &reply;
+	payload->length = sizeof(data);
+	notify->result = AUX_RET_SUCCESS;
+	notify->aux_reply.command = 0x03;
+	notify->aux_reply.length = 0;
+
+	ret = amdgpu_dm_process_dmub_aux_transfer_sync(ctx, 0, payload, &result);
+
+	KUNIT_EXPECT_EQ(test, ret, 0);
+	KUNIT_EXPECT_EQ(test, result, AUX_RET_SUCCESS);
+	KUNIT_EXPECT_EQ(test, reply, 0x3);
+}
+
+/* Tests for amdgpu_dm_process_dmub_set_config_sync() */
+
+/**
+ * dm_test_process_dmub_set_config_sync_unknown_error - Test SET_CONFIG completes with unknown error
+ * @test: The KUnit test context
+ *
+ * With no DC DMUB service, dc_process_dmub_set_config_async() cannot reach the
+ * firmware and reports the command as completed with SET_CONFIG_UNKNOWN_ERROR,
+ * so amdgpu_dm_process_dmub_set_config_sync() returns 0 with that status.
+ */
+static void dm_test_process_dmub_set_config_sync_unknown_error(struct kunit *test)
+{
+	struct amdgpu_device *adev;
+	struct dc_context *ctx;
+	struct dc_context *dc_ctx;
+	struct dc *dc;
+	struct dc_link *link;
+	struct set_config_cmd_payload *payload;
+	struct dmub_notification *notify;
+	enum set_config_status result = SET_CONFIG_PENDING;
+	int ret;
+
+	adev = kunit_kzalloc(test, sizeof(*adev), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx);
+
+	dc_ctx = kunit_kzalloc(test, sizeof(*dc_ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dc_ctx);
+
+	dc = kunit_kzalloc(test, sizeof(*dc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dc);
+
+	link = kunit_kzalloc(test, sizeof(*link), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, link);
+
+	payload = kunit_kzalloc(test, sizeof(*payload), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, payload);
+
+	notify = kunit_kzalloc(test, sizeof(*notify), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, notify);
+
+	dc->ctx = dc_ctx;
+	dc_ctx->dmub_srv = NULL;
+	dc->links[0] = link;
+	ctx->dc = dc;
+	ctx->driver_context = adev;
+	adev->dm.dmub_notify = notify;
+	mutex_init(&adev->dm.dpia_aux_lock);
+	init_completion(&adev->dm.dmub_aux_transfer_done);
+
+	ret = amdgpu_dm_process_dmub_set_config_sync(ctx, 0, payload, &result);
+
+	KUNIT_EXPECT_EQ(test, ret, 0);
+	KUNIT_EXPECT_EQ(test, result, SET_CONFIG_UNKNOWN_ERROR);
+}
+
 /* Tests for abort_fused_io() */
 
 /**
@@ -1009,6 +1369,15 @@ static struct kunit_case amdgpu_dm_dmub_tests[] = {
 	KUNIT_CASE(dm_test_dmub_sw_init_unsupported_asic),
 	/* dm_init_microcode() */
 	KUNIT_CASE(dm_test_init_microcode_unsupported_asic),
+	/* dm_execute_dmub_cmd() */
+	KUNIT_CASE(dm_test_execute_dmub_cmd_null_dmub_srv),
+	/* amdgpu_dm_process_dmub_aux_transfer_sync() */
+	KUNIT_CASE(dm_test_process_dmub_aux_transfer_sync_engine_acquire),
+	KUNIT_CASE(dm_test_process_dmub_aux_transfer_sync_protocol_error),
+	KUNIT_CASE(dm_test_process_dmub_aux_transfer_sync_copies_data),
+	KUNIT_CASE(dm_test_process_dmub_aux_transfer_sync_zero_length),
+	/* amdgpu_dm_process_dmub_set_config_sync() */
+	KUNIT_CASE(dm_test_process_dmub_set_config_sync_unknown_error),
 	/* abort_fused_io() */
 	KUNIT_CASE(dm_test_abort_fused_io_no_dmub_srv),
 	{}
