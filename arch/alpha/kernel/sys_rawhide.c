@@ -41,7 +41,7 @@ static unsigned int hose_irq_masks[4] = {
 	0xff0000, 0xfe0000, 0xff0000, 0xff0000
 };
 static unsigned int cached_irq_masks[4];
-DEFINE_SPINLOCK(rawhide_irq_lock);
+DEFINE_RAW_SPINLOCK(rawhide_irq_lock);
 
 static inline void
 rawhide_update_irq_hw(int hose, int mask)
@@ -59,6 +59,7 @@ rawhide_enable_irq(struct irq_data *d)
 {
 	unsigned int mask, hose;
 	unsigned int irq = d->irq;
+	unsigned long flags;
 
 	irq -= 16;
 	hose = irq / 24;
@@ -68,11 +69,11 @@ rawhide_enable_irq(struct irq_data *d)
 	irq -= hose * 24;
 	mask = 1 << irq;
 
-	spin_lock(&rawhide_irq_lock);
+	raw_spin_lock_irqsave(&rawhide_irq_lock, flags);
 	mask |= cached_irq_masks[hose];
 	cached_irq_masks[hose] = mask;
 	rawhide_update_irq_hw(hose, mask);
-	spin_unlock(&rawhide_irq_lock);
+	raw_spin_unlock_irqrestore(&rawhide_irq_lock, flags);
 }
 
 static void 
@@ -80,6 +81,7 @@ rawhide_disable_irq(struct irq_data *d)
 {
 	unsigned int mask, hose;
 	unsigned int irq = d->irq;
+	unsigned long flags;
 
 	irq -= 16;
 	hose = irq / 24;
@@ -89,11 +91,11 @@ rawhide_disable_irq(struct irq_data *d)
 	irq -= hose * 24;
 	mask = ~(1 << irq) | hose_irq_masks[hose];
 
-	spin_lock(&rawhide_irq_lock);
+	raw_spin_lock_irqsave(&rawhide_irq_lock, flags);
 	mask &= cached_irq_masks[hose];
 	cached_irq_masks[hose] = mask;
 	rawhide_update_irq_hw(hose, mask);
-	spin_unlock(&rawhide_irq_lock);
+	raw_spin_unlock_irqrestore(&rawhide_irq_lock, flags);
 }
 
 static void
@@ -101,6 +103,7 @@ rawhide_mask_and_ack_irq(struct irq_data *d)
 {
 	unsigned int mask, mask1, hose;
 	unsigned int irq = d->irq;
+	unsigned long flags;
 
 	irq -= 16;
 	hose = irq / 24;
@@ -111,7 +114,7 @@ rawhide_mask_and_ack_irq(struct irq_data *d)
 	mask1 = 1 << irq;
 	mask = ~mask1 | hose_irq_masks[hose];
 
-	spin_lock(&rawhide_irq_lock);
+	raw_spin_lock_irqsave(&rawhide_irq_lock, flags);
 
 	mask &= cached_irq_masks[hose];
 	cached_irq_masks[hose] = mask;
@@ -120,7 +123,7 @@ rawhide_mask_and_ack_irq(struct irq_data *d)
 	/* Clear the interrupt.  */
 	*(vuip)MCPCIA_INT_REQ(MCPCIA_HOSE2MID(hose)) = mask1;
 
-	spin_unlock(&rawhide_irq_lock);
+	raw_spin_unlock_irqrestore(&rawhide_irq_lock, flags);
 }
 
 static struct irq_chip rawhide_irq_type = {
