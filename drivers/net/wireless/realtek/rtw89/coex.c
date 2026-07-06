@@ -3319,7 +3319,74 @@ static void _set_bt_rx_gain(struct rtw89_dev *rtwdev, bool force_exec, u8 bid,
 
 		_write_scbd(rtwdev, bid, scbd_bit, state);
 	}
+}
 
+static void _set_bt_corx_table(struct rtw89_dev *rtwdev, bool en)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_cx *cx = &btc->cx;
+	struct rtw89_btc_bt_info *bt = &cx->bt0;
+	struct rtw89_btc_dm *dm = &btc->dm;
+	u8 is_24g, is_56g, i;
+	u32 scbd_bit;
+
+	/*
+	 * true: bt use Hi-LNA rx gain table (f/e/3/2) in -3x~-9xdBm for co-rx
+	 * false: bt use original rx gain table (f/b/7/3/2)
+	 */
+
+	if (btc->dm.fdd_bind.bt_sel == BIT(BTC_BT_EXT))
+		return;
+
+	for (i = BTC_BT_1ST; i <= BTC_BT_2ND; i++) {
+		scbd_bit = 0;
+		if (i == BTC_BT_2ND) {
+			if (!(rtwdev->chip->para_ver & BTC_FEAT_DUAL_BT))
+				continue;
+			bt = &cx->bt1;
+		}
+
+		is_24g = (dm->corx_map[BTC_RF_S0][i] ||
+			  dm->corx_map[BTC_RF_S1][i]) & BIT(RTW89_BAND_2G);
+		is_56g = (dm->corx_map[BTC_RF_S0][i] ||
+			  dm->corx_map[BTC_RF_S1][i]) & BIT(RTW89_BAND_5G);
+		if (is_24g)
+			scbd_bit |= BTC_WSCB_BT_HILNA;
+		if (is_56g)
+			scbd_bit |= BTC_WSCB_BT_HILNA_56G;
+
+		if ((is_24g && (en != (!!bt->hi_lna_rx))) ||
+		    (is_56g && (en != (!!bt->hi_lna_rx_6g))))
+			_write_scbd(rtwdev, i, scbd_bit, en);
+	}
+}
+
+static void _set_rf_trx_para_v9(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_cx *cx = &btc->cx;
+	struct rtw89_btc_wl_smap *wl_smap = &cx->wl.status.map;
+	struct rtw89_btc_dm *dm = &btc->dm;
+	bool bt_2r = false;
+	u8 wl_stb_chg = 0;
+
+	if (wl_smap->rf_off || wl_smap->lps == BTC_LPS_RF_OFF)
+		return;
+
+	/* must call after _set_halbb_btg_ctrl() */
+	if (dm->tdd_bind.wl_link_mode != BTC_WLINK_NOLINK) {
+		wl_stb_chg = 1;
+		if (dm->wl_btg_rx)
+			bt_2r = true;
+	}
+
+	_set_bt_corx_table(rtwdev, bt_2r);
+
+	if (wl_stb_chg != dm->wl_stb_chg) {
+		dm->wl_stb_chg = wl_stb_chg;
+		dm->ost_info.wl_btg_standby_chg = wl_stb_chg;
+		rtwdev->chip->ops->btc_wl_s1_standby(rtwdev, dm->wl_stb_chg);
+	}
 }
 
 static void _set_rf_trx_para(struct rtw89_dev *rtwdev)
@@ -3356,6 +3423,8 @@ static void _set_rf_trx_para(struct rtw89_dev *rtwdev)
 	if (ver->fcxtrx == 9 && chip->rf_para_ulink_v9) {
 		ul_para_num = chip->rf_para_ulink_num_v9;
 		dl_para_num = chip->rf_para_dlink_num_v9;
+		_set_rf_trx_para_v9(rtwdev);
+		return;
 	} else if (ver->fcxtrx == 0 && chip->rf_para_ulink_v0) {
 		ul_para_num = chip->rf_para_ulink_num_v0;
 		dl_para_num = chip->rf_para_dlink_num_v0;

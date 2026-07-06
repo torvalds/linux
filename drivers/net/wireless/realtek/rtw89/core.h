@@ -3278,6 +3278,7 @@ struct rtw89_btc_fbtc_outsrc_set_info {
 	u8 pta_req_hw_band;
 	u8 rf_gbt_source;
 	u8 bt_enable_state;
+	u8 wl_btg_standby_chg;
 } __packed;
 
 union rtw89_btc_fbtc_slot_u {
