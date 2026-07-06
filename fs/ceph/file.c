@@ -2388,7 +2388,8 @@ out_end:
  * dropping our cap refs and allowing the pending snap to logically
  * complete _before_ this write occurs.
  *
- * If we are near ENOSPC, write synchronously.
+ * If requested, nearfull writes are synced to preserve the legacy
+ * client-side backpressure behavior.
  */
 static ssize_t ceph_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
@@ -2604,8 +2605,9 @@ retry_snap:
 	}
 
 	if (written >= 0) {
-		if ((map_flags & CEPH_OSDMAP_NEARFULL) ||
-		    (pool_flags & CEPH_POOL_FLAG_NEARFULL))
+		if (ceph_test_mount_opt(fsc, NEARFULL_SYNC) &&
+		    ((map_flags & CEPH_OSDMAP_NEARFULL) ||
+		     (pool_flags & CEPH_POOL_FLAG_NEARFULL)))
 			iocb->ki_flags |= IOCB_DSYNC;
 		written = generic_write_sync(iocb, written);
 	}
