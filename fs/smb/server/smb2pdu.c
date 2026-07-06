@@ -6425,6 +6425,12 @@ static int smb2_get_info_sec(struct ksmbd_work *work,
 	if (!fp)
 		return -ENOENT;
 
+	if (addition_info & (OWNER_SECINFO | GROUP_SECINFO | DACL_SECINFO) &&
+	    !(fp->daccess & FILE_READ_CONTROL_LE)) {
+		ksmbd_fd_put(work, fp);
+		return -EACCES;
+	}
+
 	if (le32_to_cpu(req->OutputBufferLength) < sizeof(struct smb_ntsd)) {
 		rsp->hdr.Status = STATUS_BUFFER_TOO_SMALL;
 		ksmbd_fd_put(work, fp);
