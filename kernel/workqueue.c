@@ -6216,6 +6216,30 @@ bool current_is_workqueue_rescuer(void)
 }
 
 /**
+ * current_is_workqueue_mem_reclaim - is %current a %WQ_MEM_RECLAIM worker?
+ *
+ * Determine whether %current is a workqueue worker executing on a workqueue
+ * created with %WQ_MEM_RECLAIM.  This mirrors the condition that
+ * check_flush_dependency() warns on: flushing (or otherwise waiting on) a
+ * !WQ_MEM_RECLAIM workqueue from such a context breaks the forward-progress
+ * guarantee and can deadlock.  Callers that may recurse into such a flush --
+ * e.g. NFS LOCALIO submitting into a stacked filesystem that flushes its own
+ * !WQ_MEM_RECLAIM workqueue -- can use this to decide whether they must defer
+ * the work to a !WQ_MEM_RECLAIM workqueue rather than run it inline.
+ *
+ * Return: %true if %current is a %WQ_MEM_RECLAIM worker.  %false otherwise.
+ */
+bool current_is_workqueue_mem_reclaim(void)
+{
+	struct worker *worker = current_wq_worker();
+
+	return worker &&
+		((worker->current_pwq->wq->flags &
+		  (WQ_MEM_RECLAIM | __WQ_LEGACY)) == WQ_MEM_RECLAIM);
+}
+EXPORT_SYMBOL_GPL(current_is_workqueue_mem_reclaim);
+
+/**
  * workqueue_congested - test whether a workqueue is congested
  * @cpu: CPU in question
  * @wq: target workqueue

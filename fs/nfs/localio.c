@@ -699,6 +699,29 @@ static void nfs_local_call_read(struct work_struct *work)
 	}
 }
 
+/*
+ * Decide whether LOCALIO must defer submission to the dedicated
+ * !WQ_MEM_RECLAIM nfslocaliod_workqueue rather than issue the IO inline.
+ *
+ * LOCALIO issues IO directly into a stacked local filesystem (e.g. XFS),
+ * which may in turn flush its own !WQ_MEM_RECLAIM workqueue.  Doing so from a
+ * memory-reclaim context -- either a WQ_MEM_RECLAIM worker (most importantly
+ * writeback's wb_workfn running on bdi_wq) or an explicit reclaim task
+ * (PF_MEMALLOC) -- would trip check_flush_dependency() and risks a
+ * forward-progress deadlock; see commit b9f5dd57f4a5 ("nfs/localio: use
+ * dedicated workqueues for filesystem read and write").  In that case defer
+ * to nfslocaliod_workqueue.
+ *
+ * Otherwise (ordinary application/task context, e.g. O_DIRECT or fsync-driven
+ * submission) issue the IO inline: this preserves the NFS client's inherent
+ * application-context parallelism and avoids the per-IO workqueue hop.
+ */
+static inline bool nfs_local_defer_io(void)
+{
+	return (current->flags & PF_MEMALLOC) ||
+		current_is_workqueue_mem_reclaim();
+}
+
 static void nfs_local_do_read(struct nfs_local_kiocb *iocb,
 			      const struct rpc_call_ops *call_ops)
 {
@@ -711,7 +734,10 @@ static void nfs_local_do_read(struct nfs_local_kiocb *iocb,
 	hdr->res.eof = false;
 
 	INIT_WORK(&iocb->work, nfs_local_call_read);
-	queue_work(nfslocaliod_workqueue, &iocb->work);
+	if (nfs_local_defer_io())
+		queue_work(nfslocaliod_workqueue, &iocb->work);
+	else
+		nfs_local_call_read(&iocb->work);
 }
 
 static void
@@ -929,7 +955,10 @@ static void nfs_local_do_write(struct nfs_local_kiocb *iocb,
 	nfs_set_local_verifier(hdr->inode, hdr->res.verf, hdr->args.stable);
 
 	INIT_WORK(&iocb->work, nfs_local_call_write);
-	queue_work(nfslocaliod_workqueue, &iocb->work);
+	if (nfs_local_defer_io())
+		queue_work(nfslocaliod_workqueue, &iocb->work);
+	else
+		nfs_local_call_write(&iocb->work);
 }
 
 static struct nfs_local_kiocb *
