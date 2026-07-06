@@ -1452,7 +1452,7 @@ struct resume_key_ioctl_rsp {
 		__u64 ResumeKeyU64[3];
 	};
 	__le32	ContextLength;	/* MBZ */
-	char	Context[];	/* ignored, Windows sets to 4 bytes of zero */
+	char	Context[4];	/* ignored, Windows sets to 4 bytes of zero */
 } __packed;
 
 struct smb2_ioctl_rsp {
