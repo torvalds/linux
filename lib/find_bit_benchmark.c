@@ -149,6 +149,21 @@ static int __init test_find_next_and_bit(const void *bitmap,
 	return 0;
 }
 
+static int __init
+test_bitmap_find_next_zero_area_off(unsigned long *bitmap, unsigned long len)
+{
+	unsigned long i, cnt;
+	ktime_t time;
+
+	time = ktime_get();
+	for (cnt = i = 0; i < BITMAP_LEN; cnt++)
+		i = bitmap_find_next_zero_area_off(bitmap, BITMAP_LEN, i, 8, 0, 0) + 1;
+	time = ktime_get() - time;
+	pr_err("bitmap_find_next_zero_area_off:%7llu ns, %6ld iterations\n", time, cnt);
+
+	return 0;
+}
+
 static int __init find_bit_test(void)
 {
 	unsigned long nbits = BITMAP_LEN / SPARSE;
@@ -158,6 +173,7 @@ static int __init find_bit_test(void)
 	get_random_bytes(bitmap, sizeof(bitmap));
 	get_random_bytes(bitmap2, sizeof(bitmap2));
 
+	test_bitmap_find_next_zero_area_off(bitmap, BITMAP_LEN);
 	test_find_next_bit(bitmap, BITMAP_LEN);
 	test_find_next_zero_bit(bitmap, BITMAP_LEN);
 	test_find_last_bit(bitmap, BITMAP_LEN);
@@ -181,6 +197,7 @@ static int __init find_bit_test(void)
 		__set_bit(get_random_u32_below(BITMAP_LEN), bitmap2);
 	}
 
+	test_bitmap_find_next_zero_area_off(bitmap, BITMAP_LEN);
 	test_find_next_bit(bitmap, BITMAP_LEN);
 	test_find_next_zero_bit(bitmap, BITMAP_LEN);
 	test_find_last_bit(bitmap, BITMAP_LEN);
