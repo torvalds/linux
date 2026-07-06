@@ -67,7 +67,6 @@ struct rcu_tasks_percpu {
  * @gp_start: Most recent grace-period start in jiffies.
  * @tasks_gp_seq: Number of grace periods completed since boot in upper bits.
  * @n_ipis: Number of IPIs sent to encourage grace periods to end.
- * @n_ipis_fails: Number of IPI-send failures.
  * @kthread_ptr: This flavor's grace-period/callback-invocation kthread.
  * @lazy_jiffies: Number of jiffies to allow callbacks to be lazy.
  * @pregp_func: This flavor's pre-grace-period function (optional).
@@ -102,7 +101,6 @@ struct rcu_tasks {
 	unsigned long gp_start;
 	unsigned long tasks_gp_seq;
 	unsigned long n_ipis;
-	unsigned long n_ipis_fails;
 	struct task_struct *kthread_ptr;
 	unsigned long lazy_jiffies;
 	rcu_tasks_gp_func_t gp_func;
@@ -735,12 +733,12 @@ static void show_rcu_tasks_generic_gp_kthread(struct rcu_tasks *rtp, char *s)
 		if (havecbs && haveurgent && haveurgentcbs)
 			break;
 	}
-	pr_info("%s: %s(%d) since %lu g:%lu i:%lu/%lu %c%c%c%c l:%lu %s\n",
+	pr_info("%s: %s(%d) since %lu g:%lu i:%lu %c%c%c%c l:%lu %s\n",
 		rtp->kname,
 		tasks_gp_state_getname(rtp), data_race(rtp->gp_state),
 		jiffies - data_race(rtp->gp_jiffies),
 		data_race(rcu_seq_current(&rtp->tasks_gp_seq)),
-		data_race(rtp->n_ipis_fails), data_race(rtp->n_ipis),
+		data_race(rtp->n_ipis),
 		".k"[!!data_race(rtp->kthread_ptr)],
 		".C"[havecbs],
 		".u"[haveurgent],
