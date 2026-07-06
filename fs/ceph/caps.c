@@ -1168,8 +1168,11 @@ static void __ceph_remove_cap(struct ceph_cap *cap, bool queue_release)
 		cap->session = NULL;
 		removed = 1;
 	}
-	/* protect backpointer with s_cap_lock: see iterate_session_caps */
-	cap->ci = NULL;
+
+	/* protect removal marker with both i_ceph_lock and
+	   s_cap_lock, so either one can be used to check for
+	   removal */
+	RB_CLEAR_NODE(&cap->ci_node);
 
 	/*
 	 * s_cap_reconnect is protected by s_cap_lock. no one changes
