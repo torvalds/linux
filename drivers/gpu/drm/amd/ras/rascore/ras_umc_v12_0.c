@@ -64,6 +64,7 @@ static void __get_nps_pa_flip_bits(struct ras_core_context *ras_core,
 			struct umc_flip_bits *flip_bits)
 {
 	uint32_t vram_type = ras_core->ras_umc.umc_vram_type;
+	u32 num_umc = ras_core->ras_umc.num_umc;
 
 	/* default setting */
 	flip_bits->flip_bits_in_pa[0] = UMC_V12_0_PA_C2_BIT;
@@ -74,41 +75,87 @@ static void __get_nps_pa_flip_bits(struct ras_core_context *ras_core,
 	flip_bits->bit_num = 4;
 	flip_bits->r13_in_pa = UMC_V12_0_PA_R13_BIT;
 
-	if (nps == UMC_MEMORY_PARTITION_MODE_NPS2) {
+	if (num_umc == 16) {
+		if (nps == UMC_MEMORY_PARTITION_MODE_NPS2) {
+			flip_bits->flip_bits_in_pa[0] = UMC_V12_0_PA_CH5_BIT;
+			flip_bits->flip_bits_in_pa[1] = UMC_V12_0_PA_C2_BIT;
+			flip_bits->flip_bits_in_pa[2] = UMC_V12_0_PA_B1_BIT;
+			flip_bits->r13_in_pa = UMC_V12_0_PA_R12_BIT;
+		} else if (nps == UMC_MEMORY_PARTITION_MODE_NPS4) {
+			flip_bits->flip_bits_in_pa[0] = UMC_V12_0_PA_CH4_BIT;
+			flip_bits->flip_bits_in_pa[1] = UMC_V12_0_PA_CH5_BIT;
+			flip_bits->flip_bits_in_pa[2] = UMC_V12_0_PA_B0_BIT;
+			flip_bits->r13_in_pa = UMC_V12_0_PA_R11_BIT;
+		}
+
+		switch (vram_type) {
+		case UMC_VRAM_TYPE_HBM:
+			/* other nps modes are taken as nps1 */
+			if (nps == UMC_MEMORY_PARTITION_MODE_NPS2)
+				flip_bits->flip_bits_in_pa[3] = UMC_V12_0_PA_R12_BIT;
+			else if (nps == UMC_MEMORY_PARTITION_MODE_NPS4)
+				flip_bits->flip_bits_in_pa[3] = UMC_V12_0_PA_R11_BIT;
+
+			break;
+		case UMC_VRAM_TYPE_HBM3E:
+			flip_bits->flip_bits_in_pa[3] = UMC_V12_0_PA_R12_BIT;
+			flip_bits->flip_row_bit = 12;
+
+			if (nps == UMC_MEMORY_PARTITION_MODE_NPS2)
+				flip_bits->flip_bits_in_pa[3] = UMC_V12_0_PA_R11_BIT;
+			else if (nps == UMC_MEMORY_PARTITION_MODE_NPS4)
+				flip_bits->flip_bits_in_pa[3] = UMC_V12_0_PA_R10_BIT;
+
+			break;
+		default:
+			RAS_DEV_WARN(ras_core->dev,
+				"Unknown HBM type, set RAS retire flip bits to the value in NPS1 mode.\n");
+			break;
+		}
+	} else if (num_umc == 8) {
+		/* num_umc == 8 base setting */
 		flip_bits->flip_bits_in_pa[0] = UMC_V12_0_PA_CH5_BIT;
 		flip_bits->flip_bits_in_pa[1] = UMC_V12_0_PA_C2_BIT;
 		flip_bits->flip_bits_in_pa[2] = UMC_V12_0_PA_B1_BIT;
-		flip_bits->r13_in_pa = UMC_V12_0_PA_R12_BIT;
-	} else if (nps == UMC_MEMORY_PARTITION_MODE_NPS4) {
-		flip_bits->flip_bits_in_pa[0] = UMC_V12_0_PA_CH4_BIT;
-		flip_bits->flip_bits_in_pa[1] = UMC_V12_0_PA_CH5_BIT;
-		flip_bits->flip_bits_in_pa[2] = UMC_V12_0_PA_B0_BIT;
-		flip_bits->r13_in_pa = UMC_V12_0_PA_R11_BIT;
-	}
-
-	switch (vram_type) {
-	case UMC_VRAM_TYPE_HBM:
-		/* other nps modes are taken as nps1 */
-		if (nps == UMC_MEMORY_PARTITION_MODE_NPS2)
-			flip_bits->flip_bits_in_pa[3] = UMC_V12_0_PA_R12_BIT;
-		else if (nps == UMC_MEMORY_PARTITION_MODE_NPS4)
-			flip_bits->flip_bits_in_pa[3] = UMC_V12_0_PA_R11_BIT;
-
-		break;
-	case UMC_VRAM_TYPE_HBM3E:
-		flip_bits->flip_bits_in_pa[3] = UMC_V12_0_PA_R12_BIT;
+		flip_bits->flip_bits_in_pa[3] = UMC_V12_0_PA_R11_BIT;
 		flip_bits->flip_row_bit = 12;
+		flip_bits->bit_num = 4;
+		flip_bits->r13_in_pa = UMC_V12_0_PA_R12_BIT;
 
-		if (nps == UMC_MEMORY_PARTITION_MODE_NPS2)
-			flip_bits->flip_bits_in_pa[3] = UMC_V12_0_PA_R11_BIT;
-		else if (nps == UMC_MEMORY_PARTITION_MODE_NPS4)
-			flip_bits->flip_bits_in_pa[3] = UMC_V12_0_PA_R10_BIT;
+		/* only NPS1 and NPS2 are supported in this mode */
+		if (nps == UMC_MEMORY_PARTITION_MODE_NPS2) {
+			flip_bits->flip_bits_in_pa[0] = UMC_V12_0_PA_CH4_BIT;
+			flip_bits->flip_bits_in_pa[1] = UMC_V12_0_PA_CH5_BIT;
+			flip_bits->flip_bits_in_pa[2] = UMC_V12_0_PA_B0_BIT;
+			flip_bits->r13_in_pa = UMC_V12_0_PA_R11_BIT;
+		}
 
-		break;
-	default:
+		switch (vram_type) {
+		case UMC_VRAM_TYPE_HBM:
+			flip_bits->flip_bits_in_pa[3] = UMC_V12_0_PA_R12_BIT;
+
+			/* other nps modes are taken as nps1 */
+			if (nps == UMC_MEMORY_PARTITION_MODE_NPS2)
+				flip_bits->flip_bits_in_pa[3] = UMC_V12_0_PA_R11_BIT;
+
+			break;
+		case UMC_VRAM_TYPE_HBM3E:
+			if (nps == UMC_MEMORY_PARTITION_MODE_NPS2)
+				flip_bits->flip_bits_in_pa[3] = UMC_V12_0_PA_R10_BIT;
+
+			break;
+		default:
+			RAS_DEV_WARN(ras_core->dev,
+				"Unknown HBM type, set RAS retire flip bits to the value in NPS1 mode.\n");
+			break;
+		}
+	} else {
+		/* num_umc is always 8 or 16 on umc v12, this path should not be
+		 * entered.
+		 */
 		RAS_DEV_WARN(ras_core->dev,
-			"Unknown HBM type, set RAS retire flip bits to the value in NPS1 mode.\n");
-		break;
+			"Unsupported UMC number(%u), use default RAS flip bits setting.\n",
+			num_umc);
 	}
 }
 

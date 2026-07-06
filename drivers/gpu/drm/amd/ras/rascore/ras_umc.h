@@ -137,6 +137,7 @@ struct ras_umc_err_data {
 struct ras_umc {
 	u32 umc_ip_version;
 	u32 umc_vram_type;
+	u32 num_umc;
 	const struct ras_umc_ip_func *ip_func;
 	struct radix_tree_root root;
 	struct mutex  tree_lock;

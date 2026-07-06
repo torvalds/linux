@@ -278,6 +278,7 @@ struct ras_psp_config {
 
 struct ras_umc_config {
 	uint32_t umc_vram_type;
+	uint32_t num_umc;
 };
 
 struct ras_eeprom_config {

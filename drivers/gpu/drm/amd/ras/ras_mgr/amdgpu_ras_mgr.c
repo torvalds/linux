@@ -284,6 +284,7 @@ static int amdgpu_ras_mgr_init_umc_config(struct amdgpu_device *adev,
 	struct ras_umc_config *umc_cfg = &config->umc_cfg;
 
 	umc_cfg->umc_vram_type = adev->gmc.vram_type;
+	umc_cfg->num_umc = adev->gmc.num_umc;
 
 	return 0;
 }
