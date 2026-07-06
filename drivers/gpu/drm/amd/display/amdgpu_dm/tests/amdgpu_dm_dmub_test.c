@@ -932,6 +932,28 @@ static void dm_test_init_microcode_unsupported_asic(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, dm_init_microcode(adev), 0);
 }
 
+/* Tests for dm_dmub_get_vbios_bounding_box() */
+
+/**
+ * dm_test_dmub_get_vbios_bounding_box_default_null - Test default IP version returns NULL
+ * @test: The KUnit test context
+ *
+ * For an IP version without a bounding-box size mapping, the switch falls
+ * through to the default case and dm_dmub_get_vbios_bounding_box() returns
+ * NULL without allocating GPU memory or issuing GPINT commands.
+ */
+static void dm_test_dmub_get_vbios_bounding_box_default_null(struct kunit *test)
+{
+	struct amdgpu_device *adev;
+
+	adev = kunit_kzalloc(test, sizeof(*adev), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	adev->ip_versions[DCE_HWIP][0] = IP_VERSION(3, 5, 0);
+
+	KUNIT_EXPECT_NULL(test, dm_dmub_get_vbios_bounding_box(adev));
+}
+
 /* Tests for dm_execute_dmub_cmd() */
 
 /**
@@ -1369,6 +1391,8 @@ static struct kunit_case amdgpu_dm_dmub_tests[] = {
 	KUNIT_CASE(dm_test_dmub_sw_init_unsupported_asic),
 	/* dm_init_microcode() */
 	KUNIT_CASE(dm_test_init_microcode_unsupported_asic),
+	/* dm_dmub_get_vbios_bounding_box() */
+	KUNIT_CASE(dm_test_dmub_get_vbios_bounding_box_default_null),
 	/* dm_execute_dmub_cmd() */
 	KUNIT_CASE(dm_test_execute_dmub_cmd_null_dmub_srv),
 	/* amdgpu_dm_process_dmub_aux_transfer_sync() */

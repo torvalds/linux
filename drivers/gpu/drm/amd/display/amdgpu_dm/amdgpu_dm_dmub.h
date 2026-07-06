@@ -69,6 +69,7 @@ int dm_init_microcode(struct amdgpu_device *adev);
 struct dc_context;
 struct dmub_cmd_fused_request;
 
+void *dm_dmub_get_vbios_bounding_box(struct amdgpu_device *adev);
 void abort_fused_io(struct dc_context *ctx,
 		    const struct dmub_cmd_fused_request *request);
 #endif

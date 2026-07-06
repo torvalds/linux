@@ -385,7 +385,7 @@ dm_dmub_send_vbios_gpint_command(struct amdgpu_device *adev,
 	return DMUB_STATUS_TIMEOUT;
 }
 
-static void *dm_dmub_get_vbios_bounding_box(struct amdgpu_device *adev)
+STATIC_IFN_KUNIT void *dm_dmub_get_vbios_bounding_box(struct amdgpu_device *adev)
 {
 	void *bb;
 	long long addr;
@@ -440,6 +440,7 @@ free_bb:
 	return NULL;
 
 }
+EXPORT_IF_KUNIT(dm_dmub_get_vbios_bounding_box);
 
 enum dmub_ips_disable_type dm_get_default_ips_mode(
 	struct amdgpu_device *adev)
