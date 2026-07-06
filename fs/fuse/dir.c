@@ -96,6 +96,7 @@ static void fuse_advise_use_readdirplus(struct inode *dir)
 
 struct fuse_dentry {
 	u64 time;
+	u64 epoch;
 	union {
 		struct rcu_head rcu;
 		struct rb_node node;
@@ -234,6 +235,13 @@ void fuse_dentry_tree_cleanup(void)
 
 	for (i = 0; i < FUSE_HASH_SIZE; i++)
 		WARN_ON_ONCE(!RB_EMPTY_ROOT(&dentry_hash[i].tree));
+}
+
+void fuse_dentry_set_epoch(struct dentry *dentry, u64 epoch)
+{
+	struct fuse_dentry *fd = dentry->d_fsdata;
+
+	fd->epoch = epoch;
 }
 
 static inline void __fuse_dentry_settime(struct dentry *dentry, u64 time)
@@ -387,10 +395,11 @@ static int fuse_dentry_revalidate(struct inode *dir, const struct qstr *name,
 	struct fuse_mount *fm;
 	struct fuse_conn *fc;
 	struct fuse_inode *fi;
+	struct fuse_dentry *fd = entry->d_fsdata;
 	int ret;
 
 	fc = get_fuse_conn_super(dir->i_sb);
-	if (entry->d_time < atomic_read(&fc->epoch))
+	if (fd->epoch < atomic_read(&fc->epoch))
 		goto invalid;
 
 	inode = d_inode_rcu(entry);
@@ -480,10 +489,10 @@ static int fuse_dentry_init(struct dentry *dentry)
 	RB_CLEAR_NODE(&fd->node);
 	dentry->d_fsdata = fd;
 	/*
-	 * Initialising d_time (epoch) to '0' ensures the dentry is invalid
+	 * Initialising epoch to '0' ensures the dentry is invalid
 	 * if compared to fc->epoch, which is initialized to '1'.
 	 */
-	dentry->d_time = 0;
+	fuse_dentry_set_epoch(dentry, 0);
 
 	return 0;
 }
@@ -641,7 +650,7 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
 		goto out_err;
 
 	entry = newent ? newent : entry;
-	entry->d_time = epoch;
+	fuse_dentry_set_epoch(entry, epoch);
 	if (outarg_valid)
 		fuse_change_entry_timeout(entry, &outarg);
 	else
@@ -898,7 +907,7 @@ static int fuse_create_open(struct mnt_idmap *idmap, struct inode *dir,
 	}
 	kfree(forget);
 	d_instantiate(entry, inode);
-	entry->d_time = epoch;
+	fuse_dentry_set_epoch(entry, epoch);
 	fuse_change_entry_timeout(entry, &outentry);
 	fuse_dir_changed(dir);
 	err = generic_file_open(inode, file);
@@ -1028,10 +1037,10 @@ static struct dentry *create_new_entry(struct mnt_idmap *idmap, struct fuse_moun
 		return d;
 
 	if (d) {
-		d->d_time = epoch;
+		fuse_dentry_set_epoch(d, epoch);
 		fuse_change_entry_timeout(d, &outarg);
 	} else {
-		entry->d_time = epoch;
+		fuse_dentry_set_epoch(entry, epoch);
 		fuse_change_entry_timeout(entry, &outarg);
 	}
 	fuse_dir_changed(dir);

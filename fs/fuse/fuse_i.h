@@ -1054,6 +1054,8 @@ u64 fuse_time_to_jiffies(u64 sec, u32 nsec);
 
 void fuse_change_entry_timeout(struct dentry *entry, struct fuse_entry_out *o);
 
+void fuse_dentry_set_epoch(struct dentry *dentry, u64 epoch);
+
 /*
  * Initialize fuse_conn
  */
