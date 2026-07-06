@@ -642,11 +642,19 @@ out_unlock:
 	return error;
 }
 
+/*
+ * Allocate space for a file according to @mode:
+ *
+ * XFS_ALLOC_FILE_SPACE_PREALLOC:
+ * Preallocate unwritten extents over holes across the range and mark the inode
+ * as preallocated.
+ */
 int
 xfs_alloc_file_space(
 	struct xfs_inode	*ip,
 	xfs_off_t		offset,
-	xfs_off_t		len)
+	xfs_off_t		len,
+	enum xfs_alloc_file_space_mode mode)
 {
 	xfs_mount_t		*mp = ip->i_mount;
 	xfs_off_t		count;
@@ -657,6 +665,7 @@ xfs_alloc_file_space(
 	int			rt;
 	xfs_trans_t		*tp;
 	xfs_bmbt_irec_t		imaps[1], *imapp;
+	uint32_t		bmapi_flags, nr_exts;
 	int			error;
 
 	if (xfs_is_always_cow_inode(ip))
@@ -673,6 +682,15 @@ xfs_alloc_file_space(
 
 	if (len <= 0)
 		return -EINVAL;
+
+	switch (mode) {
+	case XFS_ALLOC_FILE_SPACE_PREALLOC:
+		bmapi_flags = XFS_BMAPI_PREALLOC;
+		nr_exts = XFS_IEXT_ADD_NOSPLIT_CNT;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	rt = XFS_IS_REALTIME_INODE(ip);
 	extsz = xfs_get_extsz_hint(ip);
@@ -733,8 +751,7 @@ xfs_alloc_file_space(
 		if (error)
 			break;
 
-		error = xfs_iext_count_extend(tp, ip, XFS_DATA_FORK,
-				XFS_IEXT_ADD_NOSPLIT_CNT);
+		error = xfs_iext_count_extend(tp, ip, XFS_DATA_FORK, nr_exts);
 		if (error)
 			goto error;
 
@@ -748,7 +765,7 @@ xfs_alloc_file_space(
 		 * will eventually reach the requested range.
 		 */
 		error = xfs_bmapi_write(tp, ip, startoffset_fsb,
-				allocatesize_fsb, XFS_BMAPI_PREALLOC, 0, imapp,
+				allocatesize_fsb, bmapi_flags, 0, imapp,
 				&nimaps);
 		if (error) {
 			if (error != -ENOSR)
