@@ -432,22 +432,28 @@ unsigned long bitmap_find_next_zero_area_off(unsigned long *map,
 					     unsigned long align_mask,
 					     unsigned long align_offset)
 {
-	unsigned long index, end, i;
-again:
-	index = find_next_zero_bit(map, size, start);
+	unsigned long end, i, off;
 
-	/* Align allocation */
-	index = __ALIGN_MASK(index + align_offset, align_mask) - align_offset;
+	for_each_clear_bit_from(start, map, size) {
+		start = __ALIGN_MASK(start + align_offset, align_mask) - align_offset;
+		end = start + nr;
+		if (end > size)
+			break;
 
-	end = index + nr;
-	if (end > size)
-		return end;
-	i = find_next_bit(map, end, index);
-	if (i < end) {
-		start = i + 1;
-		goto again;
+		off = round_down(start, BITS_PER_LONG);
+		i = find_last_bit(map + start / BITS_PER_LONG, end - off) + off;
+		if (i >= end || i < start)
+			return start;
+
+		start = i;
 	}
-	return index;
+
+	/*
+	 * Here, returning size + 1 is to maintain consistency
+	 * with the old version, where the return value is always
+	 * greater than size when no zero areas are found.
+	 */
+	return size + 1;
 }
 EXPORT_SYMBOL(bitmap_find_next_zero_area_off);
 
