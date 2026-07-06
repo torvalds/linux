@@ -222,7 +222,7 @@ svc_pool_map_set_cpumask(struct task_struct *task, unsigned int pidx)
 	unsigned int node = m->pool_to[pidx];
 
 	/*
-	 * The caller checks for sv_nrpools > 1, which
+	 * The caller checks for more than one pool, which
 	 * implies that we've been initialized.
 	 */
 	WARN_ON_ONCE(m->count == 0);
@@ -231,6 +231,24 @@ svc_pool_map_set_cpumask(struct task_struct *task, unsigned int pidx)
 
 	set_cpus_allowed_ptr(task, cpumask_of_node(node));
 }
+
+/**
+ * svc_serv_nrpools - number of thread pools backing a service
+ * @serv: An RPC service
+ *
+ * Pooled services all share the global svc_pool_map, so their pool count
+ * is svc_pool_map.npools. Unpooled services have a single pool. Reading
+ * npools without svc_pool_map_mutex is safe: a pooled service holds a map
+ * reference for its whole lifetime, so npools is stable once set.
+ *
+ * Return value:
+ *   The number of pools in @serv
+ */
+unsigned int svc_serv_nrpools(const struct svc_serv *serv)
+{
+	return serv->sv_is_pooled ? svc_pool_map.npools : 1;
+}
+EXPORT_SYMBOL_GPL(svc_serv_nrpools);
 
 /**
  * svc_pool_for_cpu - Select pool to run a thread on this cpu
@@ -244,13 +262,12 @@ svc_pool_map_set_cpumask(struct task_struct *task, unsigned int pidx)
  */
 struct svc_pool *svc_pool_for_cpu(struct svc_serv *serv)
 {
+	unsigned int nrpools = svc_serv_nrpools(serv);
 	struct svc_pool_map *m = &svc_pool_map;
 	unsigned int pidx, i;
 
-	if (serv->sv_nrpools <= 1)
+	if (nrpools <= 1)
 		return serv->sv_pools;
-
-	pidx = m->to_pool[cpu_to_node(raw_smp_processor_id())] % serv->sv_nrpools;
 
 	/*
 	 * It's possible to have a pool with no threads. Userland can just set
@@ -263,7 +280,8 @@ struct svc_pool *svc_pool_for_cpu(struct svc_serv *serv)
 	 * populated pool, trading NUMA locality for a guarantee that the
 	 * transport is serviced.
 	 */
-	for (i = 0; i < serv->sv_nrpools; i++) {
+	pidx = m->to_pool[cpu_to_node(raw_smp_processor_id())];
+	for (i = 0; i < nrpools; i++) {
 		struct svc_pool *pool = &serv->sv_pools[pidx];
 
 		/* This is set under the service mutex and rarely ever
@@ -272,7 +290,7 @@ struct svc_pool *svc_pool_for_cpu(struct svc_serv *serv)
 		if (data_race(pool->sp_nrthreads))
 			return pool;
 
-		if (++pidx >= serv->sv_nrpools)
+		if (++pidx >= nrpools)
 			pidx = 0;
 	}
 
@@ -412,15 +430,13 @@ __svc_create(struct svc_program *prog, int nprogs, struct svc_stat *stats,
 
 	__svc_init_bc(serv);
 
-	serv->sv_nrpools = npools;
-	serv->sv_pools =
-		kzalloc_objs(struct svc_pool, serv->sv_nrpools);
+	serv->sv_pools = kzalloc_objs(struct svc_pool, npools);
 	if (!serv->sv_pools) {
 		kfree(serv);
 		return NULL;
 	}
 
-	for (i = 0; i < serv->sv_nrpools; i++) {
+	for (i = 0; i < npools; i++) {
 		struct svc_pool *pool = &serv->sv_pools[i];
 
 		dprintk("svc: initialising pool %u for %s\n",
@@ -518,7 +534,7 @@ svc_destroy(struct svc_serv **servp)
 
 	cache_clean_deferred(serv);
 
-	for (i = 0; i < serv->sv_nrpools; i++) {
+	for (i = 0; i < svc_serv_nrpools(serv); i++) {
 		struct svc_pool *pool = &serv->sv_pools[i];
 
 		svc_pool_destroy_counters(pool);
@@ -729,7 +745,7 @@ int svc_new_thread(struct svc_serv *serv, struct svc_pool *pool)
 	}
 
 	rqstp->rq_task = task;
-	if (serv->sv_nrpools > 1)
+	if (svc_serv_nrpools(serv) > 1)
 		svc_pool_map_set_cpumask(task, pool->sp_id);
 
 	svc_sock_update_bufs(serv);
@@ -855,8 +871,9 @@ int
 svc_set_num_threads(struct svc_serv *serv, unsigned int min_threads,
 		    unsigned int nrservs)
 {
-	unsigned int base = nrservs / serv->sv_nrpools;
-	unsigned int remain = nrservs % serv->sv_nrpools;
+	unsigned int nrpools = svc_serv_nrpools(serv);
+	unsigned int base = nrservs / nrpools;
+	unsigned int remain = nrservs % nrpools;
 	int i, err = 0;
 
 	/*
@@ -867,9 +884,9 @@ svc_set_num_threads(struct svc_serv *serv, unsigned int min_threads,
 	 * @nrservs.
 	 */
 	if (base == 0 && nrservs != 0)
-		remain = serv->sv_nrpools;
+		remain = nrpools;
 
-	for (i = 0; i < serv->sv_nrpools; ++i) {
+	for (i = 0; i < nrpools; ++i) {
 		struct svc_pool *pool = &serv->sv_pools[i];
 		int threads = base;
 
@@ -903,7 +920,7 @@ unsigned int svc_serv_maxthreads(const struct svc_serv *serv)
 {
 	unsigned int i, max = 0;
 
-	for (i = 0; i < serv->sv_nrpools; i++)
+	for (i = 0; i < svc_serv_nrpools(serv); i++)
 		max += data_race(serv->sv_pools[i].sp_nrthrmax);
 	return max;
 }

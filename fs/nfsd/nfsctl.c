@@ -1526,7 +1526,7 @@ int nfsd_nl_rpc_status_get_dumpit(struct sk_buff *skb,
 
 	rcu_read_lock();
 
-	for (i = 0; i < nn->nfsd_serv->sv_nrpools; i++) {
+	for (i = 0; i < svc_serv_nrpools(nn->nfsd_serv); i++) {
 		struct svc_rqst *rqstp;
 		long thread_skip = 0;
 

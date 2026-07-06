@@ -1188,7 +1188,7 @@ static void svc_clean_up_xprts(struct svc_serv *serv, struct net *net)
 	struct svc_xprt *xprt;
 	int i;
 
-	for (i = 0; i < serv->sv_nrpools; i++) {
+	for (i = 0; i < svc_serv_nrpools(serv); i++) {
 		struct svc_pool *pool = &serv->sv_pools[i];
 		struct llist_node *q, **t1, *t2;
 
@@ -1517,7 +1517,7 @@ static void *svc_pool_stats_start(struct seq_file *m, loff_t *pos)
 		return SEQ_START_TOKEN;
 	if (!si->serv)
 		return NULL;
-	return pidx > si->serv->sv_nrpools ? NULL
+	return pidx > svc_serv_nrpools(si->serv) ? NULL
 		: &si->serv->sv_pools[pidx - 1];
 }
 
@@ -1535,7 +1535,7 @@ static void *svc_pool_stats_next(struct seq_file *m, void *p, loff_t *pos)
 		pool = &serv->sv_pools[0];
 	} else {
 		unsigned int pidx = (pool - &serv->sv_pools[0]);
-		if (pidx < serv->sv_nrpools-1)
+		if (pidx < svc_serv_nrpools(serv) - 1)
 			pool = &serv->sv_pools[pidx+1];
 		else
 			pool = NULL;
