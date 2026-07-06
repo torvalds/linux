@@ -1278,6 +1278,20 @@ extern void ceph_add_cap(struct inode *inode,
 			 unsigned issued, unsigned wanted,
 			 unsigned cap, unsigned seq, u64 realmino, int flags,
 			 struct ceph_cap **new_cap);
+
+/**
+ * Determine whether __ceph_remove_cap() has been called on this #cap
+ * (but the object has not yet been freed because it is protected by
+ * `ceph_mds_session.s_cap_iterator`).
+ *
+ * Caller must lock either `ceph_inode_info.i_ceph_lock` or
+ * `ceph_mds_session.s_cap_lock`.
+ */
+static inline bool ceph_cap_is_removed(const struct ceph_cap *cap)
+{
+	return !cap->ci;
+}
+
 extern void ceph_remove_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
 			    bool queue_release);
 extern void __ceph_remove_caps(struct ceph_inode_info *ci);
