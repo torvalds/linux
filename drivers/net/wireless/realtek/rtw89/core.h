@@ -1832,10 +1832,11 @@ struct rtw89_btc_wl_role_info_bpos {
 	u16 nan: 1;
 };
 
-struct rtw89_btc_wl_scc_ctrl {
-	u8 null_role1;
-	u8 null_role2;
-	u8 ebt_null; /* if tx null at EBT slot */
+struct rtw89_btc_eslot_ctrl {
+	u8 en;  /* 1: toggle tx-flow-ctrl (null 0/1), tx-pause by Ext-slot */
+	u8 nulltx_role1;
+	u8 nulltx_role2;
+	u8 nulltx_pre_time; /* null-tx time prior to EBT-start (from E2G-end) */
 };
 
 union rtw89_btc_wl_role_info_map {
@@ -3275,7 +3276,7 @@ struct rtw89_btc_dm {
 	struct rtw89_btc_rf_trx_para_v9 rf_trx_para;
 	struct rtw89_btc_wl_tx_limit_para wl_tx_limit;
 	struct rtw89_btc_dm_step dm_step;
-	struct rtw89_btc_wl_scc_ctrl wl_scc;
+	struct rtw89_btc_eslot_ctrl eslot_ctrl;
 	struct rtw89_btc_trx_info trx_info;
 	union rtw89_btc_dm_error_map error;
 	struct rtw89_btc_bind_info tdd_bind;
