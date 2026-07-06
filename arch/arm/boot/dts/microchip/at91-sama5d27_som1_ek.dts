@@ -258,10 +258,10 @@
 				};
 
 				pinctrl_i2c1_gpio: i2c1_gpio {
-                                        pinmux = <PIN_PD4__GPIO>,
-                                                 <PIN_PD5__GPIO>;
-                                        bias-disable;
-                                };
+					pinmux = <PIN_PD4__GPIO>,
+						 <PIN_PD5__GPIO>;
+					bias-disable;
+				};
 
 
 				pinctrl_isc_base: isc_base {
