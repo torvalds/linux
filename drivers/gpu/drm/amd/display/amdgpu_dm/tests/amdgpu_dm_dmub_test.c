@@ -801,6 +801,79 @@ static void dm_test_dmub_hw_resume_no_dmub_srv(struct kunit *test)
 	dm_dmub_hw_resume(adev);
 }
 
+/**
+ * dm_test_dmub_hw_resume_initialized_dmub - Test resume waits for initialized DMUB
+ * @test: The KUnit test context
+ *
+ * When the fake DMUB service reports hardware already initialized, resume
+ * should only wait for firmware readiness and skip full reinitialization.
+ */
+static void dm_test_dmub_hw_resume_initialized_dmub(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_test_alloc_adev_with_dc(test);
+
+	adev->dm.dmub_srv = dm_test_alloc_dmub_srv(test);
+
+	/* Must not crash. */
+	dm_dmub_hw_resume(adev);
+}
+
+/**
+ * dm_test_dmub_hw_resume_full_init - Test resume performs full init when uninitialized
+ * @test: The KUnit test context
+ *
+ * When the fake DMUB service reports hardware not yet initialized, resume
+ * should continue into a full dm_dmub_hw_init() and create the DC DMUB
+ * server.
+ */
+static void dm_test_dmub_hw_resume_full_init(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_test_alloc_adev_with_dmub(test);
+
+	adev->dm.dmub_srv->hw_init = false;
+
+	dm_dmub_hw_resume(adev);
+
+	KUNIT_EXPECT_NOT_NULL(test, adev->dm.dc->ctx->dmub_srv);
+}
+
+/**
+ * dm_test_dmub_hw_resume_init_check_failed - Test resume handles a failed init check
+ * @test: The KUnit test context
+ *
+ * When the DMUB service is not software-initialized, the init-state query
+ * fails and resume continues into dm_dmub_hw_init(), which also fails; the
+ * call must warn and return without crashing.
+ */
+static void dm_test_dmub_hw_resume_init_check_failed(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_test_alloc_adev_with_dmub(test);
+
+	adev->dm.dmub_srv->sw_init = false;
+
+	/* Must not crash. */
+	dm_dmub_hw_resume(adev);
+}
+
+/**
+ * dm_test_dmub_hw_resume_auto_load_timeout - Test resume tolerates an auto-load timeout
+ * @test: The KUnit test context
+ *
+ * When the DMUB reports hardware already initialized but the firmware never
+ * signals ready, resume's auto-load wait times out and only warns; the call
+ * must not crash.
+ */
+static void dm_test_dmub_hw_resume_auto_load_timeout(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_test_alloc_adev_with_dc(test);
+
+	adev->dm.dmub_srv = dm_test_alloc_dmub_srv(test);
+	adev->dm.dmub_srv->hw_funcs.get_fw_status = dm_test_dmub_fw_not_ready;
+
+	/* Must not crash; auto-load times out and only warns. */
+	dm_dmub_hw_resume(adev);
+}
+
 /* Tests for dm_dmub_sw_init() */
 
 /**
@@ -878,6 +951,10 @@ static struct kunit_case amdgpu_dm_dmub_tests[] = {
 	KUNIT_CASE(dm_test_dmub_hw_init_dmcu_abm),
 	/* dm_dmub_hw_resume() */
 	KUNIT_CASE(dm_test_dmub_hw_resume_no_dmub_srv),
+	KUNIT_CASE(dm_test_dmub_hw_resume_initialized_dmub),
+	KUNIT_CASE(dm_test_dmub_hw_resume_full_init),
+	KUNIT_CASE(dm_test_dmub_hw_resume_init_check_failed),
+	KUNIT_CASE(dm_test_dmub_hw_resume_auto_load_timeout),
 	/* dm_dmub_sw_init() */
 	KUNIT_CASE(dm_test_dmub_sw_init_unsupported_asic),
 	/* dm_init_microcode() */
