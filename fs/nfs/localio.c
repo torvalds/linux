@@ -1132,7 +1132,19 @@ int nfs_local_commit(struct nfsd_file *localio,
 	}
 
 	nfs_local_init_commit(data, call_ops);
-	queue_work(nfslocaliod_workqueue, &ctx->work);
+
+	/*
+	 * Run the commit (fsync) inline when not in a memory-reclaim context,
+	 * rather than bouncing through nfslocaliod_workqueue; see
+	 * nfs_local_defer_io().  Completion (nfs_commit_release_pages ->
+	 * nfs_commit_end) then runs synchronously, which higher layers cope
+	 * with: __nfs_commit_inode() dispatches async and waits via
+	 * wait_on_commit().
+	 */
+	if (nfs_local_defer_io())
+		queue_work(nfslocaliod_workqueue, &ctx->work);
+	else
+		nfs_local_fsync_work(&ctx->work);
 
 	return 0;
 }
