@@ -9154,6 +9154,30 @@ int smb2_ioctl(struct ksmbd_work *work)
 	in_buf_len = le32_to_cpu(req->InputCount);
 
 	switch (cnt_code) {
+	case FSCTL_SRV_ENUM_SNAPS: {
+		struct srv_snapshot_array *snap_rsp;
+		struct ksmbd_file *fp;
+
+		if (out_buf_len < sizeof(*snap_rsp)) {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		fp = ksmbd_lookup_fd_fast(work, id);
+		if (!fp) {
+			ret = -ENOENT;
+			goto out;
+		}
+		ksmbd_fd_put(work, fp);
+
+		snap_rsp = (struct srv_snapshot_array *)rsp->Buffer;
+		snap_rsp->NumberOfSnapShots = 0;
+		snap_rsp->NumberOfSnapShotsReturned = 0;
+		snap_rsp->SnapShotArraySize = cpu_to_le32(2);
+		snap_rsp->Reserved = 0;
+		nbytes = sizeof(*snap_rsp);
+		break;
+	}
 	case FSCTL_DFS_GET_REFERRALS:
 	case FSCTL_DFS_GET_REFERRALS_EX:
 		/* Not support DFS yet */

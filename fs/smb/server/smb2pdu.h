@@ -199,6 +199,13 @@ struct smb2_file_stream_info {
 	char   StreamName[];
 } __packed;
 
+struct srv_snapshot_array {
+	__le32 NumberOfSnapShots;
+	__le32 NumberOfSnapShotsReturned;
+	__le32 SnapShotArraySize;
+	__le32 Reserved;
+} __packed;
+
 struct smb2_file_standard_info {
 	__le64 AllocationSize;
 	__le64 EndOfFile;
