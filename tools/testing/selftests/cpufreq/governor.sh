@@ -100,11 +100,6 @@ switch_governor()
 # $1: policy, $2: governor
 switch_show_governor()
 {
-	cur_gov=find_current_governor
-	if [ $cur_gov == "userspace" ]; then
-		cur_freq=find_current_freq
-	fi
-
 	# switch governor
 	__switch_governor $1 $2
 
