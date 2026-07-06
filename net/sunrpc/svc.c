@@ -518,14 +518,15 @@ svc_destroy(struct svc_serv **servp)
 
 	cache_clean_deferred(serv);
 
-	if (serv->sv_is_pooled)
-		svc_pool_map_put();
-
 	for (i = 0; i < serv->sv_nrpools; i++) {
 		struct svc_pool *pool = &serv->sv_pools[i];
 
 		svc_pool_destroy_counters(pool);
 	}
+
+	if (serv->sv_is_pooled)
+		svc_pool_map_put();
+
 	kfree(serv->sv_pools);
 	kfree(serv);
 }
