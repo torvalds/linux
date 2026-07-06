@@ -7441,19 +7441,13 @@ Kernel parameters
 
 	sunrpc.pool_mode=
 			[NFS]
-			Control how the NFS server code allocates CPUs to
-			service thread pools.  Depending on how many NICs
-			you have and where their interrupts are bound, this
-			option will affect which CPUs will do NFS serving.
-			Note: this parameter cannot be changed while the
-			NFS server is running.
-
-			auto	    the server chooses an appropriate mode
-				    automatically using heuristics
-			global	    a single global pool contains all CPUs
-			percpu	    one pool for each CPU
-			pernode	    one pool for each NUMA node (equivalent
-				    to global on non-NUMA machines)
+			Deprecated.  The NFS server now always uses one
+			service thread pool per NUMA node (equivalent to a
+			single global pool on non-NUMA machines).  All of
+			the previously accepted values (auto, global,
+			percpu, pernode) are still accepted for backward
+			compatibility but are ignored: the mode is always
+			pernode, and reads always return "pernode".
 
 	sunrpc.tcp_slot_table_entries=
 	sunrpc.udp_slot_table_entries=
