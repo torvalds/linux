@@ -871,6 +871,14 @@ static void __touch_cap(struct ceph_cap *cap)
 	struct inode *inode = &cap->ci->netfs.inode;
 	struct ceph_mds_session *s = cap->session;
 	struct ceph_client *cl = s->s_mdsc->fsc->client;
+	static u8 skip_counter;
+
+	if (data_race(++skip_counter))
+		/* skip this call most of the time to reduce lock
+		 * contention; the LRU list is still accurate enough
+		 * for ceph_trim_caps()
+		 */
+		return;
 
 	spin_lock(&s->s_cap_lock);
 	if (!s->s_cap_iterator) {
