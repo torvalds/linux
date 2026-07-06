@@ -175,8 +175,12 @@ static const struct drm_panel_funcs sofef00_panel_panel_funcs = {
 static int sofef00_panel_bl_update_status(struct backlight_device *bl)
 {
 	struct mipi_dsi_device *dsi = bl_get_data(bl);
+	struct sofef00_panel *ctx = mipi_dsi_get_drvdata(dsi);
 	int err;
 	u16 brightness = (u16)backlight_get_brightness(bl);
+
+	if (!ctx->panel.prepared)
+		return 0;
 
 	dsi->mode_flags &= ~MIPI_DSI_MODE_LPM;
 
