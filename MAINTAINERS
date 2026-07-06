@@ -23555,6 +23555,8 @@ F:	drivers/mfd/rohm-bd71828.c
 F:	drivers/mfd/rohm-bd718x7.c
 F:	drivers/mfd/rohm-bd9576.c
 F:	drivers/mfd/rohm-bd96801.c
+F:	drivers/mfd/rohm-pwrbutton.c
+F:	drivers/mfd/rohm-pwrbutton.h
 F:	drivers/regulator/bd71815-regulator.c
 F:	drivers/regulator/bd71828-regulator.c
 F:	drivers/regulator/bd718x7-regulator.c

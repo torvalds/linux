@@ -2207,6 +2207,10 @@ config MFD_STW481X
 	  in various ST Microelectronics and ST-Ericsson embedded
 	  Nomadik series.
 
+config MFD_ROHM_PWRBUTTON
+	tristate
+	select MFD_CORE
+
 config MFD_ROHM_BD718XX
 	tristate "ROHM BD71837 Power Management IC"
 	depends on I2C=y
@@ -2214,6 +2218,7 @@ config MFD_ROHM_BD718XX
 	select REGMAP_I2C
 	select REGMAP_IRQ
 	select MFD_CORE
+	select MFD_ROHM_PWRBUTTON
 	help
 	  Select this option to get support for the ROHM BD71837
 	  Power Management ICs. BD71837 is designed to power processors like
@@ -2227,6 +2232,7 @@ config MFD_ROHM_BD71828
 	select REGMAP_I2C
 	select REGMAP_IRQ
 	select MFD_CORE
+	select MFD_ROHM_PWRBUTTON
 	help
 	  Select this option to get support for the ROHM BD71815, BD71828,
 	  BD71879, BD72720 and BD73900 Power Management ICs (PMICs). These are
