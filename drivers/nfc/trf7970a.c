@@ -938,7 +938,7 @@ static irqreturn_t trf7970a_irq(int irq, void *dev_id)
 			if (!trf->timeout) {
 				trf->ignore_timeout =
 				    !cancel_delayed_work(&trf->timeout_work);
-				trf->rx_skb = ERR_PTR(0);
+				trf->rx_skb = NULL;
 				trf7970a_send_upstream(trf);
 				break;
 			}
