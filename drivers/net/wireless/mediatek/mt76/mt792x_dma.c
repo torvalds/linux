@@ -418,6 +418,9 @@ int mt792x_wpdma_reinit_cond(struct mt792x_dev *dev)
 	struct mt76_connac_pm *pm = &dev->pm;
 	int err;
 
+	if (dev->skip_wpdma_reinit)
+		return 0;
+
 	/* check if the wpdma must be reinitialized */
 	if (mt792x_dma_need_reinit(dev)) {
 		/* disable interrutpts */
