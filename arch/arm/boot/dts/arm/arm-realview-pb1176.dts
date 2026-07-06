@@ -53,7 +53,7 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-boot-on;
-        };
+	};
 
 	veth: regulator-veth {
 		compatible = "regulator-fixed";

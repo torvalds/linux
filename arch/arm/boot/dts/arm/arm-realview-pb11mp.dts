@@ -153,7 +153,7 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-boot-on;
-        };
+	};
 
 	veth: regulator-veth {
 		compatible = "regulator-fixed";
@@ -544,7 +544,7 @@
 			interrupts = <0 1 IRQ_TYPE_LEVEL_HIGH>;
 			arm,sp804-has-irq = <1>;
 			clocks = <&sp810_syscon 0>,
-			         <&sp810_syscon 1>,
+				 <&sp810_syscon 1>,
 				 <&pclk>;
 			clock-names = "timer0clk",
 				    "timer1clk",
@@ -558,7 +558,7 @@
 			interrupts = <0 2 IRQ_TYPE_LEVEL_HIGH>;
 			arm,sp804-has-irq = <1>;
 			clocks = <&sp810_syscon 2>,
-			         <&sp810_syscon 3>,
+				 <&sp810_syscon 3>,
 				 <&pclk>;
 			clock-names = "timer0clk",
 				    "timer1clk",
