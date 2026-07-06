@@ -57,6 +57,7 @@ int	xfs_bmap_last_extent(struct xfs_trans *tp, struct xfs_inode *ip,
 /* preallocation and hole punch interface */
 enum xfs_alloc_file_space_mode {
 	XFS_ALLOC_FILE_SPACE_PREALLOC,
+	XFS_ALLOC_FILE_SPACE_WRITE_ZEROES,
 };
 
 int	xfs_alloc_file_space(struct xfs_inode *ip, xfs_off_t offset,

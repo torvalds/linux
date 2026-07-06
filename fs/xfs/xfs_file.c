@@ -1368,6 +1368,84 @@ xfs_falloc_force_zero(
 	return XFS_TEST_ERROR(ip->i_mount, XFS_ERRTAG_FORCE_ZERO_RANGE);
 }
 
+static int
+xfs_falloc_write_zeroes(
+	struct file		*file,
+	int			mode,
+	loff_t			offset,
+	loff_t			len,
+	struct xfs_zone_alloc_ctx *ac)
+{
+	struct inode		*inode = file_inode(file);
+	struct xfs_inode	*ip = XFS_I(inode);
+	loff_t			new_size = 0;
+	int			error;
+
+	/*
+	 * XXX: There is an issue with bigrtalloc inodes where there can be blocks
+	 * that are written after the EOF block. This breaks the promise of no
+	 * written blocks past EOF. Return EOPNOTSUPP until it is fixed.
+	 */
+	if (xfs_is_always_cow_inode(ip) || xfs_inode_has_bigrtalloc(ip) ||
+	    !bdev_write_zeroes_unmap_sectors(xfs_inode_buftarg(ip)->bt_bdev))
+		return -EOPNOTSUPP;
+
+	error = xfs_falloc_newsize(file, mode, offset, len, &new_size);
+	if (error)
+		return error;
+
+	/*
+	 *
+	 *    |----------|----------|----------|----------|----------|
+	 *    ^     ^    ^                     ^     ^    ^
+	 *    |     |    |                     |     |    |
+	 *    |   offset |                     |    end   |
+	 *    |          |                     |          |
+	 * offset_rd   offset_ru              end_rd    end_ru
+	 *
+	 * xfs_free_file_space() punches the aligned interior offset_ru -> end_rd
+	 * to holes and byte-zeroes the in-range parts of the partial edge blocks,
+	 * offset -> offset_ru and end_rd -> end.  xfs_zero_range() only touches
+	 * already-written blocks here; it skips holes and unwritten extents, so
+	 * unallocated/unwritten edge blocks are left for the allocation below.
+	 */
+	error = xfs_free_file_space(ip, offset, len, ac);
+	if (error)
+		return error;
+
+	/*
+	 * Publish the new size while the punched range is still a hole, then
+	 * fill it with written zeroes.  Like the other fallocate modes we use
+	 * xfs_falloc_setsize(), but it must run *before* we convert the range
+	 * to written extents: xfs_setattr_size() zeroes [old EOF, new size) via
+	 * xfs_zero_range(), which skips holes, so there is nothing to re-zero.
+	 * It will also writeback partial EOF block before the on-disk size is
+	 * logged.
+	 * Note: extending the size before allocating means a failure below
+	 * leaves the file larger with unallocated holes in the new range.
+	 * That is safe as holes within i_size read back as zeroes and expose
+	 * no stale data while the error is propagated to the caller.
+	 */
+	error = xfs_falloc_setsize(file, new_size);
+	if (error)
+		return error;
+
+	/*
+	 * Allocate written, zeroed extents across the range.  xfs_alloc_file_space()
+	 * rounds outward to block granularity:
+	 *  - holes (the punched interior and any unallocated edge block) are
+	 *    allocated and zeroed;
+	 *  - unwritten extents (including unwritten edge blocks) are converted to
+	 *    written and zeroed;
+	 *  - Already written edge blocks are skipped. The out-of-range bytes of
+	 *    a written edge block keep their data (offset_rd -> offset and
+	 *    end -> end_rd); their in-range bytes (offset -> offset_ru and
+	 *    end_ru -> end were already zeroed by xfs_free_file_space().
+	 */
+	return xfs_alloc_file_space(ip, offset, len,
+			XFS_ALLOC_FILE_SPACE_WRITE_ZEROES);
+}
+
 /*
  * Punch a hole and prealloc the range.  We use a hole punch rather than
  * unwritten extent conversion for two reasons:
@@ -1473,7 +1551,7 @@ xfs_falloc_allocate_range(
 		(FALLOC_FL_ALLOCATE_RANGE | FALLOC_FL_KEEP_SIZE |	\
 		 FALLOC_FL_PUNCH_HOLE |	FALLOC_FL_COLLAPSE_RANGE |	\
 		 FALLOC_FL_ZERO_RANGE |	FALLOC_FL_INSERT_RANGE |	\
-		 FALLOC_FL_UNSHARE_RANGE)
+		 FALLOC_FL_UNSHARE_RANGE | FALLOC_FL_WRITE_ZEROES)
 
 STATIC long
 __xfs_file_fallocate(
@@ -1524,6 +1602,9 @@ __xfs_file_fallocate(
 		break;
 	case FALLOC_FL_ALLOCATE_RANGE:
 		error = xfs_falloc_allocate_range(file, mode, offset, len);
+		break;
+	case FALLOC_FL_WRITE_ZEROES:
+		error = xfs_falloc_write_zeroes(file, mode, offset, len, ac);
 		break;
 	default:
 		error = -EOPNOTSUPP;

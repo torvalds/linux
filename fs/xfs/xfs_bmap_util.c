@@ -643,11 +643,18 @@ out_unlock:
 }
 
 /*
- * Allocate space for a file according to @mode:
+ * Allocate space or convert extents for a file according to @mode:
  *
  * XFS_ALLOC_FILE_SPACE_PREALLOC:
  * Preallocate unwritten extents over holes across the range and mark the inode
  * as preallocated.
+ *
+ * XFS_ALLOC_FILE_SPACE_WRITE_ZEROES:
+ * Allocate written extents over holes and convert unwritten extents in the
+ * range to written extents, initialising both to contain zeroes.
+ *
+ * This function does not update the file size; callers that extend the file
+ * are responsible for updating it once the extents are allocated.
  */
 int
 xfs_alloc_file_space(
@@ -687,6 +694,10 @@ xfs_alloc_file_space(
 	case XFS_ALLOC_FILE_SPACE_PREALLOC:
 		bmapi_flags = XFS_BMAPI_PREALLOC;
 		nr_exts = XFS_IEXT_ADD_NOSPLIT_CNT;
+		break;
+	case XFS_ALLOC_FILE_SPACE_WRITE_ZEROES:
+		bmapi_flags = XFS_BMAPI_CONVERT | XFS_BMAPI_ZERO;
+		nr_exts = XFS_IEXT_WRITE_UNWRITTEN_CNT;
 		break;
 	default:
 		return -EINVAL;
@@ -776,8 +787,10 @@ xfs_alloc_file_space(
 			allocatesize_fsb -= imapp->br_blockcount;
 		}
 
-		ip->i_diflags |= XFS_DIFLAG_PREALLOC;
-		xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+		if (mode == XFS_ALLOC_FILE_SPACE_PREALLOC) {
+			ip->i_diflags |= XFS_DIFLAG_PREALLOC;
+			xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+		}
 
 		error = xfs_trans_commit(tp);
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
