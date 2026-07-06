@@ -21,8 +21,6 @@
 #include <linux/platform_device.h>
 
 #define ACPI_POWER_METER_NAME		"power_meter"
-#define ACPI_POWER_METER_DEVICE_NAME	"Power Meter"
-#define ACPI_POWER_METER_CLASS		"pwr_meter_resource"
 
 #define NUM_SENSORS			17
 
@@ -877,7 +875,7 @@ static void acpi_power_meter_notify(acpi_handle handle, u32 event, void *data)
 		break;
 	}
 
-	acpi_bus_generate_netlink_event(ACPI_POWER_METER_CLASS,
+	acpi_bus_generate_netlink_event("pwr_meter_resource",
 					dev_name(&resource->acpi_dev->dev),
 					event, 0);
 }
@@ -899,8 +897,6 @@ static int acpi_power_meter_probe(struct platform_device *pdev)
 	resource->sensors_valid = 0;
 	resource->acpi_dev = device;
 	mutex_init(&resource->lock);
-	strscpy(acpi_device_name(device), ACPI_POWER_METER_DEVICE_NAME);
-	strscpy(acpi_device_class(device), ACPI_POWER_METER_CLASS);
 
 	platform_set_drvdata(pdev, resource);
 
