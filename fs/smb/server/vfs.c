@@ -16,10 +16,10 @@
 #include <linux/fsnotify.h>
 #include <linux/dcache.h>
 #include <linux/slab.h>
+#include <linux/sizes.h>
 #include <linux/vmalloc.h>
 #include <linux/sched/xacct.h>
 #include <linux/crc32c.h>
-#include <linux/splice.h>
 #include <linux/fileattr.h>
 
 #include "glob.h"
@@ -1734,6 +1734,66 @@ int ksmbd_vfs_xattr_stream_name(char *stream_name, char **xattr_stream_name,
 	return 0;
 }
 
+static ssize_t ksmbd_vfs_copy_file_range_overlap(struct file *src_file,
+						 struct file *dst_file,
+						 loff_t src_off, loff_t dst_off,
+						 size_t len)
+{
+	size_t buf_size = min_t(size_t, len, SZ_1M);
+	size_t copied = 0;
+	char *buf;
+	ssize_t ret = 0;
+
+	if (src_off == dst_off)
+		return len;
+
+	buf = kvmalloc(buf_size, KSMBD_DEFAULT_GFP);
+	if (!buf)
+		return -ENOMEM;
+
+	while (copied < len) {
+		size_t chunk_size = min(buf_size, len - copied);
+		size_t done = 0;
+		loff_t src_pos, dst_pos;
+
+		if (dst_off > src_off) {
+			src_pos = src_off + len - copied - chunk_size;
+			dst_pos = dst_off + len - copied - chunk_size;
+		} else {
+			src_pos = src_off + copied;
+			dst_pos = dst_off + copied;
+		}
+
+		while (done < chunk_size) {
+			ret = kernel_read(src_file, buf + done,
+					  chunk_size - done, &src_pos);
+			if (ret <= 0) {
+				if (!ret)
+					ret = -EIO;
+				goto out;
+			}
+			done += ret;
+		}
+
+		done = 0;
+		while (done < chunk_size) {
+			ret = kernel_write(dst_file, buf + done,
+					   chunk_size - done, &dst_pos);
+			if (ret <= 0) {
+				if (!ret)
+					ret = -EIO;
+				goto out;
+			}
+			done += ret;
+		}
+		copied += chunk_size;
+	}
+	ret = copied;
+out:
+	kvfree(buf);
+	return ret;
+}
+
 int ksmbd_vfs_copy_file_ranges(struct ksmbd_work *work,
 			       struct ksmbd_file *src_fp,
 			       struct ksmbd_file *dst_fp,
@@ -1791,16 +1851,12 @@ int ksmbd_vfs_copy_file_ranges(struct ksmbd_work *work,
 		if (src_off + len > src_file_size)
 			return -E2BIG;
 
-		/*
-		 * vfs_copy_file_range does not allow overlapped copying
-		 * within the same file.
-		 */
+		/* vfs_copy_file_range does not support overlapping ranges. */
 		if (file_inode(src_fp->filp) == file_inode(dst_fp->filp) &&
-				dst_off + len > src_off &&
-				dst_off < src_off + len)
-			ret = do_splice_direct(src_fp->filp, &src_off,
-					dst_fp->filp, &dst_off,
-					min_t(size_t, len, MAX_RW_COUNT), 0);
+		    dst_off + len > src_off && dst_off < src_off + len)
+			ret = ksmbd_vfs_copy_file_range_overlap(src_fp->filp,
+							 dst_fp->filp, src_off,
+							 dst_off, len);
 		else
 			ret = vfs_copy_file_range(src_fp->filp, src_off,
 					dst_fp->filp, dst_off, len, 0);
