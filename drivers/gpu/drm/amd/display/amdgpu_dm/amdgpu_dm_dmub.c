@@ -830,7 +830,7 @@ out:
 	return ret;
 }
 
-static void abort_fused_io(
+STATIC_IFN_KUNIT void abort_fused_io(
 		struct dc_context *ctx,
 		const struct dmub_cmd_fused_request *request
 )
@@ -844,6 +844,7 @@ static void abort_fused_io(
 	io->request = *request;
 	dm_execute_dmub_cmd(ctx, &command, DM_DMUB_WAIT_TYPE_NO_WAIT);
 }
+EXPORT_IF_KUNIT(abort_fused_io);
 
 static bool execute_fused_io(
 		struct amdgpu_device *dev,

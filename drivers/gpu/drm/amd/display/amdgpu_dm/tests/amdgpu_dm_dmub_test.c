@@ -396,6 +396,22 @@ static void dm_test_dmub_aux_fused_io_callback_max_ddc_line(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, reply_ddc_line, notify_ddc_line);
 }
 
+/**
+ * dm_test_dmub_aux_fused_io_callback_null_args - Test the NULL-argument guard
+ * @test: The KUnit test context
+ *
+ * Passing a NULL device triggers the defensive guard (an ASSERT that maps to
+ * WARN_ON_ONCE in this build) and returns early without dereferencing the
+ * arguments. The call must not crash.
+ */
+static void dm_test_dmub_aux_fused_io_callback_null_args(struct kunit *test)
+{
+	struct dmub_notification notify = {};
+
+	/* Must not crash; guard hits ASSERT (WARN_ON_ONCE) and returns. */
+	dm_dmub_aux_fused_io_callback(NULL, &notify);
+}
+
 /* Tests for dm_get_default_ips_mode() */
 
 /**
@@ -916,6 +932,39 @@ static void dm_test_init_microcode_unsupported_asic(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, dm_init_microcode(adev), 0);
 }
 
+/* Tests for abort_fused_io() */
+
+/**
+ * dm_test_abort_fused_io_no_dmub_srv - Test fused IO abort is a safe no-op without DMUB service
+ * @test: The KUnit test context
+ *
+ * abort_fused_io() builds an abort command and submits it via
+ * dm_execute_dmub_cmd(); with no DC DMUB service the submission fails
+ * silently and the call must not crash.
+ */
+static void dm_test_abort_fused_io_no_dmub_srv(struct kunit *test)
+{
+	struct amdgpu_device *adev;
+	struct dc_context *ctx;
+	struct dmub_cmd_fused_request *req;
+
+	adev = kunit_kzalloc(test, sizeof(*adev), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx);
+
+	req = kunit_kzalloc(test, sizeof(*req), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, req);
+
+	spin_lock_init(&adev->dm.dmub_lock);
+	ctx->driver_context = adev;
+	ctx->dmub_srv = NULL;
+
+	/* Must not crash. */
+	abort_fused_io(ctx, req);
+}
+
 static struct kunit_case amdgpu_dm_dmub_tests[] = {
 	/* dm_register_dmub_notify_callback() */
 	KUNIT_CASE(dm_test_register_dmub_notify_callback_null_callback),
@@ -930,6 +979,7 @@ static struct kunit_case amdgpu_dm_dmub_tests[] = {
 	/* dm_dmub_aux_fused_io_callback() */
 	KUNIT_CASE(dm_test_dmub_aux_fused_io_callback_copies_reply_and_completes),
 	KUNIT_CASE(dm_test_dmub_aux_fused_io_callback_max_ddc_line),
+	KUNIT_CASE(dm_test_dmub_aux_fused_io_callback_null_args),
 	/* dm_get_default_ips_mode() */
 	KUNIT_CASE(dm_test_get_default_ips_mode_dcn35),
 	KUNIT_CASE(dm_test_get_default_ips_mode_dcn351),
@@ -959,6 +1009,8 @@ static struct kunit_case amdgpu_dm_dmub_tests[] = {
 	KUNIT_CASE(dm_test_dmub_sw_init_unsupported_asic),
 	/* dm_init_microcode() */
 	KUNIT_CASE(dm_test_init_microcode_unsupported_asic),
+	/* abort_fused_io() */
+	KUNIT_CASE(dm_test_abort_fused_io_no_dmub_srv),
 	{}
 };
 
