@@ -1080,7 +1080,7 @@ static void alloc_inout(struct mlx5_vdpa_net *ndev, int cmd, void **in, int *inl
 		MLX5_SET(init2rtr_qp_in, *in, opcode, cmd);
 		MLX5_SET(init2rtr_qp_in, *in, uid, ndev->mvdev.res.uid);
 		MLX5_SET(init2rtr_qp_in, *in, qpn, qpn);
-		qpc = MLX5_ADDR_OF(rst2init_qp_in, *in, qpc);
+		qpc = MLX5_ADDR_OF(init2rtr_qp_in, *in, qpc);
 		MLX5_SET(qpc, qpc, mtu, MLX5_QPC_MTU_256_BYTES);
 		MLX5_SET(qpc, qpc, log_msg_max, 30);
 		MLX5_SET(qpc, qpc, remote_qpn, rqpn);
@@ -1098,7 +1098,7 @@ static void alloc_inout(struct mlx5_vdpa_net *ndev, int cmd, void **in, int *inl
 		MLX5_SET(rtr2rts_qp_in, *in, opcode, cmd);
 		MLX5_SET(rtr2rts_qp_in, *in, uid, ndev->mvdev.res.uid);
 		MLX5_SET(rtr2rts_qp_in, *in, qpn, qpn);
-		qpc = MLX5_ADDR_OF(rst2init_qp_in, *in, qpc);
+		qpc = MLX5_ADDR_OF(rtr2rts_qp_in, *in, qpc);
 		pp = MLX5_ADDR_OF(qpc, qpc, primary_address_path);
 		MLX5_SET(ads, pp, ack_timeout, 14);
 		MLX5_SET(qpc, qpc, retry_count, 7);
