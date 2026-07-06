@@ -2288,9 +2288,9 @@ static void _append_tdma(struct rtw89_dev *rtwdev)
 	}
 
 	rtw89_debug(rtwdev, RTW89_DBG_BTC,
-		    "[BTC], %s(): type:%d, rxflctrl=%d, txpause=%d, wtgle_n=%d, leak_n=%d, ext_ctrl=%d\n",
+		    "[BTC], %s(): type:%d, rxflctrl=%d, txflctrl=%d, bind=%d, leak_n=%d, ext_ctrl=%d\n",
 		    __func__, dm->tdma.type, dm->tdma.rxflctrl,
-		    dm->tdma.txpause, dm->tdma.wtgle_n, dm->tdma.leak_n,
+		    dm->tdma.txflctrl, dm->tdma.bind, dm->tdma.leak_n,
 		    dm->tdma.ext_ctrl);
 }
 
@@ -3733,7 +3733,8 @@ static bool _check_freerun(struct rtw89_dev *rtwdev)
 
 #define _tdma_set_flctrl(btc, flc) ({(btc)->dm.tdma.rxflctrl = flc; })
 #define _tdma_set_flctrl_role(btc, role) ({(btc)->dm.tdma.rxflctrl_role = role; })
-#define _tdma_set_tog(btc, wtg) ({(btc)->dm.tdma.wtgle_n = wtg; })
+#define _tdma_set_rxflctrl(btc, rxflc) ({(btc)->dm.tdma.rxflctrl = rxflc; })
+#define _tdma_set_txflctrl(btc, txflc) ({(btc)->dm.tdma.txflctrl = txflc; })
 #define _tdma_set_lek(btc, lek) ({(btc)->dm.tdma.leak_n = lek; })
 
 struct btc_btinfo_lb2 {
@@ -9967,13 +9968,13 @@ static int _show_fbtc_tdma(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 	p += scnprintf(p, end - p,
 		       " %-15s : ", "[tdma_policy]");
 	p += scnprintf(p, end - p,
-		       "type:%d, rx_flow_ctrl:%d, tx_pause:%d, ",
+		       "type:%d, rx_flow_ctrl:%d, txflctrl:%d, ",
 		       (u32)t->type,
-		       t->rxflctrl, t->txpause);
+		       t->rxflctrl, t->txflctrl);
 
 	p += scnprintf(p, end - p,
-		       "wl_toggle_n:%d, leak_n:%d, ext_ctrl:%d, ",
-		       t->wtgle_n, t->leak_n, t->ext_ctrl);
+		       "bind:%d, leak_n:%d, ext_ctrl:%d, ",
+		       t->bind, t->leak_n, t->ext_ctrl);
 
 	p += scnprintf(p, end - p,
 		       "policy_type:%d",
