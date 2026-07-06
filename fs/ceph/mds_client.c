@@ -5757,7 +5757,7 @@ int ceph_mdsc_schedule_reset(struct ceph_mds_client *mdsc,
 	strscpy(st->last_reason, msg, sizeof(st->last_reason));
 	spin_unlock(&st->lock);
 
-	if (WARN_ON_ONCE(!queue_work(system_unbound_wq, &mdsc->reset_work))) {
+	if (WARN_ON_ONCE(!queue_work(system_dfl_wq, &mdsc->reset_work))) {
 		spin_lock(&st->lock);
 		st->phase = CEPH_CLIENT_RESET_IDLE;
 		st->last_errno = -EALREADY;
