@@ -65,8 +65,8 @@ quick_shuffle()
 	# this is called concurrently from governor_race
 	for I in `seq 1000`
 	do
-		echo ondemand | sudo tee $CPUFREQROOT/policy*/scaling_governor &
-		echo userspace | sudo tee $CPUFREQROOT/policy*/scaling_governor &
+		echo ondemand | tee $CPUFREQROOT/policy*/scaling_governor &
+		echo userspace | tee $CPUFREQROOT/policy*/scaling_governor &
 	done
 }
 
