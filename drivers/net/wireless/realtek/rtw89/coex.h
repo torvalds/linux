@@ -391,4 +391,13 @@ void _slot_set_tbl(struct rtw89_btc *btc, u8 sid, u32 tbl)
 		btc->dm.slot.v7[sid].cxtbl = cpu_to_le32(tbl);
 }
 
+static inline
+void btc_dw2b(u8 *buf, size_t idx, u32 val)
+{
+	buf[idx] = u32_get_bits(val, MASKBYTE0);
+	buf[idx + 1] = u32_get_bits(val, MASKBYTE1);
+	buf[idx + 2] = u32_get_bits(val, MASKBYTE2);
+	buf[idx + 3] = u32_get_bits(val, MASKBYTE3);
+}
+
 #endif

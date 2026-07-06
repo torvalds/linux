@@ -1415,6 +1415,7 @@ enum rtw89_btc_wl_state_cnt {
 	BTC_WCNT_RX_ERR_LAST,
 	BTC_WCNT_RX_ERR_LAST2S,
 	BTC_WCNT_RX_LAST,
+	BTC_WCNT_SCBDUPDATE2,
 	BTC_WCNT_NUM
 };
 
@@ -1431,17 +1432,25 @@ enum rtw89_btc_bt_state_cnt {
 	BTC_BCNT_ROLESW,
 	BTC_BCNT_AFH,
 	BTC_BCNT_INFOUPDATE,
+	BTC_BCNT_LEAUDIO_INFOUPDATE,
 	BTC_BCNT_INFOSAME,
+	BTC_BCNT_LEAUDIO_INFOSAME,
 	BTC_BCNT_SCBDUPDATE,
 	BTC_BCNT_HIPRI_TX,
 	BTC_BCNT_HIPRI_RX,
 	BTC_BCNT_LOPRI_TX,
 	BTC_BCNT_LOPRI_RX,
-	BTC_BCNT_POLUT,
 	BTC_BCNT_POLUT_NOW,
 	BTC_BCNT_POLUT_DIFF,
 	BTC_BCNT_RATECHG,
-	BTC_BCNT_BTTXPWR_UPDATE,
+	BTC_BCNT_AFH_CONFLICT,
+	BTC_BCNT_AFH_LE_CONFLICT,
+	BTC_BCNT_AFH_UPDATE,
+	BTC_BCNT_AFH_LE_UPDATE,
+	BTC_BCNT_AFH_CHN,
+	BTC_BCNT_AFH_LE_CHN,
+	BTC_BCNT_TXPWR_UPDATE,
+	BTC_BCNT_PROTECT,
 	BTC_BCNT_NUM,
 };
 
@@ -2188,12 +2197,13 @@ struct rtw89_btc_wl_info {
 	bool pta_reg_mac_chg;
 	bool bg_mode;
 	bool he_mode;
-	bool scbd_change;
+	bool scbd_chg[BTC_ALL_BT];
 	bool fw_ver_mismatch;
 	bool client_cnt_inc_2g;
 	bool link_mode_chg;
 	bool dbcc_chg;
-	u32 scbd;
+	u32 scbd[BTC_ALL_BT];
+	u32 scbd_rb[BTC_ALL_BT];
 	u32 wcnt[BTC_WCNT_NUM];
 };
 
@@ -2323,6 +2333,15 @@ enum rtw89_btc_ble_scan_type {
 	CXSCAN_MAX
 };
 
+enum rtw89_btc_bt_func_type {
+	BTC_BTF_NONE = 0,
+	BTC_BTF_BT = BIT(0),
+	BTC_BTF_ZB = BIT(1),
+	BTC_BTF_THREAD = BIT(2),
+	BTC_BTF_24GPRO = BIT(3), /* 2.4GHz Proprietary */
+	BTC_BTF_ULL = BIT(4),
+};
+
 #define RTW89_BTC_BTC_SCAN_V1_FLAG_ENABLE BIT(0)
 #define RTW89_BTC_BTC_SCAN_V1_FLAG_INTERLACE BIT(1)
 
@@ -2394,6 +2413,8 @@ struct rtw89_btc_bt_info {
 	u8 rsvd: 6;
 
 	u32 scbd;
+	u32 scbd_rb;
+	u32 scbd_c2h;
 	u32 feature;
 
 	u32 mbx_avl: 1;
@@ -3338,6 +3359,8 @@ struct rtw89_btc_dm {
 	u8 lps_ctrl_scbd: 1;
 	u8 lps_ctrl_scbd_last: 1;
 	u8 lps_ctrl_change: 1;
+	u8 scbd_write_instant;
+	bool scbd_b2w_update;
 };
 
 struct rtw89_btc_ctrl {
@@ -3585,7 +3608,7 @@ struct rtw89_btc {
 	u32 hubmsg_cnt;
 	bool bt_req_en;
 	bool update_policy_force;
-	bool lps;
+	bool btc_ctrl_lps;
 	bool manual_ctrl;
 	bool cli_h2c_cmd;
 };
