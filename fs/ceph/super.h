@@ -1305,6 +1305,7 @@ static inline bool ceph_cap_is_removed(const struct ceph_cap *cap)
 }
 
 extern void ceph_remove_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
+			    struct ceph_inode_info *ci,
 			    bool queue_release);
 extern void __ceph_remove_caps(struct ceph_inode_info *ci);
 extern void ceph_put_cap(struct ceph_mds_client *mdsc,

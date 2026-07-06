@@ -785,9 +785,9 @@ void ceph_add_cap(struct inode *inode,
  * generation of the MDS session (i.e. has not gone 'stale' due to
  * us losing touch with the mds).
  */
-static int __cap_is_valid(struct ceph_cap *cap)
+static int __cap_is_valid(struct ceph_inode_info *ci, struct ceph_cap *cap)
 {
-	struct inode *inode = &cap->ci->netfs.inode;
+	struct inode *inode = &ci->netfs.inode;
 	struct ceph_client *cl = cap->session->s_mdsc->fsc->client;
 	unsigned long ttl;
 	u32 gen;
@@ -822,7 +822,7 @@ int __ceph_caps_issued(struct ceph_inode_info *ci, int *implemented)
 		*implemented = 0;
 	for (p = rb_first(&ci->i_caps); p; p = rb_next(p)) {
 		cap = rb_entry(p, struct ceph_cap, ci_node);
-		if (!__cap_is_valid(cap))
+		if (!__cap_is_valid(ci, cap))
 			continue;
 		doutc(cl, "%p %llx.%llx cap %p issued %s\n", inode,
 		      ceph_vinop(inode), cap, ceph_cap_string(cap->issued));
@@ -855,7 +855,7 @@ int __ceph_caps_issued_other(struct ceph_inode_info *ci, struct ceph_cap *ocap)
 		cap = rb_entry(p, struct ceph_cap, ci_node);
 		if (cap == ocap)
 			continue;
-		if (!__cap_is_valid(cap))
+		if (!__cap_is_valid(ci, cap))
 			continue;
 		have |= cap->issued;
 	}
@@ -866,9 +866,9 @@ int __ceph_caps_issued_other(struct ceph_inode_info *ci, struct ceph_cap *ocap)
  * Move a cap to the end of the LRU (oldest caps at list head, newest
  * at list tail).
  */
-static void __touch_cap(struct ceph_cap *cap)
+static void __touch_cap(struct ceph_inode_info *ci, struct ceph_cap *cap)
 {
-	struct inode *inode = &cap->ci->netfs.inode;
+	struct inode *inode = &ci->netfs.inode;
 	struct ceph_mds_session *s = cap->session;
 	struct ceph_client *cl = s->s_mdsc->fsc->client;
 	static u8 skip_counter;
@@ -914,7 +914,7 @@ int __ceph_caps_issued_mask(struct ceph_inode_info *ci, int mask, int touch)
 
 	for (p = rb_first(&ci->i_caps); p; p = rb_next(p)) {
 		cap = rb_entry(p, struct ceph_cap, ci_node);
-		if (!__cap_is_valid(cap))
+		if (!__cap_is_valid(ci, cap))
 			continue;
 		if ((cap->issued & mask) == mask) {
 			doutc(cl, "mask %p %llx.%llx cap %p issued %s (mask %s)\n",
@@ -922,7 +922,7 @@ int __ceph_caps_issued_mask(struct ceph_inode_info *ci, int mask, int touch)
 			      ceph_cap_string(cap->issued),
 			      ceph_cap_string(mask));
 			if (touch)
-				__touch_cap(cap);
+				__touch_cap(ci, cap);
 			return 1;
 		}
 
@@ -937,15 +937,15 @@ int __ceph_caps_issued_mask(struct ceph_inode_info *ci, int mask, int touch)
 				struct rb_node *q;
 
 				/* touch this + preceding caps */
-				__touch_cap(cap);
+				__touch_cap(ci, cap);
 				for (q = rb_first(&ci->i_caps); q != p;
 				     q = rb_next(q)) {
 					cap = rb_entry(q, struct ceph_cap,
 						       ci_node);
-					if (!__cap_is_valid(cap))
+					if (!__cap_is_valid(ci, cap))
 						continue;
 					if (cap->issued & mask)
-						__touch_cap(cap);
+						__touch_cap(ci, cap);
 				}
 			}
 			return 1;
@@ -1099,7 +1099,7 @@ int __ceph_caps_mds_wanted(struct ceph_inode_info *ci, bool check)
 
 	for (p = rb_first(&ci->i_caps); p; p = rb_next(p)) {
 		cap = rb_entry(p, struct ceph_cap, ci_node);
-		if (check && !__cap_is_valid(cap))
+		if (check && !__cap_is_valid(ci, cap))
 			continue;
 		if (cap == ci->i_auth_cap)
 			mds_wanted |= cap->mds_wanted;
@@ -1127,11 +1127,10 @@ int ceph_is_any_caps(struct inode *inode)
  * caller should hold i_ceph_lock.
  * caller will not hold session s_mutex if called from destroy_inode.
  */
-static void __ceph_remove_cap(struct ceph_cap *cap, bool queue_release)
+static void __ceph_remove_cap(struct ceph_inode_info *ci, struct ceph_cap *cap, bool queue_release)
 {
 	struct ceph_mds_session *session;
 	struct ceph_client *cl;
-	struct ceph_inode_info *ci;
 	struct inode *inode;
 	struct ceph_mds_client *mdsc;
 	int removed = 0;
@@ -1139,7 +1138,6 @@ static void __ceph_remove_cap(struct ceph_cap *cap, bool queue_release)
 	if (ceph_cap_is_removed(cap))
 		return;
 
-	ci = cap->ci;
 	session = cap->session;
 	cl = session->s_mdsc->fsc->client;
 	inode = &ci->netfs.inode;
@@ -1209,9 +1207,9 @@ static void __ceph_remove_cap(struct ceph_cap *cap, bool queue_release)
 }
 
 void ceph_remove_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
+		     struct ceph_inode_info *ci,
 		     bool queue_release)
 {
-	struct ceph_inode_info *ci = cap->ci;
 	struct ceph_fs_client *fsc;
 
 	if (ceph_cap_is_removed(cap)) {
@@ -1227,7 +1225,7 @@ void ceph_remove_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
 		     !fsc->blocklisted &&
 		     !ceph_inode_is_shutdown(&ci->netfs.inode));
 
-	__ceph_remove_cap(cap, queue_release);
+	__ceph_remove_cap(ci, cap, queue_release);
 }
 
 struct cap_msg_args {
@@ -1387,7 +1385,7 @@ void __ceph_remove_caps(struct ceph_inode_info *ci)
 	while (p) {
 		struct ceph_cap *cap = rb_entry(p, struct ceph_cap, ci_node);
 		p = rb_next(p);
-		ceph_remove_cap(mdsc, cap, true);
+		ceph_remove_cap(mdsc, cap, ci, true);
 	}
 	spin_unlock(&ci->i_ceph_lock);
 }
@@ -1400,11 +1398,11 @@ void __ceph_remove_caps(struct ceph_inode_info *ci)
  * Make note of max_size reported/requested from mds, revoked caps
  * that have now been implemented.
  */
-static void __prep_cap(struct cap_msg_args *arg, struct ceph_cap *cap,
+static void __prep_cap(struct cap_msg_args *arg, struct ceph_inode_info *ci,
+		       struct ceph_cap *cap,
 		       int op, int flags, int used, int want, int retain,
 		       int flushing, u64 flush_tid, u64 oldest_flush_tid)
 {
-	struct ceph_inode_info *ci = cap->ci;
 	struct inode *inode = &ci->netfs.inode;
 	struct ceph_client *cl = ceph_inode_to_client(inode);
 	int held, revoking;
@@ -2222,7 +2220,7 @@ retry:
 		if (want & ~cap->mds_wanted) {
 			if (want & ~(cap->mds_wanted | cap->issued))
 				goto ack;
-			if (!__cap_is_valid(cap))
+			if (!__cap_is_valid(ci, cap))
 				goto ack;
 		}
 
@@ -2264,7 +2262,7 @@ ack:
 
 		mds = cap->mds;  /* remember mds, so we don't repeat */
 
-		__prep_cap(&arg, cap, CEPH_CAP_OP_UPDATE, mflags, cap_used,
+		__prep_cap(&arg, ci, cap, CEPH_CAP_OP_UPDATE, mflags, cap_used,
 			   want, retain, flushing, flush_tid, oldest_flush_tid);
 
 		spin_unlock(&ci->i_ceph_lock);
@@ -2326,7 +2324,7 @@ retry_locked:
 		flush_tid = __mark_caps_flushing(inode, session, true,
 						 &oldest_flush_tid);
 
-		__prep_cap(&arg, cap, CEPH_CAP_OP_FLUSH, CEPH_CLIENT_CAPS_SYNC,
+		__prep_cap(&arg, ci, cap, CEPH_CAP_OP_FLUSH, CEPH_CLIENT_CAPS_SYNC,
 			   __ceph_caps_used(ci), __ceph_caps_wanted(ci),
 			   (cap->issued | cap->implemented),
 			   flushing, flush_tid, oldest_flush_tid);
@@ -2620,7 +2618,7 @@ static void __kick_flushing_caps(struct ceph_mds_client *mdsc,
 			doutc(cl, "%p %llx.%llx cap %p tid %llu %s\n",
 			      inode, ceph_vinop(inode), cap, cf->tid,
 			      ceph_cap_string(cf->caps));
-			__prep_cap(&arg, cap, CEPH_CAP_OP_FLUSH,
+			__prep_cap(&arg, ci, cap, CEPH_CAP_OP_FLUSH,
 					 (cf->tid < last_snap_flush ?
 					  CEPH_CLIENT_CAPS_PENDING_CAPSNAP : 0),
 					  __ceph_caps_used(ci),
@@ -4131,7 +4129,7 @@ retry:
 		goto out_unlock;
 
 	if (target < 0) {
-		ceph_remove_cap(mdsc, cap, false);
+		ceph_remove_cap(mdsc, cap, ci, false);
 		goto out_unlock;
 	}
 
@@ -4168,7 +4166,7 @@ retry:
 				change_auth_cap_ses(ci, tcap->session);
 			}
 		}
-		ceph_remove_cap(mdsc, cap, false);
+		ceph_remove_cap(mdsc, cap, ci, false);
 		goto out_unlock;
 	} else if (tsession) {
 		/* add placeholder for the export target */
@@ -4185,7 +4183,7 @@ retry:
 			spin_unlock(&mdsc->cap_dirty_lock);
 		}
 
-		ceph_remove_cap(mdsc, cap, false);
+		ceph_remove_cap(mdsc, cap, ci, false);
 		goto out_unlock;
 	}
 
@@ -4301,7 +4299,7 @@ retry:
 					inode, ceph_vinop(inode), peer,
 					ocap->seq, ocap->mseq, mds, piseq, pmseq);
 		}
-		ceph_remove_cap(mdsc, ocap, (ph->flags & CEPH_CAP_FLAG_RELEASE));
+		ceph_remove_cap(mdsc, ocap, ci, (ph->flags & CEPH_CAP_FLAG_RELEASE));
 	}
 
 	*old_issued = issued;
@@ -4899,7 +4897,7 @@ int ceph_encode_inode_release(void **p, struct inode *inode,
 	drop &= ~(used | dirty);
 
 	cap = __get_cap_for_mds(ci, mds);
-	if (cap && __cap_is_valid(cap)) {
+	if (cap && __cap_is_valid(ci, cap)) {
 		unless &= cap->issued;
 		if (unless) {
 			if (unless & CEPH_CAP_AUTH_EXCL)
@@ -5058,7 +5056,7 @@ int ceph_purge_inode_cap(struct inode *inode, struct ceph_cap *cap, bool *invali
 	      cap, ci, inode, ceph_vinop(inode));
 
 	is_auth = (cap == ci->i_auth_cap);
-	__ceph_remove_cap(cap, false);
+	__ceph_remove_cap(ci, cap, false);
 	if (is_auth) {
 		struct ceph_cap_flush *cf;
 
