@@ -1453,6 +1453,7 @@ struct rcu_tasks_test_desc {
 	const char *name;
 	bool notrun;
 	unsigned long runstart;
+	void (*gp_dbg)(void);
 };
 
 static struct rcu_tasks_test_desc tests[] = {
@@ -1460,6 +1461,8 @@ static struct rcu_tasks_test_desc tests[] = {
 		.name = "call_rcu_tasks()",
 		/* If not defined, the test is skipped. */
 		.notrun = IS_ENABLED(CONFIG_TASKS_RCU),
+		/* Dump rcu tasks status, if test failed. */
+		.gp_dbg = show_rcu_tasks_classic_gp_kthread
 	},
 	{
 		.name = "call_rcu_tasks_trace()",
@@ -1519,6 +1522,8 @@ static int rcu_tasks_verify_self_tests(void)
 		while (tests[i].notrun) {		// still hanging.
 			if (time_after(jiffies, tests[i].runstart + bst)) {
 				pr_err("%s has failed boot-time tests.\n", tests[i].name);
+				if (tests[i].gp_dbg)
+					tests[i].gp_dbg();
 				ret = -1;
 				break;
 			}
