@@ -2761,7 +2761,6 @@ static void rtw8852c_btc_init_cfg(struct rtw89_dev *rtwdev)
 	rtw89_write32_set(rtwdev,
 			  R_AX_BT_CNT_CFG, B_AX_BT_CNT_EN |
 			  B_AX_BT_CNT_RST_V1);
-	btc->cx.wl.status.map.init_ok = true;
 }
 
 static

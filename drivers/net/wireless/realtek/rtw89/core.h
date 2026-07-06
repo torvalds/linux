@@ -1451,6 +1451,12 @@ enum rtw89_btc_bt_rf_band {
 	BTC_BT_BMAX = 0x2
 };
 
+enum rtw89_btc_io_offload_type {
+	BTC_IO_OFLD_NO_SUPPORT = 0,
+	BTC_IO_OFLD_MAC_API = 1,
+	BTC_IO_OFLD_BTC_H2C = 2
+};
+
 enum rtw89_btc_bt_profile {
 	BTC_BT_NOPROFILE = 0,
 	BTC_BT_HFP = BIT(0),
@@ -1481,6 +1487,19 @@ struct rtw89_btc_ant_info_v7 {
 	u8 btg_pos; /* btg-circuit at 0:S0/1:S1/others:all */
 	u8 stream_cnt;  /* spatial_stream count */
 	u8 rsvd;
+} __packed;
+
+struct rtw89_btc_ant_info_v10 {
+	u8 type;  /* shared, dedicated(non-shared) */
+	u8 num;   /* antenna count  */
+	u8 isolation; /* Ant-Iso between WL/BT */
+	u8 single_pos; /* wifi 1ss-1ant at 0:S0 or 1:S1 */
+
+	u8 stream_cnt; /* spatial_stream count: Tx[7:4], Rx[3:0] */
+	u8 btg_pos;    /* BT0 btg-circuit at 0:WL-S0/1:WL-S1 */
+	u8 btg1_pos;   /* BT1 btg-circuit at 0:WL-S0/1:WL-S1 */
+	u8 func[5]; /* function at 1~5 Ant refer to enum btc_bt_func_type */
+	u8 ant_xmap[2][4];
 } __packed;
 
 enum rtw89_tfc_dir {
@@ -2129,9 +2148,24 @@ struct rtw89_btc_module_v7 {
 	struct rtw89_btc_ant_info_v7 ant;
 } __packed;
 
+struct rtw89_btc_module_v10 {
+	u8 rfe_type;
+	u8 wa_type; /* Refer to enum btc_wa_type */
+	u8 kt_ver;
+	u8 kt_ver_adie;
+
+	u8 bt0_pos; /* wl-end view: get from efuse, must compare bt.btg_type*/
+	u8 bt0_sw_type; /* BT Ant-switch: None(non-share), Int(BTG), Ext(SPDT)*/
+	u8 bt1_pos; /* BTC_BT_ALONE or BTC_BT_BTG */
+	u8 bt1_sw_type;
+
+	struct rtw89_btc_ant_info_v10 ant;
+} __packed;
+
 union rtw89_btc_module_info {
 	struct rtw89_btc_module md;
 	struct rtw89_btc_module_v7 md_v7;
+	struct rtw89_btc_module_v10 md_v10;
 };
 
 #define RTW89_BTC_DM_MAXSTEP 30
@@ -2170,9 +2204,24 @@ struct rtw89_btc_init_info_v7 {
 	struct rtw89_btc_module_v7 module;
 } __packed;
 
+struct rtw89_btc_init_info_v10 {
+	u8 endian_type; /* 0: little-endian, 1:big-endian */
+	u8 init_mode; /* refer to enum BTC_MODE_xxx  */
+	u8 wl_init_ok;
+	u8 bt0_function;
+
+	u8 bt1_function;
+	u8 bt2_function;
+	u8 pta_mode;
+	u8 pta_direction;
+
+	struct rtw89_btc_module_v10 module;
+};
+
 union rtw89_btc_init_info_u {
 	struct rtw89_btc_init_info init;
 	struct rtw89_btc_init_info_v7 init_v7;
+	struct rtw89_btc_init_info_v10 init_v10;
 };
 
 struct rtw89_btc_wl_tx_limit_para {
@@ -2253,6 +2302,7 @@ struct rtw89_btc_bt_info {
 	u8 raw_info[BTC_BTINFO_MAX]; /* raw bt info from mailbox */
 	u8 txpwr_info[BTC_BTINFO_MAX];
 	u8 rssi_level;
+	u8 func_type;
 
 	u32 scbd;
 	u32 feature;
@@ -3173,6 +3223,7 @@ struct rtw89_btc_dm {
 	u8 run_reason;
 	u8 run_action;
 	u8 wl_tx_pwr_phy_map;
+	u8 vid;
 
 	u8 wl_pre_agc: 2;
 	u8 wl_lna2: 1;
@@ -3203,7 +3254,7 @@ struct rtw89_btc_ctrl_v7 {
 
 union rtw89_btc_ctrl_list {
 	struct rtw89_btc_ctrl ctrl;
-	struct rtw89_btc_ctrl_v7 ctrl_v7;
+	struct rtw89_btc_ctrl_v7 ctrl_v7; /* ver 8, 9 is the same */
 };
 
 struct rtw89_btc_dbg {
@@ -3425,6 +3476,7 @@ struct rtw89_btc {
 	u8 policy[RTW89_BTC_POLICY_MAXLEN];
 	u8 ant_type;
 	u8 btg_pos;
+	u8 io_oflld_type;
 	u16 policy_len;
 	u16 policy_type;
 	u32 hubmsg_cnt;

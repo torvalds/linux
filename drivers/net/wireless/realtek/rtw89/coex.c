@@ -2822,6 +2822,8 @@ static void _fw_set_drv_info(struct rtw89_dev *rtwdev, u8 index)
 	case CXDRVINFO_INIT:
 		if (ver->fcxinit == 7)
 			rtw89_fw_h2c_cxdrv_init_v7(rtwdev, index);
+		else if (ver->fcxinit == 10)
+			rtw89_fw_h2c_cxdrv_init_v10(rtwdev, index);
 		else
 			rtw89_fw_h2c_cxdrv_init(rtwdev, index);
 		break;
@@ -7884,15 +7886,30 @@ void rtw89_btc_ntfy_poweroff(struct rtw89_dev *rtwdev)
 	btc->cx.wl.status.map.rf_off_pre = btc->cx.wl.status.map.rf_off;
 }
 
+#define BTC_PLATFORM_LITTLE_ENDIAN 0
 static void _set_init_info(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_btc *btc = &rtwdev->btc;
 	const struct rtw89_btc_ver *ver = btc->ver;
 	struct rtw89_btc_dm *dm = &btc->dm;
+	struct rtw89_btc_cx *cx = &btc->cx;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 
-	if (ver->fcxinit == 7) {
+	if (ver->fcxinit == 10) {
+		dm->init_info.init_v10.init_mode = wl->coex_mode;
+		dm->init_info.init_v10.wl_init_ok = wl->status.map.init_ok;
+		dm->init_info.init_v10.endian_type = BTC_PLATFORM_LITTLE_ENDIAN;
+
+		dm->init_info.init_v10.module = btc->mdinfo.md_v10;
+
+		dm->init_info.init_v10.bt0_function = cx->bt0.func_type;
+		dm->init_info.init_v10.bt1_function = cx->bt1.func_type;
+		dm->init_info.init_v10.bt2_function = cx->bt_ext.func_type;
+
+		dm->init_info.init_v10.pta_mode = RTW89_MAC_AX_COEX_RTK_MODE;
+		dm->init_info.init_v10.pta_direction = RTW89_MAC_AX_COEX_INNER;
+	} else if (ver->fcxinit == 7) {
 		dm->init_info.init_v7.wl_only = (u8)dm->wl_only;
 		dm->init_info.init_v7.bt_only = (u8)dm->bt_only;
 		dm->init_info.init_v7.wl_init_ok = (u8)wl->status.map.init_ok;
@@ -7908,6 +7925,12 @@ static void _set_init_info(struct rtw89_dev *rtwdev)
 		dm->init_info.init.wl_guard_ch = chip->afh_guard_ch;
 		dm->init_info.init.module = btc->mdinfo.md;
 	}
+
+	_fw_set_drv_info(rtwdev, CXDRVINFO_INIT);
+	_fw_set_drv_info(rtwdev, CXDRVINFO_CTRL);
+	rtw89_btc_fw_set_slots(rtwdev);
+	btc_fw_set_monreg(rtwdev);
+	_set_wl_tx_power(rtwdev, RTW89_BTC_WL_DEF_TX_PWR, RTW89_PHY_0);
 }
 
 void rtw89_btc_ntfy_init(struct rtw89_dev *rtwdev, u8 mode)
@@ -7918,13 +7941,18 @@ void rtw89_btc_ntfy_init(struct rtw89_dev *rtwdev, u8 mode)
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_btc_ver *ver = btc->ver;
 
+	rtw89_debug(rtwdev, RTW89_DBG_BTC,
+		    "[BTC], %s(): Init %s !!\n", __func__,
+		    chip_id_str(chip->chip_id));
+
 	_reset_btc_var(rtwdev, BTC_RESET_ALL);
 	btc->dm.run_reason = BTC_RSN_NONE;
 	btc->dm.run_action = BTC_ACT_NONE;
-	if (ver->fcxctrl == 7)
+	if (ver->fcxctrl >= 7)
 		btc->ctrl.ctrl_v7.igno_bt = true;
 	else
 		btc->ctrl.ctrl.igno_bt = true;
+	wl->status.map.init_ok = true;
 
 	rtw89_debug(rtwdev, RTW89_DBG_BTC,
 		    "[BTC], %s(): mode=%d\n", __func__, mode);
@@ -7934,9 +7962,11 @@ void rtw89_btc_ntfy_init(struct rtw89_dev *rtwdev, u8 mode)
 	dm->wl_only = mode == BTC_MODE_WL ? 1 : 0;
 	dm->bt_only = mode == BTC_MODE_BT ? 1 : 0;
 	wl->status.map.rf_off = mode == BTC_MODE_WLOFF ? 1 : 0;
-
-	chip->ops->btc_set_rfe(rtwdev);
-	chip->ops->btc_init_cfg(rtwdev);
+	dm->vid = rtwdev->custid;
+	if (ver->fcxctrl >= 7)
+		btc->ctrl.ctrl_v7.always_freerun = mode == BTC_MODE_COTX;
+	else
+		btc->ctrl.ctrl.always_freerun = mode == BTC_MODE_COTX;
 
 	if (!wl->status.map.init_ok) {
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,
@@ -7946,8 +7976,26 @@ void rtw89_btc_ntfy_init(struct rtw89_dev *rtwdev, u8 mode)
 		return;
 	}
 
+	if (rtwdev->chip->para_ver & BTC_FEAT_DUAL_BT) {
+		btc->cx.bt1.enable.now = 1;
+		btc->cx.bt1.run_patch_code = 1;
+	}
+
+	if (rtwdev->chip->para_ver & BTC_FEAT_H2C_MACRO) {
+		btc->cx.bt0.enable.now = 1;
+		btc->cx.bt0.run_patch_code = 1;
+		btc->io_oflld_type = BTC_IO_OFLD_BTC_H2C;
+	} else {
+		btc->io_oflld_type = BTC_IO_OFLD_NO_SUPPORT;
+		_update_bt_scbd(rtwdev, true);
+	}
+
+	chip->ops->btc_set_rfe(rtwdev);
+	chip->ops->btc_init_cfg(rtwdev);
+
 	_write_scbd(rtwdev,
 		    BTC_WSCB_ACTIVE | BTC_WSCB_ON | BTC_WSCB_BTLOG, true);
+
 	if (rtw89_mac_get_ctrl_path(rtwdev)) {
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,
 			    "[BTC], %s(): PTA owner warning!!\n",

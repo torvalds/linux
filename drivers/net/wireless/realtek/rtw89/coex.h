@@ -16,6 +16,8 @@ enum btc_mode {
 	BTC_MODE_WL,
 	BTC_MODE_BT,
 	BTC_MODE_WLOFF,
+	BTC_MODE_COTX,
+	BTC_MODE_MECHANISM_INIT,
 	BTC_MODE_MAX
 };
 
@@ -212,6 +214,10 @@ enum btc_chip_feature {
 	BTC_FEAT_NEW_BBAPI_FLOW = BIT(3), /* new btg_ctrl/pre_agc_ctrl */
 	BTC_FEAT_MLO_SUPPORT = BIT(4),
 	BTC_FEAT_H2C_MACRO = BIT(5),
+	BTC_FEAT_DUAL_BT = BIT(6),
+	BTC_FEAT_BT_6G = BIT(7),
+	BTC_FEAT_MULTI_PTA = BIT(8),
+	BTC_FEAT_DUAL_BTGA = BIT(9) /* the future A-Die */
 };
 
 enum btc_wl_mode {

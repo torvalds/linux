@@ -1838,7 +1838,6 @@ static void __rtw8852bx_btc_init_cfg(struct rtw89_dev *rtwdev)
 
 	 /* enable BT counter 0xda40[16,2] = 2b'11 */
 	rtw89_write32_set(rtwdev, R_AX_CSR_MODE, B_AX_BT_CNT_RST | B_AX_STATIS_BT_EN);
-	btc->cx.wl.status.map.init_ok = true;
 }
 
 static

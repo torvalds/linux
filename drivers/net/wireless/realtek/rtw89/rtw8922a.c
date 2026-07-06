@@ -2828,7 +2828,6 @@ static void rtw8922a_btc_init_cfg(struct rtw89_dev *rtwdev)
 	rtw89_write32(rtwdev, R_BTC_ZB_COEX_TBL_1, 0xda5a5a5a);
 
 	rtw89_write32(rtwdev, R_BTC_ZB_BREAK_TBL, 0xf0ffffff);
-	btc->cx.wl.status.map.init_ok = true;
 }
 
 static void
