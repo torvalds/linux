@@ -233,7 +233,8 @@ static int create_direct_keys(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_mr *
 		cmds[i].out = cmd_mem->out;
 		cmds[i].outlen = sizeof(cmd_mem->out);
 		cmds[i].in = cmd_mem->in;
-		cmds[i].inlen = struct_size(cmd_mem, mtt, mttcount);
+		cmds[i].inlen = struct_size(cmd_mem, mtt, mttcount) -
+				offsetof(struct mlx5_create_mkey_mem, in);
 
 		fill_create_direct_mr(mvdev, dmr, cmd_mem);
 
