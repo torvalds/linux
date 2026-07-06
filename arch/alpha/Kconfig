@@ -45,6 +45,8 @@ config ALPHA
 	select MMU_GATHER_RCU_TABLE_FREE
 	select SPARSEMEM_EXTREME if SPARSEMEM
 	select ZONE_DMA
+	select TRACE_IRQFLAGS_SUPPORT
+	select ARCH_WANT_FRAME_POINTERS
 	help
 	  The Alpha is a 64-bit general-purpose processor designed and
 	  marketed by the Digital Equipment Corporation of blessed memory,
@@ -82,6 +84,9 @@ config AUDIT_ARCH
 	bool
 
 config STACKTRACE_SUPPORT
+	def_bool y
+
+config LOCKDEP_SUPPORT
 	def_bool y
 
 menu "System setup"

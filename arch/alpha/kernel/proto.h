@@ -173,6 +173,7 @@ extern void do_sigreturn(struct sigcontext __user *);
 struct rt_sigframe;
 extern void do_rt_sigreturn(struct rt_sigframe __user *);
 extern void do_work_pending(struct pt_regs *, unsigned long, unsigned long, unsigned long);
+extern void alpha_schedule_user_work(void);
 
 /* traps.c */
 extern void dik_show_regs(struct pt_regs *regs, unsigned long *r9_15);
@@ -184,6 +185,9 @@ extern void do_entDbg(struct pt_regs *);
 struct allregs;
 extern void do_entUna(void *, unsigned long, unsigned long, struct allregs *);
 extern void do_entUnaUser(void __user *, unsigned long, unsigned long, struct pt_regs *);
+
+/* irq_alpha.c */
+extern void notrace lockdep_on_restore(unsigned long ps, unsigned long ip);
 
 /* sys_titan.c */
 extern void titan_dispatch_irqs(u64);

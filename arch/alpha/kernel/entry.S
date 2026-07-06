@@ -93,6 +93,19 @@
 4:
 .endm
 
+.macro LOCKDEP_HARDIRQS_ON_RESTORE
+#ifdef CONFIG_PROVE_LOCKING
+	/* a0 = saved PS */
+	ldq	$16, SP_OFF($sp)
+
+	/* a1 = callsite IP for lockdep */
+	lda	$17, 1f
+
+	jsr	$26, lockdep_on_restore
+	ldgp	$gp, 0($26)
+1:
+#endif
+.endm
 
 /*
  * This defines the normal kernel pt-regs layout.
@@ -427,6 +440,7 @@ CFI_START_OSF_FRAME entUna
 	.cfi_restore	$28
 	.cfi_restore	$29
 	.cfi_adjust_cfa_offset	-256
+	LOCKDEP_HARDIRQS_ON_RESTORE
 	call_pal PAL_rti
 
 	.align	4
@@ -577,6 +591,7 @@ restore_all:
 	bne	$3, restore_fpu
 restore_other:
 	.cfi_remember_state
+	LOCKDEP_HARDIRQS_ON_RESTORE
 	RESTORE_ALL
 	call_pal PAL_rti
 
@@ -622,7 +637,7 @@ $work_resched:
 	 * or got through work_notifysig already.  Either case means no syscall
 	 * restarts for us, so let $18 and $19 burn.
 	 */
-	jsr	$26, schedule
+	jsr	$26, alpha_schedule_user_work
 	mov	0, $18
 	br	ret_to_user
 
