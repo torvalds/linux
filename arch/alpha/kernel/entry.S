@@ -520,6 +520,12 @@ entSys:
         ldq     $1, 0($sp)          /* syscall nr from saved r0 */
         stq     $1, 8($sp)          /* regs->r1 = shadow syscall nr */
         stq     $1, 16($sp)         /* regs->r2 = restart syscall nr */
+	/* Syscalls always enter from user mode: snapshot USP into pt_regs->usp */
+	mov	$0, $8
+	call_pal PAL_rdusp
+	stq      $0, PT_REGS_USP($sp)
+	mov	$8, $0
+
 
 	lda	$8, 0x3fff
 	bic	$sp, $8, $8
@@ -535,15 +541,10 @@ entSys:
 	.cfi_rel_offset	$16, SP_OFF+24
 	.cfi_rel_offset	$17, SP_OFF+32
 	.cfi_rel_offset	$18, SP_OFF+40
-#ifdef CONFIG_AUDITSYSCALL
-	lda     $6, _TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | _TIF_SECCOMP
+	lda     $6, _TIF_SYSCALL_WORK
 	and     $3, $6, $3
 	bne     $3, strace
-#else
-	lda     $6, _TIF_SYSCALL_TRACE | _TIF_SECCOMP
-	and     $3, $6, $3
-	bne     $3, strace
-#endif
+
 	beq	$4, 1f
 	ldq	$27, 0($5)
 1:	ldq	$0, 8($sp)		/* syscall nr shadow (regs->r1) */

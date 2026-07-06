@@ -66,6 +66,7 @@ register unsigned long *current_stack_pointer __asm__ ("$30");
 #define TIF_SYSCALL_AUDIT	4	/* syscall audit active */
 #define TIF_NOTIFY_SIGNAL	5	/* signal notifications exist */
 #define TIF_SECCOMP		6	/* seccomp syscall filtering active */
+#define	TIF_SYSCALL_TRACEPOINT	7	/* syscall tracepoint instrumentation */
 #define TIF_DIE_IF_KERNEL	9	/* dik recursion lock */
 #define TIF_MEMDIE		13	/* is terminating due to OOM killer */
 #define TIF_POLLING_NRFLAG	14	/* idle is polling for TIF_NEED_RESCHED */
@@ -78,6 +79,7 @@ register unsigned long *current_stack_pointer __asm__ ("$30");
 #define _TIF_NOTIFY_SIGNAL	(1<<TIF_NOTIFY_SIGNAL)
 #define _TIF_SECCOMP		(1<<TIF_SECCOMP)
 #define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
+#define _TIF_SYSCALL_TRACEPOINT	(1<<TIF_SYSCALL_TRACEPOINT)
 
 /*
  * Work to do on syscall entry (in entry.S).
@@ -85,9 +87,10 @@ register unsigned long *current_stack_pointer __asm__ ("$30");
  * with the mask used before branching to syscall_trace_enter().
  */
 #ifdef CONFIG_AUDITSYSCALL
-# define _TIF_SYSCALL_WORK	(_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | _TIF_SECCOMP)
+# define _TIF_SYSCALL_WORK	(_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | _TIF_SECCOMP \
+				| _TIF_SYSCALL_TRACEPOINT)
 #else
-# define _TIF_SYSCALL_WORK	(_TIF_SYSCALL_TRACE | _TIF_SECCOMP)
+# define _TIF_SYSCALL_WORK	(_TIF_SYSCALL_TRACE | _TIF_SECCOMP | _TIF_SYSCALL_TRACEPOINT)
 #endif
 
 /* Work to do on interrupt/exception return.  */

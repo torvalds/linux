@@ -30,6 +30,12 @@
 
 #include "proto.h"
 
+static __always_inline void alpha_snapshot_usp(struct pt_regs *regs)
+{
+	if (user_mode(regs))
+		regs->usp = rdusp();
+}
+
 void
 dik_show_regs(struct pt_regs *regs, unsigned long *r9_15)
 {
@@ -180,6 +186,7 @@ do_entArith(unsigned long summary, unsigned long write_mask,
 {
 	long si_code = FPE_FLTINV;
 
+	alpha_snapshot_usp(regs);
 	if (summary & 1) {
 		/* Software-completion summary bit is set, so try to
 		   emulate the instruction.  If the processor supports
@@ -201,6 +208,7 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 {
 	int signo, code;
 
+	alpha_snapshot_usp(regs);
 	if (type == 3) { /* FEN fault */
 		/* Irritating users can call PAL_clrfen to disable the
 		   FPU for the process.  The kernel will then trap in
