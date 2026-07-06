@@ -150,7 +150,7 @@ static struct extent_map *btrfs_create_dio_extent(struct btrfs_inode *inode,
 	if (type != BTRFS_ORDERED_NOCOW) {
 		em = btrfs_create_io_em(inode, start, file_extent, type);
 		if (IS_ERR(em))
-			goto out;
+			return em;
 	}
 
 	ordered = btrfs_alloc_ordered_extent(inode, start, file_extent,
@@ -167,7 +167,6 @@ static struct extent_map *btrfs_create_dio_extent(struct btrfs_inode *inode,
 		ASSERT(!dio_data->ordered);
 		dio_data->ordered = ordered;
 	}
- out:
 
 	return em;
 }
