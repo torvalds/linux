@@ -294,6 +294,38 @@ void ksmbd_fd_set_delete_on_close(struct ksmbd_file *fp,
 	up_write(&ci->m_lock);
 }
 
+/*
+ * FileDispositionInformation (SET_INFO) on a stream handle must only
+ * mark the stream for deletion, not the whole file -- otherwise
+ * deleting a single alternate data stream (e.g. AFP_AfpInfo) deletes
+ * the entire file's data along with it.
+ */
+void ksmbd_fd_set_delete_pending(struct ksmbd_file *fp)
+{
+	struct ksmbd_inode *ci = fp->f_ci;
+
+	if (ksmbd_stream_fd(fp)) {
+		down_write(&ci->m_lock);
+		ci->m_flags |= S_DEL_ON_CLS_STREAM;
+		up_write(&ci->m_lock);
+	} else {
+		ksmbd_set_inode_pending_delete(fp);
+	}
+}
+
+void ksmbd_fd_clear_delete_pending(struct ksmbd_file *fp)
+{
+	struct ksmbd_inode *ci = fp->f_ci;
+
+	if (ksmbd_stream_fd(fp)) {
+		down_write(&ci->m_lock);
+		ci->m_flags &= ~S_DEL_ON_CLS_STREAM;
+		up_write(&ci->m_lock);
+	} else {
+		ksmbd_clear_inode_pending_delete(fp);
+	}
+}
+
 static void ksmbd_inode_hash(struct ksmbd_inode *ci)
 {
 	struct hlist_head *b = inode_hashtable +

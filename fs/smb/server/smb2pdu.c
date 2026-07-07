@@ -7123,9 +7123,9 @@ static int set_file_disposition_info(struct ksmbd_work *work,
 		    ksmbd_vfs_empty_dir(fp) == -ENOTEMPTY)
 			return -EBUSY;
 		smb_break_all_levII_oplock_for_delete(work, fp);
-		ksmbd_set_inode_pending_delete(fp);
+		ksmbd_fd_set_delete_pending(fp);
 	} else {
-		ksmbd_clear_inode_pending_delete(fp);
+		ksmbd_fd_clear_delete_pending(fp);
 	}
 	return 0;
 }
