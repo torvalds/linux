@@ -7,7 +7,30 @@
 
 #include <kunit/test.h>
 
+#include <drm/drm_modeset_lock.h>
+
+#include "dc.h"
+#include "amdgpu.h"
+#include "amdgpu_mode.h"
+#include "amdgpu_dm.h"
 #include "amdgpu_dm_crc.h"
+#include "amdgpu_dm_kunit_test_helpers.h"
+
+static struct amdgpu_crtc *dm_test_alloc_crc_crtc(struct kunit *test,
+							 struct amdgpu_device *adev)
+{
+	struct amdgpu_crtc *acrtc;
+
+	acrtc = kunit_kzalloc(test, sizeof(*acrtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, acrtc);
+
+	acrtc->base.dev = &adev->ddev;
+	drm_modeset_lock_init(&acrtc->base.mutex);
+	spin_lock_init(&acrtc->base.commit_lock);
+	INIT_LIST_HEAD(&acrtc->base.commit_list);
+
+	return acrtc;
+}
 
 static void dm_test_parse_crc_source_none(struct kunit *test)
 {
@@ -117,6 +140,46 @@ static void dm_test_crtc_get_crc_sources(struct kunit *test)
 	KUNIT_EXPECT_STREQ(test, sources[3], "dprx");
 	KUNIT_EXPECT_STREQ(test, sources[4], "dprx dither");
 	KUNIT_EXPECT_STREQ(test, sources[5], "auto");
+}
+
+/**
+ * dm_test_crtc_verify_crc_source_valid() - Test valid CRC source verification.
+ * @test: KUnit test context.
+ *
+ * Verifies that valid source strings return success and request three CRC
+ * values.
+ */
+static void dm_test_crtc_verify_crc_source_valid(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct amdgpu_crtc *acrtc = dm_test_alloc_crc_crtc(test, adev);
+	size_t values_cnt = 0;
+	int ret;
+
+	ret = amdgpu_dm_crtc_verify_crc_source(&acrtc->base, "crtc", &values_cnt);
+
+	KUNIT_EXPECT_EQ(test, ret, 0);
+	KUNIT_EXPECT_EQ(test, values_cnt, 3);
+}
+
+/**
+ * dm_test_crtc_verify_crc_source_invalid() - Test invalid CRC source verification.
+ * @test: KUnit test context.
+ *
+ * Verifies that invalid source strings are rejected without changing the
+ * caller-provided values count.
+ */
+static void dm_test_crtc_verify_crc_source_invalid(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct amdgpu_crtc *acrtc = dm_test_alloc_crc_crtc(test, adev);
+	size_t values_cnt = 7;
+	int ret;
+
+	ret = amdgpu_dm_crtc_verify_crc_source(&acrtc->base, "bad", &values_cnt);
+
+	KUNIT_EXPECT_EQ(test, ret, -EINVAL);
+	KUNIT_EXPECT_EQ(test, values_cnt, 7);
 }
 
 /**
@@ -248,6 +311,9 @@ static struct kunit_case dm_crc_test_cases[] = {
 	KUNIT_CASE(dm_test_is_valid_crc_source),
 	/* amdgpu_dm_crtc_get_crc_sources() */
 	KUNIT_CASE(dm_test_crtc_get_crc_sources),
+	/* amdgpu_dm_crtc_verify_crc_source() */
+	KUNIT_CASE(dm_test_crtc_verify_crc_source_valid),
+	KUNIT_CASE(dm_test_crtc_verify_crc_source_invalid),
 	/* dm_need_dp_aux() */
 	KUNIT_CASE(dm_test_need_dp_aux),
 	/* dm_crc_source_should_start_dprx() */
