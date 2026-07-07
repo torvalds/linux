@@ -3006,6 +3006,7 @@ static void rtw8922d_bb_cfg_txrx_path(struct rtw89_dev *rtwdev)
 
 static u8 rtw8922d_get_thermal(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path)
 {
+	struct rtw89_power_trim_info *info = &rtwdev->pwr_trim;
 	u8 val;
 
 	rtw89_phy_write32_mask(rtwdev, R_TC_EN_BE4, B_TC_EN_BE4, 0x1);
@@ -3015,6 +3016,7 @@ static u8 rtw8922d_get_thermal(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_p
 	fsleep(100);
 
 	val = rtw89_phy_read32_mask(rtwdev, R_TC_VAL_BE4, B_TC_VAL_BE4);
+	val = clamp_t(int, val + info->thermal_k, 0, 255);
 
 	return val;
 }

@@ -537,3 +537,32 @@ int rtw89_efuse_read_ecv_be(struct rtw89_dev *rtwdev)
 
 	return 0;
 }
+
+int rtw89_efuse_read_thermal_k_be(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_power_trim_info *info = &rtwdev->pwr_trim;
+	u32 dump_addr = EFUSE_THERMAL_K_OFFSET_BE;
+	u8 buff[4]; /* efuse access must be multiple of 4 bytes in size */
+	bool no_k;
+	u16 val16;
+	int ret;
+
+	ret = rtw89_dump_physical_efuse_map_be(rtwdev, buff, dump_addr, 4, false);
+	if (ret)
+		return ret;
+
+	val16 = buff[0] | buff[1] << 8;
+
+	no_k = !!u16_get_bits(val16, EFUSE_THERMAL_K_VALID_BE);
+	if (no_k) {
+		info->thermal_k = 0;
+		return -ENOENT;
+	}
+
+	info->thermal_k = u16_get_bits(val16, EFUSE_THERMAL_K_VAL_BE);
+
+	if (u16_get_bits(val16, EFUSE_THERMAL_K_SIGN_BE))
+		info->thermal_k *= -1;
+
+	return 0;
+}

@@ -1132,6 +1132,7 @@ struct rtw89_mac_gen_def {
 	int (*cnv_efuse_state)(struct rtw89_dev *rtwdev, bool idle);
 	int (*efuse_read_fw_secure)(struct rtw89_dev *rtwdev);
 	int (*efuse_read_ecv)(struct rtw89_dev *rtwdev);
+	int (*efuse_read_thermal_k)(struct rtw89_dev *rtwdev);
 
 	int (*cfg_plt)(struct rtw89_dev *rtwdev, struct rtw89_mac_ax_plt *plt);
 	u16 (*get_plt_cnt)(struct rtw89_dev *rtwdev, u8 band);
@@ -1733,6 +1734,16 @@ static inline int rtw89_mac_efuse_read_ecv(struct rtw89_dev *rtwdev)
 		return -ENOENT;
 
 	return mac->efuse_read_ecv(rtwdev);
+}
+
+static inline int rtw89_mac_efuse_read_thermal_k(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+
+	if (!mac->efuse_read_thermal_k)
+		return -ENOENT;
+
+	return mac->efuse_read_thermal_k(rtwdev);
 }
 
 static inline

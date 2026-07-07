@@ -6063,6 +6063,8 @@ struct rtw89_power_trim_info {
 	u8 pa_bias_trim[RF_PATH_MAX];
 	u8 pad_bias_trim[RF_PATH_MAX];
 	u8 vco_trim[RF_PATH_MAX];
+
+	s16 thermal_k;
 };
 
 enum rtw89_regd_func {
