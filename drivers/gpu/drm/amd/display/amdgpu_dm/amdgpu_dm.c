@@ -1404,7 +1404,7 @@ static void s3_handle_mst(struct drm_device *dev, bool suspend)
 	drm_connector_list_iter_end(&iter);
 }
 
-static int amdgpu_dm_smu_write_watermarks_table(struct amdgpu_device *adev)
+STATIC_IFN_KUNIT int amdgpu_dm_smu_write_watermarks_table(struct amdgpu_device *adev)
 {
 	int ret = 0;
 
@@ -1454,6 +1454,7 @@ static int amdgpu_dm_smu_write_watermarks_table(struct amdgpu_device *adev)
 
 	return 0;
 }
+EXPORT_IF_KUNIT(amdgpu_dm_smu_write_watermarks_table);
 
 static int dm_oem_i2c_hw_init(struct amdgpu_device *adev)
 {
@@ -2284,7 +2285,7 @@ int dm_atomic_get_state(struct drm_atomic_commit *state,
 	return 0;
 }
 
-static struct dm_atomic_state *
+STATIC_IFN_KUNIT struct dm_atomic_state *
 dm_atomic_get_new_state(struct drm_atomic_commit *state)
 {
 	struct drm_device *dev = state->dev;
@@ -2301,6 +2302,7 @@ dm_atomic_get_new_state(struct drm_atomic_commit *state)
 
 	return NULL;
 }
+EXPORT_IF_KUNIT(dm_atomic_get_new_state);
 
 static struct drm_private_state *
 dm_atomic_duplicate_state(struct drm_private_obj *obj)
@@ -2326,8 +2328,8 @@ dm_atomic_duplicate_state(struct drm_private_obj *obj)
 	return &new_state->base;
 }
 
-static void dm_atomic_destroy_state(struct drm_private_obj *obj,
-				    struct drm_private_state *state)
+STATIC_IFN_KUNIT void dm_atomic_destroy_state(struct drm_private_obj *obj,
+					      struct drm_private_state *state)
 {
 	struct dm_atomic_state *dm_state = to_dm_atomic_state(state);
 
@@ -2336,6 +2338,7 @@ static void dm_atomic_destroy_state(struct drm_private_obj *obj,
 
 	kfree(dm_state);
 }
+EXPORT_IF_KUNIT(dm_atomic_destroy_state);
 
 static struct drm_private_state *
 dm_atomic_create_state(struct drm_private_obj *obj)
@@ -6363,10 +6366,10 @@ static int dm_check_native_cursor_state(struct drm_crtc *new_plane_crtc,
 	return 0;
 }
 
-static bool dm_should_update_native_cursor(struct drm_atomic_commit *state,
-					   struct drm_crtc *old_plane_crtc,
-					   struct drm_crtc *new_plane_crtc,
-					   bool enable)
+STATIC_IFN_KUNIT bool dm_should_update_native_cursor(struct drm_atomic_commit *state,
+						     struct drm_crtc *old_plane_crtc,
+						     struct drm_crtc *new_plane_crtc,
+						     bool enable)
 {
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	struct dm_crtc_state *dm_old_crtc_state, *dm_new_crtc_state;
@@ -6391,6 +6394,7 @@ static bool dm_should_update_native_cursor(struct drm_atomic_commit *state,
 		return dm_new_crtc_state->cursor_mode == DM_CURSOR_NATIVE_MODE;
 	}
 }
+EXPORT_IF_KUNIT(dm_should_update_native_cursor);
 
 static int dm_update_plane_state(struct dc *dc,
 				 struct drm_atomic_commit *state,

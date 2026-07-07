@@ -183,6 +183,154 @@ static void dm_test_crtc_get_scanoutpos_no_stream(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, position, 0U);
 }
 
+/**
+ * dm_test_atomic_get_new_state_empty - Test empty atomic state has no DM state
+ * @test: The KUnit test context
+ */
+static void dm_test_atomic_get_new_state_empty(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct drm_atomic_commit *state;
+
+	state = kunit_kzalloc(test, sizeof(*state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, state);
+	state->dev = &adev->ddev;
+
+	KUNIT_EXPECT_NULL(test, dm_atomic_get_new_state(state));
+}
+
+/**
+ * dm_test_atomic_get_new_state_match - Test atomic state returns matching DM private state
+ * @test: The KUnit test context
+ */
+static void dm_test_atomic_get_new_state_match(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct dm_atomic_state *dm_state;
+	struct drm_atomic_commit *state;
+
+	state = kunit_kzalloc(test, sizeof(*state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, state);
+
+	dm_state = kunit_kzalloc(test, sizeof(*dm_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dm_state);
+
+	state->private_objs = kunit_kzalloc(test, sizeof(*state->private_objs),
+					    GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, state->private_objs);
+
+	state->dev = &adev->ddev;
+	state->num_private_objs = 1;
+	state->private_objs[0].ptr = &adev->dm.atomic_obj;
+	state->private_objs[0].new_state = &dm_state->base;
+
+	KUNIT_EXPECT_PTR_EQ(test, dm_atomic_get_new_state(state), dm_state);
+}
+
+/**
+ * dm_test_should_update_native_cursor_without_crtc - Test NULL crtc cases update native cursor
+ * @test: The KUnit test context
+ */
+static void dm_test_should_update_native_cursor_without_crtc(struct kunit *test)
+{
+	KUNIT_EXPECT_TRUE(test, dm_should_update_native_cursor(NULL, NULL, NULL, false));
+	KUNIT_EXPECT_TRUE(test, dm_should_update_native_cursor(NULL, NULL, NULL, true));
+}
+
+/**
+ * dm_test_should_update_native_cursor_disable_native - Test disable path reads old crtc cursor mode
+ * @test: The KUnit test context
+ */
+static void dm_test_should_update_native_cursor_disable_native(struct kunit *test)
+{
+	struct dm_crtc_state *dm_crtc_state;
+	struct drm_atomic_commit *state;
+	struct drm_crtc *crtc;
+
+	state = kunit_kzalloc(test, sizeof(*state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, state);
+
+	crtc = kunit_kzalloc(test, sizeof(*crtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, crtc);
+
+	dm_crtc_state = kunit_kzalloc(test, sizeof(*dm_crtc_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dm_crtc_state);
+
+	state->crtcs = kunit_kzalloc(test, sizeof(*state->crtcs), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, state->crtcs);
+
+	crtc->index = 0;
+	dm_crtc_state->cursor_mode = DM_CURSOR_NATIVE_MODE;
+	state->crtcs[0].old_state = &dm_crtc_state->base;
+
+	KUNIT_EXPECT_TRUE(test,
+			  dm_should_update_native_cursor(state, crtc, NULL, false));
+}
+
+/**
+ * dm_test_should_update_native_cursor_enable_overlay - Test enable path reads new crtc cursor mode
+ * @test: The KUnit test context
+ */
+static void dm_test_should_update_native_cursor_enable_overlay(struct kunit *test)
+{
+	struct dm_crtc_state *dm_crtc_state;
+	struct drm_atomic_commit *state;
+	struct drm_crtc *crtc;
+
+	state = kunit_kzalloc(test, sizeof(*state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, state);
+
+	crtc = kunit_kzalloc(test, sizeof(*crtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, crtc);
+
+	dm_crtc_state = kunit_kzalloc(test, sizeof(*dm_crtc_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dm_crtc_state);
+
+	state->crtcs = kunit_kzalloc(test, sizeof(*state->crtcs), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, state->crtcs);
+
+	crtc->index = 0;
+	dm_crtc_state->cursor_mode = DM_CURSOR_OVERLAY_MODE;
+	state->crtcs[0].new_state = &dm_crtc_state->base;
+
+	KUNIT_EXPECT_FALSE(test,
+			   dm_should_update_native_cursor(state, NULL, crtc, true));
+}
+
+/**
+ * dm_test_atomic_destroy_state_no_context - Test destroying DM atomic state without a DC context
+ * @test: The KUnit test context
+ */
+static void dm_test_atomic_destroy_state_no_context(struct kunit *test)
+{
+	struct dm_atomic_state *dm_state;
+
+	/*
+	 * Use kzalloc(), not kunit_kzalloc(): dm_atomic_destroy_state() frees
+	 * the state itself, so KUnit-managed memory would be double-freed.
+	 */
+	dm_state = kzalloc(sizeof(*dm_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dm_state);
+
+	/* context == NULL: dc_state_release() is skipped and the state is freed. */
+	dm_atomic_destroy_state(NULL, &dm_state->base);
+}
+
+/**
+ * dm_test_smu_write_watermarks_table_default - Test watermarks table skips non-Navi1x IP versions
+ * @test: The KUnit test context
+ */
+static void dm_test_smu_write_watermarks_table_default(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+
+	/*
+	 * A zeroed adev reports DCE IP version 0, which is not one of the
+	 * Navi1x versions handled by the switch, so the function returns early.
+	 */
+	KUNIT_EXPECT_EQ(test, amdgpu_dm_smu_write_watermarks_table(adev), 0);
+}
+
 /* Tests for dm_plane_layer_index_cmp() */
 
 /**
@@ -1069,6 +1217,13 @@ static struct kunit_case amdgpu_dm_tests[] = {
 	KUNIT_CASE(dm_test_vblank_get_counter_no_stream),
 	KUNIT_CASE(dm_test_crtc_get_scanoutpos_invalid_crtc),
 	KUNIT_CASE(dm_test_crtc_get_scanoutpos_no_stream),
+	KUNIT_CASE(dm_test_atomic_get_new_state_empty),
+	KUNIT_CASE(dm_test_atomic_get_new_state_match),
+	KUNIT_CASE(dm_test_should_update_native_cursor_without_crtc),
+	KUNIT_CASE(dm_test_should_update_native_cursor_disable_native),
+	KUNIT_CASE(dm_test_should_update_native_cursor_enable_overlay),
+	KUNIT_CASE(dm_test_atomic_destroy_state_no_context),
+	KUNIT_CASE(dm_test_smu_write_watermarks_table_default),
 	/* dm_plane_layer_index_cmp */
 	KUNIT_CASE(dm_test_plane_layer_index_cmp_equal),
 	KUNIT_CASE(dm_test_plane_layer_index_cmp_descending),
