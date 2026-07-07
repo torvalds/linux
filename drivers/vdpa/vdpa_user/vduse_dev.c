@@ -159,6 +159,7 @@ struct vduse_dev_msg {
 
 struct vduse_control {
 	u64 api_version;
+	u64 vduse_features;
 };
 
 static DEFINE_MUTEX(vduse_lock);
@@ -2348,7 +2349,29 @@ static long vduse_ioctl(struct file *file, unsigned int cmd,
 	case VDUSE_GET_FEATURES:
 		ret = put_user(vduse_features, (u64 __user *)argp);
 		break;
+	case VDUSE_SET_FEATURES: {
+		u64 features;
 
+		ret = -EFAULT;
+		if (get_user(features, (u64 __user *)argp)) {
+			dev_dbg(vduse_ctrl_dev, "Could not get vduse features");
+			break;
+		}
+
+		ret = -EINVAL;
+		if (features & ~vduse_features) {
+			dev_dbg(vduse_ctrl_dev,
+				"Invalid features in %llx, expected %llx",
+				features, vduse_features);
+			break;
+		}
+
+		ret = 0;
+		control->vduse_features = features;
+		dev_dbg(vduse_ctrl_dev, "Set features %llx", features);
+
+		break;
+	}
 	default:
 		ret = -EINVAL;
 		break;
@@ -2375,6 +2398,7 @@ static int vduse_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 
 	control->api_version = VDUSE_API_VERSION_NOT_ASKED;
+	control->vduse_features = 0;
 	file->private_data = control;
 
 	return 0;

@@ -66,6 +66,9 @@ struct vduse_dev_config {
 /* Get the VDUSE supported features */
 #define VDUSE_GET_FEATURES	_IOR(VDUSE_BASE, 0x04, __u64)
 
+/* Set the VDUSE features */
+#define VDUSE_SET_FEATURES	_IOW(VDUSE_BASE, 0x05, __u64)
+
 /* The ioctls for VDUSE device (/dev/vduse/$NAME) */
 
 /**
