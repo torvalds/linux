@@ -152,15 +152,15 @@ Description:
 		compression algorithm parameters.
 
 What:		/sys/block/zram<id>/compressed_writeback
-Date:		Decemeber 2025
+Date:		December 2025
 Contact:	Richard Chang <richardycc@google.com>
 Description:
-		The compressed_writeback device atrribute toggles compressed
+		The compressed_writeback device attribute toggles compressed
 		writeback feature.
 
 What:		/sys/block/zram<id>/writeback_batch_size
 Date:		November 2025
 Contact:	Sergey Senozhatsky <senozhatsky@chromium.org>
 Description:
-		The writeback_batch_size device atrribute sets the maximum
+		The writeback_batch_size device attribute sets the maximum
 		number of in-flight writeback operations.
