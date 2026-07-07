@@ -244,6 +244,7 @@ static int w83627hf_init(struct watchdog_device *wdog, enum chips chip)
 			pr_info("Watchdog already running. Resetting timeout to %d sec\n",
 				wdog->timeout);
 			superio_outb(cr_wdt_timeout, wdog->timeout);
+			set_bit(WDOG_HW_RUNNING, &wdog->status);
 		}
 	}
 
