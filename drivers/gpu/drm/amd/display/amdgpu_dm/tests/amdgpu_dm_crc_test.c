@@ -7,7 +7,11 @@
 
 #include <kunit/test.h>
 
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_connector.h>
 #include <drm/drm_modeset_lock.h>
+#include <drm/drm_probe_helper.h>
 
 #include "dc.h"
 #include "core_types.h"
@@ -168,6 +172,19 @@ static struct amdgpu_crtc *dm_test_alloc_crc_crtc(struct kunit *test,
 	INIT_LIST_HEAD(&acrtc->base.commit_list);
 
 	return acrtc;
+}
+
+static const struct drm_connector_funcs dm_test_crc_connector_funcs = {
+	.reset = drm_atomic_helper_connector_reset,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+	.fill_modes = drm_helper_probe_single_connector_modes,
+	.destroy = drm_connector_cleanup,
+};
+
+static void dm_test_crc_connector_cleanup(void *data)
+{
+	drm_connector_cleanup(data);
 }
 
 static void dm_test_parse_crc_source_none(struct kunit *test)
@@ -518,6 +535,145 @@ static void dm_test_crtc_configure_crc_source_none(struct kunit *test)
 }
 
 /**
+ * dm_test_crtc_set_crc_source_invalid() - Test invalid source guard.
+ * @test: KUnit test context.
+ *
+ * Verifies that amdgpu_dm_crtc_set_crc_source() rejects invalid source names
+ * before taking modeset locks, vblank references, or touching DC state.
+ */
+static void dm_test_crtc_set_crc_source_invalid(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct amdgpu_crtc *acrtc = dm_test_alloc_crc_crtc(test, adev);
+	int ret;
+
+	ret = amdgpu_dm_crtc_set_crc_source(&acrtc->base, "invalid");
+
+	KUNIT_EXPECT_EQ(test, ret, -EINVAL);
+}
+
+/**
+ * dm_test_crtc_set_crc_source_none_no_stream() - Test valid source no-stream exit.
+ * @test: KUnit test context.
+ *
+ * Verifies that a valid NONE request enters the set-source body, reads the
+ * current CRC state, and exits cleanly when configuration is deferred because
+ * no stream is attached.
+ */
+static void dm_test_crtc_set_crc_source_none_no_stream(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct amdgpu_crtc *acrtc = dm_test_alloc_crc_crtc(test, adev);
+	struct dm_crtc_state *dm_state;
+	int ret;
+
+	dm_state = kunit_kzalloc(test, sizeof(*dm_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dm_state);
+	acrtc->base.state = &dm_state->base;
+	acrtc->dm_irq_params.crc_src = AMDGPU_DM_PIPE_CRC_SOURCE_NONE;
+
+	ret = amdgpu_dm_crtc_set_crc_source(&acrtc->base, "none");
+
+	KUNIT_EXPECT_EQ(test, ret, -EINVAL);
+	KUNIT_EXPECT_EQ(test, acrtc->dm_irq_params.crc_src,
+			AMDGPU_DM_PIPE_CRC_SOURCE_NONE);
+	KUNIT_EXPECT_EQ(test, dm_state->crc_skip_count, 0);
+}
+
+/**
+ * dm_test_crtc_set_crc_source_none_commit() - Test set-source with pending commit.
+ * @test: KUnit test context.
+ *
+ * Verifies that a pending CRTC commit is acquired and waited on (already
+ * completed here so the wait returns immediately), then released during
+ * cleanup. Configuration is still deferred because no stream is attached.
+ */
+static void dm_test_crtc_set_crc_source_none_commit(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct amdgpu_crtc *acrtc = dm_test_alloc_crc_crtc(test, adev);
+	struct dm_crtc_state *dm_state;
+	struct drm_crtc_commit *commit;
+	int ret;
+
+	dm_state = kunit_kzalloc(test, sizeof(*dm_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dm_state);
+	acrtc->base.state = &dm_state->base;
+	acrtc->dm_irq_params.crc_src = AMDGPU_DM_PIPE_CRC_SOURCE_NONE;
+
+	commit = kunit_kzalloc(test, sizeof(*commit), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, commit);
+	kref_init(&commit->ref);
+	init_completion(&commit->hw_done);
+	/* Mark the commit finished so the wait returns immediately. */
+	complete_all(&commit->hw_done);
+	list_add_tail(&commit->commit_entry, &acrtc->base.commit_list);
+
+	ret = amdgpu_dm_crtc_set_crc_source(&acrtc->base, "none");
+
+	KUNIT_EXPECT_EQ(test, ret, -EINVAL);
+	KUNIT_EXPECT_EQ(test, dm_state->crc_skip_count, 0);
+}
+
+/**
+ * dm_test_crtc_set_crc_source_dprx_no_connector() - Test DPRX with no match.
+ * @test: KUnit test context.
+ *
+ * Verifies that requesting a DPRX source walks the connector list and returns
+ * -EINVAL when no matching DP connector is attached to the CRTC. A stateless
+ * connector and a writeback connector exercise both connector filter branches.
+ */
+static void dm_test_crtc_set_crc_source_dprx_no_connector(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct amdgpu_crtc *acrtc = dm_test_alloc_crc_crtc(test, adev);
+	struct drm_connector *dp_conn;
+	struct drm_connector *wb_conn;
+	struct dm_crtc_state *dm_state;
+	int ret;
+
+	dm_state = kunit_kzalloc(test, sizeof(*dm_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dm_state);
+	acrtc->base.state = &dm_state->base;
+	acrtc->dm_irq_params.crc_src = AMDGPU_DM_PIPE_CRC_SOURCE_NONE;
+
+	/* Stateless DP connector: skipped by the !state filter. */
+	dp_conn = kunit_kzalloc(test, sizeof(*dp_conn), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dp_conn);
+	KUNIT_ASSERT_EQ(test, drm_connector_init(&adev->ddev, dp_conn,
+						 &dm_test_crc_connector_funcs,
+						 DRM_MODE_CONNECTOR_DisplayPort), 0);
+	KUNIT_ASSERT_EQ(test, kunit_add_action_or_reset(test,
+			dm_test_crc_connector_cleanup, dp_conn), 0);
+
+	/* Writeback connector bound to this CRTC: skipped by the WB filter. */
+	wb_conn = kunit_kzalloc(test, sizeof(*wb_conn), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, wb_conn);
+	KUNIT_ASSERT_EQ(test, drm_connector_init(&adev->ddev, wb_conn,
+						 &dm_test_crc_connector_funcs,
+						 DRM_MODE_CONNECTOR_WRITEBACK), 0);
+	KUNIT_ASSERT_EQ(test, kunit_add_action_or_reset(test,
+			dm_test_crc_connector_cleanup, wb_conn), 0);
+	drm_atomic_helper_connector_reset(wb_conn);
+	KUNIT_ASSERT_NOT_NULL(test, wb_conn->state);
+	wb_conn->state->crtc = &acrtc->base;
+	/*
+	 * __drm_atomic_helper_connector_destroy_state() drops a connector
+	 * reference when state->crtc is set. Balance it here since the CRTC is
+	 * assigned directly rather than via drm_atomic_set_crtc_for_connector(),
+	 * otherwise cleanup would drop the connector to zero and schedule an
+	 * async free on the system workqueue.
+	 */
+	drm_connector_get(wb_conn);
+
+	ret = amdgpu_dm_crtc_set_crc_source(&acrtc->base, "dprx");
+
+	KUNIT_EXPECT_EQ(test, ret, -EINVAL);
+	KUNIT_EXPECT_EQ(test, acrtc->dm_irq_params.crc_src,
+			AMDGPU_DM_PIPE_CRC_SOURCE_NONE);
+}
+
+/**
  * dm_test_need_dp_aux() - Test dm_need_dp_aux().
  * @test: KUnit test context.
  *
@@ -657,6 +813,11 @@ static struct kunit_case dm_crc_test_cases[] = {
 	KUNIT_CASE(dm_test_crtc_configure_crc_source_crtc_dcn36_poly),
 	KUNIT_CASE(dm_test_crtc_configure_crc_source_crtc_configure_fails),
 	KUNIT_CASE(dm_test_crtc_configure_crc_source_none),
+	/* amdgpu_dm_crtc_set_crc_source() */
+	KUNIT_CASE(dm_test_crtc_set_crc_source_invalid),
+	KUNIT_CASE(dm_test_crtc_set_crc_source_none_no_stream),
+	KUNIT_CASE(dm_test_crtc_set_crc_source_none_commit),
+	KUNIT_CASE(dm_test_crtc_set_crc_source_dprx_no_connector),
 	/* dm_need_dp_aux() */
 	KUNIT_CASE(dm_test_need_dp_aux),
 	/* dm_crc_source_should_start_dprx() */

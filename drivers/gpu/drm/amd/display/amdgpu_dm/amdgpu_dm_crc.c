@@ -816,6 +816,7 @@ cleanup:
 
 	return ret;
 }
+EXPORT_IF_KUNIT(amdgpu_dm_crtc_set_crc_source);
 
 /**
  * amdgpu_dm_crtc_handle_crc_irq: Report to DRM the CRC on given CRTC.
