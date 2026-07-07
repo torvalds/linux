@@ -5718,6 +5718,32 @@ static void rtw89_phy_antdiv_init(struct rtw89_dev *rtwdev)
 	rtw89_phy_antdiv_reg_init(rtwdev);
 }
 
+static void rtw89_phy_thermal_protect_vcore(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_phy_stat *phystat = &rtwdev->phystat;
+	struct rtw89_hal *hal = &rtwdev->hal;
+	bool vcore_enabled = !!hal->thermal_prot_vmax;
+	u8 th_max = phystat->last_thermal_max;
+	u8 vlv = hal->thermal_prot_vlv;
+	u8 prot_th;
+
+	if (!vcore_enabled || (hal->disabled_dm_bitmap & BIT(RTW89_DM_VCORE)))
+		return;
+
+	prot_th = hal->thermal_prot_th - RTW89_THERMAL_PROT_VLV_TH_OFFSET;
+	if (th_max > prot_th && vlv < RTW89_THERMAL_PROT_VLV_MAX)
+		vlv++;
+	else if (th_max < prot_th - 2 && vlv > 0)
+		vlv--;
+	else
+		return;
+
+	rtw89_debug(rtwdev, RTW89_DBG_RFK_TRACK, "thermal protection vlv=%d\n", vlv);
+
+	hal->thermal_prot_vlv = vlv;
+	rtw89_mac_set_vcore_cfg(rtwdev, vlv);
+}
+
 static void rtw89_phy_thermal_protect(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_phy_stat *phystat = &rtwdev->phystat;
@@ -6186,6 +6212,7 @@ void rtw89_phy_stat_track(struct rtw89_dev *rtwdev)
 	struct rtw89_bb_ctx *bb;
 
 	rtw89_phy_stat_thermal_update(rtwdev);
+	rtw89_phy_thermal_protect_vcore(rtwdev);
 	rtw89_phy_thermal_protect(rtwdev);
 	rtw89_phy_stat_rssi_update(rtwdev);
 	rtw89_phy_stat_update(rtwdev);

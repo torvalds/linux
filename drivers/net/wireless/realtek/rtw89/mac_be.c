@@ -2677,6 +2677,43 @@ void rtw89_mac_set_edcca_mode_be(struct rtw89_dev *rtwdev, u8 mac_idx, bool norm
 }
 
 static
+void rtw89_mac_set_vcore_cfg_be(struct rtw89_dev *rtwdev, u8 vlv)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+	u32 val32;
+	u8 target;
+	u8 vpwm;
+	int i;
+
+	if (rtwdev->chip->chip_id != RTL8922D)
+		return;
+
+	target = clamp(hal->thermal_prot_vmax - vlv,
+		       hal->thermal_prot_vmin, hal->thermal_prot_vmax);
+
+	val32 = rtw89_read32(rtwdev, R_BE_SPS_DIG_ON_CTRL0);
+	vpwm = u32_get_bits(val32, B_BE_PWMTUNE_MASK);
+	val32 &= ~B_BE_PWMTUNE_MASK;
+
+	if (vpwm == target)
+		return;
+
+	for (i = 0; i < RTW89_THERMAL_PROT_VLV_MAX; i++) {
+		if (vpwm > target)
+			vpwm--;
+		else
+			vpwm++;
+
+		rtw89_write32(rtwdev, R_BE_SPS_DIG_ON_CTRL0, val32 | vpwm);
+
+		if (vpwm == target)
+			break;
+
+		mdelay(50);
+	}
+}
+
+static
 int rtw89_mac_cfg_ppdu_status_be(struct rtw89_dev *rtwdev, u8 mac_idx, bool enable)
 {
 	u32 reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_PPDU_STAT, mac_idx);
@@ -3287,6 +3324,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 	.cfg_ppdu_status = rtw89_mac_cfg_ppdu_status_be,
 	.cfg_phy_rpt = rtw89_mac_cfg_phy_rpt_be,
 	.set_edcca_mode = rtw89_mac_set_edcca_mode_be,
+	.set_vcore_cfg = rtw89_mac_set_vcore_cfg_be,
 
 	.dle_mix_cfg = dle_mix_cfg_be,
 	.chk_dle_rdy = chk_dle_rdy_be,

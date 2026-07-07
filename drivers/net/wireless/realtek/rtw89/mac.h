@@ -1100,6 +1100,7 @@ struct rtw89_mac_gen_def {
 	int (*cfg_ppdu_status)(struct rtw89_dev *rtwdev, u8 mac_idx, bool enable);
 	void (*cfg_phy_rpt)(struct rtw89_dev *rtwdev, u8 mac_idx, bool enable);
 	void (*set_edcca_mode)(struct rtw89_dev *rtwdev, u8 mac_idx, bool normal);
+	void (*set_vcore_cfg)(struct rtw89_dev *rtwdev, u8 vlv);
 
 	int (*dle_mix_cfg)(struct rtw89_dev *rtwdev, const struct rtw89_dle_mem *cfg);
 	int (*chk_dle_rdy)(struct rtw89_dev *rtwdev, bool wde_or_ple);
@@ -1457,6 +1458,29 @@ void rtw89_mac_set_edcca_mode(struct rtw89_dev *rtwdev, u8 mac_idx, bool normal)
 		return;
 
 	mac->set_edcca_mode(rtwdev, mac_idx, normal);
+}
+
+static inline
+void rtw89_mac_set_vcore_cfg(struct rtw89_dev *rtwdev, u8 vlv)
+{
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+
+	if (!mac->set_vcore_cfg)
+		return;
+
+	mac->set_vcore_cfg(rtwdev, vlv);
+}
+
+static inline
+void rtw89_mac_set_vcore_reset(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+
+	if (hal->thermal_prot_vlv == 0)
+		return;
+
+	hal->thermal_prot_vlv = 0;
+	rtw89_mac_set_vcore_cfg(rtwdev, 0);
 }
 
 static inline

@@ -1602,6 +1602,8 @@ int rtw89_mac_pwr_on(struct rtw89_dev *rtwdev)
 
 void rtw89_mac_pwr_off(struct rtw89_dev *rtwdev)
 {
+	rtw89_mac_set_vcore_reset(rtwdev);
+
 	rtw89_mac_power_switch(rtwdev, false);
 }
 
@@ -7477,6 +7479,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	.cfg_ppdu_status = rtw89_mac_cfg_ppdu_status_ax,
 	.cfg_phy_rpt = NULL,
 	.set_edcca_mode = NULL,
+	.set_vcore_cfg = NULL,
 
 	.dle_mix_cfg = dle_mix_cfg_ax,
 	.chk_dle_rdy = chk_dle_rdy_ax,

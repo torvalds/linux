@@ -5236,8 +5236,17 @@ static bool rtw89_traffic_stats_track(struct rtw89_dev *rtwdev)
 static void rtw89_enter_lps_track(struct rtw89_dev *rtwdev,
 				  enum rtw89_tfc_interval interval)
 {
+	struct rtw89_hal *hal = &rtwdev->hal;
 	struct ieee80211_vif *vif;
 	struct rtw89_vif *rtwvif;
+
+	/*
+	 * If vcore level is set, temperature is high and voltage is low. As
+	 * entering power save must reset voltage to default, avoid power save
+	 * until vcore decreases to zero resulting from temperature becomes low.
+	 */
+	if (hal->thermal_prot_vlv)
+		return;
 
 	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
 		if (rtwvif->tdls_peer)

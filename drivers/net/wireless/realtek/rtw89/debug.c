@@ -4778,6 +4778,7 @@ static const struct rtw89_disabled_dm_info {
 	DM_INFO(HW_SCAN),
 	DM_INFO(INACTIVE_PS),
 	DM_INFO(DIG_PD),
+	DM_INFO(VCORE),
 };
 
 static ssize_t

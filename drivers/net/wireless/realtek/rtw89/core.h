@@ -5523,10 +5523,13 @@ enum rtw89_dm_type {
 	RTW89_DM_HW_SCAN,
 	RTW89_DM_INACTIVE_PS,
 	RTW89_DM_DIG_PD,
+	RTW89_DM_VCORE,
 };
 
 #define RTW89_THERMAL_PROT_LV_MAX 5
 #define RTW89_THERMAL_PROT_STEP 5 /* -5% for each level */
+#define RTW89_THERMAL_PROT_VLV_MAX 6
+#define RTW89_THERMAL_PROT_VLV_TH_OFFSET 20
 
 struct rtw89_hal {
 	u32 rx_fltr;
@@ -5567,6 +5570,7 @@ struct rtw89_hal {
 
 	u8 thermal_prot_vmax;
 	u8 thermal_prot_vmin;
+	u8 thermal_prot_vlv; /* 0 ~ RTW89_THERMAL_PROT_VLV_MAX (6) */
 
 	u8 fixed_dig_pd_th; /* v = (X(dBm) + 102)/2 */
 	s8 fixed_dig_cck_pd_th; /* dBm */
