@@ -1997,6 +1997,50 @@ static void dm_test_should_disable_stutter_revision_differs(struct kunit *test)
 	KUNIT_EXPECT_FALSE(test, dm_should_disable_stutter(pdev));
 }
 
+/* Tests for amdgpu_dm_apply_delay_after_dpcd_poweroff() */
+
+/**
+ * dm_test_apply_delay_null_sink - Test a NULL sink returns without delay
+ * @test: The KUnit test context
+ */
+static void dm_test_apply_delay_null_sink(struct kunit *test)
+{
+	/* NULL sink: early return, no delay, no dereference */
+	amdgpu_dm_apply_delay_after_dpcd_poweroff(NULL, NULL);
+}
+
+/**
+ * dm_test_apply_delay_zero_wait - Test a zero wait interval skips the delay
+ * @test: The KUnit test context
+ */
+static void dm_test_apply_delay_zero_wait(struct kunit *test)
+{
+	struct dc_sink *sink;
+
+	sink = kunit_kzalloc(test, sizeof(*sink), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, sink);
+
+	/* wait == 0: no msleep, adev is unused so NULL is safe */
+	sink->edid_caps.panel_patch.wait_after_dpcd_poweroff_ms = 0;
+	amdgpu_dm_apply_delay_after_dpcd_poweroff(NULL, sink);
+}
+
+/**
+ * dm_test_apply_delay_nonzero_wait - Test a non-zero wait interval executes delay path
+ * @test: The KUnit test context
+ */
+static void dm_test_apply_delay_nonzero_wait(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct dc_sink *sink;
+
+	sink = kunit_kzalloc(test, sizeof(*sink), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, sink);
+
+	sink->edid_caps.panel_patch.wait_after_dpcd_poweroff_ms = 1;
+	amdgpu_dm_apply_delay_after_dpcd_poweroff(adev, sink);
+}
+
 static struct kunit_case amdgpu_dm_tests[] = {
 	/* Simple DM callbacks */
 	KUNIT_CASE(dm_test_is_idle),
@@ -2106,6 +2150,10 @@ static struct kunit_case amdgpu_dm_tests[] = {
 	KUNIT_CASE(dm_test_should_disable_stutter_match),
 	KUNIT_CASE(dm_test_should_disable_stutter_no_match),
 	KUNIT_CASE(dm_test_should_disable_stutter_revision_differs),
+	/* amdgpu_dm_apply_delay_after_dpcd_poweroff */
+	KUNIT_CASE(dm_test_apply_delay_null_sink),
+	KUNIT_CASE(dm_test_apply_delay_zero_wait),
+	KUNIT_CASE(dm_test_apply_delay_nonzero_wait),
 	{}
 };
 
