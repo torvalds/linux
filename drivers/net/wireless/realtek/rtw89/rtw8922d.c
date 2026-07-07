@@ -1634,10 +1634,6 @@ static void rtw8922d_calc_rx_gain_normal_cck(struct rtw89_dev *rtwdev,
 	s8 rx_gain_offset;
 
 	rx_gain_offset = -rtw8922d_get_rx_gain_by_chan(rtwdev, chan, path, true);
-
-	if (chan->band_width == RTW89_CHANNEL_WIDTH_40)
-		rx_gain_offset += (3 << 2); /* compensate RPL loss of 3dB */
-
 	calc->cck_mean_gain_bias = (rx_gain_offset & 0x3) << 1;
 	calc->cck_rpl_ofst = (rx_gain_offset >> 2) + gain->cck_rpl_base[phy_idx];
 }
