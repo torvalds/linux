@@ -77,6 +77,112 @@ static void dm_test_bandwidth_update(struct kunit *test)
 	dm_bandwidth_update(NULL);
 }
 
+/**
+ * dm_test_crtc_complete_writeback_no_connector - Test no writeback connector returns false
+ * @test: The KUnit test context
+ */
+static void dm_test_crtc_complete_writeback_no_connector(struct kunit *test)
+{
+	struct amdgpu_crtc *acrtc;
+
+	acrtc = kunit_kzalloc(test, sizeof(*acrtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, acrtc);
+
+	KUNIT_EXPECT_FALSE(test, amdgpu_dm_crtc_complete_writeback(acrtc));
+}
+
+/**
+ * dm_test_crtc_complete_writeback_not_pending - Test non-pending writeback returns false
+ * @test: The KUnit test context
+ */
+static void dm_test_crtc_complete_writeback_not_pending(struct kunit *test)
+{
+	struct amdgpu_crtc *acrtc;
+	struct drm_writeback_connector *wb_conn;
+
+	acrtc = kunit_kzalloc(test, sizeof(*acrtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, acrtc);
+	wb_conn = kunit_kzalloc(test, sizeof(*wb_conn), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, wb_conn);
+
+	spin_lock_init(&wb_conn->job_lock);
+	acrtc->wb_conn = wb_conn;
+	acrtc->wb_pending = false;
+
+	KUNIT_EXPECT_FALSE(test, amdgpu_dm_crtc_complete_writeback(acrtc));
+}
+
+/**
+ * dm_test_vblank_get_counter_out_of_range - Test out-of-range CRTC returns zero
+ * @test: The KUnit test context
+ */
+static void dm_test_vblank_get_counter_out_of_range(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+
+	adev->mode_info.num_crtc = 1;
+
+	KUNIT_EXPECT_EQ(test, dm_vblank_get_counter(adev, 1), 0U);
+}
+
+/**
+ * dm_test_vblank_get_counter_no_stream - Test missing stream returns zero
+ * @test: The KUnit test context
+ */
+static void dm_test_vblank_get_counter_no_stream(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct amdgpu_crtc *acrtc;
+
+	acrtc = kunit_kzalloc(test, sizeof(*acrtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, acrtc);
+
+	adev->mode_info.num_crtc = 1;
+	adev->mode_info.crtcs[0] = acrtc;
+
+	KUNIT_EXPECT_EQ(test, dm_vblank_get_counter(adev, 0), 0U);
+}
+
+/**
+ * dm_test_crtc_get_scanoutpos_invalid_crtc - Test invalid CRTC returns -EINVAL
+ * @test: The KUnit test context
+ */
+static void dm_test_crtc_get_scanoutpos_invalid_crtc(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	u32 vbl = 0;
+	u32 position = 0;
+
+	adev->mode_info.num_crtc = 1;
+
+	KUNIT_EXPECT_EQ(test, dm_crtc_get_scanoutpos(adev, -1, &vbl, &position),
+			-EINVAL);
+	KUNIT_EXPECT_EQ(test, dm_crtc_get_scanoutpos(adev, 1, &vbl, &position),
+			-EINVAL);
+}
+
+/**
+ * dm_test_crtc_get_scanoutpos_no_stream - Test missing stream returns zero
+ * @test: The KUnit test context
+ */
+static void dm_test_crtc_get_scanoutpos_no_stream(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct amdgpu_crtc *acrtc;
+	u32 vbl = 0;
+	u32 position = 0;
+
+	acrtc = kunit_kzalloc(test, sizeof(*acrtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, acrtc);
+
+	adev->mode_info.num_crtc = 1;
+	adev->mode_info.crtcs[0] = acrtc;
+
+	KUNIT_EXPECT_EQ(test, dm_crtc_get_scanoutpos(adev, 0, &vbl, &position), 0);
+	KUNIT_EXPECT_EQ(test, vbl, 0U);
+	KUNIT_EXPECT_EQ(test, position, 0U);
+}
+
 /* Tests for dm_plane_layer_index_cmp() */
 
 /**
@@ -957,6 +1063,12 @@ static struct kunit_case amdgpu_dm_tests[] = {
 	KUNIT_CASE(dm_test_set_clockgating_state),
 	KUNIT_CASE(dm_test_set_powergating_state),
 	KUNIT_CASE(dm_test_bandwidth_update),
+	KUNIT_CASE(dm_test_crtc_complete_writeback_no_connector),
+	KUNIT_CASE(dm_test_crtc_complete_writeback_not_pending),
+	KUNIT_CASE(dm_test_vblank_get_counter_out_of_range),
+	KUNIT_CASE(dm_test_vblank_get_counter_no_stream),
+	KUNIT_CASE(dm_test_crtc_get_scanoutpos_invalid_crtc),
+	KUNIT_CASE(dm_test_crtc_get_scanoutpos_no_stream),
 	/* dm_plane_layer_index_cmp */
 	KUNIT_CASE(dm_test_plane_layer_index_cmp_equal),
 	KUNIT_CASE(dm_test_plane_layer_index_cmp_descending),

@@ -169,7 +169,7 @@ static inline void amdgpu_dm_exit_ips_for_hw_access(struct dc *dc)
  * @return
  * Counter for vertical blanks
  */
-static u32 dm_vblank_get_counter(struct amdgpu_device *adev, int crtc)
+STATIC_IFN_KUNIT u32 dm_vblank_get_counter(struct amdgpu_device *adev, int crtc)
 {
 	struct amdgpu_crtc *acrtc = NULL;
 
@@ -186,9 +186,10 @@ static u32 dm_vblank_get_counter(struct amdgpu_device *adev, int crtc)
 
 	return dc_stream_get_vblank_counter(acrtc->dm_irq_params.stream);
 }
+EXPORT_IF_KUNIT(dm_vblank_get_counter);
 
-static int dm_crtc_get_scanoutpos(struct amdgpu_device *adev, int crtc,
-				  u32 *vbl, u32 *position)
+STATIC_IFN_KUNIT int dm_crtc_get_scanoutpos(struct amdgpu_device *adev, int crtc,
+					    u32 *vbl, u32 *position)
 {
 	u32 v_blank_start = 0, v_blank_end = 0, h_position = 0, v_position = 0;
 	struct amdgpu_crtc *acrtc = NULL;
@@ -223,6 +224,7 @@ static int dm_crtc_get_scanoutpos(struct amdgpu_device *adev, int crtc,
 
 	return 0;
 }
+EXPORT_IF_KUNIT(dm_crtc_get_scanoutpos);
 
 STATIC_IFN_KUNIT bool dm_is_idle(struct amdgpu_ip_block *ip_block)
 {
@@ -4688,6 +4690,7 @@ bool amdgpu_dm_crtc_complete_writeback(struct amdgpu_crtc *acrtc)
 
 	return true;
 }
+EXPORT_IF_KUNIT(amdgpu_dm_crtc_complete_writeback);
 
 static void dm_clear_writeback(struct amdgpu_display_manager *dm,
 			      struct amdgpu_crtc *acrtc,

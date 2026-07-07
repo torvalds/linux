@@ -1149,6 +1149,9 @@ int dm_set_clockgating_state(struct amdgpu_ip_block *ip_block,
 int dm_set_powergating_state(struct amdgpu_ip_block *ip_block,
 			     enum amd_powergating_state state);
 void dm_bandwidth_update(struct amdgpu_device *adev);
+u32 dm_vblank_get_counter(struct amdgpu_device *adev, int crtc);
+int dm_crtc_get_scanoutpos(struct amdgpu_device *adev, int crtc,
+			   u32 *vbl, u32 *position);
 int dm_plane_layer_index_cmp(const void *a, const void *b);
 int fill_plane_color_attributes(const struct drm_plane_state *plane_state,
 				const enum surface_pixel_format format,
