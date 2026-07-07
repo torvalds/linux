@@ -674,6 +674,132 @@ static void dm_test_crtc_set_crc_source_dprx_no_connector(struct kunit *test)
 }
 
 /**
+ * dm_test_crtc_handle_crc_irq_early_returns() - Test null/missing state exits.
+ * @test: KUnit test context.
+ *
+ * Verifies that the CRC IRQ handler safely ignores incomplete CRTC objects.
+ */
+static void dm_test_crtc_handle_crc_irq_early_returns(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct amdgpu_crtc *acrtc = dm_test_alloc_crc_crtc(test, adev);
+	struct dm_crtc_state *dm_state;
+
+	amdgpu_dm_crtc_handle_crc_irq(NULL);
+	amdgpu_dm_crtc_handle_crc_irq(&acrtc->base);
+
+	dm_state = kunit_kzalloc(test, sizeof(*dm_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dm_state);
+	acrtc->base.state = &dm_state->base;
+
+	amdgpu_dm_crtc_handle_crc_irq(&acrtc->base);
+	KUNIT_EXPECT_EQ(test, dm_state->crc_skip_count, 0);
+}
+
+/**
+ * dm_test_crtc_handle_crc_irq_disabled_source() - Test disabled source exit.
+ * @test: KUnit test context.
+ *
+ * Verifies that a present stream does not advance the skip counter when CRC
+ * capture is disabled.
+ */
+static void dm_test_crtc_handle_crc_irq_disabled_source(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct amdgpu_crtc *acrtc = dm_test_alloc_crc_crtc(test, adev);
+	struct dm_crtc_state *dm_state;
+
+	dm_state = kunit_kzalloc(test, sizeof(*dm_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dm_state);
+	dm_state->stream = dm_kunit_alloc_stream(test, NULL);
+	acrtc->base.state = &dm_state->base;
+	acrtc->dm_irq_params.crc_src = AMDGPU_DM_PIPE_CRC_SOURCE_NONE;
+
+	amdgpu_dm_crtc_handle_crc_irq(&acrtc->base);
+
+	KUNIT_EXPECT_EQ(test, dm_state->crc_skip_count, 0);
+}
+
+/**
+ * dm_test_crtc_handle_crc_irq_skips_initial_frames() - Test initial skip logic.
+ * @test: KUnit test context.
+ *
+ * Verifies that the first two enabled CRC IRQs only increment crc_skip_count,
+ * avoiding the later DC CRC read path.
+ */
+static void dm_test_crtc_handle_crc_irq_skips_initial_frames(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct amdgpu_crtc *acrtc = dm_test_alloc_crc_crtc(test, adev);
+	struct dm_crtc_state *dm_state;
+
+	dm_state = kunit_kzalloc(test, sizeof(*dm_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dm_state);
+	dm_state->stream = dm_kunit_alloc_stream(test, NULL);
+	acrtc->base.state = &dm_state->base;
+	acrtc->dm_irq_params.crc_src = AMDGPU_DM_PIPE_CRC_SOURCE_CRTC;
+
+	amdgpu_dm_crtc_handle_crc_irq(&acrtc->base);
+	KUNIT_EXPECT_EQ(test, dm_state->crc_skip_count, 1);
+
+	amdgpu_dm_crtc_handle_crc_irq(&acrtc->base);
+	KUNIT_EXPECT_EQ(test, dm_state->crc_skip_count, 2);
+}
+
+/**
+ * dm_test_crtc_handle_crc_irq_dprx_after_skip() - Test DPRX post-skip exit.
+ * @test: KUnit test context.
+ *
+ * Verifies that enabled non-CRTC CRC sources do not call into DC CRC reads
+ * after the initial skip window.
+ */
+static void dm_test_crtc_handle_crc_irq_dprx_after_skip(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct amdgpu_crtc *acrtc = dm_test_alloc_crc_crtc(test, adev);
+	struct dm_test_crc_dc_fixture *fixture;
+
+	fixture = dm_test_alloc_crc_dc_fixture(test, adev);
+	fixture->dm_state->crc_skip_count = 2;
+	acrtc->base.state = &fixture->dm_state->base;
+	acrtc->dm_irq_params.crc_src = AMDGPU_DM_PIPE_CRC_SOURCE_DPRX;
+	dm_test_crc_dc_ctx = fixture;
+
+	amdgpu_dm_crtc_handle_crc_irq(&acrtc->base);
+	dm_test_crc_dc_ctx = NULL;
+
+	KUNIT_EXPECT_FALSE(test, fixture->get_crc_called);
+	KUNIT_EXPECT_EQ(test, fixture->dm_state->crc_skip_count, 2);
+}
+
+/**
+ * dm_test_crtc_handle_crc_irq_get_crc_fails() - Test failed DC CRC read.
+ * @test: KUnit test context.
+ *
+ * Verifies that the IRQ handler exits after dc_stream_get_crc() returns false,
+ * before attempting to deliver a DRM CRC entry.
+ */
+static void dm_test_crtc_handle_crc_irq_get_crc_fails(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct amdgpu_crtc *acrtc = dm_test_alloc_crc_crtc(test, adev);
+	struct dm_test_crc_dc_fixture *fixture;
+
+	fixture = dm_test_alloc_crc_dc_fixture(test, adev);
+	fixture->dm_state->crc_skip_count = 2;
+	fixture->get_crc_return = false;
+	acrtc->base.state = &fixture->dm_state->base;
+	acrtc->dm_irq_params.crc_src = AMDGPU_DM_PIPE_CRC_SOURCE_CRTC;
+	dm_test_crc_dc_ctx = fixture;
+
+	amdgpu_dm_crtc_handle_crc_irq(&acrtc->base);
+	dm_test_crc_dc_ctx = NULL;
+
+	KUNIT_EXPECT_TRUE(test, fixture->get_crc_called);
+	KUNIT_EXPECT_EQ(test, fixture->dm_state->crc_skip_count, 2);
+}
+
+/**
  * dm_test_need_dp_aux() - Test dm_need_dp_aux().
  * @test: KUnit test context.
  *
@@ -818,6 +944,12 @@ static struct kunit_case dm_crc_test_cases[] = {
 	KUNIT_CASE(dm_test_crtc_set_crc_source_none_no_stream),
 	KUNIT_CASE(dm_test_crtc_set_crc_source_none_commit),
 	KUNIT_CASE(dm_test_crtc_set_crc_source_dprx_no_connector),
+	/* amdgpu_dm_crtc_handle_crc_irq() */
+	KUNIT_CASE(dm_test_crtc_handle_crc_irq_early_returns),
+	KUNIT_CASE(dm_test_crtc_handle_crc_irq_disabled_source),
+	KUNIT_CASE(dm_test_crtc_handle_crc_irq_skips_initial_frames),
+	KUNIT_CASE(dm_test_crtc_handle_crc_irq_dprx_after_skip),
+	KUNIT_CASE(dm_test_crtc_handle_crc_irq_get_crc_fails),
 	/* dm_need_dp_aux() */
 	KUNIT_CASE(dm_test_need_dp_aux),
 	/* dm_crc_source_should_start_dprx() */

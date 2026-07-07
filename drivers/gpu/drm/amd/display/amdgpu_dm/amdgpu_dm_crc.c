@@ -874,6 +874,7 @@ void amdgpu_dm_crtc_handle_crc_irq(struct drm_crtc *crtc)
 				       drm_crtc_accurate_vblank_count(crtc), crcs);
 	}
 }
+EXPORT_IF_KUNIT(amdgpu_dm_crtc_handle_crc_irq);
 
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
 void amdgpu_dm_crtc_handle_crc_window_irq(struct drm_crtc *crtc)
