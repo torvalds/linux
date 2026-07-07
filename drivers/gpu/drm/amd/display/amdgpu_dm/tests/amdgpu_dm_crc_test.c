@@ -96,6 +96,30 @@ static void dm_test_is_valid_crc_source(struct kunit *test)
 }
 
 /**
+ * dm_test_crtc_get_crc_sources() - Test available CRC source strings.
+ * @test: KUnit test context.
+ *
+ * Verifies that amdgpu_dm_crtc_get_crc_sources() returns the static source
+ * list and reports all debugfs source names.
+ */
+static void dm_test_crtc_get_crc_sources(struct kunit *test)
+{
+	const char *const *sources;
+	size_t count = 0;
+
+	sources = amdgpu_dm_crtc_get_crc_sources(NULL, &count);
+
+	KUNIT_ASSERT_NOT_NULL(test, sources);
+	KUNIT_EXPECT_EQ(test, count, 6);
+	KUNIT_EXPECT_STREQ(test, sources[0], "none");
+	KUNIT_EXPECT_STREQ(test, sources[1], "crtc");
+	KUNIT_EXPECT_STREQ(test, sources[2], "crtc dither");
+	KUNIT_EXPECT_STREQ(test, sources[3], "dprx");
+	KUNIT_EXPECT_STREQ(test, sources[4], "dprx dither");
+	KUNIT_EXPECT_STREQ(test, sources[5], "auto");
+}
+
+/**
  * dm_test_need_dp_aux() - Test dm_need_dp_aux().
  * @test: KUnit test context.
  *
@@ -222,6 +246,8 @@ static struct kunit_case dm_crc_test_cases[] = {
 	KUNIT_CASE(dm_test_need_crc_dither),
 	/* amdgpu_dm_is_valid_crc_source() */
 	KUNIT_CASE(dm_test_is_valid_crc_source),
+	/* amdgpu_dm_crtc_get_crc_sources() */
+	KUNIT_CASE(dm_test_crtc_get_crc_sources),
 	/* dm_need_dp_aux() */
 	KUNIT_CASE(dm_test_need_dp_aux),
 	/* dm_crc_source_should_start_dprx() */

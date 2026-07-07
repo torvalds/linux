@@ -152,6 +152,7 @@ const char *const *amdgpu_dm_crtc_get_crc_sources(struct drm_crtc *crtc,
 	*count = ARRAY_SIZE(pipe_crc_sources);
 	return pipe_crc_sources;
 }
+EXPORT_IF_KUNIT(amdgpu_dm_crtc_get_crc_sources);
 
 #ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
 static void update_phy_id_mapping(struct amdgpu_device *adev)
