@@ -10596,7 +10596,8 @@ const struct nfs4_minor_version_ops *nfs_v4_minor_ops[] = {
 static ssize_t nfs4_listxattr(struct dentry *dentry, char *list, size_t size)
 {
 	ssize_t error, error2, error3;
-	size_t left = size;
+	ssize_t left = size;
+	ssize_t left2;
 
 	error = generic_listxattr(dentry, list, left);
 	if (error < 0)
@@ -10606,10 +10607,13 @@ static ssize_t nfs4_listxattr(struct dentry *dentry, char *list, size_t size)
 		left -= error;
 	}
 
-	error2 = security_inode_listsecurity(d_inode(dentry), &list, &left);
+	left2 = left;
+	error2 = security_inode_listsecurity(d_inode(dentry), &list, &left2);
 	if (error2 < 0)
 		return error2;
-	error2 = size - error - left;
+	error2 = left - left2;
+	if (list)
+		left -= error2;
 
 	error3 = nfs4_listxattr_nfs4_user(d_inode(dentry), list, left);
 	if (error3 < 0)
