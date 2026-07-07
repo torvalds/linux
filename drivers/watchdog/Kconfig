@@ -93,9 +93,18 @@ config WATCHDOG_PRETIMEOUT_GOV_SEL
 	tristate
 	depends on WATCHDOG_PRETIMEOUT_GOV
 	default m
-	select WATCHDOG_PRETIMEOUT_GOV_PANIC if WATCHDOG_PRETIMEOUT_GOV_NOOP=n
+	select WATCHDOG_PRETIMEOUT_GOV_PANIC if \
+		WATCHDOG_PRETIMEOUT_GOV_NOOP=n && WATCHDOG_PRETIMEOUT_GOV_DUMP=n
 
 if WATCHDOG_PRETIMEOUT_GOV
+
+config WATCHDOG_PRETIMEOUT_GOV_DUMP
+	bool "Dump watchdog pretimeout governor"
+	depends on WATCHDOG_CORE=y
+	default WATCHDOG_CORE
+	help
+	  Dump watchdog pretimeout governor, all cpu backtrace is
+	  added to kernel log buffer.
 
 config WATCHDOG_PRETIMEOUT_GOV_NOOP
 	tristate "Noop watchdog pretimeout governor"
@@ -120,6 +129,14 @@ choice
 	  This option selects a default watchdog pretimeout governor.
 	  The governor takes its action, if a watchdog is capable
 	  to report a pretimeout event.
+
+config WATCHDOG_PRETIMEOUT_DEFAULT_GOV_DUMP
+	bool "dump"
+	depends on WATCHDOG_PRETIMEOUT_GOV_DUMP
+	help
+	  Use dump watchdog pretimeout governor by default. If dump
+	  governor is selected by a user, dump all cpu backtrace to
+	  the kernel log buffer and don't do any system changes.
 
 config WATCHDOG_PRETIMEOUT_DEFAULT_GOV_NOOP
 	bool "noop"
