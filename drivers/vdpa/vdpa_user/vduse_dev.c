@@ -502,46 +502,49 @@ static void vduse_dev_reset(struct vduse_dev *dev)
 			vduse_domain_reset_bounce_map(domain);
 	}
 
-	down_write(&dev->rwsem);
+	scoped_guard(rwsem_write, &dev->rwsem) {
+		dev->status = 0;
+		dev->driver_features = 0;
+		dev->generation++;
+		spin_lock(&dev->irq_lock);
+		dev->config_cb.callback = NULL;
+		dev->config_cb.private = NULL;
+		spin_unlock(&dev->irq_lock);
 
-	dev->status = 0;
-	dev->driver_features = 0;
-	dev->generation++;
-	spin_lock(&dev->irq_lock);
-	dev->config_cb.callback = NULL;
-	dev->config_cb.private = NULL;
-	spin_unlock(&dev->irq_lock);
+		for (i = 0; i < dev->vq_num; i++) {
+			struct vduse_virtqueue *vq = dev->vqs[i];
+
+			scoped_guard(spinlock_bh, &vq->ready_lock) {
+				vq->ready = false;
+			}
+			vq->desc_addr = 0;
+			vq->driver_addr = 0;
+			vq->device_addr = 0;
+			vq->num = 0;
+			memset(&vq->state, 0, sizeof(vq->state));
+
+			spin_lock(&vq->kick_lock);
+			vq->kicked = false;
+			if (vq->kickfd)
+				eventfd_ctx_put(vq->kickfd);
+			vq->kickfd = NULL;
+			spin_unlock(&vq->kick_lock);
+
+			spin_lock(&vq->irq_lock);
+			vq->cb.callback = NULL;
+			vq->cb.private = NULL;
+			vq->cb.trigger = NULL;
+			spin_unlock(&vq->irq_lock);
+		}
+	}
+
 	flush_work(&dev->inject);
-
 	for (i = 0; i < dev->vq_num; i++) {
 		struct vduse_virtqueue *vq = dev->vqs[i];
 
-		scoped_guard(spinlock_bh, &vq->ready_lock) {
-			vq->ready = false;
-		}
-		vq->desc_addr = 0;
-		vq->driver_addr = 0;
-		vq->device_addr = 0;
-		vq->num = 0;
-		memset(&vq->state, 0, sizeof(vq->state));
-
-		spin_lock(&vq->kick_lock);
-		vq->kicked = false;
-		if (vq->kickfd)
-			eventfd_ctx_put(vq->kickfd);
-		vq->kickfd = NULL;
-		spin_unlock(&vq->kick_lock);
-
-		spin_lock(&vq->irq_lock);
-		vq->cb.callback = NULL;
-		vq->cb.private = NULL;
-		vq->cb.trigger = NULL;
-		spin_unlock(&vq->irq_lock);
 		flush_work(&vq->inject);
 		flush_work(&vq->kick);
 	}
-
-	up_write(&dev->rwsem);
 }
 
 static int vduse_vdpa_set_vq_address(struct vdpa_device *vdpa, u16 idx,
