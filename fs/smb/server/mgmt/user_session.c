@@ -309,10 +309,10 @@ static int __rpc_method(char *rpc_name)
 		return KSMBD_RPC_LSARPC_METHOD_INVOKE;
 
 	if (!strcmp(rpc_name, "\\mdssvc") || !strcmp(rpc_name, "mdssvc"))
-		return 0; /* mdssvc unsupported: quiet, expected macOS probe */
+		return -ENOENT;
 
 	pr_err("Unsupported RPC: %s\n", rpc_name);
-	return 0;
+	return -ENOENT;
 }
 
 int ksmbd_session_rpc_open(struct ksmbd_session *sess, char *rpc_name)
@@ -322,8 +322,8 @@ int ksmbd_session_rpc_open(struct ksmbd_session *sess, char *rpc_name)
 	int method, id;
 
 	method = __rpc_method(rpc_name);
-	if (!method)
-		return -EINVAL;
+	if (method < 0)
+		return method;
 
 	entry = kzalloc_obj(struct ksmbd_session_rpc, KSMBD_DEFAULT_GFP);
 	if (!entry)

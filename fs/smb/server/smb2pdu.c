@@ -2640,12 +2640,9 @@ static noinline int create_smb2_pipe(struct ksmbd_work *work)
 out:
 	switch (err) {
 	case -EINVAL:
-		/*
-		 * Unknown pipe name: return STATUS_OBJECT_NAME_NOT_FOUND so
-		 * macOS clients skip it gracefully. STATUS_INVALID_PARAMETER
-		 * causes macOS Time Machine to abort the backup immediately
-		 * (confirmed in ksmbd issue #502 / namjaejeon/ksmbd).
-		 */
+		rsp->hdr.Status = STATUS_INVALID_PARAMETER;
+		break;
+	case -ENOENT:
 		rsp->hdr.Status = STATUS_OBJECT_NAME_NOT_FOUND;
 		break;
 	case -ENOSPC:
