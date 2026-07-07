@@ -1734,18 +1734,16 @@ int ksmbd_vfs_xattr_stream_name(char *stream_name, char **xattr_stream_name,
 	return 0;
 }
 
-static ssize_t ksmbd_vfs_copy_file_range_overlap(struct file *src_file,
-						 struct file *dst_file,
-						 loff_t src_off, loff_t dst_off,
-						 size_t len)
+static ssize_t ksmbd_vfs_copy_file_range_buffered(struct ksmbd_work *work,
+						  struct ksmbd_file *src_fp,
+						  struct ksmbd_file *dst_fp,
+						  loff_t src_off,
+						  loff_t dst_off, size_t len)
 {
 	size_t buf_size = min_t(size_t, len, SZ_1M);
 	size_t copied = 0;
 	char *buf;
 	ssize_t ret = 0;
-
-	if (src_off == dst_off)
-		return len;
 
 	buf = kvmalloc(buf_size, KSMBD_DEFAULT_GFP);
 	if (!buf)
@@ -1765,8 +1763,10 @@ static ssize_t ksmbd_vfs_copy_file_range_overlap(struct file *src_file,
 		}
 
 		while (done < chunk_size) {
-			ret = kernel_read(src_file, buf + done,
-					  chunk_size - done, &src_pos);
+			loff_t pos = src_pos + done;
+
+			ret = ksmbd_vfs_read(work, src_fp, chunk_size - done,
+					     &pos, buf + done);
 			if (ret <= 0) {
 				if (!ret)
 					ret = -EIO;
@@ -1777,14 +1777,19 @@ static ssize_t ksmbd_vfs_copy_file_range_overlap(struct file *src_file,
 
 		done = 0;
 		while (done < chunk_size) {
-			ret = kernel_write(dst_file, buf + done,
-					   chunk_size - done, &dst_pos);
-			if (ret <= 0) {
-				if (!ret)
-					ret = -EIO;
+			loff_t pos = dst_pos + done;
+			ssize_t written = 0;
+
+			ret = ksmbd_vfs_write(work, dst_fp, buf + done,
+					      chunk_size - done, &pos, false,
+					      &written);
+			if (ret < 0)
+				goto out;
+			if (!written) {
+				ret = -EIO;
 				goto out;
 			}
-			done += ret;
+			done += written;
 		}
 		copied += chunk_size;
 	}
@@ -1821,9 +1826,6 @@ int ksmbd_vfs_copy_file_ranges(struct ksmbd_work *work,
 		return -EACCES;
 	}
 
-	if (ksmbd_stream_fd(src_fp) || ksmbd_stream_fd(dst_fp))
-		return -EBADF;
-
 	smb_break_all_levII_oplock(work, dst_fp, 1);
 
 	if (!work->tcon->posix_extensions) {
@@ -1841,7 +1843,20 @@ int ksmbd_vfs_copy_file_ranges(struct ksmbd_work *work,
 		}
 	}
 
-	src_file_size = i_size_read(file_inode(src_fp->filp));
+	if (ksmbd_stream_fd(src_fp)) {
+		const struct cred *saved_cred;
+
+		saved_cred = override_creds(src_fp->filp->f_cred);
+		src_file_size = ksmbd_vfs_casexattr_len(
+				file_mnt_idmap(src_fp->filp),
+				src_fp->filp->f_path.dentry,
+				src_fp->stream.name, src_fp->stream.size);
+		revert_creds(saved_cred);
+		if (src_file_size < 0)
+			return src_file_size;
+	} else {
+		src_file_size = i_size_read(file_inode(src_fp->filp));
+	}
 
 	for (i = 0; i < chunk_count; i++) {
 		src_off = le64_to_cpu(chunks[i].SourceOffset);
@@ -1851,19 +1866,24 @@ int ksmbd_vfs_copy_file_ranges(struct ksmbd_work *work,
 		if (src_off + len > src_file_size)
 			return -E2BIG;
 
-		/* vfs_copy_file_range does not support overlapping ranges. */
-		if (file_inode(src_fp->filp) == file_inode(dst_fp->filp) &&
-		    dst_off + len > src_off && dst_off < src_off + len)
-			ret = ksmbd_vfs_copy_file_range_overlap(src_fp->filp,
-							 dst_fp->filp, src_off,
-							 dst_off, len);
-		else
+		/*
+		 * vfs_copy_file_range does not support streams or overlapping
+		 * ranges within the same file.
+		 */
+		if (ksmbd_stream_fd(src_fp) || ksmbd_stream_fd(dst_fp) ||
+		    (file_inode(src_fp->filp) == file_inode(dst_fp->filp) &&
+		     dst_off + len > src_off && dst_off < src_off + len))
+			ret = ksmbd_vfs_copy_file_range_buffered(work, src_fp,
+							  dst_fp, src_off,
+							  dst_off, len);
+		else {
 			ret = vfs_copy_file_range(src_fp->filp, src_off,
 					dst_fp->filp, dst_off, len, 0);
-		if (ret == -EOPNOTSUPP || ret == -EXDEV)
-			ret = vfs_copy_file_range(src_fp->filp, src_off,
-						  dst_fp->filp, dst_off, len,
-						  COPY_FILE_SPLICE);
+			if (ret == -EOPNOTSUPP || ret == -EXDEV)
+				ret = vfs_copy_file_range(src_fp->filp, src_off,
+							  dst_fp->filp, dst_off,
+							  len, COPY_FILE_SPLICE);
+		}
 		if (ret < 0)
 			return ret;
 
