@@ -256,13 +256,10 @@ bool dcn30_set_blend_lut(
 	return result;
 }
 
-static bool dcn30_set_mpc_shaper_3dlut(struct pipe_ctx *pipe_ctx,
-				       const struct dc_stream_state *stream)
+static bool dcn30_set_mpc_shaper_3dlut(struct dpp *dpp, struct mpc *mpc,
+				       int mpcc_id, const struct dc_stream_state *stream)
 {
-	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
-	int mpcc_id = pipe_ctx->plane_res.hubp->inst;
-	struct dc *dc = pipe_ctx->stream->ctx->dc;
-	struct mpc *mpc = pipe_ctx->stream_res.opp->ctx->dc->res_pool->mpc;
+	struct dc *dc = dpp->ctx->dc;
 	bool result = false;
 	uint32_t acquired_rmu = 0;
 	int mpcc_id_projected = 0;
@@ -274,8 +271,8 @@ static bool dcn30_set_mpc_shaper_3dlut(struct pipe_ctx *pipe_ctx,
 			shaper_lut = &stream->func_shaper->pwl;
 		} else if (stream->func_shaper->type == TF_TYPE_DISTRIBUTED_POINTS) {
 			cm_helper_translate_curve_to_hw_format(stream->ctx, stream->func_shaper,
-							       &dpp_base->shaper_params, true);
-			shaper_lut = &dpp_base->shaper_params;
+							       &dpp->shaper_params, true);
+			shaper_lut = &dpp->shaper_params;
 		}
 	}
 
@@ -398,23 +395,25 @@ void dcn30_program_gamut_remap(struct program_gamut_remap_params *params)
 	mpc->funcs->set_gamut_remap(mpc, mpcc_id, &mpc_adjust);
 }
 
-bool dcn30_set_output_transfer_func(struct dc *dc,
-				struct pipe_ctx *pipe_ctx,
-				const struct dc_stream_state *stream)
+bool dcn30_set_output_transfer_func(struct set_output_transfer_func_params *otf_params)
 {
-	int mpcc_id = pipe_ctx->plane_res.hubp->inst;
-	struct mpc *mpc = pipe_ctx->stream_res.opp->ctx->dc->res_pool->mpc;
+	struct dpp *dpp = otf_params->dpp;
+	struct mpc *mpc = otf_params->mpc;
+	int mpcc_id = otf_params->mpcc_id;
+	bool is_top_pipe = otf_params->is_top_pipe;
+	const struct dc_stream_state *stream = otf_params->stream;
+	struct dc *dc = dpp->ctx->dc;
 	const struct pwl_params *params = NULL;
 	bool ret = false;
 
 	/* program OGAM or 3DLUT only for the top pipe*/
-	if (pipe_ctx->top_pipe == NULL) {
+	if (is_top_pipe) {
 		/*program rmu shaper and 3dlut in MPC*/
-		ret = dcn30_set_mpc_shaper_3dlut(pipe_ctx, stream);
+		ret = dcn30_set_mpc_shaper_3dlut(dpp, mpc, mpcc_id, stream);
 		if (ret == false && mpc->funcs->set_output_gamma) {
 			if (stream->out_transfer_func.type == TF_TYPE_HWPWL)
 				params = &stream->out_transfer_func.pwl;
-			else if (pipe_ctx->stream->out_transfer_func.type ==
+			else if (stream->out_transfer_func.type ==
 					TF_TYPE_DISTRIBUTED_POINTS &&
 					cm3_helper_translate_curve_to_hw_format(stream->ctx,
 					&stream->out_transfer_func,

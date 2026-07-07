@@ -67,6 +67,8 @@ struct dc_phy_addr_space_config;
 struct dc_virtual_addr_space_config;
 struct hubp;
 struct dpp;
+struct transform;
+struct mpc;
 struct dce_hwseq;
 struct timing_generator;
 struct tg_color;
@@ -92,9 +94,7 @@ struct hwseq_private_funcs {
 	bool (*set_input_transfer_func)(struct dc *dc,
 				struct pipe_ctx *pipe_ctx,
 				const struct dc_plane_state *plane_state);
-	bool (*set_output_transfer_func)(struct dc *dc,
-				struct pipe_ctx *pipe_ctx,
-				const struct dc_stream_state *stream);
+	bool (*set_output_transfer_func)(struct set_output_transfer_func_params *params);
 	void (*power_down)(struct dc *dc);
 	void (*enable_display_pipe_clock_gating)(struct dc_context *ctx,
 					bool clock_gating);

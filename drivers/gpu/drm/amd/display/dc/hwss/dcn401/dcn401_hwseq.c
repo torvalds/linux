@@ -696,24 +696,24 @@ bool dcn401_set_mcm_luts(struct pipe_ctx *pipe_ctx,
 	return result;
 }
 
-bool dcn401_set_output_transfer_func(struct dc *dc,
-				struct pipe_ctx *pipe_ctx,
-				const struct dc_stream_state *stream)
+bool dcn401_set_output_transfer_func(struct set_output_transfer_func_params *otf_params)
 {
-	(void)dc;
-	int mpcc_id = pipe_ctx->plane_res.hubp->inst;
-	struct mpc *mpc = pipe_ctx->stream_res.opp->ctx->dc->res_pool->mpc;
+	struct dpp *dpp = otf_params->dpp;
+	struct mpc *mpc = otf_params->mpc;
+	int mpcc_id = otf_params->mpcc_id;
+	bool is_top_pipe = otf_params->is_top_pipe;
+	const struct dc_stream_state *stream = otf_params->stream;
 	const struct pwl_params *params = NULL;
 	bool ret = false;
 
 	/* program OGAM or 3DLUT only for the top pipe*/
-	if (resource_is_pipe_type(pipe_ctx, OPP_HEAD)) {
+	if (is_top_pipe) {
 		/*program shaper and 3dlut in MPC*/
-		ret = dcn32_set_mpc_shaper_3dlut(pipe_ctx, stream);
+		ret = dcn32_set_mpc_shaper_3dlut(dpp, mpc, mpcc_id, stream);
 		if (ret == false && mpc->funcs->set_output_gamma) {
 			if (stream->out_transfer_func.type == TF_TYPE_HWPWL)
 				params = &stream->out_transfer_func.pwl;
-			else if (pipe_ctx->stream->out_transfer_func.type ==
+			else if (stream->out_transfer_func.type ==
 					TF_TYPE_DISTRIBUTED_POINTS &&
 					cm3_helper_translate_curve_to_hw_format(stream->ctx,
 					&stream->out_transfer_func,
@@ -2397,7 +2397,7 @@ void dcn401_program_pipe(
 	if (pipe_ctx->update_flags.bits.enable ||
 	    pipe_ctx->update_flags.bits.plane_changed ||
 	    pipe_ctx->stream->update_flags.bits.out_tf)
-		hws->funcs.set_output_transfer_func(dc, pipe_ctx, pipe_ctx->stream);
+		hwss_set_output_transfer_func(dc, pipe_ctx);
 
 	/* If the pipe has been enabled or has a different opp, we
 	 * should reprogram the fmt. This deals with cases where
@@ -2555,7 +2555,7 @@ void dcn401_program_pipe_sequence(
 	if (pipe_ctx->update_flags.bits.enable ||
 			pipe_ctx->update_flags.bits.plane_changed ||
 			pipe_ctx->stream->update_flags.bits.out_tf) {
-		hwss_add_dpp_set_output_transfer_func(seq_state, dc, pipe_ctx, pipe_ctx->stream);
+		hwss_add_dpp_set_output_transfer_func(seq_state, dc, pipe_ctx);
 	}
 
 	/* If the pipe has been enabled or has a different opp, we

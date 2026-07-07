@@ -607,11 +607,10 @@ dce110_translate_regamma_to_hw_format(const struct dc_transfer_func *output_tf,
 }
 
 static bool
-dce110_set_output_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
-				const struct dc_stream_state *stream)
+dce110_set_output_transfer_func(struct set_output_transfer_func_params *params)
 {
-	(void)dc;
-	struct transform *xfm = pipe_ctx->plane_res.xfm;
+	struct transform *xfm = params->xfm;
+	const struct dc_stream_state *stream = params->stream;
 
 	xfm->funcs->opp_power_on_regamma_lut(xfm, true);
 	xfm->regamma_params.hw_points_num = GAMMA_HW_POINTS_NUM;
@@ -3181,7 +3180,7 @@ static void dce110_program_front_end_for_pipe(
 		hws->funcs.set_input_transfer_func(dc, pipe_ctx, pipe_ctx->plane_state);
 
 	if (pipe_ctx->plane_state->update_bits.full_update)
-		hws->funcs.set_output_transfer_func(dc, pipe_ctx, pipe_ctx->stream);
+		hwss_set_output_transfer_func(dc, pipe_ctx);
 
 	DC_LOG_SURFACE(
 			"Pipe:%d %p: addr hi:0x%x, "

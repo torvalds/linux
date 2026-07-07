@@ -44,8 +44,7 @@ void dcn20_update_plane_addr(const struct dc *dc, struct pipe_ctx *pipe_ctx);
 void dcn20_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx);
 bool dcn20_set_input_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
 			const struct dc_plane_state *plane_state);
-bool dcn20_set_output_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
-			const struct dc_stream_state *stream);
+bool dcn20_set_output_transfer_func(struct set_output_transfer_func_params *params);
 void dcn20_program_output_csc(struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
 		enum dc_color_space colorspace,

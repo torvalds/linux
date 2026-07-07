@@ -38,9 +38,7 @@ void dcn401_init_hw(struct dc *dc);
 
 bool dcn401_set_mcm_luts(struct pipe_ctx *pipe_ctx,
 				const struct dc_plane_state *plane_state);
-bool dcn401_set_output_transfer_func(struct dc *dc,
-				struct pipe_ctx *pipe_ctx,
-				const struct dc_stream_state *stream);
+bool dcn401_set_output_transfer_func(struct set_output_transfer_func_params *params);
 void dcn401_trigger_3dlut_dma_load(struct dc *dc,
 				struct pipe_ctx *pipe_ctx);
 void dcn401_calculate_dccg_tmds_div_value(struct pipe_ctx *pipe_ctx,

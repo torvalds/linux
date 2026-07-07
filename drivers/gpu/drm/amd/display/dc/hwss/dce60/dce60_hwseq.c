@@ -338,7 +338,7 @@ dce60_program_front_end_for_pipe(
 		hws->funcs.set_input_transfer_func(dc, pipe_ctx, pipe_ctx->plane_state);
 
 	if (pipe_ctx->plane_state->update_bits.full_update)
-		hws->funcs.set_output_transfer_func(dc, pipe_ctx, pipe_ctx->stream);
+		hwss_set_output_transfer_func(dc, pipe_ctx);
 
 	DC_LOG_SURFACE(
 			"Pipe:%d %p: addr hi:0x%x, "

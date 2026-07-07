@@ -138,8 +138,11 @@ struct program_bias_and_scale_params {
 };
 
 struct set_output_transfer_func_params {
-	struct dc *dc;
-	struct pipe_ctx *pipe_ctx;
+	struct transform *xfm;
+	struct dpp *dpp;
+	struct mpc *mpc;
+	int mpcc_id;
+	bool is_top_pipe;
 	const struct dc_stream_state *stream;
 };
 
@@ -1993,7 +1996,9 @@ void hwss_add_optc_program_manual_trigger(struct block_sequence_state *seq_state
 		struct pipe_ctx *pipe_ctx);
 
 void hwss_add_dpp_set_output_transfer_func(struct block_sequence_state *seq_state,
-		struct dc *dc, struct pipe_ctx *pipe_ctx, struct dc_stream_state *stream);
+		struct dc *dc, struct pipe_ctx *pipe_ctx);
+
+void hwss_set_output_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx);
 
 void hwss_add_mpc_update_visual_confirm(struct block_sequence_state *seq_state,
 		struct dc *dc, struct pipe_ctx *pipe_ctx, int mpcc_id);

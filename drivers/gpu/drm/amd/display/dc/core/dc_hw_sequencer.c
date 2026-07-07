@@ -1111,10 +1111,16 @@ void hwss_build_fast_sequence(struct dc *dc,
 					(*num_steps)++;
 				}
 			}
-			if (hws->funcs.set_output_transfer_func && current_mpc_pipe->stream->update_flags.bits.out_tf) {
-				block_sequence[*num_steps].params.set_output_transfer_func_params.dc = dc;
-				block_sequence[*num_steps].params.set_output_transfer_func_params.pipe_ctx = current_mpc_pipe;
-				block_sequence[*num_steps].params.set_output_transfer_func_params.stream = current_mpc_pipe->stream;
+			if (current_mpc_pipe->stream->update_flags.bits.out_tf) {
+				struct set_output_transfer_func_params *otf_params =
+					&block_sequence[*num_steps].params.set_output_transfer_func_params;
+
+				otf_params->dpp = current_mpc_pipe->plane_res.dpp;
+				otf_params->xfm = current_mpc_pipe->plane_res.xfm;
+				otf_params->mpc = dc->res_pool->mpc;
+				otf_params->mpcc_id = current_mpc_pipe->plane_res.hubp->inst;
+				otf_params->is_top_pipe = resource_is_pipe_type(pipe_ctx, OPP_HEAD);
+				otf_params->stream = current_mpc_pipe->stream;
 				block_sequence[*num_steps].func = DPP_SET_OUTPUT_TRANSFER_FUNC;
 				(*num_steps)++;
 			}
@@ -1271,9 +1277,7 @@ void hwss_execute_sequence(struct dc *dc,
 			hwss_program_manual_trigger(params);
 			break;
 		case DPP_SET_OUTPUT_TRANSFER_FUNC:
-			hws->funcs.set_output_transfer_func(params->set_output_transfer_func_params.dc,
-					params->set_output_transfer_func_params.pipe_ctx,
-					params->set_output_transfer_func_params.stream);
+			hws->funcs.set_output_transfer_func(&params->set_output_transfer_func_params);
 			break;
 		case MPC_UPDATE_VISUAL_CONFIRM:
 			dc->hwss.update_visual_confirm_color(params->update_visual_confirm_params.dc,
@@ -1829,16 +1833,36 @@ void hwss_add_optc_program_manual_trigger(struct block_sequence_state *seq_state
  * Helper function to add DPP set output transfer function to block sequence
  */
 void hwss_add_dpp_set_output_transfer_func(struct block_sequence_state *seq_state,
-		struct dc *dc,
-		struct pipe_ctx *pipe_ctx,
-		struct dc_stream_state *stream)
+		struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
 	if (*seq_state->num_steps < MAX_HWSS_BLOCK_SEQUENCE_SIZE) {
-		seq_state->steps[*seq_state->num_steps].params.set_output_transfer_func_params.dc = dc;
-		seq_state->steps[*seq_state->num_steps].params.set_output_transfer_func_params.pipe_ctx = pipe_ctx;
-		seq_state->steps[*seq_state->num_steps].params.set_output_transfer_func_params.stream = stream;
+		seq_state->steps[*seq_state->num_steps].params.set_output_transfer_func_params =
+		(struct set_output_transfer_func_params) {
+			.xfm = pipe_ctx->plane_res.xfm,
+			.dpp = pipe_ctx->plane_res.dpp,
+			.mpc = dc->res_pool->mpc,
+			.mpcc_id = pipe_ctx->plane_res.hubp->inst,
+			.is_top_pipe = resource_is_pipe_type(pipe_ctx, OPP_HEAD),
+			.stream = pipe_ctx->stream,
+		};
 		seq_state->steps[*seq_state->num_steps].func = DPP_SET_OUTPUT_TRANSFER_FUNC;
 		(*seq_state->num_steps)++;
+	}
+}
+
+void hwss_set_output_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx)
+{
+	if (dc->hwseq->funcs.set_output_transfer_func) {
+		dc->hwseq->funcs.set_output_transfer_func(
+			&(struct set_output_transfer_func_params) {
+				.xfm = pipe_ctx->plane_res.xfm,
+				.dpp = pipe_ctx->plane_res.dpp,
+				.mpc = dc->res_pool->mpc,
+				.mpcc_id = pipe_ctx->plane_res.hubp->inst,
+				.is_top_pipe = resource_is_pipe_type(pipe_ctx, OPP_HEAD),
+				.stream = pipe_ctx->stream,
+			}
+		);
 	}
 }
 

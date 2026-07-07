@@ -2154,16 +2154,19 @@ static void log_tf(struct dc_context *ctx,
 	}
 }
 
-bool dcn10_set_output_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
-				const struct dc_stream_state *stream)
+bool dcn10_set_output_transfer_func(struct set_output_transfer_func_params *params)
 {
-	struct dpp *dpp = pipe_ctx->plane_res.dpp;
+	struct dpp *dpp = params->dpp;
+	const struct dc_stream_state *stream = params->stream;
+	struct dc *dc;
 
 	if (!stream)
 		return false;
 
 	if (dpp == NULL)
 		return false;
+
+	dc = dpp->ctx->dc;
 
 	dpp->regamma_params.hw_points_num = GAMMA_HW_POINTS_NUM;
 
@@ -3301,7 +3304,7 @@ void dcn10_program_pipe(
 	 * doing heavy calculation and programming
 	 */
 	if (pipe_ctx->plane_state->update_bits.full_update)
-		hws->funcs.set_output_transfer_func(dc, pipe_ctx, pipe_ctx->stream);
+		hwss_set_output_transfer_func(dc, pipe_ctx);
 }
 
 void dcn10_wait_for_pending_cleared(struct dc *dc,
