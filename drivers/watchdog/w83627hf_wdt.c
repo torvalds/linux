@@ -49,7 +49,7 @@ static int wdt_cfg_leave = 0xAA;/* key to lock configuration space */
 enum chips { w83627hf, w83627s, w83697hf, w83697ug, w83637hf, w83627thf,
 	     w83687thf, w83627ehf, w83627dhg, w83627uhg, w83667hg, w83627dhg_p,
 	     w83667hg_b, nct6775, nct6776, nct6779, nct6791, nct6792, nct6793,
-	     nct6795, nct6796, nct6102, nct6116 };
+	     nct6795, nct6796, nct6102, nct6116, nct6126 };
 
 static int timeout;			/* in seconds */
 module_param(timeout, int, 0);
@@ -94,7 +94,9 @@ MODULE_PARM_DESC(early_disable, "Disable watchdog at boot time (default=0)");
 #define NCT6775_ID		0xb4
 #define NCT6776_ID		0xc3
 #define NCT6102_ID		0xc4
-#define NCT6116_ID		0xd2
+#define NCT6116_ID		0xd2	/* also NCT6126D */
+#define NCT6126_VER_A_LOW_ID	0x83	/* ... version A */
+#define NCT6126_VER_B_LOW_ID	0x84	/* ... version B */
 #define NCT6779_ID		0xc5
 #define NCT6791_ID		0xc8
 #define NCT6792_ID		0xc9
@@ -217,6 +219,7 @@ static int w83627hf_init(struct watchdog_device *wdog, enum chips chip)
 	case nct6796:
 	case nct6102:
 	case nct6116:
+	case nct6126:
 		/*
 		 * These chips have a fixed WDTO# output pin (W83627UHG),
 		 * or support more than one WDTO# output pin.
@@ -428,7 +431,12 @@ static int wdt_find(int addr)
 		cr_wdt_csr = NCT6102D_WDT_CSR;
 		break;
 	case NCT6116_ID:
-		ret = nct6116;
+		val = superio_inb(0x21);
+		if (val == NCT6126_VER_A_LOW_ID || val == NCT6126_VER_B_LOW_ID)
+			ret = nct6126;
+		else
+			ret = nct6116;
+
 		cr_wdt_timeout = NCT6102D_WDT_TIMEOUT;
 		cr_wdt_control = NCT6102D_WDT_CONTROL;
 		cr_wdt_csr = NCT6102D_WDT_CSR;
@@ -499,6 +507,7 @@ static int __init wdt_init(void)
 		"NCT6796",
 		"NCT6102",
 		"NCT6116",
+		"NCT6126"
 	};
 
 	/* Apply system-specific quirks */
