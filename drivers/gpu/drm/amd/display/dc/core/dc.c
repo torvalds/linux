@@ -3281,7 +3281,7 @@ static struct dc_update_descriptor check_update_surfaces_for_stream(
  */
 struct dc_update_descriptor dc_check_state_update(
 		const struct dc_check_config *check_config,
-		struct dc_state_update *updates)
+		const struct dc_state_update *updates)
 {
 	struct dc_update_descriptor desc = {0};
 
@@ -6263,7 +6263,7 @@ static void dc_update_scratch_release(struct dc *dc,
  * @updates: root update object carrying stream, plane, and probe updates
  * Return: true on success, false on failure.
  */
-bool dc_update_state(struct dc *dc, struct dc_state_update *updates)
+bool dc_update_state(struct dc *dc, const struct dc_state_update *updates)
 {
 	struct dc_update_scratch_space *scratch;
 	bool more = true;
@@ -8524,11 +8524,11 @@ struct dc_update_scratch_space *dc_update_state_init(
 {
 	const enum dce_version version = dc->ctx->dce_version;
 	struct dc_update_scratch_space *scratch = dc_update_scratch_acquire(dc);
-	bool has_stream_or_plane = updates->stream || updates->stream_update || updates->surface_updates;
-	bool has_probe = updates->probe_updates;
-	bool surface_without_stream = updates->surface_updates && !updates->stream;
-	bool stream_update_without_stream = updates->stream_update && !updates->stream;
-	bool bad_surface_count = updates->surface_count > 0 && !updates->surface_updates;
+	const bool has_stream_or_plane = updates->stream || updates->stream_update || updates->surface_updates;
+	const bool has_probe = updates->probe_updates;
+	const bool surface_without_stream = updates->surface_updates && !updates->stream;
+	const bool stream_update_without_stream = updates->stream_update && !updates->stream;
+	const bool bad_surface_count = updates->surface_count > 0 && !updates->surface_updates;
 
 	if (!scratch)
 		return NULL;
@@ -8543,20 +8543,20 @@ struct dc_update_scratch_space *dc_update_state_init(
 		return NULL;
 	}
 
-	memset(scratch, 0, sizeof(*scratch));
-
-	scratch->dc = dc;
-	scratch->surface_updates = updates->surface_updates;
-	scratch->surface_count = updates->surface_count;
-	scratch->stream = updates->stream;
-	scratch->stream_update = updates->stream_update;
-	scratch->probe_updates = updates->probe_updates;
-	scratch->update_v3 = version >= DCN_VERSION_4_01
-			|| version == DCN_VERSION_3_2
-			|| version == DCN_VERSION_3_21;
-	scratch->do_clear_update_bits = version >= DCN_VERSION_1_0;
-	scratch->new_context = NULL;
-	scratch->flow = UPDATE_V3_FLOW_INVALID;
+	*scratch = (struct dc_update_scratch_space){
+		.dc = dc,
+		.surface_updates = updates->surface_updates,
+		.surface_count = updates->surface_count,
+		.stream = updates->stream,
+		.stream_update = updates->stream_update,
+		.probe_updates = updates->probe_updates,
+		.update_v3 = version >= DCN_VERSION_4_01
+				|| version == DCN_VERSION_3_2
+				|| version == DCN_VERSION_3_21,
+		.do_clear_update_bits = version >= DCN_VERSION_1_0,
+		.new_context = NULL,
+		.flow = UPDATE_V3_FLOW_INVALID,
+	};
 
 	return scratch;
 }

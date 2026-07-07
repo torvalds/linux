@@ -2125,7 +2125,7 @@ struct dc_state_update {
  */
 struct dc_update_descriptor dc_check_state_update(
 		const struct dc_check_config *check_config,
-		struct dc_state_update *updates);
+		const struct dc_state_update *updates);
 
 /**
  * dc_update_state - Commit an absolute dc_state_update.
@@ -2134,7 +2134,7 @@ struct dc_update_descriptor dc_check_state_update(
  *
  * Return: true on success, false on failure.
  */
-bool dc_update_state(struct dc *dc, struct dc_state_update *updates);
+bool dc_update_state(struct dc *dc, const struct dc_state_update *updates);
 
 struct dc_update_scratch_space;
 
