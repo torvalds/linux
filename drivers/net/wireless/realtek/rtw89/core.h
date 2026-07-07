@@ -3840,6 +3840,8 @@ struct rtw89_sta_link {
 struct rtw89_efuse {
 	bool valid;
 	bool power_k_valid;
+	bool vcore_valid;
+	bool dswr_valid;
 	u8 xtal_cap;
 	u8 addr[ETH_ALEN];
 	u8 rfe_type;
@@ -3849,6 +3851,8 @@ struct rtw89_efuse {
 	u8 bt_setting_3;
 	u8 sn[RTW89_EFUSE_SN_LEN];
 	u8 uuid[RTW89_EFUSE_UUID_LEN];
+	u8 vcore_vmax_reduce;
+	u8 dswr_vmin;
 };
 
 struct rtw89_phy_rate_pattern {
@@ -5560,6 +5564,9 @@ struct rtw89_hal {
 
 	u8 thermal_prot_th;
 	u8 thermal_prot_lv; /* 0 ~ RTW89_THERMAL_PROT_LV_MAX */
+
+	u8 thermal_prot_vmax;
+	u8 thermal_prot_vmin;
 
 	u8 fixed_dig_pd_th; /* v = (X(dBm) + 102)/2 */
 	s8 fixed_dig_cck_pd_th; /* dBm */

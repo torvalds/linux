@@ -881,6 +881,28 @@ static int rtw8922d_read_efuse_rf(struct rtw89_dev *rtwdev, u8 *log_map)
 	return 0;
 }
 
+static int rtw8922d_read_sys(struct rtw89_dev *rtwdev, u8 *log_map)
+{
+	struct rtw89_efuse *efuse = &rtwdev->efuse;
+	struct rtw89_hal *hal = &rtwdev->hal;
+	u16 digk;
+	u8 vmin;
+
+	digk = log_map[0x200] | log_map[0x201] << 8;
+	hal->thermal_prot_vmax = u16_get_bits(digk, B_BE_PWMTUNE_MASK);
+
+	if (efuse->dswr_valid)
+		vmin = efuse->dswr_vmin;
+	else if (efuse->vcore_valid)
+		vmin = hal->thermal_prot_vmax - efuse->vcore_vmax_reduce;
+	else
+		vmin = hal->thermal_prot_vmax - 3;
+
+	hal->thermal_prot_vmin = vmin;
+
+	return 0;
+}
+
 static int rtw8922d_read_efuse(struct rtw89_dev *rtwdev, u8 *log_map,
 			       enum rtw89_efuse_block block)
 {
@@ -891,6 +913,8 @@ static int rtw8922d_read_efuse(struct rtw89_dev *rtwdev, u8 *log_map,
 		return rtw8922d_read_efuse_usb(rtwdev, log_map);
 	case RTW89_EFUSE_BLOCK_RF:
 		return rtw8922d_read_efuse_rf(rtwdev, log_map);
+	case RTW89_EFUSE_BLOCK_SYS:
+		return rtw8922d_read_sys(rtwdev, log_map);
 	default:
 		return 0;
 	}

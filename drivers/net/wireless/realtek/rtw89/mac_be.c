@@ -3313,6 +3313,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 	.efuse_read_fw_secure = rtw89_efuse_read_fw_secure_be,
 	.efuse_read_ecv = rtw89_efuse_read_ecv_be,
 	.efuse_read_thermal_k = rtw89_efuse_read_thermal_k_be,
+	.efuse_read_pwr_data = rtw89_efuse_read_pwr_data_be,
 
 	.cfg_plt = rtw89_mac_cfg_plt_be,
 	.get_plt_cnt = rtw89_mac_get_plt_cnt_be,

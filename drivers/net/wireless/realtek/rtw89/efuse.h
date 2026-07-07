@@ -38,5 +38,6 @@ int rtw89_efuse_read_fw_secure_ax(struct rtw89_dev *rtwdev);
 int rtw89_efuse_read_fw_secure_be(struct rtw89_dev *rtwdev);
 int rtw89_efuse_read_ecv_be(struct rtw89_dev *rtwdev);
 int rtw89_efuse_read_thermal_k_be(struct rtw89_dev *rtwdev);
+int rtw89_efuse_read_pwr_data_be(struct rtw89_dev *rtwdev);
 
 #endif
