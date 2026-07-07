@@ -515,12 +515,10 @@ void dcn401_populate_mcm_luts(struct dc *dc,
 
 		/* Select width based on the requested LUT size */
 		switch (cm->lut3d_dma.size) {
-#if defined(CONFIG_DRM_AMD_DC_DCN4_2)
 		case CM_LUT_SIZE_333333:
 			if (dc->caps.color.mpc.rmcm_3d_lut_caps.lut_dim_caps.dim_33)
 				width = hubp_3dlut_fl_width_33;
 			break;
-#endif // CONFIG_DRM_AMD_DC_DCN4_2
 		case CM_LUT_SIZE_171717:
 			width = hubp_3dlut_fl_width_17;
 			break;

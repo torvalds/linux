@@ -1508,13 +1508,9 @@ union dc_plane_cm_flags {
 		unsigned int blend_enable     : 1;
 		/* whether legacy (lut3d_func) or DMA is valid */
 		unsigned int lut3d_dma_enable : 1;
-#if defined(CONFIG_DRM_AMD_DC_DCN4_2)
 		/* RMCM lut to be used instead of MCM */
 		unsigned int rmcm_enable	 : 1;
 		unsigned int reserved: 27;
-#else
-		unsigned int reserved: 28;
-#endif
 	} bits;
 };
 

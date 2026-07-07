@@ -470,7 +470,6 @@ static bool dc_is_rmcm_3dlut_supported(struct hubp *hubp, struct mpc *mpc)
 	return false;
 }
 
-#if defined(CONFIG_DRM_AMD_DC_DCN4_2)
 static bool is_rmcm_3dlut_fl_supported(struct dc *dc)
 {
 	/* size was previously hard-coded to TRANSFORMED in local_mcm,
@@ -480,7 +479,6 @@ static bool is_rmcm_3dlut_fl_supported(struct dc *dc)
 		return false;
 	return dc->caps.color.mpc.rmcm_3d_lut_caps.lut_dim_caps.dim_17 != 0u;
 }
-#endif
 
 static void dcn42_set_mcm_location_post_blend(struct dc *dc, struct pipe_ctx *pipe_ctx, bool bPostBlend)
 {
@@ -724,9 +722,8 @@ void dcn42_populate_mcm_luts(struct dc *dc,
 		false);
 
 	//RMCM - 3dLUT+Shaper
-#if defined(CONFIG_DRM_AMD_DC_DCN4_2)
 	if (cm->flags.bits.rmcm_enable &&
-		is_rmcm_3dlut_fl_supported(dc)) {
+		is_rmcm_3dlut_fl_supported(dc))
 		dcn42_program_rmcm_luts(
 			hubp,
 			pipe_ctx,
@@ -734,8 +731,6 @@ void dcn42_populate_mcm_luts(struct dc *dc,
 			mpc,
 			lut_bank_a,
 			mpcc_id);
-	}
-#endif /* CONFIG_DRM_AMD_DC_DCN4_2 */
 
 	/* 1D LUT */
 	{
