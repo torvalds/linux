@@ -153,6 +153,27 @@ static int nvmet_ctrl_tls_concat_show(struct seq_file *m, void *p)
 NVMET_DEBUGFS_ATTR(nvmet_ctrl_tls_concat);
 #endif
 
+void nvmet_debugfs_ns_setup(struct nvmet_ns *ns)
+{
+	char name[16];
+	struct dentry *parent = ns->subsys->debugfs_dir;
+
+	if (!parent)
+		return;
+	snprintf(name, sizeof(name), "ns%u", ns->nsid);
+	ns->debugfs_dir = debugfs_create_dir(name, parent);
+	if (IS_ERR(ns->debugfs_dir)) {
+		ns->debugfs_dir = NULL;
+		return;
+	}
+}
+
+void nvmet_debugfs_ns_free(struct nvmet_ns *ns)
+{
+	debugfs_remove_recursive(ns->debugfs_dir);
+	ns->debugfs_dir = NULL;
+}
+
 int nvmet_debugfs_ctrl_setup(struct nvmet_ctrl *ctrl)
 {
 	char name[32];

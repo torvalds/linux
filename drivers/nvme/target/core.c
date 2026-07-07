@@ -616,6 +616,7 @@ int nvmet_ns_enable(struct nvmet_ns *ns)
 	nvmet_ns_changed(subsys, ns->nsid);
 	ns->enabled = true;
 	xa_set_mark(&subsys->namespaces, ns->nsid, NVMET_NS_ENABLED);
+	nvmet_debugfs_ns_setup(ns);
 	ret = 0;
 out_unlock:
 	mutex_unlock(&subsys->lock);
@@ -642,6 +643,7 @@ void nvmet_ns_disable(struct nvmet_ns *ns)
 
 	ns->enabled = false;
 	xa_clear_mark(&subsys->namespaces, ns->nsid, NVMET_NS_ENABLED);
+	nvmet_debugfs_ns_free(ns);
 
 	list_for_each_entry(ctrl, &subsys->ctrls, subsys_entry)
 		pci_dev_put(radix_tree_delete(&ctrl->p2p_ns_map, ns->nsid));
