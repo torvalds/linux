@@ -5806,6 +5806,7 @@ int rtw89_core_sta_link_assoc(struct rtw89_dev *rtwdev,
 									 rtwsta_link);
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
 						       rtwvif_link->chanctx_idx);
+	struct rtw89_bb_ctx *bb = rtw89_get_bb_ctx(rtwdev, rtwvif_link->phy_idx);
 	struct ieee80211_link_sta *link_sta;
 	int ret;
 
@@ -5858,12 +5859,19 @@ int rtw89_core_sta_link_assoc(struct rtw89_dev *rtwdev,
 
 	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls) {
 		struct ieee80211_bss_conf *bss_conf;
+		u8 link_mode = 0;
 
 		rcu_read_lock();
 
 		bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, true);
 		link_sta = rtw89_sta_rcu_dereference_link(rtwsta_link, true);
 		rtwsta_link->er_cap = rtw89_sta_link_can_er(rtwdev, bss_conf, link_sta);
+
+		if (link_sta->he_cap.has_he || link_sta->eht_cap.has_eht)
+			link_mode = 2;
+		else if (link_sta->vht_cap.vht_supported)
+			link_mode = 1;
+		bb->path_diff.link_mode = link_mode;
 
 		rcu_read_unlock();
 

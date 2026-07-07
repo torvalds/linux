@@ -5842,6 +5842,9 @@ static void rtw89_phy_stat_init(struct rtw89_dev *rtwdev)
 		memset(&bb->last_pkt_stat, 0, sizeof(bb->last_pkt_stat));
 
 		ewma_rssi_init(&bb->bcn_rssi);
+		bb->path_diff.raw = 0;
+		ewma_path_diff_init(&bb->path_diff.avg);
+		bb->path_diff.bf_smo_en = false;
 	}
 
 	rtwdev->hal.thermal_prot_lv = 0;
@@ -6190,6 +6193,8 @@ void rtw89_phy_stat_track(struct rtw89_dev *rtwdev)
 	rtw89_for_each_active_bb(rtwdev, bb) {
 		bb->last_pkt_stat = bb->cur_pkt_stat;
 		memset(&bb->cur_pkt_stat, 0, sizeof(bb->cur_pkt_stat));
+
+		rtw89_chip_path_diff_update(rtwdev, bb);
 	}
 }
 

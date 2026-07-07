@@ -1716,6 +1716,73 @@ static void rtw8922d_calc_rx_gain_normal(struct rtw89_dev *rtwdev,
 	rtw8922d_calc_rx_gain_normal_cck(rtwdev, chan, path, phy_idx, calc);
 }
 
+static void rtw8922d_path_diff_update(struct rtw89_dev *rtwdev,
+				      struct rtw89_bb_ctx *bb)
+{
+#define BF_SMOOTH_TH 80
+	static const u32 path_diff_cnt_mask[] = {0xff0000, 0xff};
+	static const u32 ndp_cnt_mask[] = {0xff000000, 0xff00};
+	static const u16 he_eht_sel_tone[4] = {27, 54, 56, 56};
+	static const u16 vht_sel_tone[4] = {11, 25, 25, 25};
+	struct rtw89_hal *hal = &rtwdev->hal;
+	struct rtw89_entity_conf conf;
+	const struct rtw89_chan *chan;
+	u8 phy_idx = bb->phy_idx;
+	u32 path_diff_cnt;
+	u16 sel_tone = 0;
+	bool bf_smo_lmt;
+	u32 ndp_cnt;
+
+	if (hal->cid != RTL8922D_CID7090)
+		return;
+
+	ndp_cnt = rtw89_phy_read32_mask(rtwdev, R_CL_MODE_CNT_BE4, ndp_cnt_mask[phy_idx]);
+	path_diff_cnt = rtw89_phy_read32_mask(rtwdev, R_CL_MODE_CNT_BE4,
+					      path_diff_cnt_mask[phy_idx]);
+
+	bb->path_diff.raw = clamp(phy_div(path_diff_cnt * 100, ndp_cnt), 0, 255);
+
+	if (ndp_cnt == 0)
+		ewma_path_diff_init(&bb->path_diff.avg);
+	else
+		ewma_path_diff_add(&bb->path_diff.avg, bb->path_diff.raw);
+
+	rtw89_phy_write32_mask(rtwdev, R_CL_MODE_TRIG_BE4, B_CL_MODE_TRIG_BE4, 1);
+	rtw89_phy_write32_mask(rtwdev, R_CL_MODE_TRIG_BE4, B_CL_MODE_TRIG_BE4, 0);
+
+	bf_smo_lmt = ewma_path_diff_read(&bb->path_diff.avg) < BF_SMOOTH_TH;
+	bb->path_diff.bf_smo_en = !bf_smo_lmt;
+
+	rtw89_phy_write32_mask(rtwdev, R_BF_SMO_PDP_LMT_EHT_BE4,
+			       B_BF_SMO_PDP_LMT_EHT_BE4, bf_smo_lmt);
+	rtw89_phy_write32_mask(rtwdev, R_BF_SMO_PDP_LMT_HE_BE4,
+			       B_BF_SMO_PDP_LMT_HE_BE4, bf_smo_lmt);
+	rtw89_phy_write32_mask(rtwdev, R_BF_SMO_PDP_LMT_VHT_BE4,
+			       B_BF_SMO_PDP_LMT_VHT_BE4, bf_smo_lmt);
+
+	rtw89_phy_write32_mask(rtwdev, R_OS_TRIG_BY_SW_BE4,
+			       B_OS_TRIG_BY_SW_BE4, !bf_smo_lmt);
+	rtw89_phy_write32_mask(rtwdev, R_OS_TRIG_SOURCE_BE4,
+			       B_OS_TRIG_SOURCE_BE4, !bf_smo_lmt);
+
+	rtw89_entity_get_conf(rtwdev, &conf);
+	chan = conf.chans[phy_idx];
+	if (chan->band_width <= RTW89_CHANNEL_WIDTH_160) {
+		if (bb->path_diff.link_mode >= 2)
+			sel_tone = he_eht_sel_tone[chan->band_width];
+		else if (bb->path_diff.link_mode == 1)
+			sel_tone = vht_sel_tone[chan->band_width];
+		rtw89_phy_write32_mask(rtwdev, R_SELECTED_TONE_IDX_BE4,
+				       B_SELECTED_TONE_IDX_BE4, sel_tone);
+	}
+
+	rtw89_debug(rtwdev, RTW89_DBG_PHY_TRACK,
+		    "[PATH_DIFF] raw=%d%%, ma=%ld%%, bf_smo_en=%d, tone=%d\n",
+		    bb->path_diff.raw,
+		    ewma_path_diff_read(&bb->path_diff.avg),
+		    bb->path_diff.bf_smo_en, sel_tone);
+}
+
 static void rtw8922d_set_cck_parameters(struct rtw89_dev *rtwdev,
 					const struct rtw89_chan *chan,
 					enum rtw89_phy_idx phy_idx)
@@ -3288,6 +3355,7 @@ static const struct rtw89_chip_ops rtw8922d_chip_ops = {
 	.set_txpwr_ul_tb_offset	= NULL,
 	.digital_pwr_comp	= rtw8922d_digital_pwr_comp,
 	.calc_rx_gain_normal	= rtw8922d_calc_rx_gain_normal,
+	.path_diff_update	= rtw8922d_path_diff_update,
 	.pwr_on_func		= rtw8922d_pwr_on_func,
 	.pwr_off_func		= rtw8922d_pwr_off_func,
 	.query_rxdesc		= rtw89_core_query_rxdesc_v3,

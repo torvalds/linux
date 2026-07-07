@@ -14,6 +14,7 @@
 #include <net/mac80211.h>
 
 struct rtw89_dev;
+struct rtw89_bb_ctx;
 struct rtw89_pci_info;
 struct rtw89_usb_info;
 struct rtw89_mac_gen_def;
@@ -4127,6 +4128,8 @@ struct rtw89_chip_ops {
 				    enum rtw89_rf_path path,
 				    enum rtw89_phy_idx phy_idx,
 				    struct rtw89_phy_calc_efuse_gain *calc);
+	void (*path_diff_update)(struct rtw89_dev *rtwdev,
+				 struct rtw89_bb_ctx *bb);
 	int (*pwr_on_func)(struct rtw89_dev *rtwdev);
 	int (*pwr_off_func)(struct rtw89_dev *rtwdev);
 	void (*query_rxdesc)(struct rtw89_dev *rtwdev,
@@ -5683,6 +5686,14 @@ struct rtw89_beacon_stat {
 };
 
 DECLARE_EWMA(thermal, 4, 4);
+DECLARE_EWMA(path_diff, 4, 2);
+
+struct rtw89_phy_path_diff {
+	struct ewma_path_diff avg;
+	u8 raw;
+	bool bf_smo_en;
+	u8 link_mode;
+};
 
 #define RTW89_TX_RATE_NR 40
 struct rtw89_phy_stat {
@@ -6741,6 +6752,7 @@ struct rtw89_dev {
 		struct rtw89_pmac_stat_info pmac_stat;
 		struct rtw89_tx_stat_info tx_stat;
 		struct rtw89_diag_bb diag;
+		struct rtw89_phy_path_diff path_diff;
 	} bbs[RTW89_PHY_NUM];
 
 	struct wiphy_delayed_work track_work;
@@ -7850,6 +7862,15 @@ static inline void rtw89_chip_power_trim(struct rtw89_dev *rtwdev)
 
 	if (chip->ops->power_trim)
 		chip->ops->power_trim(rtwdev);
+}
+
+static inline void rtw89_chip_path_diff_update(struct rtw89_dev *rtwdev,
+					       struct rtw89_bb_ctx *bb)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	if (chip->ops->path_diff_update)
+		chip->ops->path_diff_update(rtwdev, bb);
 }
 
 static inline void __rtw89_chip_init_txpwr_unit(struct rtw89_dev *rtwdev,
