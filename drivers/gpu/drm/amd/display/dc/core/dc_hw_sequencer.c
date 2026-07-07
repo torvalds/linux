@@ -1069,7 +1069,14 @@ void hwss_build_fast_sequence(struct dc *dc,
 				if (dc->hwss.program_gamut_remap &&
 						(current_mpc_pipe->plane_state->update_bits.gamut_remap_change ||
 						 current_mpc_pipe->stream->update_flags.bits.gamut_remap)) {
-					block_sequence[*num_steps].params.program_gamut_remap_params.pipe_ctx = current_mpc_pipe;
+					struct program_gamut_remap_params *params = &block_sequence[*num_steps].params.program_gamut_remap_params;
+					params->dpp = current_mpc_pipe->plane_res.dpp;
+					params->mpc = dc->res_pool->mpc;
+					params->xfm = current_mpc_pipe->plane_res.xfm;
+					params->mpcc_id = current_mpc_pipe->plane_res.hubp->inst;
+					params->plane = current_mpc_pipe->plane_state;
+					params->stream = current_mpc_pipe->stream;
+					params->is_top_pipe = current_mpc_pipe->top_pipe == NULL;
 					block_sequence[*num_steps].func = DPP_PROGRAM_GAMUT_REMAP;
 					(*num_steps)++;
 				}
@@ -1236,7 +1243,8 @@ void hwss_execute_sequence(struct dc *dc,
 					params->set_input_transfer_func_params.plane_state);
 			break;
 		case DPP_PROGRAM_GAMUT_REMAP:
-			hwss_program_gamut_remap(params);
+			if (dc->hwss.program_gamut_remap)
+				dc->hwss.program_gamut_remap(&params->program_gamut_remap_params);
 			break;
 		case HUBP_ENABLE_3DLUT_FL:
 			hwss_hubp_enable_3dlut_fl(params);
@@ -1779,7 +1787,14 @@ void hwss_add_dpp_program_gamut_remap(struct block_sequence_state *seq_state,
 		struct pipe_ctx *pipe_ctx)
 {
 	if (*seq_state->num_steps < MAX_HWSS_BLOCK_SEQUENCE_SIZE) {
-		seq_state->steps[*seq_state->num_steps].params.program_gamut_remap_params.pipe_ctx = pipe_ctx;
+		struct program_gamut_remap_params *params = &seq_state->steps[*seq_state->num_steps].params.program_gamut_remap_params;
+		params->xfm = pipe_ctx->plane_res.xfm;
+		params->dpp = pipe_ctx->plane_res.dpp;
+		params->mpc = pipe_ctx->stream->ctx->dc->res_pool->mpc;
+		params->mpcc_id = pipe_ctx->plane_res.hubp->inst;
+		params->plane = pipe_ctx->plane_state;
+		params->stream = pipe_ctx->stream;
+		params->is_top_pipe = pipe_ctx->top_pipe == NULL;
 		seq_state->steps[*seq_state->num_steps].func = DPP_PROGRAM_GAMUT_REMAP;
 		(*seq_state->num_steps)++;
 	}
@@ -3617,12 +3632,20 @@ void hwss_set_cursor_sdr_white_level(union block_sequence_params *params)
 		dc->hwss.set_cursor_sdr_white_level(pipe_ctx);
 }
 
-void hwss_program_gamut_remap(union block_sequence_params *params)
+void hwss_program_gamut_remap(struct pipe_ctx *pipe_ctx)
 {
-	struct dc *dc = params->program_gamut_remap_params.pipe_ctx->stream->ctx->dc;
+	struct dc *dc = pipe_ctx->stream->ctx->dc;
 
-	if (dc && dc->hwss.program_gamut_remap)
-		dc->hwss.program_gamut_remap(params->program_gamut_remap_params.pipe_ctx);
+	if (dc->hwss.program_gamut_remap)
+		dc->hwss.program_gamut_remap(&(struct program_gamut_remap_params) {
+			.xfm = pipe_ctx->plane_res.xfm,
+			.dpp = pipe_ctx->plane_res.dpp,
+			.mpc = dc->res_pool->mpc,
+			.mpcc_id = pipe_ctx->plane_res.hubp->inst,
+			.stream = pipe_ctx->stream,
+			.plane = pipe_ctx->plane_state,
+			.is_top_pipe = pipe_ctx->top_pipe == NULL,
+		});
 }
 
 void hwss_program_output_csc(union block_sequence_params *params)

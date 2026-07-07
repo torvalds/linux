@@ -831,7 +831,15 @@ bool dc_stream_set_gamut_remap(struct dc *dc, const struct dc_stream_state *stre
 	for (i = 0; i < MAX_PIPES; i++) {
 		if (dc->current_state->res_ctx.pipe_ctx[i].stream == stream) {
 			pipes = &dc->current_state->res_ctx.pipe_ctx[i];
-			dc->hwss.program_gamut_remap(pipes);
+			dc->hwss.program_gamut_remap(&(struct program_gamut_remap_params) {
+				.xfm = pipes->plane_res.xfm,
+				.dpp = pipes->plane_res.dpp,
+				.mpc = dc->res_pool->mpc,
+				.mpcc_id = pipes->plane_res.mpcc_inst,
+				.stream = pipes->stream,
+				.plane = pipes->plane_state,
+				.is_top_pipe = pipes->top_pipe == NULL,
+			});
 			ret = true;
 		}
 	}

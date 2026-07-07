@@ -108,7 +108,7 @@ void dcn10_program_pipe(
 		struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
 		struct dc_state *context);
-void dcn10_program_gamut_remap(struct pipe_ctx *pipe_ctx);
+void dcn10_program_gamut_remap(struct program_gamut_remap_params *params);
 void dcn10_init_hw(struct dc *dc);
 void dcn10_init_pipes(struct dc *dc, struct dc_state *context);
 void dcn10_power_down_on_boot(struct dc *dc);

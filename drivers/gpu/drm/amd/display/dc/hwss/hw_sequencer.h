@@ -95,7 +95,13 @@ struct set_input_transfer_func_params {
 };
 
 struct program_gamut_remap_params {
-	struct pipe_ctx *pipe_ctx;
+	struct transform *xfm;
+	struct dpp *dpp;
+	struct mpc *mpc;
+	int mpcc_id;
+	const struct dc_stream_state *stream;
+	const struct dc_plane_state *plane;
+	bool is_top_pipe;
 };
 
 struct hubp_enable_3dlut_fl_params {
@@ -1389,7 +1395,7 @@ struct hw_sequencer_funcs {
 	void (*program_cursor_offload_now)(struct dc *dc, const struct pipe_ctx *pipe);
 
 	/* Colour Related */
-	void (*program_gamut_remap)(struct pipe_ctx *pipe_ctx);
+	void (*program_gamut_remap)(struct program_gamut_remap_params *params);
 	void (*program_output_csc)(struct dc *dc, struct pipe_ctx *pipe_ctx,
 			enum dc_color_space colorspace,
 			uint16_t *matrix, int opp_id);
@@ -1940,7 +1946,7 @@ void hwss_set_cursor_position(union block_sequence_params *params);
 
 void hwss_set_cursor_sdr_white_level(union block_sequence_params *params);
 
-void hwss_program_gamut_remap(union block_sequence_params *params);
+void hwss_program_gamut_remap(struct pipe_ctx *pipe_ctx);
 
 void hwss_program_output_csc(union block_sequence_params *params);
 

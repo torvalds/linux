@@ -89,28 +89,31 @@ void dcn401_initialize_min_clocks(struct dc *dc)
 			true);
 }
 
-void dcn401_program_gamut_remap(struct pipe_ctx *pipe_ctx)
+void dcn401_program_gamut_remap(struct program_gamut_remap_params *params)
 {
+	struct mpc *mpc = params->mpc;
+	int mpcc_id = params->mpcc_id;
+	const struct dc_stream_state *stream = params->stream;
+	const struct dc_plane_state *plane = params->plane;
+	bool is_top_pipe = params->is_top_pipe;
 	unsigned int i = 0;
 	struct mpc_grph_gamut_adjustment mpc_adjust;
-	unsigned int mpcc_id = pipe_ctx->plane_res.mpcc_inst;
-	struct mpc *mpc = pipe_ctx->stream_res.opp->ctx->dc->res_pool->mpc;
 
 	//For now assert if location is not pre-blend
-	if (pipe_ctx->plane_state)
-		ASSERT(pipe_ctx->plane_state->mcm_location == MPCC_MOVABLE_CM_LOCATION_BEFORE);
+	if (plane)
+		ASSERT(plane->mcm_location == MPCC_MOVABLE_CM_LOCATION_BEFORE);
 
 	// program MPCC_MCM_FIRST_GAMUT_REMAP
 	memset(&mpc_adjust, 0, sizeof(mpc_adjust));
 	mpc_adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_BYPASS;
 	mpc_adjust.mpcc_gamut_remap_block_id = MPCC_MCM_FIRST_GAMUT_REMAP;
 
-	if (pipe_ctx->plane_state &&
-		pipe_ctx->plane_state->gamut_remap_matrix.enable_remap == true) {
+	if (plane &&
+		plane->gamut_remap_matrix.enable_remap == true) {
 		mpc_adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_SW;
 		for (i = 0; i < CSC_TEMPERATURE_MATRIX_SIZE; i++)
 			mpc_adjust.temperature_matrix[i] =
-			pipe_ctx->plane_state->gamut_remap_matrix.matrix[i];
+			plane->gamut_remap_matrix.matrix[i];
 	}
 
 	mpc->funcs->set_gamut_remap(mpc, mpcc_id, &mpc_adjust);
@@ -126,12 +129,12 @@ void dcn401_program_gamut_remap(struct pipe_ctx *pipe_ctx)
 	mpc_adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_BYPASS;
 	mpc_adjust.mpcc_gamut_remap_block_id = MPCC_OGAM_GAMUT_REMAP;
 
-	if (pipe_ctx->top_pipe == NULL) {
-		if (pipe_ctx->stream->gamut_remap_matrix.enable_remap == true) {
+	if (is_top_pipe) {
+		if (stream->gamut_remap_matrix.enable_remap == true) {
 			mpc_adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_SW;
 			for (i = 0; i < CSC_TEMPERATURE_MATRIX_SIZE; i++)
 				mpc_adjust.temperature_matrix[i] =
-				pipe_ctx->stream->gamut_remap_matrix.matrix[i];
+				stream->gamut_remap_matrix.matrix[i];
 		}
 	}
 

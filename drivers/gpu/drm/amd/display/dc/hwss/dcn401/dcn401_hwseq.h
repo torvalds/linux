@@ -32,7 +32,7 @@ struct ips_ono_region_state {
 	uint32_t current_pwr_state;
 };
 
-void dcn401_program_gamut_remap(struct pipe_ctx *pipe_ctx);
+void dcn401_program_gamut_remap(struct program_gamut_remap_params *params);
 
 void dcn401_init_hw(struct dc *dc);
 
