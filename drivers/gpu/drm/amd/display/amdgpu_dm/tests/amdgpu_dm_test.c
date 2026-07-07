@@ -1425,6 +1425,231 @@ static void dm_test_update_scaling_underscan(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, stream->dst.height, 1048);
 }
 
+/* Tests for is_content_protection_different() */
+
+struct dm_test_cp_ctx {
+	struct amdgpu_dm_connector *aconnector;
+	struct dm_connector_state *new_dm;	/* also connector->state */
+	struct dm_connector_state *old_dm;
+	struct drm_crtc_state *new_crtc;
+	struct drm_crtc_state *old_crtc;
+};
+
+static struct dm_test_cp_ctx *dm_test_cp_ctx_alloc(struct kunit *test)
+{
+	struct dm_test_cp_ctx *ctx;
+
+	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx);
+
+	ctx->aconnector = kunit_kzalloc(test, sizeof(*ctx->aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->aconnector);
+	ctx->new_dm = kunit_kzalloc(test, sizeof(*ctx->new_dm), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->new_dm);
+	ctx->old_dm = kunit_kzalloc(test, sizeof(*ctx->old_dm), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->old_dm);
+	ctx->new_crtc = kunit_kzalloc(test, sizeof(*ctx->new_crtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->new_crtc);
+	ctx->old_crtc = kunit_kzalloc(test, sizeof(*ctx->old_crtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->old_crtc);
+
+	/* connector->state must be the new dm connector state */
+	ctx->aconnector->base.state = &ctx->new_dm->base;
+	ctx->aconnector->base.dpms = DRM_MODE_DPMS_ON;
+
+	return ctx;
+}
+
+static bool dm_test_cp_diff(struct dm_test_cp_ctx *ctx)
+{
+	return is_content_protection_different(ctx->new_crtc, ctx->old_crtc,
+					       &ctx->new_dm->base,
+					       &ctx->old_dm->base,
+					       &ctx->aconnector->base, NULL);
+}
+
+/**
+ * dm_test_cp_diff_hdcp_type_change - Test an HDCP content-type change forces true
+ * @test: The KUnit test context
+ */
+static void dm_test_cp_diff_hdcp_type_change(struct kunit *test)
+{
+	struct dm_test_cp_ctx *ctx = dm_test_cp_ctx_alloc(test);
+
+	ctx->old_dm->base.hdcp_content_type = 0;
+	ctx->new_dm->base.hdcp_content_type = 1;
+	ctx->new_dm->base.content_protection = DRM_MODE_CONTENT_PROTECTION_ENABLED;
+
+	KUNIT_EXPECT_TRUE(test, dm_test_cp_diff(ctx));
+	KUNIT_EXPECT_EQ(test, (int)ctx->new_dm->base.content_protection,
+			(int)DRM_MODE_CONTENT_PROTECTION_DESIRED);
+}
+
+/**
+ * dm_test_cp_diff_reenable_mode_changed - Test ENABLED->DESIRED with modeset forces true
+ * @test: The KUnit test context
+ */
+static void dm_test_cp_diff_reenable_mode_changed(struct kunit *test)
+{
+	struct dm_test_cp_ctx *ctx = dm_test_cp_ctx_alloc(test);
+
+	ctx->old_dm->base.content_protection = DRM_MODE_CONTENT_PROTECTION_ENABLED;
+	ctx->new_dm->base.content_protection = DRM_MODE_CONTENT_PROTECTION_DESIRED;
+	ctx->new_crtc->mode_changed = true;
+
+	KUNIT_EXPECT_TRUE(test, dm_test_cp_diff(ctx));
+	KUNIT_EXPECT_EQ(test, (int)ctx->new_dm->base.content_protection,
+			(int)DRM_MODE_CONTENT_PROTECTION_DESIRED);
+}
+
+/**
+ * dm_test_cp_diff_reenable_no_change - Test ENABLED->DESIRED without modeset restores ENABLED
+ * @test: The KUnit test context
+ */
+static void dm_test_cp_diff_reenable_no_change(struct kunit *test)
+{
+	struct dm_test_cp_ctx *ctx = dm_test_cp_ctx_alloc(test);
+
+	ctx->old_dm->base.content_protection = DRM_MODE_CONTENT_PROTECTION_ENABLED;
+	ctx->new_dm->base.content_protection = DRM_MODE_CONTENT_PROTECTION_DESIRED;
+	ctx->new_crtc->mode_changed = false;
+
+	KUNIT_EXPECT_FALSE(test, dm_test_cp_diff(ctx));
+	KUNIT_EXPECT_EQ(test, (int)ctx->new_dm->base.content_protection,
+			(int)DRM_MODE_CONTENT_PROTECTION_ENABLED);
+}
+
+/**
+ * dm_test_cp_diff_undesired - Test UNDESIRED->UNDESIRED needs no update
+ * @test: The KUnit test context
+ */
+static void dm_test_cp_diff_undesired(struct kunit *test)
+{
+	struct dm_test_cp_ctx *ctx = dm_test_cp_ctx_alloc(test);
+
+	ctx->old_dm->base.content_protection = DRM_MODE_CONTENT_PROTECTION_UNDESIRED;
+	ctx->new_dm->base.content_protection = DRM_MODE_CONTENT_PROTECTION_UNDESIRED;
+
+	KUNIT_EXPECT_FALSE(test, dm_test_cp_diff(ctx));
+}
+
+/**
+ * dm_test_cp_diff_desired_mode_changed - Test DESIRED->DESIRED with modeset forces true
+ * @test: The KUnit test context
+ */
+static void dm_test_cp_diff_desired_mode_changed(struct kunit *test)
+{
+	struct dm_test_cp_ctx *ctx = dm_test_cp_ctx_alloc(test);
+
+	ctx->old_dm->base.content_protection = DRM_MODE_CONTENT_PROTECTION_DESIRED;
+	ctx->new_dm->base.content_protection = DRM_MODE_CONTENT_PROTECTION_DESIRED;
+	ctx->new_crtc->mode_changed = true;
+
+	KUNIT_EXPECT_TRUE(test, dm_test_cp_diff(ctx));
+}
+
+/**
+ * dm_test_cp_diff_desired_no_change - Test steady DESIRED->DESIRED needs no update
+ * @test: The KUnit test context
+ */
+static void dm_test_cp_diff_desired_no_change(struct kunit *test)
+{
+	struct dm_test_cp_ctx *ctx = dm_test_cp_ctx_alloc(test);
+
+	ctx->old_dm->base.content_protection = DRM_MODE_CONTENT_PROTECTION_DESIRED;
+	ctx->new_dm->base.content_protection = DRM_MODE_CONTENT_PROTECTION_DESIRED;
+	ctx->new_crtc->mode_changed = false;
+
+	KUNIT_EXPECT_FALSE(test, dm_test_cp_diff(ctx));
+}
+
+/**
+ * dm_test_cp_diff_update_hdcp_hotplug - Test the update_hdcp hot-plug path forces true
+ * @test: The KUnit test context
+ */
+static void dm_test_cp_diff_update_hdcp_hotplug(struct kunit *test)
+{
+	struct dm_test_cp_ctx *ctx = dm_test_cp_ctx_alloc(test);
+	struct dc_sink *sink = kunit_kzalloc(test, sizeof(*sink), GFP_KERNEL);
+
+	KUNIT_ASSERT_NOT_NULL(test, sink);
+
+	ctx->old_dm->base.content_protection = DRM_MODE_CONTENT_PROTECTION_DESIRED;
+	ctx->new_dm->base.content_protection = DRM_MODE_CONTENT_PROTECTION_DESIRED;
+	ctx->new_dm->update_hdcp = true;
+	ctx->aconnector->base.dpms = DRM_MODE_DPMS_ON;
+	ctx->aconnector->dc_sink = sink;
+
+	KUNIT_EXPECT_TRUE(test, dm_test_cp_diff(ctx));
+	KUNIT_EXPECT_FALSE(test, ctx->new_dm->update_hdcp);
+}
+
+/**
+ * dm_test_cp_diff_stream_reenabled - Test the stream removed-and-re-enabled path forces true
+ * @test: The KUnit test context
+ */
+static void dm_test_cp_diff_stream_reenabled(struct kunit *test)
+{
+	struct dm_test_cp_ctx *ctx = dm_test_cp_ctx_alloc(test);
+	struct drm_crtc *crtc = kunit_kzalloc(test, sizeof(*crtc), GFP_KERNEL);
+
+	KUNIT_ASSERT_NOT_NULL(test, crtc);
+	crtc->enabled = true;
+
+	ctx->old_dm->base.content_protection = DRM_MODE_CONTENT_PROTECTION_DESIRED;
+	ctx->new_dm->base.content_protection = DRM_MODE_CONTENT_PROTECTION_DESIRED;
+	ctx->new_dm->update_hdcp = true;
+	ctx->old_dm->base.crtc = NULL;
+	ctx->new_dm->base.crtc = crtc;
+
+	KUNIT_EXPECT_TRUE(test, dm_test_cp_diff(ctx));
+	KUNIT_EXPECT_FALSE(test, ctx->new_dm->update_hdcp);
+}
+
+/**
+ * dm_test_cp_diff_s3_undesired_to_enabled - Test the S3 UNDESIRED->ENABLED path forces true
+ * @test: The KUnit test context
+ */
+static void dm_test_cp_diff_s3_undesired_to_enabled(struct kunit *test)
+{
+	struct dm_test_cp_ctx *ctx = dm_test_cp_ctx_alloc(test);
+
+	ctx->old_dm->base.content_protection = DRM_MODE_CONTENT_PROTECTION_UNDESIRED;
+	ctx->new_dm->base.content_protection = DRM_MODE_CONTENT_PROTECTION_ENABLED;
+
+	KUNIT_EXPECT_TRUE(test, dm_test_cp_diff(ctx));
+	KUNIT_EXPECT_EQ(test, (int)ctx->new_dm->base.content_protection,
+			(int)DRM_MODE_CONTENT_PROTECTION_DESIRED);
+}
+
+/**
+ * dm_test_cp_diff_desired_to_enabled - Test DESIRED->ENABLED needs no update
+ * @test: The KUnit test context
+ */
+static void dm_test_cp_diff_desired_to_enabled(struct kunit *test)
+{
+	struct dm_test_cp_ctx *ctx = dm_test_cp_ctx_alloc(test);
+
+	ctx->old_dm->base.content_protection = DRM_MODE_CONTENT_PROTECTION_DESIRED;
+	ctx->new_dm->base.content_protection = DRM_MODE_CONTENT_PROTECTION_ENABLED;
+
+	KUNIT_EXPECT_FALSE(test, dm_test_cp_diff(ctx));
+}
+
+/**
+ * dm_test_cp_diff_desired_to_undesired - Test DESIRED->UNDESIRED forces update
+ * @test: The KUnit test context
+ */
+static void dm_test_cp_diff_desired_to_undesired(struct kunit *test)
+{
+	struct dm_test_cp_ctx *ctx = dm_test_cp_ctx_alloc(test);
+
+	ctx->old_dm->base.content_protection = DRM_MODE_CONTENT_PROTECTION_DESIRED;
+	ctx->new_dm->base.content_protection = DRM_MODE_CONTENT_PROTECTION_UNDESIRED;
+
+	KUNIT_EXPECT_TRUE(test, dm_test_cp_diff(ctx));
+}
+
 static struct kunit_case amdgpu_dm_tests[] = {
 	/* Simple DM callbacks */
 	KUNIT_CASE(dm_test_is_idle),
@@ -1505,6 +1730,18 @@ static struct kunit_case amdgpu_dm_tests[] = {
 	KUNIT_CASE(dm_test_update_scaling_rmx_aspect_letterbox),
 	KUNIT_CASE(dm_test_update_scaling_rmx_center),
 	KUNIT_CASE(dm_test_update_scaling_underscan),
+	/* is_content_protection_different */
+	KUNIT_CASE(dm_test_cp_diff_hdcp_type_change),
+	KUNIT_CASE(dm_test_cp_diff_reenable_mode_changed),
+	KUNIT_CASE(dm_test_cp_diff_reenable_no_change),
+	KUNIT_CASE(dm_test_cp_diff_undesired),
+	KUNIT_CASE(dm_test_cp_diff_desired_mode_changed),
+	KUNIT_CASE(dm_test_cp_diff_desired_no_change),
+	KUNIT_CASE(dm_test_cp_diff_update_hdcp_hotplug),
+	KUNIT_CASE(dm_test_cp_diff_stream_reenabled),
+	KUNIT_CASE(dm_test_cp_diff_s3_undesired_to_enabled),
+	KUNIT_CASE(dm_test_cp_diff_desired_to_enabled),
+	KUNIT_CASE(dm_test_cp_diff_desired_to_undesired),
 	{}
 };
 

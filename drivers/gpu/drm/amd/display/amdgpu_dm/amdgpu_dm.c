@@ -3655,12 +3655,13 @@ is_scaling_state_different(const struct dm_connector_state *dm_state,
 }
 EXPORT_IF_KUNIT(is_scaling_state_different);
 
-static bool is_content_protection_different(struct drm_crtc_state *new_crtc_state,
-					    struct drm_crtc_state *old_crtc_state,
-					    struct drm_connector_state *new_conn_state,
-					    struct drm_connector_state *old_conn_state,
-					    const struct drm_connector *connector,
-					    struct hdcp_workqueue *hdcp_w)
+STATIC_IFN_KUNIT bool
+is_content_protection_different(struct drm_crtc_state *new_crtc_state,
+				struct drm_crtc_state *old_crtc_state,
+				struct drm_connector_state *new_conn_state,
+				struct drm_connector_state *old_conn_state,
+				const struct drm_connector *connector,
+				struct hdcp_workqueue *hdcp_w)
 {
 	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
 	struct dm_connector_state *dm_con_state = to_dm_connector_state(connector->state);
@@ -3774,6 +3775,7 @@ static bool is_content_protection_different(struct drm_crtc_state *new_crtc_stat
 	pr_debug("[HDCP_DM] DESIRED->ENABLED %s :false\n", __func__);
 	return false;
 }
+EXPORT_IF_KUNIT(is_content_protection_different);
 
 static void remove_stream(struct amdgpu_device *adev,
 			  struct amdgpu_crtc *acrtc,
