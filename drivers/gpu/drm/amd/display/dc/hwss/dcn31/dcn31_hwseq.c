@@ -537,11 +537,9 @@ static void dcn31_reset_back_end_for_pipe(
 	}
 	ASSERT(!pipe_ctx->top_pipe);
 
-	link = pipe_ctx->stream->link;
+	dc->hwss.set_abm_immediate_disable(pipe_ctx);
 
-	if (!(link->connector_signal == SIGNAL_TYPE_EDP &&
-	      link->skip_implict_edp_power_control))
-		dc->hwss.set_abm_immediate_disable(pipe_ctx);
+	link = pipe_ctx->stream->link;
 
 	if (dc->hwseq)
 		dc->hwseq->wa_state.skip_blank_stream = false;
@@ -557,11 +555,9 @@ static void dcn31_reset_back_end_for_pipe(
 			pipe_ctx->stream_res.tg,
 			OPTC_DSC_DISABLED, 0, 0);
 
-	if (!(link->connector_signal == SIGNAL_TYPE_EDP &&
-	      link->skip_implict_edp_power_control)) {
-		pipe_ctx->stream_res.tg->funcs->disable_crtc(pipe_ctx->stream_res.tg);
-		pipe_ctx->stream_res.tg->funcs->enable_optc_clock(pipe_ctx->stream_res.tg, false);
-	}
+	pipe_ctx->stream_res.tg->funcs->disable_crtc(pipe_ctx->stream_res.tg);
+
+	pipe_ctx->stream_res.tg->funcs->enable_optc_clock(pipe_ctx->stream_res.tg, false);
 	if (pipe_ctx->stream_res.tg->funcs->set_odm_bypass)
 		pipe_ctx->stream_res.tg->funcs->set_odm_bypass(
 				pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing);
@@ -590,12 +586,7 @@ static void dcn31_reset_back_end_for_pipe(
 	 * screen only, the dpms_off would be true but
 	 * VBIOS lit up eDP, so check link status too.
 	 */
-	if (link->connector_signal == SIGNAL_TYPE_EDP &&
-	    link->skip_implict_edp_power_control) {
-		/* DMSS is holding the panel across the commit; skip dpms-off. */
-		if (pipe_ctx->stream_res.audio)
-			dc->hwss.disable_audio_stream(pipe_ctx);
-	} else if (!pipe_ctx->stream->dpms_off || link->link_status.link_active)
+	if (!pipe_ctx->stream->dpms_off || link->link_status.link_active)
 		dc->link_srv->set_dpms_off(pipe_ctx);
 	else if (pipe_ctx->stream_res.audio)
 		dc->hwss.disable_audio_stream(pipe_ctx);
