@@ -638,6 +638,7 @@ unlock:
 
 	return ret;
 }
+EXPORT_IF_KUNIT(amdgpu_dm_crtc_configure_crc_source);
 
 int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 {
