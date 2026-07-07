@@ -968,7 +968,8 @@ const struct rtw89_chip_info rtw8852b_chip_info = {
 	},
 	.try_ce_fw		= true,
 	.bbmcu_nr		= 0,
-	.needed_fw_elms		= 0,
+	.needed_fw_elms		= RTW89_AX_GEN_DEF_NEEDED_FW_ELEMENTS_NO_6GHZ |
+				  BIT(__RTW89_FW_ELEMENT_ID_INTL_TRANSITION),
 	.fw_blacklist		= &rtw89_fw_blacklist_default,
 	.fifo_size		= 196608,
 	.small_fifo_size	= true,

@@ -1562,12 +1562,16 @@ int rtw89_fw_recognize_elements(struct rtw89_dev *rtwdev)
 	u32 unrecognized_elements = chip->needed_fw_elms;
 	const struct rtw89_fw_element_handler *handler;
 	const struct rtw89_fw_element_hdr *hdr;
+	bool transition;
 	u32 elm_size;
 	u32 elem_id;
 	u32 offset;
 	int ret;
 
 	BUILD_BUG_ON(sizeof(chip->needed_fw_elms) * 8 < RTW89_FW_ELEMENT_ID_NUM);
+
+	transition = !!((chip->needed_fw_elms & BIT(__RTW89_FW_ELEMENT_ID_INTL_TRANSITION)));
+	unrecognized_elements &= ~BIT(__RTW89_FW_ELEMENT_ID_INTL_TRANSITION);
 
 	offset = rtw89_mfw_get_size(rtwdev);
 	offset = ALIGN(offset, RTW89_FW_ELEMENT_ALIGN);
@@ -1608,6 +1612,12 @@ next:
 	}
 
 	if (unrecognized_elements) {
+		if (transition) {
+			rtw89_info(rtwdev, "NOTE: This firmware is going to be obsolete!\n"
+				   "Please download the latest firmware from https://gitlab.com/kernel-firmware/linux-firmware.git\n");
+			return 0;
+		}
+
 		rtw89_err(rtwdev, "Firmware elements 0x%08x are unrecognized\n",
 			  unrecognized_elements);
 		return -ENOENT;

@@ -2635,7 +2635,8 @@ const struct rtw89_chip_info rtw8851b_chip_info = {
 	},
 	.try_ce_fw		= true,
 	.bbmcu_nr		= 0,
-	.needed_fw_elms		= 0,
+	.needed_fw_elms		= RTW89_AX_GEN_DEF_NEEDED_FW_ELEMENTS_RTL8851B |
+				  BIT(__RTW89_FW_ELEMENT_ID_INTL_TRANSITION),
 	.fw_blacklist		= NULL,
 	.fifo_size		= 196608,
 	.small_fifo_size	= true,
