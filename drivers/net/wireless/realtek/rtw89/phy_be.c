@@ -623,7 +623,7 @@ static u32 rtw89_phy_bb_wrap_be_bandedge_decision(struct rtw89_dev *rtwdev,
 	case RTW89_BAND_2G:
 		if (pri_ch == 1 || pri_ch == 13)
 			val = BIT(1) | BIT(0);
-		else if (pri_ch == 3 || pri_ch == 11)
+		else if (pri_ch == 5 || pri_ch == 9)
 			val = BIT(1);
 		break;
 	case RTW89_BAND_5G:
@@ -637,8 +637,6 @@ static u32 rtw89_phy_bb_wrap_be_bandedge_decision(struct rtw89_dev *rtwdev,
 			val = BIT(3);
 		break;
 	case RTW89_BAND_6G:
-		if (pri_ch == 233)
-			val = BIT(0);
 		break;
 	}
 
