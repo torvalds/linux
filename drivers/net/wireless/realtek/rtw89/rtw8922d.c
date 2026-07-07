@@ -2249,6 +2249,12 @@ static void rtw8922d_set_digital_pwr_comp(struct rtw89_dev *rtwdev,
 		struct {
 			__le32 vals[DIGITAL_PWR_COMP_VALS_NUM];
 		} sets[2][RTW89_TX_COMP_BAND_NR][BB_PATH_NUM_8922D];
+	} *pwr_comp_v1;
+	const struct {
+		__le32 base[2][DIGITAL_PWR_COMP_BASE_NUM];
+		struct {
+			__le32 vals[DIGITAL_PWR_COMP_VALS_NUM];
+		} sets[2][RTW89_TX_COMP_BAND_NR][BB_PATH_NUM_8922D];
 	} *pwr_comp;
 	struct rtw89_fw_elm_info *elm_info = &rtwdev->fw.elm_info;
 	const struct rtw89_fw_element_hdr *txcomp_elm = elm_info->tx_comp;
@@ -2259,8 +2265,12 @@ static void rtw8922d_set_digital_pwr_comp(struct rtw89_dev *rtwdev,
 
 	if (sizeof(*pwr_comp) == le32_to_cpu(txcomp_elm->size)) {
 		pwr_comp = (const void *)txcomp_elm->u.common.contents;
-		comp_base = &pwr_comp->base;
+		comp_base = &pwr_comp->base[nss];
 		comp_vals = &pwr_comp->sets[nss][chan->tx_comp_band][path].vals;
+	} else if (sizeof(*pwr_comp_v1) == le32_to_cpu(txcomp_elm->size)) {
+		pwr_comp_v1 = (const void *)txcomp_elm->u.common.contents;
+		comp_base = &pwr_comp_v1->base;
+		comp_vals = &pwr_comp_v1->sets[nss][chan->tx_comp_band][path].vals;
 	} else if (sizeof(*pwr_comp_v0) == le32_to_cpu(txcomp_elm->size)) {
 		pwr_comp_v0 = (const void *)txcomp_elm->u.common.contents;
 		comp_base = &pwr_comp_v0->sets[nss][chan->tx_comp_band][path].base;
