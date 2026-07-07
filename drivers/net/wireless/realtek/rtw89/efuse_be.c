@@ -537,4 +537,3 @@ int rtw89_efuse_read_ecv_be(struct rtw89_dev *rtwdev)
 
 	return 0;
 }
-EXPORT_SYMBOL(rtw89_efuse_read_ecv_be);
