@@ -588,7 +588,7 @@ config MEMORY_HOTREMOVE
 
 config MHP_MEMMAP_ON_MEMORY
 	def_bool y
-	depends on MEMORY_HOTPLUG && SPARSEMEM_VMEMMAP
+	depends on MEMORY_HOTPLUG
 	depends on ARCH_MHP_MEMMAP_ON_MEMORY_ENABLE
 
 endif # MEMORY_HOTPLUG
@@ -1227,9 +1227,7 @@ config ZONE_DMA32
 
 config ZONE_DEVICE
 	bool "Device memory (pmem, HMM, etc...) hotplug support"
-	depends on MEMORY_HOTPLUG
 	depends on MEMORY_HOTREMOVE
-	depends on SPARSEMEM_VMEMMAP
 	select XARRAY_MULTI
 
 	help
