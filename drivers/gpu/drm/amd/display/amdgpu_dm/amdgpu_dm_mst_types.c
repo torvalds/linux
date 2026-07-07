@@ -40,7 +40,6 @@
 
 #include "dc.h"
 #include "dm_helpers.h"
-#include "amdgpu_dm_kunit_helpers.h"
 
 #include "ddc_service_types.h"
 #include "dpcd_defs.h"

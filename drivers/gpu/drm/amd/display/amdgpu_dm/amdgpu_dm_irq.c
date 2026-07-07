@@ -33,7 +33,7 @@
 #include "amdgpu_display.h"
 #include "amdgpu_dm.h"
 #include "amdgpu_dm_irq.h"
-#include "amdgpu_dm_kunit_helpers.h"
+#include "dm_helpers.h"
 #include "amdgpu_dm_crtc.h"
 #include "amdgpu_dm_hdcp.h"
 #include "amdgpu_dm_mst_types.h"

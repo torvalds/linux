@@ -42,7 +42,6 @@
 #include "amdgpu_display.h"
 #include "amdgpu_dm.h"
 #include "amdgpu_dm_connector.h"
-#include "amdgpu_dm_kunit_helpers.h"
 #include "amdgpu_dm_plane.h"
 #include "amdgpu_dm_crtc.h"
 #include "amdgpu_dm_wb.h"

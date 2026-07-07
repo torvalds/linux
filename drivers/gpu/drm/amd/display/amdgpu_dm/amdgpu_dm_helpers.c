@@ -48,7 +48,6 @@
 #include "dm_helpers.h"
 #include "ddc_service_types.h"
 #include "clk_mgr.h"
-#include "amdgpu_dm_kunit_helpers.h"
 #include "amdgpu_dm_helpers.h"
 
 #define MCCS_DEST_ADDR (0x6E >> 1)

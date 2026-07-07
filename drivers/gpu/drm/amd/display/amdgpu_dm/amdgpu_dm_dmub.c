@@ -38,7 +38,7 @@
 #include "amdgpu_ucode.h"
 #include "amdgpu_dm.h"
 #include "amdgpu_dm_dmub.h"
-#include "amdgpu_dm_kunit_helpers.h"
+#include "dm_helpers.h"
 #include <linux/component.h>
 #include <linux/firmware.h>
 

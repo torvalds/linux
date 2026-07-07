@@ -70,7 +70,6 @@
 #include "amdgpu_dm_audio.h"
 #include "amdgpu_dm_dmub.h"
 #include "amdgpu_dm_connector.h"
-#include "amdgpu_dm_kunit_helpers.h"
 
 #include "ivsrcid/ivsrcid_vislands30.h"
 

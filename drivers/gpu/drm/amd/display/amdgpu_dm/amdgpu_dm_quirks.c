@@ -28,7 +28,7 @@
 
 #include "amdgpu.h"
 #include "amdgpu_dm.h"
-#include "amdgpu_dm_kunit_helpers.h"
+#include "dm_helpers.h"
 
 struct amdgpu_dm_quirks {
 	bool aux_hpd_discon;

@@ -33,7 +33,7 @@
 #include "amdgpu_dm_irq.h"
 #include "amdgpu_pm.h"
 #include "dm_pp_smu.h"
-#include "amdgpu_dm_kunit_helpers.h"
+#include "dm_helpers.h"
 #include "amdgpu_dm_pp_smu.h"
 
 STATIC_IFN_KUNIT void build_pm_display_cfg(

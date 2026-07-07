@@ -33,7 +33,7 @@
 #include "amdgpu_dm_colorop.h"
 #include "dc.h"
 #include "modules/color/color_gamma.h"
-#include "amdgpu_dm_kunit_helpers.h"
+#include "dm_helpers.h"
 
 
 /**

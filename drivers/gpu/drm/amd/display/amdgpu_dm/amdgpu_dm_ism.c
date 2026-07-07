@@ -32,7 +32,7 @@
 #include "amdgpu_dm_ism.h"
 #include "amdgpu_dm_crtc.h"
 #include "amdgpu_dm_trace.h"
-#include "amdgpu_dm_kunit_helpers.h"
+#include "dm_helpers.h"
 
 
 /**

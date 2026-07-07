@@ -33,7 +33,7 @@
 #include "amdgpu_securedisplay.h"
 #include "amdgpu_dm_psr.h"
 #include "amdgpu_dm_replay.h"
-#include "amdgpu_dm_kunit_helpers.h"
+#include "dm_helpers.h"
 
 static const char *const pipe_crc_sources[] = {
 	"none",

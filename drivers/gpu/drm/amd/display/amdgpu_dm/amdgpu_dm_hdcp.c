@@ -31,7 +31,6 @@
 #include "dm_helpers.h"
 #include <drm/display/drm_hdcp_helper.h>
 #include "hdcp_psp.h"
-#include "amdgpu_dm_kunit_helpers.h"
 
 /*
  * If the SRM version being loaded is less than or equal to the

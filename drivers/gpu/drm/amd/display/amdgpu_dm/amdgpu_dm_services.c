@@ -36,7 +36,7 @@
 #include "amdgpu_dm_irq.h"
 #include "amdgpu_pm.h"
 #include "amdgpu_dm_trace.h"
-#include "amdgpu_dm_kunit_helpers.h"
+#include "dm_helpers.h"
 
 	unsigned long long
 	dm_get_elapse_time_in_ns(struct dc_context *ctx,

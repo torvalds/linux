@@ -30,7 +30,7 @@
 #include "dc.h"
 #include "amdgpu_dm.h"
 #include "modules/power/power_helpers.h"
-#include "amdgpu_dm_kunit_helpers.h"
+#include "dm_helpers.h"
 
 STATIC_IFN_KUNIT
 bool link_supports_psrsu(struct dc_link *link)

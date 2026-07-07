@@ -34,7 +34,7 @@
 #include "amdgpu_dm_plane.h"
 #include "amdgpu_dm_trace.h"
 #include "amdgpu_dm_debugfs.h"
-#include "amdgpu_dm_kunit_helpers.h"
+#include "dm_helpers.h"
 #include "modules/inc/mod_power.h"
 
 #define HPD_DETECTION_PERIOD_uS 2000000
