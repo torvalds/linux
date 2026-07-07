@@ -224,23 +224,26 @@ static int dm_crtc_get_scanoutpos(struct amdgpu_device *adev, int crtc,
 	return 0;
 }
 
-static bool dm_is_idle(struct amdgpu_ip_block *ip_block)
+STATIC_IFN_KUNIT bool dm_is_idle(struct amdgpu_ip_block *ip_block)
 {
 	/* XXX todo */
 	return true;
 }
+EXPORT_IF_KUNIT(dm_is_idle);
 
-static int dm_wait_for_idle(struct amdgpu_ip_block *ip_block)
+STATIC_IFN_KUNIT int dm_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
 	/* XXX todo */
 	return 0;
 }
+EXPORT_IF_KUNIT(dm_wait_for_idle);
 
-static int dm_soft_reset(struct amdgpu_ip_block *ip_block)
+STATIC_IFN_KUNIT int dm_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	/* XXX todo */
 	return 0;
 }
+EXPORT_IF_KUNIT(dm_soft_reset);
 
 STATIC_IFN_KUNIT bool is_dc_timing_adjust_needed(struct dm_crtc_state *old_state,
 						 struct dm_crtc_state *new_state)
@@ -310,17 +313,19 @@ static inline bool update_planes_and_stream_adapter(struct dc *dc,
 					   stream_update);
 }
 
-static int dm_set_clockgating_state(struct amdgpu_ip_block *ip_block,
-		  enum amd_clockgating_state state)
+STATIC_IFN_KUNIT int dm_set_clockgating_state(struct amdgpu_ip_block *ip_block,
+					      enum amd_clockgating_state state)
 {
 	return 0;
 }
+EXPORT_IF_KUNIT(dm_set_clockgating_state);
 
-static int dm_set_powergating_state(struct amdgpu_ip_block *ip_block,
-		  enum amd_powergating_state state)
+STATIC_IFN_KUNIT int dm_set_powergating_state(struct amdgpu_ip_block *ip_block,
+					      enum amd_powergating_state state)
 {
 	return 0;
 }
+EXPORT_IF_KUNIT(dm_set_powergating_state);
 
 /* Prototypes of private functions */
 static int dm_early_init(struct amdgpu_ip_block *ip_block);
@@ -2797,10 +2802,11 @@ static void amdgpu_dm_destroy_drm_device(struct amdgpu_display_manager *dm)
  *
  * Calculate and program the display watermarks and line buffer allocation.
  */
-static void dm_bandwidth_update(struct amdgpu_device *adev)
+STATIC_IFN_KUNIT void dm_bandwidth_update(struct amdgpu_device *adev)
 {
 	/* TODO: implement later */
 }
+EXPORT_IF_KUNIT(dm_bandwidth_update);
 
 static const struct amdgpu_display_funcs dm_display_funcs = {
 	.bandwidth_update = dm_bandwidth_update, /* called unconditionally */

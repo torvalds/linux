@@ -1140,6 +1140,15 @@ void amdgpu_dm_apply_delay_after_dpcd_poweroff(struct amdgpu_device *adev,
 											   struct dc_sink *sink);
 
 #if IS_ENABLED(CONFIG_DRM_AMD_DC_KUNIT_TEST)
+struct amdgpu_ip_block;
+bool dm_is_idle(struct amdgpu_ip_block *ip_block);
+int dm_wait_for_idle(struct amdgpu_ip_block *ip_block);
+int dm_soft_reset(struct amdgpu_ip_block *ip_block);
+int dm_set_clockgating_state(struct amdgpu_ip_block *ip_block,
+			     enum amd_clockgating_state state);
+int dm_set_powergating_state(struct amdgpu_ip_block *ip_block,
+			     enum amd_powergating_state state);
+void dm_bandwidth_update(struct amdgpu_device *adev);
 int dm_plane_layer_index_cmp(const void *a, const void *b);
 int fill_plane_color_attributes(const struct drm_plane_state *plane_state,
 				const enum surface_pixel_format format,

@@ -6,10 +6,76 @@
  */
 
 #include <kunit/test.h>
+#include <linux/pci.h>
+#include <drm/drm_atomic.h>
+#include <drm/drm_connector.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_modes.h>
+#include <drm/drm_writeback.h>
 
 #include "dc.h"
+#include "inc/core_types.h"
+#include "amd_shared.h"
+#include "amdgpu.h"
 #include "amdgpu_mode.h"
 #include "amdgpu_dm.h"
+#include "amdgpu_dm_kunit_test_helpers.h"
+
+/* Tests for simple DM callbacks */
+
+/**
+ * dm_test_is_idle - Test placeholder idle callback returns true
+ * @test: The KUnit test context
+ */
+static void dm_test_is_idle(struct kunit *test)
+{
+	KUNIT_EXPECT_TRUE(test, dm_is_idle(NULL));
+}
+
+/**
+ * dm_test_wait_for_idle - Test placeholder wait-for-idle callback returns success
+ * @test: The KUnit test context
+ */
+static void dm_test_wait_for_idle(struct kunit *test)
+{
+	KUNIT_EXPECT_EQ(test, dm_wait_for_idle(NULL), 0);
+}
+
+/**
+ * dm_test_soft_reset - Test placeholder soft-reset callback returns success
+ * @test: The KUnit test context
+ */
+static void dm_test_soft_reset(struct kunit *test)
+{
+	KUNIT_EXPECT_EQ(test, dm_soft_reset(NULL), 0);
+}
+
+/**
+ * dm_test_set_clockgating_state - Test placeholder clockgating callback returns success
+ * @test: The KUnit test context
+ */
+static void dm_test_set_clockgating_state(struct kunit *test)
+{
+	KUNIT_EXPECT_EQ(test, dm_set_clockgating_state(NULL, AMD_CG_STATE_GATE), 0);
+}
+
+/**
+ * dm_test_set_powergating_state - Test placeholder powergating callback returns success
+ * @test: The KUnit test context
+ */
+static void dm_test_set_powergating_state(struct kunit *test)
+{
+	KUNIT_EXPECT_EQ(test, dm_set_powergating_state(NULL, AMD_PG_STATE_GATE), 0);
+}
+
+/**
+ * dm_test_bandwidth_update - Test placeholder bandwidth update is callable
+ * @test: The KUnit test context
+ */
+static void dm_test_bandwidth_update(struct kunit *test)
+{
+	dm_bandwidth_update(NULL);
+}
 
 /* Tests for dm_plane_layer_index_cmp() */
 
@@ -884,6 +950,13 @@ static void dm_test_master_stream_defaults_to_first(struct kunit *test)
 }
 
 static struct kunit_case amdgpu_dm_tests[] = {
+	/* Simple DM callbacks */
+	KUNIT_CASE(dm_test_is_idle),
+	KUNIT_CASE(dm_test_wait_for_idle),
+	KUNIT_CASE(dm_test_soft_reset),
+	KUNIT_CASE(dm_test_set_clockgating_state),
+	KUNIT_CASE(dm_test_set_powergating_state),
+	KUNIT_CASE(dm_test_bandwidth_update),
 	/* dm_plane_layer_index_cmp */
 	KUNIT_CASE(dm_test_plane_layer_index_cmp_equal),
 	KUNIT_CASE(dm_test_plane_layer_index_cmp_descending),
