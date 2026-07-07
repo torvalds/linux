@@ -1937,6 +1937,66 @@ static void dm_test_per_frame_master_sync_skips_null_stream(struct kunit *test)
 			    stream);
 }
 
+/* Tests for dm_should_disable_stutter() */
+
+/**
+ * dm_test_should_disable_stutter_match - Test the quirk device matches
+ * @test: The KUnit test context
+ */
+static void dm_test_should_disable_stutter_match(struct kunit *test)
+{
+	struct pci_dev *pdev;
+
+	pdev = kunit_kzalloc(test, sizeof(*pdev), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, pdev);
+
+	pdev->vendor = 0x1002;
+	pdev->device = 0x15dd;
+	pdev->subsystem_vendor = 0x1002;
+	pdev->subsystem_device = 0x15dd;
+	pdev->revision = 0xc8;
+
+	KUNIT_EXPECT_TRUE(test, dm_should_disable_stutter(pdev));
+}
+
+/**
+ * dm_test_should_disable_stutter_no_match - Test a non-quirk device does not match
+ * @test: The KUnit test context
+ */
+static void dm_test_should_disable_stutter_no_match(struct kunit *test)
+{
+	struct pci_dev *pdev;
+
+	pdev = kunit_kzalloc(test, sizeof(*pdev), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, pdev);
+
+	pdev->vendor = 0x1002;
+	pdev->device = 0x1234;
+
+	KUNIT_EXPECT_FALSE(test, dm_should_disable_stutter(pdev));
+}
+
+/**
+ * dm_test_should_disable_stutter_revision_differs - Test a partial match (revision) fails
+ * @test: The KUnit test context
+ */
+static void dm_test_should_disable_stutter_revision_differs(struct kunit *test)
+{
+	struct pci_dev *pdev;
+
+	pdev = kunit_kzalloc(test, sizeof(*pdev), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, pdev);
+
+	/* Everything matches the quirk except the revision */
+	pdev->vendor = 0x1002;
+	pdev->device = 0x15dd;
+	pdev->subsystem_vendor = 0x1002;
+	pdev->subsystem_device = 0x15dd;
+	pdev->revision = 0x00;
+
+	KUNIT_EXPECT_FALSE(test, dm_should_disable_stutter(pdev));
+}
+
 static struct kunit_case amdgpu_dm_tests[] = {
 	/* Simple DM callbacks */
 	KUNIT_CASE(dm_test_is_idle),
@@ -2042,6 +2102,10 @@ static struct kunit_case amdgpu_dm_tests[] = {
 	KUNIT_CASE(dm_test_per_frame_master_sync_single_stream),
 	KUNIT_CASE(dm_test_per_frame_master_sync_two_streams),
 	KUNIT_CASE(dm_test_per_frame_master_sync_skips_null_stream),
+	/* dm_should_disable_stutter */
+	KUNIT_CASE(dm_test_should_disable_stutter_match),
+	KUNIT_CASE(dm_test_should_disable_stutter_no_match),
+	KUNIT_CASE(dm_test_should_disable_stutter_revision_differs),
 	{}
 };
 

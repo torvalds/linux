@@ -424,7 +424,7 @@ static const struct amdgpu_stutter_quirk amdgpu_stutter_quirk_list[] = {
 	{ 0, 0, 0, 0, 0 },
 };
 
-static bool dm_should_disable_stutter(struct pci_dev *pdev)
+STATIC_IFN_KUNIT bool dm_should_disable_stutter(struct pci_dev *pdev)
 {
 	const struct amdgpu_stutter_quirk *p = amdgpu_stutter_quirk_list;
 
@@ -440,6 +440,7 @@ static bool dm_should_disable_stutter(struct pci_dev *pdev)
 	}
 	return false;
 }
+EXPORT_IF_KUNIT(dm_should_disable_stutter);
 
 
 void*
