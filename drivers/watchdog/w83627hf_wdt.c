@@ -316,9 +316,8 @@ static unsigned int wdt_get_time(struct watchdog_device *wdog)
  *	Kernel Interfaces
  */
 
-static const struct watchdog_info wdt_info = {
+static struct watchdog_info wdt_info = {
 	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE,
-	.identity = "W83627HF Watchdog",
 };
 
 static const struct watchdog_ops wdt_ops = {
@@ -524,6 +523,9 @@ static int __init wdt_init(void)
 
 	pr_info("WDT driver for %s Super I/O chip initialising\n",
 		chip_name[chip]);
+
+	snprintf(wdt_info.identity, sizeof(wdt_info.identity), "%s Watchdog",
+		 chip_name[chip]);
 
 	watchdog_init_timeout(&wdt_dev, timeout, NULL);
 	watchdog_set_nowayout(&wdt_dev, nowayout);
