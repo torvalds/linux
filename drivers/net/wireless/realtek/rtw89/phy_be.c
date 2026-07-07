@@ -225,6 +225,16 @@ static const struct rtw89_bb_wrap_regs rtw89_bb_wrap_regs_be_v1 = {
 	.pwr_macid_path = R_BE_PWR_MACID_PATH_BASE_V1,
 };
 
+static const struct rtw89_nctl_regs rtw89_nctl_regs_be = {
+	.cfg = R_NCTL_CFG,
+	.rw = R_NCTL_RW,
+};
+
+static const struct rtw89_nctl_regs rtw89_nctl_regs_be_v1 = {
+	.cfg = R_NCTL_CFG_BE4,
+	.rw = R_NCTL_RW_BE4,
+};
+
 static u32 rtw89_phy0_phy1_offset_be(struct rtw89_dev *rtwdev, u32 addr)
 {
 	u32 phy_page = addr >> 8;
@@ -440,6 +450,28 @@ static void rtw89_phy_config_bb_gain_be(struct rtw89_dev *rtwdev,
 	}
 }
 
+static void rtw89_phy_preinit_rf_nctl_check_be(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+	const struct rtw89_nctl_regs *nctl = phy->nctl;
+	int poll;
+	u32 val;
+
+	rtw89_phy_write32(rtwdev, nctl->cfg, B_NCTL_CHK_EN);
+
+	for (poll = 0; poll < 10000; poll++) {
+		rtw89_phy_write32(rtwdev, nctl->rw, B_NCTL_CHECK);
+
+		fsleep(10);
+
+		val = rtw89_phy_read32(rtwdev, nctl->rw);
+		if (val == B_NCTL_CHECK)
+			return;
+	}
+
+	rtw89_warn(rtwdev, "NCTL INIT check 0x%x[2]TIMEOUT!\n", nctl->rw);
+}
+
 static void rtw89_phy_preinit_rf_nctl_be(struct rtw89_dev *rtwdev)
 {
 	rtw89_phy_write32_mask(rtwdev, R_GOTX_IQKDPK_C0, B_GOTX_IQKDPK, 0x3);
@@ -456,6 +488,11 @@ static void rtw89_phy_preinit_rf_nctl_be(struct rtw89_dev *rtwdev)
 		rtw89_phy_write32_mask(rtwdev, R_IQK_DPK_RST_C1, B_IQK_DPK_RST, 0x1);
 		rtw89_phy_write32_mask(rtwdev, R_TXRFC_C1, B_TXRFC_RST, 0x1);
 	}
+
+	rtw89_phy_write32_mask(rtwdev, R_TX_COLLISION_T2R_ST, B_RX_CFIR_PATH_EN, 0x1);
+	rtw89_phy_write32_mask(rtwdev, R_TX_COLLISION_T2R_ST, B_RX_CFIR_PATH, 0x3);
+
+	rtw89_phy_preinit_rf_nctl_check_be(rtwdev);
 }
 
 static void rtw89_phy_preinit_rf_nctl_be_v1(struct rtw89_dev *rtwdev)
@@ -466,6 +503,8 @@ static void rtw89_phy_preinit_rf_nctl_be_v1(struct rtw89_dev *rtwdev)
 	rtw89_phy_write32_mask(rtwdev, R_IQK_DPK_RST_BE4, B_IQK_DPK_RST, 0x1);
 	rtw89_phy_write32_mask(rtwdev, R_IQK_DPK_PRST_BE4, B_IQK_DPK_PRST, 0x1);
 	rtw89_phy_write32_mask(rtwdev, R_IQK_DPK_PRST_C1_BE4, B_IQK_DPK_PRST, 0x1);
+
+	rtw89_phy_preinit_rf_nctl_check_be(rtwdev);
 }
 
 static u32 rtw89_phy_bb_wrap_flush_addr(struct rtw89_dev *rtwdev, u32 addr)
@@ -1905,6 +1944,7 @@ const struct rtw89_phy_gen_def rtw89_phy_gen_be = {
 	.physts = &rtw89_physts_regs_be,
 	.cfo = &rtw89_cfo_regs_be,
 	.bb_wrap = &rtw89_bb_wrap_regs_be,
+	.nctl = &rtw89_nctl_regs_be,
 	.phy0_phy1_offset = rtw89_phy0_phy1_offset_be,
 	.config_bb_gain = rtw89_phy_config_bb_gain_be,
 	.preinit_rf_nctl = rtw89_phy_preinit_rf_nctl_be,
@@ -1930,6 +1970,7 @@ const struct rtw89_phy_gen_def rtw89_phy_gen_be_v1 = {
 	.physts = &rtw89_physts_regs_be_v1,
 	.cfo = &rtw89_cfo_regs_be_v1,
 	.bb_wrap = &rtw89_bb_wrap_regs_be_v1,
+	.nctl = &rtw89_nctl_regs_be_v1,
 	.phy0_phy1_offset = rtw89_phy0_phy1_offset_be_v1,
 	.config_bb_gain = rtw89_phy_config_bb_gain_be,
 	.preinit_rf_nctl = rtw89_phy_preinit_rf_nctl_be_v1,
