@@ -535,6 +535,19 @@ begin:
 	rtw89_write32_set(rtwdev, R_BE_SYS_PW_CTRL, B_BE_EN_WLON);
 	rtw89_write32_set(rtwdev, R_BE_WLRESUME_CTRL, B_BE_LPSROP_CMAC0 |
 						      B_BE_LPSROP_CMAC1);
+
+	if (hal->aid == RTL8922D_AID7102) {
+		ret = rtw89_mac_write_xtal_si(rtwdev, XTAL_SI_AONLDO_CTRL, 0, 0x20);
+		if (ret)
+			return ret;
+
+		udelay(1);
+
+		ret = rtw89_mac_write_xtal_si(rtwdev, XTAL_SI_AONLDO_CTRL, 0, 0x40);
+		if (ret)
+			return ret;
+	}
+
 	rtw89_write32_set(rtwdev, R_BE_SYS_PW_CTRL, B_BE_APFN_ONMAC);
 
 	ret = read_poll_timeout(rtw89_read32, val32, !(val32 & B_BE_APFN_ONMAC),
