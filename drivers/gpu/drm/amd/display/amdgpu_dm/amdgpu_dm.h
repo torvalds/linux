@@ -1181,6 +1181,7 @@ void set_master_stream(struct dc_stream_state *stream_set[], int stream_count);
 void reset_freesync_config_for_crtc(struct dm_crtc_state *new_crtc_state);
 void get_freesync_config_for_crtc(struct dm_crtc_state *new_crtc_state,
 				  struct dm_connector_state *new_con_state);
+void dm_enable_per_frame_crtc_master_sync(struct dc_state *context);
 struct hdcp_workqueue;
 bool is_content_protection_different(struct drm_crtc_state *new_crtc_state,
 				     struct drm_crtc_state *old_crtc_state,

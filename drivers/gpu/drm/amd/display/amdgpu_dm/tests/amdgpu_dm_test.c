@@ -1838,6 +1838,105 @@ static void dm_test_reset_freesync_config(struct kunit *test)
 	KUNIT_EXPECT_FALSE(test, crtc_state->vrr_infopacket.valid);
 }
 
+/* Tests for dm_enable_per_frame_crtc_master_sync() */
+
+/**
+ * dm_test_per_frame_master_sync_single_stream - Test fewer than two streams is a no-op
+ * @test: The KUnit test context
+ */
+static void dm_test_per_frame_master_sync_single_stream(struct kunit *test)
+{
+	struct dc_state *context;
+	struct dc_stream_state *stream;
+
+	context = kunit_kzalloc(test, sizeof(*context), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, context);
+	stream = kunit_kzalloc(test, sizeof(*stream), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, stream);
+
+	stream->triggered_crtc_reset.enabled = true;
+	context->streams[0] = stream;
+	context->stream_count = 1;
+
+	dm_enable_per_frame_crtc_master_sync(context);
+
+	/* < 2 streams: early return, event_source stays NULL */
+	KUNIT_EXPECT_NULL(test, stream->triggered_crtc_reset.event_source);
+}
+
+/**
+ * dm_test_per_frame_master_sync_two_streams - Test the master is picked and applied
+ * @test: The KUnit test context
+ */
+static void dm_test_per_frame_master_sync_two_streams(struct kunit *test)
+{
+	struct dc_state *context;
+	struct dc_stream_state *stream0, *stream1;
+
+	context = kunit_kzalloc(test, sizeof(*context), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, context);
+	stream0 = kunit_kzalloc(test, sizeof(*stream0), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, stream0);
+	stream1 = kunit_kzalloc(test, sizeof(*stream1), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, stream1);
+
+	/* stream0 60Hz, stream1 120Hz, both trigger-reset enabled */
+	stream0->triggered_crtc_reset.enabled = true;
+	stream0->timing.pix_clk_100hz = 1485000;
+	stream0->timing.h_total = 2200;
+	stream0->timing.v_total = 1125;
+	stream1->triggered_crtc_reset.enabled = true;
+	stream1->timing.pix_clk_100hz = 2970000;
+	stream1->timing.h_total = 2200;
+	stream1->timing.v_total = 1125;
+	stream1->timing.flags.VSYNC_POSITIVE_POLARITY = 1;
+
+	context->streams[0] = stream0;
+	context->streams[1] = stream1;
+	context->stream_count = 2;
+
+	dm_enable_per_frame_crtc_master_sync(context);
+
+	/* set_master_stream picks the highest refresh (stream1) as event source */
+	KUNIT_EXPECT_PTR_EQ(test, stream0->triggered_crtc_reset.event_source,
+			    stream1);
+	KUNIT_EXPECT_PTR_EQ(test, stream1->triggered_crtc_reset.event_source,
+			    stream1);
+	/* set_multisync_trigger_params applied to enabled streams */
+	KUNIT_EXPECT_EQ(test, (int)stream0->triggered_crtc_reset.event,
+			(int)CRTC_EVENT_VSYNC_RISING);
+	KUNIT_EXPECT_EQ(test, (int)stream0->triggered_crtc_reset.delay,
+			(int)TRIGGER_DELAY_NEXT_PIXEL);
+}
+
+/**
+ * dm_test_per_frame_master_sync_skips_null_stream - Test NULL stream entries are skipped
+ * @test: The KUnit test context
+ */
+static void dm_test_per_frame_master_sync_skips_null_stream(struct kunit *test)
+{
+	struct dc_state *context;
+	struct dc_stream_state *stream;
+
+	context = kunit_kzalloc(test, sizeof(*context), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, context);
+	stream = kunit_kzalloc(test, sizeof(*stream), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, stream);
+
+	stream->triggered_crtc_reset.enabled = true;
+	stream->timing.pix_clk_100hz = 1485000;
+	stream->timing.h_total = 2200;
+	stream->timing.v_total = 1125;
+	context->streams[0] = stream;
+	context->streams[1] = NULL;
+	context->stream_count = 2;
+
+	dm_enable_per_frame_crtc_master_sync(context);
+
+	KUNIT_EXPECT_PTR_EQ(test, stream->triggered_crtc_reset.event_source,
+			    stream);
+}
+
 static struct kunit_case amdgpu_dm_tests[] = {
 	/* Simple DM callbacks */
 	KUNIT_CASE(dm_test_is_idle),
@@ -1939,6 +2038,10 @@ static struct kunit_case amdgpu_dm_tests[] = {
 	KUNIT_CASE(dm_test_freesync_config_active_fixed),
 	/* reset_freesync_config_for_crtc */
 	KUNIT_CASE(dm_test_reset_freesync_config),
+	/* dm_enable_per_frame_crtc_master_sync */
+	KUNIT_CASE(dm_test_per_frame_master_sync_single_stream),
+	KUNIT_CASE(dm_test_per_frame_master_sync_two_streams),
+	KUNIT_CASE(dm_test_per_frame_master_sync_skips_null_stream),
 	{}
 };
 

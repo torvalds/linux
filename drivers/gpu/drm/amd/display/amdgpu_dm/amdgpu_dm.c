@@ -141,7 +141,7 @@ static void amdgpu_dm_destroy_drm_device(struct amdgpu_display_manager *dm);
 
 static int amdgpu_dm_atomic_setup_commit(struct drm_atomic_commit *state);
 static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_commit *state);
-static void dm_enable_per_frame_crtc_master_sync(struct dc_state *context);
+STATIC_IFN_KUNIT void dm_enable_per_frame_crtc_master_sync(struct dc_state *context);
 
 static int amdgpu_dm_atomic_check(struct drm_device *dev,
 				  struct drm_atomic_commit *state);
@@ -5344,7 +5344,7 @@ STATIC_IFN_KUNIT void set_master_stream(struct dc_stream_state *stream_set[],
 }
 EXPORT_IF_KUNIT(set_master_stream);
 
-static void dm_enable_per_frame_crtc_master_sync(struct dc_state *context)
+STATIC_IFN_KUNIT void dm_enable_per_frame_crtc_master_sync(struct dc_state *context)
 {
 	int i = 0;
 	struct dc_stream_state *stream;
@@ -5372,6 +5372,7 @@ static void dm_enable_per_frame_crtc_master_sync(struct dc_state *context)
 		set_multisync_trigger_params(stream);
 	}
 }
+EXPORT_IF_KUNIT(dm_enable_per_frame_crtc_master_sync);
 
 /**
  * amdgpu_dm_atomic_commit_tail() - AMDgpu DM's commit tail implementation.
