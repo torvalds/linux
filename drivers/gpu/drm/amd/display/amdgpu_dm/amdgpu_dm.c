@@ -126,7 +126,7 @@ MODULE_FIRMWARE(FIRMWARE_NAVI12_DMCU);
 /* basic init/fini API */
 static int amdgpu_dm_init(struct amdgpu_device *adev);
 static void amdgpu_dm_fini(struct amdgpu_device *adev);
-static void reset_freesync_config_for_crtc(struct dm_crtc_state *new_crtc_state);
+STATIC_IFN_KUNIT void reset_freesync_config_for_crtc(struct dm_crtc_state *new_crtc_state);
 
 /*
  * initializes drm_device display related structures, based on the information
@@ -5735,7 +5735,7 @@ static int do_aquire_global_lock(struct drm_device *dev,
 	return ret < 0 ? ret : 0;
 }
 
-static void get_freesync_config_for_crtc(
+STATIC_IFN_KUNIT void get_freesync_config_for_crtc(
 	struct dm_crtc_state *new_crtc_state,
 	struct dm_connector_state *new_con_state)
 {
@@ -5778,8 +5778,9 @@ static void get_freesync_config_for_crtc(
 out:
 	new_crtc_state->freesync_config = config;
 }
+EXPORT_IF_KUNIT(get_freesync_config_for_crtc);
 
-static void reset_freesync_config_for_crtc(
+STATIC_IFN_KUNIT void reset_freesync_config_for_crtc(
 	struct dm_crtc_state *new_crtc_state)
 {
 	new_crtc_state->vrr_supported = false;
@@ -5787,6 +5788,7 @@ static void reset_freesync_config_for_crtc(
 	memset(&new_crtc_state->vrr_infopacket, 0,
 	       sizeof(new_crtc_state->vrr_infopacket));
 }
+EXPORT_IF_KUNIT(reset_freesync_config_for_crtc);
 
 STATIC_IFN_KUNIT bool
 is_timing_unchanged_for_freesync(struct drm_crtc_state *old_crtc_state,

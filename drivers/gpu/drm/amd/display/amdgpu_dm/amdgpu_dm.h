@@ -1178,6 +1178,9 @@ bool is_dc_timing_adjust_needed(struct dm_crtc_state *old_state,
 				struct dm_crtc_state *new_state);
 void set_multisync_trigger_params(struct dc_stream_state *stream);
 void set_master_stream(struct dc_stream_state *stream_set[], int stream_count);
+void reset_freesync_config_for_crtc(struct dm_crtc_state *new_crtc_state);
+void get_freesync_config_for_crtc(struct dm_crtc_state *new_crtc_state,
+				  struct dm_connector_state *new_con_state);
 struct hdcp_workqueue;
 bool is_content_protection_different(struct drm_crtc_state *new_crtc_state,
 				     struct drm_crtc_state *old_crtc_state,

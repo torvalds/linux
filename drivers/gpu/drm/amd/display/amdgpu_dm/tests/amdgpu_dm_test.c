@@ -1650,6 +1650,194 @@ static void dm_test_cp_diff_desired_to_undesired(struct kunit *test)
 	KUNIT_EXPECT_TRUE(test, dm_test_cp_diff(ctx));
 }
 
+/* Tests for get_freesync_config_for_crtc() */
+
+struct dm_test_freesync_ctx {
+	struct amdgpu_dm_connector *aconnector;
+	struct dm_crtc_state *crtc_state;
+	struct dm_connector_state *conn_state;
+	struct dc_stream_state *stream;
+};
+
+static struct dm_test_freesync_ctx *dm_test_freesync_ctx_alloc(struct kunit *test)
+{
+	struct dm_test_freesync_ctx *ctx;
+
+	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx);
+
+	ctx->aconnector = kunit_kzalloc(test, sizeof(*ctx->aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->aconnector);
+	ctx->crtc_state = kunit_kzalloc(test, sizeof(*ctx->crtc_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->crtc_state);
+	ctx->conn_state = kunit_kzalloc(test, sizeof(*ctx->conn_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->conn_state);
+	ctx->stream = dm_kunit_alloc_stream(test, NULL);
+
+	ctx->conn_state->base.connector = &ctx->aconnector->base;
+	ctx->aconnector->base.connector_type = DRM_MODE_CONNECTOR_DisplayPort;
+	ctx->crtc_state->stream = ctx->stream;
+
+	/* 1080p60 timing so drm_mode_vrefresh() == 60 */
+	ctx->crtc_state->base.mode.clock = 148500;
+	ctx->crtc_state->base.mode.htotal = 2200;
+	ctx->crtc_state->base.mode.vtotal = 1125;
+
+	return ctx;
+}
+
+/**
+ * dm_test_freesync_config_writeback - Test writeback connector is left untouched
+ * @test: The KUnit test context
+ */
+static void dm_test_freesync_config_writeback(struct kunit *test)
+{
+	struct dm_test_freesync_ctx *ctx = dm_test_freesync_ctx_alloc(test);
+
+	ctx->aconnector->base.connector_type = DRM_MODE_CONNECTOR_WRITEBACK;
+	ctx->conn_state->freesync_capable = true;
+	ctx->aconnector->min_vfreq = 48;
+	ctx->aconnector->max_vfreq = 120;
+	ctx->crtc_state->vrr_supported = true;	/* sentinel: must stay set */
+
+	get_freesync_config_for_crtc(ctx->crtc_state, ctx->conn_state);
+
+	/* Writeback: early return leaves vrr_supported sentinel untouched */
+	KUNIT_EXPECT_TRUE(test, ctx->crtc_state->vrr_supported);
+}
+
+/**
+ * dm_test_freesync_config_not_capable - Test a non-freesync sink reports UNSUPPORTED
+ * @test: The KUnit test context
+ */
+static void dm_test_freesync_config_not_capable(struct kunit *test)
+{
+	struct dm_test_freesync_ctx *ctx = dm_test_freesync_ctx_alloc(test);
+
+	ctx->conn_state->freesync_capable = false;
+	ctx->aconnector->min_vfreq = 48;
+	ctx->aconnector->max_vfreq = 120;
+
+	get_freesync_config_for_crtc(ctx->crtc_state, ctx->conn_state);
+
+	KUNIT_EXPECT_FALSE(test, ctx->crtc_state->vrr_supported);
+	KUNIT_EXPECT_EQ(test, (int)ctx->crtc_state->freesync_config.state,
+			(int)VRR_STATE_UNSUPPORTED);
+}
+
+/**
+ * dm_test_freesync_config_out_of_range - Test a refresh outside the range is UNSUPPORTED
+ * @test: The KUnit test context
+ */
+static void dm_test_freesync_config_out_of_range(struct kunit *test)
+{
+	struct dm_test_freesync_ctx *ctx = dm_test_freesync_ctx_alloc(test);
+
+	ctx->conn_state->freesync_capable = true;
+	ctx->aconnector->min_vfreq = 90;	/* 60 < 90 -> out of range */
+	ctx->aconnector->max_vfreq = 120;
+
+	get_freesync_config_for_crtc(ctx->crtc_state, ctx->conn_state);
+
+	KUNIT_EXPECT_FALSE(test, ctx->crtc_state->vrr_supported);
+	KUNIT_EXPECT_EQ(test, (int)ctx->crtc_state->freesync_config.state,
+			(int)VRR_STATE_UNSUPPORTED);
+}
+
+/**
+ * dm_test_freesync_config_active_variable - Test vrr_enabled yields ACTIVE_VARIABLE
+ * @test: The KUnit test context
+ */
+static void dm_test_freesync_config_active_variable(struct kunit *test)
+{
+	struct dm_test_freesync_ctx *ctx = dm_test_freesync_ctx_alloc(test);
+
+	ctx->conn_state->freesync_capable = true;
+	ctx->aconnector->min_vfreq = 48;
+	ctx->aconnector->max_vfreq = 120;
+	ctx->crtc_state->base.vrr_enabled = true;
+
+	get_freesync_config_for_crtc(ctx->crtc_state, ctx->conn_state);
+
+	KUNIT_EXPECT_TRUE(test, ctx->crtc_state->vrr_supported);
+	KUNIT_EXPECT_TRUE(test, ctx->stream->ignore_msa_timing_param);
+	KUNIT_EXPECT_EQ(test, (int)ctx->crtc_state->freesync_config.state,
+			(int)VRR_STATE_ACTIVE_VARIABLE);
+	KUNIT_EXPECT_EQ(test, ctx->crtc_state->freesync_config.min_refresh_in_uhz,
+			48000000U);
+	KUNIT_EXPECT_EQ(test, ctx->crtc_state->freesync_config.max_refresh_in_uhz,
+			120000000U);
+	KUNIT_EXPECT_TRUE(test, ctx->crtc_state->freesync_config.vsif_supported);
+	KUNIT_EXPECT_TRUE(test, ctx->crtc_state->freesync_config.btr);
+}
+
+/**
+ * dm_test_freesync_config_inactive - Test supported-but-off yields INACTIVE
+ * @test: The KUnit test context
+ */
+static void dm_test_freesync_config_inactive(struct kunit *test)
+{
+	struct dm_test_freesync_ctx *ctx = dm_test_freesync_ctx_alloc(test);
+
+	ctx->conn_state->freesync_capable = true;
+	ctx->aconnector->min_vfreq = 48;
+	ctx->aconnector->max_vfreq = 120;
+	ctx->crtc_state->base.vrr_enabled = false;
+
+	get_freesync_config_for_crtc(ctx->crtc_state, ctx->conn_state);
+
+	KUNIT_EXPECT_TRUE(test, ctx->crtc_state->vrr_supported);
+	KUNIT_EXPECT_EQ(test, (int)ctx->crtc_state->freesync_config.state,
+			(int)VRR_STATE_INACTIVE);
+}
+
+/**
+ * dm_test_freesync_config_active_fixed - Test freesync-video mode yields ACTIVE_FIXED
+ * @test: The KUnit test context
+ */
+static void dm_test_freesync_config_active_fixed(struct kunit *test)
+{
+	struct dm_test_freesync_ctx *ctx = dm_test_freesync_ctx_alloc(test);
+
+	ctx->conn_state->freesync_capable = true;
+	ctx->aconnector->min_vfreq = 48;
+	ctx->aconnector->max_vfreq = 120;
+	/* Pre-set fixed state selects the freesync-video (fixed) path */
+	ctx->crtc_state->freesync_config.state = VRR_STATE_ACTIVE_FIXED;
+	ctx->crtc_state->freesync_config.fixed_refresh_in_uhz = 60000000;
+	ctx->crtc_state->base.vrr_enabled = true;	/* ignored on the fixed path */
+
+	get_freesync_config_for_crtc(ctx->crtc_state, ctx->conn_state);
+
+	KUNIT_EXPECT_TRUE(test, ctx->crtc_state->vrr_supported);
+	KUNIT_EXPECT_EQ(test, (int)ctx->crtc_state->freesync_config.state,
+			(int)VRR_STATE_ACTIVE_FIXED);
+	KUNIT_EXPECT_EQ(test, ctx->crtc_state->freesync_config.fixed_refresh_in_uhz,
+			60000000U);
+}
+
+/* Tests for reset_freesync_config_for_crtc() */
+
+/**
+ * dm_test_reset_freesync_config - Test reset clears vrr support and info packet
+ * @test: The KUnit test context
+ */
+static void dm_test_reset_freesync_config(struct kunit *test)
+{
+	struct dm_crtc_state *crtc_state;
+
+	crtc_state = kunit_kzalloc(test, sizeof(*crtc_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, crtc_state);
+
+	crtc_state->vrr_supported = true;
+	crtc_state->vrr_infopacket.valid = true;
+
+	reset_freesync_config_for_crtc(crtc_state);
+
+	KUNIT_EXPECT_FALSE(test, crtc_state->vrr_supported);
+	KUNIT_EXPECT_FALSE(test, crtc_state->vrr_infopacket.valid);
+}
+
 static struct kunit_case amdgpu_dm_tests[] = {
 	/* Simple DM callbacks */
 	KUNIT_CASE(dm_test_is_idle),
@@ -1742,6 +1930,15 @@ static struct kunit_case amdgpu_dm_tests[] = {
 	KUNIT_CASE(dm_test_cp_diff_s3_undesired_to_enabled),
 	KUNIT_CASE(dm_test_cp_diff_desired_to_enabled),
 	KUNIT_CASE(dm_test_cp_diff_desired_to_undesired),
+	/* get_freesync_config_for_crtc */
+	KUNIT_CASE(dm_test_freesync_config_writeback),
+	KUNIT_CASE(dm_test_freesync_config_not_capable),
+	KUNIT_CASE(dm_test_freesync_config_out_of_range),
+	KUNIT_CASE(dm_test_freesync_config_active_variable),
+	KUNIT_CASE(dm_test_freesync_config_inactive),
+	KUNIT_CASE(dm_test_freesync_config_active_fixed),
+	/* reset_freesync_config_for_crtc */
+	KUNIT_CASE(dm_test_reset_freesync_config),
 	{}
 };
 
