@@ -1859,33 +1859,63 @@ int ksmbd_vfs_copy_file_ranges(struct ksmbd_work *work,
 	}
 
 	for (i = 0; i < chunk_count; i++) {
+		bool stream_len_mismatch = false;
+		size_t copy_len;
+
 		src_off = le64_to_cpu(chunks[i].SourceOffset);
 		dst_off = le64_to_cpu(chunks[i].TargetOffset);
 		len = le32_to_cpu(chunks[i].Length);
+		copy_len = len;
 
-		if (src_off + len > src_file_size)
+		if (src_off < 0)
 			return -E2BIG;
+
+		if (src_off > src_file_size || len > src_file_size - src_off) {
+			/*
+			 * macOS can reuse the main file's chunk list when copying
+			 * streams, so the requested range can exceed the size of
+			 * the xattr-backed stream. For an AAPL connection, copy the
+			 * available stream data and report the requested length to
+			 * avoid a copy length mismatch.
+			 */
+			if (!work->conn->is_aapl ||
+			    !ksmbd_stream_fd(src_fp) ||
+			    !ksmbd_stream_fd(dst_fp))
+				return -E2BIG;
+
+			stream_len_mismatch = true;
+			if (src_off < src_file_size)
+				copy_len = src_file_size - src_off;
+			else
+				copy_len = 0;
+		}
 
 		/*
 		 * vfs_copy_file_range does not support streams or overlapping
 		 * ranges within the same file.
 		 */
-		if (ksmbd_stream_fd(src_fp) || ksmbd_stream_fd(dst_fp) ||
+		if (!copy_len) {
+			ret = 0;
+		} else if (ksmbd_stream_fd(src_fp) || ksmbd_stream_fd(dst_fp) ||
 		    (file_inode(src_fp->filp) == file_inode(dst_fp->filp) &&
-		     dst_off + len > src_off && dst_off < src_off + len))
+		     dst_off + copy_len > src_off &&
+		     dst_off < src_off + copy_len)) {
 			ret = ksmbd_vfs_copy_file_range_buffered(work, src_fp,
 							  dst_fp, src_off,
-							  dst_off, len);
-		else {
+							  dst_off, copy_len);
+		} else {
 			ret = vfs_copy_file_range(src_fp->filp, src_off,
-					dst_fp->filp, dst_off, len, 0);
+					dst_fp->filp, dst_off, copy_len, 0);
 			if (ret == -EOPNOTSUPP || ret == -EXDEV)
 				ret = vfs_copy_file_range(src_fp->filp, src_off,
 							  dst_fp->filp, dst_off,
-							  len, COPY_FILE_SPLICE);
+							  copy_len,
+							  COPY_FILE_SPLICE);
 		}
 		if (ret < 0)
 			return ret;
+		if (stream_len_mismatch)
+			ret = len;
 
 		*chunk_count_written += 1;
 		*total_size_written += ret;
