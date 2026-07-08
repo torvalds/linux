@@ -17,7 +17,7 @@
 		reg = <0x70000000 0x40000000>;
 	};
 
-	eim-cs1@f4000000 {
+	eim-bus@f4000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "fsl,eim-bus", "simple-bus";
