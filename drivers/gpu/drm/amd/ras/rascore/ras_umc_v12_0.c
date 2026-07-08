@@ -460,16 +460,30 @@ static int convert_eeprom_record_to_nps_addr(struct ras_core_context *ras_core,
 static int umc_v12_0_eeprom_record_to_nps_record(struct ras_core_context *ras_core,
 				struct eeprom_umc_record *record, uint32_t nps)
 {
-	uint64_t pa = 0;
+	uint64_t ch_idx_v2, pa = 0;
+	uint32_t save_nps;
 	int ret = 0;
 
-	if (nps == EEPROM_RECORD_UMC_NPS_MODE(record) && !ras_fw_eeprom_supported(ras_core)) {
-		record->cur_nps_retired_row_pfn = EEPROM_RECORD_UMC_ADDR_PFN(record);
-	} else {
-		ret = convert_eeprom_record_to_nps_addr(ras_core,
+	save_nps = EEPROM_RECORD_UMC_NPS_MODE(record);
+	/* eeprom v2 has no stored nps, always convert if the flag is set */
+	ch_idx_v2 = record->retired_row_pfn & UMC_CHANNEL_IDX_V2;
+
+	if (save_nps || ch_idx_v2) {
+		if ((nps == save_nps) && !ras_fw_eeprom_supported(ras_core)) {
+			record->cur_nps_retired_row_pfn =
+				EEPROM_RECORD_UMC_ADDR_PFN(record);
+		} else {
+			ret = convert_eeprom_record_to_nps_addr(ras_core,
 				record, &pa, nps);
-		if (!ret)
-			record->cur_nps_retired_row_pfn = RAS_ADDR_TO_PFN(pa);
+			if (!ret)
+				record->cur_nps_retired_row_pfn = RAS_ADDR_TO_PFN(pa);
+		}
+	} else {
+		/* old eeprom data format, the scope of channel index is
+		 * limited to umc instance
+		 */
+		/* TODO */
+		ret = -EOPNOTSUPP;
 	}
 
 	record->cur_nps = nps;

@@ -346,7 +346,7 @@ static bool ras_umc_check_retired_record(struct ras_core_context *ras_core,
 		if (ras_umc->ip_func && ras_umc->ip_func->eeprom_record_to_nps_record) {
 			ret = ras_umc->ip_func->eeprom_record_to_nps_record(ras_core, record, nps);
 			if (ret)
-				RAS_DEV_WARN(ras_core->dev,
+				RAS_DEV_WARN_RATELIMITED(ras_core->dev,
 					"Failed to adjust eeprom record, ret:%d", ret);
 		}
 		return false;

@@ -46,6 +46,26 @@
 #define UMC_ECC_NEW_DETECTED_TAG       0x1
 #define UMC_INV_MEM_PFN  (0xFFFFFFFFFFFFFFFF)
 
+/*
+ * a flag to indicate v2 format channel index stored in eeprom
+ *
+ * v1: store channel index within a umc instance in eeprom
+ *    range in UMC v12: 0 ~ 7
+ * v2: store global channel index in eeprom
+ *    range in UMC v12: 0 ~ 127
+ *
+ * NOTE: it's better to store it in eeprom_table_record.mem_channel,
+ * but there is only 8 bits in mem_channel, and the channel number may
+ * increase in the future, we decide to save it in
+ * eeprom_table_record.retired_page. retired_page is useless in v2,
+ * we depend on eeprom_table_record.address instead of retired_page in v2.
+ * Only 48 bits are saved on eeprom, use bit 47 here.
+ *
+ * UMC_CHANNEL_IDX_V2 is replaced by nps value in cur_nps_retired_row_pfn
+ * in eeprom v3 format, so they have no conflict.
+ */
+#define UMC_CHANNEL_IDX_V2      BIT_ULL(47)
+
 /* three column bits and one row bit in MCA address flip
  * in bad page retirement
  */
