@@ -53,7 +53,7 @@ void fill_mg_cmtime(struct kstat *stat, u32 request_mask, struct inode *inode)
 	}
 
 	stat->mtime = inode_get_mtime(inode);
-	stat->ctime.tv_sec = inode->i_ctime_sec;
+	stat->ctime.tv_sec = inode_get_ctime_sec(inode);
 	stat->ctime.tv_nsec = (u32)atomic_read(pcn);
 	if (!(stat->ctime.tv_nsec & I_CTIME_QUERIED))
 		stat->ctime.tv_nsec = ((u32)atomic_fetch_or(I_CTIME_QUERIED, pcn));
