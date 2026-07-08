@@ -45,6 +45,15 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: The phandle to the timing controller node.
 
+  display:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: phandle to display panel
+    deprecated: true
+
+  display0:
+    $ref: panel/panel-common.yaml#
+    deprecated: true
+
 required:
   - compatible
   - reg
@@ -52,6 +61,19 @@ required:
   - clock-names
 
 additionalProperties: false
+
+allOf:
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - fsl,ls1021a-dcu
+    then:
+      properties:
+        display: false
+        display0: false
 
 examples:
   - |
