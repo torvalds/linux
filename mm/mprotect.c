@@ -297,6 +297,16 @@ static __always_inline void change_present_ptes(struct mmu_gather *tlb,
 		ptent = pte_clear_uffd(ptent);
 
 	/*
+	 * The uffd bit on a VM_UFFD_RWP VMA carries PROT_NONE
+	 * semantics. If mprotect() or NUMA hinting changed the
+	 * base protection, restore PAGE_NONE so the PTE still
+	 * traps on any access. pte_modify() preserves
+	 * _PAGE_UFFD.
+	 */
+	if (userfaultfd_rwp(vma) && pte_uffd(ptent))
+		ptent = pte_modify(ptent, PAGE_NONE);
+
+	/*
 	 * In some writable, shared mappings, we might want
 	 * to catch actual write access -- see
 	 * vma_wants_writenotify().
