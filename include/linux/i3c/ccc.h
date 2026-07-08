@@ -12,6 +12,8 @@
 #include <linux/i3c/device.h>
 
 /* I3C CCC (Common Command Codes) related definitions */
+#define I3C_CCC_RETRIES	1
+
 #define I3C_CCC_DIRECT			BIT(7)
 
 #define I3C_CCC_ID(id, broadcast)	\
@@ -374,12 +376,15 @@ struct i3c_ccc_cmd_dest {
  * @ndests: number of destinations. Should always be one for broadcast commands
  * @dests: array of destinations and associated payload for this CCC. Most of
  *	   the time, only one destination is provided
+ * @retries: number of times to retry a failed Direct GET CCC (see
+ *	     &I3C_CCC_RETRIES)
  * @err: I3C error code
  */
 struct i3c_ccc_cmd {
 	u8 rnw;
 	u8 id;
 	unsigned int ndests;
+	unsigned int retries;
 	struct i3c_ccc_cmd_dest *dests;
 	enum i3c_error_code err;
 };
