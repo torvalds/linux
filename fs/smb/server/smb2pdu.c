@@ -7031,6 +7031,8 @@ static int set_file_basic_info(struct ksmbd_file *fp,
 	struct file *filp;
 	struct inode *inode;
 	struct mnt_idmap *idmap;
+	__le32 attrs_mask = FILE_ATTRIBUTE_DIRECTORY_LE |
+		FILE_ATTRIBUTE_COMPRESSED_LE;
 	int rc = 0;
 
 	if (!(fp->daccess & FILE_WRITE_ATTRIBUTES_LE))
@@ -7068,8 +7070,9 @@ static int set_file_basic_info(struct ksmbd_file *fp,
 		}
 
 		if (!(S_ISDIR(inode->i_mode) && file_info->Attributes == FILE_ATTRIBUTE_NORMAL_LE))
-			fp->f_ci->m_fattr = file_info->Attributes |
-				(fp->f_ci->m_fattr & FILE_ATTRIBUTE_DIRECTORY_LE);
+			fp->f_ci->m_fattr =
+				(file_info->Attributes & ~FILE_ATTRIBUTE_COMPRESSED_LE) |
+				(fp->f_ci->m_fattr & attrs_mask);
 	}
 
 	if (test_share_config_flag(share, KSMBD_SHARE_FLAG_STORE_DOS_ATTRS) &&
