@@ -1297,7 +1297,8 @@ static int shmem_getattr(struct mnt_idmap *idmap,
 	struct inode *inode = path->dentry->d_inode;
 	struct shmem_inode_info *info = SHMEM_I(inode);
 
-	if (info->alloced - info->swapped != inode->i_mapping->nrpages)
+	/* Fast-path hint; recalc under info->lock corrects any stale read. */
+	if (data_race(info->alloced - info->swapped != inode->i_mapping->nrpages))
 		shmem_recalc_inode(inode, 0, 0);
 
 	if (info->fsflags & FS_APPEND_FL)
