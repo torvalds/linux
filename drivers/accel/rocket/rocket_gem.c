@@ -127,6 +127,8 @@ err_remove_node:
 	mutex_unlock(&rocket_priv->mm_lock);
 
 err:
+	rocket_iommu_domain_put(rkt_obj->domain);
+	rkt_obj->domain = NULL;
 	drm_gem_shmem_object_free(gem_obj);
 
 	return ret;
