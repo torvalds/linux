@@ -71,6 +71,7 @@ config QE_USB
 config QE_GPIO
 	bool "QE GPIO support"
 	depends on QUICC_ENGINE
+	depends on !SPARC # Should be OF_IRQ but it leads to circ. dependency
 	select GENERIC_IRQ_CHIP
 	select GPIOLIB
 	help
