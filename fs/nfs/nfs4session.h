@@ -122,7 +122,8 @@ extern int nfs4_setup_session_slot_tables(struct nfs4_session *ses);
 extern struct nfs4_session *nfs4_alloc_session(struct nfs_client *clp);
 extern void nfs4_destroy_session(struct nfs4_session *session);
 extern int nfs4_init_session(struct nfs_client *clp);
-extern int nfs4_init_ds_session(struct nfs_client *, unsigned long);
+extern int nfs4_init_ds_session(struct nfs_client *clp, unsigned long lease_time,
+				bool tightly_coupled);
 
 /*
  * Determine if sessions are in use.

@@ -792,7 +792,7 @@ static int nfs4_set_client(struct nfs_server *server,
 struct nfs_client *nfs4_set_ds_client(struct nfs_server *mds_srv,
 		const struct sockaddr_storage *ds_addr, int ds_addrlen,
 		int ds_proto, unsigned int ds_timeo, unsigned int ds_retrans,
-		u32 minor_version)
+		u32 minor_version, bool tightly_coupled)
 {
 	struct rpc_timeout ds_timeout;
 	struct nfs_client *mds_clp = mds_srv->nfs_client;
@@ -839,7 +839,8 @@ struct nfs_client *nfs4_set_ds_client(struct nfs_server *mds_srv,
 	if (test_bit(NFS_CS_NETUNREACH_FATAL, &mds_clp->cl_flags))
 		__set_bit(NFS_CS_NETUNREACH_FATAL, &cl_init.init_flags);
 
-	__set_bit(NFS_CS_PNFS, &cl_init.init_flags);
+	if (tightly_coupled)
+		__set_bit(NFS_CS_PNFS, &cl_init.init_flags);
 	cl_init.max_connect = NFS_MAX_TRANSPORTS;
 	/*
 	 * Set an authflavor equual to the MDS value. Use the MDS nfs_client

@@ -626,7 +626,8 @@ int nfs4_init_session(struct nfs_client *clp)
 	return nfs41_check_session_ready(clp);
 }
 
-int nfs4_init_ds_session(struct nfs_client *clp, unsigned long lease_time)
+int nfs4_init_ds_session(struct nfs_client *clp, unsigned long lease_time,
+			 bool tightly_coupled)
 {
 	struct nfs4_session *session = clp->cl_session;
 	int ret;
@@ -652,7 +653,7 @@ int nfs4_init_ds_session(struct nfs_client *clp, unsigned long lease_time)
 	if (ret)
 		return ret;
 	/* Test for the DS role */
-	if (!is_ds_client(clp))
+	if (tightly_coupled && !is_ds_client(clp))
 		return -ENODEV;
 	return 0;
 }

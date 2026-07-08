@@ -399,7 +399,8 @@ nfs4_ff_layout_prepare_ds(struct pnfs_layout_segment *lseg,
 	status = nfs4_pnfs_ds_connect(s, ds, &mirror->dss[dss_id].mirror_ds->id_node,
 			     dataserver_timeo, dataserver_retrans,
 			     mirror->dss[dss_id].mirror_ds->ds_versions[0].version,
-			     mirror->dss[dss_id].mirror_ds->ds_versions[0].minor_version);
+			     mirror->dss[dss_id].mirror_ds->ds_versions[0].minor_version,
+			     mirror->dss[dss_id].mirror_ds->ds_versions[0].tightly_coupled);
 
 	/* connect success, check rsize/wsize limit */
 	if (!status) {
