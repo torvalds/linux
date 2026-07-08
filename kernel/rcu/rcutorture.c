@@ -766,11 +766,12 @@ srcu_read_delay(struct torture_random_state *rrsp, struct rt_read_seg *rtrsp)
 	const long uspertick = 1000000 / HZ;
 	const long longdelay = 10;
 
-	/* We want there to be long-running readers, but not all the time. */
+	// We want there to be long-running readers, but not all the time.
+	// The !rcu_preempt_depth() is for RCU Tasks Trace.
 
 	delay = torture_random(rrsp) %
 		(nrealreaders * 2 * longdelay * uspertick);
-	if (!delay && in_task()) {
+	if (!delay && !in_atomic() && !rcu_preempt_depth() && !irqs_disabled()) {
 		schedule_timeout_interruptible(longdelay);
 		rtrsp->rt_delay_jiffies = longdelay;
 	} else {
@@ -1219,15 +1220,24 @@ static struct rcu_torture_ops tasks_rude_ops = {
  * Definitions for tracing RCU-tasks torture testing.
  */
 
+// Note that an RCU Tasks Trace GP must imply an RCU GP.
 static int tasks_tracing_torture_read_lock(void)
 {
-	rcu_read_lock_trace();
-	return 0;
+	int use_rcu = !(jiffies & 0xff);
+
+	if (use_rcu)
+		rcu_read_lock();
+	else
+		rcu_read_lock_trace();
+	return use_rcu;
 }
 
-static void tasks_tracing_torture_read_unlock(int idx)
+static void tasks_tracing_torture_read_unlock(int use_rcu)
 {
-	rcu_read_unlock_trace();
+	if (use_rcu)
+		rcu_read_unlock();
+	else
+		rcu_read_unlock_trace();
 }
 
 static void rcu_tasks_tracing_torture_deferred_free(struct rcu_torture *p)
