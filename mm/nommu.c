@@ -1181,7 +1181,6 @@ unsigned long do_mmap(struct file *file,
 		ret = do_mmap_private(vma, region, len, capabilities);
 	if (ret < 0)
 		goto error_just_free;
-	add_nommu_region(region);
 
 	/* clear anonymous mappings that don't ask for uninitialized data */
 	if (!vma->vm_file &&
@@ -1199,7 +1198,9 @@ share:
 	BUG_ON(!vma->vm_region);
 	vma_iter_config(&vmi, vma->vm_start, vma->vm_end);
 	if (vma_iter_prealloc(&vmi, vma))
-		goto error_just_free;
+		goto error_vma_iter_prealloc;
+
+	add_nommu_region(region);
 
 	setup_vma_to_mm(vma, current->mm);
 	current->mm->map_count++;
@@ -1218,22 +1219,41 @@ share:
 	return result;
 
 error_just_free:
+	vma_close(vma);
+	/* if the error was from shared mapping/existing region, don't free the region.
+	 * this has to be before releasing semaphore.
+	 */
+	if (region->vm_usage == 1) {
+		if (region->vm_file)
+			fput(region->vm_file);
+		kmem_cache_free(vm_region_jar, region);
+
+	} else
+		region->vm_usage--;
+
 	up_write(&nommu_region_sem);
-error:
 	vma_iter_free(&vmi);
-	if (region->vm_file)
-		fput(region->vm_file);
-	kmem_cache_free(vm_region_jar, region);
+
 	if (vma->vm_file)
 		fput(vma->vm_file);
 	vm_area_free(vma);
 	return ret;
 
 sharing_violation:
-	up_write(&nommu_region_sem);
 	pr_warn("Attempt to share mismatched mappings\n");
 	ret = -EINVAL;
-	goto error;
+	goto error_just_free;
+
+error_vma_iter_prealloc:
+	pr_warn("Allocation of vma iterator for process %d failed\n", current->pid);
+	show_mem();
+	ret = -ENOMEM;
+
+	/* in case that the region is allocated via do_mmap_private() */
+	if ((region->vm_usage == 1) && (region->vm_flags & VM_MAPPED_COPY))
+		free_page_series(region->vm_start, region->vm_top);
+
+	goto error_just_free;
 
 error_getting_vma:
 	kmem_cache_free(vm_region_jar, region);
