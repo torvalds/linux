@@ -805,6 +805,8 @@ static int renesas_i3c_send_ccc_cmd(struct i3c_master_controller *m,
 	ret = xfer->ret;
 	if (ret)
 		ccc->err = I3C_ERROR_M2;
+	else if (ccc->rnw)
+		ccc->dests[0].payload.actual_len = cmd->rx_count;
 
 	return ret;
 }
@@ -1072,10 +1074,16 @@ static irqreturn_t renesas_i3c_resp_isr(int irq, void *data)
 			break;
 		case I3C_INTERNAL_STATE_CONTROLLER_READ:
 		case I3C_INTERNAL_STATE_CONTROLLER_COMMAND_READ:
-			if (NDBSTLV0_RDBLV(renesas_readl(i3c->regs, NDBSTLV0)) && !cmd->err)
-				bytes_remaining = data_len - cmd->rx_count;
+			if (!cmd->err) {
+				u32 rx_count = min(cmd->rx_count, data_len);
 
-			i3c_readl_fifo(i3c->regs + NTDTBP0, cmd->rx_buf, bytes_remaining);
+				bytes_remaining = data_len - rx_count;
+				if (bytes_remaining)
+					i3c_readl_fifo(i3c->regs + NTDTBP0,
+						       cmd->rx_buf + rx_count,
+						       bytes_remaining);
+				cmd->rx_count = data_len;
+			}
 			renesas_clear_bit(i3c->regs, NTIE, NTIE_RDBFIE0);
 			break;
 		default:

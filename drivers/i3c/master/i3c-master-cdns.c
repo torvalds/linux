@@ -573,6 +573,7 @@ static void cdns_i3c_master_end_xfer_locked(struct cdns_i3c_master *master,
 		cmd = &xfer->cmds[CMDR_CMDID(cmdr)];
 		rx_len = min_t(u32, CMDR_XFER_BYTES(cmdr), cmd->rx_len);
 		cdns_i3c_master_rd_from_rx_fifo(master, cmd->rx_buf, rx_len);
+		cmd->rx_len = rx_len;
 		cmd->error = CMDR_ERROR(cmdr);
 	}
 
@@ -714,6 +715,8 @@ static int cdns_i3c_master_send_ccc_cmd(struct i3c_master_controller *m,
 
 	ret = xfer->ret;
 	cmd->err = cdns_i3c_cmd_get_err(&xfer->cmds[0]);
+	if (!ret && cmd->rnw)
+		cmd->dests[0].payload.actual_len = ccmd->rx_len;
 	cdns_i3c_master_free_xfer(xfer);
 
 	return ret;

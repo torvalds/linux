@@ -246,6 +246,7 @@ static void adi_i3c_master_end_xfer_locked(struct adi_i3c_master *master,
 		if (cmd->cmd0 & REG_CMD_FIFO_0_RNW) {
 			rx_len = min_t(u32, REG_CMDR_FIFO_XFER_BYTES(cmdr), cmd->rx_len);
 			adi_i3c_master_rd_from_rx_fifo(master, cmd->rx_buf, rx_len);
+			cmd->rx_len = rx_len;
 		}
 		cmd->error = REG_CMDR_FIFO_ERROR(cmdr);
 	}
@@ -360,6 +361,8 @@ static int adi_i3c_master_send_ccc_cmd(struct i3c_master_controller *m,
 		adi_i3c_master_unqueue_xfer(master, xfer);
 
 	cmd->err = adi_i3c_cmd_get_err(&xfer->cmds[0]);
+	if (!xfer->ret && cmd->rnw)
+		cmd->dests[0].payload.actual_len = ccmd->rx_len;
 
 	return xfer->ret;
 }

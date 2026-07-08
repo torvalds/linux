@@ -1725,8 +1725,8 @@ static int svc_i3c_master_send_direct_ccc_cmd(struct svc_i3c_master *master,
 		svc_i3c_master_dequeue_xfer(master, xfer);
 	mutex_unlock(&master->lock);
 
-	if (cmd->actual_len != xfer_len)
-		ccc->dests[0].payload.len = cmd->actual_len;
+	if (ccc->rnw)
+		ccc->dests[0].payload.actual_len = cmd->actual_len;
 
 	ret = xfer->ret;
 	svc_i3c_master_free_xfer(xfer);
