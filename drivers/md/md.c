@@ -10179,13 +10179,25 @@ static void md_start_sync(struct work_struct *ws)
 	 * If reshape is still in progress, spares won't be added or removed
 	 * from conf until reshape is done.
 	 */
-	if (mddev->reshape_position == MaxSector &&
+	if ((mddev->reshape_position == MaxSector || !md_is_rdwr(mddev)) &&
 	    md_spares_need_change(mddev)) {
 		suspend = true;
 		mddev_suspend(mddev, false);
 	}
 
 	mddev_lock_nointr(mddev);
+
+	/*
+	 * The spare configuration can change before reconfig_mutex is acquired.
+	 * Recheck while holding the lock and suspend if needed.
+	 */
+	if (!suspend && (mddev->reshape_position == MaxSector || !md_is_rdwr(mddev)) &&
+	    md_spares_need_change(mddev)) {
+		mddev_unlock(mddev);
+		mddev_suspend_and_lock_nointr(mddev);
+		suspend = true;
+	}
+
 	if (!md_is_rdwr(mddev)) {
 		/*
 		 * On a read-only array we can:
