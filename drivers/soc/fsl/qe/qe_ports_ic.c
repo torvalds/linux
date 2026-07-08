@@ -18,7 +18,7 @@
 
 struct qepic_data {
 	void __iomem *reg;
-	int irq;
+	int parent_irq;
 };
 
 static void qepic_mask(struct irq_data *d)
@@ -117,7 +117,7 @@ static int qepic_domain_init(struct irq_domain *d)
 {
 	struct qepic_data *data = d->host_data;
 
-	irq_set_chained_handler_and_data(data->irq, qepic_cascade, d);
+	irq_set_chained_handler_and_data(data->parent_irq, qepic_cascade, d);
 
 	return 0;
 }
@@ -126,7 +126,7 @@ static void qepic_domain_exit(struct irq_domain *d)
 {
 	struct qepic_data *data = d->host_data;
 
-	irq_set_chained_handler_and_data(data->irq, NULL, NULL);
+	irq_set_chained_handler_and_data(data->parent_irq, NULL, NULL);
 }
 
 static int qepic_probe(struct platform_device *pdev)
@@ -161,9 +161,9 @@ static int qepic_probe(struct platform_device *pdev)
 	if (IS_ERR(data->reg))
 		return PTR_ERR(data->reg);
 
-	data->irq = platform_get_irq(pdev, 0);
-	if (data->irq < 0)
-		return data->irq;
+	data->parent_irq = platform_get_irq(pdev, 0);
+	if (data->parent_irq < 0)
+		return data->parent_irq;
 
 	domain = devm_irq_domain_instantiate(dev, &d_info);
 	if (IS_ERR(domain))
