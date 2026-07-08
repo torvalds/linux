@@ -948,9 +948,6 @@ static int smb2_get_dos_mode(struct kstat *stat, int attribute)
 	} else {
 		attr = (attribute & 0x00005137) | FILE_ATTRIBUTE_ARCHIVE;
 		attr &= ~(FILE_ATTRIBUTE_DIRECTORY);
-		if (S_ISREG(stat->mode) && (server_conf.share_fake_fscaps &
-				FILE_SUPPORTS_SPARSE_FILES))
-			attr |= FILE_ATTRIBUTE_SPARSE_FILE;
 
 		if (smb2_get_reparse_tag_special_file(stat->mode))
 			attr |= FILE_ATTRIBUTE_REPARSE_POINT;
@@ -2998,24 +2995,18 @@ static void smb2_update_xattrs(struct ksmbd_tree_connect *tcon,
 	rc = ksmbd_vfs_get_dos_attrib_xattr(mnt_idmap(path->mnt),
 					    path->dentry, &da);
 	if (rc > 0) {
-		/*
-		 * Don't report a stale SPARSE bit (e.g. left over from a
-		 * previous client, or from before the share was reconfigured)
-		 * when the share isn't currently advertising sparse-file
-		 * support. Time Machine sparsebundle band files rely on
-		 * sparse status being accurate, since macOS decides whether
-		 * to use FSCTL_SET_SPARSE based on it.
-		 */
-		if (!(server_conf.share_fake_fscaps & FILE_SUPPORTS_SPARSE_FILES))
-			da.attr &= ~FILE_ATTRIBUTE_SPARSE_FILE;
 		if (store_dos_attrs) {
 			fp->f_ci->m_fattr = cpu_to_le32(da.attr);
 			fp->create_time = da.create_time;
 			fp->itime = da.itime;
-		} else if (da.attr & FILE_ATTRIBUTE_COMPRESSED) {
-			fp->f_ci->m_fattr |= FILE_ATTRIBUTE_COMPRESSED_LE;
 		} else {
-			fp->f_ci->m_fattr &= ~FILE_ATTRIBUTE_COMPRESSED_LE;
+			fp->f_ci->m_fattr &=
+				~(FILE_ATTRIBUTE_COMPRESSED_LE |
+				  FILE_ATTRIBUTE_SPARSE_FILE_LE);
+			fp->f_ci->m_fattr |=
+				cpu_to_le32(da.attr &
+					    (FILE_ATTRIBUTE_COMPRESSED |
+					     FILE_ATTRIBUTE_SPARSE_FILE));
 		}
 	}
 }
@@ -6314,6 +6305,7 @@ static int smb2_get_info_filesystem(struct ksmbd_work *work,
 			FILE_PERSISTENT_ACLS |
 			FILE_UNICODE_ON_DISK |
 			FILE_FILE_COMPRESSION |
+			FILE_SUPPORTS_SPARSE_FILES |
 			FILE_SUPPORTS_BLOCK_REFCOUNTING;
 
 		err = vfs_fileattr_get(path.dentry, &fa);
@@ -9190,18 +9182,22 @@ static inline int fsctl_set_sparse(struct ksmbd_work *work, u64 id,
 	else
 		fp->f_ci->m_fattr &= ~FILE_ATTRIBUTE_SPARSE_FILE_LE;
 
-	if (fp->f_ci->m_fattr != old_fattr &&
-	    test_share_config_flag(work->tcon->share_conf,
-				   KSMBD_SHARE_FLAG_STORE_DOS_ATTRS)) {
+	if (fp->f_ci->m_fattr != old_fattr) {
 		const struct cred *saved_cred;
-		struct xattr_dos_attrib da;
+		struct xattr_dos_attrib da = {0};
 
 		ret = ksmbd_vfs_get_dos_attrib_xattr(idmap,
 						     fp->filp->f_path.dentry, &da);
-		if (ret <= 0)
-			goto out;
+		if (ret <= 0) {
+			da.version = 4;
+			da.itime = fp->itime;
+			da.create_time = fp->create_time;
+			da.flags = XATTR_DOSINFO_CREATE_TIME |
+				XATTR_DOSINFO_ITIME;
+		}
 
 		da.attr = le32_to_cpu(fp->f_ci->m_fattr);
+		da.flags |= XATTR_DOSINFO_ATTRIB;
 		saved_cred = override_creds(fp->filp->f_cred);
 		ret = ksmbd_vfs_set_dos_attrib_xattr(idmap,
 						     &fp->filp->f_path,
