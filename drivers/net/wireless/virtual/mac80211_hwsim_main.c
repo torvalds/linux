@@ -4197,6 +4197,15 @@ static int hwsim_pmsr_report_nl(struct sk_buff *msg, struct genl_info *info)
 	if (!data)
 		return -EINVAL;
 
+	if (!hwsim_virtio_enabled) {
+		if (hwsim_net_get_netgroup(genl_info_net(info)) !=
+		    data->netgroup)
+			return -EINVAL;
+
+		if (info->snd_portid != data->wmediumd)
+			return -EPERM;
+	}
+
 	mutex_lock(&data->mutex);
 	if (!data->pmsr_request) {
 		err = -EINVAL;
