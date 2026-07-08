@@ -286,6 +286,7 @@ extern void userfaultfd_unmap_complete(struct mm_struct *mm,
 				       struct list_head *uf);
 extern bool userfaultfd_wp_unpopulated(struct vm_area_struct *vma);
 extern bool userfaultfd_wp_async(struct vm_area_struct *vma);
+extern bool userfaultfd_rwp_async(struct vm_area_struct *vma);
 
 static inline bool userfaultfd_wp_use_markers(struct vm_area_struct *vma)
 {
@@ -460,6 +461,11 @@ static inline bool userfaultfd_wp_unpopulated(struct vm_area_struct *vma)
 }
 
 static inline bool userfaultfd_wp_async(struct vm_area_struct *vma)
+{
+	return false;
+}
+
+static inline bool userfaultfd_rwp_async(struct vm_area_struct *vma)
 {
 	return false;
 }
