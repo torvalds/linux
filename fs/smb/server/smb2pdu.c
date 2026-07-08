@@ -9169,6 +9169,11 @@ static inline int fsctl_set_sparse(struct ksmbd_work *work, u64 id,
 	if (!fp)
 		return -ENOENT;
 
+	if (S_ISDIR(file_inode(fp->filp)->i_mode)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	if (!(fp->daccess & (FILE_WRITE_DATA_LE | FILE_WRITE_ATTRIBUTES_LE))) {
 		ret = -EACCES;
 		goto out;
