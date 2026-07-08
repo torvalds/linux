@@ -188,8 +188,8 @@ static inline bool softleaf_cached_writable(softleaf_t entry)
 static void page_table_check_pte_flags(pte_t pte)
 {
 	if (pte_present(pte)) {
-		WARN_ON_ONCE(pte_uffd_wp(pte) && pte_write(pte));
-	} else if (pte_swp_uffd_wp(pte)) {
+		WARN_ON_ONCE(pte_uffd(pte) && pte_write(pte));
+	} else if (pte_swp_uffd(pte)) {
 		const softleaf_t entry = softleaf_from_pte(pte);
 
 		WARN_ON_ONCE(softleaf_cached_writable(entry));
@@ -216,9 +216,9 @@ EXPORT_SYMBOL(__page_table_check_ptes_set);
 static inline void page_table_check_pmd_flags(pmd_t pmd)
 {
 	if (pmd_present(pmd)) {
-		if (pmd_uffd_wp(pmd))
+		if (pmd_uffd(pmd))
 			WARN_ON_ONCE(pmd_write(pmd));
-	} else if (pmd_swp_uffd_wp(pmd)) {
+	} else if (pmd_swp_uffd(pmd)) {
 		const softleaf_t entry = softleaf_from_pmd(pmd);
 
 		WARN_ON_ONCE(softleaf_cached_writable(entry));

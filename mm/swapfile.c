@@ -2496,8 +2496,8 @@ static int unuse_pte(struct vm_area_struct *vma, pmd_t *pmd,
 	new_pte = pte_mkold(mk_pte(page, vma->vm_page_prot));
 	if (pte_swp_soft_dirty(old_pte))
 		new_pte = pte_mksoft_dirty(new_pte);
-	if (pte_swp_uffd_wp(old_pte))
-		new_pte = pte_mkuffd_wp(new_pte);
+	if (pte_swp_uffd(old_pte))
+		new_pte = pte_mkuffd(new_pte);
 setpte:
 	set_pte_at(vma->vm_mm, addr, pte, new_pte);
 	folio_put_swap(swapcache, folio_file_page(swapcache, swp_offset(entry)));

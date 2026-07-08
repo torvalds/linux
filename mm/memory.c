@@ -893,8 +893,8 @@ static void restore_exclusive_pte(struct vm_area_struct *vma,
 	if (pte_swp_soft_dirty(orig_pte))
 		pte = pte_mksoft_dirty(pte);
 
-	if (pte_swp_uffd_wp(orig_pte))
-		pte = pte_mkuffd_wp(pte);
+	if (pte_swp_uffd(orig_pte))
+		pte = pte_mkuffd(pte);
 
 	if ((vma->vm_flags & VM_WRITE) &&
 	    can_change_pte_writable(vma, address, pte)) {
@@ -977,8 +977,8 @@ copy_nonpresent_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 			pte = softleaf_to_pte(entry);
 			if (pte_swp_soft_dirty(orig_pte))
 				pte = pte_swp_mksoft_dirty(pte);
-			if (pte_swp_uffd_wp(orig_pte))
-				pte = pte_swp_mkuffd_wp(pte);
+			if (pte_swp_uffd(orig_pte))
+				pte = pte_swp_mkuffd(pte);
 			set_pte_at(src_mm, addr, src_pte, pte);
 		}
 	} else if (softleaf_is_device_private(entry)) {
@@ -1011,8 +1011,8 @@ copy_nonpresent_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 			entry = make_readable_device_private_entry(
 							swp_offset(entry));
 			pte = swp_entry_to_pte(entry);
-			if (pte_swp_uffd_wp(orig_pte))
-				pte = pte_swp_mkuffd_wp(pte);
+			if (pte_swp_uffd(orig_pte))
+				pte = pte_swp_mkuffd(pte);
 			set_pte_at(src_mm, addr, src_pte, pte);
 		}
 	} else if (softleaf_is_device_exclusive(entry)) {
@@ -1035,7 +1035,7 @@ copy_nonpresent_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 		return 0;
 	}
 	if (!userfaultfd_wp(dst_vma))
-		pte = pte_swp_clear_uffd_wp(pte);
+		pte = pte_swp_clear_uffd(pte);
 	set_pte_at(dst_mm, addr, dst_pte, pte);
 	return 0;
 }
@@ -1083,7 +1083,7 @@ copy_present_page(struct vm_area_struct *dst_vma, struct vm_area_struct *src_vma
 	pte = maybe_mkwrite(pte_mkdirty(pte), dst_vma);
 	if (userfaultfd_pte_wp(dst_vma, ptep_get(src_pte)))
 		/* Uffd-wp needs to be delivered to dest pte as well */
-		pte = pte_mkuffd_wp(pte);
+		pte = pte_mkuffd(pte);
 	set_pte_at(dst_vma->vm_mm, addr, dst_pte, pte);
 	return 0;
 }
@@ -1106,7 +1106,7 @@ static __always_inline void __copy_present_ptes(struct vm_area_struct *dst_vma,
 	pte = pte_mkold(pte);
 
 	if (!userfaultfd_wp(dst_vma))
-		pte = pte_clear_uffd_wp(pte);
+		pte = pte_clear_uffd(pte);
 
 	set_ptes(dst_vma->vm_mm, addr, dst_pte, pte, nr);
 }
@@ -3918,8 +3918,8 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
 		if (unlikely(unshare)) {
 			if (pte_soft_dirty(vmf->orig_pte))
 				entry = pte_mksoft_dirty(entry);
-			if (pte_uffd_wp(vmf->orig_pte))
-				entry = pte_mkuffd_wp(entry);
+			if (pte_uffd(vmf->orig_pte))
+				entry = pte_mkuffd(entry);
 		} else {
 			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
 		}
@@ -4258,7 +4258,7 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
 			 * etc.) because we're only removing the uffd-wp bit,
 			 * which is completely invisible to the user.
 			 */
-			pte = pte_clear_uffd_wp(ptep_get(vmf->pte));
+			pte = pte_clear_uffd(ptep_get(vmf->pte));
 
 			set_pte_at(vma->vm_mm, vmf->address, vmf->pte, pte);
 			/*
@@ -5023,8 +5023,8 @@ check_folio:
 	pte = mk_pte(page, vma->vm_page_prot);
 	if (pte_swp_soft_dirty(vmf->orig_pte))
 		pte = pte_mksoft_dirty(pte);
-	if (pte_swp_uffd_wp(vmf->orig_pte))
-		pte = pte_mkuffd_wp(pte);
+	if (pte_swp_uffd(vmf->orig_pte))
+		pte = pte_mkuffd(pte);
 
 	/*
 	 * Similar logic as in do_wp_page(); however, optimize for pages that
@@ -5239,7 +5239,7 @@ void map_anon_folio_pte_nopf(struct folio *folio, pte_t *pte,
 	if (vma->vm_flags & VM_WRITE)
 		entry = pte_mkwrite(pte_mkdirty(entry), vma);
 	if (uffd_wp)
-		entry = pte_mkuffd_wp(entry);
+		entry = pte_mkuffd(entry);
 
 	folio_ref_add(folio, nr_pages - 1);
 	folio_add_new_anon_rmap(folio, vma, addr, RMAP_EXCLUSIVE);
@@ -5306,7 +5306,7 @@ static vm_fault_t do_anonymous_page(struct vm_fault *vmf)
 			return handle_userfault(vmf, VM_UFFD_MISSING);
 		}
 		if (vmf_orig_pte_uffd_wp(vmf))
-			entry = pte_mkuffd_wp(entry);
+			entry = pte_mkuffd(entry);
 		set_pte_at(vma->vm_mm, addr, vmf->pte, entry);
 
 		/* No need to invalidate - it was non-present before */
@@ -5556,7 +5556,7 @@ void set_pte_range(struct vm_fault *vmf, struct folio *folio,
 	else if (pte_write(entry) && folio_test_dirty(folio))
 		entry = pte_mkdirty(entry);
 	if (unlikely(vmf_orig_pte_uffd_wp(vmf)))
-		entry = pte_mkuffd_wp(entry);
+		entry = pte_mkuffd(entry);
 	/* copy-on-write page */
 	if (write && !(vma->vm_flags & VM_SHARED)) {
 		VM_BUG_ON_FOLIO(nr != 1, folio);

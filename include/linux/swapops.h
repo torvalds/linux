@@ -73,8 +73,8 @@ static inline pte_t pte_swp_clear_flags(pte_t pte)
 		pte = pte_swp_clear_exclusive(pte);
 	if (pte_swp_soft_dirty(pte))
 		pte = pte_swp_clear_soft_dirty(pte);
-	if (pte_swp_uffd_wp(pte))
-		pte = pte_swp_clear_uffd_wp(pte);
+	if (pte_swp_uffd(pte))
+		pte = pte_swp_clear_uffd(pte);
 	return pte;
 }
 

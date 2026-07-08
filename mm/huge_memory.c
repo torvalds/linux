@@ -1822,8 +1822,8 @@ static void copy_huge_non_present_pmd(
 		pmd = softleaf_to_pmd(entry);
 		if (pmd_swp_soft_dirty(*src_pmd))
 			pmd = pmd_swp_mksoft_dirty(pmd);
-		if (pmd_swp_uffd_wp(*src_pmd))
-			pmd = pmd_swp_mkuffd_wp(pmd);
+		if (pmd_swp_uffd(*src_pmd))
+			pmd = pmd_swp_mkuffd(pmd);
 		set_pmd_at(src_mm, addr, src_pmd, pmd);
 	} else if (softleaf_is_device_private(entry)) {
 		/*
@@ -1836,8 +1836,8 @@ static void copy_huge_non_present_pmd(
 
 			if (pmd_swp_soft_dirty(*src_pmd))
 				pmd = pmd_swp_mksoft_dirty(pmd);
-			if (pmd_swp_uffd_wp(*src_pmd))
-				pmd = pmd_swp_mkuffd_wp(pmd);
+			if (pmd_swp_uffd(*src_pmd))
+				pmd = pmd_swp_mkuffd(pmd);
 			set_pmd_at(src_mm, addr, src_pmd, pmd);
 		}
 
@@ -1857,7 +1857,7 @@ static void copy_huge_non_present_pmd(
 	mm_inc_nr_ptes(dst_mm);
 	pgtable_trans_huge_deposit(dst_mm, dst_pmd, pgtable);
 	if (!userfaultfd_wp(dst_vma))
-		pmd = pmd_swp_clear_uffd_wp(pmd);
+		pmd = pmd_swp_clear_uffd(pmd);
 	set_pmd_at(dst_mm, addr, dst_pmd, pmd);
 }
 
@@ -1953,7 +1953,7 @@ out_zero_page:
 	pgtable_trans_huge_deposit(dst_mm, dst_pmd, pgtable);
 	pmdp_set_wrprotect(src_mm, addr, src_pmd);
 	if (!userfaultfd_wp(dst_vma))
-		pmd = pmd_clear_uffd_wp(pmd);
+		pmd = pmd_clear_uffd(pmd);
 	pmd = pmd_wrprotect(pmd);
 set_pmd:
 	pmd = pmd_mkold(pmd);
@@ -2494,9 +2494,9 @@ static pmd_t clear_uffd_wp_pmd(pmd_t pmd)
 	if (pmd_none(pmd))
 		return pmd;
 	if (pmd_present(pmd))
-		pmd = pmd_clear_uffd_wp(pmd);
+		pmd = pmd_clear_uffd(pmd);
 	else
-		pmd = pmd_swp_clear_uffd_wp(pmd);
+		pmd = pmd_swp_clear_uffd(pmd);
 
 	return pmd;
 }
@@ -2577,16 +2577,16 @@ static void change_non_present_huge_pmd(struct mm_struct *mm,
 	} else if (softleaf_is_device_private_write(entry)) {
 		entry = make_readable_device_private_entry(swp_offset(entry));
 		newpmd = softleaf_to_pmd(entry);
-		if (pmd_swp_uffd_wp(*pmd))
-			newpmd = pmd_swp_mkuffd_wp(newpmd);
+		if (pmd_swp_uffd(*pmd))
+			newpmd = pmd_swp_mkuffd(newpmd);
 	} else {
 		newpmd = *pmd;
 	}
 
 	if (uffd_wp)
-		newpmd = pmd_swp_mkuffd_wp(newpmd);
+		newpmd = pmd_swp_mkuffd(newpmd);
 	else if (uffd_wp_resolve)
-		newpmd = pmd_swp_clear_uffd_wp(newpmd);
+		newpmd = pmd_swp_clear_uffd(newpmd);
 	if (!pmd_same(*pmd, newpmd))
 		set_pmd_at(mm, addr, pmd, newpmd);
 }
@@ -2667,14 +2667,14 @@ int change_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 
 	entry = pmd_modify(oldpmd, newprot);
 	if (uffd_wp)
-		entry = pmd_mkuffd_wp(entry);
+		entry = pmd_mkuffd(entry);
 	else if (uffd_wp_resolve)
 		/*
 		 * Leave the write bit to be handled by PF interrupt
 		 * handler, then things like COW could be properly
 		 * handled.
 		 */
-		entry = pmd_clear_uffd_wp(entry);
+		entry = pmd_clear_uffd(entry);
 
 	/* See change_pte_range(). */
 	if ((cp_flags & MM_CP_TRY_CHANGE_WRITABLE) && !pmd_write(entry) &&
@@ -3017,8 +3017,8 @@ static void __split_huge_zero_page_pmd(struct vm_area_struct *vma,
 
 		entry = pfn_pte(zero_pfn(addr), vma->vm_page_prot);
 		entry = pte_mkspecial(entry);
-		if (pmd_uffd_wp(old_pmd))
-			entry = pte_mkuffd_wp(entry);
+		if (pmd_uffd(old_pmd))
+			entry = pte_mkuffd(entry);
 		VM_BUG_ON(!pte_none(ptep_get(pte)));
 		set_pte_at(mm, addr, pte, entry);
 		pte++;
@@ -3104,7 +3104,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
 		folio = page_folio(page);
 
 		soft_dirty = pmd_swp_soft_dirty(old_pmd);
-		uffd_wp = pmd_swp_uffd_wp(old_pmd);
+		uffd_wp = pmd_swp_uffd(old_pmd);
 
 		write = softleaf_is_migration_write(entry);
 		if (PageAnon(page))
@@ -3120,7 +3120,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
 		folio = page_folio(page);
 
 		soft_dirty = pmd_swp_soft_dirty(old_pmd);
-		uffd_wp = pmd_swp_uffd_wp(old_pmd);
+		uffd_wp = pmd_swp_uffd(old_pmd);
 
 		write = softleaf_is_device_private_write(entry);
 		anon_exclusive = PageAnonExclusive(page);
@@ -3177,7 +3177,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
 		write = pmd_write(old_pmd);
 		young = pmd_young(old_pmd);
 		soft_dirty = pmd_soft_dirty(old_pmd);
-		uffd_wp = pmd_uffd_wp(old_pmd);
+		uffd_wp = pmd_uffd(old_pmd);
 
 		VM_WARN_ON_FOLIO(!folio_ref_count(folio), folio);
 		VM_WARN_ON_FOLIO(!folio_test_anon(folio), folio);
@@ -3248,7 +3248,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
 			if (soft_dirty)
 				entry = pte_swp_mksoft_dirty(entry);
 			if (uffd_wp)
-				entry = pte_swp_mkuffd_wp(entry);
+				entry = pte_swp_mkuffd(entry);
 			VM_WARN_ON(!pte_none(ptep_get(pte + i)));
 			set_pte_at(mm, addr, pte + i, entry);
 		}
@@ -3275,7 +3275,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
 			if (soft_dirty)
 				entry = pte_swp_mksoft_dirty(entry);
 			if (uffd_wp)
-				entry = pte_swp_mkuffd_wp(entry);
+				entry = pte_swp_mkuffd(entry);
 			VM_WARN_ON(!pte_none(ptep_get(pte + i)));
 			set_pte_at(mm, addr, pte + i, entry);
 		}
@@ -3293,7 +3293,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
 		if (soft_dirty)
 			entry = pte_mksoft_dirty(entry);
 		if (uffd_wp)
-			entry = pte_mkuffd_wp(entry);
+			entry = pte_mkuffd(entry);
 
 		for (i = 0; i < HPAGE_PMD_NR; i++)
 			VM_WARN_ON(!pte_none(ptep_get(pte + i)));
@@ -4911,7 +4911,7 @@ int set_pmd_migration_entry(struct page_vma_mapped_walk *pvmw,
 
 		writable = pmd_write(pmdval);
 		softdirty = pmd_soft_dirty(pmdval);
-		uffd_wp = pmd_uffd_wp(pmdval);
+		uffd_wp = pmd_uffd(pmdval);
 	} else {
 		softleaf_t old_entry;
 
@@ -4920,7 +4920,7 @@ int set_pmd_migration_entry(struct page_vma_mapped_walk *pvmw,
 
 		writable = softleaf_is_device_private_write(old_entry);
 		softdirty = pmd_swp_soft_dirty(pmdval);
-		uffd_wp = pmd_swp_uffd_wp(pmdval);
+		uffd_wp = pmd_swp_uffd(pmdval);
 	}
 
 	/* See folio_try_share_anon_rmap_pmd(): invalidate PMD first. */
@@ -4951,7 +4951,7 @@ int set_pmd_migration_entry(struct page_vma_mapped_walk *pvmw,
 	if (softdirty)
 		pmdswp = pmd_swp_mksoft_dirty(pmdswp);
 	if (uffd_wp)
-		pmdswp = pmd_swp_mkuffd_wp(pmdswp);
+		pmdswp = pmd_swp_mkuffd(pmdswp);
 	set_pmd_at(mm, address, pvmw->pmd, pmdswp);
 
 	/* Migration entry installed: cleanup rmap, folio. */
@@ -4983,8 +4983,8 @@ void remove_migration_pmd(struct page_vma_mapped_walk *pvmw, struct page *new)
 		pmde = pmd_mksoft_dirty(pmde);
 	if (softleaf_is_migration_write(entry))
 		pmde = pmd_mkwrite(pmde, vma);
-	if (pmd_swp_uffd_wp(*pvmw->pmd))
-		pmde = pmd_mkuffd_wp(pmde);
+	if (pmd_swp_uffd(*pvmw->pmd))
+		pmde = pmd_mkuffd(pmde);
 	if (!softleaf_is_migration_young(entry))
 		pmde = pmd_mkold(pmde);
 	/* NOTE: this may contain setting soft-dirty on some archs */
@@ -5004,8 +5004,8 @@ void remove_migration_pmd(struct page_vma_mapped_walk *pvmw, struct page *new)
 
 		if (pmd_swp_soft_dirty(*pvmw->pmd))
 			pmde = pmd_swp_mksoft_dirty(pmde);
-		if (pmd_swp_uffd_wp(*pvmw->pmd))
-			pmde = pmd_swp_mkuffd_wp(pmde);
+		if (pmd_swp_uffd(*pvmw->pmd))
+			pmde = pmd_swp_mkuffd(pmde);
 	}
 
 	if (folio_test_anon(folio)) {

@@ -410,35 +410,35 @@ static inline pte_t pte_wrprotect(pte_t pte)
 }
 
 #ifdef CONFIG_HAVE_ARCH_USERFAULTFD_WP
-#define pgtable_supports_uffd_wp()	\
+#define pgtable_supports_uffd()	\
 	riscv_has_extension_unlikely(RISCV_ISA_EXT_SVRSW60T59B)
 
-static inline bool pte_uffd_wp(pte_t pte)
+static inline bool pte_uffd(pte_t pte)
 {
 	return !!(pte_val(pte) & _PAGE_UFFD);
 }
 
-static inline pte_t pte_mkuffd_wp(pte_t pte)
+static inline pte_t pte_mkuffd(pte_t pte)
 {
 	return pte_wrprotect(__pte(pte_val(pte) | _PAGE_UFFD));
 }
 
-static inline pte_t pte_clear_uffd_wp(pte_t pte)
+static inline pte_t pte_clear_uffd(pte_t pte)
 {
 	return __pte(pte_val(pte) & ~(_PAGE_UFFD));
 }
 
-static inline bool pte_swp_uffd_wp(pte_t pte)
+static inline bool pte_swp_uffd(pte_t pte)
 {
 	return !!(pte_val(pte) & _PAGE_SWP_UFFD);
 }
 
-static inline pte_t pte_swp_mkuffd_wp(pte_t pte)
+static inline pte_t pte_swp_mkuffd(pte_t pte)
 {
 	return __pte(pte_val(pte) | _PAGE_SWP_UFFD);
 }
 
-static inline pte_t pte_swp_clear_uffd_wp(pte_t pte)
+static inline pte_t pte_swp_clear_uffd(pte_t pte)
 {
 	return __pte(pte_val(pte) & ~(_PAGE_SWP_UFFD));
 }
@@ -896,34 +896,34 @@ static inline pud_t pud_mkspecial(pud_t pud)
 #endif
 
 #ifdef CONFIG_HAVE_ARCH_USERFAULTFD_WP
-static inline bool pmd_uffd_wp(pmd_t pmd)
+static inline bool pmd_uffd(pmd_t pmd)
 {
-	return pte_uffd_wp(pmd_pte(pmd));
+	return pte_uffd(pmd_pte(pmd));
 }
 
-static inline pmd_t pmd_mkuffd_wp(pmd_t pmd)
+static inline pmd_t pmd_mkuffd(pmd_t pmd)
 {
-	return pte_pmd(pte_mkuffd_wp(pmd_pte(pmd)));
+	return pte_pmd(pte_mkuffd(pmd_pte(pmd)));
 }
 
-static inline pmd_t pmd_clear_uffd_wp(pmd_t pmd)
+static inline pmd_t pmd_clear_uffd(pmd_t pmd)
 {
-	return pte_pmd(pte_clear_uffd_wp(pmd_pte(pmd)));
+	return pte_pmd(pte_clear_uffd(pmd_pte(pmd)));
 }
 
-static inline bool pmd_swp_uffd_wp(pmd_t pmd)
+static inline bool pmd_swp_uffd(pmd_t pmd)
 {
-	return pte_swp_uffd_wp(pmd_pte(pmd));
+	return pte_swp_uffd(pmd_pte(pmd));
 }
 
-static inline pmd_t pmd_swp_mkuffd_wp(pmd_t pmd)
+static inline pmd_t pmd_swp_mkuffd(pmd_t pmd)
 {
-	return pte_pmd(pte_swp_mkuffd_wp(pmd_pte(pmd)));
+	return pte_pmd(pte_swp_mkuffd(pmd_pte(pmd)));
 }
 
-static inline pmd_t pmd_swp_clear_uffd_wp(pmd_t pmd)
+static inline pmd_t pmd_swp_clear_uffd(pmd_t pmd)
 {
-	return pte_pmd(pte_swp_clear_uffd_wp(pmd_pte(pmd)));
+	return pte_pmd(pte_swp_clear_uffd(pmd_pte(pmd)));
 }
 #endif /* CONFIG_HAVE_ARCH_USERFAULTFD_WP */
 

@@ -297,9 +297,9 @@ static int move_ptes(struct pagetable_move_control *pmc,
 		else {
 			if (need_clear_uffd_wp) {
 				if (pte_present(pte))
-					pte = pte_clear_uffd_wp(pte);
+					pte = pte_clear_uffd(pte);
 				else
-					pte = pte_swp_clear_uffd_wp(pte);
+					pte = pte_swp_clear_uffd(pte);
 			}
 			set_ptes(mm, new_addr, new_ptep, pte, nr_ptes);
 		}

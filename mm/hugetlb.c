@@ -4871,8 +4871,8 @@ hugetlb_install_folio(struct vm_area_struct *vma, pte_t *ptep, unsigned long add
 
 	__folio_mark_uptodate(new_folio);
 	hugetlb_add_new_anon_rmap(new_folio, vma, addr);
-	if (userfaultfd_wp(vma) && huge_pte_uffd_wp(old))
-		newpte = huge_pte_mkuffd_wp(newpte);
+	if (userfaultfd_wp(vma) && huge_pte_uffd(old))
+		newpte = huge_pte_mkuffd(newpte);
 	set_huge_pte_at(vma->vm_mm, addr, ptep, newpte, sz);
 	hugetlb_count_add(pages_per_huge_page(hstate_vma(vma)), vma->vm_mm);
 	folio_set_hugetlb_migratable(new_folio);
@@ -4953,7 +4953,7 @@ again:
 			 */
 			set_huge_pte_at(dst, addr, dst_pte, entry, sz);
 		} else if (unlikely(softleaf_is_migration(softleaf))) {
-			bool uffd_wp = pte_swp_uffd_wp(entry);
+			bool uffd = pte_swp_uffd(entry);
 
 			if (!softleaf_is_migration_read(softleaf) && cow) {
 				/*
@@ -4963,12 +4963,12 @@ again:
 				softleaf = make_readable_migration_entry(
 							swp_offset(softleaf));
 				entry = swp_entry_to_pte(softleaf);
-				if (userfaultfd_wp(src_vma) && uffd_wp)
-					entry = pte_swp_mkuffd_wp(entry);
+				if (userfaultfd_wp(src_vma) && uffd)
+					entry = pte_swp_mkuffd(entry);
 				set_huge_pte_at(src, addr, src_pte, entry, sz);
 			}
 			if (!userfaultfd_wp(dst_vma))
-				entry = pte_swp_clear_uffd_wp(entry);
+				entry = pte_swp_clear_uffd(entry);
 			set_huge_pte_at(dst, addr, dst_pte, entry, sz);
 		} else if (unlikely(pte_is_marker(entry))) {
 			const pte_marker marker = copy_pte_marker(softleaf, dst_vma);
@@ -5045,7 +5045,7 @@ again:
 			}
 
 			if (!userfaultfd_wp(dst_vma))
-				entry = huge_pte_clear_uffd_wp(entry);
+				entry = huge_pte_clear_uffd(entry);
 
 			set_huge_pte_at(dst, addr, dst_pte, entry, sz);
 			hugetlb_count_add(npages, dst);
@@ -5093,9 +5093,9 @@ static void move_huge_pte(struct vm_area_struct *vma, unsigned long old_addr,
 	} else {
 		if (need_clear_uffd_wp) {
 			if (pte_present(pte))
-				pte = huge_pte_clear_uffd_wp(pte);
+				pte = huge_pte_clear_uffd(pte);
 			else
-				pte = pte_swp_clear_uffd_wp(pte);
+				pte = pte_swp_clear_uffd(pte);
 		}
 		set_huge_pte_at(mm, new_addr, dst_pte, pte, sz);
 	}
@@ -5229,7 +5229,7 @@ void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
 			 * drop the uffd-wp bit in this zap, then replace the
 			 * pte with a marker.
 			 */
-			if (pte_swp_uffd_wp_any(pte) &&
+			if (pte_swp_uffd_any(pte) &&
 			    !(zap_flags & ZAP_FLAG_DROP_MARKER))
 				set_huge_pte_at(mm, address, ptep,
 						make_pte_marker(PTE_MARKER_UFFD_WP),
@@ -5265,7 +5265,7 @@ void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
 		if (huge_pte_dirty(pte))
 			folio_mark_dirty(folio);
 		/* Leave a uffd-wp pte marker if needed */
-		if (huge_pte_uffd_wp(pte) &&
+		if (huge_pte_uffd(pte) &&
 		    !(zap_flags & ZAP_FLAG_DROP_MARKER))
 			set_huge_pte_at(mm, address, ptep,
 					make_pte_marker(PTE_MARKER_UFFD_WP),
@@ -5469,7 +5469,7 @@ static vm_fault_t hugetlb_wp(struct vm_fault *vmf)
 	 * can trigger this, because hugetlb_fault() will always resolve
 	 * uffd-wp bit first.
 	 */
-	if (!unshare && huge_pte_uffd_wp(pte))
+	if (!unshare && huge_pte_uffd(pte))
 		return 0;
 
 	/* Let's take out MAP_SHARED mappings first. */
@@ -5613,8 +5613,8 @@ retry_avoidcopy:
 		huge_ptep_clear_flush(vma, vmf->address, vmf->pte);
 		hugetlb_remove_rmap(old_folio);
 		hugetlb_add_new_anon_rmap(new_folio, vma, vmf->address);
-		if (huge_pte_uffd_wp(pte))
-			newpte = huge_pte_mkuffd_wp(newpte);
+		if (huge_pte_uffd(pte))
+			newpte = huge_pte_mkuffd(newpte);
 		set_huge_pte_at(mm, vmf->address, vmf->pte, newpte,
 				huge_page_size(h));
 		folio_set_hugetlb_migratable(new_folio);
@@ -5892,7 +5892,7 @@ static vm_fault_t hugetlb_no_page(struct address_space *mapping,
 	 * if populated.
 	 */
 	if (unlikely(pte_is_uffd_wp_marker(vmf->orig_pte)))
-		new_pte = huge_pte_mkuffd_wp(new_pte);
+		new_pte = huge_pte_mkuffd(new_pte);
 	set_huge_pte_at(mm, vmf->address, vmf->pte, new_pte, huge_page_size(h));
 
 	hugetlb_count_add(pages_per_huge_page(h), mm);
@@ -6090,7 +6090,7 @@ vm_fault_t hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		goto out_ptl;
 
 	/* Handle userfault-wp first, before trying to lock more pages */
-	if (userfaultfd_wp(vma) && huge_pte_uffd_wp(huge_ptep_get(mm, vmf.address, vmf.pte)) &&
+	if (userfaultfd_wp(vma) && huge_pte_uffd(huge_ptep_get(mm, vmf.address, vmf.pte)) &&
 	    (flags & FAULT_FLAG_WRITE) && !huge_pte_write(vmf.orig_pte)) {
 		if (!userfaultfd_wp_async(vma)) {
 			spin_unlock(vmf.ptl);
@@ -6099,7 +6099,7 @@ vm_fault_t hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 			return handle_userfault(&vmf, VM_UFFD_WP);
 		}
 
-		vmf.orig_pte = huge_pte_clear_uffd_wp(vmf.orig_pte);
+		vmf.orig_pte = huge_pte_clear_uffd(vmf.orig_pte);
 		set_huge_pte_at(mm, vmf.address, vmf.pte, vmf.orig_pte,
 				huge_page_size(hstate_vma(vma)));
 		/* Fallthrough to CoW */
@@ -6384,7 +6384,7 @@ int hugetlb_mfill_atomic_pte(pte_t *dst_pte,
 	_dst_pte = pte_mkyoung(_dst_pte);
 
 	if (wp_enabled)
-		_dst_pte = huge_pte_mkuffd_wp(_dst_pte);
+		_dst_pte = huge_pte_mkuffd(_dst_pte);
 
 	set_huge_pte_at(dst_mm, dst_addr, dst_pte, _dst_pte, size);
 
@@ -6508,9 +6508,9 @@ long hugetlb_change_protection(struct vm_area_struct *vma,
 			}
 
 			if (uffd_wp)
-				newpte = pte_swp_mkuffd_wp(newpte);
+				newpte = pte_swp_mkuffd(newpte);
 			else if (uffd_wp_resolve)
-				newpte = pte_swp_clear_uffd_wp(newpte);
+				newpte = pte_swp_clear_uffd(newpte);
 			if (!pte_same(pte, newpte))
 				set_huge_pte_at(mm, address, ptep, newpte, psize);
 		} else if (unlikely(pte_is_marker(pte))) {
@@ -6531,9 +6531,9 @@ long hugetlb_change_protection(struct vm_area_struct *vma,
 			pte = huge_pte_modify(old_pte, newprot);
 			pte = arch_make_huge_pte(pte, shift, vma->vm_flags);
 			if (uffd_wp)
-				pte = huge_pte_mkuffd_wp(pte);
+				pte = huge_pte_mkuffd(pte);
 			else if (uffd_wp_resolve)
-				pte = huge_pte_clear_uffd_wp(pte);
+				pte = huge_pte_clear_uffd(pte);
 			huge_ptep_modify_prot_commit(vma, address, ptep, old_pte, pte);
 			pages++;
 			tlb_remove_huge_tlb_entry(h, &tlb, ptep, address);

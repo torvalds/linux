@@ -600,14 +600,14 @@ pte_install_uffd_wp_if_needed(struct vm_area_struct *vma, unsigned long addr,
 		return false;
 
 	/* A uffd-wp wr-protected normal pte */
-	if (unlikely(pte_present(pteval) && pte_uffd_wp(pteval)))
+	if (unlikely(pte_present(pteval) && pte_uffd(pteval)))
 		arm_uffd_pte = true;
 
 	/*
 	 * A uffd-wp wr-protected swap pte.  Note: this should even cover an
 	 * existing pte marker with uffd-wp bit set.
 	 */
-	if (unlikely(pte_swp_uffd_wp_any(pteval)))
+	if (unlikely(pte_swp_uffd_any(pteval)))
 		arm_uffd_pte = true;
 
 	if (unlikely(arm_uffd_pte)) {

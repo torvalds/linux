@@ -486,8 +486,8 @@ static inline pte_t pte_move_swp_offset(pte_t pte, long delta)
 		new = pte_swp_mksoft_dirty(new);
 	if (pte_swp_exclusive(pte))
 		new = pte_swp_mkexclusive(new);
-	if (pte_swp_uffd_wp(pte))
-		new = pte_swp_mkuffd_wp(new);
+	if (pte_swp_uffd(pte))
+		new = pte_swp_mkuffd(new);
 
 	return new;
 }

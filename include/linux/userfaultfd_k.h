@@ -211,13 +211,13 @@ static inline bool userfaultfd_minor(struct vm_area_struct *vma)
 static inline bool userfaultfd_pte_wp(struct vm_area_struct *vma,
 				      pte_t pte)
 {
-	return userfaultfd_wp(vma) && pte_uffd_wp(pte);
+	return userfaultfd_wp(vma) && pte_uffd(pte);
 }
 
 static inline bool userfaultfd_huge_pmd_wp(struct vm_area_struct *vma,
 					   pmd_t pmd)
 {
-	return userfaultfd_wp(vma) && pmd_uffd_wp(pmd);
+	return userfaultfd_wp(vma) && pmd_uffd(pmd);
 }
 
 static inline bool userfaultfd_armed(struct vm_area_struct *vma)
@@ -272,10 +272,10 @@ static inline bool userfaultfd_wp_use_markers(struct vm_area_struct *vma)
 }
 
 /*
- * Returns true if this is a swap pte and was uffd-wp wr-protected in either
- * forms (pte marker or a normal swap pte), false otherwise.
+ * Returns true if this swap pte carries uffd-tracked state in either
+ * form (pte marker or a normal swap pte), false otherwise.
  */
-static inline bool pte_swp_uffd_wp_any(pte_t pte)
+static inline bool pte_swp_uffd_any(pte_t pte)
 {
 	if (!uffd_supports_wp_marker())
 		return false;
@@ -283,7 +283,7 @@ static inline bool pte_swp_uffd_wp_any(pte_t pte)
 	if (pte_present(pte))
 		return false;
 
-	if (pte_swp_uffd_wp(pte))
+	if (pte_swp_uffd(pte))
 		return true;
 
 	if (pte_is_uffd_wp_marker(pte))
@@ -424,7 +424,7 @@ static inline bool userfaultfd_wp_use_markers(struct vm_area_struct *vma)
  * Returns true if this is a swap pte and was uffd-wp wr-protected in either
  * forms (pte marker or a normal swap pte), false otherwise.
  */
-static inline bool pte_swp_uffd_wp_any(pte_t pte)
+static inline bool pte_swp_uffd_any(pte_t pte)
 {
 	return false;
 }
