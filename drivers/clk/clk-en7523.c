@@ -57,6 +57,7 @@
 
 #define REG_RST_CTRL2			0x830
 #define REG_RST_CTRL1			0x834
+#define   REG_PCIE_HB_RST		BIT(29)
 #define EN751221_REG_RST_DMT		0x84
 #define EN751221_REG_RST_USB		0xec
 
@@ -852,6 +853,12 @@ static int en7581_clk_hw_init(struct platform_device *pdev,
 	writel(val, base + REG_NP_SCU_SSTR);
 	val = readl(base + REG_NP_SCU_PCIC);
 	writel(val | 3, base + REG_NP_SCU_PCIC);
+
+	val = readl(base + REG_RST_CTRL1);
+	val |= REG_PCIE_HB_RST;
+	writel(val, base + REG_RST_CTRL1);
+	val &= ~REG_PCIE_HB_RST;
+	writel(val, base + REG_RST_CTRL1);
 
 	return en7581_reset_register(&pdev->dev, base, en7581_rst_map,
 				     ARRAY_SIZE(en7581_rst_map),
