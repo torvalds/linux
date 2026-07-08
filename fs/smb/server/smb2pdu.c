@@ -867,7 +867,7 @@ static void smb2_send_interim_compound_prefix(struct ksmbd_work *work)
 	    work->conn->ops->set_sign_rsp)
 		work->conn->ops->set_sign_rsp(work);
 
-	err = ksmbd_conn_write(work);
+	err = ksmbd_conn_write_eor(work);
 	if (err)
 		ksmbd_debug(SMB, "failed to send compound interim prefix: %d\n",
 			    err);
@@ -908,7 +908,7 @@ void smb2_send_interim_resp(struct ksmbd_work *work, __le32 status)
 	smb2_set_err_rsp(in_work);
 	rsp_hdr->Status = status;
 
-	ksmbd_conn_write(in_work);
+	ksmbd_conn_write_eor(in_work);
 	ksmbd_free_work_struct(in_work);
 }
 

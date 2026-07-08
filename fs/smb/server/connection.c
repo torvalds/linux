@@ -392,6 +392,15 @@ int ksmbd_conn_write(struct ksmbd_work *work)
 	return __ksmbd_conn_write(work, &tx);
 }
 
+int ksmbd_conn_write_eor(struct ksmbd_work *work)
+{
+	struct ksmbd_transport_write tx = {
+		.msg_flags = MSG_EOR,
+	};
+
+	return __ksmbd_conn_write(work, &tx);
+}
+
 int ksmbd_conn_rdma_read(struct ksmbd_conn *conn,
 			 void *buf, unsigned int buflen,
 			 struct smbdirect_buffer_descriptor_v1 *desc,

@@ -138,6 +138,7 @@ struct ksmbd_transport_write {
 	int		size;
 	bool		need_invalidate_rkey;
 	unsigned int	remote_key;
+	int		msg_flags;
 };
 
 struct ksmbd_transport_ops {
@@ -182,6 +183,7 @@ int ksmbd_conn_wq_init(void);
 void ksmbd_conn_wq_destroy(void);
 bool ksmbd_conn_lookup_dialect(struct ksmbd_conn *c);
 int ksmbd_conn_write(struct ksmbd_work *work);
+int ksmbd_conn_write_eor(struct ksmbd_work *work);
 int ksmbd_conn_rdma_read(struct ksmbd_conn *conn,
 			 void *buf, unsigned int buflen,
 			 struct smbdirect_buffer_descriptor_v1 *desc,
