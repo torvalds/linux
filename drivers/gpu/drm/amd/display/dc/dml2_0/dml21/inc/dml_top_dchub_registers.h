@@ -171,8 +171,15 @@ struct dml2_dchub_watermark_regs {
 	uint32_t sr_exit_low_power;
 	uint32_t uclk_pstate;
 	uint32_t fclk_pstate;
+	union {
 	uint32_t temp_read_or_ppt;
+		uint32_t temp_read;
+	};
+	uint32_t ppt;
+	union {
 	uint32_t usr;
+		uint32_t buffer_fullness;
+	};
 	/* qos */
 	uint32_t refcyc_per_trip_to_mem;
 	uint32_t refcyc_per_meta_trip_to_mem;
