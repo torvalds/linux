@@ -4142,13 +4142,19 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 		list_add_tail(&req->r_unsafe_item, &req->r_session->s_unsafe);
 	}
 
+	/*
+	 * Now that all mutex-protected state has been updated above
+	 * (the request has been unregistered or added to the
+	 * session's unsafe list), we can unlock it.
+	 */
+	mutex_unlock(&mdsc->mutex);
+
 	doutc(cl, "tid %lld result %d\n", tid, result);
 	if (test_bit(CEPHFS_FEATURE_REPLY_ENCODING, &session->s_features))
 		err = parse_reply_info(session, msg, req, (u64)-1);
 	else
 		err = parse_reply_info(session, msg, req,
 				       session->s_con.peer_features);
-	mutex_unlock(&mdsc->mutex);
 
 	/* Must find target inode outside of mutexes to avoid deadlocks */
 	rinfo = &req->r_reply_info;
