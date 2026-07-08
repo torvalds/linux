@@ -2013,8 +2013,6 @@ void ksmbd_vfs_update_compressed_fattr(struct dentry *dentry, __le32 *fattr)
 
 	if (fa.flags & FS_COMPR_FL)
 		*fattr |= FILE_ATTRIBUTE_COMPRESSED_LE;
-	else
-		*fattr &= ~FILE_ATTRIBUTE_COMPRESSED_LE;
 }
 
 int ksmbd_vfs_get_compression(struct ksmbd_file *fp, u16 *fmt)
@@ -2106,9 +2104,7 @@ update_fattr:
 	else
 		fp->f_ci->m_fattr |= FILE_ATTRIBUTE_COMPRESSED_LE;
 
-	if (fp->f_ci->m_fattr != old_fattr &&
-	    test_share_config_flag(work->tcon->share_conf,
-				   KSMBD_SHARE_FLAG_STORE_DOS_ATTRS)) {
+	if (fp->f_ci->m_fattr != old_fattr) {
 		struct xattr_dos_attrib da = {0};
 
 		rc = ksmbd_vfs_get_dos_attrib_xattr(idmap, dentry, &da);

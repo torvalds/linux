@@ -2975,10 +2975,6 @@ static bool smb2_parent_compressed(struct ksmbd_tree_connect *tcon,
 		goto out;
 	}
 
-	if (!test_share_config_flag(tcon->share_conf,
-				    KSMBD_SHARE_FLAG_STORE_DOS_ATTRS))
-		goto out;
-
 	rc = ksmbd_vfs_get_dos_attrib_xattr(mnt_idmap(path->mnt), parent, &da);
 	if (rc > 0 && da.attr & FILE_ATTRIBUTE_COMPRESSED)
 		compressed = true;
@@ -2992,15 +2988,13 @@ static void smb2_update_xattrs(struct ksmbd_tree_connect *tcon,
 			       const struct path *path, struct ksmbd_file *fp)
 {
 	struct xattr_dos_attrib da;
+	bool store_dos_attrs = test_share_config_flag(tcon->share_conf,
+						      KSMBD_SHARE_FLAG_STORE_DOS_ATTRS);
 	int rc;
 
 	fp->f_ci->m_fattr &= ~(FILE_ATTRIBUTE_HIDDEN_LE | FILE_ATTRIBUTE_SYSTEM_LE);
 
 	/* get FileAttributes from XATTR_NAME_DOS_ATTRIBUTE */
-	if (!test_share_config_flag(tcon->share_conf,
-				    KSMBD_SHARE_FLAG_STORE_DOS_ATTRS))
-		return;
-
 	rc = ksmbd_vfs_get_dos_attrib_xattr(mnt_idmap(path->mnt),
 					    path->dentry, &da);
 	if (rc > 0) {
@@ -3014,9 +3008,15 @@ static void smb2_update_xattrs(struct ksmbd_tree_connect *tcon,
 		 */
 		if (!(server_conf.share_fake_fscaps & FILE_SUPPORTS_SPARSE_FILES))
 			da.attr &= ~FILE_ATTRIBUTE_SPARSE_FILE;
-		fp->f_ci->m_fattr = cpu_to_le32(da.attr);
-		fp->create_time = da.create_time;
-		fp->itime = da.itime;
+		if (store_dos_attrs) {
+			fp->f_ci->m_fattr = cpu_to_le32(da.attr);
+			fp->create_time = da.create_time;
+			fp->itime = da.itime;
+		} else if (da.attr & FILE_ATTRIBUTE_COMPRESSED) {
+			fp->f_ci->m_fattr |= FILE_ATTRIBUTE_COMPRESSED_LE;
+		} else {
+			fp->f_ci->m_fattr &= ~FILE_ATTRIBUTE_COMPRESSED_LE;
+		}
 	}
 }
 
