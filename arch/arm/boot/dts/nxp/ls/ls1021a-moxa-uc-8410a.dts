@@ -176,7 +176,7 @@
 
 &mdio0 {
 	rgmii_phy0: ethernet-phy@0 {
-		compatible = "marvell,88e1118";
+		compatible = "ethernet-phy-ieee802.3-c22";
 		reg = <0x0>;
 		marvell,reg-init =
 			<3 0x11 0 0x4415>, /* Reg 3,17 */
@@ -184,7 +184,7 @@
 	};
 
 	rgmii_phy1: ethernet-phy@1 {
-		compatible = "marvell,88e1118";
+		compatible = "ethernet-phy-ieee802.3-c22";
 		reg = <0x1>;
 		marvell,reg-init =
 			<3 0x11 0 0x4415>, /* Reg 3,17 */
@@ -192,7 +192,7 @@
 	};
 
 	rgmii_phy2: ethernet-phy@2 {
-		compatible = "marvell,88e1118";
+		compatible = "ethernet-phy-ieee802.3-c22";
 		reg = <0x2>;
 		marvell,reg-init =
 			<3 0x11 0 0x4415>, /* Reg 3,17 */
