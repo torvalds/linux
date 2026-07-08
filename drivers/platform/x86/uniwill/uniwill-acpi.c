@@ -2910,6 +2910,13 @@ static const struct dmi_system_id uniwill_dmi_table[] __initconst = {
 		.driver_data = &lapqc71a_lapqc71b_descriptor,
 	},
 	{
+		.ident = "Avell A60 MUV",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "A60 MUV"),
+		},
+		.driver_data = &lapqc71a_lapqc71b_descriptor,
+	},
+	{
 		.ident = "Intel NUC x15",
 		.matches = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Intel(R) Client Systems"),
