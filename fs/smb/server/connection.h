@@ -132,14 +132,21 @@ struct ksmbd_conn_ops {
 	int	(*terminate_fn)(struct ksmbd_conn *conn);
 };
 
+struct ksmbd_transport_write {
+	struct kvec	*iov;
+	int		iov_cnt;
+	int		size;
+	bool		need_invalidate_rkey;
+	unsigned int	remote_key;
+};
+
 struct ksmbd_transport_ops {
 	void (*disconnect)(struct ksmbd_transport *t);
 	void (*shutdown)(struct ksmbd_transport *t);
 	int (*read)(struct ksmbd_transport *t, char *buf,
 		    unsigned int size, int max_retries);
-	int (*writev)(struct ksmbd_transport *t, struct kvec *iovs, int niov,
-		      int size, bool need_invalidate_rkey,
-		      unsigned int remote_key);
+	int (*writev)(struct ksmbd_transport *t,
+		      const struct ksmbd_transport_write *tx);
 	int (*rdma_read)(struct ksmbd_transport *t,
 			 void *buf, unsigned int len,
 			 struct smbdirect_buffer_descriptor_v1 *desc,

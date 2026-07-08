@@ -239,17 +239,18 @@ static int smb_direct_read(struct ksmbd_transport *t, char *buf,
 }
 
 static int smb_direct_writev(struct ksmbd_transport *t,
-			     struct kvec *iov, int niovs, int buflen,
-			     bool need_invalidate, unsigned int remote_key)
+			     const struct ksmbd_transport_write *tx)
 {
 	struct smb_direct_transport *st = SMBD_TRANS(t);
 	struct smbdirect_socket *sc = st->socket;
 	struct iov_iter iter;
 
-	iov_iter_kvec(&iter, ITER_SOURCE, iov, niovs, buflen);
+	iov_iter_kvec(&iter, ITER_SOURCE, tx->iov, tx->iov_cnt,
+		      tx->size);
 
 	return smbdirect_connection_send_iter(sc, &iter, 0,
-					      need_invalidate, remote_key);
+					      tx->need_invalidate_rkey,
+					      tx->remote_key);
 }
 
 static int smb_direct_rdma_write(struct ksmbd_transport *t,

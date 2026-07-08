@@ -350,7 +350,8 @@ retry_idle:
 	return 0;
 }
 
-int ksmbd_conn_write(struct ksmbd_work *work)
+static int __ksmbd_conn_write(struct ksmbd_work *work,
+			      struct ksmbd_transport_write *tx)
 {
 	struct ksmbd_conn *conn = work->conn;
 	int sent;
@@ -366,12 +367,14 @@ int ksmbd_conn_write(struct ksmbd_work *work)
 	if (!work->iov_idx)
 		return -EINVAL;
 
+	tx->iov = work->iov;
+	tx->iov_cnt = work->iov_cnt;
+	tx->size = get_rfc1002_len(work->iov[0].iov_base) + 4;
+	tx->need_invalidate_rkey = work->need_invalidate_rkey;
+	tx->remote_key = work->remote_key;
+
 	ksmbd_conn_lock(conn);
-	sent = conn->transport->ops->writev(conn->transport, work->iov,
-			work->iov_cnt,
-			get_rfc1002_len(work->iov[0].iov_base) + 4,
-			work->need_invalidate_rkey,
-			work->remote_key);
+	sent = conn->transport->ops->writev(conn->transport, tx);
 	ksmbd_conn_unlock(conn);
 
 	if (sent < 0) {
@@ -380,6 +383,13 @@ int ksmbd_conn_write(struct ksmbd_work *work)
 	}
 
 	return 0;
+}
+
+int ksmbd_conn_write(struct ksmbd_work *work)
+{
+	struct ksmbd_transport_write tx = {};
+
+	return __ksmbd_conn_write(work, &tx);
 }
 
 int ksmbd_conn_rdma_read(struct ksmbd_conn *conn,

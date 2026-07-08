@@ -417,14 +417,15 @@ static int ksmbd_tcp_read(struct ksmbd_transport *t, char *buf,
 	return ksmbd_tcp_readv(TCP_TRANS(t), &iov, 1, to_read, max_retries);
 }
 
-static int ksmbd_tcp_writev(struct ksmbd_transport *t, struct kvec *iov,
-			    int nvecs, int size, bool need_invalidate,
-			    unsigned int remote_key)
-
+static int ksmbd_tcp_writev(struct ksmbd_transport *t,
+			    const struct ksmbd_transport_write *tx)
 {
-	struct msghdr smb_msg = {.msg_flags = MSG_NOSIGNAL};
+	struct msghdr smb_msg = {
+		.msg_flags = MSG_NOSIGNAL,
+	};
 
-	return kernel_sendmsg(TCP_TRANS(t)->sock, &smb_msg, iov, nvecs, size);
+	return kernel_sendmsg(TCP_TRANS(t)->sock, &smb_msg, tx->iov,
+			      tx->iov_cnt, tx->size);
 }
 
 static void ksmbd_tcp_disconnect(struct ksmbd_transport *t)
