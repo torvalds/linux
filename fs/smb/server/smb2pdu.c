@@ -839,6 +839,48 @@ void release_async_work(struct ksmbd_work *work)
 	}
 }
 
+static void smb2_send_interim_compound_prefix(struct ksmbd_work *work)
+{
+	struct smb2_hdr *req_hdr;
+	struct smb2_hdr *rsp_hdr;
+	int err;
+
+	if (!work->next_smb2_rcv_hdr_off ||
+	    !work->next_smb2_rsp_hdr_off ||
+	    work->curr_smb2_rsp_hdr_off == work->next_smb2_rsp_hdr_off ||
+	    !work->iov_idx)
+		return;
+
+	req_hdr = ksmbd_req_buf_next(work);
+	/* Detach only the final async command from the completed prefix. */
+	if (req_hdr->NextCommand)
+		return;
+
+	/*
+	 * The responses before the async command are sent as a standalone
+	 * compound response. The last response in this prefix must terminate
+	 * the chain.
+	 */
+	rsp_hdr = ksmbd_resp_buf_curr(work);
+	rsp_hdr->NextCommand = 0;
+	if ((rsp_hdr->Flags & SMB2_FLAGS_SIGNED) && work->sess &&
+	    work->conn->ops->set_sign_rsp)
+		work->conn->ops->set_sign_rsp(work);
+
+	err = ksmbd_conn_write(work);
+	if (err)
+		ksmbd_debug(SMB, "failed to send compound interim prefix: %d\n",
+			    err);
+
+	work->iov_idx = 0;
+	work->iov_cnt = 0;
+	work->curr_smb2_rsp_hdr_off = work->next_smb2_rsp_hdr_off;
+	*(__be32 *)work->response_buf = 0;
+
+	rsp_hdr = ksmbd_resp_buf_next(work);
+	rsp_hdr->Flags &= ~SMB2_FLAGS_RELATED_OPERATIONS;
+}
+
 void smb2_send_interim_resp(struct ksmbd_work *work, __le32 status)
 {
 	struct smb2_hdr *rsp_hdr;
@@ -852,6 +894,9 @@ void smb2_send_interim_resp(struct ksmbd_work *work, __le32 status)
 		ksmbd_free_work_struct(in_work);
 		return;
 	}
+
+	if (status == STATUS_PENDING)
+		smb2_send_interim_compound_prefix(work);
 
 	in_work->conn = work->conn;
 	memcpy(smb_get_msg(in_work->response_buf), ksmbd_resp_buf_next(work),
