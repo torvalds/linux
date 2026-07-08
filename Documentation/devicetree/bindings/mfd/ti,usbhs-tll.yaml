@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/ti,usbhs-tll.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: OMAP HS USB Host TLL (Transceiver-Less Interface)
+
+maintainers:
+  - Eduard Bostina <egbostina@gmail.com>
+
+properties:
+  compatible:
+    const: ti,usbhs-tll
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  ti,hwmods:
+    description: Name of the hwmod associated with the USB TLL.
+    $ref: /schemas/types.yaml#/definitions/string
+    const: usb_tll_hs
+
+  clocks:
+    minItems: 1
+    maxItems: 3
+    description: A list of phandles and clock-specifier pairs.
+
+  clock-names:
+    minItems: 1
+    items:
+      - const: usb_tll_hs_usb_ch0_clk
+      - const: usb_tll_hs_usb_ch1_clk
+      - const: usb_tll_hs_usb_ch2_clk
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    usb-tll@4a062000 {
+        compatible = "ti,usbhs-tll";
+        reg = <0x4a062000 0x1000>;
+        interrupts = <78>;
+        ti,hwmods = "usb_tll_hs";
+    };
