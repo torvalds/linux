@@ -129,6 +129,7 @@ mshv_ioctl_create_vtl(void __user *user_arg, struct device *module_dev)
 	file = anon_inode_getfile("mshv_vtl", &mshv_vtl_fops,
 				  vtl, O_RDWR);
 	if (IS_ERR(file)) {
+		put_unused_fd(fd);
 		kfree(vtl);
 		return PTR_ERR(file);
 	}
