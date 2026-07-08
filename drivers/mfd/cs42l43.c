@@ -588,12 +588,9 @@ static int cs42l43_wait_for_attach(struct cs42l43 *cs42l43)
 {
 	int ret;
 
-	if (cs42l43->sdw) {
-		ret = sdw_slave_wait_for_init(cs42l43->sdw,
-					      CS42L43_SDW_ATTACH_TIMEOUT_MS);
-		if (ret)
-			return ret;
-	}
+	ret = sdw_slave_wait_for_init(cs42l43->sdw, CS42L43_SDW_ATTACH_TIMEOUT_MS);
+	if (ret)
+		return ret;
 
 	regcache_cache_only(cs42l43->regmap, false);
 
