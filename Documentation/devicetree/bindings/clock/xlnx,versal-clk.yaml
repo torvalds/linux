@@ -116,7 +116,7 @@ allOf:
             - const: pss_alt_ref_clk
             - const: aux_ref_clk
             - const: gt_crx_ref_clk
-            - pattern: "^mio_clk[00-77]+.*$"
+            - pattern: "^mio_clk([0-6][0-9]|7[0-7])+.*$"
             - pattern: "gem[0-3]+_emio_clk.*$"
             - pattern: "swdt[0-1]+_ext_clk.*$"
 
