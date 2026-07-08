@@ -243,10 +243,7 @@ static void savic_write(u32 reg, u32 data)
 
 static void send_ipi(u32 dest, unsigned int vector, unsigned int dsh)
 {
-	unsigned int icr_low;
-
-	icr_low = __prepare_ICR(dsh, vector, APIC_DEST_PHYSICAL);
-	savic_icr_write(icr_low, dest);
+	savic_icr_write(__prepare_ICR(dsh, vector, APIC_DEST_PHYSICAL), dest);
 }
 
 static void savic_send_ipi(int cpu, int vector)

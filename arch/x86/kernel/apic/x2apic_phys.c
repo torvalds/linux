@@ -85,11 +85,9 @@ static void
 
 static void __x2apic_send_IPI_shorthand(int vector, u32 which)
 {
-	unsigned long cfg = __prepare_ICR(which, vector, 0);
-
 	/* x2apic MSRs are special and need a special fence: */
 	weak_wrmsr_fence();
-	native_x2apic_icr_write(cfg, 0);
+	native_x2apic_icr_write(__prepare_ICR(which, vector, 0), 0);
 }
 
 void x2apic_send_IPI_allbutself(int vector)
