@@ -132,7 +132,6 @@
 			label = "push button key";
 			gpios = <&gpio1 21 GPIO_ACTIVE_LOW>;
 			linux,code = <BTN_MISC>;
-			default-state = "on";
 		};
 	};
 };
