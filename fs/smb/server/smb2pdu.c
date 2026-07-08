@@ -2960,6 +2960,34 @@ static void smb2_new_xattrs(struct ksmbd_tree_connect *tcon, const struct path *
 		ksmbd_debug(SMB, "failed to store file attribute into xattr\n");
 }
 
+static bool smb2_parent_compressed(struct ksmbd_tree_connect *tcon,
+				   const struct path *path)
+{
+	struct dentry *parent = dget_parent(path->dentry);
+	struct file_kattr fa = { .flags_valid = true };
+	struct xattr_dos_attrib da;
+	bool compressed = false;
+	int rc;
+
+	rc = vfs_fileattr_get(parent, &fa);
+	if (!rc && fa.flags & FS_COMPR_FL) {
+		compressed = true;
+		goto out;
+	}
+
+	if (!test_share_config_flag(tcon->share_conf,
+				    KSMBD_SHARE_FLAG_STORE_DOS_ATTRS))
+		goto out;
+
+	rc = ksmbd_vfs_get_dos_attrib_xattr(mnt_idmap(path->mnt), parent, &da);
+	if (rc > 0 && da.attr & FILE_ATTRIBUTE_COMPRESSED)
+		compressed = true;
+
+out:
+	dput(parent);
+	return compressed;
+}
+
 static void smb2_update_xattrs(struct ksmbd_tree_connect *tcon,
 			       const struct path *path, struct ksmbd_file *fp)
 {
@@ -3520,8 +3548,6 @@ int smb2_open(struct ksmbd_work *work)
 			if (req->CreateOptions & FILE_NON_DIRECTORY_FILE_LE) {
 				rc = -EINVAL;
 				goto err_out2;
-			} else if (req->CreateOptions & FILE_NO_COMPRESSION_LE) {
-				req->CreateOptions &= ~FILE_NO_COMPRESSION_LE;
 			}
 		}
 	}
@@ -4127,6 +4153,22 @@ int smb2_open(struct ksmbd_work *work)
 		smb2_update_xattrs(tcon, &path, fp);
 
 	ksmbd_vfs_update_compressed_fattr(path.dentry, &fp->f_ci->m_fattr);
+
+	if (created) {
+		if (fp->coption & FILE_NO_COMPRESSION_LE) {
+			rc = ksmbd_vfs_set_compression_create(work, fp,
+							      COMPRESSION_FORMAT_NONE);
+			if (rc)
+				fp->f_ci->m_fattr &= ~FILE_ATTRIBUTE_COMPRESSED_LE;
+			rc = 0;
+		} else if (smb2_parent_compressed(tcon, &path)) {
+			rc = ksmbd_vfs_set_compression_create(work, fp,
+							      COMPRESSION_FORMAT_LZNT1);
+			if (rc)
+				fp->f_ci->m_fattr |= FILE_ATTRIBUTE_COMPRESSED_LE;
+			rc = 0;
+		}
+	}
 
 	if (created)
 		smb2_new_xattrs(tcon, &path, fp);
@@ -6271,6 +6313,7 @@ static int smb2_get_info_filesystem(struct ksmbd_work *work,
 		attrs = FILE_SUPPORTS_OBJECT_IDS |
 			FILE_PERSISTENT_ACLS |
 			FILE_UNICODE_ON_DISK |
+			FILE_FILE_COMPRESSION |
 			FILE_SUPPORTS_BLOCK_REFCOUNTING;
 
 		err = vfs_fileattr_get(path.dentry, &fa);

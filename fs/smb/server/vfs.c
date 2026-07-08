@@ -2008,8 +2008,6 @@ void ksmbd_vfs_update_compressed_fattr(struct dentry *dentry, __le32 *fattr)
 	struct file_kattr fa = { .flags_valid = true };
 
 	rc = vfs_fileattr_get(dentry, &fa);
-	if (rc == -ENOIOCTLCMD)
-		*fattr &= ~FILE_ATTRIBUTE_COMPRESSED_LE;
 	if (rc)
 		return;
 
@@ -2025,15 +2023,19 @@ int ksmbd_vfs_get_compression(struct ksmbd_file *fp, u16 *fmt)
 	int rc;
 
 	rc = vfs_fileattr_get(fp->filp->f_path.dentry, &fa);
-	if (rc == -ENOIOCTLCMD) {
-		*fmt = COMPRESSION_FORMAT_NONE;
+	if (rc == -ENOIOCTLCMD || rc == -ENOTTY || rc == -EINVAL ||
+	    rc == -EOPNOTSUPP) {
+		if (fp->f_ci->m_fattr & FILE_ATTRIBUTE_COMPRESSED_LE)
+			*fmt = COMPRESSION_FORMAT_LZNT1;
+		else
+			*fmt = COMPRESSION_FORMAT_NONE;
 		rc = 0;
 		goto out;
 	}
 	if (rc)
 		goto out;
 
-	if (fa.flags & FS_COMPR_FL)
+	if (fp->f_ci->m_fattr & FILE_ATTRIBUTE_COMPRESSED_LE)
 		*fmt = COMPRESSION_FORMAT_LZNT1;
 	else
 		*fmt = COMPRESSION_FORMAT_NONE;
@@ -2042,7 +2044,9 @@ out:
 	return rc;
 }
 
-int ksmbd_vfs_set_compression(struct ksmbd_work *work, struct ksmbd_file *fp, u16 fmt)
+static int __ksmbd_vfs_set_compression(struct ksmbd_work *work,
+				       struct ksmbd_file *fp, u16 fmt,
+				       bool check_access)
 {
 	const struct cred *saved_cred = NULL;
 	struct file_kattr fa;
@@ -2052,13 +2056,23 @@ int ksmbd_vfs_set_compression(struct ksmbd_work *work, struct ksmbd_file *fp, u1
 	__le32 old_fattr;
 	int rc;
 
-	if (!(fp->daccess & FILE_WRITE_DATA_LE)) {
+	if (check_access && !(fp->daccess & FILE_WRITE_DATA_LE)) {
 		rc = -EACCES;
+		goto out;
+	}
+
+	if (fmt != COMPRESSION_FORMAT_NONE &&
+	    fmt != COMPRESSION_FORMAT_DEFAULT &&
+	    fmt != COMPRESSION_FORMAT_LZNT1) {
+		rc = -EINVAL;
 		goto out;
 	}
 
 	saved_cred = override_creds(fp->filp->f_cred);
 	rc = vfs_fileattr_get(dentry, &fa);
+	if (rc == -ENOIOCTLCMD || rc == -ENOTTY || rc == -EINVAL ||
+	    rc == -EOPNOTSUPP)
+		goto update_fattr;
 	if (rc)
 		goto out;
 
@@ -2068,9 +2082,6 @@ int ksmbd_vfs_set_compression(struct ksmbd_work *work, struct ksmbd_file *fp, u1
 	} else if (fmt == COMPRESSION_FORMAT_DEFAULT ||
 		   fmt == COMPRESSION_FORMAT_LZNT1) {
 		flags |= FS_COMPR_FL;
-	} else {
-		rc = -EINVAL;
-		goto out;
 	}
 
 	if (flags != fa.flags) {
@@ -2081,10 +2092,14 @@ int ksmbd_vfs_set_compression(struct ksmbd_work *work, struct ksmbd_file *fp, u1
 
 		rc = vfs_fileattr_set(idmap, dentry, &fa);
 		mnt_drop_write_file(fp->filp);
+		if (rc == -ENOIOCTLCMD || rc == -ENOTTY || rc == -EINVAL ||
+		    rc == -EOPNOTSUPP)
+			goto update_fattr;
 		if (rc)
 			goto out;
 	}
 
+update_fattr:
 	old_fattr = fp->f_ci->m_fattr;
 	if (fmt == COMPRESSION_FORMAT_NONE)
 		fp->f_ci->m_fattr &= ~FILE_ATTRIBUTE_COMPRESSED_LE;
@@ -2094,15 +2109,19 @@ int ksmbd_vfs_set_compression(struct ksmbd_work *work, struct ksmbd_file *fp, u1
 	if (fp->f_ci->m_fattr != old_fattr &&
 	    test_share_config_flag(work->tcon->share_conf,
 				   KSMBD_SHARE_FLAG_STORE_DOS_ATTRS)) {
-		struct xattr_dos_attrib da;
+		struct xattr_dos_attrib da = {0};
 
 		rc = ksmbd_vfs_get_dos_attrib_xattr(idmap, dentry, &da);
 		if (rc <= 0) {
-			rc = 0;
-			goto out;
+			da.version = 4;
+			da.itime = fp->itime;
+			da.create_time = fp->create_time;
+			da.flags = XATTR_DOSINFO_CREATE_TIME |
+				XATTR_DOSINFO_ITIME;
 		}
 
 		da.attr = le32_to_cpu(fp->f_ci->m_fattr);
+		da.flags |= XATTR_DOSINFO_ATTRIB;
 		rc = ksmbd_vfs_set_dos_attrib_xattr(idmap,
 						    &fp->filp->f_path,
 						    &da, true);
@@ -2114,4 +2133,16 @@ out:
 	if (saved_cred)
 		revert_creds(saved_cred);
 	return rc;
+}
+
+int ksmbd_vfs_set_compression(struct ksmbd_work *work,
+			      struct ksmbd_file *fp, u16 fmt)
+{
+	return __ksmbd_vfs_set_compression(work, fp, fmt, true);
+}
+
+int ksmbd_vfs_set_compression_create(struct ksmbd_work *work,
+				     struct ksmbd_file *fp, u16 fmt)
+{
+	return __ksmbd_vfs_set_compression(work, fp, fmt, false);
 }
