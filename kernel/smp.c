@@ -712,10 +712,15 @@ int smp_call_function_single(int cpu, smp_call_func_t func, void *info,
 
 	err = generic_exec_single(cpu, csd);
 
+	/*
+	 * @csd is stack-allocated when @wait is true. No concurrent access
+	 * except from the IPI completion path, so we can re-enable preemption
+	 * early to reduce latency.
+	 */
+	put_cpu();
+
 	if (wait)
 		csd_lock_wait(csd);
-
-	put_cpu();
 
 	return err;
 }
