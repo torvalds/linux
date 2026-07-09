@@ -653,17 +653,9 @@ void flush_smp_call_function_queue(void)
 	local_irq_restore(flags);
 }
 
-/**
- * smp_call_function_single - Run a function on a specific CPU
- * @cpu: Specific target CPU for this function.
- * @func: The function to run. This must be fast and non-blocking.
- * @info: An arbitrary pointer to pass to the function.
- * @wait: If true, wait until function has completed on other CPUs.
- *
- * Returns: %0 on success, else a negative status code.
- */
-int smp_call_function_single(int cpu, smp_call_func_t func, void *info,
-			     int wait)
+static int __smp_call_function_single(int cpu, smp_call_func_t func,
+				      void *info, const struct cpumask *mask,
+				      bool wait)
 {
 	call_single_data_t *csd;
 	call_single_data_t csd_stack = {
@@ -679,6 +671,14 @@ int smp_call_function_single(int cpu, smp_call_func_t func, void *info,
 	 * IPI sending ensuring IPI are not missed by CPU going offline.
 	 */
 	this_cpu = get_cpu();
+
+	if (mask) {
+		/* Try for same CPU (cheapest) */
+		if (!cpumask_test_cpu(this_cpu, mask))
+			cpu = sched_numa_find_nth_cpu(mask, 0, cpu_to_node(this_cpu));
+		else
+			cpu = this_cpu;
+	}
 
 	/*
 	 * Can deadlock when called with interrupts disabled.
@@ -723,6 +723,20 @@ int smp_call_function_single(int cpu, smp_call_func_t func, void *info,
 		csd_lock_wait(csd);
 
 	return err;
+}
+
+/**
+ * smp_call_function_single - Run a function on a specific CPU
+ * @cpu:	Specific target CPU for this function.
+ * @func:	The function to run. This must be fast and non-blocking.
+ * @info:	An arbitrary pointer to pass to the function.
+ * @wait:	If true, wait until function has completed on other CPUs.
+ *
+ * Returns: %0 on success, else a negative status code.
+ */
+int smp_call_function_single(int cpu, smp_call_func_t func, void *info, bool wait)
+{
+	return __smp_call_function_single(cpu, func, info, NULL, wait);
 }
 EXPORT_SYMBOL(smp_call_function_single);
 
@@ -774,10 +788,10 @@ EXPORT_SYMBOL_GPL(smp_call_function_single_async);
 
 /**
  * smp_call_function_any - Run a function on any of the given cpus
- * @mask: The mask of cpus it can run on.
- * @func: The function to run. This must be fast and non-blocking.
- * @info: An arbitrary pointer to pass to the function.
- * @wait: If true, wait until function has completed.
+ * @mask:	The mask of cpus it can run on.
+ * @func:	The function to run. This must be fast and non-blocking.
+ * @info:	An arbitrary pointer to pass to the function.
+ * @wait:	If true, wait until function has completed.
  *
  * Selection preference:
  *	1) current cpu if in @mask
@@ -788,17 +802,7 @@ EXPORT_SYMBOL_GPL(smp_call_function_single_async);
 int smp_call_function_any(const struct cpumask *mask,
 			  smp_call_func_t func, void *info, int wait)
 {
-	unsigned int cpu;
-	int ret;
-
-	/* Try for same CPU (cheapest) */
-	cpu = get_cpu();
-	if (!cpumask_test_cpu(cpu, mask))
-		cpu = sched_numa_find_nth_cpu(mask, 0, cpu_to_node(cpu));
-
-	ret = smp_call_function_single(cpu, func, info, wait);
-	put_cpu();
-	return ret;
+	return __smp_call_function_single(-1, func, info, mask, wait);
 }
 EXPORT_SYMBOL_GPL(smp_call_function_any);
 
