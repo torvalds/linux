@@ -49,6 +49,9 @@ re_cpp_directive = re.compile(
     r'^#\s*(include|define|undef|ifdef|ifndef|if|else|elif|endif|'
     r'pragma|error|warning)\b')
 
+re_dtc_directive = re.compile(
+    r'^/(dts-v1|include)/')
+
 # label: name@addr {  -- label and addr optional; name can be "/"
 # Per the DT spec a node name may start with a digit (e.g. 1wire@...).
 # The address part is captured loosely (any non-space, non-brace run) so
@@ -66,7 +69,11 @@ re_ref_node = re.compile(
 
 def is_preprocessor(stripped):
     """Tell C preprocessor directives apart from DTS '#'-prefixed props."""
-    return re_cpp_directive.match(stripped) is not None
+    if re_cpp_directive.match(stripped) is not None:
+        return True
+    if re_dtc_directive.match(stripped) is not None:
+        return True
+    return False
 
 
 class DtsLine:
@@ -178,7 +185,7 @@ def classify_lines(text):
             out.append(dl)
             continue
 
-        if stripped.startswith('#') and is_preprocessor(stripped):
+        if (stripped.startswith('#') or stripped.startswith('/')) and is_preprocessor(stripped):
             dl = DtsLine(i, raw, LineType.PREPROCESSOR,
                          indent_str, stripped)
             dl.depth = depth

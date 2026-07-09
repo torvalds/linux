@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+/*
+ * Test fixture: dtc directive
+ */
+
+/dts-v1/;
+
+/include/ "soc.dtsi"
+/include/"soc-other.dtsi"
+
+/ {
+	compatible = "example,test-board";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	leds {
+		led-0 {
+			compatible = "example,led";
+		};
+	};
+};
