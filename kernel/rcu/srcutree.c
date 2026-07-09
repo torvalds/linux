@@ -701,7 +701,12 @@ void cleanup_srcu_struct(struct srcu_struct *ssp)
 	for_each_possible_cpu(cpu) {
 		struct srcu_data *sdp = per_cpu_ptr(ssp->sda, cpu);
 
-		timer_delete_sync(&sdp->delay_work);
+		// Call srcu_barrier() before this cleanup_srcu_struct()
+		// to avoid triggering this WARN_ON().
+		if (WARN_ON(timer_delete_sync(&sdp->delay_work) &&
+			    rcu_segcblist_n_cbs(&sdp->srcu_cblist)) &&
+		    rcu_cpu_beenfullyonline(sdp->cpu))
+			queue_work_on(sdp->cpu, rcu_gp_wq, &sdp->work);
 		flush_work(&sdp->work);
 		if (WARN_ON(rcu_segcblist_n_cbs(&sdp->srcu_cblist)))
 			return; /* Forgot srcu_barrier(), so just leak it! */
