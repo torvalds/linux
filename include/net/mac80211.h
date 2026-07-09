@@ -1348,6 +1348,11 @@ ieee80211_rate_get_vht_nss(const struct ieee80211_tx_rate *rate)
  * @status.tx_time: airtime consumed for transmission; note this is only
  *	used for WMM AC, not for airtime fairness
  * @status.flags: status flags, see &enum mac80211_tx_status_flags
+ * @status.link_valid: if the link which is identified by @status.link_id is
+ *	valid. This flag is set by the driver in the TX status callback when the
+ *	connection is MLO and the driver knows which link was used for TX.
+ * @status.link_id: id of the link used to transmit the packet. This is used
+ *	along with @status.link_valid.
  * @status.status_driver_data: driver use area
  * @ack: union part for pure ACK data
  * @ack.cookie: cookie for the ACK
@@ -1402,7 +1407,7 @@ struct ieee80211_tx_info {
 			u8 pad;
 			u16 tx_time;
 			u8 flags;
-			u8 pad2;
+			u8 link_valid:1, link_id:4;
 			void *status_driver_data[16 / sizeof(void *)];
 		} status;
 		struct {
