@@ -424,6 +424,9 @@ EXPORT_SYMBOL(__bitmap_clear);
  * The @align_mask should be one less than a power of 2; the effect is that
  * the bit offset of all zero areas this function finds plus @align_offset
  * is multiple of that power of 2.
+ *
+ * Return: The bit offset of the found area or a value greater than or equal
+ * to @size if no area is found.
  */
 unsigned long bitmap_find_next_zero_area_off(unsigned long *map,
 					     unsigned long size,
@@ -448,12 +451,7 @@ unsigned long bitmap_find_next_zero_area_off(unsigned long *map,
 		start = i;
 	}
 
-	/*
-	 * Here, returning size + 1 is to maintain consistency
-	 * with the old version, where the return value is always
-	 * greater than size when no zero areas are found.
-	 */
-	return size + 1;
+	return size;
 }
 EXPORT_SYMBOL(bitmap_find_next_zero_area_off);
 
