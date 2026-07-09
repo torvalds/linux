@@ -7253,7 +7253,7 @@ static int set_file_disposition_info(struct ksmbd_work *work,
 		if (ksmbd_has_stream_without_delete_share(fp))
 			return -ESHARE;
 
-		if (S_ISDIR(inode->i_mode) &&
+		if (S_ISDIR(inode->i_mode) && !ksmbd_stream_fd(fp) &&
 		    ksmbd_vfs_empty_dir(fp) == -ENOTEMPTY)
 			return -EBUSY;
 		smb_break_all_levII_oplock_for_delete(work, fp);
