@@ -1606,4 +1606,10 @@ static inline void rcu_tasks_bootup_oddness(void) {}
 DEFINE_SRCU_FAST(rcu_tasks_trace_srcu_struct);
 EXPORT_SYMBOL_GPL(rcu_tasks_trace_srcu_struct);
 
+unsigned long rcu_tasks_trace_batches_completed(void)
+{
+	return srcu_batches_completed(&rcu_tasks_trace_srcu_struct);
+}
+EXPORT_SYMBOL_GPL(rcu_tasks_trace_batches_completed);
+
 #endif /* #else #ifdef CONFIG_TASKS_TRACE_RCU */
