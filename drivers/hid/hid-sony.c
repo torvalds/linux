@@ -503,7 +503,7 @@ struct motion_output_report_02 {
 	u8 r, g, b;
 	u8 zero2;
 	u8 rumble;
-};
+} __packed;
 static_assert(sizeof(struct motion_output_report_02) == 7);
 
 #define SIXAXIS_REPORT_0xF2_SIZE 17
