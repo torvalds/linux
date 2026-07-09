@@ -3853,7 +3853,8 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	 */
 	local_irq_disable();
 	hard_irq_disable();
-	if (lazy_irq_pending() || need_resched() ||
+	xfer_to_guest_mode_prepare();
+	if (lazy_irq_pending() || xfer_to_guest_mode_work_pending() ||
 	    recheck_signals_and_mmu(&core_info)) {
 		local_irq_enable();
 		vc->vcore_state = VCORE_INACTIVE;
@@ -4824,10 +4825,16 @@ static int kvmppc_run_vcpu(struct kvm_vcpu *vcpu)
 		vc->runner = vcpu;
 		if (n_ceded == vc->n_runnable) {
 			kvmppc_vcore_blocked(vc);
-		} else if (need_resched()) {
+		} else if (__xfer_to_guest_mode_work_pending()) {
 			kvmppc_vcore_preempt(vc);
-			/* Let something else run */
-			cond_resched_lock(&vc->lock);
+			/*
+			 * Let something else run. The raw helper is used as
+			 * signal exits are accounted by this path already;
+			 * it may schedule(), so drop the vcore lock.
+			 */
+			spin_unlock(&vc->lock);
+			xfer_to_guest_mode_handle_work();
+			spin_lock(&vc->lock);
 			if (vc->vcore_state == VCORE_PREEMPT)
 				kvmppc_vcore_end_preempt(vc);
 		} else {
@@ -4895,12 +4902,16 @@ int kvmhv_run_single_vcpu(struct kvm_vcpu *vcpu, u64 time_limit,
 			run->exit_reason = KVM_EXIT_FAIL_ENTRY;
 			run->fail_entry.hardware_entry_failure_reason = 0;
 			vcpu->arch.ret = r;
-			return r;
+			goto done;
 		}
 	}
 
-	if (need_resched())
-		cond_resched();
+	r = kvm_xfer_to_guest_mode_handle_work(vcpu);
+	if (r) {
+		/* -EINTR: signal pending, exit to userspace (KVM_EXIT_INTR) */
+		vcpu->arch.ret = r;
+		goto done;
+	}
 
 	kvmppc_update_vpas(vcpu);
 
@@ -4914,9 +4925,13 @@ int kvmhv_run_single_vcpu(struct kvm_vcpu *vcpu, u64 time_limit,
 
 	vcpu->arch.state = KVMPPC_VCPU_RUNNABLE;
 
-	if (signal_pending(current))
-		goto sigpend;
-	if (need_resched() || !kvm->arch.mmu_ready)
+	xfer_to_guest_mode_prepare();
+
+	/*
+	 * IRQs are disabled here, so on pending work bail to the outer loop,
+	 * which handles it via kvm_xfer_to_guest_mode_handle_work() above.
+	 */
+	if (xfer_to_guest_mode_work_pending() || !kvm->arch.mmu_ready)
 		goto out;
 
 	vcpu->cpu = pcpu;
@@ -5068,10 +5083,6 @@ int kvmhv_run_single_vcpu(struct kvm_vcpu *vcpu, u64 time_limit,
 
 	return vcpu->arch.ret;
 
- sigpend:
-	vcpu->stat.signal_exits++;
-	run->exit_reason = KVM_EXIT_INTR;
-	vcpu->arch.ret = -EINTR;
  out:
 	vcpu->cpu = -1;
 	vcpu->arch.thread_cpu = -1;

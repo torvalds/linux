@@ -81,21 +81,39 @@ int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
 	int r;
 
 	WARN_ON(irqs_disabled());
+	/*
+	 * local_irq_disable() first: on 32-bit, hard_irq_disable() alone is a
+	 * raw MSR[EE] clear that bypasses the lockdep/irq-tracing state, and
+	 * the xfer_to_guest_mode helpers assert IRQs are seen as disabled.
+	 */
+	local_irq_disable();
 	hard_irq_disable();
 
 	while (true) {
-		if (need_resched()) {
-			local_irq_enable();
-			cond_resched();
-			hard_irq_disable();
-			continue;
-		}
+		xfer_to_guest_mode_prepare();
 
-		if (signal_pending(current)) {
-			kvmppc_account_exit(vcpu, SIGNAL_EXITS);
-			vcpu->run->exit_reason = KVM_EXIT_INTR;
-			r = -EINTR;
-			break;
+		if (xfer_to_guest_mode_work_pending()) {
+			/*
+			 * The helper must run with IRQs enabled and may
+			 * schedule(). On a pending signal it returns -EINTR
+			 * with run->exit_reason and vcpu->stat.signal_exits
+			 * already set, so just return to userspace.
+			 */
+			local_irq_enable();
+			r = kvm_xfer_to_guest_mode_handle_work(vcpu);
+			local_irq_disable();
+			hard_irq_disable();
+			if (r) {
+				/*
+				 * The generic helper does not set the exit
+				 * type; record it for the E500
+				 * CONFIG_KVM_EXIT_TIMING histogram (a no-op
+				 * otherwise).
+				 */
+				kvmppc_set_exit_type(vcpu, SIGNAL_EXITS);
+				break;
+			}
+			continue;
 		}
 
 		vcpu->mode = IN_GUEST_MODE;
@@ -116,6 +134,7 @@ int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
 			local_irq_enable();
 			trace_kvm_check_requests(vcpu);
 			r = kvmppc_core_check_requests(vcpu);
+			local_irq_disable();
 			hard_irq_disable();
 			if (r > 0)
 				continue;
