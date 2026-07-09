@@ -2649,7 +2649,16 @@ static noinline int create_smb2_pipe(struct ksmbd_work *work)
 
 	id = ksmbd_session_rpc_open(work->sess, name);
 	if (id < 0) {
-		pr_err("Unable to open RPC pipe: %d\n", id);
+		/*
+		 * mdssvc (Spotlight) is a routine, expected probe from macOS
+		 * that we deliberately don't support -- it's disabled at the
+		 * __rpc_method() level (mgmt/user_session.c), but this
+		 * generic failure log would otherwise still fire on every
+		 * single probe regardless.
+		 */
+		if (!(id == -ENOENT && (!strcmp(name, "\\mdssvc") ||
+					!strcmp(name, "mdssvc"))))
+			pr_err("Unable to open RPC pipe: %d\n", id);
 		err = id;
 		goto out;
 	}
