@@ -390,7 +390,6 @@ void hci_devcd_rx(struct work_struct *work)
 		hci_dev_unlock(hdev);
 	}
 }
-EXPORT_SYMBOL(hci_devcd_rx);
 
 void hci_devcd_timeout(struct work_struct *work)
 {
@@ -416,7 +415,6 @@ void hci_devcd_timeout(struct work_struct *work)
 
 	hci_dev_unlock(hdev);
 }
-EXPORT_SYMBOL(hci_devcd_timeout);
 
 int hci_devcd_register(struct hci_dev *hdev, coredump_t coredump,
 		       dmp_hdr_t dmp_hdr, notify_change_t notify_change)
