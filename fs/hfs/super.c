@@ -35,8 +35,7 @@ MODULE_LICENSE("GPL");
 static int hfs_sync_fs(struct super_block *sb, int wait)
 {
 	is_hfs_cnid_counts_valid(sb);
-	hfs_mdb_commit(sb);
-	return 0;
+	return hfs_mdb_commit(sb);
 }
 
 /*

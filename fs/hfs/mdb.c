@@ -274,7 +274,9 @@ int hfs_mdb_get(struct super_block *sb)
  * Output Variable(s):
  *   NONE
  * Returns:
- *   void
+ *   0 on success, -EIO if the MDB or alternate MDB buffer is no longer
+ *   valid (e.g. after a prior write error), in which case the volume is
+ *   remounted read-only.
  * Preconditions:
  *   'mdb' points to a "valid" (struct hfs_mdb).
  * Postconditions:
@@ -284,12 +286,19 @@ int hfs_mdb_get(struct super_block *sb)
  *   If 'backup' is non-zero then the alternate MDB is also written
  *   and the function doesn't return until it is actually on disk.
  */
-void hfs_mdb_commit(struct super_block *sb)
+int hfs_mdb_commit(struct super_block *sb)
 {
 	struct hfs_mdb *mdb = HFS_SB(sb)->mdb;
+	int ret = 0;
 
 	if (sb_rdonly(sb))
-		return;
+		return 0;
+
+	if (!buffer_uptodate(HFS_SB(sb)->mdb_bh)) {
+		pr_err("primary MDB is corrupt, mounting read-only\n");
+		sb->s_flags |= SB_RDONLY;
+		return -EIO;
+	}
 
 	lock_buffer(HFS_SB(sb)->mdb_bh);
 	if (test_and_clear_bit(HFS_FLG_MDB_DIRTY, &HFS_SB(sb)->flags)) {
@@ -314,6 +323,13 @@ void hfs_mdb_commit(struct super_block *sb)
 	 * files grow. */
 	if (test_and_clear_bit(HFS_FLG_ALT_MDB_DIRTY, &HFS_SB(sb)->flags) &&
 	    HFS_SB(sb)->alt_mdb) {
+		if (!buffer_uptodate(HFS_SB(sb)->alt_mdb_bh)) {
+			pr_err("alternate MDB is corrupt, mounting read-only\n");
+			sb->s_flags |= SB_RDONLY;
+			ret = -EIO;
+			goto out;
+		}
+
 		hfs_inode_write_fork(HFS_SB(sb)->ext_tree->inode, mdb->drXTExtRec,
 				     &mdb->drXTFlSize, NULL);
 		hfs_inode_write_fork(HFS_SB(sb)->cat_tree->inode, mdb->drCTExtRec,
@@ -360,7 +376,9 @@ void hfs_mdb_commit(struct super_block *sb)
 			size -= len;
 		}
 	}
+out:
 	unlock_buffer(HFS_SB(sb)->mdb_bh);
+	return ret;
 }
 
 void hfs_mdb_close(struct super_block *sb)
@@ -368,6 +386,10 @@ void hfs_mdb_close(struct super_block *sb)
 	/* update volume attributes */
 	if (sb_rdonly(sb))
 		return;
+
+	if (!buffer_uptodate(HFS_SB(sb)->mdb_bh))
+		return;
+
 	HFS_SB(sb)->mdb->drAtrb |= cpu_to_be16(HFS_SB_ATTRIB_UNMNT);
 	HFS_SB(sb)->mdb->drAtrb &= cpu_to_be16(~HFS_SB_ATTRIB_INCNSTNT);
 	mark_buffer_dirty(HFS_SB(sb)->mdb_bh);

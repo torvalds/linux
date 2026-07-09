@@ -220,7 +220,7 @@ extern const struct xattr_handler * const hfs_xattr_handlers[];
 /* mdb.c */
 extern bool is_hfs_cnid_counts_valid(struct super_block *sb);
 extern int hfs_mdb_get(struct super_block *sb);
-extern void hfs_mdb_commit(struct super_block *sb);
+extern int hfs_mdb_commit(struct super_block *sb);
 extern void hfs_mdb_close(struct super_block *sb);
 extern void hfs_mdb_put(struct super_block *sb);
 
