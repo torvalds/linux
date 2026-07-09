@@ -3122,8 +3122,7 @@ static void intel_dp_compute_vsc_sdp(struct intel_dp *intel_dp,
 {
 	struct drm_dp_vsc_sdp *vsc;
 
-	if ((!intel_dp->colorimetry_support ||
-	     !intel_dp_needs_vsc_colorimetry(crtc_state, conn_state)) &&
+	if (!intel_dp_needs_vsc_colorimetry(crtc_state, conn_state) &&
 	    !crtc_state->has_psr)
 		return;
 
@@ -3132,7 +3131,6 @@ static void intel_dp_compute_vsc_sdp(struct intel_dp *intel_dp,
 	crtc_state->infoframes.enable |= intel_hdmi_infoframe_enable(DP_SDP_VSC);
 	vsc->sdp_type = DP_SDP_VSC;
 
-	/* Needs colorimetry */
 	if (intel_dp_needs_vsc_colorimetry(crtc_state, conn_state)) {
 		intel_dp_compute_vsc_colorimetry(crtc_state, conn_state,
 						 vsc);
@@ -5069,11 +5067,19 @@ bool
 intel_dp_needs_vsc_colorimetry(const struct intel_crtc_state *crtc_state,
 			       const struct drm_connector_state *conn_state)
 {
+	struct intel_dp *intel_dp =
+		enc_to_intel_dp(to_intel_encoder(conn_state->best_encoder));
+
 	/*
 	 * As per DP 1.4a spec section 2.2.4.3 [MSA Field for Indication
 	 * of Color Encoding Format and Content Color Gamut], in order to
-	 * sending YCBCR 420 or HDR BT.2020 signals we should use DP VSC SDP.
+	 * send YCBCR 420 or HDR BT.2020 signals we should use DP VSC SDP.
+	 * Only signal this when the sink advertises VSC SDP colorimetry
+	 * support.
 	 */
+	if (!intel_dp->colorimetry_support)
+		return false;
+
 	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420)
 		return true;
 

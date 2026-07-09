@@ -469,6 +469,8 @@ void intel_ddi_set_dp_msa(const struct intel_crtc_state *crtc_state,
 	 * of Color Encoding Format and Content Color Gamut] while sending
 	 * YCBCR 420, HDR BT.2020 signals we should program MSA MISC1 fields
 	 * which indicate VSC SDP for the Pixel Encoding/Colorimetry Format.
+	 * Only set the delegation bit when the content needs it and
+	 * the sink advertises support.
 	 */
 	if (intel_dp_needs_vsc_colorimetry(crtc_state, conn_state))
 		temp |= DP_MSA_MISC_COLOR_VSC_SDP;
