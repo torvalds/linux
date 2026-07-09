@@ -2984,7 +2984,7 @@ out:
 static void smb2_update_xattrs(struct ksmbd_tree_connect *tcon,
 			       const struct path *path, struct ksmbd_file *fp)
 {
-	struct xattr_dos_attrib da;
+	struct xattr_dos_attrib da = {};
 	bool store_dos_attrs = test_share_config_flag(tcon->share_conf,
 						      KSMBD_SHARE_FLAG_STORE_DOS_ATTRS);
 	int rc;
