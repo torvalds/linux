@@ -238,6 +238,18 @@ static inline int get_boot_cpu_id(void)
 
 #endif /* !SMP */
 
+#if defined(CONFIG_PREEMPTION) && defined(CONFIG_SMP)
+int smp_task_ipi_mask_alloc(struct task_struct *task);
+void smp_task_ipi_mask_free(struct task_struct *task);
+#else
+static inline int smp_task_ipi_mask_alloc(struct task_struct *task)
+{
+	return 0;
+}
+
+static inline void smp_task_ipi_mask_free(struct task_struct *task) { }
+#endif
+
 /*
  * raw_smp_processor_id() - get the current (unstable) CPU id
  *
