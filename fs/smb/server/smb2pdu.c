@@ -2857,6 +2857,30 @@ static noinline int smb2_set_stream_name_xattr(const struct path *path,
 		return 0;
 
 	if (fp->cdoption == FILE_OPEN_LE) {
+		if (!strcmp(stream_name, "AFP_AfpInfo") &&
+		    test_share_config_flag(fp->tcon->share_conf,
+					   KSMBD_SHARE_FLAG_TIME_MACHINE)) {
+			/*
+			 * Synthesize an empty AFP_AfpInfo xattr on first access.
+			 * type=0/creator=0 tells macOS to use the file extension
+			 * for icon and type detection.
+			 *
+			 * Scoped to TIME_MACHINE shares, matching the rest of
+			 * the AAPL series -- conn->is_aapl alone isn't a safe
+			 * gate here, since the pre-existing narrow UniqueId=0
+			 * path can also set it on ordinary, non-Time-Machine
+			 * shares whenever a Mac client happens to negotiate
+			 * AAPL there too.
+			 */
+			static const u8 afpinfo_empty[60] = {
+				0x00, 0x05, 0x16, 0x07, /* magic  0x00051607 BE */
+				0x00, 0x02, 0x00, 0x00, /* version 0x00020000 BE */
+			};
+			rc = ksmbd_vfs_setxattr(idmap, path, xattr_stream_name,
+						(void *)afpinfo_empty,
+						sizeof(afpinfo_empty), 0, false);
+			return rc < 0 ? rc : 0;
+		}
 		ksmbd_debug(SMB, "XATTR stream name lookup failed: %d\n", rc);
 		return -EBADF;
 	}
