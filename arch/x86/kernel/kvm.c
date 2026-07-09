@@ -663,8 +663,10 @@ static void kvm_flush_tlb_multi(const struct cpumask *cpumask,
 	u8 state;
 	int cpu;
 	struct kvm_steal_time *src;
-	struct cpumask *flushmask = this_cpu_cpumask_var_ptr(__pv_cpu_mask);
+	struct cpumask *flushmask;
 
+	guard(preempt)();
+	flushmask = this_cpu_cpumask_var_ptr(__pv_cpu_mask);
 	cpumask_copy(flushmask, cpumask);
 	/*
 	 * We have to call flush only on online vCPUs. And
