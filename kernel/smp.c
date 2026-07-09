@@ -1126,12 +1126,14 @@ void __init smp_init(void)
  * @func:	The function to run on all applicable CPUs.
  *		This must be fast and non-blocking.
  * @info:	An arbitrary pointer to pass to both functions.
- * @wait:	If true, wait (atomically) until function has
- *		completed on other CPUs.
+ * @wait:	If true, wait until function has completed on other CPUs.
  * @mask:	The set of cpus to run on (only runs on online subset).
  *
- * Preemption is disabled to protect against CPUs going offline but not online.
- * CPUs going online during the call will not be seen or sent an IPI.
+ * Target CPU selection and work queueing are done with preemption
+ * disabled. This protects against CPUs going offline, but not against
+ * CPUs coming online concurrently; newly online CPUs are not guaranteed
+ * to be seen or sent an IPI. If @wait is true, the final wait for remote
+ * completion happens after that preemption-disabled section.
  *
  * You must not call this function with disabled interrupts or
  * from a hardware interrupt handler or from a bottom half handler.
@@ -1144,9 +1146,7 @@ void on_each_cpu_cond_mask(smp_cond_func_t cond_func, smp_call_func_t func,
 	if (wait)
 		scf_flags |= SCF_WAIT;
 
-	preempt_disable();
 	smp_call_function_many_cond(mask, func, info, scf_flags, cond_func);
-	preempt_enable();
 }
 EXPORT_SYMBOL(on_each_cpu_cond_mask);
 
