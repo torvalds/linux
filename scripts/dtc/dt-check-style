@@ -311,13 +311,16 @@ def collect_labels_and_refs(text):
 
 class Ctx:
     """Context passed to each rule check. Carries the parsed lines,
-    raw text, mode, and indent kind."""
+    raw text, mode and kind."""
 
-    def __init__(self, lines, text, mode, indent_kind):
+    def __init__(self, lines, text, mode, kind):
         self.lines = lines
         self.text = text
         self.mode = mode               # 'relaxed' or 'strict'
-        self.indent_kind = indent_kind  # 'spaces' or 'tab'
+        if kind in DTS_FAMILY:
+            self.file_type = 'dts'
+        else:
+            self.file_type = 'yaml'
 
 
 class Rule:
@@ -347,7 +350,7 @@ def check_tab_in_yaml_example(ctx):
     a #define value are tolerated (those are CPP macros, not DTS).
     For .dts files, this rule does not apply -- tabs are required.
     """
-    if ctx.indent_kind != 'spaces':
+    if ctx.file_type != 'yaml':
         return
     for dl in ctx.lines:
         if dl.linetype == LineType.PREPROCESSOR:
@@ -427,7 +430,7 @@ def check_indent_unit_strict(ctx):
     unit = detect_indent_unit(ctx)
     if unit is None:
         return
-    if ctx.indent_kind == 'spaces':
+    if ctx.file_type == 'yaml':
         if unit != '    ':
             yield (1, 'indent unit must be 4 spaces in strict mode, '
                    'got %r' % unit)
@@ -438,7 +441,7 @@ def check_indent_consistent(ctx):
     unit = detect_indent_unit(ctx)
     if unit is None:
         return
-    if ctx.indent_kind == 'spaces':
+    if ctx.file_type == 'yaml':
         if unit not in ('  ', '    '):
             return  # let check_indent_unit_* report this
     else:
@@ -1023,11 +1026,11 @@ def select_rules(mode, input_kind):
 # Block runner
 # ---------------------------------------------------------------------------
 
-def check_block(text, mode, indent_kind, input_type):
+def check_block(text, mode, input_type):
     """Run all selected rules on a single block of DTS text. Returns a
     list of (lineno, rule_name, message) tuples."""
     lines = classify_lines(text)
-    ctx = Ctx(lines, text, mode, indent_kind)
+    ctx = Ctx(lines, text, mode, input_type)
     rules = select_rules(mode, input_type)
     findings = []
     for r in rules:
@@ -1107,17 +1110,15 @@ def collect_findings(filepath, mode):
     formatted output strings; count is the number of findings."""
     kind = input_kind(filepath)
     if kind == 'yaml':
-        indent_kind = 'spaces'
         iterator = iter_yaml_examples(filepath)
     elif kind in DTS_FAMILY:
-        indent_kind = 'tab'
         iterator = iter_dts_file(filepath)
     else:
         return (['%s: unknown file type, skipping' % filepath], 0)
 
     out = []
     for text, base, idx in iterator:
-        for lineno, rule, msg in check_block(text, mode, indent_kind, kind):
+        for lineno, rule, msg in check_block(text, mode, kind):
             abs_line = base + lineno - 1
             ex_tag = '' if idx is None else ' example %d' % idx
             out.append('%s:%d:%s [%s] %s' %
