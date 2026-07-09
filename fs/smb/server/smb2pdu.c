@@ -8963,23 +8963,44 @@ static int fsctl_copychunk(struct ksmbd_work *work,
 		cpu_to_le32(ksmbd_server_side_copy_max_total_size());
 
 	chunk_count = le32_to_cpu(ci_req->ChunkCount);
-	if (chunk_count == 0)
+	/*
+	 * ChunkCount=0 is the standard SMB2 "query my copy limits" request
+	 * (no data copied) -- but macOS Finder's Cmd+D duplicate sends
+	 * FSCTL_SRV_COPYCHUNK with ChunkCount=0 meaning "copy the whole
+	 * file", relying on the AAPL-negotiated server to do a full copy
+	 * instead. Keep the standard no-op behavior for everyone else.
+	 *
+	 * Gate on the TIME_MACHINE share flag, not just conn->is_aapl:
+	 * that flag alone has ambiguous provenance -- the pre-existing
+	 * narrow UniqueId=0 path can also set it on ordinary,
+	 * non-Time-Machine shares, and this series' stated design keeps
+	 * every AAPL-driven behavior opt-in per share.
+	 */
+	if (chunk_count == 0 &&
+	    !(work->conn->is_aapl &&
+	      test_share_config_flag(work->tcon->share_conf,
+				     KSMBD_SHARE_FLAG_TIME_MACHINE)))
 		goto out;
 	total_size_written = 0;
+	i = 0;
 
-	/* verify the SRV_COPYCHUNK_COPY packet */
-	if (chunk_count > ksmbd_server_side_copy_max_chunk_count() ||
-	    input_count < struct_size(ci_req, Chunks, chunk_count)) {
-		rsp->hdr.Status = STATUS_INVALID_PARAMETER;
-		return -EINVAL;
-	}
+	if (chunk_count) {
+		/* verify the SRV_COPYCHUNK_COPY packet */
+		if (chunk_count > ksmbd_server_side_copy_max_chunk_count() ||
+		    input_count < struct_size(ci_req, Chunks, chunk_count)) {
+			rsp->hdr.Status = STATUS_INVALID_PARAMETER;
+			return -EINVAL;
+		}
 
-	chunks = &ci_req->Chunks[0];
-	for (i = 0; i < chunk_count; i++) {
-		if (le32_to_cpu(chunks[i].Length) == 0 ||
-		    le32_to_cpu(chunks[i].Length) > ksmbd_server_side_copy_max_chunk_size())
-			break;
-		total_size_written += le32_to_cpu(chunks[i].Length);
+		chunks = &ci_req->Chunks[0];
+		for (i = 0; i < chunk_count; i++) {
+			if (le32_to_cpu(chunks[i].Length) == 0 ||
+			    le32_to_cpu(chunks[i].Length) > ksmbd_server_side_copy_max_chunk_size())
+				break;
+			total_size_written += le32_to_cpu(chunks[i].Length);
+		}
+	} else {
+		chunks = &ci_req->Chunks[0];
 	}
 
 	if (i < chunk_count ||

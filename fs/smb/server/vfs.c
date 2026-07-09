@@ -1858,6 +1858,65 @@ int ksmbd_vfs_copy_file_ranges(struct ksmbd_work *work,
 		src_file_size = i_size_read(file_inode(src_fp->filp));
 	}
 
+	/*
+	 * macOS Finder's Cmd+D duplicate sends FSCTL_SRV_COPYCHUNK with
+	 * ChunkCount=0 meaning "copy the whole file/stream", not the
+	 * standard SMB2 "query my copy limits, no data" semantics --
+	 * fsctl_copychunk() only reaches here with chunk_count == 0 for
+	 * AAPL-negotiated connections, so this doesn't affect compliant
+	 * non-AAPL clients. Without this, the destination stays at its
+	 * just-created 0 bytes / empty stream: the for loop below is a
+	 * no-op when chunk_count is 0, since it never has an iteration to
+	 * treat as "copy everything".
+	 */
+	if (chunk_count == 0 && work->conn->is_aapl) {
+		loff_t off = 0;
+
+		while (off < src_file_size) {
+			size_t remaining = src_file_size - off;
+			ssize_t copied;
+
+			/* Same source/destination offset here: an in-place,
+			 * same-inode copy at matching offsets is a degenerate
+			 * no-op range, not a real overlap, but vfs_copy_file_range
+			 * still doesn't support streams -- route those (and the
+			 * same-inode case defensively) through the buffered path.
+			 */
+			if (ksmbd_stream_fd(src_fp) || ksmbd_stream_fd(dst_fp) ||
+			    file_inode(src_fp->filp) == file_inode(dst_fp->filp)) {
+				copied = ksmbd_vfs_copy_file_range_buffered(work, src_fp, dst_fp,
+									    off, off, remaining);
+			} else {
+				copied = vfs_copy_file_range(src_fp->filp, off,
+							     dst_fp->filp, off,
+							     remaining, 0);
+				if (copied == -EOPNOTSUPP || copied == -EXDEV)
+					copied = vfs_copy_file_range(src_fp->filp, off,
+								     dst_fp->filp, off,
+								     remaining,
+								     COPY_FILE_SPLICE);
+			}
+			if (copied < 0)
+				return copied;
+			if (copied == 0)
+				break;
+			off += copied;
+		}
+
+		/*
+		 * This is a synthesized whole-file copy, not a response to
+		 * any chunk descriptor the client actually sent (it sent
+		 * none -- chunk_count is 0). Report zero chunks/chunk-bytes
+		 * rather than inventing a chunk that doesn't correspond to
+		 * anything in the request; only total_size_written (bytes
+		 * actually copied) is meaningful here.
+		 */
+		*chunk_count_written = 0;
+		*chunk_size_written = 0;
+		*total_size_written = off;
+		return 0;
+	}
+
 	for (i = 0; i < chunk_count; i++) {
 		bool stream_len_mismatch = false;
 		size_t copy_len;
