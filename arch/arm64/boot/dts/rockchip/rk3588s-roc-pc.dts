@@ -833,6 +833,12 @@
 
 &usb_host0_xhci {
 	extcon = <&u2phy0>;
+	role-switch-default-mode = "peripheral";
+	usb-role-switch;
+	status = "okay";
+};
+
+&usbdp_phy0 {
 	status = "okay";
 };
 
