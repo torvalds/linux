@@ -340,7 +340,7 @@ def check_trailing_whitespace(ctx):
             yield (dl.lineno, 'trailing whitespace')
 
 
-def check_tab_in_dts(ctx):
+def check_tab_in_yaml_example(ctx):
     """Reject literal tabs in DTS lines when input is YAML.
 
     For YAML examples, indent and content must use spaces. Tabs inside
@@ -927,9 +927,9 @@ RULES = [
     Rule('trailing-whitespace', 'relaxed',
          'no trailing whitespace on any line',
          check_trailing_whitespace),
-    Rule('tab-in-dts', 'relaxed',
-         'YAML examples may not contain tab characters',
-         check_tab_in_dts, applies_to=('yaml',)),
+    Rule('tab-in-yaml', 'relaxed',
+         'YAML (also DTS examples) may not contain tab characters',
+         check_tab_in_yaml_example, applies_to=('yaml',)),
     Rule('mixed-indent-chars', 'relaxed',
          'indent must not mix tabs and spaces',
          check_mixed_indent_chars),
