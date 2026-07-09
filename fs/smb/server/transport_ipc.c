@@ -322,6 +322,15 @@ static int ipc_server_config_on_startup(struct ksmbd_startup_request *req)
 		goto out;
 	}
 	server_conf.share_fake_fscaps = req->share_fake_fscaps;
+
+	/* AAPL model string for Finder icon */
+	if (req->aapl_model[0])
+		strscpy(server_conf.aapl_model, req->aapl_model,
+			sizeof(server_conf.aapl_model));
+	else
+		strscpy(server_conf.aapl_model, "Xserve",
+			sizeof(server_conf.aapl_model));
+
 	ksmbd_init_domain(req->sub_auth);
 
 	if (req->smb2_max_read)

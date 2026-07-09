@@ -113,7 +113,8 @@ struct ksmbd_startup_request {
 	__u32	max_connections;	/* Number of maximum simultaneous connections */
 	__s8	bind_interfaces_only;
 	__u32	max_ip_connections;	/* Number of maximum connection per ip address */
-	__s8	reserved[499];		/* Reserved room */
+	__s8	aapl_model[32];		/* AAPL model string for Finder icon, e.g. "Xserve" */
+	__s8	reserved[467];		/* Reserved room */
 	__u32	ifc_list_sz;		/* interfaces list size */
 	__s8	____payload[];
 } __packed;
@@ -378,6 +379,7 @@ enum KSMBD_TREE_CONN_STATUS {
 #define KSMBD_SHARE_FLAG_CROSSMNT			BIT(15)
 #define KSMBD_SHARE_FLAG_CONTINUOUS_AVAILABILITY	BIT(16)
 #define KSMBD_SHARE_FLAG_HIDE_UNREADABLE		BIT(17)
+#define KSMBD_SHARE_FLAG_TIME_MACHINE			BIT(18)
 
 /*
  * Tree connect request flags.

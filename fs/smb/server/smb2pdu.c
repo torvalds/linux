@@ -3351,6 +3351,8 @@ int smb2_open(struct ksmbd_work *work)
 	int rc = 0;
 	int contxt_cnt = 0, query_disk_id = 0;
 	bool maximal_access_ctxt = false, posix_ctxt = false;
+	bool aapl_ctxt = false;
+	__u64 aapl_req_bitmap = 0, aapl_client_caps = 0;
 	int s_type = 0;
 	int next_off = 0;
 	char *name = NULL;
@@ -4124,7 +4126,32 @@ int smb2_open(struct ksmbd_work *work)
 			query_disk_id = 1;
 		}
 
-		if (conn->is_aapl == false) {
+		if (test_share_config_flag(share, KSMBD_SHARE_FLAG_TIME_MACHINE)) {
+			context = smb2_find_context_vals(req, SMB2_CREATE_AAPL, 4);
+			if (IS_ERR(context)) {
+				rc = PTR_ERR(context);
+				goto err_out1;
+			} else if (context) {
+				struct aapl_server_query_req *aapl_req;
+
+				if (le32_to_cpu(context->DataLength) <
+				    sizeof(struct aapl_server_query_req)) {
+					rc = -EINVAL;
+					goto err_out1;
+				}
+
+				aapl_req = (struct aapl_server_query_req *)
+					((char *)context +
+					 le16_to_cpu(context->DataOffset));
+				if (le32_to_cpu(aapl_req->cmd) ==
+				    SMB2_CRTCTX_AAPL_SERVER_QUERY) {
+					conn->is_aapl = true;
+					aapl_ctxt = true;
+					aapl_req_bitmap = le64_to_cpu(aapl_req->req_bitmap);
+					aapl_client_caps = le64_to_cpu(aapl_req->client_caps);
+				}
+			}
+		} else if (conn->is_aapl == false) {
 			context = smb2_find_context_vals(req, SMB2_CREATE_AAPL, 4);
 			if (IS_ERR(context)) {
 				rc = PTR_ERR(context);
@@ -4338,6 +4365,10 @@ reconnected_fp:
 	}
 
 	if (posix_ctxt) {
+		struct create_context *posix_ccontext;
+
+		posix_ccontext = (struct create_context *)(rsp->Buffer +
+				le32_to_cpu(rsp->CreateContextsLength));
 		contxt_cnt++;
 		create_posix_rsp_buf(rsp->Buffer +
 				le32_to_cpu(rsp->CreateContextsLength),
@@ -4347,6 +4378,29 @@ reconnected_fp:
 		iov_len += conn->vals->create_posix_size;
 		if (next_ptr)
 			*next_ptr = cpu_to_le32(next_off);
+		next_ptr = &posix_ccontext->Next;
+		next_off = conn->vals->create_posix_size;
+	}
+
+	/*
+	 * AAPL create context response: see smb2pdu.h for the capability
+	 * rationale. Scoped to TIME_MACHINE shares only.
+	 */
+	if (aapl_ctxt) {
+		if (aapl_client_caps & SMB2_CRTCTX_AAPL_SUPPORTS_READ_DIR_ATTR)
+			conn->aapl_readdir_attr = true;
+
+		contxt_cnt++;
+		create_aapl_rsp_buf(rsp->Buffer +
+				le32_to_cpu(rsp->CreateContextsLength),
+				SMB2_CRTCTX_AAPL_FULL_SYNC,
+				aapl_req_bitmap);
+		le32_add_cpu(&rsp->CreateContextsLength,
+			     conn->vals->create_aapl_size);
+		iov_len += conn->vals->create_aapl_size;
+		if (next_ptr)
+			*next_ptr = cpu_to_le32(next_off);
+		/* AAPL is last; next_ptr need not be updated */
 	}
 
 	if (contxt_cnt > 0) {
