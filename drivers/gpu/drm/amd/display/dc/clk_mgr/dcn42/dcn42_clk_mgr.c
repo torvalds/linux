@@ -375,6 +375,24 @@ void dcn42_enable_pme_wa(struct clk_mgr *clk_mgr_base)
 	dcn42_smu_enable_pme_wa(clk_mgr);
 }
 
+void dcn42_notify_cstate_disable(struct clk_mgr *clk_mgr_base, bool disable)
+{
+	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+	bool target_allow = !disable;
+
+	DC_LOGGER_INIT(clk_mgr_base->ctx->logger);
+
+	/* Idempotent: only send when the cached vote actually changes. */
+	if (clk_mgr_base->clks.cstate_allow == target_allow)
+		return;
+
+	if (dcn42_smu_set_df_cstate_disable(clk_mgr, disable))
+		clk_mgr_base->clks.cstate_allow = target_allow;
+	else
+		DC_LOG_WARNING("%s: PMFW did not ack DfCstateDisable(%s); leaving cstate_allow=%d to retry\n",
+			__func__, disable ? "Disable" : "Allow", clk_mgr_base->clks.cstate_allow);
+}
+
 
 bool dcn42_are_clock_states_equal(struct dc_clocks *a,
 		struct dc_clocks *b)
@@ -593,6 +611,15 @@ void dcn42_init_clocks(struct clk_mgr *clk_mgr_base)
 	(void)dc_logger;
 
 	init_clk_states(clk_mgr_base);
+
+	/*
+	 * DF C-state policy
+	 * D0 entry must NOT send a PMFW message, but must unconditionally clear
+	 * the cached vote so the next allow-side transition (prepare_bandwidth
+	 * or dc_power_down_on_boot) is guaranteed to issue a fresh
+	 * DfCstateDisable(Allow) and resync DAL with PMFW.
+	 */
+	clk_mgr_base->clks.cstate_allow = false;
 
 	// to adjust dp_dto reference clock if ssc is enable otherwise to apply dprefclk
 	if (dcn42_is_spll_ssc_enabled(clk_mgr_base))
@@ -1038,6 +1065,7 @@ static struct clk_mgr_funcs dcn42_funcs = {
 	.get_max_clock_khz = dcn42_get_max_clock_khz,
 	.get_dispclk_from_dentist = dcn42_get_dispclk_from_dentist,
 	.is_smu_present = dcn42_is_smu_present,
+	.notify_cstate_disable = dcn42_notify_cstate_disable,
 };
 
 struct clk_mgr_funcs dcn42_fpga_funcs = {

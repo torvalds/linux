@@ -412,6 +412,16 @@ struct clk_mgr_funcs {
 			struct clk_mgr *clk_mgr,
 			struct dc_requested_memory_qos *qos);
 
+	/**
+	 * notify_cstate_disable - Vote DCN's DF C-state policy to PMFW.
+	 * @disable: true  -> vote "disable"
+	 *           false -> vote "allow"
+	 * Sends the message only when the cached dc_clocks.cstate_allow would
+	 * change, then updates the cache on an OK response (idempotent no-op
+	 * otherwise).
+	 */
+	void (*notify_cstate_disable)(struct clk_mgr *clk_mgr, bool disable);
+
 	void (*build_clock_update_for_bls)(struct clk_mgr *clk_mgr,
 			struct dc_state *context, bool safe_to_lower,
 			struct block_sequence_state *seq_state);

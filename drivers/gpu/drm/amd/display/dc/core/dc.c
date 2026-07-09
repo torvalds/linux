@@ -6543,6 +6543,9 @@ void dc_power_down_on_boot(struct dc *dc)
 		if (dc->caps.ips_support)
 			dc_exit_ips_for_hw_access(dc);
 		dc->hwss.power_down_on_boot(dc);
+
+		if (dc->clk_mgr && dc->clk_mgr->funcs && dc->clk_mgr->funcs->notify_cstate_disable)
+			dc->clk_mgr->funcs->notify_cstate_disable(dc->clk_mgr, false);
 	}
 }
 

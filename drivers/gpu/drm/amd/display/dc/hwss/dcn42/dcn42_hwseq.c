@@ -946,7 +946,11 @@ bool dcn42_set_mcm_luts(struct pipe_ctx *pipe_ctx,
 }
 void dcn42_hardware_release(struct dc *dc)
 {
+	if (dc->clk_mgr && dc->clk_mgr->funcs && dc->clk_mgr->funcs->notify_cstate_disable)
+		dc->clk_mgr->funcs->notify_cstate_disable(dc->clk_mgr, true);
+
 	dcn35_hardware_release(dc);
+
 	dc_dmub_srv_release_hw(dc);
 
 }
@@ -1082,6 +1086,12 @@ void dcn42_prepare_bandwidth(
 	}
 
 	dcn401_prepare_bandwidth(dc, context);
+
+	/* valid C-state watermarks have now been committed to HW, so it
+	 * is safe to vote "allow" to PMFW.
+	 */
+	if (dc->clk_mgr && dc->clk_mgr->funcs && dc->clk_mgr->funcs->notify_cstate_disable)
+		dc->clk_mgr->funcs->notify_cstate_disable(dc->clk_mgr, false);
 }
 
 void dcn42_optimize_bandwidth(struct dc *dc, struct dc_state *context)

@@ -759,6 +759,15 @@ struct dc_clocks {
 	 * Elements below are not compared for the purposes of
 	 * optimization required
 	 */
+
+	/*
+	 * @cstate_allow
+	 *
+	 * DCN's DF C-state vote as last successfully acknowledged by PMFW.
+	 * false = DCN does NOT permit DF C-state;
+	 * true = DCN permits DF C-state;
+	 */
+	bool cstate_allow;
 	bool prev_p_state_change_support;
 	bool fclk_prev_p_state_change_support;
 	int num_ways;
