@@ -142,6 +142,12 @@ struct ksmbd_file {
 
 	bool                            is_posix_ctxt;
 	struct durable_owner		owner;
+
+	/*
+	 * Pending CHANGE_NOTIFY completions for this handle, sent with
+	 * STATUS_NOTIFY_CLEANUP when the handle is closed.
+	 */
+	struct list_head		notify_pendings;
 };
 
 static inline void set_ctx_actor(struct dir_context *ctx,
