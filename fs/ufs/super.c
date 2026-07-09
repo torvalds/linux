@@ -672,7 +672,7 @@ void ufs_mark_sb_dirty(struct super_block *sb)
 	spin_lock(&sbi->work_lock);
 	if (!sbi->work_queued) {
 		delay = msecs_to_jiffies(dirty_writeback_interval * 10);
-		queue_delayed_work(system_long_wq, &sbi->sync_work, delay);
+		queue_delayed_work(system_dfl_long_wq, &sbi->sync_work, delay);
 		sbi->work_queued = 1;
 	}
 	spin_unlock(&sbi->work_lock);
