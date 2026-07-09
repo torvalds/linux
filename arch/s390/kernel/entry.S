@@ -368,7 +368,7 @@ SYM_CODE_START(pgm_check_handler)
 	mvc	__LC_RETURN_PSW(8,%r13),__LC_SVC_NEW_PSW(%r13)
 	larl	%r14,.Lsysc_per
 	stg	%r14,__LC_RETURN_PSW+8(%r13)
-	lghi	%r14,1
+	lghi	%r14,SYSCALL_FLAG_PER_TRAP
 	LBEAR	__LC_PGM_LAST_BREAK(%r13)
 	LPSWEY	__LC_RETURN_PSW,__LC_RETURN_LPSWE # branch to .Lsysc_per
 SYM_CODE_END(pgm_check_handler)

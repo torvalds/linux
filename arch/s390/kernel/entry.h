@@ -3,6 +3,7 @@
 #define _ENTRY_H
 
 #define PGM_FLAG_GUEST_FAULT	1
+#define SYSCALL_FLAG_PER_TRAP	1
 
 #ifndef __ASSEMBLER__
 
@@ -26,7 +27,7 @@ void early_pgm_check_handler(void);
 struct task_struct *__switch_to_asm(struct task_struct *prev, struct task_struct *next);
 void __ret_from_fork(struct task_struct *prev, struct pt_regs *regs);
 void __do_pgm_check(struct pt_regs *regs, unsigned long flags);
-void __do_syscall(struct pt_regs *regs, int per_trap);
+void __do_syscall(struct pt_regs *regs, unsigned long flags);
 void __do_early_pgm_check(struct pt_regs *regs);
 
 void do_protection_exception(struct pt_regs *regs);
