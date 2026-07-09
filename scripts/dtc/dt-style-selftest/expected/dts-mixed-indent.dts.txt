@@ -1,0 +1,9 @@
+# mode=strict
+bad/dts-mixed-indent.dts:11: [indent-consistent] indent mismatch (expected depth 1 * '\t')
+bad/dts-mixed-indent.dts:11: [mixed-indent-chars] too many space characters in indent (more than 7)
+bad/dts-mixed-indent.dts:12: [indent-consistent] indent mismatch (expected depth 2 * '\t')
+bad/dts-mixed-indent.dts:12: [mixed-indent-chars] mixed tabs and spaces in indent
+bad/dts-mixed-indent.dts:13: [indent-consistent] indent mismatch (expected depth 2 * '\t')
+bad/dts-mixed-indent.dts:13: [mixed-indent-chars] mixed tabs and spaces in indent
+bad/dts-mixed-indent.dts:16: [mixed-indent-chars] mixed tabs and spaces in indent
+bad/dts-mixed-indent.dts:19: [indent-consistent] indent mismatch (expected depth 2 * '\t')

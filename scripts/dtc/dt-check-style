@@ -359,14 +359,24 @@ def check_tab_in_yaml_example(ctx):
 
 
 def check_mixed_indent_chars(ctx):
-    """Indent must be all-spaces or all-tabs, never mixed on one line."""
+    """Indent must be all-tabs, except for aligning indentation (comments
+    or continued lines)."""
     for dl in ctx.lines:
         if not dl.indent_str:
             continue
         if dl.linetype == LineType.PREPROCESSOR:
             continue
-        if ' ' in dl.indent_str and '\t' in dl.indent_str:
+        if re.search(r' \t', dl.indent_str):
             yield (dl.lineno, 'mixed tabs and spaces in indent')
+        if dl.indent_str.count(' ') > 7:
+            yield (dl.lineno, 'too many space characters in indent (more than 7)')
+        for cont in dl.continuations:
+            if not cont.indent_str:
+                continue
+            if cont.linetype == LineType.PREPROCESSOR:
+                continue
+            if re.search(r' \t', cont.indent_str):
+                yield (cont.lineno, 'mixed tabs and spaces in indent')
 
 
 def detect_indent_unit(ctx):
@@ -932,7 +942,7 @@ RULES = [
          check_tab_in_yaml_example, applies_to=('yaml',)),
     Rule('mixed-indent-chars', 'relaxed',
          'indent must not mix tabs and spaces',
-         check_mixed_indent_chars),
+         check_mixed_indent_chars, applies_to=('dts', 'dtsi', 'dtso')),
     Rule('unclosed-block-comment', 'relaxed',
          'every /* block comment must close with */',
          check_unclosed_block_comment),
