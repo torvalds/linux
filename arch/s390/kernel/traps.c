@@ -335,7 +335,7 @@ void __init trap_init(void)
 
 static void (*pgm_check_table[128])(struct pt_regs *regs);
 
-void noinstr __do_pgm_check(struct pt_regs *regs)
+void noinstr __do_pgm_check(struct pt_regs *regs, unsigned long flags)
 {
 	struct lowcore *lc = get_lowcore();
 	bool percpu_needs_fixup;
@@ -359,7 +359,7 @@ void noinstr __do_pgm_check(struct pt_regs *regs)
 	 * the fault number in current->thread.gmap_int_code. KVM will be
 	 * able to use this information to handle the fault.
 	 */
-	if (test_pt_regs_flag(regs, PIF_GUEST_FAULT)) {
+	if (flags & PGM_FLAG_GUEST_FAULT) {
 		current->thread.gmap_teid.val = regs->int_parm_long;
 		current->thread.gmap_int_code = regs->int_code & 0xffff;
 		return;
