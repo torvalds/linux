@@ -429,6 +429,7 @@ static void __init test_bitmap_sg(void)
 
 	/* Scatter/gather relationship */
 	bitmap_zero(bmap_tmp, 100);
+	bitmap_zero(bmap_res, 100);
 	bitmap_gather(bmap_tmp, bmap_scatter, sg_mask, nbits);
 	bitmap_scatter(bmap_res, bmap_tmp, sg_mask, nbits);
 	expect_eq_bitmap(bmap_scatter, bmap_res, 100);
