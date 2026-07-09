@@ -1,0 +1,2 @@
+# mode=strict
+bad/dts-extend-node-digit-node-order.dts:21: [child-address-order] child node @10000 out of address order
