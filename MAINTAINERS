@@ -1044,6 +1044,14 @@ L:	linux-sound@vger.kernel.org
 S:	Supported
 F:	sound/soc/amd/
 
+AMD AXI I3C MASTER DRIVER
+M:	Shubhrajyoti Datta <shubhrajyoti.datta@amd.com>
+M:	Shubham Patil <shubhamsanjay.patil@amd.com>
+L:	linux-i3c@lists.infradead.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/i3c/xlnx,axi-i3c-1.0.yaml
+F:	drivers/i3c/master/amd-i3c-master.c
+
 AMD AXI W1 DRIVER
 M:	Kris Chaplin <kris.chaplin@amd.com>
 R:	Thomas Delev <thomas.delev@amd.com>
