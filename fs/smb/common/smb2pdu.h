@@ -1261,6 +1261,14 @@ struct create_mxac_req {
 #define SMB2_CRTCTX_AAPL_SUPPORTS_OSX_COPYFILE  2
 #define SMB2_CRTCTX_AAPL_UNIX_BASED             4
 #define SMB2_CRTCTX_AAPL_SUPPORTS_NFS_ACE       8
+/*
+ * V2 extends the same inline-FinderInfo mechanism as
+ * SMB2_CRTCTX_AAPL_SUPPORTS_READ_DIR_ATTR with an added flags field,
+ * confirmed byte-identical to V1 otherwise against AAPL's actual
+ * public client behavior.  Mutually exclusive with the V1 bit on
+ * the wire, not both set together.
+ */
+#define SMB2_CRTCTX_AAPL_SUPPORTS_READ_DIR_ATTR_V2 16
 
 /* "AAPL" Volume Capabilities bitmap */
 #define SMB2_CRTCTX_AAPL_SUPPORT_RESOLVE_ID 1

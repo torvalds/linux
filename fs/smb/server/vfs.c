@@ -1684,6 +1684,35 @@ int ksmbd_vfs_fill_dentry_attrs(struct ksmbd_work *work,
 		}
 	}
 
+	/*
+	 * Only pay for this when it'll actually be used: AAPL
+	 * READDIR_ATTR_V2's flags field (AAPL_READDIR_ATTR_V2_NO_XATTR) is
+	 * the only consumer. XATTR_NAME_STREAM ("user.DosStream.") is a
+	 * reliable, distinct prefix for genuine ADS/stream xattrs -- unlike
+	 * DOSATTRIB or ACL xattrs, which live under different prefixes, so
+	 * this can't false-positive into telling Finder a file has no extra
+	 * data when it actually does.
+	 */
+	ksmbd_kstat->has_ads_stream = false;
+	if (work->conn->aapl_readdir_attr_v2) {
+		char *xattr_list = NULL, *name;
+		ssize_t xattr_list_len;
+
+		xattr_list_len = ksmbd_vfs_listxattr(dentry, &xattr_list);
+		if (xattr_list_len > 0) {
+			for (name = xattr_list;
+			     name - xattr_list < xattr_list_len;
+			     name += strlen(name) + 1) {
+				if (!strncmp(name, XATTR_NAME_STREAM,
+					     XATTR_NAME_STREAM_LEN)) {
+					ksmbd_kstat->has_ads_stream = true;
+					break;
+				}
+			}
+		}
+		kvfree(xattr_list);
+	}
+
 	return 0;
 }
 

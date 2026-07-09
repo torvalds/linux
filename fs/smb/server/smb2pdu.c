@@ -4413,12 +4413,23 @@ reconnected_fp:
 	if (aapl_ctxt) {
 		if (aapl_client_caps & SMB2_CRTCTX_AAPL_SUPPORTS_READ_DIR_ATTR)
 			conn->aapl_readdir_attr = true;
+		/*
+		 * V2 extends the same inline-FinderInfo mechanism (see
+		 * smb2pdu.h), so a V2-requesting client also gets
+		 * aapl_readdir_attr treatment -- the reply just advertises
+		 * the V2 bit instead of the V1 one (create_aapl_rsp_buf).
+		 */
+		if (aapl_client_caps & SMB2_CRTCTX_AAPL_SUPPORTS_READ_DIR_ATTR_V2) {
+			conn->aapl_readdir_attr = true;
+			conn->aapl_readdir_attr_v2 = true;
+		}
 
 		contxt_cnt++;
 		create_aapl_rsp_buf(rsp->Buffer +
 				le32_to_cpu(rsp->CreateContextsLength),
 				SMB2_CRTCTX_AAPL_FULL_SYNC,
-				aapl_req_bitmap);
+				aapl_req_bitmap,
+				conn->aapl_readdir_attr_v2);
 		le32_add_cpu(&rsp->CreateContextsLength,
 			     conn->vals->create_aapl_size);
 		iov_len += conn->vals->create_aapl_size;
@@ -4762,6 +4773,11 @@ static int smb2_populate_readdir_entry(struct ksmbd_conn *conn, int info_level,
 			 *                      the file extension for icon lookup)
 			 *   Reserved2        = Unix mode bits (uint16 LE)
 			 * Reparse-point tag is indicated via ExtFileAttributes, not EaSize.
+			 *
+			 * V2 (conn->aapl_readdir_attr_v2): ShortNameLength+Reserved
+			 * are read as a single flags field instead of being ignored
+			 * -- see smb2pdu.h for the wire-format confirmation and
+			 * AAPL_READDIR_ATTR_V2_NO_XATTR's meaning.
 			 */
 			__le32 reparse_tag =
 				smb2_get_reparse_tag_special_file(ksmbd_kstat->kstat->mode);
@@ -4791,7 +4807,20 @@ static int smb2_populate_readdir_entry(struct ksmbd_conn *conn, int info_level,
 			 * interpreted; V1 doesn't. Either value is safe
 			 * here, so keep 24 for parity.
 			 */
-			fibdinfo->ShortNameLength = 24;
+			if (conn->aapl_readdir_attr_v2) {
+				/*
+				 * V2 repurposes this field as flags (see comment
+				 * above) -- 24 is a V1-only convention that real
+				 * macOS clients ignore outright, so don't reuse it
+				 * here as a base value for a field V2 clients
+				 * actually interpret.
+				 */
+				fibdinfo->ShortNameLength = 0;
+				if (!ksmbd_kstat->has_ads_stream)
+					fibdinfo->ShortNameLength = AAPL_READDIR_ATTR_V2_NO_XATTR;
+			} else {
+				fibdinfo->ShortNameLength = 24;
+			}
 			memset(fibdinfo->ShortName, 0, sizeof(fibdinfo->ShortName));
 			fibdinfo->Reserved2 = cpu_to_le16(ksmbd_kstat->kstat->mode & 0xffff);
 		} else {

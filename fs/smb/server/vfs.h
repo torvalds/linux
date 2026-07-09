@@ -70,6 +70,7 @@ struct ksmbd_kstat {
 	struct kstat		*kstat;
 	unsigned long long	create_time;
 	__le32			file_attributes;
+	bool			has_ads_stream; /* AAPL READDIR_ATTR V2 xattr-presence flag */
 };
 
 int ksmbd_vfs_lock_parent(struct dentry *parent, struct dentry *child);

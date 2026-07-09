@@ -95,6 +95,21 @@ struct preauth_integrity_info {
 				 SMB2_CRTCTX_AAPL_SUPPORTS_OSX_COPYFILE | \
 				 SMB2_CRTCTX_AAPL_SUPPORTS_READ_DIR_ATTR)
 
+/*
+ * READDIR_ATTR_V2 (SMB2_CRTCTX_AAPL_SUPPORTS_READ_DIR_ATTR_V2, see
+ * fs/smb/common/smb2pdu.h) extends the same inline-FinderInfo mechanism
+ * above with a flags field, confirmed byte-identical to V1 otherwise
+ * against AAPL's actual public client behavior. When a client's own
+ * client_caps requests V2, the server advertises V2 instead of V1 in
+ * its own server_caps reply; V1 and V2 are mutually exclusive on the
+ * wire, not both set together. The wire format's ShortNameLength+Reserved
+ * (ignored in V1) become a single flags field in V2 --
+ * AAPL_READDIR_ATTR_V2_NO_XATTR is the only flag bit currently defined,
+ * signaling the item has no xattrs/streams so the client can skip a
+ * separate query.
+ */
+#define AAPL_READDIR_ATTR_V2_NO_XATTR	0x01
+
 /* Model string: up to 31 ASCII chars */
 #define AAPL_MODEL_MAX_CHARS	31
 #define AAPL_MODEL_UTF16_BYTES	(AAPL_MODEL_MAX_CHARS * 2)

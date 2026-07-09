@@ -2158,11 +2158,15 @@ void create_posix_rsp_buf(char *cc, struct ksmbd_file *fp)
  *
  * Sending reply_bitmap with MODEL_INFO set but no model string causes
  * smbfs.kext to enter a broken disconnect path requiring a macOS reboot.
+ * @readdir_attr_v2: advertise SMB2_CRTCTX_AAPL_SUPPORTS_READ_DIR_ATTR_V2
+ *                    instead of the V1 bit
  */
-void create_aapl_rsp_buf(char *cc, __u64 vol_caps, __u64 req_bitmap)
+void create_aapl_rsp_buf(char *cc, __u64 vol_caps, __u64 req_bitmap,
+			 bool readdir_attr_v2)
 {
 	struct create_aapl_rsp *buf;
 	u64 reply_bitmap;
+	u64 server_caps;
 	u32 data_len;
 
 	buf = (struct create_aapl_rsp *)cc;
@@ -2188,8 +2192,12 @@ void create_aapl_rsp_buf(char *cc, __u64 vol_caps, __u64 req_bitmap)
 
 	buf->cmd = cpu_to_le32(SMB2_CRTCTX_AAPL_SERVER_QUERY);
 	buf->reply_bitmap = cpu_to_le64(reply_bitmap);
+	server_caps = AAPL_SERVER_CAPS_KSMBD;
+	if (readdir_attr_v2)
+		server_caps = (server_caps & ~SMB2_CRTCTX_AAPL_SUPPORTS_READ_DIR_ATTR) |
+			      SMB2_CRTCTX_AAPL_SUPPORTS_READ_DIR_ATTR_V2;
 	buf->server_caps = (reply_bitmap & SMB2_CRTCTX_AAPL_SERVER_CAPS) ?
-			   cpu_to_le64(AAPL_SERVER_CAPS_KSMBD) : 0;
+			   cpu_to_le64(server_caps) : 0;
 	buf->vol_caps = (reply_bitmap & SMB2_CRTCTX_AAPL_VOLUME_CAPS) ?
 			cpu_to_le64(vol_caps) : 0;
 
