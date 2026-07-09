@@ -64,7 +64,14 @@ int smpcfd_prepare_cpu(unsigned int cpu)
 		free_cpumask_var(cfd->cpumask);
 		return -ENOMEM;
 	}
-	cfd->csd = alloc_percpu(call_single_data_t);
+
+	/*
+	 * Allocate the per-CPU CSD the first time a CPU comes up. It is
+	 * not freed when the CPU is offlined, so csd_lock_wait() can access
+	 * it even when the CPU was offlined after preemption was re-enabled.
+	 */
+	if (!cfd->csd)
+		cfd->csd = alloc_percpu(call_single_data_t);
 	if (!cfd->csd) {
 		free_cpumask_var(cfd->cpumask);
 		free_cpumask_var(cfd->cpumask_ipi);
@@ -80,7 +87,6 @@ int smpcfd_dead_cpu(unsigned int cpu)
 
 	free_cpumask_var(cfd->cpumask);
 	free_cpumask_var(cfd->cpumask_ipi);
-	free_percpu(cfd->csd);
 	return 0;
 }
 
