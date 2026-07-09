@@ -871,15 +871,14 @@ static void smp_call_function_many_cond(const struct cpumask *mask,
 					unsigned int scf_flags,
 					smp_cond_func_t cond_func)
 {
-	int cpu, last_cpu, this_cpu = smp_processor_id();
 	struct cpumask *cpumask, *task_mask;
 	bool wait = scf_flags & SCF_WAIT;
 	struct call_function_data *cfd;
+	int cpu, last_cpu, this_cpu;
 	bool run_remote = false;
 	int nr_cpus = 0;
 
-	lockdep_assert_preemption_disabled();
-
+	this_cpu = get_cpu();
 	cfd = this_cpu_ptr(&cfd_data);
 	task_mask = smp_task_ipi_mask(current);
 	if (task_mask)
@@ -965,6 +964,16 @@ static void smp_call_function_many_cond(const struct cpumask *mask,
 		local_irq_restore(flags);
 	}
 
+	/*
+	 * The IPI work has been queued and dispatched. On PREEMPT kernels,
+	 * tasks created through dup_task_struct() have task-local wait masks.
+	 * The boot init_task can fall back to cfd->cpumask when the mask is
+	 * not inlined, but other tasks still use task-local masks and cannot
+	 * overwrite it. On !PREEMPT kernels, preempt_enable() cannot schedule
+	 * another task, so the per-CPU mask remains protected.
+	 */
+	put_cpu();
+
 	if (run_remote && wait) {
 		for_each_cpu(cpu, cpumask) {
 			call_single_data_t *csd;
@@ -977,15 +986,14 @@ static void smp_call_function_many_cond(const struct cpumask *mask,
 
 /**
  * smp_call_function_many() - Run a function on a set of CPUs.
- * @mask: The set of cpus to run on (only runs on online subset).
- * @func: The function to run. This must be fast and non-blocking.
- * @info: An arbitrary pointer to pass to the function.
- * @wait: If true, wait (atomically) until function has completed
- *        on other CPUs.
+ * @mask:	The set of cpus to run on (only runs on online subset).
+ * @func:	The function to run. This must be fast and non-blocking.
+ * @info:	An arbitrary pointer to pass to the function.
+ * @wait:	If true, wait (atomically) until function has completed
+ *		on other CPUs.
  *
  * You must not call this function with disabled interrupts or from a
- * hardware interrupt handler or from a bottom half handler. Preemption
- * must be disabled when calling this function.
+ * hardware interrupt handler or from a bottom half handler.
  *
  * @func is not called on the local CPU even if @mask contains it.  Consider
  * using on_each_cpu_cond_mask() instead if this is not desirable.
