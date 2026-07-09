@@ -90,7 +90,7 @@ they should generally work out of the box, e.g.::
 Ubuntu
 ******
 
-Ubuntu 25.10 and 26.04 LTS provide recent Rust releases and thus they should
+Ubuntu 26.04 LTS provides recent Rust releases and thus it should
 generally work out of the box, e.g.::
 
 	apt install rustc rust-src bindgen rustfmt rust-clippy
