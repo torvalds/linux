@@ -1,0 +1,2 @@
+# mode=strict
+bad/yaml-prop-order-device-type.yaml:29: example 0 [property-order] property 'device_type' out of canonical order (should sort before 'compatible')

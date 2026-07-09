@@ -565,28 +565,31 @@ def check_child_name_order(ctx):
 
 def _property_bucket(name):
     """Return the canonical bucket index for a property:
-       0 compatible
-       1 reg / reg-names
-       2 ranges
-       3 standard properties (no vendor comma in #-stripped name)
-       4 vendor-specific properties
-       5 status
-    Plus a sub-key inside the bucket for fixed slots (compatible, reg,
-    reg-names, ranges, status). 'standard' and 'vendor' return None for
+       0 device_type
+       1 compatible
+       2 reg / reg-names
+       3 ranges
+       4 standard properties (no vendor comma in #-stripped name)
+       5 vendor-specific properties
+       6 status
+    Plus a sub-key inside the bucket for fixed slots (device_type, compatible,
+    reg, reg-names, ranges, status). 'standard' and 'vendor' return None for
     the sub-key, signalling that the within-bucket key is computed by
     the pairing rules."""
     stripped = name.lstrip('#')
-    if name == 'compatible':
+    if name == 'device_type':
         return (0, 0)
-    if name == 'reg':
+    if name == 'compatible':
         return (1, 0)
-    if name == 'reg-names':
-        return (1, 1)
-    if name == 'ranges':
+    if name == 'reg':
         return (2, 0)
+    if name == 'reg-names':
+        return (2, 1)
+    if name == 'ranges':
+        return (3, 0)
     if name == 'status':
-        return (5, 0)
-    return (4 if ',' in stripped else 3, None)
+        return (6, 0)
+    return (5 if ',' in stripped else 4, None)
 
 
 # Declarative pairing rules: each is a callable
