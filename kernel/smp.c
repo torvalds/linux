@@ -1007,10 +1007,10 @@ EXPORT_SYMBOL(smp_call_function_many);
 
 /**
  * smp_call_function() - Run a function on all other CPUs.
- * @func: The function to run. This must be fast and non-blocking.
- * @info: An arbitrary pointer to pass to the function.
- * @wait: If true, wait (atomically) until function has completed
- *        on other CPUs.
+ * @func:	The function to run. This must be fast and non-blocking.
+ * @info:	An arbitrary pointer to pass to the function.
+ * @wait:	If true, wait (atomically) until function has completed
+ *		on other CPUs.
  *
  * If @wait is true, then returns once @func has returned; otherwise
  * it returns just before the target cpu calls @func.
@@ -1020,9 +1020,8 @@ EXPORT_SYMBOL(smp_call_function_many);
  */
 void smp_call_function(smp_call_func_t func, void *info, int wait)
 {
-	preempt_disable();
-	smp_call_function_many(cpu_online_mask, func, info, wait);
-	preempt_enable();
+	smp_call_function_many_cond(cpu_online_mask, func, info,
+				    wait ? SCF_WAIT : 0, NULL);
 }
 EXPORT_SYMBOL(smp_call_function);
 
