@@ -51,6 +51,7 @@
 #include "hugetlb_vmemmap.h"
 #include "hugetlb_cma.h"
 #include "hugetlb_internal.h"
+#include "mm_init.h"
 #include <linux/page-isolation.h>
 
 int hugetlb_max_hstate __read_mostly;

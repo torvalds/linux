@@ -35,6 +35,7 @@
  * internal APIs.
  */
 #include "../../mm/internal.h"
+#include "../../mm/mm_init.h"
 #include "../kexec_internal.h"
 #include "kexec_handover_internal.h"
 

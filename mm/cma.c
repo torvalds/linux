@@ -33,6 +33,7 @@
 
 #include "internal.h"
 #include "cma.h"
+#include "mm_init.h"
 
 struct cma cma_areas[MAX_CMA_AREAS];
 unsigned int cma_area_count;

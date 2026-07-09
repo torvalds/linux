@@ -41,6 +41,7 @@
 #define VMEMMAP_POPULATE_PAGEREF	0x0001
 
 #include "internal.h"
+#include "mm_init.h"
 
 /*
  * Allocate a block of memory to be used to back the virtual memory map
