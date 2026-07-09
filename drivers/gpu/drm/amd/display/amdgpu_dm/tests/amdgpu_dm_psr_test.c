@@ -46,19 +46,10 @@ static struct core_power *create_test_power_module(struct kunit *test,
 
 static struct dc_link *alloc_test_psrsu_link(struct kunit *test)
 {
-	struct dc_link *link = dm_kunit_alloc_link(test);
-	struct dc_context *ctx;
-	struct dc *dc;
+	struct dc_link *link = dm_kunit_alloc_link_with_ctx(test);
+	struct dc_context *ctx = link->ctx;
+	struct dc *dc = ctx->dc;
 
-	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, ctx);
-
-	dc = kunit_kzalloc(test, sizeof(*dc), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, dc);
-
-	link->ctx = ctx;
-	ctx->dc = dc;
-	dc->ctx = ctx;
 	dc->caps.dmcub_support = true;
 	ctx->dce_version = DCN_VERSION_3_1;
 	link->dpcd_caps.edp_rev = DP_EDP_14;

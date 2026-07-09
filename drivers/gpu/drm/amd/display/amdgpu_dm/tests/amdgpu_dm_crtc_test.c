@@ -296,13 +296,9 @@ static void dm_test_crtc_is_headless_null_adev(struct kunit *test)
 static void dm_test_crtc_is_headless_no_connectors(struct kunit *test)
 {
 	struct amdgpu_device *adev = kunit_kzalloc(test, sizeof(*adev), GFP_KERNEL);
-	struct drm_device *dev = kunit_kzalloc(test, sizeof(*dev), GFP_KERNEL);
+	struct drm_device *dev = dm_kunit_alloc_drm_with_connector_list(test);
 
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
-
-	INIT_LIST_HEAD(&dev->mode_config.connector_list);
-	spin_lock_init(&dev->mode_config.connector_list_lock);
 	adev->dm.ddev = dev;
 
 	KUNIT_EXPECT_TRUE(test, amdgpu_dm_is_headless(adev));
@@ -315,15 +311,11 @@ static void dm_test_crtc_is_headless_no_connectors(struct kunit *test)
 static void dm_test_crtc_is_headless_writeback_only(struct kunit *test)
 {
 	struct amdgpu_device *adev = kunit_kzalloc(test, sizeof(*adev), GFP_KERNEL);
-	struct drm_device *dev = kunit_kzalloc(test, sizeof(*dev), GFP_KERNEL);
+	struct drm_device *dev = dm_kunit_alloc_drm_with_connector_list(test);
 	struct drm_connector *wb = kunit_kzalloc(test, sizeof(*wb), GFP_KERNEL);
 
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, wb);
-
-	INIT_LIST_HEAD(&dev->mode_config.connector_list);
-	spin_lock_init(&dev->mode_config.connector_list_lock);
 	adev->dm.ddev = dev;
 
 	dm_test_add_connector(dev, wb, DRM_MODE_CONNECTOR_WRITEBACK,
@@ -339,15 +331,11 @@ static void dm_test_crtc_is_headless_writeback_only(struct kunit *test)
 static void dm_test_crtc_is_headless_disconnected_display(struct kunit *test)
 {
 	struct amdgpu_device *adev = kunit_kzalloc(test, sizeof(*adev), GFP_KERNEL);
-	struct drm_device *dev = kunit_kzalloc(test, sizeof(*dev), GFP_KERNEL);
+	struct drm_device *dev = dm_kunit_alloc_drm_with_connector_list(test);
 	struct drm_connector *display = kunit_kzalloc(test, sizeof(*display), GFP_KERNEL);
 
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, display);
-
-	INIT_LIST_HEAD(&dev->mode_config.connector_list);
-	spin_lock_init(&dev->mode_config.connector_list_lock);
 	adev->dm.ddev = dev;
 
 	dm_test_add_connector(dev, display, DRM_MODE_CONNECTOR_HDMIA,
@@ -363,15 +351,11 @@ static void dm_test_crtc_is_headless_disconnected_display(struct kunit *test)
 static void dm_test_crtc_is_headless_connected_display(struct kunit *test)
 {
 	struct amdgpu_device *adev = kunit_kzalloc(test, sizeof(*adev), GFP_KERNEL);
-	struct drm_device *dev = kunit_kzalloc(test, sizeof(*dev), GFP_KERNEL);
+	struct drm_device *dev = dm_kunit_alloc_drm_with_connector_list(test);
 	struct drm_connector *display = kunit_kzalloc(test, sizeof(*display), GFP_KERNEL);
 
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, display);
-
-	INIT_LIST_HEAD(&dev->mode_config.connector_list);
-	spin_lock_init(&dev->mode_config.connector_list_lock);
 	adev->dm.ddev = dev;
 
 	dm_test_add_connector(dev, display, DRM_MODE_CONNECTOR_HDMIA,
@@ -387,17 +371,13 @@ static void dm_test_crtc_is_headless_connected_display(struct kunit *test)
 static void dm_test_crtc_is_headless_mixed_connectors(struct kunit *test)
 {
 	struct amdgpu_device *adev = kunit_kzalloc(test, sizeof(*adev), GFP_KERNEL);
-	struct drm_device *dev = kunit_kzalloc(test, sizeof(*dev), GFP_KERNEL);
+	struct drm_device *dev = dm_kunit_alloc_drm_with_connector_list(test);
 	struct drm_connector *wb = kunit_kzalloc(test, sizeof(*wb), GFP_KERNEL);
 	struct drm_connector *display = kunit_kzalloc(test, sizeof(*display), GFP_KERNEL);
 
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, wb);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, display);
-
-	INIT_LIST_HEAD(&dev->mode_config.connector_list);
-	spin_lock_init(&dev->mode_config.connector_list_lock);
 	adev->dm.ddev = dev;
 
 	dm_test_add_connector(dev, wb, DRM_MODE_CONNECTOR_WRITEBACK,

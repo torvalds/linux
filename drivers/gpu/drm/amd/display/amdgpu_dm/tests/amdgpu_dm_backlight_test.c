@@ -56,14 +56,7 @@ static void setup_test_connector(struct kunit *test,
 
 static void setup_test_dm_ddev(struct kunit *test, struct amdgpu_display_manager *dm)
 {
-	struct drm_device *ddev;
-
-	ddev = kunit_kzalloc(test, sizeof(*ddev), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ddev);
-
-	INIT_LIST_HEAD(&ddev->mode_config.connector_list);
-	spin_lock_init(&ddev->mode_config.connector_list_lock);
-	dm->ddev = ddev;
+	dm->ddev = dm_kunit_alloc_drm_with_connector_list(test);
 }
 
 /* Tests for dm_find_stream_with_link() */
