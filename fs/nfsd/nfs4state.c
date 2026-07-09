@@ -1272,9 +1272,9 @@ alloc_init_dir_deleg(struct nfs4_client *clp, struct nfs4_file *fp)
 void
 nfs4_put_stid(struct nfs4_stid *s)
 {
-	struct svc_export *exp = s->sc_export;
 	struct nfs4_file *fp = s->sc_file;
 	struct nfs4_client *clp = s->sc_client;
+	struct svc_export *exp;
 
 	might_lock(&clp->cl_lock);
 
@@ -1285,6 +1285,8 @@ nfs4_put_stid(struct nfs4_stid *s)
 	idr_remove(&clp->cl_stateids, s->sc_stateid.si_opaque.so_id);
 	if (s->sc_status & SC_STATUS_ADMIN_REVOKED)
 		atomic_dec(&s->sc_client->cl_admin_revoked);
+	/* Read under cl_lock to serialize with drop_stid_export(). */
+	exp = s->sc_export;
 	nfs4_free_cpntf_statelist(clp->net, s);
 	spin_unlock(&clp->cl_lock);
 	s->sc_free(s);
@@ -1744,6 +1746,7 @@ static void
 free_ol_stateid_reaplist(struct list_head *reaplist)
 {
 	struct nfs4_ol_stateid *stp;
+	struct svc_export *exp;
 	struct nfs4_file *fp;
 
 	might_sleep();
@@ -1753,7 +1756,10 @@ free_ol_stateid_reaplist(struct list_head *reaplist)
 				       st_locks);
 		list_del(&stp->st_locks);
 		fp = stp->st_stid.sc_file;
+		exp = stp->st_stid.sc_export;
 		stp->st_stid.sc_free(&stp->st_stid);
+		if (exp)
+			exp_put(exp);
 		if (fp)
 			put_nfs4_file(fp);
 	}
