@@ -100,7 +100,9 @@ void update_stream_signal(struct dc_stream_state *stream, struct dc_sink *sink)
 
 		if (stream->link->frl_flags.force_frl_always ||
 				stream->link->frl_flags.force_frl_max
-				|| stream->link->frl_flags.force_frl_dsc)
+				|| stream->link->frl_flags.force_frl_dsc
+				|| (stream->link->frl_flags.force_frl_rate != 0 &&
+					stream->link->frl_flags.force_frl_rate != 0xF))
 			stream->signal = SIGNAL_TYPE_HDMI_FRL;
 	}
 }
