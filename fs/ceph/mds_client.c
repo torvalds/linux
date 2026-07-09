@@ -1804,16 +1804,19 @@ static void __open_export_target_sessions(struct ceph_mds_client *mdsc,
  * session caps
  */
 
-static void detach_cap_releases(struct ceph_mds_session *session,
-				struct list_head *target)
+static int detach_cap_releases(struct ceph_mds_session *session,
+			       struct list_head *target)
 {
 	struct ceph_client *cl = session->s_mdsc->fsc->client;
+	const int num_cap_releases = session->s_num_cap_releases;
 
 	lockdep_assert_held(&session->s_cap_lock);
 
 	list_splice_init(&session->s_cap_releases, target);
 	session->s_num_cap_releases = 0;
 	doutc(cl, "mds%d\n", session->s_mds);
+
+	return num_cap_releases;
 }
 
 static void dispose_cap_releases(struct ceph_mds_client *mdsc,
@@ -2469,9 +2472,7 @@ static void ceph_send_cap_releases(struct ceph_mds_client *mdsc,
 
 	spin_lock(&session->s_cap_lock);
 again:
-	list_splice_init(&session->s_cap_releases, &tmp_list);
-	num_cap_releases = session->s_num_cap_releases;
-	session->s_num_cap_releases = 0;
+	num_cap_releases = detach_cap_releases(session, &tmp_list);
 	spin_unlock(&session->s_cap_lock);
 
 	while (!list_empty(&tmp_list)) {
