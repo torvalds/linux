@@ -3123,7 +3123,7 @@ static void intel_dp_compute_vsc_sdp(struct intel_dp *intel_dp,
 	struct drm_dp_vsc_sdp *vsc;
 
 	if ((!intel_dp->colorimetry_support ||
-	     !intel_dp_needs_vsc_sdp(crtc_state, conn_state)) &&
+	     !intel_dp_needs_vsc_colorimetry(crtc_state, conn_state)) &&
 	    !crtc_state->has_psr)
 		return;
 
@@ -3133,7 +3133,7 @@ static void intel_dp_compute_vsc_sdp(struct intel_dp *intel_dp,
 	vsc->sdp_type = DP_SDP_VSC;
 
 	/* Needs colorimetry */
-	if (intel_dp_needs_vsc_sdp(crtc_state, conn_state)) {
+	if (intel_dp_needs_vsc_colorimetry(crtc_state, conn_state)) {
 		intel_dp_compute_vsc_colorimetry(crtc_state, conn_state,
 						 vsc);
 	} else if (crtc_state->has_panel_replay) {
@@ -5066,8 +5066,8 @@ static bool intel_dp_get_and_ack_sink_irq_esi_sst(struct intel_dp *intel_dp, u8 
 }
 
 bool
-intel_dp_needs_vsc_sdp(const struct intel_crtc_state *crtc_state,
-		       const struct drm_connector_state *conn_state)
+intel_dp_needs_vsc_colorimetry(const struct intel_crtc_state *crtc_state,
+			       const struct drm_connector_state *conn_state)
 {
 	/*
 	 * As per DP 1.4a spec section 2.2.4.3 [MSA Field for Indication
