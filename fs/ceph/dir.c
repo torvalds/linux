@@ -1636,11 +1636,14 @@ static void __dentry_lease_unlist(struct ceph_dentry_info *di)
 	spin_unlock(&mdsc->dentry_list_lock);
 }
 
-enum {
-	KEEP	= 0,
-	DELETE	= 1,
-	TOUCH	= 2,
-	STOP	= 4,
+/*
+ * Result of __dir_lease_check() and __dentry_lease_check().
+ */
+enum lease_check_result {
+	KEEP,
+	DELETE,
+	TOUCH,
+	STOP,
 };
 
 struct ceph_lease_walk_control {
@@ -1650,8 +1653,9 @@ struct ceph_lease_walk_control {
 	unsigned long dir_lease_ttl;
 };
 
-static int __dir_lease_check(const struct dentry *, struct ceph_lease_walk_control *);
-static int __dentry_lease_check(const struct dentry *);
+static enum lease_check_result __dir_lease_check(const struct dentry *,
+						 struct ceph_lease_walk_control *);
+static enum lease_check_result __dentry_lease_check(const struct dentry *);
 
 static unsigned long
 __dentry_leases_walk(struct ceph_mds_client *mdsc,
@@ -1662,11 +1666,12 @@ __dentry_leases_walk(struct ceph_mds_client *mdsc,
 	struct list_head* list;
         LIST_HEAD(dispose);
 	unsigned long freed = 0;
-	int ret = 0;
 
 	list = lwc->dir_lease ? &mdsc->dentry_dir_leases : &mdsc->dentry_leases;
 	spin_lock(&mdsc->dentry_list_lock);
 	list_for_each_entry_safe(di, tmp, list, lease_list) {
+		enum lease_check_result ret = KEEP;
+
 		if (!lwc->nr_to_scan)
 			break;
 		--lwc->nr_to_scan;
@@ -1687,13 +1692,12 @@ __dentry_leases_walk(struct ceph_mds_client *mdsc,
 			ret = __dir_lease_check(dentry, lwc);
 		else
 			ret = __dentry_lease_check(dentry);
-		if (ret & TOUCH) {
+		if (ret == TOUCH) {
 			/* move it into tail of dir lease list */
 			__dentry_dir_lease_touch(mdsc, di);
 			if (!last)
 				last = dentry;
-		}
-		if (ret & DELETE) {
+		} else if (ret == DELETE) {
 			/* stale lease */
 			di->flags &= ~CEPH_DENTRY_REFERENCED;
 			if (dentry->d_lockref.count > 0) {
@@ -1710,7 +1714,7 @@ __dentry_leases_walk(struct ceph_mds_client *mdsc,
 		}
 next:
 		spin_unlock(&dentry->d_lock);
-		if (ret & STOP)
+		if (ret == STOP)
 			break;
 	}
 	spin_unlock(&mdsc->dentry_list_lock);
@@ -1743,7 +1747,7 @@ next:
 	return freed;
 }
 
-static int __dentry_lease_check(const struct dentry *dentry)
+static enum lease_check_result __dentry_lease_check(const struct dentry *dentry)
 {
 	struct ceph_dentry_info *di = ceph_dentry(dentry);
 	int ret;
@@ -1758,8 +1762,8 @@ static int __dentry_lease_check(const struct dentry *dentry)
 	return DELETE;
 }
 
-static int __dir_lease_check(const struct dentry *dentry,
-			     struct ceph_lease_walk_control *lwc)
+static enum lease_check_result __dir_lease_check(const struct dentry *dentry,
+						 struct ceph_lease_walk_control *lwc)
 {
 	struct ceph_dentry_info *di = ceph_dentry(dentry);
 
