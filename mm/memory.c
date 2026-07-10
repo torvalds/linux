@@ -4360,7 +4360,7 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
 	return wp_page_copy(vmf);
 }
 
-static inline void unmap_mapping_range_tree(struct rb_root_cached *root,
+static inline void unmap_mapping_range_tree(struct address_space *mapping,
 					    pgoff_t first_index,
 					    pgoff_t last_index,
 					    struct zap_details *details)
@@ -4369,7 +4369,7 @@ static inline void unmap_mapping_range_tree(struct rb_root_cached *root,
 	unsigned long start, size;
 	struct mmu_gather tlb;
 
-	vma_interval_tree_foreach(vma, root, first_index, last_index) {
+	vma_interval_tree_foreach(vma, mapping, first_index, last_index) {
 		const pgoff_t start_idx = max(first_index, vma->vm_pgoff);
 		const pgoff_t end_idx = min(last_index, vma_last_pgoff(vma)) + 1;
 
@@ -4411,7 +4411,7 @@ void unmap_mapping_folio(struct folio *folio)
 
 	i_mmap_lock_read(mapping);
 	if (unlikely(mapping_mapped(mapping)))
-		unmap_mapping_range_tree(&mapping->i_mmap, first_index,
+		unmap_mapping_range_tree(mapping, first_index,
 					 last_index, &details);
 	i_mmap_unlock_read(mapping);
 }
@@ -4441,7 +4441,7 @@ void unmap_mapping_pages(struct address_space *mapping, pgoff_t start,
 
 	i_mmap_lock_read(mapping);
 	if (unlikely(mapping_mapped(mapping)))
-		unmap_mapping_range_tree(&mapping->i_mmap, first_index,
+		unmap_mapping_range_tree(mapping, first_index,
 					 last_index, &details);
 	i_mmap_unlock_read(mapping);
 }

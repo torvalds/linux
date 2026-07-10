@@ -14,19 +14,26 @@
 /* File-backed interval tree (address_space->i_mmap) */
 
 INTERVAL_TREE_DEFINE(struct vm_area_struct, shared.rb,
-		     unsigned long, shared.rb_subtree_last,
-		     vma_start_pgoff, vma_last_pgoff, /* empty */, vma_interval_tree)
+		     pgoff_t, shared.rb_subtree_last,
+		     vma_start_pgoff, vma_last_pgoff, static,
+		     __vma_interval_tree)
 
-/* Insert node immediately after prev in the interval tree */
-void vma_interval_tree_insert_after(struct vm_area_struct *node,
+void vma_interval_tree_insert(struct vm_area_struct *vma,
+			      struct address_space *mapping)
+{
+	__vma_interval_tree_insert(vma, &mapping->i_mmap);
+}
+
+/* Insert vma immediately after prev in the interval tree */
+void vma_interval_tree_insert_after(struct vm_area_struct *vma,
 				    struct vm_area_struct *prev,
-				    struct rb_root_cached *root)
+				    struct address_space *mapping)
 {
 	struct rb_node **link;
 	struct vm_area_struct *parent;
-	unsigned long last = vma_last_pgoff(node);
+	const pgoff_t pgoff_last = vma_last_pgoff(vma);
 
-	VM_WARN_ON_ONCE_VMA(vma_start_pgoff(node) != vma_start_pgoff(prev), node);
+	VM_WARN_ON_ONCE_VMA(vma_start_pgoff(vma) != vma_start_pgoff(prev), vma);
 
 	if (!prev->shared.rb.rb_right) {
 		parent = prev;
@@ -34,21 +41,42 @@ void vma_interval_tree_insert_after(struct vm_area_struct *node,
 	} else {
 		parent = rb_entry(prev->shared.rb.rb_right,
 				  struct vm_area_struct, shared.rb);
-		if (parent->shared.rb_subtree_last < last)
-			parent->shared.rb_subtree_last = last;
+		if (parent->shared.rb_subtree_last < pgoff_last)
+			parent->shared.rb_subtree_last = pgoff_last;
 		while (parent->shared.rb.rb_left) {
 			parent = rb_entry(parent->shared.rb.rb_left,
 				struct vm_area_struct, shared.rb);
-			if (parent->shared.rb_subtree_last < last)
-				parent->shared.rb_subtree_last = last;
+			if (parent->shared.rb_subtree_last < pgoff_last)
+				parent->shared.rb_subtree_last = pgoff_last;
 		}
 		link = &parent->shared.rb.rb_left;
 	}
 
-	node->shared.rb_subtree_last = last;
-	rb_link_node(&node->shared.rb, &parent->shared.rb, link);
-	rb_insert_augmented(&node->shared.rb, &root->rb_root,
-			    &vma_interval_tree_augment);
+	vma->shared.rb_subtree_last = pgoff_last;
+	rb_link_node(&vma->shared.rb, &parent->shared.rb, link);
+	rb_insert_augmented(&vma->shared.rb, &mapping->i_mmap.rb_root,
+			    &__vma_interval_tree_augment);
+}
+
+void vma_interval_tree_remove(struct vm_area_struct *vma,
+			      struct address_space *mapping)
+{
+	__vma_interval_tree_remove(vma, &mapping->i_mmap);
+}
+
+struct vm_area_struct *
+vma_interval_tree_iter_first(struct address_space *mapping,
+			     pgoff_t pgoff_start, pgoff_t pgoff_last)
+{
+	return __vma_interval_tree_iter_first(&mapping->i_mmap,
+					      pgoff_start, pgoff_last);
+}
+
+struct vm_area_struct *
+vma_interval_tree_iter_next(struct vm_area_struct *vma,
+			    pgoff_t pgoff_start, pgoff_t pgoff_last)
+{
+	return __vma_interval_tree_iter_next(vma, pgoff_start, pgoff_last);
 }
 
 /* Anonymous interval tree (anon_vma->rb_root) */
