@@ -638,8 +638,8 @@ static struct binfmt_misc *i_binfmt_misc(struct inode *inode)
  * entry is removed or the filesystem is unmounted and the super block is
  * shutdown.
  *
- * If the ->evict call was not caused by a super block shutdown but by a write
- * to remove the entry or all entries via bm_{entry,status}_write() the entry
+ * If the ->evict call was not caused by a super block shutdown but by
+ * removing the entry via bm_{entry,status}_write() or unlink(2) the entry
  * will have already been removed from the list. We keep the hlist_unhashed()
  * check to make that explicit.
 */
@@ -662,35 +662,41 @@ static void bm_evict_inode(struct inode *inode)
 }
 
 /**
+ * unlink_binfmt_handler - unhash a binary type handler
+ * @misc: handle to binfmt_misc instance
+ * @e: binary type handler to unhash
+ *
+ * Adding and removing entries via bm_{entry,register,status}_write() and
+ * unlink(2) happens under the exclusively held inode lock of the root
+ * dentry keeping the list stable for writers. load_misc_binary() walks it
+ * concurrently under RCU. The entries_lock is only held around the actual
+ * unlink to serialize against bm_evict_inode() which unlinks entries
+ * during umount without holding the root inode lock.
+ */
+static void unlink_binfmt_handler(struct binfmt_misc *misc,
+				  struct binfmt_misc_entry *e)
+{
+	spin_lock(&misc->entries_lock);
+	hlist_del_init_rcu(&e->node);
+	spin_unlock(&misc->entries_lock);
+}
+
+/**
  * remove_binfmt_handler - remove a binary type handler
  * @misc: handle to binfmt_misc instance
  * @e: binary type handler to remove
  *
  * Remove a binary type handler from the list of binary type handlers and
  * remove its associated dentry.
- *
- * Adding and removing entries via bm_{entry,register,status}_write()
- * happens under the exclusively held inode lock of the root dentry keeping
- * the list stable for writers. load_misc_binary() walks it concurrently
- * under RCU. The entries_lock is only held around the actual unlink to
- * serialize against bm_evict_inode() which unlinks entries during umount
- * without holding the root inode lock.
- *
- * In the future, we might want to think about adding a proper ->unlink()
- * method to binfmt_misc instead of forcing callers to use writes to files
- * in order to delete binary type handlers. But it has worked for so long
- * that it's not a pressing issue.
  */
 static void remove_binfmt_handler(struct binfmt_misc *misc,
 				  struct binfmt_misc_entry *e)
 {
-	spin_lock(&misc->entries_lock);
-	hlist_del_init_rcu(&e->node);
-	spin_unlock(&misc->entries_lock);
+	unlink_binfmt_handler(misc, e);
 	locked_recursive_removal(e->dentry, NULL);
 }
 
-/* Remove @e unless a concurrent write already unlinked it. */
+/* Remove @e unless it was already removed. */
 static void bm_remove_entry(struct binfmt_misc_entry *e, struct super_block *sb)
 {
 	struct inode *root = d_inode(sb->s_root);
@@ -714,6 +720,32 @@ static void bm_remove_all_entries(struct binfmt_misc *misc,
 		remove_binfmt_handler(misc, e);
 	inode_unlock(root);
 }
+
+/**
+ * bm_unlink - remove a binary type handler via unlink(2)
+ * @dir: inode of the root directory
+ * @dentry: entry file to remove
+ *
+ * Removing the entry file removes its binary type handler, exactly like
+ * writing -1 to it does. The status and register control files can't be
+ * removed. The VFS calls this with the root inode lock held which
+ * serializes against the write based add and remove paths.
+ */
+static int bm_unlink(struct inode *dir, struct dentry *dentry)
+{
+	struct binfmt_misc_entry *e = d_inode(dentry)->i_private;
+
+	if (!e)
+		return -EPERM;
+
+	unlink_binfmt_handler(i_binfmt_misc(dir), e);
+	return simple_unlink(dir, dentry);
+}
+
+static const struct inode_operations bm_dir_inode_operations = {
+	.lookup		= simple_lookup,
+	.unlink		= bm_unlink,
+};
 
 /* /<entry> */
 
@@ -959,9 +991,12 @@ static int bm_fill_super(struct super_block *sb, struct fs_context *fc)
 	WRITE_ONCE(misc->enabled, true);
 
 	err = simple_fill_super(sb, BINFMTFS_MAGIC, bm_files);
-	if (!err)
-		sb->s_op = &bm_super_ops;
-	return err;
+	if (err)
+		return err;
+
+	sb->s_op = &bm_super_ops;
+	d_inode(sb->s_root)->i_op = &bm_dir_inode_operations;
+	return 0;
 }
 
 static void bm_free(struct fs_context *fc)
