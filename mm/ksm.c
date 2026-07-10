@@ -3232,7 +3232,7 @@ again:
 		 * we wouldn't have the KSM folio mapped in these processes
 		 * anymore.
 		 */
-		anon_vma_interval_tree_foreach(vmac, anon_vma, index, index) {
+		anon_rmap_tree_foreach(vmac, anon_vma, index, index) {
 
 			cond_resched();
 			vma = vmac->vma;
@@ -3294,7 +3294,7 @@ void collect_procs_ksm(const struct folio *folio, const struct page *page,
 				task_early_kill(tsk, force_early);
 			if (!t)
 				continue;
-			anon_vma_interval_tree_foreach(vmac, av, index, index)
+			anon_rmap_tree_foreach(vmac, av, index, index)
 			{
 				vma = vmac->vma;
 				if (vma->vm_mm == t->mm) {
