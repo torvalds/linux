@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * mm/interval_tree.c - interval tree for mapping->i_mmap
+ * mm/interval_tree.c - interval tree for address_space->i_mmap and
+ * anon_vma->rb_root
  *
  * Copyright (C) 2012, Michel Lespinasse <walken@google.com>
  */
@@ -9,6 +10,8 @@
 #include <linux/fs.h>
 #include <linux/rmap.h>
 #include <linux/interval_tree_generic.h>
+
+/* File-backed interval tree (address_space->i_mmap) */
 
 INTERVAL_TREE_DEFINE(struct vm_area_struct, shared.rb,
 		     unsigned long, shared.rb_subtree_last,
@@ -23,7 +26,7 @@ void vma_interval_tree_insert_after(struct vm_area_struct *node,
 	struct vm_area_struct *parent;
 	unsigned long last = vma_last_pgoff(node);
 
-	VM_BUG_ON_VMA(vma_start_pgoff(node) != vma_start_pgoff(prev), node);
+	VM_WARN_ON_ONCE_VMA(vma_start_pgoff(node) != vma_start_pgoff(prev), node);
 
 	if (!prev->shared.rb.rb_right) {
 		parent = prev;
@@ -47,6 +50,8 @@ void vma_interval_tree_insert_after(struct vm_area_struct *node,
 	rb_insert_augmented(&node->shared.rb, &root->rb_root,
 			    &vma_interval_tree_augment);
 }
+
+/* Anonymous interval tree (anon_vma->rb_root) */
 
 static inline unsigned long avc_start_pgoff(struct anon_vma_chain *avc)
 {
