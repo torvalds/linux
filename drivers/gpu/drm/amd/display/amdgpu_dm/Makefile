@@ -46,7 +46,8 @@ AMDGPUDM = \
 	amdgpu_dm_audio.o \
 	amdgpu_dm_dmub.o \
 	amdgpu_dm_connector.o \
-	amdgpu_dm_freesync.o
+	amdgpu_dm_freesync.o \
+	amdgpu_dm_cursor.o
 
 ifdef CONFIG_DRM_AMD_DC_FP
 AMDGPUDM += dc_fpu.o

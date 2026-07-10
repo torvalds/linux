@@ -1141,6 +1141,22 @@ void amdgpu_dm_emulated_link_detect(struct dc_link *link);
 void amdgpu_dm_apply_delay_after_dpcd_poweroff(struct amdgpu_device *adev,
 											   struct dc_sink *sink);
 
+struct __drm_planes_state *amdgpu_dm_get_next_zpos(struct drm_atomic_commit *state,
+						   struct __drm_planes_state *prev);
+
+/*
+ * Use the uniqueness of the plane's (zpos, drm obj ID) combination to iterate
+ * by descending zpos, as read from the new plane state. This is the same
+ * ordering as defined by drm_atomic_normalize_zpos().
+ */
+#define for_each_oldnew_plane_in_descending_zpos(__state, plane, old_plane_state, new_plane_state) \
+	for (struct __drm_planes_state *__i = amdgpu_dm_get_next_zpos((__state), NULL); \
+	     __i != NULL; __i = amdgpu_dm_get_next_zpos((__state), __i))		\
+		for_each_if(((plane) = __i->ptr,				\
+			     (void)(plane) /* Only to avoid unused-but-set-variable warning */, \
+			     (old_plane_state) = __i->old_state,		\
+			     (new_plane_state) = __i->new_state, 1))
+
 #if IS_ENABLED(CONFIG_DRM_AMD_DC_KUNIT_TEST)
 struct amdgpu_ip_block;
 bool dm_is_idle(struct amdgpu_ip_block *ip_block);
@@ -1157,19 +1173,11 @@ int dm_crtc_get_scanoutpos(struct amdgpu_device *adev, int crtc,
 struct dm_atomic_state *dm_atomic_get_new_state(struct drm_atomic_commit *state);
 void dm_atomic_destroy_state(struct drm_private_obj *obj,
 			     struct drm_private_state *state);
-bool dm_should_update_native_cursor(struct drm_atomic_commit *state,
-				    struct drm_crtc *old_plane_crtc,
-				    struct drm_crtc *new_plane_crtc,
-				    bool enable);
 int dm_plane_layer_index_cmp(const void *a, const void *b);
 int fill_plane_color_attributes(const struct drm_plane_state *plane_state,
 				const enum surface_pixel_format format,
 				enum dc_color_space *color_space);
 bool modereset_required(struct drm_crtc_state *crtc_state);
-void dm_get_oriented_plane_size(struct drm_plane_state *plane_state,
-				int *src_w, int *src_h);
-void dm_get_plane_scale(struct drm_plane_state *plane_state,
-			int *out_plane_scale_w, int *out_plane_scale_h);
 bool is_scaling_state_different(const struct dm_connector_state *dm_state,
 				const struct dm_connector_state *old_dm_state);
 void set_multisync_trigger_params(struct dc_stream_state *stream);
