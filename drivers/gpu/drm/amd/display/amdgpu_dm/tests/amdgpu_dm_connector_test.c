@@ -28,6 +28,7 @@
 #include "amdgpu_dm_connector.h"
 #include "amdgpu_dm_backlight.h"
 #include "include/grph_object_id.h"
+#include "amdgpu_dm_kunit_test_helpers.h"
 
 /* Tests for get_subconnector_type() */
 
@@ -5061,6 +5062,206 @@ static void dm_test_update_after_detect_sink_unchanged(struct kunit *test)
 	KUNIT_EXPECT_NULL(test, aconnector->dc_sink);
 }
 
+/* Tests for amdgpu_dm_update_stream_scaling_settings() */
+
+/**
+ * dm_test_update_scaling_null_mode - Test NULL mode leaves the stream rects untouched
+ * @test: The KUnit test context
+ */
+static void dm_test_update_scaling_null_mode(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct dc_stream_state *stream = dm_kunit_alloc_stream(test, NULL);
+
+	stream->timing.h_addressable = 1920;
+	stream->timing.v_addressable = 1080;
+
+	amdgpu_dm_update_stream_scaling_settings(&adev->ddev, NULL, NULL, stream);
+
+	/* NULL mode: early return before touching src/dst */
+	KUNIT_EXPECT_EQ(test, stream->src.width, 0);
+	KUNIT_EXPECT_EQ(test, stream->dst.width, 0);
+}
+
+/**
+ * dm_test_update_scaling_fullscreen_default - Test full-screen default with no dm_state
+ * @test: The KUnit test context
+ */
+static void dm_test_update_scaling_fullscreen_default(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct dc_stream_state *stream = dm_kunit_alloc_stream(test, NULL);
+	struct drm_display_mode mode = { 0 };
+
+	mode.hdisplay = 1920;
+	mode.vdisplay = 1080;
+	stream->timing.h_addressable = 2560;
+	stream->timing.v_addressable = 1440;
+
+	amdgpu_dm_update_stream_scaling_settings(&adev->ddev, &mode, NULL, stream);
+
+	/* src = mode, dst = timing addressable, no centering without dm_state */
+	KUNIT_EXPECT_EQ(test, stream->src.width, 1920);
+	KUNIT_EXPECT_EQ(test, stream->src.height, 1080);
+	KUNIT_EXPECT_EQ(test, stream->dst.width, 2560);
+	KUNIT_EXPECT_EQ(test, stream->dst.height, 1440);
+	KUNIT_EXPECT_EQ(test, stream->dst.x, 0);
+	KUNIT_EXPECT_EQ(test, stream->dst.y, 0);
+}
+
+/**
+ * dm_test_update_scaling_rmx_full - Test RMX_FULL keeps a full-size, centered dst
+ * @test: The KUnit test context
+ */
+static void dm_test_update_scaling_rmx_full(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct dc_stream_state *stream = dm_kunit_alloc_stream(test, NULL);
+	struct dm_connector_state *dm_state;
+	struct drm_display_mode mode = { 0 };
+
+	dm_state = kunit_kzalloc(test, sizeof(*dm_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dm_state);
+
+	mode.hdisplay = 1280;
+	mode.vdisplay = 720;
+	stream->timing.h_addressable = 1920;
+	stream->timing.v_addressable = 1080;
+	dm_state->scaling = RMX_FULL;
+
+	amdgpu_dm_update_stream_scaling_settings(&adev->ddev, &mode, dm_state, stream);
+
+	/* RMX_FULL: dst stays full addressable, offset 0 */
+	KUNIT_EXPECT_EQ(test, stream->dst.width, 1920);
+	KUNIT_EXPECT_EQ(test, stream->dst.height, 1080);
+	KUNIT_EXPECT_EQ(test, stream->dst.x, 0);
+	KUNIT_EXPECT_EQ(test, stream->dst.y, 0);
+}
+
+/**
+ * dm_test_update_scaling_rmx_aspect_pillarbox - Test RMX_ASPECT preserves aspect ratio
+ * @test: The KUnit test context
+ */
+static void dm_test_update_scaling_rmx_aspect_pillarbox(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct dc_stream_state *stream = dm_kunit_alloc_stream(test, NULL);
+	struct dm_connector_state *dm_state;
+	struct drm_display_mode mode = { 0 };
+
+	dm_state = kunit_kzalloc(test, sizeof(*dm_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dm_state);
+
+	/* 4:3 source on a 16:9 panel -> pillarboxed */
+	mode.hdisplay = 1024;
+	mode.vdisplay = 768;
+	stream->timing.h_addressable = 1920;
+	stream->timing.v_addressable = 1080;
+	dm_state->scaling = RMX_ASPECT;
+
+	amdgpu_dm_update_stream_scaling_settings(&adev->ddev, &mode, dm_state, stream);
+
+	/*
+	 * src.width*dst.height (1024*1080) < src.height*dst.width (768*1920):
+	 * width scaled to src.width*dst.height/src.height = 1440, height stays
+	 * 1080, centered horizontally at (1920-1440)/2 = 240.
+	 */
+	KUNIT_EXPECT_EQ(test, stream->dst.width, 1440);
+	KUNIT_EXPECT_EQ(test, stream->dst.height, 1080);
+	KUNIT_EXPECT_EQ(test, stream->dst.x, 240);
+	KUNIT_EXPECT_EQ(test, stream->dst.y, 0);
+}
+
+/**
+ * dm_test_update_scaling_rmx_aspect_letterbox - Test RMX_ASPECT letterboxes wide sources
+ * @test: The KUnit test context
+ */
+static void dm_test_update_scaling_rmx_aspect_letterbox(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct dc_stream_state *stream = dm_kunit_alloc_stream(test, NULL);
+	struct dm_connector_state *dm_state;
+	struct drm_display_mode mode = { 0 };
+
+	dm_state = kunit_kzalloc(test, sizeof(*dm_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dm_state);
+
+	/* 16:9 source on a 4:3 panel -> letterboxed */
+	mode.hdisplay = 1920;
+	mode.vdisplay = 1080;
+	stream->timing.h_addressable = 1024;
+	stream->timing.v_addressable = 768;
+	dm_state->scaling = RMX_ASPECT;
+
+	amdgpu_dm_update_stream_scaling_settings(&adev->ddev, &mode, dm_state, stream);
+
+	KUNIT_EXPECT_EQ(test, stream->dst.width, 1024);
+	KUNIT_EXPECT_EQ(test, stream->dst.height, 576);
+	KUNIT_EXPECT_EQ(test, stream->dst.x, 0);
+	KUNIT_EXPECT_EQ(test, stream->dst.y, 96);
+}
+
+/**
+ * dm_test_update_scaling_rmx_center - Test RMX_CENTER centers a 1:1 dst
+ * @test: The KUnit test context
+ */
+static void dm_test_update_scaling_rmx_center(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct dc_stream_state *stream = dm_kunit_alloc_stream(test, NULL);
+	struct dm_connector_state *dm_state;
+	struct drm_display_mode mode = { 0 };
+
+	dm_state = kunit_kzalloc(test, sizeof(*dm_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dm_state);
+
+	mode.hdisplay = 1280;
+	mode.vdisplay = 720;
+	stream->timing.h_addressable = 1920;
+	stream->timing.v_addressable = 1080;
+	dm_state->scaling = RMX_CENTER;
+
+	amdgpu_dm_update_stream_scaling_settings(&adev->ddev, &mode, dm_state, stream);
+
+	/* RMX_CENTER: dst = src, centered on the addressable area */
+	KUNIT_EXPECT_EQ(test, stream->dst.width, 1280);
+	KUNIT_EXPECT_EQ(test, stream->dst.height, 720);
+	KUNIT_EXPECT_EQ(test, stream->dst.x, 320);
+	KUNIT_EXPECT_EQ(test, stream->dst.y, 180);
+}
+
+/**
+ * dm_test_update_scaling_underscan - Test underscan borders shrink and offset dst
+ * @test: The KUnit test context
+ */
+static void dm_test_update_scaling_underscan(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct dc_stream_state *stream = dm_kunit_alloc_stream(test, NULL);
+	struct dm_connector_state *dm_state;
+	struct drm_display_mode mode = { 0 };
+
+	dm_state = kunit_kzalloc(test, sizeof(*dm_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dm_state);
+
+	mode.hdisplay = 1920;
+	mode.vdisplay = 1080;
+	stream->timing.h_addressable = 1920;
+	stream->timing.v_addressable = 1080;
+	dm_state->scaling = RMX_FULL;
+	dm_state->underscan_enable = true;
+	dm_state->underscan_hborder = 64;
+	dm_state->underscan_vborder = 32;
+
+	amdgpu_dm_update_stream_scaling_settings(&adev->ddev, &mode, dm_state, stream);
+
+	/* Full dst, then underscan: x/y += border/2, width/height -= border */
+	KUNIT_EXPECT_EQ(test, stream->dst.x, 32);
+	KUNIT_EXPECT_EQ(test, stream->dst.y, 16);
+	KUNIT_EXPECT_EQ(test, stream->dst.width, 1856);
+	KUNIT_EXPECT_EQ(test, stream->dst.height, 1048);
+}
+
 static struct kunit_case amdgpu_dm_connector_tests[] = {
 	/* get_subconnector_type */
 	KUNIT_CASE(dm_test_subconnector_type_none),
@@ -5340,6 +5541,14 @@ static struct kunit_case amdgpu_dm_connector_tests[] = {
 	/* amdgpu_dm_update_connector_after_detect */
 	KUNIT_CASE(dm_test_update_after_detect_mst_noop),
 	KUNIT_CASE(dm_test_update_after_detect_sink_unchanged),
+	/* amdgpu_dm_update_stream_scaling_settings */
+	KUNIT_CASE(dm_test_update_scaling_null_mode),
+	KUNIT_CASE(dm_test_update_scaling_fullscreen_default),
+	KUNIT_CASE(dm_test_update_scaling_rmx_full),
+	KUNIT_CASE(dm_test_update_scaling_rmx_aspect_pillarbox),
+	KUNIT_CASE(dm_test_update_scaling_rmx_aspect_letterbox),
+	KUNIT_CASE(dm_test_update_scaling_rmx_center),
+	KUNIT_CASE(dm_test_update_scaling_underscan),
 	{}
 };
 

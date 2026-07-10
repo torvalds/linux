@@ -3405,63 +3405,6 @@ ffu:
 			   &flip_addrs->dirty_rect_count, true);
 }
 
-void amdgpu_dm_update_stream_scaling_settings(struct drm_device *dev,
-					   const struct drm_display_mode *mode,
-					   const struct dm_connector_state *dm_state,
-					   struct dc_stream_state *stream)
-{
-	enum amdgpu_rmx_type rmx_type;
-
-	struct rect src = { 0 }; /* viewport in composition space*/
-	struct rect dst = { 0 }; /* stream addressable area */
-
-	/* no mode. nothing to be done */
-	if (!mode)
-		return;
-
-	/* Full screen scaling by default */
-	src.width = mode->hdisplay;
-	src.height = mode->vdisplay;
-	dst.width = stream->timing.h_addressable;
-	dst.height = stream->timing.v_addressable;
-
-	if (dm_state) {
-		rmx_type = dm_state->scaling;
-		if (rmx_type == RMX_ASPECT || rmx_type == RMX_OFF) {
-			if (src.width * dst.height <
-					src.height * dst.width) {
-				/* height needs less upscaling/more downscaling */
-				dst.width = src.width *
-						dst.height / src.height;
-			} else {
-				/* width needs less upscaling/more downscaling */
-				dst.height = src.height *
-						dst.width / src.width;
-			}
-		} else if (rmx_type == RMX_CENTER) {
-			dst = src;
-		}
-
-		dst.x = (stream->timing.h_addressable - dst.width) / 2;
-		dst.y = (stream->timing.v_addressable - dst.height) / 2;
-
-		if (dm_state->underscan_enable) {
-			dst.x += dm_state->underscan_hborder / 2;
-			dst.y += dm_state->underscan_vborder / 2;
-			dst.width -= dm_state->underscan_hborder;
-			dst.height -= dm_state->underscan_vborder;
-		}
-	}
-
-	stream->src = src;
-	stream->dst = dst;
-
-	drm_dbg_kms(dev, "Destination Rectangle x:%d  y:%d  width:%d  height:%d\n",
-		    dst.x, dst.y, dst.width, dst.height);
-
-}
-EXPORT_IF_KUNIT(amdgpu_dm_update_stream_scaling_settings);
-
 static int dm_update_mst_vcpi_slots_for_dsc(struct drm_atomic_commit *state,
 					    struct dc_state *dc_state,
 					    struct dsc_mst_fairness_vars *vars)
