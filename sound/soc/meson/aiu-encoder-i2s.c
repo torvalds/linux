@@ -147,6 +147,13 @@ static int aiu_encoder_i2s_set_clocks(struct snd_pcm_substream *substream,
 	bs = fs / 64;
 
 	if (aiu->platform->has_clk_ctrl_more_i2s_div) {
+		/*
+		 * The hw rules added in startup() make this unreachable in the
+		 * sequential case, but both streams may be refined concurrently
+		 * before either commits its config, since only ops->hw_params
+		 * runs under the card's pcm_mutex. Re-check against the committed
+		 * state of the other stream, which is stable under that mutex.
+		 */
 		if (aiu_encoder_check_bs_quirk(substream, params, dai)) {
 			dev_err(dai->dev, "bclk requirements incompatible with other stream\n");
 			return -EINVAL;
@@ -333,10 +340,45 @@ static const struct snd_pcm_hw_constraint_list hw_channel_constraints = {
 	.mask = 0,
 };
 
+static int aiu_encoder_i2s_pcm_hw_rule(struct snd_pcm_hw_params *params,
+				       struct snd_pcm_hw_rule *rule)
+{
+	struct gx_stream *other = rule->private;
+	struct snd_interval *ch = hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
+	/*
+	 * The quirk is technically based on the significant bits whereas here
+	 * we're using the physical width for simplicity. This works because
+	 * S16_LE is the only format supported by this encoder that has:
+	 * significant bits = physical width = 16-bits
+	 */
+	struct snd_interval *phys_width = hw_param_interval(params, SNDRV_PCM_HW_PARAM_SAMPLE_BITS);
+	struct snd_interval new_i;
+
+	if (other->channels == 0)
+		return 0;
+
+	snd_interval_any(&new_i);
+
+	if (rule->var == SNDRV_PCM_HW_PARAM_CHANNELS) {
+		if (aiu_encoder_is_bs_quirk(other->channels, other->width))
+			new_i.min = new_i.max = 8;
+		else if (snd_interval_single(phys_width) && phys_width->min == 16)
+			new_i.max = 2; /* Force 2ch */
+	} else { /* SNDRV_PCM_HW_PARAM_SAMPLE_BITS */
+		if (aiu_encoder_is_bs_quirk(other->channels, other->width))
+			new_i.min = new_i.max = 16;
+		else if (snd_interval_single(ch) && ch->min == 8)
+			new_i.min = 17; /* Request physical width > 16 bits */
+	}
+
+	return snd_interval_refine(hw_param_interval(params, rule->var), &new_i);
+}
+
 static int aiu_encoder_i2s_startup(struct snd_pcm_substream *substream,
 				   struct snd_soc_dai *dai)
 {
 	struct aiu *aiu = snd_soc_component_get_drvdata(dai->component);
+	struct gx_stream *other_stream = snd_soc_dai_dma_data_get(dai, !substream->stream);
 	int ret;
 
 	/* Make sure the encoder gets either 2 or 8 channels */
@@ -346,6 +388,31 @@ static int aiu_encoder_i2s_startup(struct snd_pcm_substream *substream,
 	if (ret) {
 		dev_err(dai->dev, "adding channels constraints failed: %d\n", ret);
 		return ret;
+	}
+
+	/*
+	 * If DAI supports both playback and capture streams ensure the bs-quirk is
+	 * handled correctly.
+	 * This is only valid for GX platforms (has_clk_ctrl_more_i2s_div=true).
+	 */
+	if (aiu->platform->has_clk_ctrl_more_i2s_div && other_stream) {
+		ret = snd_pcm_hw_rule_add(substream->runtime, 0,
+					  SNDRV_PCM_HW_PARAM_CHANNELS,
+					  aiu_encoder_i2s_pcm_hw_rule,
+					  other_stream,
+					  SNDRV_PCM_HW_PARAM_CHANNELS,
+					  SNDRV_PCM_HW_PARAM_SAMPLE_BITS, -1);
+		if (ret)
+			return ret;
+
+		ret = snd_pcm_hw_rule_add(substream->runtime, 0,
+					  SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
+					  aiu_encoder_i2s_pcm_hw_rule,
+					  other_stream,
+					  SNDRV_PCM_HW_PARAM_CHANNELS,
+					  SNDRV_PCM_HW_PARAM_SAMPLE_BITS, -1);
+		if (ret)
+			return ret;
 	}
 
 	/*
