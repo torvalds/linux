@@ -16,16 +16,16 @@
 INTERVAL_TREE_DEFINE(struct vm_area_struct, shared.rb,
 		     pgoff_t, shared.rb_subtree_last,
 		     vma_start_pgoff, vma_last_pgoff, static,
-		     __vma_interval_tree)
+		     __mapping_rmap_tree)
 
-void vma_interval_tree_insert(struct vm_area_struct *vma,
+void mapping_rmap_tree_insert(struct vm_area_struct *vma,
 			      struct address_space *mapping)
 {
-	__vma_interval_tree_insert(vma, &mapping->i_mmap);
+	__mapping_rmap_tree_insert(vma, &mapping->i_mmap);
 }
 
 /* Insert vma immediately after prev in the interval tree */
-void vma_interval_tree_insert_after(struct vm_area_struct *vma,
+void mapping_rmap_tree_insert_after(struct vm_area_struct *vma,
 				    struct vm_area_struct *prev,
 				    struct address_space *mapping)
 {
@@ -55,28 +55,28 @@ void vma_interval_tree_insert_after(struct vm_area_struct *vma,
 	vma->shared.rb_subtree_last = pgoff_last;
 	rb_link_node(&vma->shared.rb, &parent->shared.rb, link);
 	rb_insert_augmented(&vma->shared.rb, &mapping->i_mmap.rb_root,
-			    &__vma_interval_tree_augment);
+			    &__mapping_rmap_tree_augment);
 }
 
-void vma_interval_tree_remove(struct vm_area_struct *vma,
+void mapping_rmap_tree_remove(struct vm_area_struct *vma,
 			      struct address_space *mapping)
 {
-	__vma_interval_tree_remove(vma, &mapping->i_mmap);
+	__mapping_rmap_tree_remove(vma, &mapping->i_mmap);
 }
 
 struct vm_area_struct *
-vma_interval_tree_iter_first(struct address_space *mapping,
+mapping_rmap_tree_iter_first(struct address_space *mapping,
 			     pgoff_t pgoff_start, pgoff_t pgoff_last)
 {
-	return __vma_interval_tree_iter_first(&mapping->i_mmap,
+	return __mapping_rmap_tree_iter_first(&mapping->i_mmap,
 					      pgoff_start, pgoff_last);
 }
 
 struct vm_area_struct *
-vma_interval_tree_iter_next(struct vm_area_struct *vma,
+mapping_rmap_tree_iter_next(struct vm_area_struct *vma,
 			    pgoff_t pgoff_start, pgoff_t pgoff_last)
 {
-	return __vma_interval_tree_iter_next(vma, pgoff_start, pgoff_last);
+	return __mapping_rmap_tree_iter_next(vma, pgoff_start, pgoff_last);
 }
 
 /* Anonymous interval tree (anon_vma->rb_root) */

@@ -4369,7 +4369,7 @@ static inline void unmap_mapping_range_tree(struct address_space *mapping,
 	unsigned long start, size;
 	struct mmu_gather tlb;
 
-	vma_interval_tree_foreach(vma, mapping, first_index, last_index) {
+	mapping_rmap_tree_foreach(vma, mapping, first_index, last_index) {
 		const pgoff_t start_idx = max(first_index, vma->vm_pgoff);
 		const pgoff_t end_idx = min(last_index, vma_last_pgoff(vma)) + 1;
 
