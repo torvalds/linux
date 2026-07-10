@@ -117,6 +117,27 @@ static void xe_migrate_fini(void *arg)
 	xe_exec_queue_put(m->q);
 }
 
+static inline u16 xe_migrate_pat_index(struct xe_device *xe,
+				       enum ttm_caching caching,
+				       bool is_comp_pte)
+{
+	enum xe_cache_level cache_level;
+
+	/*
+	 * Select the appropriate PAT index for buffer object PTEs programmed
+	 * by emit_pte(). We choose not to mess with xe_migrate_prepare_vm()
+	 * yet, for simplicity.
+	 */
+	if (is_comp_pte && GRAPHICS_VERx100(xe) >= 2000)
+		cache_level = XE_CACHE_NONE_COMPRESSION;
+	else if (caching == ttm_cached)
+		cache_level = XE_CACHE_WB;
+	else
+		cache_level = XE_CACHE_NONE;
+
+	return xe_cache_pat_idx(xe, cache_level);
+}
+
 static u64 xe_migrate_vm_addr(u64 slot, u32 level)
 {
 	XE_WARN_ON(slot >= NUM_PT_SLOTS);
@@ -607,17 +628,17 @@ static void emit_pte(struct xe_migrate *m,
 {
 	struct xe_device *xe = tile_to_xe(m->tile);
 	struct xe_vm *vm = m->q->vm;
+	struct xe_bo *bo = ttm_to_xe_bo(res->bo);
+	enum ttm_caching caching = ttm_cached;
 	u16 pat_index;
 	u32 ptes;
 	u64 ofs = (u64)at_pt * XE_PAGE_SIZE;
 	u64 cur_ofs;
 
-	/* Indirect access needs compression enabled uncached PAT index */
-	if (GRAPHICS_VERx100(xe) >= 2000)
-		pat_index = is_comp_pte ? xe_cache_pat_idx(xe, XE_CACHE_NONE_COMPRESSION) :
-					  xe_cache_pat_idx(xe, XE_CACHE_WB);
-	else
-		pat_index = xe_cache_pat_idx(xe, XE_CACHE_WB);
+	if (!is_vram && bo->ttm.ttm)
+		caching = bo->ttm.ttm->caching;
+
+	pat_index = xe_migrate_pat_index(xe, caching, is_comp_pte);
 
 	ptes = DIV_ROUND_UP(size, XE_PAGE_SIZE);
 
