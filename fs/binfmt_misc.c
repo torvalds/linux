@@ -339,6 +339,95 @@ static char *check_special_flags(char *p, struct binfmt_misc_entry *e)
 	}
 }
 
+/* Parse the 'offset', 'magic' and 'mask' fields of an 'M' entry. */
+static char *parse_magic_fields(struct binfmt_misc_entry *e, char *p, char del)
+{
+	char *s;
+
+	/* Parse the 'offset' field. */
+	s = strchr(p, del);
+	if (!s)
+		return NULL;
+	*s = '\0';
+	if (p != s) {
+		if (kstrtoint(p, 10, &e->offset) || e->offset < 0)
+			return NULL;
+	}
+	p = s + 1;
+	pr_debug("register: offset: %#x\n", e->offset);
+
+	/* Parse the 'magic' field. */
+	e->magic = p;
+	p = scanarg(p, del);
+	if (!p || !e->magic[0])
+		return NULL;
+	print_hex_dump_debug(
+		KBUILD_MODNAME ": register: magic[raw]: ",
+		DUMP_PREFIX_NONE, 16, 1, e->magic, p - e->magic, true);
+
+	/* Parse the 'mask' field. */
+	e->mask = p;
+	p = scanarg(p, del);
+	if (!p)
+		return NULL;
+	if (!e->mask[0]) {
+		e->mask = NULL;
+		pr_debug("register:  mask[raw]: none\n");
+	} else {
+		print_hex_dump_debug(
+			KBUILD_MODNAME ": register:  mask[raw]: ",
+			DUMP_PREFIX_NONE, 16, 1, e->mask, p - e->mask, true);
+	}
+
+	/*
+	 * Decode the magic & mask fields. Note: while we might have accepted
+	 * embedded NUL bytes from above, the unescape helpers will stop at
+	 * the first one they encounter.
+	 */
+	e->size = string_unescape_inplace(e->magic, UNESCAPE_HEX);
+	if (e->mask && string_unescape_inplace(e->mask, UNESCAPE_HEX) != e->size)
+		return NULL;
+	if (e->size > BINPRM_BUF_SIZE || BINPRM_BUF_SIZE - e->size < e->offset)
+		return NULL;
+	pr_debug("register: magic/mask length: %i\n", e->size);
+	print_hex_dump_debug(
+		KBUILD_MODNAME ": register: magic[decoded]: ",
+		DUMP_PREFIX_NONE, 16, 1, e->magic, e->size, true);
+	if (e->mask)
+		print_hex_dump_debug(
+			KBUILD_MODNAME ": register:  mask[decoded]: ",
+			DUMP_PREFIX_NONE, 16, 1, e->mask, e->size, true);
+	return p;
+}
+
+/* Parse the 'magic' field of an 'E' entry: the filename extension. */
+static char *parse_extension_fields(struct binfmt_misc_entry *e, char *p,
+				    char del)
+{
+	/* Skip the 'offset' field. */
+	p = strchr(p, del);
+	if (!p)
+		return NULL;
+	*p++ = '\0';
+
+	/* Parse the 'magic' field. */
+	e->magic = p;
+	p = strchr(p, del);
+	if (!p)
+		return NULL;
+	*p++ = '\0';
+	if (!e->magic[0] || strchr(e->magic, '/'))
+		return NULL;
+	pr_debug("register: extension: {%s}\n", e->magic);
+
+	/* Skip the 'mask' field. */
+	p = strchr(p, del);
+	if (!p)
+		return NULL;
+	*p++ = '\0';
+	return p;
+}
+
 /*
  * This registers a new binary format, it recognises the syntax
  * ':name:type:offset:magic:mask:interpreter:flags'
@@ -347,29 +436,26 @@ static char *check_special_flags(char *p, struct binfmt_misc_entry *e)
 static struct binfmt_misc_entry *create_entry(const char __user *buffer,
 					      size_t count)
 {
-	struct binfmt_misc_entry *e;
+	struct binfmt_misc_entry *e __free(kfree) = NULL;
 	char *buf, *p;
 	char del;
-	int err;
 
 	pr_debug("register: received %zu bytes\n", count);
 
 	/* some sanity checks */
-	err = -EINVAL;
 	if ((count < 11) || (count > MAX_REGISTER_LENGTH))
-		goto out;
+		return ERR_PTR(-EINVAL);
 
-	err = -ENOMEM;
 	e = kmalloc(struct_size(e, buf, count + MISC_DELIM_PAD),
 		    GFP_KERNEL_ACCOUNT);
 	if (!e)
-		goto out;
+		return ERR_PTR(-ENOMEM);
 
 	p = buf = e->buf;
 
 	memset(e, 0, sizeof(*e));
 	if (copy_from_user(buf, buffer, count))
-		goto efault;
+		return ERR_PTR(-EFAULT);
 
 	del = *p++;	/* delimeter */
 
@@ -377,7 +463,7 @@ static struct binfmt_misc_entry *create_entry(const char __user *buffer,
 
 	/* A flag-char delimiter runs the flag scan off the buffer. */
 	if (del == 'P' || del == 'O' || del == 'C' || del == 'F')
-		goto einval;
+		return ERR_PTR(-EINVAL);
 
 	/* Pad the buffer with the delim to simplify parsing below. */
 	memset(buf + count, del, MISC_DELIM_PAD);
@@ -386,13 +472,13 @@ static struct binfmt_misc_entry *create_entry(const char __user *buffer,
 	e->name = p;
 	p = strchr(p, del);
 	if (!p)
-		goto einval;
+		return ERR_PTR(-EINVAL);
 	*p++ = '\0';
 	if (!e->name[0] ||
 	    !strcmp(e->name, ".") ||
 	    !strcmp(e->name, "..") ||
 	    strchr(e->name, '/'))
-		goto einval;
+		return ERR_PTR(-EINVAL);
 
 	pr_debug("register: name: {%s}\n", e->name);
 
@@ -407,111 +493,26 @@ static struct binfmt_misc_entry *create_entry(const char __user *buffer,
 		e->flags = BIT(MISC_FMT_ENABLED_BIT) | BIT(MISC_FMT_MAGIC_BIT);
 		break;
 	default:
-		goto einval;
+		return ERR_PTR(-EINVAL);
 	}
 	if (*p++ != del)
-		goto einval;
+		return ERR_PTR(-EINVAL);
 
-	if (test_bit(MISC_FMT_MAGIC_BIT, &e->flags)) {
-		/* Handle the 'M' (magic) format. */
-		char *s;
-
-		/* Parse the 'offset' field. */
-		s = strchr(p, del);
-		if (!s)
-			goto einval;
-		*s = '\0';
-		if (p != s) {
-			int r = kstrtoint(p, 10, &e->offset);
-			if (r != 0 || e->offset < 0)
-				goto einval;
-		}
-		p = s;
-		if (*p++)
-			goto einval;
-		pr_debug("register: offset: %#x\n", e->offset);
-
-		/* Parse the 'magic' field. */
-		e->magic = p;
-		p = scanarg(p, del);
-		if (!p)
-			goto einval;
-		if (!e->magic[0])
-			goto einval;
-		print_hex_dump_debug(
-			KBUILD_MODNAME ": register: magic[raw]: ",
-			DUMP_PREFIX_NONE, 16, 1, e->magic, p - e->magic, true);
-
-		/* Parse the 'mask' field. */
-		e->mask = p;
-		p = scanarg(p, del);
-		if (!p)
-			goto einval;
-		if (!e->mask[0]) {
-			e->mask = NULL;
-			pr_debug("register:  mask[raw]: none\n");
-		} else {
-			print_hex_dump_debug(
-				KBUILD_MODNAME ": register:  mask[raw]: ",
-				DUMP_PREFIX_NONE, 16, 1, e->mask, p - e->mask,
-				true);
-		}
-
-		/*
-		 * Decode the magic & mask fields.
-		 * Note: while we might have accepted embedded NUL bytes from
-		 * above, the unescape helpers here will stop at the first one
-		 * it encounters.
-		 */
-		e->size = string_unescape_inplace(e->magic, UNESCAPE_HEX);
-		if (e->mask &&
-		    string_unescape_inplace(e->mask, UNESCAPE_HEX) != e->size)
-			goto einval;
-		if (e->size > BINPRM_BUF_SIZE ||
-		    BINPRM_BUF_SIZE - e->size < e->offset)
-			goto einval;
-		pr_debug("register: magic/mask length: %i\n", e->size);
-		print_hex_dump_debug(
-			KBUILD_MODNAME ": register: magic[decoded]: ",
-			DUMP_PREFIX_NONE, 16, 1, e->magic, e->size, true);
-		if (e->mask)
-			print_hex_dump_debug(
-				KBUILD_MODNAME ": register:  mask[decoded]: ",
-				DUMP_PREFIX_NONE, 16, 1, e->mask, e->size, true);
-	} else {
-		/* Handle the 'E' (extension) format. */
-
-		/* Skip the 'offset' field. */
-		p = strchr(p, del);
-		if (!p)
-			goto einval;
-		*p++ = '\0';
-
-		/* Parse the 'magic' field. */
-		e->magic = p;
-		p = strchr(p, del);
-		if (!p)
-			goto einval;
-		*p++ = '\0';
-		if (!e->magic[0] || strchr(e->magic, '/'))
-			goto einval;
-		pr_debug("register: extension: {%s}\n", e->magic);
-
-		/* Skip the 'mask' field. */
-		p = strchr(p, del);
-		if (!p)
-			goto einval;
-		*p++ = '\0';
-	}
+	if (test_bit(MISC_FMT_MAGIC_BIT, &e->flags))
+		p = parse_magic_fields(e, p, del);
+	else
+		p = parse_extension_fields(e, p, del);
+	if (!p)
+		return ERR_PTR(-EINVAL);
 
 	/* Parse the 'interpreter' field. */
 	e->interpreter = p;
 	p = strchr(p, del);
 	if (!p)
-		goto einval;
+		return ERR_PTR(-EINVAL);
 	*p++ = '\0';
 	if (!e->interpreter[0])
-		goto einval;
+		return ERR_PTR(-EINVAL);
 	pr_debug("register: interpreter: {%s}\n", e->interpreter);
 
 	/* Parse the 'flags' field. */
@@ -519,19 +520,9 @@ static struct binfmt_misc_entry *create_entry(const char __user *buffer,
 	if (*p == '\n')
 		p++;
 	if (p != buf + count)
-		goto einval;
+		return ERR_PTR(-EINVAL);
 
-	return e;
-
-out:
-	return ERR_PTR(err);
-
-efault:
-	kfree(e);
-	return ERR_PTR(-EFAULT);
-einval:
-	kfree(e);
-	return ERR_PTR(-EINVAL);
+	return no_free_ptr(e);
 }
 
 /* Commands accepted by the /status and /<entry> files. */
