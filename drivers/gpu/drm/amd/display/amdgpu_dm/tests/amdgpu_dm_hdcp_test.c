@@ -576,6 +576,178 @@ static void dm_test_event_callback_schedules_property_validate(struct kunit *tes
 
 /* End of tests for event_callback() */
 
+/* Tests for event_property_validate() */
+
+/**
+ * alloc_test_workqueue_for_property_validate - workqueue for validate tests
+ * @test: KUnit test context for managed allocation
+ *
+ * Allocates a minimal hdcp_workqueue with its mutex and property_update_work
+ * initialised, as required by the guard(mutex) and schedule_work() usage
+ * inside event_property_validate().
+ */
+static struct hdcp_workqueue *alloc_test_workqueue_for_property_validate(struct kunit *test)
+{
+	struct hdcp_workqueue *work;
+
+	work = kunit_kzalloc(test, sizeof(*work), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, work);
+
+	mutex_init(&work->mutex);
+	INIT_WORK(&work->property_update_work, dummy_work_fn);
+
+	return work;
+}
+
+/**
+ * alloc_validate_connector - connector for event_property_validate() tests
+ * @test: KUnit test context for managed allocation
+ * @index: drm connector index to assign
+ * @status: drm connector detection status to assign
+ * @with_state: whether to attach a zeroed drm_connector_state
+ *
+ * Allocates an amdgpu_dm_connector sufficient for the traversal in
+ * event_property_validate(). mod_hdcp_query_display() has no active display
+ * so it returns early, leaving the pre-set HDCP_OFF query untouched.
+ */
+static struct amdgpu_dm_connector *alloc_validate_connector(struct kunit *test,
+							    unsigned int index,
+							    enum drm_connector_status status,
+							    bool with_state)
+{
+	struct amdgpu_dm_connector *aconnector;
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+
+	aconnector->base.index = index;
+	aconnector->base.status = status;
+
+	if (with_state) {
+		struct drm_connector_state *conn_state;
+
+		conn_state = kunit_kzalloc(test, sizeof(*conn_state), GFP_KERNEL);
+		KUNIT_ASSERT_NOT_NULL(test, conn_state);
+		aconnector->base.state = conn_state;
+	}
+
+	return aconnector;
+}
+
+/**
+ * dm_test_event_property_validate_skips_null_connector - null entries ignored
+ * @test: KUnit test context
+ *
+ * With every aconnector entry NULL, event_property_validate() must not
+ * schedule property_update_work and must leave encryption_status untouched.
+ */
+static void dm_test_event_property_validate_skips_null_connector(struct kunit *test)
+{
+	struct hdcp_workqueue *work = alloc_test_workqueue_for_property_validate(test);
+
+	work->encryption_status[0] = MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE1_ON;
+
+	event_property_validate(&work->property_validate_dwork.work);
+
+	KUNIT_EXPECT_FALSE(test, work_pending(&work->property_update_work));
+	KUNIT_EXPECT_EQ(test, work->encryption_status[0],
+			MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE1_ON);
+}
+
+/**
+ * dm_test_event_property_validate_skips_disconnected - disconnected is skipped
+ * @test: KUnit test context
+ *
+ * A connector whose status is not connector_status_connected must be
+ * skipped, leaving encryption_status unchanged and no work scheduled.
+ */
+static void dm_test_event_property_validate_skips_disconnected(struct kunit *test)
+{
+	struct hdcp_workqueue *work = alloc_test_workqueue_for_property_validate(test);
+
+	work->aconnector[1] = alloc_validate_connector(test, 1,
+						       connector_status_disconnected, true);
+	work->encryption_status[1] = MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE1_ON;
+
+	event_property_validate(&work->property_validate_dwork.work);
+
+	KUNIT_EXPECT_FALSE(test, work_pending(&work->property_update_work));
+	KUNIT_EXPECT_EQ(test, work->encryption_status[1],
+			MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE1_ON);
+}
+
+/**
+ * dm_test_event_property_validate_skips_null_state - missing state is skipped
+ * @test: KUnit test context
+ *
+ * A connected connector without a drm_connector_state must be skipped
+ * before the query, leaving encryption_status unchanged.
+ */
+static void dm_test_event_property_validate_skips_null_state(struct kunit *test)
+{
+	struct hdcp_workqueue *work = alloc_test_workqueue_for_property_validate(test);
+
+	work->aconnector[2] = alloc_validate_connector(test, 2,
+						       connector_status_connected, false);
+	work->encryption_status[2] = MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE1_ON;
+
+	event_property_validate(&work->property_validate_dwork.work);
+
+	KUNIT_EXPECT_FALSE(test, work_pending(&work->property_update_work));
+	KUNIT_EXPECT_EQ(test, work->encryption_status[2],
+			MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE1_ON);
+}
+
+/**
+ * dm_test_event_property_validate_updates_on_status_change - change triggers update
+ * @test: KUnit test context
+ *
+ * For a connected connector with state, the query returns HDCP_OFF (no
+ * active hdcp display). When the stored encryption_status differs, it must
+ * be updated to HDCP_OFF and property_update_work must be scheduled.
+ */
+static void dm_test_event_property_validate_updates_on_status_change(struct kunit *test)
+{
+	struct hdcp_workqueue *work = alloc_test_workqueue_for_property_validate(test);
+
+	work->aconnector[3] = alloc_validate_connector(test, 3,
+						       connector_status_connected, true);
+	work->encryption_status[3] = MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE1_ON;
+
+	event_property_validate(&work->property_validate_dwork.work);
+
+	KUNIT_EXPECT_EQ(test, work->encryption_status[3],
+			MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF);
+	KUNIT_EXPECT_TRUE(test, work_pending(&work->property_update_work));
+
+	cancel_work_sync(&work->property_update_work);
+}
+
+/**
+ * dm_test_event_property_validate_no_update_when_unchanged - no change, no work
+ * @test: KUnit test context
+ *
+ * For a connected connector with state whose stored encryption_status is
+ * already HDCP_OFF (matching the query result), event_property_validate()
+ * must not reschedule property_update_work.
+ */
+static void dm_test_event_property_validate_no_update_when_unchanged(struct kunit *test)
+{
+	struct hdcp_workqueue *work = alloc_test_workqueue_for_property_validate(test);
+
+	work->aconnector[4] = alloc_validate_connector(test, 4,
+						       connector_status_connected, true);
+	work->encryption_status[4] = MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF;
+
+	event_property_validate(&work->property_validate_dwork.work);
+
+	KUNIT_EXPECT_EQ(test, work->encryption_status[4],
+			MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF);
+	KUNIT_EXPECT_FALSE(test, work_pending(&work->property_update_work));
+}
+
+/* End of tests for event_property_validate() */
+
 /* Tests for hdcp_handle_cpirq() */
 
 /**
@@ -1055,6 +1227,12 @@ static struct kunit_case dm_hdcp_test_cases[] = {
 	/* event_callback() */
 	KUNIT_CASE(dm_test_event_callback_cancels_callback_dwork),
 	KUNIT_CASE(dm_test_event_callback_schedules_property_validate),
+	/* event_property_validate() */
+	KUNIT_CASE(dm_test_event_property_validate_skips_null_connector),
+	KUNIT_CASE(dm_test_event_property_validate_skips_disconnected),
+	KUNIT_CASE(dm_test_event_property_validate_skips_null_state),
+	KUNIT_CASE(dm_test_event_property_validate_updates_on_status_change),
+	KUNIT_CASE(dm_test_event_property_validate_no_update_when_unchanged),
 	/* hdcp_handle_cpirq() */
 	KUNIT_CASE(dm_test_hdcp_handle_cpirq_schedules_work),
 	KUNIT_CASE(dm_test_hdcp_handle_cpirq_selects_link_index),
