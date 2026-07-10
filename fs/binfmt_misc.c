@@ -59,6 +59,7 @@ struct binfmt_misc_entry {
 	struct file *interp_file;
 	refcount_t users;		/* sync removal with load_misc_binary() */
 	struct rcu_head rcu;
+	char buf[];			/* register string, fields point in here */
 };
 
 static struct file_system_type bm_fs_type;
@@ -77,6 +78,9 @@ static struct file_system_type bm_fs_type;
  * (like struct binfmt_misc_entry).
  */
 #define MAX_REGISTER_LENGTH 1920
+
+/* Trailing delimiter pad so field parsing always terminates at a delimiter. */
+#define MISC_DELIM_PAD 8
 
 /* Check if @e's magic matches @bprm's buffer, applying the mask if set. */
 static bool entry_matches_magic(const struct binfmt_misc_entry *e,
@@ -344,9 +348,9 @@ static struct binfmt_misc_entry *create_entry(const char __user *buffer,
 					      size_t count)
 {
 	struct binfmt_misc_entry *e;
-	int memsize, err;
 	char *buf, *p;
 	char del;
+	int err;
 
 	pr_debug("register: received %zu bytes\n", count);
 
@@ -356,12 +360,12 @@ static struct binfmt_misc_entry *create_entry(const char __user *buffer,
 		goto out;
 
 	err = -ENOMEM;
-	memsize = sizeof(*e) + count + 8;
-	e = kmalloc(memsize, GFP_KERNEL_ACCOUNT);
+	e = kmalloc(struct_size(e, buf, count + MISC_DELIM_PAD),
+		    GFP_KERNEL_ACCOUNT);
 	if (!e)
 		goto out;
 
-	p = buf = (char *)e + sizeof(*e);
+	p = buf = e->buf;
 
 	memset(e, 0, sizeof(*e));
 	if (copy_from_user(buf, buffer, count))
@@ -376,7 +380,7 @@ static struct binfmt_misc_entry *create_entry(const char __user *buffer,
 		goto einval;
 
 	/* Pad the buffer with the delim to simplify parsing below. */
-	memset(buf + count, del, 8);
+	memset(buf + count, del, MISC_DELIM_PAD);
 
 	/* Parse the 'name' field. */
 	e->name = p;
