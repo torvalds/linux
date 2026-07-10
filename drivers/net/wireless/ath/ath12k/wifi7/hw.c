@@ -689,7 +689,7 @@ static const struct ath12k_hw_params ath12k_wifi7_hw_params[] = {
 
 		.ce_ie_addr = &ath12k_wifi7_ce_ie_addr_ipq5332,
 		.ce_remap = &ath12k_wifi7_ce_remap_ipq5332,
-		.bdf_addr_offset = 0xC00000,
+		.bdf_addr_offset = 0x1A00000,
 
 		.dp_primary_link_only = true,
 		.client = {
