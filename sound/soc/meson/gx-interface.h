@@ -22,9 +22,6 @@ struct gx_iface {
 
 	/* For component wide symmetry */
 	int rate;
-
-	/* Only for GX platform */
-	int bs_quirk;
 };
 
 struct gx_stream {

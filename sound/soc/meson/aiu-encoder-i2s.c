@@ -62,13 +62,36 @@ static int aiu_encoder_i2s_set_legacy_div(struct snd_soc_component *component,
 	return 0;
 }
 
+/*
+ * Return true if the given combination of channels and sample width requires
+ * the bs quirk. Return false otherwise.
+ */
+static bool aiu_encoder_is_bs_quirk(unsigned int channels, int width)
+{
+	return (channels == 8) && (width == 16);
+}
+
+static int aiu_encoder_check_bs_quirk(struct snd_pcm_substream *substream,
+				      struct snd_pcm_hw_params *params,
+				      struct snd_soc_dai *dai)
+{
+	struct gx_stream *other_stream = snd_soc_dai_dma_data_get(dai, !substream->stream);
+
+	/* Nothing to do if the other stream doesn't exist or it's not configured yet. */
+	if (!other_stream || !other_stream->channels)
+		return 0;
+
+	if (aiu_encoder_is_bs_quirk(other_stream->channels, other_stream->width) !=
+	    aiu_encoder_is_bs_quirk(params_channels(params), params_width(params)))
+		return -EINVAL;
+
+	return 0;
+}
+
 static int aiu_encoder_i2s_set_more_div(struct snd_soc_component *component,
 					struct snd_pcm_hw_params *params,
 					unsigned int bs)
 {
-	struct aiu *aiu = snd_soc_component_get_drvdata(component);
-	struct gx_iface *iface = &aiu->i2s.iface;
-
 	/*
 	 * NOTE: this HW is odd.
 	 * In most configuration, the i2s divider is 'mclk / blck'.
@@ -76,25 +99,13 @@ static int aiu_encoder_i2s_set_more_div(struct snd_soc_component *component,
 	 * increased by 50% to get the correct output rate.
 	 * No idea why !
 	 */
-	if (params_width(params) == 16 && params_channels(params) == 8) {
+	if (aiu_encoder_is_bs_quirk(params_channels(params), params_width(params))) {
 		if (bs % 2) {
 			dev_err(component->dev,
 				"Cannot increase i2s divider by 50%%\n");
 			return -EINVAL;
 		}
 		bs += bs / 2;
-		iface->bs_quirk = true;
-	} else {
-		/*
-		 * If the bs quirk is currently applied for one stream and another
-		 * ones tries to setup a configuration for which the quirk is
-		 * not required, then fail.
-		 */
-		if (iface->bs_quirk) {
-			dev_err(component->dev,
-				"bclk requirements are incompatible with active stream\n");
-			return -EINVAL;
-		}
 	}
 
 	/* Use CLK_MORE for mclk to bclk divider */
@@ -110,9 +121,11 @@ static int aiu_encoder_i2s_set_more_div(struct snd_soc_component *component,
 	return 0;
 }
 
-static int aiu_encoder_i2s_set_clocks(struct snd_soc_component *component,
-				      struct snd_pcm_hw_params *params)
+static int aiu_encoder_i2s_set_clocks(struct snd_pcm_substream *substream,
+				      struct snd_pcm_hw_params *params,
+				      struct snd_soc_dai *dai)
 {
+	struct snd_soc_component *component = dai->component;
 	struct aiu *aiu = snd_soc_component_get_drvdata(component);
 	struct gx_iface *iface = &aiu->i2s.iface;
 	unsigned int srate = params_rate(params);
@@ -133,10 +146,15 @@ static int aiu_encoder_i2s_set_clocks(struct snd_soc_component *component,
 
 	bs = fs / 64;
 
-	if (aiu->platform->has_clk_ctrl_more_i2s_div)
+	if (aiu->platform->has_clk_ctrl_more_i2s_div) {
+		if (aiu_encoder_check_bs_quirk(substream, params, dai)) {
+			dev_err(dai->dev, "bclk requirements incompatible with other stream\n");
+			return -EINVAL;
+		}
 		ret = aiu_encoder_i2s_set_more_div(component, params, bs);
-	else
+	} else {
 		ret = aiu_encoder_i2s_set_legacy_div(component, params, bs);
+	}
 
 	if (ret)
 		return ret;
@@ -155,7 +173,6 @@ static int aiu_encoder_i2s_hw_params(struct snd_pcm_substream *substream,
 {
 	struct gx_stream *ts = snd_soc_dai_get_dma_data(dai, substream);
 	struct gx_iface *iface = ts->iface;
-	struct snd_soc_component *component = dai->component;
 	int ret;
 
 	/*
@@ -170,7 +187,7 @@ static int aiu_encoder_i2s_hw_params(struct snd_pcm_substream *substream,
 		}
 	}
 
-	ret = aiu_encoder_i2s_set_clocks(component, params);
+	ret = aiu_encoder_i2s_set_clocks(substream, params, dai);
 	if (ret) {
 		dev_err(dai->dev, "setting i2s clocks failed: %d\n", ret);
 		return ret;
@@ -219,13 +236,16 @@ static int aiu_encoder_i2s_hw_free(struct snd_pcm_substream *substream,
 	if (snd_soc_dai_active(dai) <= 1) {
 		aiu_encoder_i2s_divider_enable(component, 0);
 		iface->rate = 0;
-		iface->bs_quirk = false;
 	}
 
 	if (ts->clk_enabled) {
 		clk_disable_unprepare(ts->iface->mclk);
 		ts->clk_enabled = false;
 	}
+
+	ts->channels = 0;
+	ts->width = 0;
+	ts->physical_width = 0;
 
 	return 0;
 }
