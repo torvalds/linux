@@ -1499,6 +1499,25 @@ int iris_set_req_sync_frame(struct iris_inst *inst, enum platform_inst_fw_cap_ty
 					     &hfi_val, sizeof(u32));
 }
 
+int iris_set_time_delta_based_rc(struct iris_inst *inst, enum platform_inst_fw_cap_type cap_id)
+{
+	const struct iris_hfi_session_ops *hfi_ops = inst->hfi_session_ops;
+	u32 hfi_id = inst->fw_caps[cap_id].hfi_id;
+	u32 value = inst->fw_caps[cap_id].value;
+
+	/*
+	 * Disable time-delta-based rate control (value = 0).
+	 * This overrides the firmware's default (enabled), ensuring the
+	 * firmware uses the configured bitrate target rather than calculating
+	 * bitrate from frame timing.
+	 */
+	return hfi_ops->session_set_property(inst, hfi_id,
+					     HFI_HOST_FLAGS_NONE,
+					     iris_get_port_info(inst, cap_id),
+					     HFI_PAYLOAD_U32,
+					     &value, sizeof(u32));
+}
+
 int iris_set_properties(struct iris_inst *inst, u32 plane)
 {
 	const struct iris_hfi_session_ops *hfi_ops = inst->hfi_session_ops;

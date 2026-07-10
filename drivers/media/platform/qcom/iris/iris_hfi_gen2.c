@@ -1241,6 +1241,16 @@ static const struct platform_inst_fw_cap inst_fw_cap_sm8550_enc[] = {
 		.set = iris_set_bitrate_mode_gen2,
 	},
 	{
+		.cap_id = TIME_DELTA_BASED_RC,
+		.min = 0,
+		.max = 1,
+		.step_or_mask = 1,
+		.value = 0,
+		.hfi_id = HFI_PROP_TIME_DELTA_BASED_RATE_CONTROL,
+		.flags = CAP_FLAG_OUTPUT_PORT,
+		.set = iris_set_time_delta_based_rc,
+	},
+	{
 		.cap_id = FRAME_SKIP_MODE,
 		.min = V4L2_MPEG_VIDEO_FRAME_SKIP_MODE_DISABLED,
 		.max = V4L2_MPEG_VIDEO_FRAME_SKIP_MODE_BUF_LIMIT,
