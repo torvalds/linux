@@ -38,10 +38,6 @@
 # define USE_DEBUG 0
 #endif
 
-enum {
-	VERBOSE_STATUS = 1 /* make it zero to save 400 bytes kernel memory */
-};
-
 /* Entry status and match type bit numbers. */
 enum binfmt_misc_entry_bits {
 	MISC_FMT_ENABLED_BIT	= 0,
@@ -609,11 +605,6 @@ static void entry_status(struct binfmt_misc_entry *e, char *page)
 
 	if (test_bit(MISC_FMT_ENABLED_BIT, &e->flags))
 		status = "enabled";
-
-	if (!VERBOSE_STATUS) {
-		sprintf(page, "%s\n", status);
-		return;
-	}
 
 	dp += sprintf(dp, "%s\ninterpreter %s\n", status, e->interpreter);
 
