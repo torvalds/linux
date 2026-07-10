@@ -184,29 +184,27 @@ static void put_binfmt_handler(struct binfmt_misc_entry *e)
 }
 
 /**
- * load_binfmt_misc - load the binfmt_misc of the caller's user namespace
+ * current_binfmt_misc - get the binfmt_misc instance of the caller's user namespace
  *
- * To be called in load_misc_binary() to load the relevant struct binfmt_misc.
- * If a user namespace doesn't have its own binfmt_misc mount it can make use
- * of its ancestor's binfmt_misc handlers. This mimicks the behavior of
- * pre-namespaced binfmt_misc where all registered binfmt_misc handlers where
- * available to all user and user namespaces on the system.
+ * If a user namespace doesn't have its own binfmt_misc mount it uses the
+ * handlers of its closest ancestor with one. This mimics the behavior of
+ * pre-namespaced binfmt_misc where all registered handlers were available
+ * to all users and user namespaces on the system. The init user namespace
+ * instance is statically set up so the fallback is never reached in
+ * practice.
  *
  * Return: the binfmt_misc instance of the caller's user namespace
  */
-static struct binfmt_misc *load_binfmt_misc(void)
+static struct binfmt_misc *current_binfmt_misc(void)
 {
 	const struct user_namespace *user_ns;
 	struct binfmt_misc *misc;
 
-	user_ns = current_user_ns();
-	while (user_ns) {
+	for (user_ns = current_user_ns(); user_ns; user_ns = user_ns->parent) {
 		/* Pairs with smp_store_release() in bm_fill_super(). */
 		misc = smp_load_acquire(&user_ns->binfmt_misc);
 		if (misc)
 			return misc;
-
-		user_ns = user_ns->parent;
 	}
 
 	return &init_binfmt_misc;
@@ -222,7 +220,7 @@ static int load_misc_binary(struct linux_binprm *bprm)
 	int retval = -ENOEXEC;
 	struct binfmt_misc *misc;
 
-	misc = load_binfmt_misc();
+	misc = current_binfmt_misc();
 	if (!READ_ONCE(misc->enabled))
 		return retval;
 
@@ -977,7 +975,7 @@ static int bm_fill_super(struct super_block *sb, struct fs_context *fc)
 		INIT_HLIST_HEAD(&misc->entries);
 		spin_lock_init(&misc->entries_lock);
 
-		/* Pairs with smp_load_acquire() in load_binfmt_misc(). */
+		/* Pairs with smp_load_acquire() in current_binfmt_misc(). */
 		smp_store_release(&user_ns->binfmt_misc, misc);
 	}
 
