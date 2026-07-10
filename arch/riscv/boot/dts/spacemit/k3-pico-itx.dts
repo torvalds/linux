@@ -233,7 +233,7 @@
 			reg = <1>;
 			reset-gpios = <&gpio 0 15 GPIO_ACTIVE_LOW>;
 			reset-assert-us = <10000>;
-			reset-deassert-us = <10000>;
+			reset-deassert-us = <50000>;
 			realtek,aldps-enable;
 			realtek,clkout-disable;
 		};
