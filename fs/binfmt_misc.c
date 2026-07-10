@@ -42,7 +42,11 @@ enum {
 	VERBOSE_STATUS = 1 /* make it zero to save 400 bytes kernel memory */
 };
 
-enum {Enabled, Magic};
+/* Entry status and match type bit numbers. */
+enum binfmt_misc_entry_bits {
+	MISC_FMT_ENABLED_BIT	= 0,
+	MISC_FMT_MAGIC_BIT	= 1,
+};
 #define MISC_FMT_PRESERVE_ARGV0 (1UL << 31)
 #define MISC_FMT_OPEN_BINARY (1UL << 30)
 #define MISC_FMT_CREDENTIALS (1UL << 29)
@@ -104,11 +108,11 @@ static Node *search_binfmt_handler(struct binfmt_misc *misc,
 		int j;
 
 		/* Make sure this one is currently enabled. */
-		if (!test_bit(Enabled, &e->flags))
+		if (!test_bit(MISC_FMT_ENABLED_BIT, &e->flags))
 			continue;
 
 		/* Do matching based on extension if applicable. */
-		if (!test_bit(Magic, &e->flags)) {
+		if (!test_bit(MISC_FMT_MAGIC_BIT, &e->flags)) {
 			if (p && !strcmp(e->magic, p + 1))
 				return e;
 			continue;
@@ -416,11 +420,11 @@ static Node *create_entry(const char __user *buffer, size_t count)
 	switch (*p++) {
 	case 'E':
 		pr_debug("register: type: E (extension)\n");
-		e->flags = 1 << Enabled;
+		e->flags = BIT(MISC_FMT_ENABLED_BIT);
 		break;
 	case 'M':
 		pr_debug("register: type: M (magic)\n");
-		e->flags = (1 << Enabled) | (1 << Magic);
+		e->flags = BIT(MISC_FMT_ENABLED_BIT) | BIT(MISC_FMT_MAGIC_BIT);
 		break;
 	default:
 		goto einval;
@@ -428,7 +432,7 @@ static Node *create_entry(const char __user *buffer, size_t count)
 	if (*p++ != del)
 		goto einval;
 
-	if (test_bit(Magic, &e->flags)) {
+	if (test_bit(MISC_FMT_MAGIC_BIT, &e->flags)) {
 		/* Handle the 'M' (magic) format. */
 		char *s;
 
@@ -598,7 +602,7 @@ static void entry_status(Node *e, char *page)
 	char *dp = page;
 	const char *status = "disabled";
 
-	if (test_bit(Enabled, &e->flags))
+	if (test_bit(MISC_FMT_ENABLED_BIT, &e->flags))
 		status = "enabled";
 
 	if (!VERBOSE_STATUS) {
@@ -620,7 +624,7 @@ static void entry_status(Node *e, char *page)
 		*dp++ = 'F';
 	*dp++ = '\n';
 
-	if (!test_bit(Magic, &e->flags)) {
+	if (!test_bit(MISC_FMT_MAGIC_BIT, &e->flags)) {
 		sprintf(dp, "extension .%s\n", e->magic);
 	} else {
 		dp += sprintf(dp, "offset %i\nmagic ", e->offset);
@@ -744,11 +748,11 @@ static ssize_t bm_entry_write(struct file *file, const char __user *buffer,
 	switch (res) {
 	case 1:
 		/* Disable this handler. */
-		clear_bit(Enabled, &e->flags);
+		clear_bit(MISC_FMT_ENABLED_BIT, &e->flags);
 		break;
 	case 2:
 		/* Enable this handler. */
-		set_bit(Enabled, &e->flags);
+		set_bit(MISC_FMT_ENABLED_BIT, &e->flags);
 		break;
 	case 3:
 		/* Delete this handler. */
