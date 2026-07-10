@@ -1016,7 +1016,7 @@ static int nfs4_init_cp_state(struct nfsd_net *nn, copy_stateid_t *stid,
 	return 1;
 }
 
-int nfs4_init_copy_state(struct nfsd_net *nn, struct nfsd4_copy *copy)
+int nfs4_init_copy_state(struct nfsd_net *nn, struct nfsd4_async_copy *copy)
 {
 	return nfs4_init_cp_state(nn, &copy->cp_stateid, NFS4_COPY_STID, NULL);
 }
@@ -1050,13 +1050,13 @@ out_free:
 	return NULL;
 }
 
-void nfs4_free_copy_state(struct nfsd4_copy *copy)
+void nfs4_free_copy_state(struct nfsd4_async_copy *copy)
 {
 	struct nfsd_net *nn;
 
 	if (copy->cp_stateid.cs_type != NFS4_COPY_STID)
 		return;
-	nn = net_generic(copy->cp_clp->net, nfsd_net_id);
+	nn = net_generic(copy->cp_copy.cp_clp->net, nfsd_net_id);
 	spin_lock(&nn->s2s_cp_lock);
 	idr_remove(&nn->s2s_cp_stateids,
 		   copy->cp_stateid.cs_stid.si_opaque.so_id);
