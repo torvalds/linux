@@ -272,6 +272,9 @@ struct o2hb_bio_wait_ctxt {
 	atomic_t          wc_num_reqs;
 	struct completion wc_io_complete;
 	int               wc_error;
+	/* On-stack bio used by the synchronous write path only. */
+	struct bio        wc_write_bio;
+	struct bio_vec    wc_write_bvec;
 };
 
 #define O2HB_NEGO_TIMEOUT_MS (O2HB_MAX_WRITE_TIMEOUT_MS/2)
@@ -507,6 +510,23 @@ static void o2hb_bio_end_io(struct bio *bio)
 	bio_put(bio);
 }
 
+/*
+ * End I/O for the synchronous write path. The write bio is embedded in
+ * the wait ctxt rather than allocated, so it must not be freed here; it
+ * is torn down with bio_uninit() once the caller has waited on it.
+ */
+static void o2hb_write_bio_end_io(struct bio *bio)
+{
+	struct o2hb_bio_wait_ctxt *wc = bio->bi_private;
+
+	if (bio->bi_status) {
+		mlog(ML_ERROR, "IO Error %d\n", bio->bi_status);
+		wc->wc_error = blk_status_to_errno(bio->bi_status);
+	}
+
+	o2hb_bio_wait_dec(wc, 1);
+}
+
 /* Setup a Bio to cover I/O against num_slots slots starting at
  * start_slot. */
 static struct bio *o2hb_setup_one_bio(struct o2hb_region *reg,
@@ -582,7 +602,11 @@ static int o2hb_issue_node_write(struct o2hb_region *reg,
 				 struct o2hb_bio_wait_ctxt *write_wc)
 {
 	unsigned int slot;
-	struct bio *bio;
+	unsigned int bits = reg->hr_block_bits;
+	unsigned int spp = reg->hr_slots_per_page;
+	unsigned int vec_start, vec_len;
+	struct page *page;
+	struct bio *bio = &write_wc->wc_write_bio;
 
 	o2hb_bio_wait_init(write_wc);
 
@@ -590,8 +614,21 @@ static int o2hb_issue_node_write(struct o2hb_region *reg,
 	if (slot >= O2NM_MAX_NODES)
 		return -EINVAL;
 
-	bio = o2hb_setup_one_bio(reg, write_wc, &slot, slot+1,
-				 REQ_OP_WRITE | REQ_SYNC);
+	/*
+	 * The heartbeat write always covers our own single slot, i.e. one
+	 * block that lives within a single page. Use an on-stack bio (embedded
+	 * in write_wc) so this fence-critical path never has to allocate.
+	 */
+	bio_init(bio, reg_bdev(reg), &write_wc->wc_write_bvec, 1,
+		 REQ_OP_WRITE | REQ_SYNC);
+	bio->bi_iter.bi_sector = (reg->hr_start_block + slot) << (bits - 9);
+	bio->bi_private = write_wc;
+	bio->bi_end_io = o2hb_write_bio_end_io;
+
+	page = reg->hr_slot_data[slot / spp];
+	vec_start = (slot << bits) % PAGE_SIZE;
+	vec_len = PAGE_SIZE / spp;
+	__bio_add_page(bio, page, vec_len, vec_start);
 
 	atomic_inc(&write_wc->wc_num_reqs);
 	submit_bio(bio);
@@ -1133,6 +1170,7 @@ static int o2hb_do_disk_heartbeat(struct o2hb_region *reg)
 	 * people we find in our steady state have seen us.
 	 */
 	o2hb_wait_on_io(&write_wc);
+	bio_uninit(&write_wc.wc_write_bio);
 	if (write_wc.wc_error) {
 		/* Do not re-arm the write timeout on I/O error - we
 		 * can't be sure that the new block ever made it to
@@ -1245,10 +1283,12 @@ static int o2hb_thread(void *data)
 	if (!reg->hr_unclean_stop && !reg->hr_aborted_start) {
 		o2hb_prepare_block(reg, 0);
 		ret = o2hb_issue_node_write(reg, &write_wc);
-		if (ret == 0)
+		if (ret == 0) {
 			o2hb_wait_on_io(&write_wc);
-		else
+			bio_uninit(&write_wc.wc_write_bio);
+		} else {
 			mlog_errno(ret);
+		}
 	}
 
 	/* Unpin node */
