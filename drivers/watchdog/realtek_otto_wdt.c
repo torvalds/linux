@@ -27,6 +27,7 @@
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/reboot.h>
+#include <linux/regmap.h>
 #include <linux/watchdog.h>
 
 #define OTTO_WDT_REG_CNTR		0x0
@@ -65,7 +66,7 @@
 struct otto_wdt_ctrl {
 	struct watchdog_device wdev;
 	struct device *dev;
-	void __iomem *base;
+	struct regmap *regmap;
 	unsigned int clk_rate_khz;
 	int irq_phase1;
 };
@@ -73,24 +74,17 @@ struct otto_wdt_ctrl {
 static int otto_wdt_start(struct watchdog_device *wdev)
 {
 	struct otto_wdt_ctrl *ctrl = watchdog_get_drvdata(wdev);
-	u32 v;
 
-	v = ioread32(ctrl->base + OTTO_WDT_REG_CTRL);
-	v |= OTTO_WDT_CTRL_ENABLE;
-	iowrite32(v, ctrl->base + OTTO_WDT_REG_CTRL);
-
+	regmap_set_bits(ctrl->regmap, OTTO_WDT_REG_CTRL, OTTO_WDT_CTRL_ENABLE);
 	return 0;
 }
 
 static int otto_wdt_stop(struct watchdog_device *wdev)
 {
 	struct otto_wdt_ctrl *ctrl = watchdog_get_drvdata(wdev);
-	u32 v;
 
-	v = ioread32(ctrl->base + OTTO_WDT_REG_CTRL);
-	v &= ~OTTO_WDT_CTRL_ENABLE;
-	iowrite32(v, ctrl->base + OTTO_WDT_REG_CTRL);
-
+	regmap_clear_bits(ctrl->regmap, OTTO_WDT_REG_CTRL,
+			  OTTO_WDT_CTRL_ENABLE);
 	return 0;
 }
 
@@ -98,8 +92,7 @@ static int otto_wdt_ping(struct watchdog_device *wdev)
 {
 	struct otto_wdt_ctrl *ctrl = watchdog_get_drvdata(wdev);
 
-	iowrite32(OTTO_WDT_CNTR_PING, ctrl->base + OTTO_WDT_REG_CNTR);
-
+	regmap_write(ctrl->regmap, OTTO_WDT_REG_CNTR, OTTO_WDT_CNTR_PING);
 	return 0;
 }
 
@@ -125,7 +118,7 @@ static int otto_wdt_determine_timeouts(struct watchdog_device *wdev, unsigned in
 	unsigned int total_ticks;
 	unsigned int prescale;
 	unsigned int tick_ms;
-	u32 v;
+	u32 mask, val;
 
 	do {
 		prescale = prescale_next;
@@ -141,14 +134,11 @@ static int otto_wdt_determine_timeouts(struct watchdog_device *wdev, unsigned in
 	} while (phase1_ticks > OTTO_WDT_PHASE_TICKS_MAX
 		|| phase2_ticks > OTTO_WDT_PHASE_TICKS_MAX);
 
-	v = ioread32(ctrl->base + OTTO_WDT_REG_CTRL);
-
-	v &= ~(OTTO_WDT_CTRL_PRESCALE | OTTO_WDT_CTRL_PHASE1 | OTTO_WDT_CTRL_PHASE2);
-	v |= FIELD_PREP(OTTO_WDT_CTRL_PHASE1, phase1_ticks - 1);
-	v |= FIELD_PREP(OTTO_WDT_CTRL_PHASE2, phase2_ticks - 1);
-	v |= FIELD_PREP(OTTO_WDT_CTRL_PRESCALE, prescale);
-
-	iowrite32(v, ctrl->base + OTTO_WDT_REG_CTRL);
+	mask = OTTO_WDT_CTRL_PRESCALE | OTTO_WDT_CTRL_PHASE1 | OTTO_WDT_CTRL_PHASE2;
+	val = FIELD_PREP(OTTO_WDT_CTRL_PHASE1, phase1_ticks - 1);
+	val |= FIELD_PREP(OTTO_WDT_CTRL_PHASE2, phase2_ticks - 1);
+	val |= FIELD_PREP(OTTO_WDT_CTRL_PRESCALE, prescale);
+	regmap_update_bits(ctrl->regmap, OTTO_WDT_REG_CTRL, mask, val);
 
 	timeout_ms = total_ticks * tick_ms;
 	ctrl->wdev.timeout = timeout_ms / 1000;
@@ -192,7 +182,7 @@ static int otto_wdt_restart(struct watchdog_device *wdev, unsigned long reboot_m
 
 	/* Configure for shortest timeout and wait for reset to occur */
 	v = FIELD_PREP(OTTO_WDT_CTRL_RST_MODE, reset_mode) | OTTO_WDT_CTRL_ENABLE;
-	iowrite32(v, ctrl->base + OTTO_WDT_REG_CTRL);
+	regmap_write(ctrl->regmap, OTTO_WDT_REG_CTRL, v);
 
 	mdelay(3 * otto_wdt_tick_ms(ctrl, 0));
 
@@ -203,7 +193,7 @@ static irqreturn_t otto_wdt_phase1_isr(int irq, void *dev_id)
 {
 	struct otto_wdt_ctrl *ctrl = dev_id;
 
-	iowrite32(OTTO_WDT_INTR_PHASE_1, ctrl->base + OTTO_WDT_REG_INTR);
+	regmap_write(ctrl->regmap, OTTO_WDT_REG_INTR, OTTO_WDT_INTR_PHASE_1);
 	dev_crit(ctrl->dev, "phase 1 timeout\n");
 	watchdog_notify_pretimeout(&ctrl->wdev);
 
@@ -249,7 +239,6 @@ static int otto_wdt_probe_reset_mode(struct otto_wdt_ctrl *ctrl)
 	const struct fwnode_handle *node = ctrl->dev->fwnode;
 	int mode_count;
 	u32 mode;
-	u32 v;
 
 	if (!node)
 		return -ENXIO;
@@ -271,19 +260,25 @@ static int otto_wdt_probe_reset_mode(struct otto_wdt_ctrl *ctrl)
 	else
 		return -EINVAL;
 
-	v = ioread32(ctrl->base + OTTO_WDT_REG_CTRL);
-	v &= ~OTTO_WDT_CTRL_RST_MODE;
-	v |= FIELD_PREP(OTTO_WDT_CTRL_RST_MODE, mode);
-	iowrite32(v, ctrl->base + OTTO_WDT_REG_CTRL);
-
+	regmap_update_bits(ctrl->regmap, OTTO_WDT_REG_CTRL,
+			   OTTO_WDT_CTRL_RST_MODE,
+			   FIELD_PREP(OTTO_WDT_CTRL_RST_MODE, mode));
 	return 0;
 }
+
+static const struct regmap_config realtek_otto_wdt_regmap_config = {
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.val_bits = 32,
+	.disable_locking = true,
+};
 
 static int otto_wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct otto_wdt_ctrl *ctrl;
 	unsigned int max_tick_ms;
+	void __iomem *base;
 	int ret;
 
 	ctrl = devm_kzalloc(dev, sizeof(*ctrl), GFP_KERNEL);
@@ -291,18 +286,25 @@ static int otto_wdt_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ctrl->dev = dev;
-	ctrl->base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(ctrl->base))
-		return PTR_ERR(ctrl->base);
+	base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
+
+	ctrl->regmap = devm_regmap_init_mmio(dev, base,
+					     &realtek_otto_wdt_regmap_config);
+	if (IS_ERR(ctrl->regmap)) {
+		dev_err(dev, "regmap init failed\n");
+		return PTR_ERR(ctrl->regmap);
+	}
 
 	ret = otto_wdt_probe_clk(ctrl);
 	if (ret)
 		return ret;
 
 	/* Clear any old interrupts and reset initial state */
-	iowrite32(OTTO_WDT_INTR_PHASE_1 | OTTO_WDT_INTR_PHASE_2,
-			ctrl->base + OTTO_WDT_REG_INTR);
-	iowrite32(OTTO_WDT_CTRL_DEFAULT, ctrl->base + OTTO_WDT_REG_CTRL);
+	regmap_write(ctrl->regmap, OTTO_WDT_REG_INTR,
+		     OTTO_WDT_INTR_PHASE_1 | OTTO_WDT_INTR_PHASE_2);
+	regmap_write(ctrl->regmap, OTTO_WDT_REG_CTRL, OTTO_WDT_CTRL_DEFAULT);
 
 	ctrl->irq_phase1 = platform_get_irq_byname(pdev, "phase1");
 	if (ctrl->irq_phase1 < 0)

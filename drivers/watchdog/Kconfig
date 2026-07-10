@@ -1105,6 +1105,7 @@ config REALTEK_OTTO_WDT
 	depends on MACH_REALTEK_RTL || COMPILE_TEST
 	depends on COMMON_CLK
 	select WATCHDOG_CORE
+	select REGMAP_MMIO
 	default MACH_REALTEK_RTL
 	help
 	  Say Y here to include support for the watchdog timer on Realtek
