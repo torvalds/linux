@@ -115,6 +115,8 @@ void hdcp_update_display_encryption_control(struct hdcp_workqueue *hdcp_work,
 					    bool enable_encryption);
 void event_property_update(struct work_struct *work);
 void link_lock(struct hdcp_workqueue *work, bool lock);
+void hdcp_remove_display(struct hdcp_workqueue *hdcp_work, unsigned int link_index,
+			 struct amdgpu_dm_connector *aconnector);
 uint8_t *psp_get_srm(struct psp_context *psp, uint32_t *srm_version, uint32_t *srm_size);
 int psp_set_srm(struct psp_context *psp, u8 *srm, uint32_t srm_size, uint32_t *srm_version);
 #endif

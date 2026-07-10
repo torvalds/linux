@@ -9,6 +9,7 @@
 #include <linux/workqueue.h>
 
 #include "amdgpu.h"
+#include "amdgpu_dm.h"
 #include "amdgpu_dm_hdcp.h"
 
 static void dummy_work_fn(struct work_struct *work) {}
@@ -753,6 +754,206 @@ static void dm_test_psp_set_srm_uninitialized_returns_einval(struct kunit *test)
 
 /* End of tests for psp_get_srm() and psp_set_srm() */
 
+/*
+ * Tests for hdcp_update_display() / hdcp_remove_display() /
+ * hdcp_reset_display().
+ */
+
+/**
+ * alloc_test_workqueue_locked - workqueue with dworks and mutex initialised
+ * @test: KUnit test context for managed allocation
+ *
+ * Allocates a minimal hdcp_workqueue with its mutex and the three delayed
+ * works initialised, as required by the guard(mutex) and process_output()
+ * usage in the display update/remove/reset helpers.
+ */
+static struct hdcp_workqueue *alloc_test_workqueue_locked(struct kunit *test)
+{
+	struct hdcp_workqueue *work;
+
+	work = kunit_kzalloc(test, sizeof(*work), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, work);
+
+	mutex_init(&work->mutex);
+	INIT_DELAYED_WORK(&work->callback_dwork, dummy_work_fn);
+	INIT_DELAYED_WORK(&work->watchdog_timer_dwork, dummy_work_fn);
+	INIT_DELAYED_WORK(&work->property_validate_dwork, dummy_work_fn);
+
+	return work;
+}
+
+/**
+ * alloc_test_connector - minimal amdgpu_dm_connector for display tests
+ * @test: KUnit test context for managed allocation
+ * @index: drm connector index to assign
+ *
+ * Allocates an amdgpu_dm_connector with an initialised connector refcount
+ * (so drm_connector_get() is valid) and a dc_link/dc pair. The connector's
+ * free_cb is left NULL so drm_connector_put() is a safe no-op that never
+ * releases the object.
+ */
+static struct amdgpu_dm_connector *alloc_test_connector(struct kunit *test,
+							unsigned int index)
+{
+	struct amdgpu_dm_connector *aconnector;
+	struct dc_link *dc_link;
+	struct dc *dc;
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+	dc_link = kunit_kzalloc(test, sizeof(*dc_link), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dc_link);
+	dc = kunit_kzalloc(test, sizeof(*dc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dc);
+
+	kref_init(&aconnector->base.base.refcount);
+	aconnector->base.index = index;
+	dc_link->dc = dc;
+	aconnector->dc_link = dc_link;
+
+	return aconnector;
+}
+
+/**
+ * dm_test_hdcp_update_display_enable_registers_connector - enable stores the connector
+ * @test: KUnit test context
+ *
+ * hdcp_update_display() with enable_encryption=true should register the
+ * connector in the per-link aconnector array at its connector index. The
+ * hdcp has no active display, so mod_hdcp_update_display() is effectively a
+ * no-op and the call must not touch encryption_status.
+ */
+static void dm_test_hdcp_update_display_enable_registers_connector(struct kunit *test)
+{
+	struct hdcp_workqueue *work = alloc_test_workqueue_locked(test);
+	struct amdgpu_dm_connector *aconnector = alloc_test_connector(test, 0);
+
+	work->srm_size = 0;
+
+	hdcp_update_display(work, 0, aconnector, DRM_MODE_HDCP_CONTENT_TYPE0, true);
+
+	KUNIT_EXPECT_PTR_EQ(test, work->aconnector[0], aconnector);
+	KUNIT_EXPECT_EQ(test, work->encryption_status[0],
+			MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF);
+
+	cancel_delayed_work_sync(&work->property_validate_dwork);
+	cancel_delayed_work_sync(&work->callback_dwork);
+	cancel_delayed_work_sync(&work->watchdog_timer_dwork);
+}
+
+/**
+ * dm_test_hdcp_update_display_disable_sets_status_off - disable clears status
+ * @test: KUnit test context
+ *
+ * hdcp_update_display() with enable_encryption=false should register the
+ * connector and reset the connector's encryption_status entry to HDCP_OFF
+ * via hdcp_update_display_encryption_control().
+ */
+static void dm_test_hdcp_update_display_disable_sets_status_off(struct kunit *test)
+{
+	struct hdcp_workqueue *work = alloc_test_workqueue_locked(test);
+	struct amdgpu_dm_connector *aconnector = alloc_test_connector(test, 2);
+
+	work->encryption_status[2] = MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE1_ON;
+
+	hdcp_update_display(work, 0, aconnector, DRM_MODE_HDCP_CONTENT_TYPE0, false);
+
+	KUNIT_EXPECT_PTR_EQ(test, work->aconnector[2], aconnector);
+	KUNIT_EXPECT_EQ(test, work->encryption_status[2],
+			MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF);
+
+	cancel_delayed_work_sync(&work->property_validate_dwork);
+	cancel_delayed_work_sync(&work->callback_dwork);
+	cancel_delayed_work_sync(&work->watchdog_timer_dwork);
+}
+
+/**
+ * dm_test_hdcp_remove_display_enabled_resets_cp - ENABLED CP reverts to DESIRED
+ * @test: KUnit test context
+ *
+ * hdcp_remove_display() must revert a connector whose content_protection is
+ * ENABLED back to DESIRED and clear the per-link aconnector entry.
+ */
+static void dm_test_hdcp_remove_display_enabled_resets_cp(struct kunit *test)
+{
+	struct hdcp_workqueue *work = alloc_test_workqueue_locked(test);
+	struct amdgpu_dm_connector *aconnector = alloc_test_connector(test, 1);
+	struct drm_connector_state *conn_state;
+
+	conn_state = kunit_kzalloc(test, sizeof(*conn_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, conn_state);
+
+	conn_state->content_protection = DRM_MODE_CONTENT_PROTECTION_ENABLED;
+	aconnector->base.state = conn_state;
+	work->aconnector[1] = aconnector;
+
+	hdcp_remove_display(work, 0, aconnector);
+
+	KUNIT_EXPECT_EQ(test, conn_state->content_protection,
+			DRM_MODE_CONTENT_PROTECTION_DESIRED);
+	KUNIT_EXPECT_PTR_EQ(test, work->aconnector[1], NULL);
+
+	cancel_delayed_work_sync(&work->property_validate_dwork);
+	cancel_delayed_work_sync(&work->callback_dwork);
+	cancel_delayed_work_sync(&work->watchdog_timer_dwork);
+}
+
+/**
+ * dm_test_hdcp_remove_display_null_state_clears_connector - NULL state skips CP change
+ * @test: KUnit test context
+ *
+ * When the connector has no drm_connector_state, hdcp_remove_display() must
+ * skip the content_protection update path and still clear the per-link
+ * aconnector entry.
+ */
+static void dm_test_hdcp_remove_display_null_state_clears_connector(struct kunit *test)
+{
+	struct hdcp_workqueue *work = alloc_test_workqueue_locked(test);
+	struct amdgpu_dm_connector *aconnector = alloc_test_connector(test, 0);
+
+	aconnector->base.state = NULL;
+	work->aconnector[0] = aconnector;
+
+	hdcp_remove_display(work, 0, aconnector);
+
+	KUNIT_EXPECT_PTR_EQ(test, work->aconnector[0], NULL);
+
+	cancel_delayed_work_sync(&work->property_validate_dwork);
+	cancel_delayed_work_sync(&work->callback_dwork);
+	cancel_delayed_work_sync(&work->watchdog_timer_dwork);
+}
+
+/**
+ * dm_test_hdcp_reset_display_clears_all_state - reset clears status and connectors
+ * @test: KUnit test context
+ *
+ * hdcp_reset_display() must reset every connector's encryption_status to
+ * HDCP_OFF and clear all per-link aconnector entries.
+ */
+static void dm_test_hdcp_reset_display_clears_all_state(struct kunit *test)
+{
+	struct hdcp_workqueue *work = alloc_test_workqueue_locked(test);
+	struct amdgpu_dm_connector *aconnector = alloc_test_connector(test, 4);
+
+	work->encryption_status[4] = MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE1_ON;
+	work->aconnector[4] = aconnector;
+
+	hdcp_reset_display(work, 0);
+
+	KUNIT_EXPECT_EQ(test, work->encryption_status[4],
+			MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF);
+	KUNIT_EXPECT_PTR_EQ(test, work->aconnector[4], NULL);
+
+	cancel_delayed_work_sync(&work->property_validate_dwork);
+	cancel_delayed_work_sync(&work->callback_dwork);
+	cancel_delayed_work_sync(&work->watchdog_timer_dwork);
+}
+
+/*
+ * End of tests for hdcp_update_display() / hdcp_remove_display() /
+ * hdcp_reset_display().
+ */
+
 static struct kunit_case dm_hdcp_test_cases[] = {
 	/* hdcp_get_content_protection_from_status() */
 	KUNIT_CASE(dm_test_hdcp_get_cp_disabled_returns_desired),
@@ -790,6 +991,12 @@ static struct kunit_case dm_hdcp_test_cases[] = {
 	/* psp_get_srm() / psp_set_srm() */
 	KUNIT_CASE(dm_test_psp_get_srm_uninitialized_returns_null),
 	KUNIT_CASE(dm_test_psp_set_srm_uninitialized_returns_einval),
+	/* hdcp_update_display() / hdcp_remove_display() / hdcp_reset_display() */
+	KUNIT_CASE(dm_test_hdcp_update_display_enable_registers_connector),
+	KUNIT_CASE(dm_test_hdcp_update_display_disable_sets_status_off),
+	KUNIT_CASE(dm_test_hdcp_remove_display_enabled_resets_cp),
+	KUNIT_CASE(dm_test_hdcp_remove_display_null_state_clears_connector),
+	KUNIT_CASE(dm_test_hdcp_reset_display_clears_all_state),
 	{}
 };
 
