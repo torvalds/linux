@@ -7,6 +7,9 @@
 
 #include <kunit/test.h>
 #include <linux/workqueue.h>
+#include <linux/kobject.h>
+#include <linux/slab.h>
+#include <linux/sysfs.h>
 
 #include "amdgpu.h"
 #include "amdgpu_dm.h"
@@ -1007,6 +1010,122 @@ static void dm_test_hdcp_create_workqueue_zero_max_links_returns_null(struct kun
 
 /* End of tests for hdcp_create_workqueue() */
 
+/* Tests for hdcp_destroy() */
+
+static ssize_t test_srm_bin_read(struct file *filp, struct kobject *kobj,
+				 const struct bin_attribute *bin_attr, char *buffer,
+				 loff_t pos, size_t count)
+{
+	return 0;
+}
+
+static ssize_t test_srm_bin_write(struct file *filp, struct kobject *kobj,
+				  const struct bin_attribute *bin_attr, char *buffer,
+				  loff_t pos, size_t count)
+{
+	return count;
+}
+
+/**
+ * setup_destroy_sysfs - create a kobject with the SRM bin file attached
+ * @test: KUnit test context
+ * @work: workqueue whose attr will be registered
+ *
+ * hdcp_destroy() calls sysfs_remove_bin_file() on the first entry's attr, so
+ * a real kobject with the bin file created is required. Returns the kobject,
+ * which the caller must kobject_put() after hdcp_destroy() has run.
+ */
+static struct kobject *setup_destroy_sysfs(struct kunit *test,
+					   struct hdcp_workqueue *work)
+{
+	struct kobject *kobj;
+	int ret;
+
+	kobj = kobject_create_and_add("amdgpu_dm_hdcp_test", NULL);
+	KUNIT_ASSERT_NOT_NULL(test, kobj);
+
+	sysfs_bin_attr_init(&work->attr);
+	work->attr.attr.name = "hdcp_srm";
+	work->attr.attr.mode = 0664;
+	work->attr.size = 16;
+	work->attr.read = test_srm_bin_read;
+	work->attr.write = test_srm_bin_write;
+
+	ret = sysfs_create_bin_file(kobj, &work->attr);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	return kobj;
+}
+
+/**
+ * dm_test_hdcp_destroy_frees_and_removes_sysfs - full teardown path
+ * @test: KUnit test context
+ *
+ * hdcp_destroy() must cancel every link's delayed works, remove the SRM
+ * sysfs bin file and free srm, srm_temp and the workqueue itself. The
+ * workqueue and SRM buffers use kzalloc() (not kunit-managed) because
+ * hdcp_destroy() frees them; KASAN/kmemleak validate there is no leak or
+ * use-after-free.
+ */
+static void dm_test_hdcp_destroy_frees_and_removes_sysfs(struct kunit *test)
+{
+	struct hdcp_workqueue *work;
+	struct kobject *kobj;
+
+	work = kzalloc_obj(*work);
+	KUNIT_ASSERT_NOT_NULL(test, work);
+
+	work->max_link = 1;
+	INIT_DELAYED_WORK(&work->callback_dwork, dummy_work_fn);
+	INIT_DELAYED_WORK(&work->watchdog_timer_dwork, dummy_work_fn);
+	INIT_DELAYED_WORK(&work->property_validate_dwork, dummy_work_fn);
+
+	work->srm = kzalloc(16, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, work->srm);
+	work->srm_temp = kzalloc(16, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, work->srm_temp);
+
+	kobj = setup_destroy_sysfs(test, work);
+
+	/* Pre-schedule a delayed work to exercise the cancel path. */
+	schedule_delayed_work(&work->callback_dwork, msecs_to_jiffies(10000));
+	KUNIT_ASSERT_TRUE(test, delayed_work_pending(&work->callback_dwork));
+
+	hdcp_destroy(kobj, work);
+
+	/* work is freed by hdcp_destroy(); only the kobject remains. */
+	kobject_put(kobj);
+}
+
+/**
+ * dm_test_hdcp_destroy_zero_links_null_srm - teardown with no links or SRM
+ * @test: KUnit test context
+ *
+ * With max_link == 0 the cancel loop is skipped, and NULL srm/srm_temp make
+ * the kfree() calls no-ops. hdcp_destroy() must still remove the sysfs bin
+ * file and free the workqueue without crashing.
+ */
+static void dm_test_hdcp_destroy_zero_links_null_srm(struct kunit *test)
+{
+	struct hdcp_workqueue *work;
+	struct kobject *kobj;
+
+	work = kzalloc_obj(*work);
+	KUNIT_ASSERT_NOT_NULL(test, work);
+
+	work->max_link = 0;
+	work->srm = NULL;
+	work->srm_temp = NULL;
+
+	kobj = setup_destroy_sysfs(test, work);
+
+	hdcp_destroy(kobj, work);
+
+	kobject_put(kobj);
+}
+
+/* End of tests for hdcp_destroy() */
+
 /* Tests for link_lock() */
 
 /**
@@ -1373,6 +1492,9 @@ static struct kunit_case dm_hdcp_test_cases[] = {
 	KUNIT_CASE(dm_test_hdcp_update_display_disable_resets_status_and_cancels_validate),
 	/* hdcp_create_workqueue() */
 	KUNIT_CASE(dm_test_hdcp_create_workqueue_zero_max_links_returns_null),
+	/* hdcp_destroy() */
+	KUNIT_CASE(dm_test_hdcp_destroy_frees_and_removes_sysfs),
+	KUNIT_CASE(dm_test_hdcp_destroy_zero_links_null_srm),
 	/* link_lock() */
 	KUNIT_CASE(dm_test_link_lock_locks_and_unlocks_all_links),
 	KUNIT_CASE(dm_test_link_lock_zero_links_is_noop),

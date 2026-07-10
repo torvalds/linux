@@ -568,6 +568,7 @@ void hdcp_destroy(struct kobject *kobj, struct hdcp_workqueue *hdcp_work)
 	kfree(hdcp_work->srm_temp);
 	kfree(hdcp_work);
 }
+EXPORT_IF_KUNIT(hdcp_destroy);
 
 static bool enable_assr(void *handle, struct dc_link *link)
 {
