@@ -1216,6 +1216,16 @@ config HID_HYPERV_MOUSE
 	help
 	Select this option to enable the Hyper-V mouse driver.
 
+config HID_HYPERV_MOUSE_KUNIT_TEST
+	bool "KUnit tests for Hyper-V mouse driver" if !KUNIT_ALL_TESTS
+	depends on KUNIT && HID_HYPERV_MOUSE
+	default KUNIT_ALL_TESTS
+	help
+	  Builds unit tests for the Hyper-V synthetic HID driver.
+	  These tests exercise the initial device-info parser with
+	  malformed host-provided HID descriptors and are only useful
+	  for kernel developers running KUnit.
+
 config HID_SMARTJOYPLUS
 	tristate "SmartJoy PLUS PS2/USB adapter support"
 	help

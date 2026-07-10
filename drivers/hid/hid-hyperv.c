@@ -13,6 +13,9 @@
 #include <linux/hiddev.h>
 #include <linux/hyperv.h>
 
+#if IS_ENABLED(CONFIG_HID_HYPERV_MOUSE_KUNIT_TEST)
+#include <kunit/test.h>
+#endif
 
 struct hv_input_dev_info {
 	unsigned int size;
@@ -240,13 +243,18 @@ static void mousevsc_on_receive_device_info(struct mousevsc_dev *input_device,
 	ack.ack.header.size = 1;
 	ack.ack.reserved = 0;
 
-	ret = vmbus_sendpacket(input_device->device->channel,
-			&ack,
-			sizeof(struct pipe_prt_msg) +
-			sizeof(struct synthhid_device_info_ack),
-			(unsigned long)&ack,
-			VM_PKT_DATA_INBAND,
-			VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	if (IS_ENABLED(CONFIG_HID_HYPERV_MOUSE_KUNIT_TEST) &&
+	    !input_device->device) {
+		ret = 0;
+	} else {
+		ret = vmbus_sendpacket(input_device->device->channel,
+				       &ack,
+				       sizeof(struct pipe_prt_msg) +
+				       sizeof(struct synthhid_device_info_ack),
+				       (unsigned long)&ack,
+				       VM_PKT_DATA_INBAND,
+				       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	}
 
 	if (!ret)
 		input_device->dev_info_status = 0;
@@ -634,6 +642,101 @@ static void __exit mousevsc_exit(void)
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Microsoft Hyper-V Synthetic HID Driver");
+
+#if IS_ENABLED(CONFIG_HID_HYPERV_MOUSE_KUNIT_TEST)
+static struct mousevsc_dev *mousevsc_kunit_alloc_dev(struct kunit *test)
+{
+	struct mousevsc_dev *input_dev;
+
+	input_dev = kunit_kzalloc(test, sizeof(*input_dev), GFP_KERNEL);
+	if (!input_dev)
+		return NULL;
+
+	init_completion(&input_dev->wait_event);
+
+	return input_dev;
+}
+
+static void mousevsc_device_info_zero_blength(struct kunit *test)
+{
+	struct synthhid_device_info *info;
+	struct mousevsc_dev *input_dev;
+
+	input_dev = mousevsc_kunit_alloc_dev(test);
+	KUNIT_ASSERT_NOT_NULL(test, input_dev);
+	info = kunit_kzalloc(test, sizeof(*info), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, info);
+
+	info->hid_descriptor.bLength = 0;
+
+	mousevsc_on_receive_device_info(input_dev, info, sizeof(*info));
+
+	KUNIT_EXPECT_EQ(test, input_dev->dev_info_status, -ENOMEM);
+}
+
+static void mousevsc_device_info_valid_descriptor(struct kunit *test)
+{
+	struct synthhid_device_info *info;
+	struct mousevsc_dev *input_dev;
+	u8 *report;
+
+	input_dev = mousevsc_kunit_alloc_dev(test);
+	KUNIT_ASSERT_NOT_NULL(test, input_dev);
+	info = kunit_kzalloc(test, sizeof(*info) + 4, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, info);
+
+	info->hid_descriptor.bLength = sizeof(struct hid_descriptor);
+	info->hid_descriptor.rpt_desc.wDescriptorLength = cpu_to_le16(4);
+	report = ((u8 *)&info->hid_descriptor) + info->hid_descriptor.bLength;
+	memset(report, 0x42, 4);
+
+	mousevsc_on_receive_device_info(input_dev, info, sizeof(*info) + 4);
+
+	KUNIT_EXPECT_EQ(test, input_dev->dev_info_status, 0);
+	KUNIT_EXPECT_EQ(test, input_dev->report_desc_size, 4);
+	KUNIT_EXPECT_MEMEQ(test, input_dev->report_desc, report, 4);
+
+	kfree(input_dev->hid_desc);
+	kfree(input_dev->report_desc);
+}
+
+static void mousevsc_device_info_report_desc_oob(struct kunit *test)
+{
+	struct synthhid_device_info *info;
+	struct mousevsc_dev *input_dev;
+	u8 *report;
+
+	input_dev = mousevsc_kunit_alloc_dev(test);
+	KUNIT_ASSERT_NOT_NULL(test, input_dev);
+	info = kunit_kzalloc(test, sizeof(*info) + 8, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, info);
+
+	info->hid_descriptor.bLength = sizeof(struct hid_descriptor);
+	info->hid_descriptor.rpt_desc.wDescriptorLength = cpu_to_le16(64);
+	report = ((u8 *)&info->hid_descriptor) + info->hid_descriptor.bLength;
+	memset(report, 0x42, 8);
+
+	mousevsc_on_receive_device_info(input_dev, info, sizeof(*info) + 8);
+
+	KUNIT_EXPECT_EQ(test, input_dev->dev_info_status, -EINVAL);
+
+	kfree(input_dev->hid_desc);
+}
+
+static struct kunit_case mousevsc_test_cases[] = {
+	KUNIT_CASE(mousevsc_device_info_zero_blength),
+	KUNIT_CASE(mousevsc_device_info_valid_descriptor),
+	KUNIT_CASE(mousevsc_device_info_report_desc_oob),
+	{}
+};
+
+static struct kunit_suite mousevsc_test_suite = {
+	.name = "hid_hyperv_mouse",
+	.test_cases = mousevsc_test_cases,
+};
+
+kunit_test_suite(mousevsc_test_suite);
+#endif
 
 module_init(mousevsc_init);
 module_exit(mousevsc_exit);
