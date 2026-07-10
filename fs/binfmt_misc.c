@@ -799,13 +799,12 @@ static int add_entry(struct binfmt_misc_entry *e, struct super_block *sb)
 static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 			       size_t count, loff_t *ppos)
 {
-	struct binfmt_misc_entry *e;
+	struct binfmt_misc_entry *e __free(kfree) = NULL;
 	struct super_block *sb = file_inode(file)->i_sb;
-	int err = 0;
 	struct file *f = NULL;
+	int err;
 
 	e = create_entry(buffer, count);
-
 	if (IS_ERR(e))
 		return PTR_ERR(e);
 
@@ -822,7 +821,6 @@ static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 		if (IS_ERR(f)) {
 			pr_notice("register: failed to install interpreter file %s\n",
 				 e->interpreter);
-			kfree(e);
 			return PTR_ERR(f);
 		}
 		e->interp_file = f;
@@ -834,9 +832,11 @@ static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 			exe_file_allow_write_access(f);
 			filp_close(f, NULL);
 		}
-		kfree(e);
 		return err;
 	}
+
+	/* The entry is owned by its inode now. */
+	retain_and_null_ptr(e);
 	return count;
 }
 
