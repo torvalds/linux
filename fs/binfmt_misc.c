@@ -685,11 +685,19 @@ static void bm_evict_inode(struct inode *inode)
  * @e: binary type handler to remove
  *
  * Remove a binary type handler from the list of binary type handlers and
- * remove its associated dentry. This is called from
- * binfmt_{entry,status}_write(). In the future, we might want to think about
- * adding a proper ->unlink() method to binfmt_misc instead of forcing caller's
- * to use writes to files in order to delete binary type handlers. But it has
- * worked for so long that it's not a pressing issue.
+ * remove its associated dentry.
+ *
+ * Adding and removing entries via bm_{entry,register,status}_write()
+ * happens under the exclusively held inode lock of the root dentry keeping
+ * the list stable for writers. load_misc_binary() walks it concurrently
+ * under RCU. The entries_lock is only held around the actual unlink to
+ * serialize against bm_evict_inode() which unlinks entries during umount
+ * without holding the root inode lock.
+ *
+ * In the future, we might want to think about adding a proper ->unlink()
+ * method to binfmt_misc instead of forcing callers to use writes to files
+ * in order to delete binary type handlers. But it has worked for so long
+ * that it's not a pressing issue.
  */
 static void remove_binfmt_handler(struct binfmt_misc *misc,
 				  struct binfmt_misc_entry *e)
@@ -698,6 +706,31 @@ static void remove_binfmt_handler(struct binfmt_misc *misc,
 	hlist_del_init_rcu(&e->node);
 	spin_unlock(&misc->entries_lock);
 	locked_recursive_removal(e->dentry, NULL);
+}
+
+/* Remove @e unless a concurrent write already unlinked it. */
+static void bm_remove_entry(struct binfmt_misc_entry *e, struct super_block *sb)
+{
+	struct inode *root = d_inode(sb->s_root);
+
+	inode_lock_nested(root, I_MUTEX_PARENT);
+	if (!hlist_unhashed(&e->node))
+		remove_binfmt_handler(i_binfmt_misc(root), e);
+	inode_unlock(root);
+}
+
+/* Remove all entries of the binfmt_misc instance @misc belonging to @sb. */
+static void bm_remove_all_entries(struct binfmt_misc *misc,
+				  struct super_block *sb)
+{
+	struct inode *root = d_inode(sb->s_root);
+	struct binfmt_misc_entry *e;
+	struct hlist_node *next;
+
+	inode_lock_nested(root, I_MUTEX_PARENT);
+	hlist_for_each_entry_safe(e, next, &misc->entries, node)
+		remove_binfmt_handler(misc, e);
+	inode_unlock(root);
 }
 
 /* /<entry> */
@@ -731,24 +764,7 @@ static ssize_t bm_entry_write(struct file *file, const char __user *buffer,
 		set_bit(MISC_FMT_ENABLED_BIT, &e->flags);
 		break;
 	case BM_CMD_REMOVE:
-		inode = d_inode(inode->i_sb->s_root);
-		inode_lock_nested(inode, I_MUTEX_PARENT);
-
-		/*
-		 * In order to add new element or remove elements from the list
-		 * via bm_{entry,register,status}_write() inode_lock() on the
-		 * root inode must be held.
-		 * The lock is exclusive ensuring that the list can't be
-		 * modified. Only load_misc_binary() can access the list
-		 * concurrently and it does so under RCU. So entries_lock only
-		 * needs to be held when an entry is actually unlinked to
-		 * serialize against bm_evict_inode() during umount which
-		 * unlinks without holding inode_lock.
-		 */
-		if (!hlist_unhashed(&e->node))
-			remove_binfmt_handler(i_binfmt_misc(inode), e);
-
-		inode_unlock(inode);
+		bm_remove_entry(e, inode->i_sb);
 		break;
 	default:
 		return res;
@@ -864,9 +880,6 @@ static ssize_t bm_status_write(struct file *file, const char __user *buffer,
 {
 	struct binfmt_misc *misc;
 	int res = parse_command(buffer, count);
-	struct hlist_node *next;
-	struct inode *inode;
-	struct binfmt_misc_entry *e;
 
 	misc = i_binfmt_misc(file_inode(file));
 	switch (res) {
@@ -877,24 +890,7 @@ static ssize_t bm_status_write(struct file *file, const char __user *buffer,
 		WRITE_ONCE(misc->enabled, true);
 		break;
 	case BM_CMD_REMOVE:
-		inode = d_inode(file_inode(file)->i_sb->s_root);
-		inode_lock_nested(inode, I_MUTEX_PARENT);
-
-		/*
-		 * In order to add new element or remove elements from the list
-		 * via bm_{entry,register,status}_write() inode_lock() on the
-		 * root inode must be held.
-		 * The lock is exclusive ensuring that the list can't be
-		 * modified. Only load_misc_binary() can access the list
-		 * concurrently and it does so under RCU. So entries_lock only
-		 * needs to be held when an entry is actually unlinked to
-		 * serialize against bm_evict_inode() during umount which
-		 * unlinks without holding inode_lock.
-		 */
-		hlist_for_each_entry_safe(e, next, &misc->entries, node)
-			remove_binfmt_handler(misc, e);
-
-		inode_unlock(inode);
+		bm_remove_all_entries(misc, file_inode(file)->i_sb);
 		break;
 	default:
 		return res;
