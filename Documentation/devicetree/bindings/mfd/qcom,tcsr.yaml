@@ -17,6 +17,8 @@ properties:
   compatible:
     items:
       - enum:
+          - qcom,hawi-tcsr
+          - qcom,maili-tcsr
           - qcom,msm8976-tcsr
           - qcom,msm8998-tcsr
           - qcom,nord-tcsr
