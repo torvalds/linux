@@ -1332,6 +1332,19 @@ static void damos_set_filters_default_reject(struct damos *s)
 		damos_filters_default_reject(&s->ops_filters);
 }
 
+static bool damon_valid_probe_params(struct damon_ctx *ctx)
+{
+	unsigned long sample_interval;
+
+	if (!damon_has_probe_weights(ctx))
+		return true;
+
+	sample_interval = ctx->attrs.sample_interval ? : 1;
+	if (ctx->attrs.aggr_interval / sample_interval > U8_MAX)
+		return false;
+	return true;
+}
+
 /*
  * damos_commit_dests() - Copy migration destinations from @src to @dst.
  * @dst:	Destination structure to update.
@@ -1735,6 +1748,9 @@ static int __damon_commit_ctx(struct damon_ctx *dst, struct damon_ctx *src)
 			}
 		}
 	}
+
+	if (!damon_valid_probe_params(src))
+		return -EINVAL;
 
 	err = damon_commit_schemes(dst, src);
 	if (err)
