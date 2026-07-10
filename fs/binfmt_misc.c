@@ -56,7 +56,7 @@ enum binfmt_misc_entry_flags {
 	MISC_FMT_OPEN_FILE	= (1U << 28),
 };
 
-typedef struct {
+struct binfmt_misc_entry {
 	struct hlist_node node;
 	unsigned long flags;		/* type, status, etc. */
 	int offset;			/* offset of magic */
@@ -69,7 +69,7 @@ typedef struct {
 	struct file *interp_file;
 	refcount_t users;		/* sync removal with load_misc_binary() */
 	struct rcu_head rcu;
-} Node;
+};
 
 static struct file_system_type bm_fs_type;
 
@@ -84,7 +84,7 @@ static struct file_system_type bm_fs_type;
  *  - interp: ~50 bytes
  *  - flags:  5 bytes
  * Round that up a bit, and then back off to hold the internal data
- * (like struct Node).
+ * (like struct binfmt_misc_entry).
  */
 #define MAX_REGISTER_LENGTH 1920
 
@@ -100,11 +100,11 @@ static struct file_system_type bm_fs_type;
  *
  * Return: binary type list entry on success, NULL on failure
  */
-static Node *search_binfmt_handler(struct binfmt_misc *misc,
-				   struct linux_binprm *bprm)
+static struct binfmt_misc_entry *
+search_binfmt_handler(struct binfmt_misc *misc, struct linux_binprm *bprm)
 {
 	char *p = strrchr(bprm->interp, '.');
-	Node *e;
+	struct binfmt_misc_entry *e;
 
 	/* Walk all the registered handlers. */
 	hlist_for_each_entry_rcu(e, &misc->entries, node) {
@@ -153,10 +153,10 @@ static Node *search_binfmt_handler(struct binfmt_misc *misc,
  *
  * Return: binary type list entry on success, NULL on failure
  */
-static Node *get_binfmt_handler(struct binfmt_misc *misc,
-				struct linux_binprm *bprm)
+static struct binfmt_misc_entry *get_binfmt_handler(struct binfmt_misc *misc,
+						    struct linux_binprm *bprm)
 {
-	Node *e;
+	struct binfmt_misc_entry *e;
 
 	guard(rcu)();
 	do {
@@ -166,14 +166,14 @@ static Node *get_binfmt_handler(struct binfmt_misc *misc,
 }
 
 /**
- * put_binfmt_handler - put binary handler node
- * @e: node to put
+ * put_binfmt_handler - put binary handler entry
+ * @e: entry to put
  *
- * Free node syncing with load_misc_binary() and defer final free to
+ * Free entry syncing with load_misc_binary() and defer final free to
  * load_misc_binary() in case it is using the binary type handler we were
  * requested to remove.
  */
-static void put_binfmt_handler(Node *e)
+static void put_binfmt_handler(struct binfmt_misc_entry *e)
 {
 	if (refcount_dec_and_test(&e->users)) {
 		if (e->flags & MISC_FMT_OPEN_FILE) {
@@ -219,7 +219,7 @@ static struct binfmt_misc *load_binfmt_misc(void)
  */
 static int load_misc_binary(struct linux_binprm *bprm)
 {
-	Node *fmt;
+	struct binfmt_misc_entry *fmt;
 	struct file *interp_file = NULL;
 	int retval = -ENOEXEC;
 	struct binfmt_misc *misc;
@@ -289,7 +289,7 @@ static int load_misc_binary(struct linux_binprm *bprm)
 ret:
 
 	/*
-	 * If we actually put the node here all concurrent calls to
+	 * If we actually put the entry here all concurrent calls to
 	 * load_misc_binary() will have finished. We also know
 	 * that for the refcount to be zero someone must have concurently
 	 * removed the binary type handler from the list and it's our job to
@@ -325,7 +325,7 @@ static char *scanarg(char *s, char del)
 	return s;
 }
 
-static char *check_special_flags(char *sfs, Node *e)
+static char *check_special_flags(char *sfs, struct binfmt_misc_entry *e)
 {
 	char *p = sfs;
 	int cont = 1;
@@ -369,9 +369,10 @@ static char *check_special_flags(char *sfs, Node *e)
  * ':name:type:offset:magic:mask:interpreter:flags'
  * where the ':' is the IFS, that can be chosen with the first char
  */
-static Node *create_entry(const char __user *buffer, size_t count)
+static struct binfmt_misc_entry *create_entry(const char __user *buffer,
+					      size_t count)
 {
-	Node *e;
+	struct binfmt_misc_entry *e;
 	int memsize, err;
 	char *buf, *p;
 	char del;
@@ -384,14 +385,14 @@ static Node *create_entry(const char __user *buffer, size_t count)
 		goto out;
 
 	err = -ENOMEM;
-	memsize = sizeof(Node) + count + 8;
+	memsize = sizeof(*e) + count + 8;
 	e = kmalloc(memsize, GFP_KERNEL_ACCOUNT);
 	if (!e)
 		goto out;
 
-	p = buf = (char *)e + sizeof(Node);
+	p = buf = (char *)e + sizeof(*e);
 
-	memset(e, 0, sizeof(Node));
+	memset(e, 0, sizeof(*e));
 	if (copy_from_user(buf, buffer, count))
 		goto efault;
 
@@ -601,7 +602,7 @@ static int parse_command(const char __user *buffer, size_t count)
 
 /* generic stuff */
 
-static void entry_status(Node *e, char *page)
+static void entry_status(struct binfmt_misc_entry *e, char *page)
 {
 	char *dp = page;
 	const char *status = "disabled";
@@ -685,7 +686,7 @@ static struct binfmt_misc *i_binfmt_misc(struct inode *inode)
 */
 static void bm_evict_inode(struct inode *inode)
 {
-	Node *e = inode->i_private;
+	struct binfmt_misc_entry *e = inode->i_private;
 
 	clear_inode(inode);
 
@@ -713,7 +714,8 @@ static void bm_evict_inode(struct inode *inode)
  * to use writes to files in order to delete binary type handlers. But it has
  * worked for so long that it's not a pressing issue.
  */
-static void remove_binfmt_handler(struct binfmt_misc *misc, Node *e)
+static void remove_binfmt_handler(struct binfmt_misc *misc,
+				  struct binfmt_misc_entry *e)
 {
 	spin_lock(&misc->entries_lock);
 	hlist_del_init_rcu(&e->node);
@@ -726,7 +728,7 @@ static void remove_binfmt_handler(struct binfmt_misc *misc, Node *e)
 static ssize_t
 bm_entry_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
 {
-	Node *e = file_inode(file)->i_private;
+	struct binfmt_misc_entry *e = file_inode(file)->i_private;
 	ssize_t res;
 	char *page;
 
@@ -746,7 +748,7 @@ static ssize_t bm_entry_write(struct file *file, const char __user *buffer,
 				size_t count, loff_t *ppos)
 {
 	struct inode *inode = file_inode(file);
-	Node *e = inode->i_private;
+	struct binfmt_misc_entry *e = inode->i_private;
 	int res = parse_command(buffer, count);
 
 	switch (res) {
@@ -795,7 +797,7 @@ static const struct file_operations bm_entry_operations = {
 /* /register */
 
 /* add to filesystem */
-static int add_entry(Node *e, struct super_block *sb)
+static int add_entry(struct binfmt_misc_entry *e, struct super_block *sb)
 {
 	struct dentry *dentry = simple_start_creating(sb->s_root, e->name);
 	struct inode *inode;
@@ -827,7 +829,7 @@ static int add_entry(Node *e, struct super_block *sb)
 static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 			       size_t count, loff_t *ppos)
 {
-	Node *e;
+	struct binfmt_misc_entry *e;
 	struct super_block *sb = file_inode(file)->i_sb;
 	int err = 0;
 	struct file *f = NULL;
@@ -893,7 +895,7 @@ static ssize_t bm_status_write(struct file *file, const char __user *buffer,
 	int res = parse_command(buffer, count);
 	struct hlist_node *next;
 	struct inode *inode;
-	Node *e;
+	struct binfmt_misc_entry *e;
 
 	misc = i_binfmt_misc(file_inode(file));
 	switch (res) {
