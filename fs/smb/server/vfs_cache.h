@@ -118,6 +118,13 @@ struct ksmbd_file {
 	struct list_head		node;
 	struct list_head		blocked_works;
 	struct list_head		lock_list;
+	/*
+	 * Per-handle FileDispositionInformation delete-pending state for a
+	 * stream handle -- separate from ksmbd_inode's inode-wide m_flags,
+	 * which have no way to record which stream on a multi-stream file
+	 * was actually marked for deletion. See ksmbd_fd_set_delete_pending().
+	 */
+	bool				stream_del_pending;
 
 	unsigned int			durable_timeout;
 	unsigned int			durable_scavenger_timeout;
