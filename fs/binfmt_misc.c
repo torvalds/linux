@@ -542,9 +542,17 @@ einval:
 	return ERR_PTR(-EINVAL);
 }
 
+/* Commands accepted by the /status and /<entry> files. */
+enum bm_command {
+	BM_CMD_IGNORE,	/* empty write */
+	BM_CMD_DISABLE,	/* "0" */
+	BM_CMD_ENABLE,	/* "1" */
+	BM_CMD_REMOVE,	/* "-1" */
+};
+
 /*
- * Set status of entry/binfmt_misc:
- * '1' enables, '0' disables and '-1' clears entry/binfmt_misc
+ * Parse what userspace wrote to /status or an entry file: '1' enables,
+ * '0' disables and '-1' removes the entry or all entries.
  */
 static int parse_command(const char __user *buffer, size_t count)
 {
@@ -555,15 +563,15 @@ static int parse_command(const char __user *buffer, size_t count)
 	if (copy_from_user(s, buffer, count))
 		return -EFAULT;
 	if (!count)
-		return 0;
+		return BM_CMD_IGNORE;
 	if (s[count - 1] == '\n')
 		count--;
 	if (count == 1 && s[0] == '0')
-		return 1;
+		return BM_CMD_DISABLE;
 	if (count == 1 && s[0] == '1')
-		return 2;
+		return BM_CMD_ENABLE;
 	if (count == 2 && s[0] == '-' && s[1] == '1')
-		return 3;
+		return BM_CMD_REMOVE;
 	return -EINVAL;
 }
 
@@ -716,16 +724,13 @@ static ssize_t bm_entry_write(struct file *file, const char __user *buffer,
 	int res = parse_command(buffer, count);
 
 	switch (res) {
-	case 1:
-		/* Disable this handler. */
+	case BM_CMD_DISABLE:
 		clear_bit(MISC_FMT_ENABLED_BIT, &e->flags);
 		break;
-	case 2:
-		/* Enable this handler. */
+	case BM_CMD_ENABLE:
 		set_bit(MISC_FMT_ENABLED_BIT, &e->flags);
 		break;
-	case 3:
-		/* Delete this handler. */
+	case BM_CMD_REMOVE:
 		inode = d_inode(inode->i_sb->s_root);
 		inode_lock_nested(inode, I_MUTEX_PARENT);
 
@@ -865,16 +870,13 @@ static ssize_t bm_status_write(struct file *file, const char __user *buffer,
 
 	misc = i_binfmt_misc(file_inode(file));
 	switch (res) {
-	case 1:
-		/* Disable all handlers. */
+	case BM_CMD_DISABLE:
 		WRITE_ONCE(misc->enabled, false);
 		break;
-	case 2:
-		/* Enable all handlers. */
+	case BM_CMD_ENABLE:
 		WRITE_ONCE(misc->enabled, true);
 		break;
-	case 3:
-		/* Delete all handlers. */
+	case BM_CMD_REMOVE:
 		inode = d_inode(file_inode(file)->i_sb->s_root);
 		inode_lock_nested(inode, I_MUTEX_PARENT);
 
