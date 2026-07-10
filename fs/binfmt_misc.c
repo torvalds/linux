@@ -183,6 +183,8 @@ static void put_binfmt_handler(struct binfmt_misc_entry *e)
 	}
 }
 
+DEFINE_FREE(put_binfmt_handler, struct binfmt_misc_entry *, if (_T) put_binfmt_handler(_T))
+
 /**
  * current_binfmt_misc - get the binfmt_misc instance of the caller's user namespace
  *
@@ -215,48 +217,47 @@ static struct binfmt_misc *current_binfmt_misc(void)
  */
 static int load_misc_binary(struct linux_binprm *bprm)
 {
-	struct binfmt_misc_entry *fmt;
-	struct file *interp_file = NULL;
-	int retval = -ENOEXEC;
+	struct binfmt_misc_entry *fmt __free(put_binfmt_handler) = NULL;
+	struct file *interp_file;
 	struct binfmt_misc *misc;
+	int retval;
 
 	misc = current_binfmt_misc();
 	if (!READ_ONCE(misc->enabled))
-		return retval;
+		return -ENOEXEC;
 
 	fmt = get_binfmt_handler(misc, bprm);
 	if (!fmt)
-		return retval;
+		return -ENOEXEC;
 
 	/* Need to be able to load the file after exec */
-	retval = -ENOENT;
 	if (bprm->interp_flags & BINPRM_FLAGS_PATH_INACCESSIBLE)
-		goto ret;
+		return -ENOENT;
 
 	if (fmt->flags & MISC_FMT_PRESERVE_ARGV0) {
 		bprm->interp_flags |= BINPRM_FLAGS_PRESERVE_ARGV0;
 	} else {
 		retval = remove_arg_zero(bprm);
 		if (retval)
-			goto ret;
+			return retval;
 	}
 
 	/* make argv[1] be the path to the binary */
 	retval = copy_string_kernel(bprm->interp, bprm);
 	if (retval < 0)
-		goto ret;
+		return retval;
 	bprm->argc++;
 
 	/* add the interp as argv[0] */
 	retval = copy_string_kernel(fmt->interpreter, bprm);
 	if (retval < 0)
-		goto ret;
+		return retval;
 	bprm->argc++;
 
 	/* Update interp in case binfmt_script needs it. */
 	retval = bprm_change_interp(fmt->interpreter, bprm);
 	if (retval < 0)
-		goto ret;
+		return retval;
 
 	if (fmt->flags & MISC_FMT_OPEN_FILE) {
 		interp_file = file_clone_open(fmt->interp_file);
@@ -271,29 +272,15 @@ static int load_misc_binary(struct linux_binprm *bprm)
 	} else {
 		interp_file = open_exec(fmt->interpreter);
 	}
-	retval = PTR_ERR(interp_file);
 	if (IS_ERR(interp_file))
-		goto ret;
+		return PTR_ERR(interp_file);
 
 	bprm->interpreter = interp_file;
 	if (fmt->flags & MISC_FMT_OPEN_BINARY)
 		bprm->have_execfd = 1;
 	if (fmt->flags & MISC_FMT_CREDENTIALS)
 		bprm->execfd_creds = 1;
-
-	retval = 0;
-ret:
-
-	/*
-	 * If we actually put the entry here all concurrent calls to
-	 * load_misc_binary() will have finished. We also know
-	 * that for the refcount to be zero someone must have concurently
-	 * removed the binary type handler from the list and it's our job to
-	 * free it.
-	 */
-	put_binfmt_handler(fmt);
-
-	return retval;
+	return 0;
 }
 
 /* Command parsers */
