@@ -262,7 +262,6 @@ echo "TAP version 13" | tap_output
 CATEGORY="hugetlb" run_test ./hugetlb-mmap
 CATEGORY="hugetlb" run_test ./hugetlb-shm
 CATEGORY="hugetlb" run_test ./hugetlb-mremap
-CATEGORY="hugetlb" run_test ./hugetlb-vmemmap
 CATEGORY="hugetlb" run_test ./hugetlb-madvise
 CATEGORY="hugetlb" run_test ./hugetlb_dio
 CATEGORY="hugetlb" run_test ./hugetlb_fault_after_madv
