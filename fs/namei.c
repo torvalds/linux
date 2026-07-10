@@ -4336,18 +4336,26 @@ static int may_o_create(struct mnt_idmap *idmap,
 	return security_inode_create(dir->dentry->d_inode, dentry, mode);
 }
 
-/*
- * Attempt to atomically look up, create and open a file from a negative
- * dentry.
+/**
+ * atomic_open() - attempt to atomically look up, create and open a file
+ * from a negative dentry.
+ * @path:          parent directory path
+ * @dentry:        child to ->atomic_open()
+ * @file:          file to attach child to
+ * @open_flag:     open flags
+ * @mode:          create mode
+ * @create_error:  return value from may_o_create()
  *
- * Returns 0 if successful.  The file will have been created and attached to
- * @file by the filesystem calling finish_open().
+ * If a non-error dentry is returned then: when FMODE_OPENED is set,
+ * the file will have been attached to @file by the filesystem calling
+ * finish_open(). If FMODE_OPENED isn't set, the filesystem instead called
+ * finish_no_open() and the caller will need to perform the open themselves.
  *
- * If the file was looked up only or didn't need creating, FMODE_OPENED won't
- * be set.  The caller will need to perform the open themselves.  @path will
- * have been updated to point to the new dentry.  This may be negative.
+ * FMODE_CREATED is set when the call to ->atomic_open() actually created
+ * the file.
  *
- * Returns an error code otherwise.
+ * Returns the opened/looked-up dentry on success or ERR_PTR(-E) on failure.
+ * On error, atomic_open() consumes @dentry.
  */
 static struct dentry *atomic_open(const struct path *path, struct dentry *dentry,
 				  struct file *file,
