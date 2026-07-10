@@ -7,6 +7,7 @@
 
 #include "core_types.h"
 #include "dcn32/dcn32_resource.h"
+#include "dcn35/dcn35_resource.h"
 #include "dcn401/dcn401_hubp.h"
 
 #define TO_DCN401_RES_POOL(pool)\
@@ -659,5 +660,8 @@ int dcn401_get_power_profile(const struct dc_state *context);
 	SR(SYMCLKB_CLOCK_ENABLE),\
 	SR(SYMCLKC_CLOCK_ENABLE),\
 	SR(SYMCLKD_CLOCK_ENABLE)
+
+#define MCIF_WB_COMMON_REG_LIST_DCN4_01_RI(inst)  \
+	MCIF_WB_COMMON_REG_LIST_DCN3_5_RI(inst)
 
 #endif /* _DCN401_RESOURCE_H_ */
