@@ -1521,11 +1521,11 @@ static void nfs4_put_copy(struct nfsd4_async_copy *copy)
 {
 	if (!refcount_dec_and_test(&copy->refcount))
 		return;
-	/* Drop the task_struct pinned in nfsd4_copy(). */
-	if (copy->copy_task)
-		put_task_struct(copy->copy_task);
-	kfree(copy->cp_copy.cp_src);
-	kfree(copy);
+	/*
+	 * Drop the copy offload stateid's sole reference: removes it from
+	 * cl_stateids and frees the async_copy via nfsd4_free_async_copy_stid().
+	 */
+	nfs4_put_stid(&copy->cp_stid);
 }
 
 static void release_copy_files(struct nfsd4_copy *copy);
@@ -1558,11 +1558,6 @@ static struct nfsd4_async_copy *nfsd4_unhash_copy(struct nfs4_client *clp)
 		copy = list_first_entry(&clp->async_copies,
 					struct nfsd4_async_copy, copies);
 		refcount_inc(&copy->refcount);
-		/*
-		 * Unlinking hides the copy from the reaper, so drop its
-		 * s2s_cp_stateids entry here while cp_clp is still valid.
-		 */
-		nfs4_free_copy_state(copy);
 		/* Pairs with smp_load_acquire() in nfsd4_send_cb_offload(). */
 		smp_store_release(&copy->cp_copy.cp_clp, NULL);
 		if (!list_empty(&copy->copies))
@@ -1648,10 +1643,8 @@ void nfsd4_cancel_copy_by_sb(struct net *net, struct super_block *sb)
 		struct nfs4_client *clp = copy->cp_copy.cp_clp;
 
 		list_del_init(&copy->copies);
-		/* Reaper can't reach it; drop the s2s entry while cp_clp is valid. */
-		nfs4_free_copy_state(copy);
 		nfsd4_stop_copy(copy);
-		/* Drop the membership ref the reaper would have dropped. */
+		/* Reaper can't reach the unlinked copy; drop the membership ref here. */
 		nfs4_put_copy(copy);
 		nfsd4_put_client(clp);
 	}
@@ -1946,6 +1939,7 @@ static void nfsd4_cb_offload_release(struct nfsd4_callback *cb)
 		container_of(cbo, struct nfsd4_async_copy, cp_cb_offload);
 
 	set_bit(NFSD4_COPY_F_OFFLOAD_DONE, &copy->cp_copy.cp_flags);
+	/* nfs4_put_copy needs clp; cl_cb_inflight defers free_client. */
 	nfsd4_put_client(cb->cb_clp);
 	/* Drop the copy reference taken in nfsd4_send_cb_offload(). */
 	nfs4_put_copy(copy);
@@ -2085,7 +2079,6 @@ static void release_copy_files(struct nfsd4_copy *copy)
  */
 static void cleanup_async_copy(struct nfsd4_async_copy *copy)
 {
-	nfs4_free_copy_state(copy);
 	release_copy_files(&copy->cp_copy);
 	nfs4_put_copy(copy);
 }
@@ -2226,7 +2219,12 @@ nfsd4_copy(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (nfsd4_copy_is_async(copy)) {
 		struct task_struct *task;
 
-		async_copy = kzalloc_obj(struct nfsd4_async_copy);
+		/*
+		 * Allocate the durable async copy. Its offload stateid is a
+		 * first-class nfs4_stid in clp->cl_stateids, returned to the
+		 * client and freed only when the background copy is torn down.
+		 */
+		async_copy = nfs4_alloc_copy_stid(cstate->clp);
 		if (!async_copy)
 			goto out_err;
 		async_copy->cp_copy.cp_nn = nn;
@@ -2240,10 +2238,7 @@ nfsd4_copy(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		async_copy->cp_copy.cp_src = kmalloc_obj(*async_copy->cp_copy.cp_src);
 		if (!async_copy->cp_copy.cp_src)
 			goto out_dec_async_copy_err;
-
-		if (!nfs4_init_copy_state(nn, async_copy))
-			goto out_dec_async_copy_err;
-		memcpy(&result->cb_stateid, &async_copy->cp_stateid.cs_stid,
+		memcpy(&result->cb_stateid, &async_copy->cp_stid.sc_stateid,
 			sizeof(result->cb_stateid));
 		/*
 		 * dup after writing cb_stateid; duplicating first would leave
@@ -2318,7 +2313,7 @@ find_async_copy_locked(struct nfs4_client *clp, stateid_t *stateid)
 	lockdep_assert_held(&clp->async_lock);
 
 	list_for_each_entry(copy, &clp->async_copies, copies) {
-		if (memcmp(&copy->cp_stateid.cs_stid, stateid, NFS4_STATEID_SIZE))
+		if (memcmp(&copy->cp_stid.sc_stateid, stateid, NFS4_STATEID_SIZE))
 			continue;
 		return copy;
 	}
@@ -2334,7 +2329,6 @@ find_async_copy(struct nfs4_client *clp, stateid_t *stateid)
 	copy = find_async_copy_locked(clp, stateid);
 	if (copy) {
 		refcount_inc(&copy->refcount);
-		nfs4_free_copy_state(copy);
 		/*
 		 * Mirror nfsd4_unhash_copy(): unlink and clear cp_clp under
 		 * async_lock so the reaper can't reach it. Caller drops the

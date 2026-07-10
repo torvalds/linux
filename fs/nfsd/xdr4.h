@@ -781,13 +781,13 @@ struct nfsd4_copy {
  * buffer.
  */
 struct nfsd4_async_copy {
+	struct nfs4_stid	cp_stid;	/* SC_TYPE_COPY, in cl_stateids */
 	struct nfsd4_copy	cp_copy;	/* operation params + result */
 
 	struct list_head	copies;		/* nfs4_client.async_copies */
 	struct task_struct	*copy_task;
 	refcount_t		refcount;
 	unsigned int		cp_ttl;
-	copy_stateid_t		cp_stateid;	/* s2s_cp_stateids IDR entry */
 	struct nfsd4_cb_offload	cp_cb_offload;
 };
 
