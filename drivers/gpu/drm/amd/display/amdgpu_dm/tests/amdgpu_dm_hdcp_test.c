@@ -8,6 +8,7 @@
 #include <kunit/test.h>
 #include <linux/workqueue.h>
 
+#include "amdgpu.h"
 #include "amdgpu_dm_hdcp.h"
 
 static void dummy_work_fn(struct work_struct *work) {}
@@ -632,6 +633,126 @@ static void dm_test_hdcp_create_workqueue_zero_max_links_returns_null(struct kun
 
 /* End of tests for hdcp_create_workqueue() */
 
+/* Tests for link_lock() */
+
+/**
+ * dm_test_link_lock_locks_and_unlocks_all_links - lock/unlock spans every link
+ * @test: KUnit test context
+ *
+ * link_lock() should acquire the mutex of every entry from 0 to max_link
+ * when locking, and release all of them when unlocking. A subsequent
+ * lock/unlock cycle must succeed, proving the mutexes were left released.
+ */
+static void dm_test_link_lock_locks_and_unlocks_all_links(struct kunit *test)
+{
+	const int num_links = 3;
+	struct hdcp_workqueue *work;
+	int i;
+
+	work = kunit_kcalloc(test, num_links, sizeof(*work), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, work);
+
+	/* max_link is read from the first element. */
+	work[0].max_link = num_links;
+	for (i = 0; i < num_links; i++)
+		mutex_init(&work[i].mutex);
+
+	link_lock(work, true);
+	for (i = 0; i < num_links; i++)
+		KUNIT_EXPECT_TRUE(test, mutex_is_locked(&work[i].mutex));
+
+	link_lock(work, false);
+	for (i = 0; i < num_links; i++)
+		KUNIT_EXPECT_FALSE(test, mutex_is_locked(&work[i].mutex));
+
+	/* Mutexes must be re-acquirable after being released. */
+	link_lock(work, true);
+	for (i = 0; i < num_links; i++)
+		KUNIT_EXPECT_TRUE(test, mutex_is_locked(&work[i].mutex));
+	link_lock(work, false);
+}
+
+/**
+ * dm_test_link_lock_zero_links_is_noop - zero max_link touches no mutexes
+ * @test: KUnit test context
+ *
+ * When max_link is zero, link_lock() must not touch any mutex and simply
+ * return, leaving the (single) entry's mutex unlocked.
+ */
+static void dm_test_link_lock_zero_links_is_noop(struct kunit *test)
+{
+	struct hdcp_workqueue *work;
+
+	work = kunit_kzalloc(test, sizeof(*work), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, work);
+
+	mutex_init(&work->mutex);
+	work->max_link = 0;
+
+	link_lock(work, true);
+
+	KUNIT_EXPECT_FALSE(test, mutex_is_locked(&work->mutex));
+}
+
+/* End of tests for link_lock() */
+
+/* Tests for psp_get_srm() and psp_set_srm() */
+
+/**
+ * dm_test_psp_get_srm_uninitialized_returns_null - GET fails when TA not initialized
+ * @test: KUnit test context
+ *
+ * When the HDCP TA context is not initialized, psp_get_srm() must take the
+ * guard path and return NULL without touching the output parameters or
+ * invoking the (real) firmware path.
+ */
+static void dm_test_psp_get_srm_uninitialized_returns_null(struct kunit *test)
+{
+	struct psp_context *psp;
+	uint32_t srm_version = 0xdead;
+	uint32_t srm_size = 0xbeef;
+	uint8_t *srm;
+
+	psp = kunit_kzalloc(test, sizeof(*psp), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, psp);
+
+	/* kzalloc leaves hdcp_context.context.initialized == false */
+	srm = psp_get_srm(psp, &srm_version, &srm_size);
+
+	KUNIT_EXPECT_PTR_EQ(test, srm, NULL);
+	/* Output parameters must be left untouched on the guard path. */
+	KUNIT_EXPECT_EQ(test, srm_version, 0xdead);
+	KUNIT_EXPECT_EQ(test, srm_size, 0xbeef);
+}
+
+/**
+ * dm_test_psp_set_srm_uninitialized_returns_einval - SET fails when TA not initialized
+ * @test: KUnit test context
+ *
+ * When the HDCP TA context is not initialized, psp_set_srm() must take the
+ * guard path and return -EINVAL without updating srm_version or invoking
+ * the (real) firmware path.
+ */
+static void dm_test_psp_set_srm_uninitialized_returns_einval(struct kunit *test)
+{
+	struct psp_context *psp;
+	uint32_t srm_version = 0xdead;
+	u8 srm_buf[4] = {0};
+	int ret;
+
+	psp = kunit_kzalloc(test, sizeof(*psp), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, psp);
+
+	/* kzalloc leaves hdcp_context.context.initialized == false */
+	ret = psp_set_srm(psp, srm_buf, sizeof(srm_buf), &srm_version);
+
+	KUNIT_EXPECT_EQ(test, ret, -EINVAL);
+	/* srm_version must be left untouched on the guard path. */
+	KUNIT_EXPECT_EQ(test, srm_version, 0xdead);
+}
+
+/* End of tests for psp_get_srm() and psp_set_srm() */
+
 static struct kunit_case dm_hdcp_test_cases[] = {
 	/* hdcp_get_content_protection_from_status() */
 	KUNIT_CASE(dm_test_hdcp_get_cp_disabled_returns_desired),
@@ -663,6 +784,12 @@ static struct kunit_case dm_hdcp_test_cases[] = {
 	KUNIT_CASE(dm_test_hdcp_update_display_disable_resets_status_and_cancels_validate),
 	/* hdcp_create_workqueue() */
 	KUNIT_CASE(dm_test_hdcp_create_workqueue_zero_max_links_returns_null),
+	/* link_lock() */
+	KUNIT_CASE(dm_test_link_lock_locks_and_unlocks_all_links),
+	KUNIT_CASE(dm_test_link_lock_zero_links_is_noop),
+	/* psp_get_srm() / psp_set_srm() */
+	KUNIT_CASE(dm_test_psp_get_srm_uninitialized_returns_null),
+	KUNIT_CASE(dm_test_psp_set_srm_uninitialized_returns_einval),
 	{}
 };
 

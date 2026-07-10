@@ -106,7 +106,8 @@ static bool lp_atomic_write_poll_read_aux(
 	return dm_atomic_write_poll_read_aux(link, write, poll, read, poll_timeout_us, poll_mask_msb);
 }
 
-static uint8_t *psp_get_srm(struct psp_context *psp, uint32_t *srm_version, uint32_t *srm_size)
+STATIC_IFN_KUNIT
+uint8_t *psp_get_srm(struct psp_context *psp, uint32_t *srm_version, uint32_t *srm_size)
 {
 	struct ta_hdcp_shared_memory *hdcp_cmd;
 
@@ -129,8 +130,10 @@ static uint8_t *psp_get_srm(struct psp_context *psp, uint32_t *srm_version, uint
 
 	return hdcp_cmd->out_msg.hdcp_get_srm.srm_buf;
 }
+EXPORT_IF_KUNIT(psp_get_srm);
 
-static int psp_set_srm(struct psp_context *psp,
+STATIC_IFN_KUNIT
+int psp_set_srm(struct psp_context *psp,
 		       u8 *srm, uint32_t srm_size, uint32_t *srm_version)
 {
 	struct ta_hdcp_shared_memory *hdcp_cmd;
@@ -157,6 +160,7 @@ static int psp_set_srm(struct psp_context *psp,
 	*srm_version = hdcp_cmd->out_msg.hdcp_set_srm.srm_version;
 	return 0;
 }
+EXPORT_IF_KUNIT(psp_set_srm);
 
 STATIC_IFN_KUNIT
 void process_output(struct hdcp_workqueue *hdcp_work)
@@ -245,7 +249,8 @@ void hdcp_get_link_display_adjustments(
 }
 EXPORT_IF_KUNIT(hdcp_get_link_display_adjustments);
 
-static void link_lock(struct hdcp_workqueue *work, bool lock)
+STATIC_IFN_KUNIT
+void link_lock(struct hdcp_workqueue *work, bool lock)
 {
 	int i = 0;
 
@@ -256,6 +261,7 @@ static void link_lock(struct hdcp_workqueue *work, bool lock)
 			mutex_unlock(&work[i].mutex);
 	}
 }
+EXPORT_IF_KUNIT(link_lock);
 
 STATIC_IFN_KUNIT
 void hdcp_update_display_encryption_control(struct hdcp_workqueue *hdcp_work,

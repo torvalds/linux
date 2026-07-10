@@ -44,6 +44,7 @@ struct mod_hdcp_link;
 struct mod_hdcp_display;
 struct cp_psp;
 struct amdgpu_device;
+struct psp_context;
 
 struct hdcp_workqueue {
 	struct work_struct cpirq_work;
@@ -113,6 +114,9 @@ void hdcp_update_display_encryption_control(struct hdcp_workqueue *hdcp_work,
 					    unsigned int conn_index,
 					    bool enable_encryption);
 void event_property_update(struct work_struct *work);
+void link_lock(struct hdcp_workqueue *work, bool lock);
+uint8_t *psp_get_srm(struct psp_context *psp, uint32_t *srm_version, uint32_t *srm_size);
+int psp_set_srm(struct psp_context *psp, u8 *srm, uint32_t srm_size, uint32_t *srm_version);
 #endif
 
 #endif /* AMDGPU_DM_AMDGPU_DM_HDCP_H_ */
