@@ -10,27 +10,29 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/sched/mm.h>
-#include <linux/magic.h>
 #include <linux/binfmts.h>
-#include <linux/slab.h>
+#include <linux/bitops.h>
+#include <linux/bits.h>
+#include <linux/bug.h>
+#include <linux/cleanup.h>
+#include <linux/cred.h>
 #include <linux/ctype.h>
-#include <linux/string_helpers.h>
 #include <linux/file.h>
-#include <linux/pagemap.h>
-#include <linux/namei.h>
-#include <linux/mount.h>
-#include <linux/rculist.h>
-#include <linux/seq_file.h>
-#include <linux/fs_context.h>
-#include <linux/syscalls.h>
 #include <linux/fs.h>
+#include <linux/fs_context.h>
+#include <linux/init.h>
+#include <linux/kstrtox.h>
+#include <linux/magic.h>
+#include <linux/module.h>
+#include <linux/printk.h>
+#include <linux/rculist.h>
+#include <linux/refcount.h>
+#include <linux/seq_file.h>
+#include <linux/slab.h>
+#include <linux/string.h>
+#include <linux/string_helpers.h>
 #include <linux/uaccess.h>
-
-#include "internal.h"
+#include <linux/user_namespace.h>
 
 /* Entry status and match type bit numbers. */
 enum binfmt_misc_entry_bits {
@@ -61,8 +63,6 @@ struct binfmt_misc_entry {
 	struct rcu_head rcu;
 	char buf[];			/* register string, fields point in here */
 };
-
-static struct file_system_type bm_fs_type;
 
 /*
  * Max length of the register string.  Determined by:
