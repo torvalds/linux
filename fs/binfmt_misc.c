@@ -290,10 +290,9 @@ static int load_misc_binary(struct linux_binprm *bprm)
 /* Command parsers */
 
 /*
- * parses and copies one argument enclosed in del from *sp to *dp,
- * recognising the \x special.
- * returns pointer to the copied argument or NULL in case of an
- * error (and sets err) or null argument length.
+ * Scan the argument starting at @s up to the delimiter @del, recognising
+ * the \x escape. Terminates the argument with a NUL and returns a pointer
+ * past it or NULL on a malformed escape.
  */
 static char *scanarg(char *s, char del)
 {
@@ -308,7 +307,7 @@ static char *scanarg(char *s, char del)
 				return NULL;
 		}
 	}
-	s[-1] ='\0';
+	s[-1] = '\0';
 	return s;
 }
 
@@ -457,7 +456,7 @@ static struct binfmt_misc_entry *create_entry(const char __user *buffer,
 	if (copy_from_user(buf, buffer, count))
 		return ERR_PTR(-EFAULT);
 
-	del = *p++;	/* delimeter */
+	del = *p++;	/* delimiter */
 
 	pr_debug("register: delim: %#x {%c}\n", del, del);
 
@@ -603,7 +602,7 @@ static int bm_entry_show(struct seq_file *m, void *unused)
 	return 0;
 }
 
-static struct inode *bm_get_inode(struct super_block *sb, int mode)
+static struct inode *bm_get_inode(struct super_block *sb, umode_t mode)
 {
 	struct inode *inode = new_inode(sb);
 
@@ -851,7 +850,7 @@ static ssize_t
 bm_status_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
 {
 	struct binfmt_misc *misc;
-	char *s;
+	const char *s;
 
 	misc = i_binfmt_misc(file_inode(file));
 	s = READ_ONCE(misc->enabled) ? "enabled\n" : "disabled\n";
@@ -890,7 +889,7 @@ static const struct file_operations bm_status_operations = {
 
 /* Superblock handling */
 
-static const struct super_operations s_ops = {
+static const struct super_operations bm_super_ops = {
 	.statfs		= simple_statfs,
 	.evict_inode	= bm_evict_inode,
 };
@@ -961,7 +960,7 @@ static int bm_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	err = simple_fill_super(sb, BINFMTFS_MAGIC, bm_files);
 	if (!err)
-		sb->s_op = &s_ops;
+		sb->s_op = &bm_super_ops;
 	return err;
 }
 
