@@ -924,12 +924,16 @@ static inline bool
 folio_within_range(struct folio *folio, struct vm_area_struct *vma,
 		unsigned long start, unsigned long end)
 {
-	pgoff_t pgoff, addr;
-	unsigned long vma_pglen = vma_pages(vma);
+	const unsigned long vma_pglen = vma_pages(vma);
+	pgoff_t pgoff_folio, pgoff_vma_start;
+	unsigned long addr;
 
 	VM_WARN_ON_FOLIO(folio_test_ksm(folio), folio);
 	if (start > end)
 		return false;
+
+	pgoff_folio = folio_pgoff(folio);
+	pgoff_vma_start = vma_start_pgoff(vma);
 
 	if (start < vma->vm_start)
 		start = vma->vm_start;
@@ -937,13 +941,11 @@ folio_within_range(struct folio *folio, struct vm_area_struct *vma,
 	if (end > vma->vm_end)
 		end = vma->vm_end;
 
-	pgoff = folio_pgoff(folio);
-
 	/* if folio start address is not in vma range */
-	if (!in_range(pgoff, vma->vm_pgoff, vma_pglen))
+	if (!in_range(pgoff_folio, pgoff_vma_start, vma_pglen))
 		return false;
 
-	addr = vma->vm_start + ((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
+	addr = vma->vm_start + ((pgoff_folio - pgoff_vma_start) << PAGE_SHIFT);
 
 	return !(addr < start || end - addr < folio_size(folio));
 }
@@ -1015,15 +1017,16 @@ extern pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma);
 static inline unsigned long vma_address(const struct vm_area_struct *vma,
 		pgoff_t pgoff, unsigned long nr_pages)
 {
+	const pgoff_t pgoff_start = vma_start_pgoff(vma);
 	unsigned long address;
 
-	if (pgoff >= vma->vm_pgoff) {
+	if (pgoff >= pgoff_start) {
 		address = vma->vm_start +
-			((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
+			((pgoff - pgoff_start) << PAGE_SHIFT);
 		/* Check for address beyond vma (or wrapped through 0?) */
 		if (address < vma->vm_start || address >= vma->vm_end)
 			address = -EFAULT;
-	} else if (pgoff + nr_pages - 1 >= vma->vm_pgoff) {
+	} else if (pgoff + nr_pages - 1 >= pgoff_start) {
 		/* Test above avoids possibility of wrap to 0 on 32-bit */
 		address = vma->vm_start;
 	} else {
@@ -1047,7 +1050,8 @@ static inline unsigned long vma_address_end(struct page_vma_mapped_walk *pvmw)
 		return pvmw->address + PAGE_SIZE;
 
 	pgoff = pvmw->pgoff + pvmw->nr_pages;
-	address = vma->vm_start + ((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
+	address = vma->vm_start +
+		((pgoff - vma_start_pgoff(vma)) << PAGE_SHIFT);
 	/* Check for address beyond vma (or wrapped through 0?) */
 	if (address < vma->vm_start || address > vma->vm_end)
 		address = vma->vm_end;

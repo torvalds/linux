@@ -975,7 +975,7 @@ static int do_mmap_private(struct vm_area_struct *vma,
 		/* read the contents of a file into the copy */
 		loff_t fpos;
 
-		fpos = vma->vm_pgoff;
+		fpos = vma_start_pgoff(vma);
 		fpos <<= PAGE_SHIFT;
 
 		ret = kernel_read(vma->vm_file, base, len, &fpos);
@@ -1378,7 +1378,8 @@ static int split_vma(struct vma_iterator *vmi, struct vm_area_struct *vma,
 	delete_nommu_region(vma->vm_region);
 	if (new_below) {
 		vma->vm_region->vm_start = vma->vm_start = addr;
-		vma->vm_region->vm_pgoff = vma->vm_pgoff += npages;
+		vma->vm_pgoff += npages;
+		vma->vm_region->vm_pgoff = vma_start_pgoff(vma);
 	} else {
 		vma->vm_region->vm_end = vma->vm_end = addr;
 		vma->vm_region->vm_top = addr;
@@ -1626,7 +1627,7 @@ int vm_iomap_memory(struct vm_area_struct *vma, phys_addr_t start, unsigned long
 	unsigned long pfn = start >> PAGE_SHIFT;
 	unsigned long vm_len = vma->vm_end - vma->vm_start;
 
-	pfn += vma->vm_pgoff;
+	pfn += vma_start_pgoff(vma);
 	return io_remap_pfn_range(vma, vma->vm_start, pfn, vm_len, vma->vm_page_prot);
 }
 EXPORT_SYMBOL(vm_iomap_memory);

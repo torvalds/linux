@@ -801,8 +801,7 @@ static inline pgoff_t hugetlb_linear_page_index(struct vm_area_struct *vma,
 {
 	struct hstate *h = hstate_vma(vma);
 
-	return ((address - vma->vm_start) >> huge_page_shift(h)) +
-		(vma->vm_pgoff >> huge_page_order(h));
+	return linear_page_index(vma, address) >> huge_page_order(h);
 }
 
 static inline bool order_is_gigantic(unsigned int order)

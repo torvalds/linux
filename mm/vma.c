@@ -967,10 +967,9 @@ static __must_check struct vm_area_struct *vma_merge_existing_range(
 		 *   prev   middle   next
 		 *  extend  delete  delete
 		 */
-
 		vmg->start = prev->vm_start;
 		vmg->end = next->vm_end;
-		vmg->pgoff = prev->vm_pgoff;
+		vmg->pgoff = vma_start_pgoff(prev);
 
 		/*
 		 * We already ensured anon_vma compatibility above, so now it's
@@ -987,9 +986,8 @@ static __must_check struct vm_area_struct *vma_merge_existing_range(
 		 *   prev     middle
 		 *  extend shrink/delete
 		 */
-
 		vmg->start = prev->vm_start;
-		vmg->pgoff = prev->vm_pgoff;
+		vmg->pgoff = vma_start_pgoff(prev);
 
 		if (!vmg->__remove_middle)
 			vmg->__adjust_middle_start = true;
@@ -1011,13 +1009,13 @@ static __must_check struct vm_area_struct *vma_merge_existing_range(
 
 		if (vmg->__remove_middle) {
 			vmg->end = next->vm_end;
-			vmg->pgoff = next->vm_pgoff - pglen;
+			vmg->pgoff = vma_start_pgoff(next) - pglen;
 		} else {
 			/* We shrink middle and expand next. */
 			vmg->__adjust_next_start = true;
 			vmg->start = middle->vm_start;
 			vmg->end = start;
-			vmg->pgoff = middle->vm_pgoff;
+			vmg->pgoff = vma_start_pgoff(middle);
 		}
 
 		err = dup_anon_vma(next, middle, &anon_dup);
@@ -1126,7 +1124,7 @@ struct vm_area_struct *vma_merge_new_range(struct vma_merge_struct *vmg)
 	if (can_merge_left) {
 		vmg->start = prev->vm_start;
 		vmg->target = prev;
-		vmg->pgoff = prev->vm_pgoff;
+		vmg->pgoff = vma_start_pgoff(prev);
 
 		/*
 		 * If this merge would result in removal of the next VMA but we
@@ -1957,7 +1955,8 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
 			VM_BUG_ON_VMA(faulted_in_anon_vma, new_vma);
 			*vmap = vma = new_vma;
 		}
-		*need_rmap_locks = (new_vma->vm_pgoff <= vma->vm_pgoff);
+		*need_rmap_locks =
+			(vma_start_pgoff(new_vma) <= vma_start_pgoff(vma));
 	} else {
 		new_vma = vm_area_dup(vma);
 		if (!new_vma)

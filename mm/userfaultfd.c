@@ -481,7 +481,7 @@ static void mfill_retry_state_save(struct mfill_retry_state *s,
 {
 	s->flags = vma_flags_and_mask(&vma->flags, MFILL_RETRY_STATE_VMA_FLAGS);
 	s->ops = vma_uffd_ops(vma);
-	s->pgoff = vma->vm_pgoff;
+	s->pgoff = vma_start_pgoff(vma);
 
 	if (vma->vm_file)
 		s->file = get_file(vma->vm_file);
@@ -507,7 +507,7 @@ static bool mfill_retry_state_changed(struct mfill_retry_state *state,
 
 	/* VMA was file backed, but file, inode or offset has changed */
 	if (!vma->vm_file || vma->vm_file->f_inode != state->file->f_inode ||
-	    state->file != vma->vm_file || vma->vm_pgoff != state->pgoff)
+	    state->file != vma->vm_file || vma_start_pgoff(vma) != state->pgoff)
 		return true;
 
 	return false;
