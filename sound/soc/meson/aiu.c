@@ -154,6 +154,7 @@ static struct snd_soc_dai_driver aiu_cpu_dai_drv[] = {
 			.formats = AIU_FORMATS,
 		},
 		.ops = &aiu_encoder_i2s_dai_ops,
+		.symmetric_rate = 1,
 	},
 	[CPU_SPDIF_ENCODER] = {
 		.name = "SPDIF Encoder",

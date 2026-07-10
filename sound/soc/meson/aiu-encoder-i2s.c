@@ -179,20 +179,7 @@ static int aiu_encoder_i2s_hw_params(struct snd_pcm_substream *substream,
 				     struct snd_soc_dai *dai)
 {
 	struct gx_stream *ts = snd_soc_dai_get_dma_data(dai, substream);
-	struct gx_iface *iface = ts->iface;
 	int ret;
-
-	/*
-	 * Enforce interface wide rate symmetry only if there is more than
-	 * 1 stream active.
-	 */
-	if (snd_soc_dai_active(dai) > 1) {
-		if (iface->rate && iface->rate != params_rate(params)) {
-			dev_err(dai->dev, "can't set iface rate (%d != %d)\n",
-				iface->rate, params_rate(params));
-			return -EINVAL;
-		}
-	}
 
 	ret = aiu_encoder_i2s_set_clocks(substream, params, dai);
 	if (ret) {
@@ -200,7 +187,6 @@ static int aiu_encoder_i2s_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	iface->rate = params_rate(params);
 	ts->physical_width = params_physical_width(params);
 	ts->width = params_width(params);
 	ts->channels = params_channels(params);
@@ -233,17 +219,14 @@ static int aiu_encoder_i2s_hw_free(struct snd_pcm_substream *substream,
 				   struct snd_soc_dai *dai)
 {
 	struct gx_stream *ts = snd_soc_dai_get_dma_data(dai, substream);
-	struct gx_iface *iface = ts->iface;
 	struct snd_soc_component *component = dai->component;
 
 	/*
 	 * If this is the last substream being closed then disable the i2s
-	 * clock divider and clear 'iface->rate'.
+	 * clock divider.
 	 */
-	if (snd_soc_dai_active(dai) <= 1) {
+	if (snd_soc_dai_active(dai) <= 1)
 		aiu_encoder_i2s_divider_enable(component, 0);
-		iface->rate = 0;
-	}
 
 	if (ts->clk_enabled) {
 		clk_disable_unprepare(ts->iface->mclk);
