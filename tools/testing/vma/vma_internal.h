@@ -14,8 +14,8 @@
 
 #include <stdlib.h>
 
-#define CONFIG_MMU
-#define CONFIG_PER_VMA_LOCK
+#define CONFIG_MMU		1
+#define CONFIG_PER_VMA_LOCK	1
 
 #ifdef __CONCAT
 #undef __CONCAT

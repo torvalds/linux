@@ -247,16 +247,45 @@ static inline pgoff_t vmg_end_pgoff(const struct vma_merge_struct *vmg)
 	return vmg_start_pgoff(vmg) + vmg_pages(vmg);
 }
 
+static inline void assert_sane_pgoff(struct vm_area_struct *vma, pgoff_t pgoff)
+{
+	/* nommu doesn't set a virtual pgoff for anon VMAs. */
+	if (!IS_ENABLED(CONFIG_MMU))
+		return;
+	/*
+	 * File-backed VMAs have arbitrary page offset (either page offset into
+	 * file or for pfnmap the PFN of the start of the range or drivers may
+	 * set arbitrary page offset).
+	 */
+	if (!vma_is_anonymous(vma))
+		return;
+	/* MAP_PRIVATE-/dev/zero is anon, non-NULL vm_file, but has file pgoff. */
+	if (vma->vm_file)
+		return;
+	/* If faulted in, could have been remapped. */
+	if (vma->anon_vma)
+		return;
+	/* OK this is really an anon VMA - expect virtual page offset. */
+	VM_WARN_ON_ONCE(pgoff != vma->vm_start >> PAGE_SHIFT);
+}
+
+static inline void vma_set_pgoff(struct vm_area_struct *vma, pgoff_t pgoff)
+{
+	vma_assert_can_modify(vma);
+	assert_sane_pgoff(vma, pgoff);
+	vma->vm_pgoff = pgoff;
+}
+
 static inline void vma_add_pgoff(struct vm_area_struct *vma, pgoff_t delta)
 {
 	vma_assert_can_modify(vma);
-	vma->vm_pgoff += delta;
+	vma_set_pgoff(vma, vma_start_pgoff(vma) + delta);
 }
 
 static inline void vma_sub_pgoff(struct vm_area_struct *vma, pgoff_t delta)
 {
 	vma_assert_can_modify(vma);
-	vma->vm_pgoff -= delta;
+	vma_set_pgoff(vma, vma_start_pgoff(vma) - delta);
 }
 
 #define VMG_STATE(name, mm_, vmi_, start_, end_, vma_flags_, pgoff_)	\
@@ -331,7 +360,7 @@ static inline void compat_set_vma_from_desc(struct vm_area_struct *vma,
 	 */
 
 	/* Mutable fields. Populated with initial state. */
-	vma->vm_pgoff = desc->pgoff;
+	vma_set_pgoff(vma, desc->pgoff);
 	if (desc->vm_file != vma->vm_file)
 		vma_set_file(vma, desc->vm_file);
 	vma->flags = desc->vma_flags;
