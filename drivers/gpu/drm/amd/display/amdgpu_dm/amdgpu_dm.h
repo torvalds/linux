@@ -1157,7 +1157,6 @@ int dm_crtc_get_scanoutpos(struct amdgpu_device *adev, int crtc,
 struct dm_atomic_state *dm_atomic_get_new_state(struct drm_atomic_commit *state);
 void dm_atomic_destroy_state(struct drm_private_obj *obj,
 			     struct drm_private_state *state);
-int amdgpu_dm_smu_write_watermarks_table(struct amdgpu_device *adev);
 bool dm_should_update_native_cursor(struct drm_atomic_commit *state,
 				    struct drm_crtc *old_plane_crtc,
 				    struct drm_crtc *new_plane_crtc,

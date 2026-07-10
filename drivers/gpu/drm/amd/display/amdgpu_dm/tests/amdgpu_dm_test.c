@@ -316,21 +316,6 @@ static void dm_test_atomic_destroy_state_no_context(struct kunit *test)
 	dm_atomic_destroy_state(NULL, &dm_state->base);
 }
 
-/**
- * dm_test_smu_write_watermarks_table_default - Test watermarks table skips non-Navi1x IP versions
- * @test: The KUnit test context
- */
-static void dm_test_smu_write_watermarks_table_default(struct kunit *test)
-{
-	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
-
-	/*
-	 * A zeroed adev reports DCE IP version 0, which is not one of the
-	 * Navi1x versions handled by the switch, so the function returns early.
-	 */
-	KUNIT_EXPECT_EQ(test, amdgpu_dm_smu_write_watermarks_table(adev), 0);
-}
-
 /* Tests for dm_plane_layer_index_cmp() */
 
 /**
@@ -1801,7 +1786,6 @@ static struct kunit_case amdgpu_dm_tests[] = {
 	KUNIT_CASE(dm_test_should_update_native_cursor_disable_native),
 	KUNIT_CASE(dm_test_should_update_native_cursor_enable_overlay),
 	KUNIT_CASE(dm_test_atomic_destroy_state_no_context),
-	KUNIT_CASE(dm_test_smu_write_watermarks_table_default),
 	/* dm_plane_layer_index_cmp */
 	KUNIT_CASE(dm_test_plane_layer_index_cmp_equal),
 	KUNIT_CASE(dm_test_plane_layer_index_cmp_descending),
