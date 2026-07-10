@@ -99,7 +99,7 @@ check "hist with -b/--bucket-size" \
 check "hist with -E/--entries" \
 	"timerlat hist -E 10 -d 1s"
 check "hist with -E/--entries out of range" \
-	"timerlat hist -E 1 -d 1s" 1 "^Entries must be > 10 and < 10000000$"
+	"timerlat hist -E 1 -d 1s" 129 "out of range \[10, 9999999\]"
 check "hist with --no-header" \
 	"timerlat hist --no-header -d 1s" 0 "" "RTLA timerlat histogram"
 check "hist with --with-zeros" \

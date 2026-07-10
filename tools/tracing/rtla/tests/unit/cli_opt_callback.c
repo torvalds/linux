@@ -9,6 +9,12 @@
 #include "cli_params_assert.h"
 
 #define TEST_CALLBACK(value, cb) OPT_CALLBACK('t', "test", value, "test value", "test help", cb)
+#define TEST_LLONG_RANGE(value, lo, hi) \
+	RTLA_OPT_CALLBACK_DATA('t', "test", value, "test value", "test help", \
+	opt_llong_callback, LLONG_RANGE(lo, hi))
+#define TEST_INT_RANGE(value, lo, hi) \
+	RTLA_OPT_CALLBACK_DATA('t', "test", value, "test value", "test help", \
+	opt_int_callback, INT_RANGE(lo, hi))
 
 START_TEST(test_opt_llong_callback_simple)
 {
@@ -134,6 +140,90 @@ START_TEST(test_opt_int_callback_unset_defval)
 	ck_assert_int_eq(opt_int_callback(&opt, "1234567890", 0), 0);
 	ck_assert_int_eq(opt_int_callback(&opt, NULL, 1), 0);
 	ck_assert_int_eq(test_value, 42);
+}
+END_TEST
+
+START_TEST(test_opt_llong_callback_range_in)
+{
+	long long test_value = 0;
+	const struct option opt = TEST_LLONG_RANGE(&test_value, 10, 100);
+
+	ck_assert_int_eq(opt_llong_callback(&opt, "50", 0), 0);
+	ck_assert_int_eq(test_value, 50);
+}
+END_TEST
+
+START_TEST(test_opt_llong_callback_range_below)
+{
+	long long test_value = 0;
+	const struct option opt = TEST_LLONG_RANGE(&test_value, 10, 100);
+
+	assert(freopen("/dev/null", "w", stderr));
+	ck_assert_int_eq(opt_llong_callback(&opt, "9", 0), -1);
+}
+END_TEST
+
+START_TEST(test_opt_llong_callback_range_above)
+{
+	long long test_value = 0;
+	const struct option opt = TEST_LLONG_RANGE(&test_value, 10, 100);
+
+	assert(freopen("/dev/null", "w", stderr));
+	ck_assert_int_eq(opt_llong_callback(&opt, "101", 0), -1);
+}
+END_TEST
+
+START_TEST(test_opt_llong_callback_range_boundary)
+{
+	long long test_value = 0;
+	const struct option opt = TEST_LLONG_RANGE(&test_value, 10, 100);
+
+	ck_assert_int_eq(opt_llong_callback(&opt, "10", 0), 0);
+	ck_assert_int_eq(test_value, 10);
+	ck_assert_int_eq(opt_llong_callback(&opt, "100", 0), 0);
+	ck_assert_int_eq(test_value, 100);
+}
+END_TEST
+
+START_TEST(test_opt_int_callback_range_in)
+{
+	int test_value = 0;
+	const struct option opt = TEST_INT_RANGE(&test_value, 0, 10000);
+
+	ck_assert_int_eq(opt_int_callback(&opt, "5000", 0), 0);
+	ck_assert_int_eq(test_value, 5000);
+}
+END_TEST
+
+START_TEST(test_opt_int_callback_range_below)
+{
+	int test_value = 0;
+	const struct option opt = TEST_INT_RANGE(&test_value, 0, 10000);
+
+	assert(freopen("/dev/null", "w", stderr));
+	ck_assert_int_eq(opt_int_callback(&opt, "-1", 0), -1);
+}
+END_TEST
+
+START_TEST(test_opt_int_callback_range_above)
+{
+	int test_value = 0;
+	const struct option opt = TEST_INT_RANGE(&test_value, 0, 10000);
+
+	assert(freopen("/dev/null", "w", stderr));
+	ck_assert_int_eq(opt_int_callback(&opt, "10001", 0), -1);
+}
+END_TEST
+
+START_TEST(test_opt_int_callback_range_boundary)
+{
+	int test_value = 0;
+	const struct option opt = TEST_INT_RANGE(&test_value, 0, 10000);
+
+	ck_assert_int_eq(opt_int_callback(&opt, "0", 0), 0);
+	ck_assert_int_eq(test_value, 0);
+	ck_assert_int_eq(opt_int_callback(&opt, "10000", 0), 0);
+	ck_assert_int_eq(test_value, 10000);
 }
 END_TEST
 
@@ -388,67 +478,6 @@ START_TEST(test_opt_osnoise_auto_cb_unset)
 }
 END_TEST
 
-START_TEST(test_opt_osnoise_period_cb)
-{
-	unsigned long long period = 0;
-	const struct option opt = TEST_CALLBACK(&period, opt_osnoise_period_cb);
-
-	ck_assert_int_eq(opt_osnoise_period_cb(&opt, "1000000", 0), 0);
-	ck_assert_int_eq(period, 1000000);
-}
-END_TEST
-
-START_TEST(test_opt_osnoise_period_cb_invalid)
-{
-	unsigned long long period = 0;
-	const struct option opt = TEST_CALLBACK(&period, opt_osnoise_period_cb);
-
-	assert(freopen("/dev/null", "w", stderr));
-	opt_osnoise_period_cb(&opt, "10000001", 0);
-}
-END_TEST
-
-START_TEST(test_opt_osnoise_period_cb_unset)
-{
-	unsigned long long period = 0;
-	const struct option opt = TEST_CALLBACK(&period, opt_osnoise_period_cb);
-
-	ck_assert_int_eq(opt_osnoise_period_cb(&opt, "1000000", 0), 0);
-	ck_assert_int_eq(opt_osnoise_period_cb(&opt, NULL, 1), 0);
-	ck_assert_int_eq(period, 0);
-}
-END_TEST
-
-START_TEST(test_opt_osnoise_runtime_cb)
-{
-	unsigned long long runtime = 0;
-	const struct option opt = TEST_CALLBACK(&runtime, opt_osnoise_runtime_cb);
-
-	ck_assert_int_eq(opt_osnoise_runtime_cb(&opt, "900000", 0), 0);
-	ck_assert_int_eq(runtime, 900000);
-}
-END_TEST
-
-START_TEST(test_opt_osnoise_runtime_cb_invalid)
-{
-	unsigned long long runtime = 0;
-	const struct option opt = TEST_CALLBACK(&runtime, opt_osnoise_runtime_cb);
-
-	assert(freopen("/dev/null", "w", stderr));
-	opt_osnoise_runtime_cb(&opt, "99", 0);
-}
-END_TEST
-
-START_TEST(test_opt_osnoise_runtime_cb_unset)
-{
-	unsigned long long runtime = 0;
-	const struct option opt = TEST_CALLBACK(&runtime, opt_osnoise_runtime_cb);
-
-	ck_assert_int_eq(opt_osnoise_runtime_cb(&opt, "900000", 0), 0);
-	ck_assert_int_eq(opt_osnoise_runtime_cb(&opt, NULL, 1), 0);
-	ck_assert_int_eq(runtime, 0);
-}
-END_TEST
 
 START_TEST(test_opt_osnoise_trace_output_cb)
 {
@@ -525,37 +554,6 @@ START_TEST(test_opt_osnoise_on_end_cb_invalid)
 }
 END_TEST
 
-START_TEST(test_opt_timerlat_period_cb)
-{
-	long long period = 0;
-	const struct option opt = TEST_CALLBACK(&period, opt_timerlat_period_cb);
-
-	ck_assert_int_eq(opt_timerlat_period_cb(&opt, "1000", 0), 0);
-	ck_assert_int_eq(period, 1000);
-}
-END_TEST
-
-START_TEST(test_opt_timerlat_period_cb_invalid)
-{
-	long long period = 0;
-	const struct option opt = TEST_CALLBACK(&period, opt_timerlat_period_cb);
-
-	assert(freopen("/dev/null", "w", stderr));
-	opt_timerlat_period_cb(&opt, "1000001", 0);
-}
-END_TEST
-
-START_TEST(test_opt_timerlat_period_cb_unset)
-{
-	long long period = 0;
-	const struct option opt = TEST_CALLBACK(&period, opt_timerlat_period_cb);
-
-	ck_assert_int_eq(opt_timerlat_period_cb(&opt, "1000", 0), 0);
-	ck_assert_int_eq(opt_timerlat_period_cb(&opt, NULL, 1), 0);
-	ck_assert_int_eq(period, 0);
-}
-END_TEST
-
 START_TEST(test_opt_timerlat_auto_cb)
 {
 	struct timerlat_params params = {0};
@@ -585,46 +583,6 @@ START_TEST(test_opt_timerlat_auto_cb_unset)
 }
 END_TEST
 
-START_TEST(test_opt_dma_latency_cb)
-{
-	int dma_latency = 0;
-	const struct option opt = TEST_CALLBACK(&dma_latency, opt_dma_latency_cb);
-
-	ck_assert_int_eq(opt_dma_latency_cb(&opt, "1000", 0), 0);
-	ck_assert_int_eq(dma_latency, 1000);
-}
-END_TEST
-
-START_TEST(test_opt_dma_latency_cb_min)
-{
-	int dma_latency = 0;
-	const struct option opt = TEST_CALLBACK(&dma_latency, opt_dma_latency_cb);
-
-	assert(freopen("/dev/null", "w", stderr));
-	opt_dma_latency_cb(&opt, "-1", 0);
-}
-END_TEST
-
-START_TEST(test_opt_dma_latency_cb_max)
-{
-	int dma_latency = 0;
-	const struct option opt = TEST_CALLBACK(&dma_latency, opt_dma_latency_cb);
-
-	assert(freopen("/dev/null", "w", stderr));
-	opt_dma_latency_cb(&opt, "10001", 0);
-}
-END_TEST
-
-START_TEST(test_opt_dma_latency_cb_unset)
-{
-	int dma_latency = 0;
-	const struct option opt = TEST_CALLBACK(&dma_latency, opt_dma_latency_cb);
-
-	ck_assert_int_eq(opt_dma_latency_cb(&opt, "1000", 0), 0);
-	ck_assert_int_eq(opt_dma_latency_cb(&opt, NULL, 1), 0);
-	ck_assert_int_eq(dma_latency, default_dma_latency);
-}
-END_TEST
 
 START_TEST(test_opt_aa_only_cb)
 {
@@ -775,7 +733,8 @@ END_TEST
 START_TEST(test_opt_timerlat_align_cb)
 {
 	struct timerlat_params params = {0};
-	const struct option opt = TEST_CALLBACK(&params, opt_timerlat_align_cb);
+	const struct option opt = RTLA_OPT_CALLBACK_DATA('A', "aligned", &params, "us",
+		"test", opt_timerlat_align_cb, LLONG_RANGE(0, LLONG_MAX));
 
 	ck_assert_int_eq(opt_timerlat_align_cb(&opt, "500", 0), 0);
 	ck_assert(params.timerlat_align);
@@ -783,10 +742,22 @@ START_TEST(test_opt_timerlat_align_cb)
 }
 END_TEST
 
+START_TEST(test_opt_timerlat_align_cb_invalid)
+{
+	struct timerlat_params params = {0};
+	const struct option opt = RTLA_OPT_CALLBACK_DATA('A', "aligned", &params, "us",
+		"test", opt_timerlat_align_cb, LLONG_RANGE(0, LLONG_MAX));
+
+	assert(freopen("/dev/null", "w", stderr));
+	ck_assert_int_eq(opt_timerlat_align_cb(&opt, "-1", 0), -1);
+}
+END_TEST
+
 START_TEST(test_opt_timerlat_align_cb_unset)
 {
 	struct timerlat_params params = {0};
-	const struct option opt = TEST_CALLBACK(&params, opt_timerlat_align_cb);
+	const struct option opt = RTLA_OPT_CALLBACK_DATA('A', "aligned", &params, "us",
+		"test", opt_timerlat_align_cb, LLONG_RANGE(0, LLONG_MAX));
 
 	ck_assert_int_eq(opt_timerlat_align_cb(&opt, "500", 0), 0);
 	ck_assert_int_eq(opt_timerlat_align_cb(&opt, NULL, 1), 0);
@@ -826,87 +797,6 @@ START_TEST(test_opt_stack_format_cb_unset)
 }
 END_TEST
 
-START_TEST(test_opt_bucket_size_cb)
-{
-	int bucket_size = 0;
-	const struct option opt = TEST_CALLBACK(&bucket_size, opt_bucket_size_cb);
-
-	ck_assert_int_eq(opt_bucket_size_cb(&opt, "100", 0), 0);
-	ck_assert_int_eq(bucket_size, 100);
-}
-END_TEST
-
-START_TEST(test_opt_bucket_size_min)
-{
-	int bucket_size = 0;
-	const struct option opt = TEST_CALLBACK(&bucket_size, opt_bucket_size_cb);
-
-	assert(freopen("/dev/null", "w", stderr));
-	opt_bucket_size_cb(&opt, "0", 0);
-}
-END_TEST
-
-START_TEST(test_opt_bucket_size_max)
-{
-	int bucket_size = 0;
-	const struct option opt = TEST_CALLBACK(&bucket_size, opt_bucket_size_cb);
-
-	assert(freopen("/dev/null", "w", stderr));
-	opt_bucket_size_cb(&opt, "1000001", 0);
-}
-END_TEST
-
-START_TEST(test_opt_bucket_size_cb_unset)
-{
-	int bucket_size = 0;
-	const struct option opt = TEST_CALLBACK(&bucket_size, opt_bucket_size_cb);
-
-	ck_assert_int_eq(opt_bucket_size_cb(&opt, "100", 0), 0);
-	ck_assert_int_eq(opt_bucket_size_cb(&opt, NULL, 1), 0);
-	ck_assert_int_eq(bucket_size, default_bucket_size);
-}
-END_TEST
-
-START_TEST(test_opt_entries_cb)
-{
-	int entries = 0;
-	const struct option opt = TEST_CALLBACK(&entries, opt_entries_cb);
-
-	ck_assert_int_eq(opt_entries_cb(&opt, "100", 0), 0);
-	ck_assert_int_eq(entries, 100);
-}
-END_TEST
-
-START_TEST(test_opt_entries_min)
-{
-	int entries = 0;
-	const struct option opt = TEST_CALLBACK(&entries, opt_entries_cb);
-
-	assert(freopen("/dev/null", "w", stderr));
-	opt_entries_cb(&opt, "9", 0);
-}
-END_TEST
-
-START_TEST(test_opt_entries_max)
-{
-	int entries = 0;
-	const struct option opt = TEST_CALLBACK(&entries, opt_entries_cb);
-
-	assert(freopen("/dev/null", "w", stderr));
-	opt_entries_cb(&opt, "10000000", 0);
-}
-END_TEST
-
-START_TEST(test_opt_entries_cb_unset)
-{
-	int entries = 0;
-	const struct option opt = TEST_CALLBACK(&entries, opt_entries_cb);
-
-	ck_assert_int_eq(opt_entries_cb(&opt, "100", 0), 0);
-	ck_assert_int_eq(opt_entries_cb(&opt, NULL, 1), 0);
-	ck_assert_int_eq(entries, default_entries);
-}
-END_TEST
 
 Suite *cli_opt_callback_suite(void)
 {
@@ -919,6 +809,10 @@ Suite *cli_opt_callback_suite(void)
 	tcase_add_test(tc, test_opt_llong_callback_min);
 	tcase_add_test(tc, test_opt_llong_callback_unset);
 	tcase_add_test(tc, test_opt_llong_callback_unset_defval);
+	tcase_add_test(tc, test_opt_llong_callback_range_in);
+	tcase_add_test(tc, test_opt_llong_callback_range_below);
+	tcase_add_test(tc, test_opt_llong_callback_range_above);
+	tcase_add_test(tc, test_opt_llong_callback_range_boundary);
 	tcase_add_test(tc, test_opt_int_callback_simple);
 	tcase_add_test(tc, test_opt_int_callback_max);
 	tcase_add_test(tc, test_opt_int_callback_min);
@@ -926,6 +820,10 @@ Suite *cli_opt_callback_suite(void)
 	tcase_add_test(tc, test_opt_int_callback_non_numeric_suffix);
 	tcase_add_test(tc, test_opt_int_callback_unset);
 	tcase_add_test(tc, test_opt_int_callback_unset_defval);
+	tcase_add_test(tc, test_opt_int_callback_range_in);
+	tcase_add_test(tc, test_opt_int_callback_range_below);
+	tcase_add_test(tc, test_opt_int_callback_range_above);
+	tcase_add_test(tc, test_opt_int_callback_range_boundary);
 	tcase_add_test(tc, test_opt_cpus_cb);
 	tcase_add_exit_test(tc, test_opt_cpus_cb_invalid, EXIT_FAILURE);
 	tcase_add_test(tc, test_opt_cgroup_cb);
@@ -951,12 +849,6 @@ Suite *cli_opt_callback_suite(void)
 	tc = tcase_create("osnoise");
 	tcase_add_test(tc, test_opt_osnoise_auto_cb);
 	tcase_add_test(tc, test_opt_osnoise_auto_cb_unset);
-	tcase_add_test(tc, test_opt_osnoise_period_cb);
-	tcase_add_test(tc, test_opt_osnoise_period_cb_unset);
-	tcase_add_exit_test(tc, test_opt_osnoise_period_cb_invalid, EXIT_FAILURE);
-	tcase_add_test(tc, test_opt_osnoise_runtime_cb);
-	tcase_add_exit_test(tc, test_opt_osnoise_runtime_cb_invalid, EXIT_FAILURE);
-	tcase_add_test(tc, test_opt_osnoise_runtime_cb_unset);
 	tcase_add_test(tc, test_opt_osnoise_trace_output_cb);
 	tcase_add_test(tc, test_opt_osnoise_trace_output_cb_noarg);
 	tcase_add_test(tc, test_opt_osnoise_trace_output_cb_unset);
@@ -967,15 +859,8 @@ Suite *cli_opt_callback_suite(void)
 	suite_add_tcase(s, tc);
 
 	tc = tcase_create("timerlat");
-	tcase_add_test(tc, test_opt_timerlat_period_cb);
-	tcase_add_exit_test(tc, test_opt_timerlat_period_cb_invalid, EXIT_FAILURE);
-	tcase_add_test(tc, test_opt_timerlat_period_cb_unset);
 	tcase_add_test(tc, test_opt_timerlat_auto_cb);
 	tcase_add_test(tc, test_opt_timerlat_auto_cb_unset);
-	tcase_add_test(tc, test_opt_dma_latency_cb);
-	tcase_add_exit_test(tc, test_opt_dma_latency_cb_min, EXIT_FAILURE);
-	tcase_add_exit_test(tc, test_opt_dma_latency_cb_max, EXIT_FAILURE);
-	tcase_add_test(tc, test_opt_dma_latency_cb_unset);
 	tcase_add_test(tc, test_opt_aa_only_cb);
 	tcase_add_test(tc, test_opt_aa_only_cb_unset);
 	tcase_add_test(tc, test_opt_timerlat_trace_output_cb);
@@ -993,18 +878,8 @@ Suite *cli_opt_callback_suite(void)
 	tcase_add_exit_test(tc, test_opt_stack_format_cb_invalid, EXIT_FAILURE);
 	tcase_add_test(tc, test_opt_stack_format_cb_unset);
 	tcase_add_test(tc, test_opt_timerlat_align_cb);
+	tcase_add_test(tc, test_opt_timerlat_align_cb_invalid);
 	tcase_add_test(tc, test_opt_timerlat_align_cb_unset);
-	suite_add_tcase(s, tc);
-
-	tc = tcase_create("histogram");
-	tcase_add_test(tc, test_opt_bucket_size_cb);
-	tcase_add_exit_test(tc, test_opt_bucket_size_min, EXIT_FAILURE);
-	tcase_add_exit_test(tc, test_opt_bucket_size_max, EXIT_FAILURE);
-	tcase_add_test(tc, test_opt_bucket_size_cb_unset);
-	tcase_add_test(tc, test_opt_entries_cb);
-	tcase_add_exit_test(tc, test_opt_entries_min, EXIT_FAILURE);
-	tcase_add_exit_test(tc, test_opt_entries_max, EXIT_FAILURE);
-	tcase_add_test(tc, test_opt_entries_cb_unset);
 	suite_add_tcase(s, tc);
 
 	return s;

@@ -5,6 +5,7 @@
 #error "Private header file included outside of cli.c module"
 #endif
 
+#include <limits.h>
 #include <linux/kernel.h>
 #include <subcmd/parse-options.h>
 
@@ -33,8 +34,72 @@ static const int default_entries = 256;
 static const enum stack_format default_stack_format = STACK_FORMAT_TRUNCATE;
 
 /*
+ * Range checking for long long and int option callbacks.
+ *
+ * Pass a pointer to a const struct as opt->data to enable range checking.
+ * If opt->data is NULL, no range check is performed.
+ */
+struct llong_range {
+	long long min;
+	long long max;
+};
+
+struct int_range {
+	int min;
+	int max;
+};
+
+#define LLONG_RANGE(lo, hi) \
+	(&(const struct llong_range){ .min = (lo), .max = (hi) })
+
+#define INT_RANGE(lo, hi) \
+	(&(const struct int_range){ .min = (lo), .max = (hi) })
+
+static int check_llong_range(const struct option *opt, long long value)
+{
+	const struct llong_range *range = opt->data;
+
+	if (!range)
+		return 0;
+	if (value < range->min || value > range->max) {
+		fprintf(stderr, " Error: --%s value %lld is out of range [%lld, %lld]\n",
+			opt->long_name, value, range->min, range->max);
+		return -1;
+	}
+	return 0;
+}
+
+static int check_int_range(const struct option *opt, int value)
+{
+	const struct int_range *range = opt->data;
+
+	if (!range)
+		return 0;
+	if (value < range->min || value > range->max) {
+		fprintf(stderr, " Error: --%s value %d is out of range [%d, %d]\n",
+			opt->long_name, value, range->min, range->max);
+		return -1;
+	}
+	return 0;
+}
+
+/*
+ * OPT_CALLBACK variant that populates .data (for range checking).
+ */
+#define RTLA_OPT_CALLBACK_DATA(s, l, v, a, h, f, d) \
+	{ .type = OPTION_CALLBACK, .short_name = (s), .long_name = (l), \
+	  .value = (v), .argh = (a), .help = (h), .callback = (f), \
+	  .data = (void *)(d) }
+
+#define RTLA_OPT_CALLBACK_DATA_DEFVAL(s, l, v, a, h, f, d, dv) \
+	{ .type = OPTION_CALLBACK, .short_name = (s), .long_name = (l), \
+	  .value = (v), .argh = (a), .help = (h), .callback = (f), \
+	  .data = (void *)(d), .defval = (intptr_t)(dv) }
+
+/*
  * Shorthand macros for integer/long long command line options using
- * opt_int_callback/opt_llong_callback, with variants that set defval.
+ * opt_int_callback/opt_llong_callback, with variants that set defval
+ * and/or data (for range checking).
  *
  * Note: defval's type is intptr_t. opt_int_callback interprets it directly as
  * an int, opt_llong_callback interprets it as a pointer to a long long, as
@@ -47,12 +112,21 @@ static const enum stack_format default_stack_format = STACK_FORMAT_TRUNCATE;
 	.short_name = (s), .long_name = (l), .value = (v), .argh = (a), \
 	.help = (h), .callback = opt_llong_callback, .defval = (intptr_t)(d) }
 
+#define RTLA_OPT_LLONG_DATA(s, l, v, a, h, d) { .type = OPTION_CALLBACK, \
+	.short_name = (s), .long_name = (l), .value = (v), .argh = (a), \
+	.help = (h), .callback = opt_llong_callback, .data = (void *)(d) }
+
 #define RTLA_OPT_INT(s, l, v, a, h) \
 	OPT_CALLBACK(s, l, v, a, h, opt_int_callback)
 
 #define RTLA_OPT_INT_DEFVAL(s, l, v, a, h, d) { .type = OPTION_CALLBACK, \
 	.short_name = (s), .long_name = (l), .value = (v), .argh = (a), \
 	.help = (h), .callback = opt_int_callback, .defval = (intptr_t)(d) }
+
+#define RTLA_OPT_INT_DATA_DEFVAL(s, l, v, a, h, d, dv) { .type = OPTION_CALLBACK, \
+	.short_name = (s), .long_name = (l), .value = (v), .argh = (a), \
+	.help = (h), .callback = opt_int_callback, \
+	.data = (void *)(d), .defval = (intptr_t)(dv) }
 
 /*
  * Macros for command line options common to all tools
@@ -182,6 +256,8 @@ static int opt_llong_callback(const struct option *opt, const char *arg, int uns
 		return -1;
 
 	*value = get_llong_from_str((char *)arg);
+	if (check_llong_range(opt, *value))
+		return -1;
 	return 0;
 }
 
@@ -198,6 +274,8 @@ static int opt_int_callback(const struct option *opt, const char *arg, int unset
 		return -1;
 
 	if (strtoi(arg, value))
+		return -1;
+	if (check_int_range(opt, *value))
 		return -1;
 
 	return 0;
@@ -359,13 +437,13 @@ static int opt_filter_cb(const struct option *opt, const char *arg, int unset)
 /*
  * Macros for command line options specific to osnoise
  */
-#define OSNOISE_OPT_PERIOD OPT_CALLBACK('p', "period", &params->period, "us", \
+#define OSNOISE_OPT_PERIOD RTLA_OPT_LLONG_DATA('p', "period", &params->period, "us", \
 	"osnoise period in us", \
-	opt_osnoise_period_cb)
+	LLONG_RANGE(1, 10000000))
 
-#define OSNOISE_OPT_RUNTIME OPT_CALLBACK('r', "runtime", &params->runtime, "us", \
+#define OSNOISE_OPT_RUNTIME RTLA_OPT_LLONG_DATA('r', "runtime", &params->runtime, "us", \
 	"osnoise runtime in us", \
-	opt_osnoise_runtime_cb)
+	LLONG_RANGE(100, LLONG_MAX))
 
 #define OSNOISE_OPT_THRESHOLD RTLA_OPT_LLONG('T', "threshold", &params->threshold, "us", \
 	"the minimum delta to be considered a noise")
@@ -396,44 +474,6 @@ static int opt_osnoise_auto_cb(const struct option *opt, const char *arg, int un
 
 	if (!cb_data->trace_output)
 		cb_data->trace_output = "osnoise_trace.txt";
-
-	return 0;
-}
-
-static int opt_osnoise_period_cb(const struct option *opt, const char *arg, int unset)
-{
-	unsigned long long *period = opt->value;
-
-	if (unset) {
-		*period = 0;
-		return 0;
-	}
-
-	if (!arg)
-		return -1;
-
-	*period = get_llong_from_str((char *)arg);
-	if (*period > 10000000)
-		fatal("Period longer than 10 s");
-
-	return 0;
-}
-
-static int opt_osnoise_runtime_cb(const struct option *opt, const char *arg, int unset)
-{
-	unsigned long long *runtime = opt->value;
-
-	if (unset) {
-		*runtime = 0;
-		return 0;
-	}
-
-	if (!arg)
-		return -1;
-
-	*runtime = get_llong_from_str((char *)arg);
-	if (*runtime < 100)
-		fatal("Runtime shorter than 100 us");
 
 	return 0;
 }
@@ -492,9 +532,9 @@ static int opt_osnoise_on_end_cb(const struct option *opt, const char *arg, int 
 /*
  * Macros for command line options specific to timerlat
  */
-#define TIMERLAT_OPT_PERIOD OPT_CALLBACK('p', "period", &params->timerlat_period_us, "us", \
+#define TIMERLAT_OPT_PERIOD RTLA_OPT_LLONG_DATA('p', "period", &params->timerlat_period_us, "us", \
 	"timerlat period in us", \
-	opt_timerlat_period_cb)
+	LLONG_RANGE(100, 1000000))
 
 #define TIMERLAT_OPT_STACK RTLA_OPT_LLONG('s', "stack", &params->print_stack, "us", \
 	"save the stack trace at the IRQ if a thread latency is higher than the argument in us")
@@ -503,14 +543,15 @@ static int opt_osnoise_on_end_cb(const struct option *opt, const char *arg, int 
 	"display data in nanoseconds", \
 	opt_nano_cb)
 
-#define TIMERLAT_OPT_DMA_LATENCY OPT_CALLBACK(0, "dma-latency", &params->dma_latency, "us", \
+#define TIMERLAT_OPT_DMA_LATENCY RTLA_OPT_INT_DATA_DEFVAL(0, "dma-latency", \
+	&params->dma_latency, "us", \
 	"set /dev/cpu_dma_latency latency <us> to reduce exit from idle latency", \
-	opt_dma_latency_cb)
+	INT_RANGE(0, 10000), default_dma_latency)
 
-#define TIMERLAT_OPT_DEEPEST_IDLE_STATE RTLA_OPT_INT_DEFVAL(0, "deepest-idle-state", \
+#define TIMERLAT_OPT_DEEPEST_IDLE_STATE RTLA_OPT_INT_DATA_DEFVAL(0, "deepest-idle-state", \
 	&params->deepest_idle_state, "n", \
 	"only go down to idle state n on cpus used by timerlat to reduce exit from idle latency", \
-	default_deepest_idle_state)
+	INT_RANGE(-1, INT_MAX), default_deepest_idle_state)
 
 #define TIMERLAT_OPT_AA_ONLY OPT_CALLBACK(0, "aa-only", params, "us", \
 	"stop if <us> latency is hit, only printing the auto analysis (reduces CPU usage)", \
@@ -530,32 +571,13 @@ static int opt_osnoise_on_end_cb(const struct option *opt, const char *arg, int 
 	"set the stack format (truncate, skip, full)", \
 	opt_stack_format_cb)
 
-#define TIMERLAT_OPT_ALIGNED OPT_CALLBACK('A', "aligned", params, "us", \
+#define TIMERLAT_OPT_ALIGNED RTLA_OPT_CALLBACK_DATA('A', "aligned", params, "us", \
 	"align thread wakeups to a specific offset", \
-	opt_timerlat_align_cb)
+	opt_timerlat_align_cb, LLONG_RANGE(0, LLONG_MAX))
 
 /*
  * Callback functions for command line options for timerlat tools
  */
-
-static int opt_timerlat_period_cb(const struct option *opt, const char *arg, int unset)
-{
-	long long *period = opt->value;
-
-	if (unset) {
-		*period = 0;
-		return 0;
-	}
-
-	if (!arg)
-		return -1;
-
-	*period = get_llong_from_str((char *)arg);
-	if (*period > 1000000)
-		fatal("Period longer than 1 s");
-
-	return 0;
-}
 
 static int opt_timerlat_auto_cb(const struct option *opt, const char *arg, int unset)
 {
@@ -581,28 +603,6 @@ static int opt_timerlat_auto_cb(const struct option *opt, const char *arg, int u
 
 	if (!cb_data->trace_output)
 		cb_data->trace_output = "timerlat_trace.txt";
-
-	return 0;
-}
-
-static int opt_dma_latency_cb(const struct option *opt, const char *arg, int unset)
-{
-	int *dma_latency = opt->value;
-	int retval;
-
-	if (unset) {
-		*dma_latency = default_dma_latency;
-		return 0;
-	}
-
-	if (!arg)
-		return -1;
-
-	retval = strtoi((char *)arg, dma_latency);
-	if (retval)
-		fatal("Invalid -dma-latency %s", arg);
-	if (*dma_latency < 0 || *dma_latency > 10000)
-		fatal("--dma-latency needs to be >= 0 and <= 10000");
 
 	return 0;
 }
@@ -748,6 +748,8 @@ static int opt_timerlat_align_cb(const struct option *opt, const char *arg, int 
 
 	params->timerlat_align = true;
 	params->timerlat_align_us = get_llong_from_str((char *)arg);
+	if (check_llong_range(opt, params->timerlat_align_us))
+		return -1;
 
 	return 0;
 }
@@ -756,14 +758,15 @@ static int opt_timerlat_align_cb(const struct option *opt, const char *arg, int 
  * Macros for command line options specific to histogram-based tools
  */
 
-#define HIST_OPT_BUCKET_SIZE OPT_CALLBACK('b', "bucket-size", \
+#define HIST_OPT_BUCKET_SIZE RTLA_OPT_INT_DATA_DEFVAL('b', "bucket-size", \
 	&params->common.hist.bucket_size, "N", \
 	"set the histogram bucket size (default 1)", \
-	opt_bucket_size_cb)
+	INT_RANGE(1, 999999), default_bucket_size)
 
-#define HIST_OPT_ENTRIES OPT_CALLBACK('E', "entries", &params->common.hist.entries, "N", \
+#define HIST_OPT_ENTRIES RTLA_OPT_INT_DATA_DEFVAL('E', "entries", \
+	&params->common.hist.entries, "N", \
 	"set the number of entries of the histogram (default 256)", \
-	opt_entries_cb)
+	INT_RANGE(10, 9999999), default_entries)
 
 #define HIST_OPT_NO_IRQ OPT_BOOLEAN_FLAG(0, "no-irq", &params->common.hist.no_irq, \
 	"ignore IRQ latencies", PARSE_OPT_NOAUTONEG)
@@ -783,42 +786,3 @@ static int opt_timerlat_align_cb(const struct option *opt, const char *arg, int 
 #define HIST_OPT_WITH_ZEROS OPT_BOOLEAN(0, "with-zeros", &params->common.hist.with_zeros, \
 	"print zero only entries")
 
-/* Histogram-specific callbacks */
-
-static int opt_bucket_size_cb(const struct option *opt, const char *arg, int unset)
-{
-	int *bucket_size = opt->value;
-
-	if (unset) {
-		*bucket_size = default_bucket_size;
-		return 0;
-	}
-
-	if (!arg)
-		return -1;
-
-	*bucket_size = get_llong_from_str((char *)arg);
-	if (*bucket_size == 0 || *bucket_size >= 1000000)
-		fatal("Bucket size needs to be > 0 and <= 1000000");
-
-	return 0;
-}
-
-static int opt_entries_cb(const struct option *opt, const char *arg, int unset)
-{
-	int *entries = opt->value;
-
-	if (unset) {
-		*entries = default_entries;
-		return 0;
-	}
-
-	if (!arg)
-		return -1;
-
-	*entries = get_llong_from_str((char *)arg);
-	if (*entries < 10 || *entries > 9999999)
-		fatal("Entries must be > 10 and < 10000000");
-
-	return 0;
-}

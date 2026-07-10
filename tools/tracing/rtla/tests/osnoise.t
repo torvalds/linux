@@ -32,7 +32,7 @@ check "hist with -b/--bucket-size" \
 check "hist with -E/--entries" \
 	"osnoise hist -E 10 -d 1s"
 check "hist with -E/--entries out of range" \
-	"osnoise hist -E 1 -d 1s" 1 "^Entries must be > 10 and < 10000000$"
+	"osnoise hist -E 1 -d 1s" 129 "out of range \[10, 9999999\]"
 check "hist with --no-header" \
 	"osnoise hist --no-header -d 1s" 0 "" "RTLA osnoise histogram"
 check "hist with --with-zeros" \
