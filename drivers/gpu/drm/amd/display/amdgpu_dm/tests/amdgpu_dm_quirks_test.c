@@ -6,6 +6,7 @@
  */
 
 #include <kunit/test.h>
+#include <linux/pci.h>
 
 #include "dc.h"
 #include "amdgpu_mode.h"
@@ -83,11 +84,75 @@ static void dm_test_quirks_no_dmi_match_both_false(struct kunit *test)
 	KUNIT_EXPECT_FALSE(test, dm->edp0_on_dp1_quirk);
 }
 
+/* Tests for dm_should_disable_stutter() */
+
+/**
+ * dm_test_should_disable_stutter_match - Test the quirk device matches
+ * @test: The KUnit test context
+ */
+static void dm_test_should_disable_stutter_match(struct kunit *test)
+{
+	struct pci_dev *pdev;
+
+	pdev = kunit_kzalloc(test, sizeof(*pdev), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, pdev);
+
+	pdev->vendor = 0x1002;
+	pdev->device = 0x15dd;
+	pdev->subsystem_vendor = 0x1002;
+	pdev->subsystem_device = 0x15dd;
+	pdev->revision = 0xc8;
+
+	KUNIT_EXPECT_TRUE(test, dm_should_disable_stutter(pdev));
+}
+
+/**
+ * dm_test_should_disable_stutter_no_match - Test a non-quirk device does not match
+ * @test: The KUnit test context
+ */
+static void dm_test_should_disable_stutter_no_match(struct kunit *test)
+{
+	struct pci_dev *pdev;
+
+	pdev = kunit_kzalloc(test, sizeof(*pdev), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, pdev);
+
+	pdev->vendor = 0x1002;
+	pdev->device = 0x1234;
+
+	KUNIT_EXPECT_FALSE(test, dm_should_disable_stutter(pdev));
+}
+
+/**
+ * dm_test_should_disable_stutter_revision_differs - Test a partial match (revision) fails
+ * @test: The KUnit test context
+ */
+static void dm_test_should_disable_stutter_revision_differs(struct kunit *test)
+{
+	struct pci_dev *pdev;
+
+	pdev = kunit_kzalloc(test, sizeof(*pdev), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, pdev);
+
+	/* Everything matches the quirk except the revision */
+	pdev->vendor = 0x1002;
+	pdev->device = 0x15dd;
+	pdev->subsystem_vendor = 0x1002;
+	pdev->subsystem_device = 0x15dd;
+	pdev->revision = 0x00;
+
+	KUNIT_EXPECT_FALSE(test, dm_should_disable_stutter(pdev));
+}
+
 static struct kunit_case amdgpu_dm_quirks_tests[] = {
 	/* retrieve_dmi_info */
 	KUNIT_CASE(dm_test_quirks_aux_hpd_discon_reset),
 	KUNIT_CASE(dm_test_quirks_edp0_on_dp1_reset),
 	KUNIT_CASE(dm_test_quirks_no_dmi_match_both_false),
+	/* dm_should_disable_stutter */
+	KUNIT_CASE(dm_test_should_disable_stutter_match),
+	KUNIT_CASE(dm_test_should_disable_stutter_no_match),
+	KUNIT_CASE(dm_test_should_disable_stutter_revision_differs),
 	{}
 };
 
