@@ -311,7 +311,7 @@ static inline int is_badblock(struct md_rdev *rdev, sector_t s, sector_t sectors
 }
 
 static inline int rdev_has_badblock(struct md_rdev *rdev, sector_t s,
-				    int sectors)
+				    sector_t sectors)
 {
 	sector_t first_bad;
 	sector_t bad_sectors;
@@ -319,9 +319,9 @@ static inline int rdev_has_badblock(struct md_rdev *rdev, sector_t s,
 	return is_badblock(rdev, s, sectors, &first_bad, &bad_sectors);
 }
 
-extern bool rdev_set_badblocks(struct md_rdev *rdev, sector_t s, int sectors,
+extern bool rdev_set_badblocks(struct md_rdev *rdev, sector_t s, sector_t sectors,
 			       int is_new);
-extern void rdev_clear_badblocks(struct md_rdev *rdev, sector_t s, int sectors,
+extern void rdev_clear_badblocks(struct md_rdev *rdev, sector_t s, sector_t sectors,
 				 int is_new);
 struct md_cluster_info;
 struct md_cluster_operations;
