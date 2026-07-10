@@ -116,6 +116,8 @@ void hdcp_update_display_encryption_control(struct hdcp_workqueue *hdcp_work,
 void event_property_update(struct work_struct *work);
 void event_property_validate(struct work_struct *work);
 void event_callback(struct work_struct *work);
+void event_watchdog_timer(struct work_struct *work);
+void event_cpirq(struct work_struct *work);
 void link_lock(struct hdcp_workqueue *work, bool lock);
 void hdcp_remove_display(struct hdcp_workqueue *hdcp_work, unsigned int link_index,
 			 struct amdgpu_dm_connector *aconnector);

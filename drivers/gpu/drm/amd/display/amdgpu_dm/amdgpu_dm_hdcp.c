@@ -517,7 +517,8 @@ void event_property_validate(struct work_struct *work)
 }
 EXPORT_IF_KUNIT(event_property_validate);
 
-static void event_watchdog_timer(struct work_struct *work)
+STATIC_IFN_KUNIT
+void event_watchdog_timer(struct work_struct *work)
 {
 	struct hdcp_workqueue *hdcp_work;
 
@@ -535,8 +536,10 @@ static void event_watchdog_timer(struct work_struct *work)
 
 	process_output(hdcp_work);
 }
+EXPORT_IF_KUNIT(event_watchdog_timer);
 
-static void event_cpirq(struct work_struct *work)
+STATIC_IFN_KUNIT
+void event_cpirq(struct work_struct *work)
 {
 	struct hdcp_workqueue *hdcp_work;
 
@@ -548,6 +551,7 @@ static void event_cpirq(struct work_struct *work)
 
 	process_output(hdcp_work);
 }
+EXPORT_IF_KUNIT(event_cpirq);
 
 void hdcp_destroy(struct kobject *kobj, struct hdcp_workqueue *hdcp_work)
 {
