@@ -12,7 +12,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/hex.h>
 #include <linux/init.h>
 #include <linux/sched/mm.h>
 #include <linux/magic.h>
@@ -25,6 +24,7 @@
 #include <linux/namei.h>
 #include <linux/mount.h>
 #include <linux/rculist.h>
+#include <linux/seq_file.h>
 #include <linux/fs_context.h>
 #include <linux/syscalls.h>
 #include <linux/fs.h>
@@ -576,40 +576,47 @@ static int parse_command(const char __user *buffer, size_t count)
 
 /* generic stuff */
 
-static void entry_status(struct binfmt_misc_entry *e, char *page)
+static void bm_seq_hex(struct seq_file *m, const u8 *data, int size)
 {
-	char *dp = page;
-	const char *status = "disabled";
+	for (int i = 0; i < size; i++)
+		seq_printf(m, "%02x", data[i]);
+}
+
+static int bm_entry_show(struct seq_file *m, void *unused)
+{
+	struct binfmt_misc_entry *e = m->private;
 
 	if (test_bit(MISC_FMT_ENABLED_BIT, &e->flags))
-		status = "enabled";
+		seq_puts(m, "enabled\n");
+	else
+		seq_puts(m, "disabled\n");
 
-	dp += sprintf(dp, "%s\ninterpreter %s\n", status, e->interpreter);
+	seq_printf(m, "interpreter %s\n", e->interpreter);
 
 	/* print the special flags */
-	dp += sprintf(dp, "flags: ");
+	seq_puts(m, "flags: ");
 	if (e->flags & MISC_FMT_PRESERVE_ARGV0)
-		*dp++ = 'P';
+		seq_putc(m, 'P');
 	if (e->flags & MISC_FMT_OPEN_BINARY)
-		*dp++ = 'O';
+		seq_putc(m, 'O');
 	if (e->flags & MISC_FMT_CREDENTIALS)
-		*dp++ = 'C';
+		seq_putc(m, 'C');
 	if (e->flags & MISC_FMT_OPEN_FILE)
-		*dp++ = 'F';
-	*dp++ = '\n';
+		seq_putc(m, 'F');
+	seq_putc(m, '\n');
 
 	if (!test_bit(MISC_FMT_MAGIC_BIT, &e->flags)) {
-		sprintf(dp, "extension .%s\n", e->magic);
+		seq_printf(m, "extension .%s\n", e->magic);
 	} else {
-		dp += sprintf(dp, "offset %i\nmagic ", e->offset);
-		dp = bin2hex(dp, e->magic, e->size);
+		seq_printf(m, "offset %i\nmagic ", e->offset);
+		bm_seq_hex(m, e->magic, e->size);
 		if (e->mask) {
-			dp += sprintf(dp, "\nmask ");
-			dp = bin2hex(dp, e->mask, e->size);
+			seq_puts(m, "\nmask ");
+			bm_seq_hex(m, e->mask, e->size);
 		}
-		*dp++ = '\n';
-		*dp = '\0';
+		seq_putc(m, '\n');
 	}
+	return 0;
 }
 
 static struct inode *bm_get_inode(struct super_block *sb, int mode)
@@ -694,23 +701,18 @@ static void remove_binfmt_handler(struct binfmt_misc *misc,
 
 /* /<entry> */
 
-static ssize_t
-bm_entry_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
+static int bm_entry_open(struct inode *inode, struct file *file)
 {
-	struct binfmt_misc_entry *e = file_inode(file)->i_private;
-	ssize_t res;
-	char *page;
+	int ret;
 
-	page = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!page)
-		return -ENOMEM;
+	ret = single_open(file, bm_entry_show, inode->i_private);
+	if (ret)
+		return ret;
 
-	entry_status(e, page);
-
-	res = simple_read_from_buffer(buf, nbytes, ppos, page, strlen(page));
-
-	kfree(page);
-	return res;
+	/* seq_open() clears FMODE_PWRITE, bm_entry_write() takes any offset */
+	if (file->f_mode & FMODE_WRITE)
+		file->f_mode |= FMODE_PWRITE;
+	return 0;
 }
 
 static ssize_t bm_entry_write(struct file *file, const char __user *buffer,
@@ -758,9 +760,11 @@ static ssize_t bm_entry_write(struct file *file, const char __user *buffer,
 }
 
 static const struct file_operations bm_entry_operations = {
-	.read		= bm_entry_read,
+	.open		= bm_entry_open,
+	.read		= seq_read,
 	.write		= bm_entry_write,
-	.llseek		= default_llseek,
+	.llseek		= seq_lseek,
+	.release	= single_release,
 };
 
 /* /register */
