@@ -384,7 +384,8 @@ void hdcp_handle_cpirq(struct hdcp_workqueue *hdcp_work, unsigned int link_index
 }
 EXPORT_IF_KUNIT(hdcp_handle_cpirq);
 
-static void event_callback(struct work_struct *work)
+STATIC_IFN_KUNIT
+void event_callback(struct work_struct *work)
 {
 	struct hdcp_workqueue *hdcp_work;
 
@@ -400,6 +401,7 @@ static void event_callback(struct work_struct *work)
 
 	process_output(hdcp_work);
 }
+EXPORT_IF_KUNIT(event_callback);
 
 STATIC_IFN_KUNIT
 void event_property_update(struct work_struct *work)

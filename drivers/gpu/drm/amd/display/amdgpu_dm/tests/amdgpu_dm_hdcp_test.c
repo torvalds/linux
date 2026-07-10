@@ -501,6 +501,81 @@ static void dm_test_event_property_update_skips_null_connector(struct kunit *tes
 
 /* End of tests for event_property_update() */
 
+/* Tests for event_callback() */
+
+/**
+ * alloc_test_workqueue_for_callback - workqueue ready for event_callback()
+ * @test: KUnit test context for managed allocation
+ *
+ * Allocates a minimal hdcp_workqueue with its mutex and the three delayed
+ * works initialised, as required by the guard(mutex), cancel_delayed_work()
+ * and process_output() usage inside event_callback().
+ */
+static struct hdcp_workqueue *alloc_test_workqueue_for_callback(struct kunit *test)
+{
+	struct hdcp_workqueue *work;
+
+	work = kunit_kzalloc(test, sizeof(*work), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, work);
+
+	mutex_init(&work->mutex);
+	INIT_DELAYED_WORK(&work->callback_dwork, dummy_work_fn);
+	INIT_DELAYED_WORK(&work->watchdog_timer_dwork, dummy_work_fn);
+	INIT_DELAYED_WORK(&work->property_validate_dwork, dummy_work_fn);
+
+	return work;
+}
+
+/**
+ * dm_test_event_callback_cancels_callback_dwork - callback work is cancelled
+ * @test: KUnit test context
+ *
+ * event_callback() must cancel a previously scheduled callback_dwork. With
+ * no active hdcp display, mod_hdcp_process_event() leaves output cleared so
+ * the callback is not requeued and callback_dwork ends up not pending.
+ */
+static void dm_test_event_callback_cancels_callback_dwork(struct kunit *test)
+{
+	struct hdcp_workqueue *work = alloc_test_workqueue_for_callback(test);
+
+	/* Pre-schedule callback_dwork with a long delay so it won't fire. */
+	schedule_delayed_work(&work->callback_dwork, msecs_to_jiffies(10000));
+	KUNIT_ASSERT_TRUE(test, delayed_work_pending(&work->callback_dwork));
+
+	event_callback(&work->callback_dwork.work);
+
+	KUNIT_EXPECT_FALSE(test, delayed_work_pending(&work->callback_dwork));
+
+	cancel_delayed_work_sync(&work->callback_dwork);
+	cancel_delayed_work_sync(&work->watchdog_timer_dwork);
+	cancel_delayed_work_sync(&work->property_validate_dwork);
+}
+
+/**
+ * dm_test_event_callback_schedules_property_validate - process_output() runs
+ * @test: KUnit test context
+ *
+ * event_callback() finishes by calling process_output(), which always
+ * enqueues property_validate_dwork with delay=0. Verifying it is pending
+ * proves event_callback() reached process_output() and released the mutex.
+ */
+static void dm_test_event_callback_schedules_property_validate(struct kunit *test)
+{
+	struct hdcp_workqueue *work = alloc_test_workqueue_for_callback(test);
+
+	event_callback(&work->callback_dwork.work);
+
+	KUNIT_EXPECT_TRUE(test, work_pending(&work->property_validate_dwork.work));
+	/* Mutex must be released after the guard scope exits. */
+	KUNIT_EXPECT_FALSE(test, mutex_is_locked(&work->mutex));
+
+	cancel_delayed_work_sync(&work->callback_dwork);
+	cancel_delayed_work_sync(&work->watchdog_timer_dwork);
+	cancel_delayed_work_sync(&work->property_validate_dwork);
+}
+
+/* End of tests for event_callback() */
+
 /* Tests for hdcp_handle_cpirq() */
 
 /**
@@ -977,6 +1052,9 @@ static struct kunit_case dm_hdcp_test_cases[] = {
 	KUNIT_CASE(dm_test_process_output_watchdog_stop_and_needed_requeues),
 	/* event_property_update() */
 	KUNIT_CASE(dm_test_event_property_update_skips_null_connector),
+	/* event_callback() */
+	KUNIT_CASE(dm_test_event_callback_cancels_callback_dwork),
+	KUNIT_CASE(dm_test_event_callback_schedules_property_validate),
 	/* hdcp_handle_cpirq() */
 	KUNIT_CASE(dm_test_hdcp_handle_cpirq_schedules_work),
 	KUNIT_CASE(dm_test_hdcp_handle_cpirq_selects_link_index),
