@@ -32,12 +32,6 @@
 
 #include "internal.h"
 
-#ifdef DEBUG
-# define USE_DEBUG 1
-#else
-# define USE_DEBUG 0
-#endif
-
 /* Entry status and match type bit numbers. */
 enum binfmt_misc_entry_bits {
 	MISC_FMT_ENABLED_BIT	= 0,
@@ -459,10 +453,9 @@ static struct binfmt_misc_entry *create_entry(const char __user *buffer,
 			goto einval;
 		if (!e->magic[0])
 			goto einval;
-		if (USE_DEBUG)
-			print_hex_dump_bytes(
-				KBUILD_MODNAME ": register: magic[raw]: ",
-				DUMP_PREFIX_NONE, e->magic, p - e->magic);
+		print_hex_dump_debug(
+			KBUILD_MODNAME ": register: magic[raw]: ",
+			DUMP_PREFIX_NONE, 16, 1, e->magic, p - e->magic, true);
 
 		/* Parse the 'mask' field. */
 		e->mask = p;
@@ -472,10 +465,12 @@ static struct binfmt_misc_entry *create_entry(const char __user *buffer,
 		if (!e->mask[0]) {
 			e->mask = NULL;
 			pr_debug("register:  mask[raw]: none\n");
-		} else if (USE_DEBUG)
-			print_hex_dump_bytes(
+		} else {
+			print_hex_dump_debug(
 				KBUILD_MODNAME ": register:  mask[raw]: ",
-				DUMP_PREFIX_NONE, e->mask, p - e->mask);
+				DUMP_PREFIX_NONE, 16, 1, e->mask, p - e->mask,
+				true);
+		}
 
 		/*
 		 * Decode the magic & mask fields.
@@ -491,30 +486,13 @@ static struct binfmt_misc_entry *create_entry(const char __user *buffer,
 		    BINPRM_BUF_SIZE - e->size < e->offset)
 			goto einval;
 		pr_debug("register: magic/mask length: %i\n", e->size);
-		if (USE_DEBUG) {
-			print_hex_dump_bytes(
-				KBUILD_MODNAME ": register: magic[decoded]: ",
-				DUMP_PREFIX_NONE, e->magic, e->size);
-
-			if (e->mask) {
-				int i;
-				char *masked = kmalloc(e->size, GFP_KERNEL_ACCOUNT);
-
-				print_hex_dump_bytes(
-					KBUILD_MODNAME ": register:  mask[decoded]: ",
-					DUMP_PREFIX_NONE, e->mask, e->size);
-
-				if (masked) {
-					for (i = 0; i < e->size; ++i)
-						masked[i] = e->magic[i] & e->mask[i];
-					print_hex_dump_bytes(
-						KBUILD_MODNAME ": register:  magic[masked]: ",
-						DUMP_PREFIX_NONE, masked, e->size);
-
-					kfree(masked);
-				}
-			}
-		}
+		print_hex_dump_debug(
+			KBUILD_MODNAME ": register: magic[decoded]: ",
+			DUMP_PREFIX_NONE, 16, 1, e->magic, e->size, true);
+		if (e->mask)
+			print_hex_dump_debug(
+				KBUILD_MODNAME ": register:  mask[decoded]: ",
+				DUMP_PREFIX_NONE, 16, 1, e->mask, e->size, true);
 	} else {
 		/* Handle the 'E' (extension) format. */
 
