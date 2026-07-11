@@ -331,20 +331,24 @@ static void raid_end_bio_io(struct r10bio *r10_bio)
 {
 	struct bio *bio = r10_bio->master_bio;
 	struct r10conf *conf = r10_bio->mddev->private;
+	bool returned = true;
 
 	if (!test_and_set_bit(R10BIO_Returned, &r10_bio->state)) {
 		if (!test_bit(R10BIO_Uptodate, &r10_bio->state))
 			bio->bi_status = BLK_STS_IOERR;
-		bio_endio(bio);
+		returned = false;
 	}
+
+	free_r10bio(r10_bio);
+
+	if (!returned)
+		bio_endio(bio);
 
 	/*
 	 * Wake up any possible resync thread that waits for the device
 	 * to go idle.
 	 */
 	allow_barrier(conf);
-
-	free_r10bio(r10_bio);
 }
 
 /*
@@ -1537,9 +1541,11 @@ static void raid_end_discard_bio(struct r10bio *r10bio)
 			free_r10bio(r10bio);
 			r10bio = first_r10bio;
 		} else {
+			struct bio *master_bio = r10bio->master_bio;
+
 			md_write_end(r10bio->mddev);
-			bio_endio(r10bio->master_bio);
 			free_r10bio(r10bio);
+			bio_endio(master_bio);
 			break;
 		}
 	}
