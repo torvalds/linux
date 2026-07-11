@@ -15,19 +15,6 @@
 #include <linux/unaligned.h>
 #include "tpm.h"
 
-enum tpm2_handle_types {
-	TPM2_HT_HMAC_SESSION	= 0x02000000,
-	TPM2_HT_POLICY_SESSION	= 0x03000000,
-	TPM2_HT_TRANSIENT	= 0x80000000,
-};
-
-struct tpm2_context {
-	__be64 sequence;
-	__be32 saved_handle;
-	__be32 hierarchy;
-	__be16 blob_size;
-} __packed;
-
 static void tpm2_flush_sessions(struct tpm_chip *chip, struct tpm_space *space)
 {
 	int i;
