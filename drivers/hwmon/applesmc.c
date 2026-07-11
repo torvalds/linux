@@ -33,6 +33,7 @@
 #include <linux/workqueue.h>
 #include <linux/err.h>
 #include <linux/bits.h>
+#include <asm/barrier.h>
 
 /* data port used by Apple SMC */
 #define APPLESMC_DATA_PORT	0x300
@@ -373,7 +374,8 @@ static const struct applesmc_entry *applesmc_get_entry_by_index(int index)
 	__be32 be;
 	int ret = 0;
 
-	if (cache->valid)
+	/* Pairs with smp_store_release() to ensure cache contents are visible */
+	if (smp_load_acquire(&cache->valid))
 		return cache;
 
 	mutex_lock(&smcreg.mutex);
@@ -392,7 +394,8 @@ static const struct applesmc_entry *applesmc_get_entry_by_index(int index)
 	cache->len = info[0];
 	memcpy(cache->type, &info[1], 4);
 	cache->flags = info[5];
-	cache->valid = true;
+	/* Pairs with smp_load_acquire() to commit cache contents before setting valid */
+	smp_store_release(&cache->valid, true);
 
 out:
 	mutex_unlock(&smcreg.mutex);
