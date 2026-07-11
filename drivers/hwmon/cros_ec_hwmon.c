@@ -578,13 +578,17 @@ static int cros_ec_hwmon_probe(struct platform_device *pdev)
 	priv->fan_control_supported = cros_ec_hwmon_probe_fan_control_supported(priv->cros_ec);
 	priv->temp_threshold_supported = is_cros_ec_cmd_available(priv->cros_ec,
 								  EC_CMD_THERMAL_GET_THRESHOLD, 1);
-	cros_ec_hwmon_register_fan_cooling_devices(dev, priv);
 
 	hwmon_dev = devm_hwmon_device_register_with_info(dev, "cros_ec", priv,
 							 &cros_ec_hwmon_chip_info, NULL);
+	if (IS_ERR(hwmon_dev))
+		return PTR_ERR(hwmon_dev);
+
+	cros_ec_hwmon_register_fan_cooling_devices(dev, priv);
+
 	platform_set_drvdata(pdev, priv);
 
-	return PTR_ERR_OR_ZERO(hwmon_dev);
+	return 0;
 }
 
 static int cros_ec_hwmon_suspend(struct platform_device *pdev, pm_message_t state)
