@@ -2565,13 +2565,13 @@ static void rcu_torture_one_read_end(struct rcu_torture_one_read_state *rtorsp,
 					  rtorsp->ts, rtorsp->started, completed);
 		rcu_ftrace_dump(DUMP_ALL);
 	}
-	__this_cpu_inc(rcu_torture_count[pipe_count]);
+	this_cpu_inc(rcu_torture_count[pipe_count]);
 	completed = rcutorture_seq_diff(completed, rtorsp->started);
 	if (completed > RCU_TORTURE_PIPE_LEN) {
 		/* Should not happen, but... */
 		completed = RCU_TORTURE_PIPE_LEN;
 	}
-	__this_cpu_inc(rcu_torture_batch[completed]);
+	this_cpu_inc(rcu_torture_batch[completed]);
 	preempt_enable();
 	if (rtorsp->checkpolling) {
 		if (cur_ops->get_gp_state && cur_ops->poll_gp_state)
