@@ -242,7 +242,6 @@ static int palmas_clks_init_configure(struct palmas_clock_info *cinfo)
 static int palmas_clks_probe(struct platform_device *pdev)
 {
 	struct palmas *palmas = dev_get_drvdata(pdev->dev.parent);
-	struct device_node *node = pdev->dev.of_node;
 	const struct palmas_clks_of_match_data *match_data;
 	struct palmas_clock_info *cinfo;
 	int ret;
@@ -276,15 +275,11 @@ static int palmas_clks_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = of_clk_add_hw_provider(node, of_clk_hw_simple_get, &cinfo->hw);
+	ret = devm_of_clk_add_hw_provider(&pdev->dev, of_clk_hw_simple_get,
+					  &cinfo->hw);
 	if (ret < 0)
 		dev_err(&pdev->dev, "Fail to add clock driver, %d\n", ret);
 	return ret;
-}
-
-static void palmas_clks_remove(struct platform_device *pdev)
-{
-	of_clk_del_provider(pdev->dev.of_node);
 }
 
 static struct platform_driver palmas_clks_driver = {
@@ -293,7 +288,6 @@ static struct platform_driver palmas_clks_driver = {
 		.of_match_table = palmas_clks_of_match,
 	},
 	.probe = palmas_clks_probe,
-	.remove = palmas_clks_remove,
 };
 
 module_platform_driver(palmas_clks_driver);
