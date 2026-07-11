@@ -2722,7 +2722,7 @@ static const struct hid_device_id mt_devices[] = {
 			HID_ANY_ID) },
 
 	/* Hantick */
-	{ .driver_data = MT_CLS_NSMU,
+	{ .driver_data = MT_CLS_WIN_8_FORCE_MULTI_INPUT_NSMU,
 		HID_DEVICE(BUS_I2C, HID_GROUP_MULTITOUCH_WIN_8,
 			   I2C_VENDOR_ID_HANTICK, I2C_PRODUCT_ID_HANTICK_5288) },
 
