@@ -4688,6 +4688,7 @@ bool amdgpu_dm_crtc_complete_writeback(struct amdgpu_crtc *acrtc)
 	spin_lock_irqsave(&acrtc->wb_conn->job_lock, flags);
 	pending = acrtc->wb_pending;
 	acrtc->wb_pending = false;
+	acrtc->wb_frame_done = false;
 	spin_unlock_irqrestore(&acrtc->wb_conn->job_lock, flags);
 
 	if (!pending)
@@ -5156,6 +5157,7 @@ static void dm_set_writeback(struct amdgpu_display_manager *dm,
 	 * cannot run its matching vblank_put before this get.
 	 */
 	WARN_ON(drm_crtc_vblank_get(&acrtc->base));
+	acrtc->wb_frame_done = false;
 	acrtc->wb_pending = true;
 }
 
