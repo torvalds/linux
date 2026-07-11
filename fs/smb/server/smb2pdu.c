@@ -9933,15 +9933,18 @@ int smb2_ioctl(struct ksmbd_work *work)
 					     dup_ext->PersistentFileHandle);
 		if (!fp_in) {
 			pr_err("not found file handle in duplicate extent to file\n");
-			ret = -ENOENT;
-			goto out;
+			ret = -EBADF;
+			rsp->hdr.Status = STATUS_INVALID_HANDLE;
+			goto out2;
 		}
 
 		fp_out = ksmbd_lookup_fd_fast(work, id);
 		if (!fp_out) {
 			pr_err("not found fp\n");
-			ret = -ENOENT;
-			goto dup_ext_out;
+			ret = -EBADF;
+			rsp->hdr.Status = STATUS_FILE_CLOSED;
+			ksmbd_fd_put(work, fp_in);
+			goto out2;
 		}
 
 		if (!test_tree_conn_flag(work->tcon,
@@ -9962,21 +9965,32 @@ int smb2_ioctl(struct ksmbd_work *work)
 		src_off = le64_to_cpu(dup_ext->SourceFileOffset);
 		dst_off = le64_to_cpu(dup_ext->TargetFileOffset);
 		length = le64_to_cpu(dup_ext->ByteCount);
-		/*
-		 * XXX: It is not clear if FSCTL_DUPLICATE_EXTENTS_TO_FILE
-		 * should fall back to vfs_copy_file_range().  This could be
-		 * beneficial when re-exporting nfs/smb mount, but note that
-		 * this can result in partial copy that returns an error status.
-		 * If/when FSCTL_DUPLICATE_EXTENTS_TO_FILE_EX is implemented,
-		 * fall back to vfs_copy_file_range(), should be avoided when
-		 * the flag DUPLICATE_EXTENTS_DATA_EX_SOURCE_ATOMIC is set.
-		 */
-		cloned = vfs_clone_file_range(fp_in->filp, src_off,
-					      fp_out->filp, dst_off, length, 0);
-		if (cloned == -EXDEV || cloned == -EOPNOTSUPP) {
+		if (src_off < 0 || dst_off < 0 || length < 0 ||
+		    src_off + length < src_off || dst_off + length < dst_off) {
+			ret = -EINVAL;
+			goto dup_ext_out;
+		}
+		if (src_off + length > i_size_read(file_inode(fp_in->filp))) {
 			ret = -EOPNOTSUPP;
 			goto dup_ext_out;
-		} else if (cloned != length) {
+		}
+		if (dst_off + length > i_size_read(file_inode(fp_out->filp)))
+			goto dup_ext_out;
+		if ((fp_in->f_ci->m_fattr & FILE_ATTRIBUTE_SPARSE_FILE_LE) &&
+		    !(fp_out->f_ci->m_fattr & FILE_ATTRIBUTE_SPARSE_FILE_LE)) {
+			ret = -EOPNOTSUPP;
+			goto dup_ext_out;
+		}
+		if (file_inode(fp_in->filp) == file_inode(fp_out->filp) &&
+		    dst_off + length > src_off &&
+		    dst_off < src_off + length) {
+			ret = -EOPNOTSUPP;
+			goto dup_ext_out;
+		}
+
+		cloned = vfs_clone_file_range(fp_in->filp, src_off,
+					      fp_out->filp, dst_off, length, 0);
+		if (cloned != length) {
 			cloned = vfs_copy_file_range(fp_in->filp, src_off,
 						     fp_out->filp, dst_off,
 						     length, 0);
