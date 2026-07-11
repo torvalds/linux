@@ -133,6 +133,8 @@ int ksmbd_vfs_empty_dir(struct ksmbd_file *fp);
 void ksmbd_vfs_set_fadvise(struct file *filp, __le32 option);
 int ksmbd_vfs_zero_data(struct ksmbd_work *work, struct ksmbd_file *fp,
 			loff_t off, loff_t len);
+int ksmbd_vfs_trim_data(struct ksmbd_work *work, struct ksmbd_file *fp,
+			loff_t off, loff_t len);
 struct file_allocated_range_buffer;
 int ksmbd_vfs_fqar_lseek(struct ksmbd_file *fp, loff_t start, loff_t length,
 			 struct file_allocated_range_buffer *ranges,

@@ -953,6 +953,33 @@ int ksmbd_vfs_zero_data(struct ksmbd_work *work, struct ksmbd_file *fp,
 	return err;
 }
 
+int ksmbd_vfs_trim_data(struct ksmbd_work *work, struct ksmbd_file *fp,
+			loff_t off, loff_t len)
+{
+	const struct cred *saved_cred;
+	int err;
+
+	smb_break_all_levII_oplock(work, fp, 1);
+	if (!work->tcon->posix_extensions) {
+		loff_t size = i_size_read(file_inode(fp->filp));
+
+		if (off < size) {
+			err = check_lock_range(fp->filp, off,
+					       min(off + len, size) - 1,
+					       WRITE);
+			if (err)
+				return -EAGAIN;
+		}
+	}
+
+	saved_cred = override_creds(fp->filp->f_cred);
+	err = vfs_fallocate(fp->filp,
+			    FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+			    off, len);
+	revert_creds(saved_cred);
+	return err;
+}
+
 int ksmbd_vfs_fqar_lseek(struct ksmbd_file *fp, loff_t start, loff_t length,
 			 struct file_allocated_range_buffer *ranges,
 			 unsigned int in_count, unsigned int *out_count)

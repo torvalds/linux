@@ -6634,7 +6634,8 @@ static int smb2_get_info_filesystem(struct ksmbd_work *work,
 		info->FSEffPhysicalBytesPerSectorForAtomicity =
 				cpu_to_le32(sector_size);
 		info->Flags = cpu_to_le32(SSINFO_FLAGS_ALIGNED_DEVICE |
-				    SSINFO_FLAGS_PARTITION_ALIGNED_ON_DEVICE);
+				    SSINFO_FLAGS_PARTITION_ALIGNED_ON_DEVICE |
+				    SSINFO_FLAGS_TRIM_ENABLED);
 		info->ByteOffsetForSectorAlignment = 0;
 		info->ByteOffsetForPartitionAlignment = 0;
 		rsp->OutputBufferLength = cpu_to_le32(28);
@@ -9789,6 +9790,85 @@ int smb2_ioctl(struct ksmbd_work *work)
 				goto out;
 			}
 		}
+		break;
+	}
+	case FSCTL_FILE_LEVEL_TRIM:
+	{
+		struct file_level_trim *trim_req;
+		struct file_level_trim_output *trim_rsp;
+		struct ksmbd_file *fp;
+		u32 i, num_ranges;
+
+		if (!test_tree_conn_flag(work->tcon, KSMBD_TREE_CONN_FLAG_WRITABLE)) {
+			ksmbd_debug(SMB,
+				    "User does not have write permission\n");
+			ret = -EACCES;
+			goto out;
+		}
+
+		if (in_buf_len < offsetof(struct file_level_trim, Ranges)) {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		if (out_buf_len < sizeof(struct file_level_trim_output)) {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		trim_req = (struct file_level_trim *)buffer;
+		num_ranges = le32_to_cpu(trim_req->NumRanges);
+		if (num_ranges >
+		    (in_buf_len - offsetof(struct file_level_trim, Ranges)) /
+		    sizeof(struct file_level_trim_range)) {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		fp = ksmbd_lookup_fd_fast(work, id);
+		if (!fp) {
+			ret = -ENOENT;
+			goto out;
+		}
+
+		if (!(fp->daccess & FILE_WRITE_DATA_LE)) {
+			ksmbd_fd_put(work, fp);
+			ret = -EACCES;
+			goto out;
+		}
+
+		trim_rsp = (struct file_level_trim_output *)&rsp->Buffer[0];
+		trim_rsp->NumRangesProcessed = 0;
+		for (i = 0; i < num_ranges; i++) {
+			loff_t off = le64_to_cpu(trim_req->Ranges[i].Offset);
+			loff_t len = le64_to_cpu(trim_req->Ranges[i].Length);
+
+			if (off < 0 || len < 0) {
+				ret = -EINVAL;
+				break;
+			}
+
+			if (!len) {
+				trim_rsp->NumRangesProcessed =
+					cpu_to_le32(i + 1);
+				continue;
+			}
+
+			ret = ksmbd_vfs_trim_data(work, fp, off, len);
+			if (ret)
+				break;
+			trim_rsp->NumRangesProcessed = cpu_to_le32(i + 1);
+		}
+		ksmbd_fd_put(work, fp);
+		if (ret == -EAGAIN) {
+			rsp->hdr.Status = STATUS_FILE_LOCK_CONFLICT;
+			ret = 0;
+			goto out;
+		} else if (ret < 0) {
+			goto out;
+		}
+
+		nbytes = sizeof(struct file_level_trim_output);
 		break;
 	}
 	case FSCTL_QUERY_ALLOCATED_RANGES:
