@@ -19,7 +19,10 @@
 /// # Examples
 ///
 /// ```
-/// use kernel::impl_flags;
+/// use kernel::{
+///     bits::bit_u32,
+///     impl_flags, //
+/// };
 ///
 /// impl_flags!(
 ///     /// Represents multiple permissions.
@@ -30,13 +33,13 @@
 ///     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 ///     pub enum Permission {
 ///         /// Read permission.
-///         Read = 1 << 0,
+///         Read = bit_u32(0),
 ///
 ///         /// Write permission.
-///         Write = 1 << 1,
+///         Write = bit_u32(1),
 ///
 ///         /// Execute permission.
-///         Execute = 1 << 2,
+///         Execute = bit_u32(2),
 ///     }
 /// );
 ///
