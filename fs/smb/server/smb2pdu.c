@@ -9673,6 +9673,12 @@ int smb2_ioctl(struct ksmbd_work *work)
 		rsp->VolatileFileId = SMB2_NO_FID;
 		break;
 	case FSCTL_QUERY_NETWORK_INTERFACE_INFO:
+		if (req->PersistentFileId != SMB2_NO_FID ||
+		    req->VolatileFileId != SMB2_NO_FID) {
+			ret = -EINVAL;
+			goto out;
+		}
+
 		ret = fsctl_query_iface_info_ioctl(conn, rsp, out_buf_len);
 		if (ret < 0)
 			goto out;
