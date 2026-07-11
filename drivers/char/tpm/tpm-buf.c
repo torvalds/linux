@@ -4,7 +4,8 @@
  */
 
 #include <linux/module.h>
-#include <linux/tpm.h>
+#include <linux/tpm_command.h>
+#include <linux/tpm_buf.h>
 
 static void __tpm_buf_size_invariant(struct tpm_buf *buf, u16 buf_size)
 {
