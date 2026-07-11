@@ -106,6 +106,8 @@ properties:
           - bluetooth-power
             # LED indicates camera flash state
           - flash
+            # LED indicates level of GPIO input referenced by trigger-sources
+          - gpio
             # LED indicated keyboard capslock
           - kbd-capslock
             # LED indicates MTD memory activity
