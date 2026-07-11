@@ -9311,6 +9311,11 @@ static int fsctl_query_allocated_ranges(struct ksmbd_work *work, u64 id,
 	if (!fp)
 		return -ENOENT;
 
+	if (!(fp->daccess & FILE_READ_DATA_LE)) {
+		ret = -EACCES;
+		goto out;
+	}
+
 	if (!in_count) {
 		struct file_allocated_range_buffer range;
 
@@ -9326,6 +9331,7 @@ static int fsctl_query_allocated_ranges(struct ksmbd_work *work, u64 id,
 	if (ret && ret != -E2BIG)
 		*out_count = 0;
 
+out:
 	ksmbd_fd_put(work, fp);
 	return ret;
 }
@@ -9397,7 +9403,8 @@ static inline int fsctl_set_sparse(struct ksmbd_work *work, u64 id,
 		goto out;
 	}
 
-	if (!(fp->daccess & (FILE_WRITE_DATA_LE | FILE_WRITE_ATTRIBUTES_LE))) {
+	if (!(fp->daccess & (FILE_WRITE_DATA_LE | FILE_APPEND_DATA_LE |
+			     FILE_WRITE_ATTRIBUTES_LE))) {
 		ret = -EACCES;
 		goto out;
 	}
