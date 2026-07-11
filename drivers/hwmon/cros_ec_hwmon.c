@@ -24,6 +24,7 @@
 
 struct cros_ec_hwmon_priv {
 	struct cros_ec_device *cros_ec;
+	struct device *hwmon_dev;
 	const char *temp_sensor_names[EC_TEMP_SENSOR_ENTRIES + EC_TEMP_SENSOR_B_ENTRIES];
 	u8 usable_fans;
 	bool fan_control_supported;
@@ -555,7 +556,6 @@ static int cros_ec_hwmon_probe(struct platform_device *pdev)
 	struct cros_ec_dev *ec_dev = dev_get_drvdata(dev->parent);
 	struct cros_ec_device *cros_ec = ec_dev->ec_dev;
 	struct cros_ec_hwmon_priv *priv;
-	struct device *hwmon_dev;
 	u8 thermal_version;
 	int ret;
 
@@ -579,10 +579,10 @@ static int cros_ec_hwmon_probe(struct platform_device *pdev)
 	priv->temp_threshold_supported = is_cros_ec_cmd_available(priv->cros_ec,
 								  EC_CMD_THERMAL_GET_THRESHOLD, 1);
 
-	hwmon_dev = devm_hwmon_device_register_with_info(dev, "cros_ec", priv,
-							 &cros_ec_hwmon_chip_info, NULL);
-	if (IS_ERR(hwmon_dev))
-		return PTR_ERR(hwmon_dev);
+	priv->hwmon_dev = devm_hwmon_device_register_with_info(dev, "cros_ec", priv,
+							       &cros_ec_hwmon_chip_info, NULL);
+	if (IS_ERR(priv->hwmon_dev))
+		return PTR_ERR(priv->hwmon_dev);
 
 	cros_ec_hwmon_register_fan_cooling_devices(dev, priv);
 
