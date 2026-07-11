@@ -506,11 +506,8 @@ int st33zp24_probe(void *phy_id, const struct st33zp24_phy_ops *ops,
 		ret = devm_request_irq(dev, irq, tpm_ioserirq_handler,
 				IRQF_TRIGGER_HIGH, "TPM SERIRQ management",
 				chip);
-		if (ret < 0) {
-			dev_err(&chip->dev, "TPM SERIRQ signals %d not available\n",
-				irq);
+		if (ret < 0)
 			goto _tpm_clean_answer;
-		}
 
 		intmask |= TPM_INTF_CMD_READY_INT
 			|  TPM_INTF_STS_VALID_INT
