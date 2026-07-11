@@ -1575,3 +1575,8 @@ static inline void vma_assert_can_modify(struct vm_area_struct *vma)
 	if (vma_is_attached(vma))
 		vma_assert_write_locked(vma);
 }
+
+static inline pgprot_t vma_get_page_prot(const struct vm_area_struct *vma)
+{
+	return vma_flags_to_page_prot(vma->flags);
+}
