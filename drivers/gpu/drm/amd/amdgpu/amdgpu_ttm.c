@@ -2461,6 +2461,27 @@ static int amdgpu_ttm_prepare_job(struct amdgpu_device *adev,
 						   DMA_RESV_USAGE_BOOKKEEP);
 }
 
+static int amdgpu_calc_bytes_per_packet(u32 max_bytes_per_packet,
+					u32 byte_count)
+{
+	/* Byte count is dword-aligned and fits a single packet */
+	if (!(byte_count & 0x3) && byte_count <= max_bytes_per_packet)
+		return max_bytes_per_packet;
+
+	/*
+	 * Align down maximum byte count to 256 bytes so that
+	 * the copy optimally uses all memory channels and
+	 * also to ensure that SDMA can use its dword mode, which
+	 * is faster.
+	 *
+	 * This assumes that the starting addresses of BOs are always
+	 * dword aligned, which should be the case for every copy
+	 * operation in the kernel, because the kernel always copies
+	 * pages.
+	 */
+	return ALIGN_DOWN(max_bytes_per_packet, SZ_256);
+}
+
 int amdgpu_copy_buffer(struct amdgpu_device *adev,
 		       struct amdgpu_ttm_buffer_entity *entity,
 		       uint64_t src_offset,
@@ -2484,7 +2505,8 @@ int amdgpu_copy_buffer(struct amdgpu_device *adev,
 		return -EINVAL;
 	}
 
-	max_bytes = adev->mman.buffer_funcs->copy_max_bytes;
+	max_bytes = amdgpu_calc_bytes_per_packet(adev->mman.buffer_funcs->copy_max_bytes,
+						 byte_count);
 	num_loops = DIV_ROUND_UP(byte_count, max_bytes);
 	num_dw = ALIGN(num_loops * adev->mman.buffer_funcs->copy_num_dw, 8);
 	r = amdgpu_ttm_prepare_job(adev, entity, num_dw,
@@ -2528,7 +2550,8 @@ static int amdgpu_ttm_fill_mem(struct amdgpu_device *adev,
 	unsigned int i;
 	int r;
 
-	max_bytes = adev->mman.buffer_funcs->fill_max_bytes;
+	max_bytes = amdgpu_calc_bytes_per_packet(adev->mman.buffer_funcs->fill_max_bytes,
+						 byte_count);
 	num_loops = DIV_ROUND_UP_ULL(byte_count, max_bytes);
 	num_dw = ALIGN(num_loops * adev->mman.buffer_funcs->fill_num_dw, 8);
 	r = amdgpu_ttm_prepare_job(adev, entity, num_dw, resv,
