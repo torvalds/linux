@@ -2434,6 +2434,15 @@ struct rtw89_btc_wl_tx_limit_para {
 	u16 tx_retry;
 };
 
+struct rtw89_btc_wl_trx_nss_para {
+	u8 tx_limit;
+	u8 rx_limit;
+	u8 tx_ss;
+	u8 rx_ss;
+	u8 tx_path;
+	u8 rx_path;
+};
+
 enum rtw89_btc_bt_scan_type {
 	BTC_SCAN_INQ	= 0,
 	BTC_SCAN_PAGE,
@@ -3616,6 +3625,7 @@ struct rtw89_btc_dm {
 	struct rtw89_btc_bind_info fdd_bind;
 	struct rtw89_btc_fddt_info fddt_info;
 	struct rtw89_btc_fddr_info fddr_info;
+	struct rtw89_btc_wl_trx_nss_para wl_trx_nss;
 	u32 cnt_dm[BTC_DCNT_NUM];
 	u32 cnt_notify[BTC_NCNT_NUM];
 	u8 ant_xmap[BTC_RF_NUM][BTC_ALL_BT_EZL]; /* WL-BT ANT interact-map */
@@ -3664,6 +3674,7 @@ struct rtw89_btc_dm {
 	u8 wl_tx_pwr_phy_map;
 	u8 vid;
 	u8 client_ps_tdma_on;
+	u8 wl_trx_nss_en;
 
 	u8 wl_pre_agc: 2;
 	u8 wl_lna2: 1;

@@ -143,6 +143,11 @@ enum btc_switch {
 	BTC_SWITCH_EXTERNAL
 };
 
+enum btc_ant_switch_type {
+	BTC_SWITCH_V1_NONE = 0, /* independent antenna */
+	BTC_SWITCH_V1_INTERNAL, /* internal-switch: BTGA structure */
+};
+
 enum btc_pkt_type {
 	PACKET_DHCP,
 	PACKET_ARP,
@@ -260,6 +265,32 @@ enum btc_chip_feature {
 	BTC_FEAT_BT_6G = BIT(7),
 	BTC_FEAT_MULTI_PTA = BIT(8),
 	BTC_FEAT_DUAL_BTGA = BIT(9) /* the future A-Die */
+};
+
+enum btc_efuse_ant_function_map {
+	BTC_EFMAP_NONE = 0,
+	BTC_EFMAP_BT0 = BIT(0),
+	BTC_EFMAP_BT1 = BIT(1),
+	BTC_EFMAP_ZB = BIT(2), /* ZB or thread */
+	BTC_EFMAP_24GP = BIT(3),
+	BTC_EFMAP_ULL = BIT(4),
+};
+
+enum btc_extsoc_interface { /* cx->other.hw_coex */
+	BTC_EXTSOC_INTF_NONE = 0,
+	BTC_EXTSOC_INTF_PTA = BIT(0),
+	BTC_EXTSOC_INTF_MBX = BIT(1),
+	BTC_EXTSOC_INTF_SWIO = BIT(2),
+	BTC_EXTSOC_INTF_MAX,
+};
+
+enum btc_esoc_type {
+	BTC_ESOC_NONE,
+	BTC_ESOC_8761,
+	BTC_ESOC_8771,
+	BTC_ESOC_SILAB_MG21,
+	BTC_ESOC_NORDI_NRF52840,
+	BTC_ESOC_MAX,
 };
 
 enum btc_wl_mode {
