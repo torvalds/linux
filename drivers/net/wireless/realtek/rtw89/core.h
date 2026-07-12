@@ -8448,6 +8448,19 @@ static inline u8 rtw89_regd_get(struct rtw89_dev *rtwdev, u8 band)
 	return txpwr_regd;
 }
 
+static inline u8 rtw89_get_tx_shape_idx(struct rtw89_dev *rtwdev, u8 band,
+					enum rtw89_rate_section rs)
+{
+	const struct rtw89_rfe_parms *rfe_parms = rtwdev->rfe_parms;
+	const struct rtw89_tx_shape *tx_shape = &rfe_parms->tx_shape;
+	u8 regd = rtw89_regd_get(rtwdev, band);
+
+	if (unlikely(rs >= RTW89_RS_TX_SHAPE_NUM))
+		rs = RTW89_RS_OFDM;
+
+	return (*tx_shape->lmt)[band][rs][regd];
+}
+
 static inline void rtw89_ctrl_btg_bt_rx(struct rtw89_dev *rtwdev, bool en,
 					enum rtw89_phy_idx phy_idx)
 {

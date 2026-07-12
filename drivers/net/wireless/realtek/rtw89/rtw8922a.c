@@ -2502,15 +2502,10 @@ static void rtw8922a_set_tx_shape(struct rtw89_dev *rtwdev,
 				  const struct rtw89_chan *chan,
 				  enum rtw89_phy_idx phy_idx)
 {
-	const struct rtw89_rfe_parms *rfe_parms = rtwdev->rfe_parms;
-	const struct rtw89_tx_shape *tx_shape = &rfe_parms->tx_shape;
+	u8 band = chan->band_type;
 	u8 tx_shape_idx;
-	u8 band, regd;
 
-	band = chan->band_type;
-	regd = rtw89_regd_get(rtwdev, band);
-	tx_shape_idx = (*tx_shape->lmt)[band][RTW89_RS_OFDM][regd];
-
+	tx_shape_idx = rtw89_get_tx_shape_idx(rtwdev, band, RTW89_RS_OFDM);
 	if (tx_shape_idx == 0)
 		rtw8922a_bb_tx_triangular(rtwdev, false, phy_idx);
 	else

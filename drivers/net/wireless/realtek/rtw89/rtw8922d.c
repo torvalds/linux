@@ -2854,16 +2854,11 @@ static void rtw8922d_set_tx_shape(struct rtw89_dev *rtwdev,
 				  enum rtw89_phy_idx phy_idx)
 {
 	const struct rtw89_bb_wrap_data *d = rtwdev->phy_info.bb_wrap_data;
-	const struct rtw89_rfe_parms *rfe_parms = rtwdev->rfe_parms;
-	const struct rtw89_tx_shape *tx_shape = &rfe_parms->tx_shape;
+	u8 band = chan->band_type;
 	u8 tx_shape_idx;
-	u8 band, regd;
 	const u16 *th;
 
-	band = chan->band_type;
-	regd = rtw89_regd_get(rtwdev, band);
-	tx_shape_idx = (*tx_shape->lmt)[band][RTW89_RS_OFDM][regd];
-
+	tx_shape_idx = rtw89_get_tx_shape_idx(rtwdev, band, RTW89_RS_OFDM);
 	if (tx_shape_idx == 0)
 		goto disable;
 
