@@ -95,10 +95,13 @@ static inline void rcu_read_unlock_tasks_trace(struct srcu_ctr __percpu *scp)
  */
 static inline void rcu_read_lock_trace(void)
 {
+	int n;
 	struct task_struct *t = current;
 
 	rcu_try_lock_acquire(&rcu_tasks_trace_srcu_struct.dep_map);
-	if (t->trc_reader_nesting++) {
+	n = READ_ONCE(t->trc_reader_nesting);
+	WRITE_ONCE(t->trc_reader_nesting, n + 1);
+	if (n) {
 		// In case we interrupted a Tasks Trace RCU reader.
 		return;
 	}
@@ -119,12 +122,15 @@ static inline void rcu_read_lock_trace(void)
  */
 static inline void rcu_read_unlock_trace(void)
 {
+	int n;
 	struct srcu_ctr __percpu *scp;
 	struct task_struct *t = current;
 
 	scp = t->trc_reader_scp;
 	barrier();  // scp before nesting to protect against interrupt handler.
-	if (!--t->trc_reader_nesting) {
+	n = READ_ONCE(t->trc_reader_nesting) - 1;
+	WRITE_ONCE(t->trc_reader_nesting, n);
+	if (!n) {
 		if (!IS_ENABLED(CONFIG_TASKS_TRACE_RCU_NO_MB))
 			smp_mb(); // Placeholder for more selective ordering
 		__srcu_read_unlock_fast(&rcu_tasks_trace_srcu_struct, scp);
