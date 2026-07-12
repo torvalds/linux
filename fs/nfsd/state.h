@@ -36,9 +36,12 @@
 #define _NFSD4_STATE_H
 
 #include <crypto/md5.h>
+
+#include <linux/filelock.h>
 #include <linux/idr.h>
 #include <linux/refcount.h>
 #include <linux/sunrpc/svc_xprt.h>
+
 #include "nfsfh.h"
 #include "nfsd.h"
 

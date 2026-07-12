@@ -13,6 +13,7 @@
 #include <linux/sunrpc/svcauth_gss.h>
 #include <crypto/utils.h>
 #include "nfsd.h"
+#include "netns.h"
 #include "stats.h"
 #include "vfs.h"
 #include "auth.h"

@@ -40,8 +40,6 @@
 #define NFSD_SUPPORTED_MINOR_VERSION	2
 bool nfsd_support_version(int vers);
 
-#include "netns.h"
-
 /*
  * Default and maximum payload size (NFS READ or WRITE), in bytes.
  * The maximum is an implementation limit.
@@ -100,6 +98,8 @@ struct nfsdfs_client {
 	void (*cl_release)(struct kref *kref);
 };
 
+struct nfsd_net;
+
 struct nfsdfs_client *get_nfsdfs_client(struct inode *);
 struct dentry *nfsd_client_mkdir(struct nfsd_net *nn,
 				 struct nfsdfs_client *ncl, u32 id,
@@ -124,8 +124,6 @@ extern const struct svc_version nfsd_acl_version3;
 #if IS_ENABLED(CONFIG_NFS_LOCALIO)
 extern const struct svc_version localio_version1;
 #endif
-
-struct nfsd_net;
 
 enum vers_op {NFSD_SET, NFSD_CLEAR, NFSD_TEST, NFSD_AVAIL };
 int nfsd_vers(struct nfsd_net *nn, int vers, enum vers_op change);
