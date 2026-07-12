@@ -88,3 +88,21 @@ oom:
 	return -ENOMEM;
 }
 
+/**
+ * nfsd_user_namespace - Get user_namespace in effect for an RPC request
+ * @rqstp: RPC execution context
+ *
+ * xpt_cred is set once at transport creation and never modified. The
+ * transport itself is reference-counted during request processing, so
+ * no explicit reference on the namespace is necessary.
+ *
+ * Return: the user_namespace from the transport credential, or
+ * init_user_ns if no credential was set. The returned namespace pointer
+ * is valid for the duration of the RPC request.
+ */
+struct user_namespace *nfsd_user_namespace(const struct svc_rqst *rqstp)
+{
+	const struct cred *cred = rqstp->rq_xprt->xpt_cred;
+
+	return cred ? cred->user_ns : &init_user_ns;
+}

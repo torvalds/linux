@@ -47,6 +47,7 @@
 
 #include <uapi/linux/xattr.h>
 
+#include "auth.h"
 #include "idmap.h"
 #include "acl.h"
 #include "xdr4.h"
