@@ -3900,17 +3900,13 @@ static ssize_t rtw89_debug_priv_btc_manual_set(struct rtw89_dev *rtwdev,
 					       const char *buf, size_t count)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
-	const struct rtw89_btc_ver *ver = btc->ver;
 	int ret;
 
 	ret = kstrtobool(buf, &btc->manual_ctrl);
 	if (ret)
 		return ret;
 
-	if (ver->fcxctrl == 7)
-		btc->ctrl.ctrl_v7.manual = btc->manual_ctrl;
-	else
-		btc->ctrl.ctrl.manual = btc->manual_ctrl;
+	btc->ctrl.manual = btc->manual_ctrl;
 
 	return count;
 }

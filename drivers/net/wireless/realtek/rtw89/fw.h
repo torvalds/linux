@@ -2430,6 +2430,11 @@ struct rtw89_h2c_cxctrl_v7 {
 	struct rtw89_btc_ctrl_v7 ctrl;
 } __packed;
 
+struct rtw89_h2c_cxctrl_v9 {
+	struct rtw89_h2c_cxhdr_v7 hdr;
+	struct rtw89_btc_ctrl_v9 ctrl;
+} __packed;
+
 #define H2C_LEN_CXDRVHDR sizeof(struct rtw89_h2c_cxhdr)
 #define H2C_LEN_CXDRVHDR_V7 sizeof(struct rtw89_h2c_cxhdr_v7)
 
@@ -5382,6 +5387,7 @@ int rtw89_fw_h2c_cxdrv_role_v10(struct rtw89_dev *rtwdev, u8 type);
 int rtw89_fw_h2c_cxdrv_osi_info(struct rtw89_dev *rtwdev, u8 type);
 int rtw89_fw_h2c_cxdrv_ctrl(struct rtw89_dev *rtwdev, u8 type);
 int rtw89_fw_h2c_cxdrv_ctrl_v7(struct rtw89_dev *rtwdev, u8 type);
+int rtw89_fw_h2c_cxdrv_ctrl_v9(struct rtw89_dev *rtwdev, u8 type);
 int rtw89_fw_h2c_cxdrv_trx_v7(struct rtw89_dev *rtwdev, u8 type);
 int rtw89_fw_h2c_cxdrv_trx_v9(struct rtw89_dev *rtwdev, u8 type);
 int rtw89_fw_h2c_cxdrv_rfk(struct rtw89_dev *rtwdev, u8 type);

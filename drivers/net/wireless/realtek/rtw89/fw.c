@@ -6441,7 +6441,7 @@ int rtw89_fw_h2c_cxdrv_ctrl(struct rtw89_dev *rtwdev, u8 type)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	const struct rtw89_btc_ver *ver = btc->ver;
-	struct rtw89_btc_ctrl *ctrl = &btc->ctrl.ctrl;
+	struct rtw89_btc_ctrl *ctrl = &btc->ctrl;
 	struct sk_buff *skb;
 	u8 *cmd;
 	int ret;
@@ -6484,7 +6484,7 @@ fail:
 int rtw89_fw_h2c_cxdrv_ctrl_v7(struct rtw89_dev *rtwdev, u8 type)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
-	struct rtw89_btc_ctrl_v7 *ctrl = &btc->ctrl.ctrl_v7;
+	struct rtw89_btc_ctrl *ctrl = &btc->ctrl;
 	struct rtw89_h2c_cxctrl_v7 *h2c;
 	u32 len = sizeof(*h2c);
 	struct sk_buff *skb;
@@ -6501,7 +6501,64 @@ int rtw89_fw_h2c_cxdrv_ctrl_v7(struct rtw89_dev *rtwdev, u8 type)
 	h2c->hdr.type = type;
 	h2c->hdr.ver = btc->ver->fcxctrl;
 	h2c->hdr.len = sizeof(*h2c) - H2C_LEN_CXDRVHDR_V7;
-	h2c->ctrl = *ctrl;
+
+	h2c->ctrl.manual = ctrl->manual;
+	h2c->ctrl.igno_bt = ctrl->igno_bt;
+	h2c->ctrl.always_freerun = ctrl->always_freerun;
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_OUTSRC, BTFC_SET,
+			      SET_DRV_INFO, 0, 0, len);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+
+int rtw89_fw_h2c_cxdrv_ctrl_v9(struct rtw89_dev *rtwdev, u8 type)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_ctrl *ctrl = &btc->ctrl;
+	struct rtw89_fbtc_wl_ctrl_info_v9 *cinfo;
+	struct rtw89_h2c_cxctrl_v9 *h2c;
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
+	int ret;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for h2c cxdrv_ctrl_v7\n");
+		return -ENOMEM;
+	}
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_cxctrl_v9 *)skb->data;
+	cinfo = &h2c->ctrl.wl_ctrl_info;
+
+	h2c->hdr.type = type;
+	h2c->hdr.ver = btc->ver->fcxctrl;
+	h2c->hdr.len = sizeof(*h2c) - H2C_LEN_CXDRVHDR_V7;
+
+	h2c->ctrl.manual = ctrl->manual;
+	h2c->ctrl.always_freerun = ctrl->always_freerun;
+	h2c->ctrl.wl_only = ctrl->wl_only;
+	h2c->ctrl.bt_only = ctrl->bt_only;
+	h2c->ctrl.ntfy_type = ctrl->ntfy_type;
+	memcpy(cinfo->rf_band_map, ctrl->wl_ctrl_info.rf_band_map,
+	       sizeof(cinfo->rf_band_map));
+	memcpy(cinfo->rf_ch, ctrl->wl_ctrl_info.rf_ch, sizeof(cinfo->rf_ch));
+	cinfo->client_pstdma_on = ctrl->wl_ctrl_info.client_pstdma_on;
+	cinfo->fw_scan = ctrl->wl_ctrl_info.fw_scan;
+	cinfo->rfk_state = ctrl->wl_ctrl_info.rfk_state;
+	cinfo->rfk_type = ctrl->wl_ctrl_info.rfk_type;
+	cinfo->smap_val = cpu_to_le32(ctrl->wl_ctrl_info.smap_val);
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_OUTSRC, BTFC_SET,

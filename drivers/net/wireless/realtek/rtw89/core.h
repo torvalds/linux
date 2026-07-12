@@ -1531,19 +1531,20 @@ enum rtw89_tfc_dir {
 struct rtw89_btc_wl_smap {
 	u32 busy: 1;
 	u32 scan: 1;
-	u32 connecting: 1;
+	u32 dhcp: 1;
 	u32 roaming: 1;
-	u32 dbccing: 1;
+	u32 transacting: 1;
 	u32 _4way: 1;
+	u32 handshake: 1;
 	u32 rf_off: 1;
-	u32 lps: 2;
-	u32 ips: 1;
-	u32 init_ok: 1;
-	u32 traffic_dir : 2;
 	u32 rf_off_pre: 1;
+	u32 ips: 1;
+	u32 lps: 2;
 	u32 lps_pre: 2;
 	u32 lps_exiting: 1;
 	u32 emlsr: 1;
+	u32 init_ok: 1;
+	u32 traffic_dir : 2;
 };
 
 enum rtw89_tfc_interval {
@@ -1725,7 +1726,9 @@ struct rtw89_btc_u8_sta_chg {
 struct rtw89_btc_wl_scan_info {
 	u8 band[RTW89_PHY_NUM];
 	u8 phy_map;
-	u8 rsvd;
+	u8 hw_band_map;
+	u8 type;
+	u8 fw_scan;
 };
 
 struct rtw89_btc_wl_dbcc_info {
@@ -3458,6 +3461,7 @@ struct rtw89_btc_dm {
 	u8 run_action;
 	u8 wl_tx_pwr_phy_map;
 	u8 vid;
+	u8 client_ps_tdma_on;
 
 	u8 wl_pre_agc: 2;
 	u8 wl_lna2: 1;
@@ -3477,13 +3481,38 @@ struct rtw89_btc_dm {
 	bool pre_agc_chg;
 };
 
+struct rtw89_fbtc_wl_ctrl_info {
+	u8 rf_band_map[RTW89_MAC_NUM];
+	u8 rf_ch[RTW89_MAC_NUM];
+
+	u8 client_pstdma_on;
+	u8 fw_scan;
+	u8 rfk_state;
+	u8 rfk_type;
+
+	u32 smap_val;
+};
+
 struct rtw89_btc_ctrl {
+	u32 manual;
+	u32 igno_bt: 1;
+	u32 always_freerun: 1;
+	u32 trace_step: 16;
+
+	u8 wl_only;
+	u8 bt_only;
+
+	u8 ntfy_type;
+	struct rtw89_fbtc_wl_ctrl_info wl_ctrl_info;
+};
+
+struct rtw89_btc_ctrl_v0 {
 	u32 manual: 1;
 	u32 igno_bt: 1;
 	u32 always_freerun: 1;
 	u32 trace_step: 16;
 	u32 rsvd: 12;
-};
+} __packed;
 
 struct rtw89_btc_ctrl_v7 {
 	u8 manual;
@@ -3492,10 +3521,31 @@ struct rtw89_btc_ctrl_v7 {
 	u8 rsvd;
 } __packed;
 
-union rtw89_btc_ctrl_list {
-	struct rtw89_btc_ctrl ctrl;
-	struct rtw89_btc_ctrl_v7 ctrl_v7; /* ver 8, 9 is the same */
-};
+struct rtw89_fbtc_wl_ctrl_info_v9 {
+	u8 rf_band_map[RTW89_MAC_NUM];
+	u8 rf_ch[RTW89_MAC_NUM];
+
+	u8 client_pstdma_on;
+	u8 fw_scan;
+	u8 rfk_state;
+	u8 rfk_type;
+
+	__le32 smap_val;
+} __packed;
+
+struct rtw89_btc_ctrl_v9 {
+	u8 manual;
+	u8 always_freerun;
+	u8 wl_only;
+	u8 bt_only;
+
+	u8 ntfy_type;
+	u8 rsvd0;
+	u8 rsvd1;
+	u8 rsvd2;
+
+	struct rtw89_fbtc_wl_ctrl_info_v9 wl_ctrl_info;
+} __packed;
 
 struct rtw89_btc_dbg {
 	/* cmd "rb" */
@@ -3701,7 +3751,7 @@ struct rtw89_btc {
 
 	struct rtw89_btc_cx cx;
 	struct rtw89_btc_dm dm;
-	union rtw89_btc_ctrl_list ctrl;
+	struct rtw89_btc_ctrl ctrl;
 	union rtw89_btc_module_info mdinfo;
 	struct rtw89_btc_btf_fwinfo fwinfo;
 	struct rtw89_btc_dbg dbg;
