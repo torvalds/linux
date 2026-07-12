@@ -2462,6 +2462,9 @@ enum rtw89_btc_bt_func_type {
 
 #define RTW89_BTC_BTC_SCAN_V1_FLAG_ENABLE BIT(0)
 #define RTW89_BTC_BTC_SCAN_V1_FLAG_INTERLACE BIT(1)
+#define RTW89_BTC_BT_DEF_BR_TX_PWR 4
+#define RTW89_BTC_BT_DEF_LE_TX_PWR 4
+#define RTW89_BTC_DEFAULT_ANISO 10
 
 struct rtw89_btc_bt_scan_info_v1 {
 	__le16 win;
@@ -2521,6 +2524,7 @@ struct rtw89_btc_bt_info {
 	u8 func_type;
 	u8 tx_power_now;
 	u8 tx_power_now_6g;
+	u8 ant_iso_to_wl; /* ant isolation between BTx and WL */
 
 	u8 fw_ver_mismatch: 1;
 	u8 band_56G_support: 1;
@@ -3474,6 +3478,123 @@ union rtw89_btc_fbtc_slot_u {
 	struct rtw89_btc_fbtc_slot_v7 v7[CXST_MAX];
 };
 
+struct rtw89_btc_fddr_cell {
+	u8 en;
+	u8 wl_rx_max;
+	u8 wl_rx_min;
+};
+
+struct rtw89_btc_fddr_result {
+	u8 wl_rx_limit;
+	u8 wl_rx_limit_step[6]; /* record search process */
+	u8 search_cnt; /* the rx-limit serach count */
+	u32 wl_tp;
+	u32 wl_tp_step[6]; /* record search process */
+};
+
+struct rtw89_btc_fddr_train_info {
+	u8 rx_limit_pre;
+	u8 rx_limit_now;
+
+	u32 tp_rec_cnt;
+	u32 tp_avg_cnt;
+
+	u32 wl_tp_pre;
+	u32 wl_tp_now;
+};
+
+struct rtw89_btc_fddr_info {
+	u8 state; /* refer to enum btc_fddr_state */
+	u8 cell_now; /* wl rssi_level after filter LNA != 6 */
+	u8 cell_change;
+	u8 wl_low_rate;
+
+	u8 tp_setup_time; /* calculate TP after this value (in second) */
+	u8 tp_hold_time; /* TP calculation period (in second) */
+	u8 wl_rssi_thres[BTC_WL_RSSI_THMAX]; /* index 0 -> Max RSSI */
+
+	u8 search_mode; /* 0: search, 1:look-up  */
+	u8 search_dir; /* 0: Max->Min, 1:Min->Max */
+
+	struct rtw89_btc_fddr_train_info tctrl; /* train flag */
+	struct rtw89_btc_fddr_result cell_result[BTC_WL_RSSI_THMAX + 1];
+	struct rtw89_btc_fddr_cell cell[BTC_WL_RSSI_THMAX + 1]; /* parameters */
+
+	u16 wl_rx_rate_thres; /* switch to TDD if rx_rate < this threshold */
+
+	u32 nrsn_map; /* the reason map for no-run fdd-traing */
+	u32 wl_rx_rate_now;
+};
+
+struct rtw89_btc_rpt_ctrl_a2dp_empty {
+	u32 cnt_empty; /* a2dp empty count */
+	u32 cnt_flowctrl; /* a2dp empty flow control counter */
+	u32 cnt_tx;
+	u32 cnt_ack;
+	u32 cnt_nack;
+};
+
+struct rtw89_btc_fddt_bt_stat {
+	struct rtw89_btc_rpt_ctrl_a2dp_empty a2dp_last;
+	u32 retry_last;
+};
+
+struct rtw89_btc_fddt_cell {
+	s8 wl_pwr_min;
+	s8 wl_pwr_max;
+	s8 bt_pwr_dec_max;
+	s8 bt_rx_gain;
+};
+
+struct rtw89_btc_fddt_fail_check { /* for cell stay in training */
+	u8 check_map; /* check pass condition if bit-map = 1 */
+	u8 bt_no_empty_cnt; /* 0-fail if no bt-empty >= th in train_cycle */
+	u8 wl_tp_ratio; /* 1-fail if wl tp rise ratio < th */
+	u8 wl_kpibtr_ratio; /* 2-fail if phase_now_tp < phase_last_tp * kpibtr_ratio */
+};
+
+struct rtw89_btc_fddt_break_check { /* for cell stay in training or train-ok */
+	u8 check_map; /* check break condition if bit-map = 1 */
+	u8 bt_no_empty_cnt; /* 0-break if no empty count >= th */
+	u8 wl_tp_ratio; /* 1-break if wl tp ratio < th (%) */
+	u8 wl_tp_low_bound; /* 2-break if wl tp (in Mbps) < th */
+
+	u8 cn; /* 3-break if (cn >= cn_limit) >= th cycle */
+	u8 cell_chg; /* 4-break if non-matched-RSSI >= th cycle */
+	s8 nhm_limit; /* 5-break if nhm >= th --> ill-condition */
+	u8 cn_limit; /* if condition number >= th --> ill-condition */
+};
+
+struct rtw89_btc_fddt_time_ctrl {
+	/* 1 TDD cycle = w1 + b1, FDD 1cycle = w1fdd-slot + b1fdd-slot */
+	u8 m_cycle; /* KPI Moving-Average-Cycle: 1~32 cycles */
+	u8 w_cycle; /* Start to calcul WKPI after this if train-phase change */
+	u8 k_cycle; /* Total kpi-estimate cycles for each training-step */
+	u8 rsvd;
+};
+
+struct rtw89_btc_fddt_train_info {
+	struct rtw89_btc_fddt_time_ctrl t_ctrl;
+	struct rtw89_btc_fddt_break_check b_chk;
+	struct rtw89_btc_fddt_fail_check f_chk;
+	struct rtw89_btc_fddt_cell cell_ul[5][5];
+	struct rtw89_btc_fddt_cell cell_dl[5][5];
+};
+
+struct rtw89_btc_fddt_info {
+	u8 type; /* refer to enum btc_fddt_type */
+	u8 result; /* fw send fdd-training status by c2h */
+	u8 state; /* refer to enum btc_fddt_state */
+
+	u8 wl_iot[6]; /* wl bssid  */
+	u16 bt_iot; /* bt vendor-id */
+
+	u32 nrsn_map; /* the reason map for no-run fdd-traing */
+	struct rtw89_btc_fddt_bt_stat bt_stat; /* bt statistics */
+	struct rtw89_btc_fddt_train_info train;
+	struct rtw89_btc_fddt_train_info train_now;
+};
+
 struct rtw89_btc_dm {
 	struct rtw89_btc_fbtc_outsrc_set_info ost_info_last; /* outsrc API setup info */
 	struct rtw89_btc_fbtc_outsrc_set_info ost_info; /* outsrc API setup info */
@@ -3493,6 +3614,8 @@ struct rtw89_btc_dm {
 	union rtw89_btc_dm_error_map error;
 	struct rtw89_btc_bind_info tdd_bind;
 	struct rtw89_btc_bind_info fdd_bind;
+	struct rtw89_btc_fddt_info fddt_info;
+	struct rtw89_btc_fddr_info fddr_info;
 	u32 cnt_dm[BTC_DCNT_NUM];
 	u32 cnt_notify[BTC_NCNT_NUM];
 	u8 ant_xmap[BTC_RF_NUM][BTC_ALL_BT_EZL]; /* WL-BT ANT interact-map */
@@ -3505,6 +3628,10 @@ struct rtw89_btc_dm {
 
 	u8 sit_xmap_last[BTC_RF_NUM][BTC_ALL_BT_EZL];
 	u8 fit_xmap_last[RTW89_PHY_NUM][BTC_ALL_BT_EZL];
+
+	u8 tdd_rssi_thres;  /* The FDD/TDD switch RSSI (in %) */
+	u8 sir_thres; /* WL(Signal) to BT(interference Pin) ratio */
+	u8 sir_state[BTC_ALL_BT_EZL]; /* 1: WL RSSI > BTx-interference */
 
 	u32 update_slot_map;
 	u32 set_ant_path;

@@ -241,6 +241,14 @@ enum btc_3cx_type {
 	BTC_3CX_MAX,
 };
 
+enum btc_fddt_type {
+	BTC_FDDT_TYPE_STOP,
+	BTC_FDDT_TYPE_AUTO,
+	BTC_FDDT_TYPE_FIX_TDD,
+	BTC_FDDT_TYPE_FIX_FULL_FDD,
+	BTC_FDDT_MAX,
+};
+
 enum btc_chip_feature {
 	BTC_FEAT_PTA_ONOFF_CTRL  = BIT(0), /* on/off ctrl by HW (not 0x73[2]) */
 	BTC_FEAT_NONBTG_GWL_THRU = BIT(1), /* non-BTG GNT_WL!=0 if GNT_BT = 1 */

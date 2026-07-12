@@ -1048,44 +1048,52 @@ static int _send_fw_cmd(struct rtw89_dev *rtwdev, u8 h2c_class, u8 h2c_func,
 	return ret;
 }
 
-#define BTC_BT_DEF_BR_TX_PWR 4
-#define BTC_BT_DEF_LE_TX_PWR 4
+#define BTC_DEFAULT_SIR_THRES 51 /* dB, BT Pin - This = TDD/FDD swtch thres */
+#define BTC_FDDR_TP_SETUP_TIME 1 /* in second */
+#define BTC_FDDR_TP_HOLD_TIME 3 /* in second */
+#define BTC_FDDR_RX_LOW_RATE_THRES 4  /* low rate for TDD swotch */
 
 static void _reset_btc_var(struct rtw89_dev *rtwdev, u8 type)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
-	const struct rtw89_btc_ver *ver = btc->ver;
 	struct rtw89_btc_cx *cx = &btc->cx;
-	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
-	struct rtw89_btc_bt_info *bt = &btc->cx.bt0;
-	struct rtw89_btc_bt_link_info *bt_linfo = &bt->link_info;
-	struct rtw89_btc_wl_link_info *wl_linfo;
-	u8 i, j;
+	const struct rtw89_btc_ver *ver = btc->ver;
+	struct rtw89_btc_bt_info *bt0 = &cx->bt0;
+	struct rtw89_btc_bt_info *bt1 = &cx->bt1;
+	u8 i;
 
 	rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], %s\n", __func__);
 
-	if (type & BTC_RESET_CX)
+	if (type & BTC_RESET_CX) {
 		memset(cx, 0, sizeof(*cx));
+		cx->bt_ext.max_tx_pwr = RTW89_BTC_BT_DEF_LE_TX_PWR;
+		cx->bt_ext.ant_iso_to_wl = RTW89_BTC_DEFAULT_ANISO;
+	}
 
-	if (type & BTC_RESET_BTINFO) /* only for BT enable */
-		memset(bt, 0, sizeof(*bt));
+	if (type & BTC_RESET_BTINFO) {/* only for BT enable */
+		memset(bt0, 0, sizeof(*bt0));
+		bt0->link_info.bt_txpwr_desc.br_dbm = RTW89_BTC_BT_DEF_BR_TX_PWR;
+		bt0->link_info_56g.bt_txpwr_desc.br_dbm = RTW89_BTC_BT_DEF_BR_TX_PWR;
+		bt0->link_info.bt_txpwr_desc.le_dbm = RTW89_BTC_BT_DEF_LE_TX_PWR;
+		bt0->link_info_56g.bt_txpwr_desc.le_dbm = RTW89_BTC_BT_DEF_LE_TX_PWR;
+		bt0->ant_iso_to_wl = RTW89_BTC_DEFAULT_ANISO;
+	} else if (type & BTC_RESET_BTINFO2) {
+		memset(bt1, 0, sizeof(*bt1));
+		bt1->link_info.bt_txpwr_desc.br_dbm = RTW89_BTC_BT_DEF_BR_TX_PWR;
+		bt1->link_info_56g.bt_txpwr_desc.br_dbm = RTW89_BTC_BT_DEF_BR_TX_PWR;
+		bt1->link_info.bt_txpwr_desc.le_dbm = RTW89_BTC_BT_DEF_LE_TX_PWR;
+		bt1->link_info_56g.bt_txpwr_desc.le_dbm = RTW89_BTC_BT_DEF_LE_TX_PWR;
+		bt1->ant_iso_to_wl = RTW89_BTC_DEFAULT_ANISO;
+	}
 
 	if (type & BTC_RESET_CTRL) {
 		memset(&btc->ctrl, 0, sizeof(btc->ctrl));
-		btc->manual_ctrl = false;
 		btc->ctrl.trace_step = FCXDEF_STEP;
 	}
 
 	/* Init Coex variables that are not zero */
 	if (type & BTC_RESET_DM) {
 		memset(&btc->dm, 0, sizeof(btc->dm));
-		memset(bt_linfo->rssi_state, 0, sizeof(bt_linfo->rssi_state));
-		for (j = RTW89_MAC_0; j <= RTW89_MAC_1; j++) {
-			for (i = 0; i < RTW89_BE_BTC_WL_MAX_ROLE_NUMBER; i++) {
-				wl_linfo = &wl->rlink_info[i][j];
-				memset(wl_linfo->rssi_state, 0, sizeof(wl_linfo->rssi_state));
-			}
-		}
 
 		/* set the slot_now table to original */
 		btc->dm.tdma_now = t_def[CXTD_OFF];
@@ -1108,18 +1116,32 @@ static void _reset_btc_var(struct rtw89_dev *rtwdev, u8 type)
 		btc->policy_len = 0;
 		btc->bt_req_len[RTW89_PHY_0] = 0;
 		btc->bt_req_len[RTW89_PHY_1] = 0;
+		btc->hubmsg_cnt = 0;
+
 		btc->dm.coex_info_map = BTC_COEX_INFO_ALL;
 		btc->dm.wl_tx_limit.tx_time = BTC_MAX_TX_TIME_DEF;
 		btc->dm.wl_tx_limit.tx_retry = BTC_MAX_TX_RETRY_DEF;
+		btc->dm.bt_slot_flood = BTC_B1_MAX;
+		btc->dm.sir_thres = BTC_DEFAULT_SIR_THRES;
+		btc->dm.fddr_info.tp_setup_time = BTC_FDDR_TP_SETUP_TIME;
+		btc->dm.fddr_info.tp_hold_time = BTC_FDDR_TP_HOLD_TIME;
+		btc->dm.fddr_info.wl_rx_rate_thres = BTC_FDDR_RX_LOW_RATE_THRES;
+		btc->dm.fddt_info.type = BTC_FDDT_TYPE_AUTO;
+
 		btc->dm.wl_pre_agc_rb = BTC_PREAGC_NOTFOUND;
 		btc->dm.wl_btg_rx_rb = BTC_BTGCTRL_BB_GNT_NOTFOUND;
 	}
 
-	if (type & BTC_RESET_MDINFO)
+	if (type & BTC_RESET_MDINFO) {
 		memset(&btc->mdinfo, 0, sizeof(btc->mdinfo));
 
-	bt->link_info.bt_txpwr_desc.br_dbm = BTC_BT_DEF_BR_TX_PWR;
-	bt->link_info.bt_txpwr_desc.le_dbm = BTC_BT_DEF_LE_TX_PWR;
+		if (ver->fcxinit == 10)
+			btc->mdinfo.md_v10.ant.isolation = RTW89_BTC_DEFAULT_ANISO;
+		else if (ver->fcxinit == 7)
+			btc->mdinfo.md_v7.ant.isolation = RTW89_BTC_DEFAULT_ANISO;
+		else
+			btc->mdinfo.md.ant.isolation = RTW89_BTC_DEFAULT_ANISO;
+	}
 }
 
 static u8 _search_reg_index(struct rtw89_dev *rtwdev, u8 mreg_num, u16 reg_type, u32 target)
