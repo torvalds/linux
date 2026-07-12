@@ -11,8 +11,8 @@ from lark import logger
 from lark.exceptions import VisitError
 
 from xdr_parse import xdr_parser, make_error_handler, XdrParseError
-from xdr_parse import handle_transform_error
-from xdr_ast import transform_parse_tree
+from xdr_parse import handle_transform_error, handle_semantic_error
+from xdr_ast import transform_parse_tree, XdrSemanticError
 
 logger.setLevel(logging.DEBUG)
 
@@ -33,6 +33,9 @@ def subcmd(args: Namespace) -> int:
             transform_parse_tree(parse_tree)
         except VisitError as e:
             handle_transform_error(e, source, args.filename)
+            return 1
+        except XdrSemanticError as e:
+            handle_semantic_error(e, source, args.filename)
             return 1
 
     return 0

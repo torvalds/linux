@@ -814,7 +814,9 @@ def _merge_consecutive_passthru(definitions: List[Definition]) -> List[Definitio
             lines = [definitions[i].value.content]
             meta = definitions[i].meta
             j = i + 1
-            while j < len(definitions) and isinstance(definitions[j].value, _XdrPassthru):
+            while j < len(definitions) and isinstance(
+                definitions[j].value, _XdrPassthru
+            ):
                 lines.append(definitions[j].value.content)
                 j += 1
             merged = _XdrPassthru("\n".join(lines))
@@ -826,10 +828,67 @@ def _merge_consecutive_passthru(definitions: List[Definition]) -> List[Definitio
     return result
 
 
+def _meta_line(meta) -> int:
+    """Return the 1-based source line for a node's meta, or 0 if unknown"""
+    try:
+        return meta.line
+    except AttributeError:
+        return 0
+
+
+class XdrSemanticError(Exception):
+    """A specification that parses but violates an XDR semantic rule.
+
+    Detection lives in the language-independent front end because a
+    duplicate name is malformed XDR regardless of the output language.
+    """
+
+    def __init__(self, message: str, meta):
+        super().__init__(message)
+        self.message = message
+        self.line = _meta_line(meta)
+        self.column = getattr(meta, "column", 0)
+
+
+def _introduced_names(value):
+    """Yield (name, node) for each identifier a definition introduces."""
+    if isinstance(value, (_XdrStruct, _XdrUnion, _XdrPointer)):
+        yield value.name, value
+    elif isinstance(value, _XdrEnum):
+        yield value.name, value
+        for enumerator in value.enumerators:
+            yield enumerator.name, enumerator
+    elif isinstance(value, _XdrTypedef):
+        yield value.declaration.name, value.declaration
+    elif isinstance(value, _XdrConstant):
+        yield value.name, value
+
+
+def check_duplicate_definitions(root: "Specification") -> None:
+    """Reject a spec that declares an identifier more than once.
+
+    RFC 4506 Section 6.4 places constant and type identifiers in a
+    single name space that must be unique within a specification.
+    """
+    seen = {}
+    for definition in root.definitions:
+        for name, node in _introduced_names(definition.value):
+            where = node if node.line else definition.meta
+            first = seen.get(name)
+            if first is not None:
+                raise XdrSemanticError(
+                    f"duplicate identifier '{name}'"
+                    f" (first declared at line {_meta_line(first)})",
+                    where,
+                )
+            seen[name] = where
+
+
 def transform_parse_tree(parse_tree):
     """Transform productions into an abstract syntax tree"""
     ast = transformer.transform(parse_tree)
     ast.definitions = _merge_consecutive_passthru(ast.definitions)
+    check_duplicate_definitions(ast)
     return ast
 
 

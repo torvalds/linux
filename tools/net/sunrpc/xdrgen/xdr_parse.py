@@ -169,6 +169,26 @@ def handle_transform_error(e: VisitError, source: str, filename: str) -> None:
     sys.stderr.write("\n".join(msg_parts) + "\n")
 
 
+def handle_semantic_error(e, source: str, filename: str) -> None:
+    """Report a semantic error (e.g., a duplicate name) with context.
+
+    Args:
+        e: The XdrSemanticError carrying message and source position
+        source: The XDR source text being parsed
+        filename: The name of the file being parsed
+    """
+    lines = source.splitlines()
+    line_num = getattr(e, "line", 0)
+    column = getattr(e, "column", 0)
+    line_text = lines[line_num - 1] if 0 < line_num <= len(lines) else ""
+
+    msg_parts = [f"{filename}:{line_num}:{column}: semantic error", e.message]
+    if line_text:
+        msg_parts.extend(format_source_caret(line_text, column))
+
+    sys.stderr.write("\n".join(msg_parts) + "\n")
+
+
 def xdr_parser() -> Lark:
     """Return a Lark parser instance configured with the XDR language grammar"""
 
