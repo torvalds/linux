@@ -536,8 +536,8 @@ static int child_circular_list(void *arg)
 {
 	struct child_args *cargs = arg;
 	struct __test_metadata *_metadata = cargs->_metadata;
+	static struct lock_struct a, b, c;
 	struct robust_list_head head;
-	struct lock_struct a, b, c;
 	int ret;
 
 	free(cargs);
