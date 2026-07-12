@@ -1406,6 +1406,7 @@ enum rtw89_btc_dcnt {
 	BTC_DCNT_WL_FW_VER_MATCH,
 	BTC_DCNT_NULL_TX_FAIL,
 	BTC_DCNT_WL_STA_NTFY,
+	BTC_DCNT_W2B_SCBD_NOSYNC,
 	BTC_DCNT_NUM,
 };
 
@@ -2058,6 +2059,8 @@ struct rtw89_btc_wl_role_info { /* Logic dynamic using */
 };
 
 struct rtw89_btc_wl_ver_info {
+	char build_time[12];
+	char build_date[12];
 	u32 fw_coex; /* match with which coex_ver */
 	u32 fw;
 	u32 mac;
@@ -2245,6 +2248,7 @@ struct rtw89_btc_dm_emap {
 	u32 h2c_buffer_over: 1;
 	u32 bt_tx_hang: 1; /* for SNR too low bug, BT has no Tx req*/
 	u32 wl_no_sta_ntfy: 1;
+	u32 w2b_scbd_no_sync: 1;
 
 	u32 h2c_bmap_mismatch: 1;
 	u32 c2h_bmap_mismatch: 1;
@@ -2784,6 +2788,26 @@ struct rtw89_btc_fbtc_rpt_ctrl_v8 {
 	struct rtw89_btc_fbtc_rpt_ctrl_bt_mailbox bt_mbx_info;
 } __packed;
 
+struct rtw89_btc_fbtc_rpt_ctrl_v11 {
+	u8 fver;
+	u8 rsvd0;
+	u8 rpt_len_max_l; /* BTC_RPT_MAX bit0~7 */
+	u8 rpt_len_max_h; /* BTC_RPT_MAX bit8~15 */
+
+	u8 build_time[12];
+	u8 build_date[12];
+
+	u8 gnt_val[RTW89_PHY_NUM][8]; /* gwl/gbt012 refer to struct btc_gnt_ctrl */
+	__le16 bt_cnt[BTC_ALL_BT_EZL][BTC_BCNT_STA_MAX_V105];
+
+	struct rtw89_btc_fbtc_rpt_ctrl_info_v8 rpt_info;
+	struct rtw89_btc_fbtc_rpt_ctrl_bt_mailbox bt_mbx_info;
+
+	__le32 error_code;
+	__le32 scbd_w2b[2];
+	__le32 scbd_b2w[2];
+} __packed;
+
 union rtw89_btc_fbtc_rpt_ctrl_ver_info {
 	struct rtw89_btc_fbtc_rpt_ctrl_v1 v1;
 	struct rtw89_btc_fbtc_rpt_ctrl_v4 v4;
@@ -2791,6 +2815,7 @@ union rtw89_btc_fbtc_rpt_ctrl_ver_info {
 	struct rtw89_btc_fbtc_rpt_ctrl_v105 v105;
 	struct rtw89_btc_fbtc_rpt_ctrl_v7 v7;
 	struct rtw89_btc_fbtc_rpt_ctrl_v8 v8;
+	struct rtw89_btc_fbtc_rpt_ctrl_v11 v11;
 };
 
 enum rtw89_fbtc_ext_ctrl_type {
@@ -3691,6 +3716,7 @@ struct rtw89_btc_dm {
 	u8 lps_ctrl_change: 1;
 	u8 scbd_write_instant;
 	bool scbd_b2w_update;
+	bool scbd_w2b_update;
 	bool pre_agc_chg;
 };
 
