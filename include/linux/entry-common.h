@@ -72,7 +72,7 @@ static __always_inline long syscall_trace_enter(struct pt_regs *regs, unsigned l
 	 */
 	if (work & SYSCALL_WORK_SYSCALL_USER_DISPATCH) {
 		if (syscall_user_dispatch(regs))
-			return -1L;
+			return false;
 	}
 
 	/*
@@ -87,7 +87,7 @@ static __always_inline long syscall_trace_enter(struct pt_regs *regs, unsigned l
 	if (work & (SYSCALL_WORK_SYSCALL_TRACE | SYSCALL_WORK_SYSCALL_EMU)) {
 		if (!arch_ptrace_report_syscall_permit_entry(regs) ||
 		    (work & SYSCALL_WORK_SYSCALL_EMU))
-			return -1L;
+			return false;
 
 		/* ptrace might have changed work flags */
 		work = READ_ONCE(current_thread_info()->syscall_work);
@@ -96,7 +96,7 @@ static __always_inline long syscall_trace_enter(struct pt_regs *regs, unsigned l
 	/* Do seccomp after ptrace, to catch any tracer changes. */
 	if (work & SYSCALL_WORK_SECCOMP) {
 		if (!__seccomp_permit_syscall())
-			return -1L;
+			return false;
 	}
 
 	if (unlikely(work & SYSCALL_WORK_SYSCALL_TRACEPOINT))
@@ -105,8 +105,7 @@ static __always_inline long syscall_trace_enter(struct pt_regs *regs, unsigned l
 	if (unlikely(audit_context()))
 		syscall_enter_audit(regs);
 
-	/* Either of the above might have changed the syscall number */
-	return syscall_get_nr(current, regs);
+	return true;
 }
 
 /**
@@ -136,8 +135,13 @@ static __always_inline long syscall_enter_from_user_mode_work(struct pt_regs *re
 {
 	unsigned long work = READ_ONCE(current_thread_info()->syscall_work);
 
-	if (work & SYSCALL_WORK_ENTER)
-		syscall = syscall_trace_enter(regs, work, syscall);
+	if (work & SYSCALL_WORK_ENTER) {
+		if (!syscall_trace_enter(regs, work, syscall))
+			return -1L;
+
+		/* Reread the syscall number as it might have been modified */
+		syscall = syscall_get_nr(current, regs);
+	}
 
 	return syscall;
 }
