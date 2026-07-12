@@ -526,6 +526,14 @@ enum btc_cx_poicy_main_type {
 	BTC_CXP_MAIN_MAX
 };
 
+enum btc_bslot_length {
+	BTC_BSLOT_A2DP_HID = 60,
+	BTC_BSLOT_A2DP = 50,
+	BTC_BSLOT_A2DP_2 = 40,
+	BTC_BSLOT_INQ = 30,
+	BTC_BSLOT_IDLE = 20,
+};
+
 enum btc_cx_poicy_type {
 	/* TDMA off + pri: BT > WL */
 	BTC_CXP_OFF_BT = (BTC_CXP_OFF << 8) | 0,
@@ -5989,6 +5997,67 @@ static void _set_wl_tx_limit(struct rtw89_dev *rtwdev)
 					  &data);
 }
 
+static void _set_phl_bt_slot_req(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_cx *cx = &btc->cx;
+	struct rtw89_btc_wl_info *wl = &cx->wl;
+	struct rtw89_btc_dm *dm = &btc->dm;
+	u8 len = 0;
+	u8 i;
+
+	/* don't change bt slot req state during RFK for p2p/mcc case */
+	if (dm->run_reason == BTC_RSN_NTFY_WL_RFK ||
+	    wl->status.map.transacting)
+		return;
+
+	/* enable bt-slot req if ext-slot-control */
+	if (dm->tdma_now.type == CXTDMA_OFF &&
+	    dm->tdma_now.ext_ctrl == CXECTL_EXT &&
+	    dm->tdd_bind.bt_sel != 0) {
+		if (btc->cx.wl.status.val & btc_scanning_map.val)
+			btc->bt_req_en = false;
+		else
+			btc->bt_req_en = true;
+	} else {
+		btc->bt_req_en = false;
+	}
+
+	if (dm->slot_req_more) {
+		len = BTC_BSLOT_A2DP_HID;
+	} else {
+		if (dm->tdd_bind.bt_link_weight >= BTC_BSLOT_A2DP_HID)
+			len = BTC_BSLOT_A2DP_HID;
+		else if (dm->tdd_bind.bt_link_weight <= BTC_BSLOT_IDLE)
+			len = BTC_BSLOT_IDLE;
+		else
+			len = dm->tdd_bind.bt_link_weight;
+	}
+
+	if (dm->tdd_bind.rf_band == BIT(RTW89_BAND_5G))
+		len = 100 - len;
+
+	if (!btc->bt_req_en)
+		len = 0;
+
+	for (i = RTW89_PHY_0; i < RTW89_PHY_NUM; i++) {
+		if (!(dm->tdd_bind.wl_hwb_sel & BIT(i)))
+			continue;
+
+		if (len == btc->bt_req_len[i])
+			continue;
+
+		btc->bt_req_len[i] = len;
+
+		rtw89_core_ntfy_btc_event(rtwdev,
+					  RTW89_BTC_HMSG_SET_BT_REQ_SLOT, i);
+
+		rtw89_debug(rtwdev, RTW89_DBG_BTC,
+			    "[BTC], %s(): HWB%d bt_req_len = %d\n",
+			    __func__, i, btc->bt_req_len[i]);
+	}
+}
+
 static void _set_bt_rx_agc(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
@@ -6148,6 +6217,7 @@ static void _action_common(struct rtw89_dev *rtwdev)
 	_set_btg_ctrl(rtwdev);
 	_set_wl_preagc_ctrl(rtwdev);
 	_set_wl_tx_limit(rtwdev);
+	_set_phl_bt_slot_req(rtwdev);
 	_set_bt_afh_info(rtwdev);
 	_set_bt_rx_agc(rtwdev);
 	_set_rf_trx_para(rtwdev);

@@ -8866,7 +8866,9 @@ int rtw89_reg_6ghz_recalc(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvi
 void rtw89_core_update_p2p_ps(struct rtw89_dev *rtwdev,
 			      struct rtw89_vif_link *rtwvif_link,
 			      struct ieee80211_bss_conf *bss_conf);
-void rtw89_core_ntfy_btc_event(struct rtw89_dev *rtwdev, enum rtw89_btc_hmsg event);
+void rtw89_core_ntfy_btc_event(struct rtw89_dev *rtwdev,
+			       enum rtw89_btc_hmsg event,
+			       enum rtw89_phy_idx phy_idx);
 int rtw89_core_mlsr_switch(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			   unsigned int link_id);
 void rtw89_core_dm_disable_cfg(struct rtw89_dev *rtwdev, u32 new);

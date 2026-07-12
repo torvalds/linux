@@ -6539,15 +6539,18 @@ void rtw89_complete_cond(struct rtw89_wait_info *wait, unsigned int cond,
 	rtw89_complete_cond_resp(resp, data);
 }
 
-void rtw89_core_ntfy_btc_event(struct rtw89_dev *rtwdev, enum rtw89_btc_hmsg event)
+void rtw89_core_ntfy_btc_event(struct rtw89_dev *rtwdev,
+			       enum rtw89_btc_hmsg event,
+			       enum rtw89_phy_idx phy_idx)
 {
-	u16 bt_req_len;
+	u16 bt_slot_req[RTW89_PHY_NUM];
 
 	switch (event) {
 	case RTW89_BTC_HMSG_SET_BT_REQ_SLOT:
-		bt_req_len = rtw89_coex_query_bt_req_len(rtwdev, RTW89_PHY_0);
+		bt_slot_req[phy_idx] = rtw89_coex_query_bt_req_len(rtwdev, phy_idx);
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,
-			    "coex updates BT req len to %d TU\n", bt_req_len);
+			    "coex updates PHY-%d BT req len to %d TU\n",
+			    phy_idx, bt_slot_req[phy_idx]);
 		rtw89_queue_chanctx_change(rtwdev, RTW89_CHANCTX_BT_SLOT_CHANGE);
 		break;
 	default:
