@@ -4308,13 +4308,14 @@ int rtw89_mac_disable_bb_rf(struct rtw89_dev *rtwdev)
 }
 EXPORT_SYMBOL(rtw89_mac_disable_bb_rf);
 
-int rtw89_mac_partial_init(struct rtw89_dev *rtwdev, bool include_bb)
+int rtw89_mac_partial_init(struct rtw89_dev *rtwdev, bool include_bb,
+			   bool bb_preinit)
 {
 	int ret;
 
 	rtw89_mac_ctrl_hci_dma_trx(rtwdev, true);
 
-	if (include_bb) {
+	if (include_bb || bb_preinit) {
 		/* Only call BB preinit including configuration of BB MCU for
 		 * the chips which need to download BB MCU firmware. Otherwise,
 		 * calling preinit later to prevent touching registers affecting
@@ -4367,7 +4368,7 @@ int rtw89_mac_init(struct rtw89_dev *rtwdev)
 	bool include_bb = !!chip->bbmcu_nr;
 	int ret;
 
-	ret = rtw89_mac_partial_init(rtwdev, include_bb);
+	ret = rtw89_mac_partial_init(rtwdev, include_bb, include_bb);
 	if (ret)
 		goto fail;
 

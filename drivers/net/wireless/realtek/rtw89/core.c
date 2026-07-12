@@ -7200,9 +7200,19 @@ wake_queue:
 static int rtw89_chip_efuse_info_setup(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	bool bb_preinit = false;
 	int ret;
 
-	ret = rtw89_mac_partial_init(rtwdev, false);
+	/*
+	 * Normally in probe stage, we don't need to do BB pre-initialization.
+	 * However, RTL8922D firmware can access BB registers at firmware
+	 * initial state, so initialize it to avoid BB IO stuck in firmware.
+	 */
+	if (chip->chip_id == RTL8922D)
+		bb_preinit = true;
+
+	ret = rtw89_mac_partial_init(rtwdev, false, bb_preinit);
 	if (ret)
 		return ret;
 
