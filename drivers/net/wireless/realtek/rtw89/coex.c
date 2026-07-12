@@ -936,6 +936,14 @@ static void _run_coex(struct rtw89_dev *rtwdev,
 static void _write_scbd(struct rtw89_dev *rtwdev, u8 bid, u32 val, bool state);
 static u8 _sned_h2c_w2bscbd(struct rtw89_dev *rtwdev, bool force_exec, u8 bid);
 static void _update_bt_scbd(struct rtw89_dev *rtwdev, u8 bid);
+static const char *id_to_h2c(u32 id);
+
+static void _reset_h2c_macro(struct rtw89_btc *btc)
+{
+	btc->hbuf_len = 0;
+	btc->hbuf_cnt = 0;
+	memset(btc->hbuf, 0, BTC_H2C_MAXLEN);
+}
 
 static int _send_fw_cmd(struct rtw89_dev *rtwdev, u8 h2c_class, u8 h2c_func,
 			void *param, u16 len)
@@ -945,6 +953,8 @@ static int _send_fw_cmd(struct rtw89_dev *rtwdev, u8 h2c_class, u8 h2c_func,
 	struct rtw89_btc_cx *cx = &btc->cx;
 	struct rtw89_btc_wl_info *wl = &cx->wl;
 	struct rtw89_btc_dm *dm = &btc->dm;
+	u8 h2c_func_mask, bid = BTC_BT_1ST;
+	u8 *buf = param;
 	int ret;
 
 	if (len > BTC_H2C_MAXLEN || len == 0) {
@@ -966,7 +976,69 @@ static int _send_fw_cmd(struct rtw89_dev *rtwdev, u8 h2c_class, u8 h2c_func,
 		return -EINVAL;
 	}
 
-	ret = rtw89_fw_h2c_raw_with_hdr(rtwdev, h2c_class, h2c_func, param, len,
+	h2c_func_mask = h2c_func & (~BT_H2C_FUNC_BT2ND);
+	if (rtwdev->chip->para_ver & BTC_FEAT_DUAL_BT)
+		bid = !!(h2c_func & BT_H2C_FUNC_BT2ND);
+
+	if (btc->io_oflld_type != BTC_IO_OFLD_BTC_H2C || btc->cli_h2c_cmd ||
+	    h2c_func_mask == SET_H2C_MACRO ||
+	    (h2c_func_mask == SET_DRV_INFO && buf[0] == CXDRVINFO_TRX) ||
+	    (h2c_func_mask == SET_IOFLD_SCBD && dm->scbd_write_instant) ||
+	    h2c_func_mask == SET_BT_LNA_CONSTRAIN) {
+		h2c_class = BTFC_SET;
+
+		ret = rtw89_fw_h2c_raw_with_hdr(rtwdev, h2c_class, h2c_func,
+						buf, len, false, true);
+
+		rtw89_debug(rtwdev, RTW89_DBG_BTC,
+			    "[BTC], %s():class=%d, bt%d-func=%s, len=%d\n",
+			    __func__, h2c_class, bid,
+			    id_to_h2c(h2c_func_mask), len);
+
+		if (h2c_func_mask == SET_H2C_MACRO) {
+			rtw89_debug(rtwdev, RTW89_DBG_BTC,
+				    "[BTC], %s():Send H2C-MACRO cnt=%d, len=%d\n",
+				    __func__, btc->hbuf_cnt, btc->hbuf_len);
+			_reset_h2c_macro(btc); /* clear H2C MACRO buffer */
+		}
+
+		if (ret != 0) { /* Send H2C fail */
+			rtw89_debug(rtwdev, RTW89_DBG_BTC,
+				    "[BTC], %s():return by rtw_hal_mac_send_h2c\n",
+				    __func__);
+			btc->fwinfo.cnt_h2c_fail++;
+			return 0;
+		}
+
+		btc->fwinfo.cnt_h2c++;
+	} else { /* Fill H2C MACRO buffer(TLV format) temporarily */
+		if (btc->hbuf_cnt == 0)
+			_reset_h2c_macro(btc);
+
+		/* Type:1 byte, Length:2 Bytes, Data:len bytes */
+		if (btc->hbuf_len + len + 3 >= BTC_H2C_MAXLEN) {
+			rtw89_debug(rtwdev, RTW89_DBG_BTC,
+				    "[BTC], %s():return by MACRO buf full(%d)\n",
+				    __func__, btc->hbuf_len + len + 3);
+			btc->fwinfo.cnt_h2c_fail++;
+			return 0;
+		}
+
+		btc->hbuf[btc->hbuf_len] = h2c_func;
+		btc->hbuf[btc->hbuf_len + 1] = len & GENMASK(7, 0);
+		btc->hbuf[btc->hbuf_len + 2] = (len & GENMASK(15, 8)) >> 8;
+
+		memcpy(&btc->hbuf[btc->hbuf_len + 3], buf, len);
+		btc->hbuf_len = btc->hbuf_len + len + 3;
+		btc->hbuf_cnt++;
+
+		rtw89_debug(rtwdev, RTW89_DBG_BTC,
+			    "[BTC], %s():Buffer H2C-MACRO cnt=%d/bt%d-func=%s/len=%d\n",
+			    __func__, btc->hbuf_cnt, bid,
+			    id_to_h2c(h2c_func_mask), len);
+	}
+
+	ret = rtw89_fw_h2c_raw_with_hdr(rtwdev, h2c_class, h2c_func, buf, len,
 					false, true);
 	if (ret)
 		pfwinfo->cnt_h2c_fail++;
@@ -9249,6 +9321,7 @@ static int _show_bt_info(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 #define CASE_BTC_POLUT_STR(e) case BTC_PLT_## e: return #e
 #define CASE_BTC_REGTYPE_STR(e) case REG_## e: return #e
 #define CASE_BTC_GDBG_STR(e) case BTC_DBG_## e: return #e
+#define CASE_BTC_H2CCMD(e) case SET_##e: return #e
 
 static const char *id_to_polut(u32 id)
 {
@@ -9524,6 +9597,38 @@ static const char *id_to_ant(u32 id)
 	CASE_BTC_ANTPATH_STR(WRFK2);
 	CASE_BTC_ANTPATH_STR(PTA);
 	CASE_BTC_ANTPATH_STR(MAX);
+	default:
+		return "unknown";
+	}
+}
+
+static const char *id_to_h2c(u32 id)
+{
+	switch (id) {
+	CASE_BTC_H2CCMD(REPORT_EN);
+	CASE_BTC_H2CCMD(SLOT_TABLE);
+	CASE_BTC_H2CCMD(MREG_TABLE);
+	CASE_BTC_H2CCMD(CX_POLICY);
+	CASE_BTC_H2CCMD(GPIO_DBG);
+	CASE_BTC_H2CCMD(DRV_INFO);
+	CASE_BTC_H2CCMD(DRV_EVENT);
+	CASE_BTC_H2CCMD(BT_WREG_ADDR);
+	CASE_BTC_H2CCMD(BT_WREG_VAL);
+	CASE_BTC_H2CCMD(BT_RREG_ADDR);
+	CASE_BTC_H2CCMD(BT_WL_CH_INFO);
+	CASE_BTC_H2CCMD(BT_INFO_REPORT);
+	CASE_BTC_H2CCMD(BT_IGNORE_WLAN_ACT);
+	CASE_BTC_H2CCMD(BT_TX_PWR);
+	CASE_BTC_H2CCMD(BT_LNA_CONSTRAIN);
+	CASE_BTC_H2CCMD(BT_QUERY_DEV_LIST);
+	CASE_BTC_H2CCMD(BT_QUERY_DEV_INFO);
+	CASE_BTC_H2CCMD(BT_PSD_REPORT);
+	CASE_BTC_H2CCMD(H2C_TEST);
+	CASE_BTC_H2CCMD(IOFLD_RF);
+	CASE_BTC_H2CCMD(IOFLD_BB);
+	CASE_BTC_H2CCMD(IOFLD_MAC);
+	CASE_BTC_H2CCMD(IOFLD_SCBD);
+	CASE_BTC_H2CCMD(H2C_MACRO);
 	default:
 		return "unknown";
 	}

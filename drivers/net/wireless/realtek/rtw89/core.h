@@ -3820,6 +3820,7 @@ struct rtw89_btc_btf_fwinfo {
 };
 
 #define RTW89_BTC_POLICY_MAXLEN 512
+#define BTC_H2C_MAXLENC 2020
 
 struct rtw89_btc {
 	const struct rtw89_btc_ver *ver;
@@ -3839,11 +3840,14 @@ struct rtw89_btc {
 	u32 bt_req_len[RTW89_PHY_NUM];
 
 	u8 policy[RTW89_BTC_POLICY_MAXLEN];
+	u8 hbuf[BTC_H2C_MAXLENC]; /* H2C Macro buffer */
+	u8 hbuf_cnt; /* H2C cmd count in buffer */
 	u8 ant_type;
 	u8 btg_pos;
 	u8 io_oflld_type;
 	u16 policy_len;
 	u16 policy_type;
+	u16 hbuf_len; /* H2C used length, it sshould be <= BTC_H2C_MAXLEN */
 	u32 hubmsg_cnt;
 	bool bt_req_en;
 	bool update_policy_force;
