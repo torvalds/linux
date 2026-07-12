@@ -2466,29 +2466,26 @@ EXPORT_SYMBOL(rtw89_mac_cfg_gnt_v3);
 
 int rtw89_mac_cfg_ctrl_path_v2(struct rtw89_dev *rtwdev, bool wl)
 {
-	struct rtw89_btc *btc = &rtwdev->btc;
-	struct rtw89_btc_dm *dm = &btc->dm;
-	struct rtw89_mac_ax_gnt *g = dm->gnt.band;
-	struct rtw89_mac_ax_wl_act *gbt = dm->gnt.bt;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
+	struct rtw89_mac_ax_coex_gnt gnt = {};
 	int i;
 
 	if (wl)
 		return 0;
 
 	for (i = 0; i < RTW89_PHY_NUM; i++) {
-		g[i].gnt_bt_sw_en = 1;
-		g[i].gnt_bt = 1;
-		g[i].gnt_wl_sw_en = 1;
-		g[i].gnt_wl = 0;
-		gbt[i].wlan_act = 1;
-		gbt[i].wlan_act_en = 0;
+		gnt.band[i].gnt_bt_sw_en = 1;
+		gnt.band[i].gnt_bt = 1;
+		gnt.band[i].gnt_wl_sw_en = 1;
+		gnt.band[i].gnt_wl = 0;
+		gnt.bt[i].wlan_act = 1;
+		gnt.bt[i].wlan_act_en = 0;
 	}
 
 	if (chip->chip_id == RTL8922A)
-		return rtw89_mac_cfg_gnt_v2(rtwdev, &dm->gnt);
+		return rtw89_mac_cfg_gnt_v2(rtwdev, &gnt);
 	else
-		return rtw89_mac_cfg_gnt_v3(rtwdev, &dm->gnt);
+		return rtw89_mac_cfg_gnt_v3(rtwdev, &gnt);
 
 }
 EXPORT_SYMBOL(rtw89_mac_cfg_ctrl_path_v2);

@@ -3481,7 +3481,9 @@ struct rtw89_btc_dm {
 	union rtw89_btc_fbtc_slot_u slot_now;
 	struct rtw89_btc_fbtc_tdma tdma;
 	struct rtw89_btc_fbtc_tdma tdma_now;
-	struct rtw89_mac_ax_coex_gnt gnt;
+	struct rtw89_btc_gnt_ctrl gnt_set[RTW89_MAC_AX_COEX_GNT_NR];
+	struct rtw89_btc_gnt_ctrl gnt_val[RTW89_MAC_AX_COEX_GNT_NR];
+	struct rtw89_mac_ax_wl_act wlact_set[BTC_ALL_BT_EZL];
 	union rtw89_btc_init_info_u init_info; /* pass to wl_fw if offload */
 	struct rtw89_btc_rf_trx_para_v9 rf_trx_para;
 	struct rtw89_btc_wl_tx_limit_para wl_tx_limit;

@@ -6538,8 +6538,6 @@ int rtw89_mac_cfg_gnt_v1(struct rtw89_dev *rtwdev,
 	if (gnt_cfg->band[0].gnt_bt)
 		val |= B_AX_GNT_BT_RFC_S0_VAL | B_AX_GNT_BT_RX_VAL |
 		       B_AX_GNT_BT_TX_VAL;
-	else
-		val |= B_AX_WL_ACT_VAL;
 
 	if (gnt_cfg->band[0].gnt_bt_sw_en)
 		val |= B_AX_GNT_BT_RFC_S0_SWCTRL | B_AX_GNT_BT_RX_SWCTRL |
@@ -6556,8 +6554,6 @@ int rtw89_mac_cfg_gnt_v1(struct rtw89_dev *rtwdev,
 	if (gnt_cfg->band[1].gnt_bt)
 		val |= B_AX_GNT_BT_RFC_S1_VAL | B_AX_GNT_BT_RX_VAL |
 		       B_AX_GNT_BT_TX_VAL;
-	else
-		val |= B_AX_WL_ACT_VAL;
 
 	if (gnt_cfg->band[1].gnt_bt_sw_en)
 		val |= B_AX_GNT_BT_RFC_S1_SWCTRL | B_AX_GNT_BT_RX_SWCTRL |
@@ -6570,6 +6566,15 @@ int rtw89_mac_cfg_gnt_v1(struct rtw89_dev *rtwdev,
 	if (gnt_cfg->band[1].gnt_wl_sw_en)
 		val |= B_AX_GNT_WL_RFC_S1_SWCTRL | B_AX_GNT_WL_RX_SWCTRL |
 		       B_AX_GNT_WL_TX_SWCTRL | B_AX_GNT_WL_BB_SWCTRL;
+
+	if (gnt_cfg->bt[0].wlan_act_en)
+		val |= B_AX_WL_ACT_SWCTRL;
+	if (gnt_cfg->bt[0].wlan_act)
+		val |= B_AX_WL_ACT_VAL;
+	if (gnt_cfg->bt[1].wlan_act_en)
+		val |= B_AX_WL_ACT2_SWCTRL;
+	if (gnt_cfg->bt[1].wlan_act)
+		val |= B_AX_WL_ACT2_VAL;
 
 	rtw89_write32(rtwdev, R_AX_GNT_SW_CTRL, val);
 
@@ -6645,22 +6650,20 @@ EXPORT_SYMBOL(rtw89_mac_cfg_ctrl_path);
 
 int rtw89_mac_cfg_ctrl_path_v1(struct rtw89_dev *rtwdev, bool wl)
 {
-	struct rtw89_btc *btc = &rtwdev->btc;
-	struct rtw89_btc_dm *dm = &btc->dm;
-	struct rtw89_mac_ax_gnt *g = dm->gnt.band;
+	struct rtw89_mac_ax_coex_gnt gnt = {};
 	int i;
 
 	if (wl)
 		return 0;
 
 	for (i = 0; i < RTW89_PHY_NUM; i++) {
-		g[i].gnt_bt_sw_en = 1;
-		g[i].gnt_bt = 1;
-		g[i].gnt_wl_sw_en = 1;
-		g[i].gnt_wl = 0;
+		gnt.band[i].gnt_bt_sw_en = 1;
+		gnt.band[i].gnt_bt = 1;
+		gnt.band[i].gnt_wl_sw_en = 1;
+		gnt.band[i].gnt_wl = 0;
 	}
 
-	return rtw89_mac_cfg_gnt_v1(rtwdev, &dm->gnt);
+	return rtw89_mac_cfg_gnt_v1(rtwdev, &gnt);
 }
 EXPORT_SYMBOL(rtw89_mac_cfg_ctrl_path_v1);
 
