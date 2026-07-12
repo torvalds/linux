@@ -125,8 +125,6 @@ config ZSWAP_COMPRESSOR_DEFAULT
 config ZSMALLOC
 	tristate
 
-if ZSMALLOC
-
 menu "Zsmalloc allocator options"
 	depends on ZSMALLOC
 
@@ -160,8 +158,6 @@ config ZSMALLOC_CHAIN_SIZE
 	  For more information, see zsmalloc documentation.
 
 endmenu
-
-endif
 
 menu "Slab allocator options"
 
@@ -583,12 +579,10 @@ endchoice
 
 config MEMORY_HOTREMOVE
 	bool "Allow for memory hot remove"
-	depends on MEMORY_HOTPLUG
 	select MIGRATION
 
 config MHP_MEMMAP_ON_MEMORY
 	def_bool y
-	depends on MEMORY_HOTPLUG
 	depends on ARCH_MHP_MEMMAP_ON_MEMORY_ENABLE
 
 endif # MEMORY_HOTPLUG
@@ -1393,17 +1387,15 @@ menuconfig USERFAULTFD
 	  Enable the userfaultfd() system call that allows to intercept and
 	  handle page faults in userland.
 
-if USERFAULTFD
 config PTE_MARKER_UFFD_WP
 	bool "Userfaultfd write protection support for shmem/hugetlbfs"
 	default y
-	depends on HAVE_ARCH_USERFAULTFD_WP
+	depends on USERFAULTFD && HAVE_ARCH_USERFAULTFD_WP
 
 	help
 	  Allows to create marker PTEs for userfaultfd write protection
 	  purposes.  It is required to enable userfaultfd write protection on
 	  file-backed memory types like shmem and hugetlbfs.
-endif # USERFAULTFD
 
 # multi-gen LRU {
 config LRU_GEN
