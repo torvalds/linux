@@ -9615,16 +9615,17 @@ int smb2_ioctl(struct ksmbd_work *work)
 		struct file_object_buf_type1_ioctl_rsp *obj_buf;
 		struct ksmbd_file *fp;
 
-		if (out_buf_len < sizeof(struct file_object_buf_type1_ioctl_rsp)) {
-			ret = -EINVAL;
-			goto out;
-		}
-
 		fp = ksmbd_lookup_fd_fast(work, id);
 		if (!fp) {
 			ret = -EBADF;
 			rsp->hdr.Status = STATUS_FILE_CLOSED;
 			goto out2;
+		}
+
+		if (out_buf_len < sizeof(struct file_object_buf_type1_ioctl_rsp)) {
+			ksmbd_fd_put(work, fp);
+			ret = -EINVAL;
+			goto out;
 		}
 		ksmbd_fd_put(work, fp);
 
