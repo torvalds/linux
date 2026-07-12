@@ -93,6 +93,7 @@ struct rtw89_debugfs {
 	struct rtw89_debugfs_priv beacon_info;
 	struct rtw89_debugfs_priv diag_mac;
 	struct rtw89_debugfs_priv diag_bb;
+	struct rtw89_debugfs_priv diag_rf;
 	struct rtw89_debugfs_priv monitor_opts;
 };
 
@@ -5394,6 +5395,118 @@ rtw89_debug_priv_diag_bb_get(struct rtw89_dev *rtwdev,
 }
 
 static ssize_t
+rtw89_debug_priv_diag_rf_get(struct rtw89_dev *rtwdev,
+			     struct rtw89_debugfs_priv *debugfs_priv,
+			     char *buf, size_t bufsz)
+{
+	struct rtw89_rfk_wait_info *info = &rtwdev->rfk_wait;
+	char *p = buf, *end = buf + bufsz;
+	int i, j;
+
+	p += scnprintf(p, end - p, "RFK (next index: %d)\n", info->record_idx);
+
+	p += scnprintf(p, end - p, "  PHY-X    =");
+	for (i = 0; i < RTW89_RFK_RECORD_HISTORY_NR; i++) {
+		struct rtw89_rfk_record *record = &info->records[i];
+
+		p += scnprintf(p, end - p, " %4d ", record->phy_idx);
+	}
+	p += scnprintf(p, end - p, "\n");
+
+	for (j = 0; j < RTW89_RFK_RECORD_PATH_NR; j++) {
+		p += scnprintf(p, end - p, "  S%d-CH    =", j);
+		for (i = 0; i < RTW89_RFK_RECORD_HISTORY_NR; i++) {
+			struct rtw89_rfk_record *record = &info->records[i];
+
+			p += scnprintf(p, end - p, " %05x", record->ch[j]);
+		}
+		p += scnprintf(p, end - p, "\n");
+
+		p += scnprintf(p, end - p, "  S%d-CV    =", j);
+		for (i = 0; i < RTW89_RFK_RECORD_HISTORY_NR; i++) {
+			struct rtw89_rfk_record *record = &info->records[i];
+
+			p += scnprintf(p, end - p, " %05x", record->cv[j]);
+		}
+		p += scnprintf(p, end - p, "\n");
+
+		p += scnprintf(p, end - p, "  S%d-C5    =", j);
+		for (i = 0; i < RTW89_RFK_RECORD_HISTORY_NR; i++) {
+			struct rtw89_rfk_record *record = &info->records[i];
+
+			p += scnprintf(p, end - p, " %05x", record->c5[j]);
+		}
+		p += scnprintf(p, end - p, "\n");
+	}
+
+	for (j = 0; j < NUM_OF_RTW89_RFK_REPORT_TYPES; j++) {
+		p += scnprintf(p, end - p, "  %-8s =", rtw89_rfk_report_names[j]);
+		for (i = 0; i < RTW89_RFK_RECORD_HISTORY_NR; i++) {
+			struct rtw89_rfk_record *record = &info->records[i];
+
+			p += scnprintf(p, end - p, " %4d ", record->states[j]);
+		}
+		p += scnprintf(p, end - p, "\n");
+	}
+
+	p += scnprintf(p, end - p, "TSSI-track (next index: %d)\n", info->record_tssi_idx);
+
+	for (j = 0; j < RTW89_RFK_RECORD_PATH_NR; j++) {
+		p += scnprintf(p, end - p, "  S%d       =", j);
+		for (i = 0; i < RTW89_RFK_RECORD_HISTORY_NR; i++)
+			p += scnprintf(p, end - p, "   %03x", info->tssi_code[i][j]);
+		p += scnprintf(p, end - p, "\n");
+	}
+
+	return p - buf;
+}
+
+static void rtw89_dbg_diag_rf_set_rfk(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_entity_mgnt *mgnt = &rtwdev->hal.entity_mgnt;
+	struct rtw89_vif_link *rtwvif_link;
+	struct rtw89_vif *rtwvif;
+	unsigned int link_id;
+
+	list_for_each_entry(rtwvif, &mgnt->active_list, mgnt_entry)
+		rtw89_vif_for_each_link(rtwvif, rtwvif_link, link_id)
+			rtw89_chip_rfk_channel(rtwdev, rtwvif_link);
+}
+
+enum rtw89_dbg_diag_rf_type {
+	RTW89_DBG_DIAG_RF_RSVD = 0,
+	RTW89_DBG_DIAG_RF_RFK = 1,
+};
+
+static ssize_t
+rtw89_debug_priv_diag_rf_set(struct rtw89_dev *rtwdev,
+			     struct rtw89_debugfs_priv *debugfs_priv,
+			     const char *buf, size_t count)
+{
+	u8 type;
+	int ret;
+
+	ret = kstrtou8(buf, 0, &type);
+	if (ret)
+		return -EINVAL;
+
+	if (rtwdev->scanning)
+		rtw89_hw_scan_abort(rtwdev, rtwdev->scan_info.scanning_vif);
+
+	rtw89_leave_ps_mode(rtwdev);
+
+	switch (type) {
+	case RTW89_DBG_DIAG_RF_RFK:
+		rtw89_dbg_diag_rf_set_rfk(rtwdev);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return count;
+}
+
+static ssize_t
 rtw89_debug_priv_monitor_opts_get(struct rtw89_dev *rtwdev,
 				  struct rtw89_debugfs_priv *debugfs_priv,
 				  char *buf, size_t bufsz)
@@ -5505,6 +5618,7 @@ static const struct rtw89_debugfs rtw89_debugfs_templ = {
 	.beacon_info = rtw89_debug_priv_get(beacon_info),
 	.diag_mac = rtw89_debug_priv_get(diag_mac, RSIZE_16K, RLOCK),
 	.diag_bb = rtw89_debug_priv_get(diag_bb, RSIZE_8K, RLOCK),
+	.diag_rf = rtw89_debug_priv_set_and_get(diag_rf, RWLOCK),
 	.monitor_opts = rtw89_debug_priv_set_and_get(monitor_opts, RWLOCK),
 };
 
@@ -5562,6 +5676,7 @@ void rtw89_debugfs_add_sec2(struct rtw89_dev *rtwdev, struct dentry *debugfs_top
 	rtw89_debugfs_add_r(beacon_info);
 	rtw89_debugfs_add_r(diag_mac);
 	rtw89_debugfs_add_r(diag_bb);
+	rtw89_debugfs_add_rw(diag_rf);
 	rtw89_debugfs_add_rw(monitor_opts);
 }
 

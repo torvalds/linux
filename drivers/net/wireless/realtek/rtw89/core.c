@@ -486,6 +486,37 @@ void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev)
 	__rtw89_core_set_chip_txpwr(rtwdev, conf.chans[1], RTW89_PHY_1);
 }
 
+static void rtw89_core_rfk_record(struct rtw89_dev *rtwdev,
+				  struct rtw89_vif_link *rtwvif_link,
+				  bool start)
+{
+	struct rtw89_rfk_wait_info *info = &rtwdev->rfk_wait;
+	struct rtw89_rfk_record *record = &info->records[info->record_idx];
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	u8 path_num = min(chip->rf_path_num, RTW89_RFK_RECORD_PATH_NR);
+	int path;
+
+	if (!start)
+		goto end;
+
+	info->record_ptr = record;
+	record->phy_idx = rtwvif_link->phy_idx;
+
+	for (path = 0; path < path_num; path++) {
+		record->ch[path] = rtw89_read_rf(rtwdev, path, RR_CFGCH,
+						 RR_CFGCH_BAND0 | RR_CFGCH_CH);
+		record->cv[path] = rtw89_read_rf(rtwdev, path, RR_VCO,
+						 RR_VCO_SEL | RR_VCO_STS);
+		record->c5[path] = rtw89_read_rf(rtwdev, path, RR_SYNFB, RFREG_MASK);
+	}
+
+	return;
+
+end:
+	info->record_idx = (info->record_idx + 1) % RTW89_RFK_RECORD_HISTORY_NR;
+	info->record_ptr = NULL;
+}
+
 void rtw89_chip_rfk_channel(struct rtw89_dev *rtwdev,
 			    struct rtw89_vif_link *rtwvif_link)
 {
@@ -503,8 +534,13 @@ void rtw89_chip_rfk_channel(struct rtw89_dev *rtwdev,
 		rtw89_set_channel(rtwdev);
 	}
 
-	if (chip->ops->rfk_channel)
+	if (chip->ops->rfk_channel) {
+		rtw89_core_rfk_record(rtwdev, rtwvif_link, true);
+
 		chip->ops->rfk_channel(rtwdev, rtwvif_link);
+
+		rtw89_core_rfk_record(rtwdev, rtwvif_link, false);
+	}
 
 	if (prehdl_link) {
 		rtw89_entity_force_hw(rtwdev, RTW89_PHY_NUM);
@@ -5274,6 +5310,37 @@ static void rtw89_enter_lps_track(struct rtw89_dev *rtwdev,
 	}
 }
 
+static void rtw89_core_rfk_tssi_record(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	u8 path_num = min(chip->rf_path_num, RTW89_RFK_RECORD_PATH_NR);
+	struct rtw89_rfk_wait_info *info = &rtwdev->rfk_wait;
+	int i = info->record_tssi_idx;
+	u32 base;
+	u32 mask;
+	int path;
+
+	if (chip->chip_gen == RTW89_CHIP_AX)
+		return;
+
+	info->record_tssi_idx = (info->record_tssi_idx + 1) %
+				RTW89_RFK_RECORD_HISTORY_NR;
+
+	if (chip->chip_id == RTL8922A) {
+		base = 0x2ee10;
+		mask = 0x7fc00;
+	} else {
+		base = 0x2f918;
+		mask = 0x000001ff;
+	}
+
+	for (path = 0; path < path_num; path++) {
+		u32 addr = base + 0x100 * path;
+
+		info->tssi_code[i][path] = rtw89_read32_mask(rtwdev, addr, mask);
+	}
+}
+
 static void rtw89_core_rfk_track(struct rtw89_dev *rtwdev)
 {
 	enum rtw89_entity_mode mode;
@@ -5283,6 +5350,8 @@ static void rtw89_core_rfk_track(struct rtw89_dev *rtwdev)
 		return;
 
 	rtw89_chip_rfk_track(rtwdev);
+
+	rtw89_core_rfk_tssi_record(rtwdev);
 }
 
 void rtw89_core_update_p2p_ps(struct rtw89_dev *rtwdev,

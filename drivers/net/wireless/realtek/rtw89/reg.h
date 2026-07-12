@@ -8763,6 +8763,7 @@
 #define RR_VCO 0xb2
 #define RR_VCO_VAL GENMASK(18, 14)
 #define RR_VCO_SEL GENMASK(9, 8)
+#define RR_VCO_STS GENMASK(7, 0)
 #define RR_VCI 0xb3
 #define RR_VCI_ON BIT(7)
 #define RR_LPF 0xb7

@@ -6134,11 +6134,43 @@ enum rtw89_rfk_report_state {
 	RTW89_RFK_STATE_H2C_CMD_ERR = 0x4,
 };
 
+enum rtw89_rfk_report_types {
+	RTW89_RFK_REPORT_PRE_NTFY,
+	RTW89_RFK_REPORT_TSSI,
+	RTW89_RFK_REPORT_IQK,
+	RTW89_RFK_REPORT_DPK,
+	RTW89_RFK_REPORT_TXGAPK,
+	RTW89_RFK_REPORT_DACK,
+	RTW89_RFK_REPORT_RX_DCK,
+	RTW89_RFK_REPORT_TX_IQK,
+	RTW89_RFK_REPORT_CIM3k,
+
+	NUM_OF_RTW89_RFK_REPORT_TYPES,
+};
+
+#define RTW89_RFK_RECORD_PATH_NR 2
+#define RTW89_RFK_RECORD_HISTORY_NR 10
+
+struct rtw89_rfk_record {
+	u32 ch[RTW89_RFK_RECORD_PATH_NR];
+	u32 cv[RTW89_RFK_RECORD_PATH_NR];
+	u32 c5[RTW89_RFK_RECORD_PATH_NR];
+	enum rtw89_phy_idx phy_idx;
+	enum rtw89_rfk_report_state states[NUM_OF_RTW89_RFK_REPORT_TYPES];
+};
+
 struct rtw89_rfk_wait_info {
 	struct completion completion;
 	ktime_t start_time;
 	enum rtw89_rfk_report_state state;
 	u8 version;
+
+	int record_idx;
+	struct rtw89_rfk_record *record_ptr;
+	struct rtw89_rfk_record records[RTW89_RFK_RECORD_HISTORY_NR];
+
+	int record_tssi_idx;
+	u32 tssi_code[RTW89_RFK_RECORD_HISTORY_NR][RTW89_RFK_RECORD_PATH_NR];
 };
 
 #define RTW89_DACK_PATH_NR 2
