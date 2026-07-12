@@ -2923,7 +2923,12 @@ static void _fw_set_drv_info(struct rtw89_dev *rtwdev, u8 index)
 		else
 			return;
 
-		rtw89_fw_h2c_cxdrv_osi_info(rtwdev, index);
+		if (ver->fcxosi == 1)
+			rtw89_fw_h2c_cxdrv_osi_info(rtwdev, index);
+		else if (ver->fcxosi == 6)
+			rtw89_fw_h2c_cxdrv_osi_info_v6(rtwdev, index);
+		else
+			return;
 		break;
 	default:
 		break;
@@ -3090,7 +3095,11 @@ static void _set_gnt_v1(struct rtw89_dev *rtwdev, u8 phy_map,
 	}
 
 	memcpy(osi->gnt_set, dm->gnt.band, sizeof(osi->gnt_set));
-	memcpy(osi->wlact_set, dm->gnt.bt, sizeof(osi->wlact_set));
+
+	for (i = 0; i < BTC_ALL_BT; i++) {
+		osi->wlact_set[i].wlan_act_en = dm->gnt.bt[i].wlan_act_en;
+		osi->wlact_set[i].wlan_act = dm->gnt.bt[i].wlan_act;
+	}
 
 	/* GBT source should be GBT_S1 in 1+1 (HWB0:5G + HWB1:2G) case */
 	if (osi->rf_band[BTC_RF_S0] == 1 &&

@@ -1322,6 +1322,17 @@ struct rtw89_mac_ax_gnt {
 	u8 gnt_wl;
 } __packed;
 
+struct rtw89_btc_gnt_ctrl {
+	u8 gnt_zb_sw_en;
+	u8 gnt_zb;
+	u8 gnt_bt1_sw_en;
+	u8 gnt_bt1;
+	u8 gnt_bt0_sw_en;
+	u8 gnt_bt0;
+	u8 gnt_wl_sw_en;
+	u8 gnt_wl;
+} __packed;
+
 struct rtw89_mac_ax_wl_act {
 	u8 wlan_act_en;
 	u8 wlan_act;
@@ -3374,27 +3385,89 @@ enum btc_rf_path {
 	BTC_RF_NUM,
 };
 
-struct rtw89_btc_fbtc_outsrc_set_info {
-	u8 rf_band[BTC_RF_NUM]; /* 0:2G, 1:non-2G */
+struct rtw89_btc_fbtc_outsrc_set_info_v1 {
+	u8 rf_band[BTC_RF_NUM];
 	u8 btg_rx[BTC_RF_NUM];
 	u8 nbtg_tx[BTC_RF_NUM];
 
-	struct rtw89_mac_ax_gnt gnt_set[BTC_RF_NUM]; /* refer to btc_gnt_ctrl */
-	struct rtw89_mac_ax_wl_act wlact_set[BTC_RF_NUM]; /* BT0/BT1 */
+	struct rtw89_mac_ax_gnt gnt_set[BTC_RF_NUM];
+	struct rtw89_mac_ax_wl_act wlact_set[BTC_ALL_BT];
 
 	u8 pta_req_hw_band;
 	u8 rf_gbt_source;
 	u8 bt_enable_state;
 	u8 wl_btg_standby_chg;
-	/* bit[15]-> 0:2G/1:5G,6G, bit[14:0]-> WL HWBx ch freq in MHz */
+
+	u8 fbd_group_en[RTW89_MAC_NUM][2];
+	__le16 rf_center_freq[RTW89_MAC_NUM];
+	__le16 fbd_group_bound[RTW89_MAC_NUM][2];
+	__le16 freq_diff_thres[RTW89_MAC_NUM][BTC_ALL_BT];
+} __packed;
+
+struct rtw89_btc_fbtc_outsrc_set_info_v6 {
+	u8 rf_band[BTC_RF_NUM];
+	u8 btg_rx[BTC_RF_NUM];
+	u8 nbtg_tx[BTC_RF_NUM];
+
+	struct rtw89_btc_gnt_ctrl gnt_set[RTW89_MAC_AX_COEX_GNT_NR];
+	struct rtw89_mac_ax_wl_act wlact_set[BTC_ALL_BT_EZL];
+
+	u8 pta_req_hw_band;
+	u8 rf_gbt_source;
+	u8 bt_enable_state;
+	u8 bt_plut_type;
+	u8 wl_tx_limit_en;
+	u8 fc_exec;
+	u8 wl_btg_standby_chg;
+	u8 rsvd;
+	u8 bb_path_sel_bt[BTC_RF_NUM];
+	u8 bb_phy_sel_bt[RTW89_PHY_NUM];
+	u8 fbd_group_en[RTW89_MAC_NUM][2];
+	__le16 rf_center_freq[RTW89_MAC_NUM];
+	__le16 freq_diff_thres[RTW89_MAC_NUM][BTC_ALL_BT_EZL];
+	__le16 fbd_group_bound[RTW89_MAC_NUM][2];
+	__le32 wl_tx_limit_time;
+} __packed;
+
+struct rtw89_btc_fbtc_outsrc_set_info {
+	u8 rf_band[BTC_RF_NUM]; /* 0:2GHz/1:5GHz for MPI_bb_hwsi_ignore_gnt_wl() */
+	u8 btg_rx[BTC_RF_NUM]; /* for MPI_bb_btg_bt_rx() */
+	u8 nbtg_tx[BTC_RF_NUM]; /* for MPI_bb_nbtg_bt_tx pre=AGC control */
+
+	struct rtw89_mac_ax_gnt gnt_set[BTC_RF_NUM]; /* refer to btc_gnt_ctrl */
+	struct rtw89_btc_gnt_ctrl gnt_set_be[RTW89_MAC_AX_COEX_GNT_NR];
+	struct rtw89_mac_ax_wl_act wlact_set[BTC_ALL_BT_EZL];
+
+	u8 pta_req_hw_band; /* Bind PTA to HWB0 or HWB1, only for 8922a 1-PTA */
+	u8 rf_gbt_source; /* gbt from S0 or S1 for RF 0x2[9], only for 8922a */
+
+	/* The followngs are for 8922c/d  new Multi-PTA design */
+	/* 0:BT0/1:BT1/2:ZB on/off for MAC(0xe580[0]/0xe680[0])/ RF 0x4[3:2] */
+	u8 bt_enable_state;
+	u8 bt_plut_type;   /* BT polluted type, refer to enum btc_plt_map */
+
+	u8 wl_tx_limit_en;
+	u8 fc_exec;
+	u8 wl_btg_standby_chg; /* keep RX-IQGen on in standby mode */
+	u8 rsvd;
+
+	u8 bb_path_sel_bt[BTC_RF_NUM]; /* bb s0(1) select GNT_BT0 or BT1 */
+	u8 bb_phy_sel_bt[RTW89_PHY_NUM]; /* bb phy0(1) select GNT_BT0 or BT1 */
+
 	/* forbidden group-> bit[1]:fbd rf-band, bit[0]: fbd enable */
 	u8 fbd_group_en[RTW89_MAC_NUM][2]; /* HWB0/1 +.Group0/1 */
+
+	/* bit[15]-> 0:2G/1:5G,6G, bit[14:0]-> WL HWBx ch freq in MHz */
 	u16 rf_center_freq[RTW89_MAC_NUM]; /* HWB0/1 */
-	/* forbidden group boundary: [15:8]->UP, [7:0]->LO */
-	u16 fbd_group_bound[RTW89_MAC_NUM][2]; /* HWB0/1 +.Group0/1 */
+
 	/* 11-bit in MHz, freq diff threshold */
 	u16 freq_diff_thres[RTW89_MAC_NUM][BTC_ALL_BT_EZL]; /* HWB0/1 vs.BT0/1/2 */
-} __packed;
+
+	/* forbidden group boundary: [15:8]->UP, [7:0]->LO */
+	u16 fbd_group_bound[RTW89_MAC_NUM][2]; /* HWB0/1 +.Group0/1 */
+
+	u32 wl_tx_limit_time;
+};
 
 union rtw89_btc_fbtc_slot_u {
 	struct rtw89_btc_fbtc_slot v1[CXST_MAX];
