@@ -301,20 +301,6 @@ xdrgen_decode_nlm4_notifyargs(struct xdr_stream *xdr, struct nlm4_notifyargs *pt
 }
 
 /**
- * nlm4_svc_decode_void - Decode a void argument
- * @rqstp: RPC transaction context
- * @xdr: source XDR data stream
- *
- * Return values:
- *   %true: procedure arguments decoded successfully
- *   %false: decode failed
- */
-bool nlm4_svc_decode_void(struct svc_rqst *rqstp, struct xdr_stream *xdr)
-{
-	return xdrgen_decode_void(xdr);
-}
-
-/**
  * nlm4_svc_decode_nlm4_testargs - Decode a nlm4_testargs argument
  * @rqstp: RPC transaction context
  * @xdr: source XDR data stream
@@ -702,20 +688,6 @@ xdrgen_encode_nlm4_notifyargs(struct xdr_stream *xdr, const struct nlm4_notifyar
 	if (xdr_stream_encode_opaque_fixed(xdr, value->private, SM_PRIV_SIZE) < 0)
 		return false;
 	return true;
-}
-
-/**
- * nlm4_svc_encode_void - Encode a void result
- * @rqstp: RPC transaction context
- * @xdr: target XDR data stream
- *
- * Return values:
- *   %true: procedure results encoded successfully
- *   %false: encode failed
- */
-bool nlm4_svc_encode_void(struct svc_rqst *rqstp, struct xdr_stream *xdr)
-{
-	return xdrgen_encode_void(xdr);
 }
 
 /**

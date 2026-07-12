@@ -13,7 +13,6 @@
 #include <linux/sunrpc/xdrgen/_builtins.h>
 #include <linux/sunrpc/xdrgen/nlm4.h>
 
-bool nlm4_svc_decode_void(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nlm4_svc_decode_nlm4_testargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nlm4_svc_decode_nlm4_lockargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nlm4_svc_decode_nlm4_cancargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
@@ -24,7 +23,6 @@ bool nlm4_svc_decode_nlm4_notifyargs(struct svc_rqst *rqstp, struct xdr_stream *
 bool nlm4_svc_decode_nlm4_shareargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nlm4_svc_decode_nlm4_notify(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 
-bool nlm4_svc_encode_void(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nlm4_svc_encode_nlm4_testres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nlm4_svc_encode_nlm4_res(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nlm4_svc_encode_nlm4_shareres(struct svc_rqst *rqstp, struct xdr_stream *xdr);

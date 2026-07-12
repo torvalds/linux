@@ -13,7 +13,6 @@
 #include <linux/sunrpc/xdrgen/_builtins.h>
 #include <linux/sunrpc/xdrgen/nlm3.h>
 
-bool nlm_svc_decode_void(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nlm_svc_decode_nlm_testargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nlm_svc_decode_nlm_lockargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nlm_svc_decode_nlm_cancargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
@@ -24,7 +23,6 @@ bool nlm_svc_decode_nlm_notifyargs(struct svc_rqst *rqstp, struct xdr_stream *xd
 bool nlm_svc_decode_nlm_shareargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nlm_svc_decode_nlm_notify(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 
-bool nlm_svc_encode_void(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nlm_svc_encode_nlm_testres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nlm_svc_encode_nlm_res(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nlm_svc_encode_nlm_shareres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
