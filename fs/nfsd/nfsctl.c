@@ -23,6 +23,7 @@
 
 #include "idmap.h"
 #include "nfsd.h"
+#include "stats.h"
 #include "cache.h"
 #include "state.h"
 #include "netns.h"

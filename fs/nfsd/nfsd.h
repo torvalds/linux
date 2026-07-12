@@ -41,7 +41,6 @@
 bool nfsd_support_version(int vers);
 
 #include "netns.h"
-#include "stats.h"
 
 /*
  * Default and maximum payload size (NFS READ or WRITE), in bytes.

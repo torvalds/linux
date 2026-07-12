@@ -26,6 +26,7 @@
 #include <net/net_namespace.h>
 
 #include "nfsd.h"
+#include "stats.h"
 
 static int nfsd_show(struct seq_file *seq, void *v)
 {
