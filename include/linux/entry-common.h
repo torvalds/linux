@@ -114,16 +114,15 @@ static __always_inline long syscall_trace_enter(struct pt_regs *regs, unsigned l
  * @regs:	Pointer to currents pt_regs
  * @syscall:	The syscall number
  *
- * Invoked from architecture specific syscall entry code with interrupts
- * enabled after invoking enter_from_user_mode(), enabling interrupts and
- * extra architecture specific work.
+ * Invoked from architecture specific syscall entry code with interrupts enabled
+ * after invoking enter_from_user_mode(), enabling interrupts and extra
+ * architecture specific work with the syscall return value preset to -ENOSYS.
  *
- * Returns: The original or a modified syscall number
+ * Returns: True if the syscall should be invoked, False otherwise.
  *
- * If the returned syscall number is -1 then the syscall should be
- * skipped. In this case the caller may invoke syscall_set_error() or
- * syscall_set_return_value() first.  If neither of those are called and -1
- * is returned, then the syscall will fail with ENOSYS.
+ * If the return value is false, the caller must skip the syscall and leave the
+ * syscall return value unmodified as it might have been set by one of the entry
+ * work functions.
  *
  * It handles the following work items:
  *
@@ -131,19 +130,20 @@ static __always_inline long syscall_trace_enter(struct pt_regs *regs, unsigned l
  *     ptrace_report_syscall_permit_entry(), __seccomp_permit_syscall(), trace_sys_enter()
  *  2) Invocation of audit_syscall_entry()
  */
-static __always_inline long syscall_enter_from_user_mode_work(struct pt_regs *regs, long syscall)
+static __always_inline bool syscall_enter_from_user_mode_work(struct pt_regs *regs, long *syscall)
 {
 	unsigned long work = READ_ONCE(current_thread_info()->syscall_work);
 
-	if (work & SYSCALL_WORK_ENTER) {
-		if (!syscall_trace_enter(regs, work, syscall))
-			return -1L;
+	if (!(work & SYSCALL_WORK_ENTER))
+		return true;
 
-		/* Reread the syscall number as it might have been modified */
-		syscall = syscall_get_nr(current, regs);
-	}
+	if (unlikely(!syscall_trace_enter(regs, work, *syscall)))
+		return false;
 
-	return syscall;
+	/* Reread the syscall number as it might have been modified */
+	*syscall = syscall_get_nr(current, regs);
+
+	return true;
 }
 
 /**

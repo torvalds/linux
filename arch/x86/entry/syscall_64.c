@@ -78,14 +78,14 @@ static __always_inline void do_syscall_x32(struct pt_regs *regs, unsigned long n
 /* Returns true to return using SYSRET, or false to use IRET */
 __visible noinstr bool do_syscall_64(struct pt_regs *regs, long nr)
 {
-	nr = syscall_enter_from_user_mode_randomize_stack(regs, nr);
+	if (likely(syscall_enter_from_user_mode_randomize_stack(regs, &nr))) {
+		instrumentation_begin();
 
-	instrumentation_begin();
+		if (!do_syscall_x64(regs, nr))
+			do_syscall_x32(regs, nr);
 
-	if (!do_syscall_x64(regs, nr))
-		do_syscall_x32(regs, nr);
-
-	instrumentation_end();
+		instrumentation_end();
+	}
 	syscall_exit_to_user_mode(regs);
 
 	/*

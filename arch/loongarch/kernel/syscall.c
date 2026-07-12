@@ -57,8 +57,8 @@ typedef long (*sys_call_fn)(unsigned long, unsigned long,
 
 void noinstr __no_stack_protector do_syscall(struct pt_regs *regs)
 {
-	unsigned long nr;
 	sys_call_fn syscall_fn;
+	unsigned long nr;
 
 	nr = regs->regs[11];
 	/* Set for syscall restarting */
@@ -69,12 +69,12 @@ void noinstr __no_stack_protector do_syscall(struct pt_regs *regs)
 	regs->orig_a0 = regs->regs[4];
 	regs->regs[4] = -ENOSYS;
 
-	nr = syscall_enter_from_user_mode_randomize_stack(regs, nr);
-
-	if (nr < NR_syscalls) {
-		syscall_fn = sys_call_table[array_index_nospec(nr, NR_syscalls)];
-		regs->regs[4] = syscall_fn(regs->orig_a0, regs->regs[5], regs->regs[6],
-					   regs->regs[7], regs->regs[8], regs->regs[9]);
+	if (likely(syscall_enter_from_user_mode_randomize_stack(regs, &nr))) {
+		if (nr < NR_syscalls) {
+			syscall_fn = sys_call_table[array_index_nospec(nr, NR_syscalls)];
+			regs->regs[4] = syscall_fn(regs->orig_a0, regs->regs[5], regs->regs[6],
+						   regs->regs[7], regs->regs[8], regs->regs[9]);
+		}
 	}
 
 	syscall_exit_to_user_mode(regs);

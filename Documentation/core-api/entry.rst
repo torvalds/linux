@@ -58,25 +58,50 @@ state transitions must run with interrupts disabled.
 Syscalls
 --------
 
-Syscall-entry code starts in assembly code and calls out into low-level C code
-after establishing low-level architecture-specific state and stack frames. This
-low-level C code must not be instrumented. A typical syscall handling function
-invoked from low-level assembly code looks like this:
+Syscall-entry code starts in assembly code and calls out into low-level C
+code after establishing low-level architecture-specific state and stack
+frames. This low-level C code must not be instrumented. The recommended
+syscall handling function invoked from low-level assembly code looks like
+this:
 
 .. code-block:: c
 
-  noinstr void syscall(struct pt_regs *regs, int nr)
+  noinstr void syscall(struct pt_regs *regs, long nr)
   {
 	arch_syscall_enter(regs);
-	nr = syscall_enter_from_user_mode_randomize_stack(regs, nr);
-
-	instrumentation_begin();
-	if (!invoke_syscall(regs, nr) && nr != -1)
-	 	result_reg(regs) = __sys_ni_syscall(regs);
-	instrumentation_end();
-
+	result_reg(regs) = -ENOSYS;
+	if (syscall_enter_from_user_mode_randomize_stack(regs, &nr)) {
+		instrumentation_begin();
+		if (valid(nr)
+			result_reg(regs) = invoke_syscall(regs, nr);
+		instrumentation_end();
+	}
 	syscall_exit_to_user_mode(regs);
   }
+
+This is the most resilent variant as it has always a guaranteed valid
+return code. The alternative variant is:
+
+.. code-block:: c
+
+  noinstr void syscall(struct pt_regs *regs, long nr)
+  {
+	arch_syscall_enter(regs);
+	if (syscall_enter_from_user_mode_randomize_stack(regs, &nr)) {
+		instrumentation_begin();
+		if (valid(nr)
+			result_reg(regs) = invoke_syscall(regs, nr);
+		else
+			result_reg(regs) = -ENOSYS;
+		instrumentation_end();
+	}
+	syscall_exit_to_user_mode(regs);
+  }
+
+That works for most situations except when a probe/BPF attached to the
+syscall tracepoint sets an invalid syscall number e.g. -1 and also modifies
+the result register. So this variant will obviously overwrite the modified
+result with -ENOSYS.
 
 syscall_enter_from_user_mode_randomize_stack() first invokes
 enter_from_user_mode_randomize_stack() which establishes state in the

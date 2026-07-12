@@ -332,13 +332,12 @@ void do_trap_ecall_u(struct pt_regs *regs)
 
 		riscv_v_vstate_discard(regs);
 
-		syscall = syscall_enter_from_user_mode_randomize_stack(regs, syscall);
-
-		if (syscall >= 0 && syscall < NR_syscalls) {
-			syscall = array_index_nospec(syscall, NR_syscalls);
-			syscall_handler(regs, syscall);
+		if (likely(syscall_enter_from_user_mode_randomize_stack(regs, &syscall))) {
+			if (syscall >= 0 && syscall < NR_syscalls) {
+				syscall = array_index_nospec(syscall, NR_syscalls);
+				syscall_handler(regs, syscall);
+			}
 		}
-
 		syscall_exit_to_user_mode(regs);
 	} else {
 		irqentry_state_t state = irqentry_nmi_enter(regs);
