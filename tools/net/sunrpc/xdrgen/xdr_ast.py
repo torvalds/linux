@@ -5,7 +5,7 @@
 
 import sys
 from typing import List
-from dataclasses import dataclass
+from dataclasses import dataclass, KW_ONLY
 
 from lark import ast_utils, Transformer
 from lark.tree import Meta
@@ -64,6 +64,16 @@ max_widths = {
 @dataclass
 class _XdrAst(ast_utils.Ast):
     """Base class for the XDR abstract syntax tree"""
+
+    # Source position of the construct's declared identifier, when
+    # the transformer records one, so semantic diagnostics can point
+    # at the exact declaration. The KW_ONLY marker makes the fields
+    # keyword-only, so they never disturb the positional child
+    # ordering lark uses to build each node; 0 means the position was
+    # not recorded.
+    _: KW_ONLY
+    line: int = 0
+    column: int = 0
 
 
 @dataclass
@@ -543,7 +553,8 @@ class ParseToAst(Transformer):
 
     def identifier(self, children):
         """Instantiate one _XdrIdentifier object"""
-        return _XdrIdentifier(children[0].value)
+        token = children[0]
+        return _XdrIdentifier(token.value, line=token.line, column=token.column)
 
     def value(self, children):
         """Instantiate one _XdrValue object"""
@@ -573,84 +584,103 @@ class ParseToAst(Transformer):
 
     def constant_def(self, children):
         """Instantiate one _XdrConstant object"""
-        name = children[0].symbol
+        ident = children[0]
         value = children[1].value
-        return _XdrConstant(name, value)
+        return _XdrConstant(ident.symbol, value, line=ident.line, column=ident.column)
 
     def enum(self, children):
         """Instantiate one _XdrEnum object"""
-        enum_name = children[0].symbol
+        name_ident = children[0]
 
         i = 0
         enumerators = []
         body = children[1]
         while i < len(body.children):
-            name = body.children[i].symbol
+            ident = body.children[i]
             value = body.children[i + 1].value
-            enumerators.append(_XdrEnumerator(name, value))
+            enumerators.append(
+                _XdrEnumerator(
+                    ident.symbol, value, line=ident.line, column=ident.column
+                )
+            )
             i = i + 2
 
-        return _XdrEnum(enum_name, enumerators)
+        return _XdrEnum(
+            name_ident.symbol,
+            enumerators,
+            line=name_ident.line,
+            column=name_ident.column,
+        )
 
     def fixed_length_opaque(self, children):
         """Instantiate one _XdrFixedLengthOpaque declaration object"""
-        name = children[0].symbol
+        ident = children[0]
         size = children[1].value
 
-        return _XdrFixedLengthOpaque(name, size)
+        return _XdrFixedLengthOpaque(
+            ident.symbol, size, line=ident.line, column=ident.column
+        )
 
     def variable_length_opaque(self, children):
         """Instantiate one _XdrVariableLengthOpaque declaration object"""
-        name = children[0].symbol
+        ident = children[0]
         if children[1] is not None:
             maxsize = children[1].value
         else:
             maxsize = "0"
 
-        return _XdrVariableLengthOpaque(name, maxsize)
+        return _XdrVariableLengthOpaque(
+            ident.symbol, maxsize, line=ident.line, column=ident.column
+        )
 
     def string(self, children):
         """Instantiate one _XdrString declaration object"""
-        name = children[0].symbol
+        ident = children[0]
         if children[1] is not None:
             maxsize = children[1].value
         else:
             maxsize = "0"
 
-        return _XdrString(name, maxsize)
+        return _XdrString(ident.symbol, maxsize, line=ident.line, column=ident.column)
 
     def fixed_length_array(self, children):
         """Instantiate one _XdrFixedLengthArray declaration object"""
         spec = children[0]
-        name = children[1].symbol
+        ident = children[1]
         size = children[2].value
 
-        return _XdrFixedLengthArray(name, spec, size)
+        return _XdrFixedLengthArray(
+            ident.symbol, spec, size, line=ident.line, column=ident.column
+        )
 
     def variable_length_array(self, children):
         """Instantiate one _XdrVariableLengthArray declaration object"""
         spec = children[0]
-        name = children[1].symbol
+        ident = children[1]
         if children[2] is not None:
             maxsize = children[2].value
         else:
             maxsize = "0"
 
-        return _XdrVariableLengthArray(name, spec, maxsize)
+        return _XdrVariableLengthArray(
+            ident.symbol, spec, maxsize, line=ident.line, column=ident.column
+        )
 
     def optional_data(self, children):
         """Instantiate one _XdrOptionalData declaration object"""
         spec = children[0]
-        name = children[1].symbol
+        ident = children[1]
 
-        return _XdrOptionalData(name, spec)
+        return _XdrOptionalData(
+            ident.symbol, spec, line=ident.line, column=ident.column
+        )
 
     def basic(self, children):
         """Instantiate one _XdrBasic object"""
         spec = children[0]
-        name = children[1].symbol
+        ident = children[1]
 
-        return _XdrBasic(name, spec)
+        return _XdrBasic(ident.symbol, spec, line=ident.line, column=ident.column)
 
     def void(self, children):
         """Instantiate one _XdrVoid declaration object"""
@@ -659,17 +689,19 @@ class ParseToAst(Transformer):
 
     def struct(self, children):
         """Instantiate one _XdrStruct object"""
-        name = children[0].symbol
+        ident = children[0]
+        name = ident.symbol
         fields = children[1].children
+        pos = {"line": ident.line, "column": ident.column}
 
         last_field = fields[-1]
         if (
             isinstance(last_field, _XdrOptionalData)
             and name == last_field.spec.type_name
         ):
-            return _XdrPointer(name, fields)
+            return _XdrPointer(name, fields, **pos)
 
-        return _XdrStruct(name, fields)
+        return _XdrStruct(name, fields, **pos)
 
     def typedef(self, children):
         """Instantiate one _XdrTypedef object"""
@@ -694,39 +726,57 @@ class ParseToAst(Transformer):
 
     def union(self, children):
         """Instantiate one _XdrUnion object"""
-        name = children[0].symbol
+        ident = children[0]
 
         body = children[1]
         discriminant = body.children[0].children[0]
         cases = body.children[1:-1]
         default = body.children[-1]
 
-        return _XdrUnion(name, discriminant, cases, default)
+        return _XdrUnion(
+            ident.symbol,
+            discriminant,
+            cases,
+            default,
+            line=ident.line,
+            column=ident.column,
+        )
 
     def procedure_def(self, children):
         """Instantiate one _RpcProcedure object"""
         result = children[0]
-        name = children[1].symbol
+        ident = children[1]
         argument = children[2]
         number = children[3].value
 
-        return _RpcProcedure(name, number, argument, result)
+        return _RpcProcedure(
+            ident.symbol,
+            number,
+            argument,
+            result,
+            line=ident.line,
+            column=ident.column,
+        )
 
     def version_def(self, children):
         """Instantiate one _RpcVersion object"""
-        name = children[0].symbol
+        ident = children[0]
         number = children[-1].value
         procedures = children[1:-1]
 
-        return _RpcVersion(name, number, procedures)
+        return _RpcVersion(
+            ident.symbol, number, procedures, line=ident.line, column=ident.column
+        )
 
     def program_def(self, children):
         """Instantiate one _RpcProgram object"""
-        name = children[0].symbol
+        ident = children[0]
         number = children[-1].value
         versions = children[1:-1]
 
-        return _RpcProgram(name, number, versions)
+        return _RpcProgram(
+            ident.symbol, number, versions, line=ident.line, column=ident.column
+        )
 
     def pragma_def(self, children):
         """Instantiate one _Pragma object"""
