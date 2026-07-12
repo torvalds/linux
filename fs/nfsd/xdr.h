@@ -7,6 +7,7 @@
 #include <linux/vfs.h>
 #include "nfsd.h"
 #include "nfsfh.h"
+#include "vfs.h"
 
 struct nfsd_fhandle {
 	struct svc_fh		fh;

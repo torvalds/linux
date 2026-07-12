@@ -38,7 +38,7 @@
 #define _LINUX_NFSD_XDR4_H
 
 #include "state.h"
-#include "nfsd.h"
+#include "vfs.h"
 
 #define NFSD4_MAX_TAGLEN	128
 #define XDR_LEN(n)                     (((n) + 3) & ~3)

@@ -47,10 +47,6 @@ enum {
 	NFSSVC_MAXBLKSIZE       = RPCSVC_MAXPAYLOAD,
 };
 
-struct readdir_cd {
-	__be32			err;	/* 0, nfserr, or nfserr_eof */
-};
-
 /* Maximum number of operations per session compound */
 #define NFSD_MAX_OPS_PER_COMPOUND	200
 
