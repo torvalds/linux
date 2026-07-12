@@ -1679,8 +1679,10 @@ static void verify_bio_data_sectors(struct btrfs_raid_bio *rbio,
 			continue;
 
 		/* No csum for this sector, skip to the next sector. */
-		if (!test_bit(total_sector_nr, rbio->csum_bitmap))
+		if (!test_bit(total_sector_nr, rbio->csum_bitmap)) {
+			total_sector_nr++;
 			continue;
+		}
 
 		expected_csum = rbio->csum_buf + total_sector_nr * fs_info->csum_size;
 		btrfs_calculate_block_csum_pages(fs_info, paddrs, csum_buf);
