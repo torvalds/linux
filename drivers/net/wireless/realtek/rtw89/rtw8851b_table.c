@@ -14887,8 +14887,8 @@ const struct rtw89_rfe_parms rtw89_8851b_dflt_parms = {
 		.lmt_ru = &rtw89_8851b_txpwr_lmt_ru_5g,
 	},
 	.tx_shape = {
-		.lmt = &rtw89_8851b_tx_shape_lmt,
-		.lmt_ru = &rtw89_8851b_tx_shape_lmt_ru,
+		.lmt_v0 = &rtw89_8851b_tx_shape_lmt,
+		.lmt_ru_v0 = &rtw89_8851b_tx_shape_lmt_ru,
 	},
 };
 
@@ -14903,8 +14903,8 @@ static const struct rtw89_rfe_parms rtw89_8851b_rfe_parms_type2 = {
 		.lmt_ru = &rtw89_8851b_txpwr_lmt_ru_5g_type2,
 	},
 	.tx_shape = {
-		.lmt = &rtw89_8851b_tx_shape_lmt,
-		.lmt_ru = &rtw89_8851b_tx_shape_lmt_ru,
+		.lmt_v0 = &rtw89_8851b_tx_shape_lmt,
+		.lmt_ru_v0 = &rtw89_8851b_tx_shape_lmt_ru,
 	},
 };
 
