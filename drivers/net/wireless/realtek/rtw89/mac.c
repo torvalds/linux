@@ -7445,6 +7445,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	.agg_len_ht = R_AX_AGG_LEN_HT_0,
 	.ps_status = R_AX_PPWRBIT_SETTING,
 	.mu_gid = &rtw89_mac_mu_gid_addr_ax,
+	.boot_dbg = R_AX_BOOT_DBG,
 
 	.muedca_ctrl = {
 		.addr = R_AX_MUEDCA_EN,

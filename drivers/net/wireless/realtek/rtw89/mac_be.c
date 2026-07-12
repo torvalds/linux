@@ -3284,6 +3284,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 	.agg_len_ht = R_BE_AGG_LEN_HT_0,
 	.ps_status = R_BE_WMTX_POWER_BE_BIT_CTL,
 	.mu_gid = &rtw89_mac_mu_gid_addr_be,
+	.boot_dbg = R_BE_BOOT_DBG,
 
 	.muedca_ctrl = {
 		.addr = R_BE_MUEDCA_EN,

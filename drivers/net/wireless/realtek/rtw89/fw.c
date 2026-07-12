@@ -1939,13 +1939,14 @@ dump:
 
 static void rtw89_fw_dl_fail_dump(struct rtw89_dev *rtwdev)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	u32 val32;
 
 	val32 = rtw89_read32(rtwdev, R_AX_WCPU_FW_CTRL);
 	rtw89_err(rtwdev, "[ERR]fwdl 0x1E0 = 0x%x\n", val32);
 
-	val32 = rtw89_read32(rtwdev, R_AX_BOOT_DBG);
-	rtw89_err(rtwdev, "[ERR]fwdl 0x83F0 = 0x%x\n", val32);
+	val32 = rtw89_read32(rtwdev, mac->boot_dbg);
+	rtw89_err(rtwdev, "[ERR]fwdl 0x%x = 0x%x\n", mac->boot_dbg, val32);
 
 	rtw89_fw_prog_cnt_dump(rtwdev);
 }

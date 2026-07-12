@@ -1067,6 +1067,7 @@ struct rtw89_mac_gen_def {
 	u32 agg_len_ht;
 	u32 ps_status;
 	const struct rtw89_mac_mu_gid_addr *mu_gid;
+	u32 boot_dbg;
 
 	struct rtw89_reg_def muedca_ctrl;
 	struct rtw89_reg_def bfee_ctrl;
