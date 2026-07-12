@@ -25,6 +25,8 @@ typedef struct {
 
 #define XDR_void		(0)
 #define XDR_bool		(1)
+#define XDR_short		(1)
+#define XDR_unsigned_short	(1)
 #define XDR_int			(1)
 #define XDR_unsigned_int	(1)
 #define XDR_long		(1)
