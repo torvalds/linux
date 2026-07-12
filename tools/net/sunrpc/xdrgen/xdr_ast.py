@@ -862,6 +862,50 @@ def _introduced_names(value):
         yield value.declaration.name, value.declaration
     elif isinstance(value, _XdrConstant):
         yield value.name, value
+    elif isinstance(value, _RpcProgram):
+        yield value.name, value
+
+
+def _check_rpc_scope_names(program: "_RpcProgram") -> None:
+    """Enforce RFC 5531 Section 12.3 scoping within an RPC program.
+
+    A version name and number are unique within the program and a
+    procedure name and number are unique within its version.
+    """
+    version_names = set()
+    version_numbers = set()
+    for version in program.versions:
+        if version.name in version_names:
+            raise XdrSemanticError(
+                f"duplicate version name '{version.name}'"
+                f" in program '{program.name}'",
+                version,
+            )
+        version_names.add(version.name)
+        if version.number in version_numbers:
+            raise XdrSemanticError(
+                f"duplicate version number {version.number}"
+                f" in program '{program.name}'",
+                version,
+            )
+        version_numbers.add(version.number)
+        procedure_names = set()
+        procedure_numbers = set()
+        for procedure in version.procedures:
+            if procedure.name in procedure_names:
+                raise XdrSemanticError(
+                    f"duplicate procedure name '{procedure.name}'"
+                    f" in version '{version.name}'",
+                    procedure,
+                )
+            procedure_names.add(procedure.name)
+            if procedure.number in procedure_numbers:
+                raise XdrSemanticError(
+                    f"duplicate procedure number {procedure.number}"
+                    f" in version '{version.name}'",
+                    procedure,
+                )
+            procedure_numbers.add(procedure.number)
 
 
 def check_duplicate_definitions(root: "Specification") -> None:
@@ -869,6 +913,9 @@ def check_duplicate_definitions(root: "Specification") -> None:
 
     RFC 4506 Section 6.4 places constant and type identifiers in a
     single name space that must be unique within a specification.
+    RFC 5531 Section 12.3 adds RPC program names to that name space
+    and scopes version names and numbers to their program and
+    procedure names and numbers to their version.
     """
     seen = {}
     for definition in root.definitions:
@@ -882,6 +929,8 @@ def check_duplicate_definitions(root: "Specification") -> None:
                     where,
                 )
             seen[name] = where
+        if isinstance(definition.value, _RpcProgram):
+            _check_rpc_scope_names(definition.value)
 
 
 def transform_parse_tree(parse_tree):
