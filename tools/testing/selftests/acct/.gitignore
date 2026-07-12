@@ -1,4 +1,5 @@
 acct_syscall
 taskstats_fill_stats_tgid
+cgroupstats
 config
 process_log
