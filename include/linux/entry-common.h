@@ -60,16 +60,7 @@ static __always_inline bool arch_ptrace_report_syscall_permit_entry(struct pt_re
 
 long trace_syscall_enter(struct pt_regs *regs, long syscall);
 void trace_syscall_exit(struct pt_regs *regs, long ret);
-
-static inline void syscall_enter_audit(struct pt_regs *regs, long syscall)
-{
-	if (unlikely(audit_context())) {
-		unsigned long args[6];
-
-		syscall_get_arguments(current, regs, args);
-		audit_syscall_entry(syscall, args[0], args[1], args[2], args[3]);
-	}
-}
+void syscall_enter_audit(struct pt_regs *regs);
 
 static __always_inline long syscall_trace_enter(struct pt_regs *regs, unsigned long work,
 						long syscall)
@@ -114,7 +105,8 @@ static __always_inline long syscall_trace_enter(struct pt_regs *regs, unsigned l
 	if (unlikely(work & SYSCALL_WORK_SYSCALL_TRACEPOINT))
 		syscall = trace_syscall_enter(regs, syscall);
 
-	syscall_enter_audit(regs, syscall);
+	if (unlikely(audit_context()))
+		syscall_enter_audit(regs);
 
 	return syscall;
 }
