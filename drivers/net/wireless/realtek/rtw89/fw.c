@@ -5922,14 +5922,14 @@ fail:
 int rtw89_fw_h2c_cxdrv_role(struct rtw89_dev *rtwdev, u8 type)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
-	const struct rtw89_btc_ver *ver = btc->ver;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
-	struct rtw89_btc_wl_role_info *role_info = &wl->role_info;
-	struct rtw89_btc_wl_role_info_bpos *bpos = &role_info->role_map.role;
-	struct rtw89_btc_wl_active_role *active = role_info->active_role;
+	struct rtw89_btc_wl_role_info *r = &wl->role_info;
+	const struct rtw89_btc_ver *ver = btc->ver;
+	struct rtw89_btc_wl_rlink *rl;
 	struct sk_buff *skb;
-	u32 len;
+	u32 rmap = r->role_map;
 	u8 offset = 0;
+	u32 len;
 	u8 *cmd;
 	int ret;
 	int i;
@@ -5947,36 +5947,37 @@ int rtw89_fw_h2c_cxdrv_role(struct rtw89_dev *rtwdev, u8 type)
 	RTW89_SET_FWCMD_CXHDR_TYPE(cmd, type);
 	RTW89_SET_FWCMD_CXHDR_LEN(cmd, len - H2C_LEN_CXDRVHDR);
 
-	RTW89_SET_FWCMD_CXROLE_CONNECT_CNT(cmd, role_info->connect_cnt);
-	RTW89_SET_FWCMD_CXROLE_LINK_MODE(cmd, role_info->link_mode);
+	RTW89_SET_FWCMD_CXROLE_CONNECT_CNT(cmd, r->connect_cnt);
+	RTW89_SET_FWCMD_CXROLE_LINK_MODE(cmd, r->link_mode);
 
-	RTW89_SET_FWCMD_CXROLE_ROLE_NONE(cmd, bpos->none);
-	RTW89_SET_FWCMD_CXROLE_ROLE_STA(cmd, bpos->station);
-	RTW89_SET_FWCMD_CXROLE_ROLE_AP(cmd, bpos->ap);
-	RTW89_SET_FWCMD_CXROLE_ROLE_VAP(cmd, bpos->vap);
-	RTW89_SET_FWCMD_CXROLE_ROLE_ADHOC(cmd, bpos->adhoc);
-	RTW89_SET_FWCMD_CXROLE_ROLE_ADHOC_MASTER(cmd, bpos->adhoc_master);
-	RTW89_SET_FWCMD_CXROLE_ROLE_MESH(cmd, bpos->mesh);
-	RTW89_SET_FWCMD_CXROLE_ROLE_MONITOR(cmd, bpos->moniter);
-	RTW89_SET_FWCMD_CXROLE_ROLE_P2P_DEV(cmd, bpos->p2p_device);
-	RTW89_SET_FWCMD_CXROLE_ROLE_P2P_GC(cmd, bpos->p2p_gc);
-	RTW89_SET_FWCMD_CXROLE_ROLE_P2P_GO(cmd, bpos->p2p_go);
-	RTW89_SET_FWCMD_CXROLE_ROLE_NAN(cmd, bpos->nan);
+	RTW89_SET_FWCMD_CXROLE_ROLE_NONE(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_NONE)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_STA(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_STATION)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_AP(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_AP)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_VAP(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_AP_VLAN)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_ADHOC(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_ADHOC)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_ADHOC_MASTER(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_ADHOC_MASTER)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_MESH(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_MESH_POINT)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_MONITOR(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_MONITOR)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_P2P_DEV(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_P2P_DEVICE)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_P2P_GC(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_P2P_CLIENT)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_P2P_GO(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_P2P_GO)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_NAN(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_NAN)));
 
-	for (i = 0; i < RTW89_PORT_NUM; i++, active++) {
-		RTW89_SET_FWCMD_CXROLE_ACT_CONNECTED(cmd, active->connected, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_PID(cmd, active->pid, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_PHY(cmd, active->phy, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_NOA(cmd, active->noa, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_BAND(cmd, active->band, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_CLIENT_PS(cmd, active->client_ps, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_BW(cmd, active->bw, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_ROLE(cmd, active->role, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_CH(cmd, active->ch, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_TX_LVL(cmd, active->tx_lvl, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_RX_LVL(cmd, active->rx_lvl, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_TX_RATE(cmd, active->tx_rate, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_RX_RATE(cmd, active->rx_rate, i, offset);
+	for (i = 0; i < RTW89_PORT_NUM; i++) {
+		rl = &r->rlink[i][RTW89_MAC_0];
+		RTW89_SET_FWCMD_CXROLE_ACT_CONNECTED(cmd, rl->connected, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_PID(cmd, rl->pid, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_PHY(cmd, rl->phy, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_NOA(cmd, rl->noa, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_BAND(cmd, rl->rf_band, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_CLIENT_PS(cmd, rl->client_ps, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_BW(cmd, rl->bw, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_ROLE(cmd, rl->role, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_CH(cmd, rl->ch, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_TX_LVL(cmd, rl->tx_lvl, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_RX_LVL(cmd, rl->rx_lvl, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_TX_RATE(cmd, rl->tx_rate, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_RX_RATE(cmd, rl->rx_rate, i, offset);
 	}
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
@@ -6005,12 +6006,12 @@ int rtw89_fw_h2c_cxdrv_role_v1(struct rtw89_dev *rtwdev, u8 type)
 	struct rtw89_btc *btc = &rtwdev->btc;
 	const struct rtw89_btc_ver *ver = btc->ver;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
-	struct rtw89_btc_wl_role_info_v1 *role_info = &wl->role_info_v1;
-	struct rtw89_btc_wl_role_info_bpos *bpos = &role_info->role_map.role;
-	struct rtw89_btc_wl_active_role_v1 *active = role_info->active_role_v1;
+	struct rtw89_btc_wl_role_info *r = &wl->role_info;
+	struct rtw89_btc_wl_rlink *rl;
 	struct sk_buff *skb;
-	u32 len;
+	u32 rmap = r->role_map;
 	u8 *cmd, offset;
+	u32 len;
 	int ret;
 	int i;
 
@@ -6027,47 +6028,49 @@ int rtw89_fw_h2c_cxdrv_role_v1(struct rtw89_dev *rtwdev, u8 type)
 	RTW89_SET_FWCMD_CXHDR_TYPE(cmd, type);
 	RTW89_SET_FWCMD_CXHDR_LEN(cmd, len - H2C_LEN_CXDRVHDR);
 
-	RTW89_SET_FWCMD_CXROLE_CONNECT_CNT(cmd, role_info->connect_cnt);
-	RTW89_SET_FWCMD_CXROLE_LINK_MODE(cmd, role_info->link_mode);
+	RTW89_SET_FWCMD_CXROLE_CONNECT_CNT(cmd, r->connect_cnt);
+	RTW89_SET_FWCMD_CXROLE_LINK_MODE(cmd, r->link_mode);
 
-	RTW89_SET_FWCMD_CXROLE_ROLE_NONE(cmd, bpos->none);
-	RTW89_SET_FWCMD_CXROLE_ROLE_STA(cmd, bpos->station);
-	RTW89_SET_FWCMD_CXROLE_ROLE_AP(cmd, bpos->ap);
-	RTW89_SET_FWCMD_CXROLE_ROLE_VAP(cmd, bpos->vap);
-	RTW89_SET_FWCMD_CXROLE_ROLE_ADHOC(cmd, bpos->adhoc);
-	RTW89_SET_FWCMD_CXROLE_ROLE_ADHOC_MASTER(cmd, bpos->adhoc_master);
-	RTW89_SET_FWCMD_CXROLE_ROLE_MESH(cmd, bpos->mesh);
-	RTW89_SET_FWCMD_CXROLE_ROLE_MONITOR(cmd, bpos->moniter);
-	RTW89_SET_FWCMD_CXROLE_ROLE_P2P_DEV(cmd, bpos->p2p_device);
-	RTW89_SET_FWCMD_CXROLE_ROLE_P2P_GC(cmd, bpos->p2p_gc);
-	RTW89_SET_FWCMD_CXROLE_ROLE_P2P_GO(cmd, bpos->p2p_go);
-	RTW89_SET_FWCMD_CXROLE_ROLE_NAN(cmd, bpos->nan);
+	RTW89_SET_FWCMD_CXROLE_ROLE_NONE(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_NONE)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_STA(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_STATION)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_AP(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_AP)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_VAP(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_AP_VLAN)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_ADHOC(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_ADHOC)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_ADHOC_MASTER(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_ADHOC_MASTER)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_MESH(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_MESH_POINT)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_MONITOR(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_MONITOR)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_P2P_DEV(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_P2P_DEVICE)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_P2P_GC(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_P2P_CLIENT)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_P2P_GO(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_P2P_GO)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_NAN(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_NAN)));
 
 	offset = PORT_DATA_OFFSET;
-	for (i = 0; i < RTW89_PORT_NUM; i++, active++) {
-		RTW89_SET_FWCMD_CXROLE_ACT_CONNECTED(cmd, active->connected, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_PID(cmd, active->pid, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_PHY(cmd, active->phy, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_NOA(cmd, active->noa, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_BAND(cmd, active->band, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_CLIENT_PS(cmd, active->client_ps, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_BW(cmd, active->bw, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_ROLE(cmd, active->role, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_CH(cmd, active->ch, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_TX_LVL(cmd, active->tx_lvl, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_RX_LVL(cmd, active->rx_lvl, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_TX_RATE(cmd, active->tx_rate, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_RX_RATE(cmd, active->rx_rate, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_NOA_DUR(cmd, active->noa_duration, i, offset);
+
+	for (i = 0; i < RTW89_PORT_NUM; i++) {
+		rl = &r->rlink[i][RTW89_MAC_0];
+		RTW89_SET_FWCMD_CXROLE_ACT_CONNECTED(cmd, rl->connected, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_PID(cmd, rl->pid, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_PHY(cmd, rl->phy, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_NOA(cmd, rl->noa, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_BAND(cmd, rl->rf_band, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_CLIENT_PS(cmd, rl->client_ps, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_BW(cmd, rl->bw, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_ROLE(cmd, rl->role, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_CH(cmd, rl->ch, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_TX_LVL(cmd, rl->tx_lvl, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_RX_LVL(cmd, rl->rx_lvl, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_TX_RATE(cmd, rl->tx_rate, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_RX_RATE(cmd, rl->rx_rate, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_NOA_DUR(cmd, rl->noa_dur, i, offset);
 	}
 
 	offset = len - H2C_LEN_CXDRVINFO_ROLE_DBCC_LEN;
-	RTW89_SET_FWCMD_CXROLE_MROLE_TYPE(cmd, role_info->mrole_type, offset);
-	RTW89_SET_FWCMD_CXROLE_MROLE_NOA(cmd, role_info->mrole_noa_duration, offset);
-	RTW89_SET_FWCMD_CXROLE_DBCC_EN(cmd, role_info->dbcc_en, offset);
-	RTW89_SET_FWCMD_CXROLE_DBCC_CHG(cmd, role_info->dbcc_chg, offset);
-	RTW89_SET_FWCMD_CXROLE_DBCC_2G_PHY(cmd, role_info->dbcc_2g_phy, offset);
-	RTW89_SET_FWCMD_CXROLE_LINK_MODE_CHG(cmd, role_info->link_mode_chg, offset);
+	RTW89_SET_FWCMD_CXROLE_MROLE_TYPE(cmd, r->mrole_type, offset);
+	RTW89_SET_FWCMD_CXROLE_MROLE_NOA(cmd, r->mrole_noa_duration, offset);
+	RTW89_SET_FWCMD_CXROLE_DBCC_EN(cmd, r->dbcc_en, offset);
+	RTW89_SET_FWCMD_CXROLE_DBCC_CHG(cmd, r->dbcc_chg, offset);
+	RTW89_SET_FWCMD_CXROLE_DBCC_2G_PHY(cmd, r->dbcc_2g_phy, offset);
+	RTW89_SET_FWCMD_CXROLE_LINK_MODE_CHG(cmd, r->link_mode_chg, offset);
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_OUTSRC, BTFC_SET,
@@ -6095,10 +6098,10 @@ int rtw89_fw_h2c_cxdrv_role_v2(struct rtw89_dev *rtwdev, u8 type)
 	struct rtw89_btc *btc = &rtwdev->btc;
 	const struct rtw89_btc_ver *ver = btc->ver;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
-	struct rtw89_btc_wl_role_info_v2 *role_info = &wl->role_info_v2;
-	struct rtw89_btc_wl_role_info_bpos *bpos = &role_info->role_map.role;
-	struct rtw89_btc_wl_active_role_v2 *active = role_info->active_role_v2;
+	struct rtw89_btc_wl_role_info *r = &wl->role_info;
+	struct rtw89_btc_wl_rlink *rl;
 	struct sk_buff *skb;
+	u32 rmap = r->role_map;
 	u32 len;
 	u8 *cmd, offset;
 	int ret;
@@ -6117,43 +6120,45 @@ int rtw89_fw_h2c_cxdrv_role_v2(struct rtw89_dev *rtwdev, u8 type)
 	RTW89_SET_FWCMD_CXHDR_TYPE(cmd, type);
 	RTW89_SET_FWCMD_CXHDR_LEN(cmd, len - H2C_LEN_CXDRVHDR);
 
-	RTW89_SET_FWCMD_CXROLE_CONNECT_CNT(cmd, role_info->connect_cnt);
-	RTW89_SET_FWCMD_CXROLE_LINK_MODE(cmd, role_info->link_mode);
+	RTW89_SET_FWCMD_CXROLE_CONNECT_CNT(cmd, r->connect_cnt);
+	RTW89_SET_FWCMD_CXROLE_LINK_MODE(cmd, r->link_mode);
 
-	RTW89_SET_FWCMD_CXROLE_ROLE_NONE(cmd, bpos->none);
-	RTW89_SET_FWCMD_CXROLE_ROLE_STA(cmd, bpos->station);
-	RTW89_SET_FWCMD_CXROLE_ROLE_AP(cmd, bpos->ap);
-	RTW89_SET_FWCMD_CXROLE_ROLE_VAP(cmd, bpos->vap);
-	RTW89_SET_FWCMD_CXROLE_ROLE_ADHOC(cmd, bpos->adhoc);
-	RTW89_SET_FWCMD_CXROLE_ROLE_ADHOC_MASTER(cmd, bpos->adhoc_master);
-	RTW89_SET_FWCMD_CXROLE_ROLE_MESH(cmd, bpos->mesh);
-	RTW89_SET_FWCMD_CXROLE_ROLE_MONITOR(cmd, bpos->moniter);
-	RTW89_SET_FWCMD_CXROLE_ROLE_P2P_DEV(cmd, bpos->p2p_device);
-	RTW89_SET_FWCMD_CXROLE_ROLE_P2P_GC(cmd, bpos->p2p_gc);
-	RTW89_SET_FWCMD_CXROLE_ROLE_P2P_GO(cmd, bpos->p2p_go);
-	RTW89_SET_FWCMD_CXROLE_ROLE_NAN(cmd, bpos->nan);
+	RTW89_SET_FWCMD_CXROLE_ROLE_NONE(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_NONE)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_STA(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_STATION)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_AP(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_AP)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_VAP(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_AP_VLAN)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_ADHOC(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_ADHOC)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_ADHOC_MASTER(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_ADHOC_MASTER)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_MESH(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_MESH_POINT)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_MONITOR(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_MONITOR)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_P2P_DEV(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_P2P_DEVICE)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_P2P_GC(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_P2P_CLIENT)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_P2P_GO(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_P2P_GO)));
+	RTW89_SET_FWCMD_CXROLE_ROLE_NAN(cmd, !!(rmap & BIT(RTW89_WIFI_ROLE_NAN)));
 
 	offset = PORT_DATA_OFFSET;
-	for (i = 0; i < RTW89_PORT_NUM; i++, active++) {
-		RTW89_SET_FWCMD_CXROLE_ACT_CONNECTED_V2(cmd, active->connected, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_PID_V2(cmd, active->pid, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_PHY_V2(cmd, active->phy, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_NOA_V2(cmd, active->noa, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_BAND_V2(cmd, active->band, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_CLIENT_PS_V2(cmd, active->client_ps, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_BW_V2(cmd, active->bw, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_ROLE_V2(cmd, active->role, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_CH_V2(cmd, active->ch, i, offset);
-		RTW89_SET_FWCMD_CXROLE_ACT_NOA_DUR_V2(cmd, active->noa_duration, i, offset);
+
+	for (i = 0; i < RTW89_PORT_NUM; i++) {
+		rl = &r->rlink[i][RTW89_MAC_0];
+		RTW89_SET_FWCMD_CXROLE_ACT_CONNECTED_V2(cmd, rl->connected, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_PID_V2(cmd, rl->pid, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_PHY_V2(cmd, rl->phy, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_NOA_V2(cmd, rl->noa, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_BAND_V2(cmd, rl->rf_band, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_CLIENT_PS_V2(cmd, rl->client_ps, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_BW_V2(cmd, rl->bw, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_ROLE_V2(cmd, rl->role, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_CH_V2(cmd, rl->ch, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_NOA_DUR_V2(cmd, rl->noa_dur, i, offset);
 	}
 
 	offset = len - H2C_LEN_CXDRVINFO_ROLE_DBCC_LEN;
-	RTW89_SET_FWCMD_CXROLE_MROLE_TYPE(cmd, role_info->mrole_type, offset);
-	RTW89_SET_FWCMD_CXROLE_MROLE_NOA(cmd, role_info->mrole_noa_duration, offset);
-	RTW89_SET_FWCMD_CXROLE_DBCC_EN(cmd, role_info->dbcc_en, offset);
-	RTW89_SET_FWCMD_CXROLE_DBCC_CHG(cmd, role_info->dbcc_chg, offset);
-	RTW89_SET_FWCMD_CXROLE_DBCC_2G_PHY(cmd, role_info->dbcc_2g_phy, offset);
-	RTW89_SET_FWCMD_CXROLE_LINK_MODE_CHG(cmd, role_info->link_mode_chg, offset);
+	RTW89_SET_FWCMD_CXROLE_MROLE_TYPE(cmd, r->mrole_type, offset);
+	RTW89_SET_FWCMD_CXROLE_MROLE_NOA(cmd, r->mrole_noa_duration, offset);
+	RTW89_SET_FWCMD_CXROLE_DBCC_EN(cmd, r->dbcc_en, offset);
+	RTW89_SET_FWCMD_CXROLE_DBCC_CHG(cmd, r->dbcc_chg, offset);
+	RTW89_SET_FWCMD_CXROLE_DBCC_2G_PHY(cmd, r->dbcc_2g_phy, offset);
+	RTW89_SET_FWCMD_CXROLE_LINK_MODE_CHG(cmd, r->link_mode_chg, offset);
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_OUTSRC, BTFC_SET,
@@ -6175,12 +6180,14 @@ fail:
 
 int rtw89_fw_h2c_cxdrv_role_v7(struct rtw89_dev *rtwdev, u8 type)
 {
-	struct rtw89_btc *btc = &rtwdev->btc;
-	struct rtw89_btc_wl_role_info_v7 *role = &btc->cx.wl.role_info_v7;
+	struct rtw89_btc_wl_role_info *r = &rtwdev->btc.cx.wl.role_info;
 	struct rtw89_h2c_cxrole_v7 *h2c;
+	struct rtw89_btc_wl_rlink *rl;
 	u32 len = sizeof(*h2c);
 	struct sk_buff *skb;
+	__le32 rm;
 	int ret;
+	u8 i;
 
 	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
 	if (!skb) {
@@ -6190,16 +6197,35 @@ int rtw89_fw_h2c_cxdrv_role_v7(struct rtw89_dev *rtwdev, u8 type)
 	skb_put(skb, len);
 	h2c = (struct rtw89_h2c_cxrole_v7 *)skb->data;
 
-	h2c->hdr.type = type;
-	h2c->hdr.ver = btc->ver->fwlrole;
-	h2c->hdr.len = len - H2C_LEN_CXDRVHDR_V7;
-	memcpy(&h2c->_u8, role, sizeof(h2c->_u8));
-	h2c->_u32.role_map = cpu_to_le32(role->role_map);
-	h2c->_u32.mrole_type = cpu_to_le32(role->mrole_type);
-	h2c->_u32.mrole_noa_duration = cpu_to_le32(role->mrole_noa_duration);
-	h2c->_u32.dbcc_en = cpu_to_le32(role->dbcc_en);
-	h2c->_u32.dbcc_chg = cpu_to_le32(role->dbcc_chg);
-	h2c->_u32.dbcc_2g_phy = cpu_to_le32(role->dbcc_2g_phy);
+	h2c->r.connect_cnt = r->connect_cnt;
+	h2c->r.link_mode = r->link_mode;
+	h2c->r.link_mode_chg = r->link_mode_chg;
+	h2c->r.p2p_2g = r->p2p_2g;
+
+	for (i = 0; i < RTW89_BE_BTC_WL_MAX_ROLE_NUMBER; i++) {
+		rl = &r->rlink[i][RTW89_MAC_0];
+		h2c->r.active_role[i].connected = rl->connected;
+		h2c->r.active_role[i].pid = rl->pid;
+		h2c->r.active_role[i].phy = rl->phy;
+		h2c->r.active_role[i].noa = rl->noa;
+
+		h2c->r.active_role[i].band = rl->rf_band;
+		h2c->r.active_role[i].client_ps = rl->client_ps;
+		h2c->r.active_role[i].bw = rl->bw;
+		h2c->r.active_role[i].role = rl->role;
+
+		h2c->r.active_role[i].ch = rl->ch;
+		h2c->r.active_role[i].noa_dur = rl->noa_dur;
+		h2c->r.active_role[i].client_cnt = rl->client_cnt;
+	}
+
+	rm = cpu_to_le32(r->role_map);
+	memcpy(&h2c->r.role_map, &rm, sizeof(h2c->r.role_map));
+	h2c->r.mrole_type = cpu_to_le32(r->mrole_type);
+	h2c->r.mrole_noa_duration = cpu_to_le32(r->mrole_noa_duration);
+	h2c->r.dbcc_en = cpu_to_le32((u32)r->dbcc_en);
+	h2c->r.dbcc_chg = cpu_to_le32(r->dbcc_chg);
+	h2c->r.dbcc_2g_phy = cpu_to_le32(r->dbcc_2g_phy);
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_OUTSRC, BTFC_SET,
@@ -6221,12 +6247,14 @@ fail:
 
 int rtw89_fw_h2c_cxdrv_role_v8(struct rtw89_dev *rtwdev, u8 type)
 {
-	struct rtw89_btc *btc = &rtwdev->btc;
-	struct rtw89_btc_wl_role_info_v8 *role = &btc->cx.wl.role_info_v8;
+	struct rtw89_btc_wl_role_info *r = &rtwdev->btc.cx.wl.role_info;
 	struct rtw89_h2c_cxrole_v8 *h2c;
+	struct rtw89_btc_wl_rlink *rl;
 	u32 len = sizeof(*h2c);
 	struct sk_buff *skb;
+	__le32 rm;
 	int ret;
+	u8 i, j;
 
 	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
 	if (!skb) {
@@ -6237,12 +6265,118 @@ int rtw89_fw_h2c_cxdrv_role_v8(struct rtw89_dev *rtwdev, u8 type)
 	h2c = (struct rtw89_h2c_cxrole_v8 *)skb->data;
 
 	h2c->hdr.type = type;
-	h2c->hdr.ver = btc->ver->fwlrole;
+	h2c->hdr.ver = rtwdev->btc.ver->fwlrole;
 	h2c->hdr.len = len - H2C_LEN_CXDRVHDR_V7;
-	memcpy(&h2c->_u8, role, sizeof(h2c->_u8));
-	h2c->_u32.role_map = cpu_to_le32(role->role_map);
-	h2c->_u32.mrole_type = cpu_to_le32(role->mrole_type);
-	h2c->_u32.mrole_noa_duration = cpu_to_le32(role->mrole_noa_duration);
+	h2c->r.connect_cnt = r->connect_cnt;
+	h2c->r.link_mode = r->link_mode;
+	h2c->r.link_mode_chg =  r->link_mode_chg;
+	h2c->r.p2p_2g = r->p2p_2g;
+	h2c->r.pta_req_band = r->pta_req_band;
+	h2c->r.dbcc_en = r->dbcc_en;
+	h2c->r.dbcc_chg = r->dbcc_chg;
+	h2c->r.dbcc_2g_phy = r->dbcc_2g_phy;
+
+	for (j = RTW89_MAC_0; j <= RTW89_MAC_1; j++) {
+		for (i = 0; i < RTW89_BE_BTC_WL_MAX_ROLE_NUMBER; i++) {
+			rl = &r->rlink[i][j];
+			h2c->r.rlink[i][j].connected = rl->connected;
+			h2c->r.rlink[i][j].pid = rl->pid;
+			h2c->r.rlink[i][j].phy = rl->phy;
+			h2c->r.rlink[i][j].noa = rl->noa;
+
+			h2c->r.rlink[i][j].rf_band = rl->rf_band;
+			h2c->r.rlink[i][j].active = rl->active;
+			h2c->r.rlink[i][j].bw = rl->bw;
+			h2c->r.rlink[i][j].role = rl->role;
+
+			h2c->r.rlink[i][j].ch = rl->ch;
+			h2c->r.rlink[i][j].noa_dur = rl->noa_dur;
+			h2c->r.rlink[i][j].client_cnt = rl->client_cnt;
+			h2c->r.rlink[i][j].mode = rl->mode;
+		}
+	}
+
+	rm = cpu_to_le32(r->role_map);
+	memcpy(&h2c->r.role_map, &rm, sizeof(h2c->r.role_map));
+	h2c->r.mrole_type = cpu_to_le32(r->mrole_type);
+	h2c->r.mrole_noa_duration = cpu_to_le32(r->mrole_noa_duration);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_OUTSRC, BTFC_SET,
+			      SET_DRV_INFO, 0, 0,
+			      len);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+
+int rtw89_fw_h2c_cxdrv_role_v10(struct rtw89_dev *rtwdev, u8 type)
+{
+	struct rtw89_btc_wl_role_info *r = &rtwdev->btc.cx.wl.role_info;
+	struct rtw89_h2c_cxrole_v10 *h2c;
+	struct rtw89_btc_wl_rlink *rl;
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
+	__le32 rm;
+	int ret;
+	u8 i, j;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for h2c cxdrv_role\n");
+		return -ENOMEM;
+	}
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_cxrole_v10 *)skb->data;
+
+	h2c->hdr.type = type;
+	h2c->hdr.ver = rtwdev->btc.ver->fwlrole;
+	h2c->hdr.len = len - H2C_LEN_CXDRVHDR_V7;
+
+	for (j = RTW89_MAC_0; j <= RTW89_MAC_1; j++) {
+		for (i = 0; i < RTW89_BE_BTC_WL_MAX_ROLE_NUMBER; i++) {
+			rl = &r->rlink[i][j];
+			h2c->r.rlink[i][j].connected = rl->connected;
+			h2c->r.rlink[i][j].pid = rl->pid;
+			h2c->r.rlink[i][j].phy = rl->phy;
+			h2c->r.rlink[i][j].noa = rl->noa;
+
+			h2c->r.rlink[i][j].rf_band = rl->rf_band;
+			h2c->r.rlink[i][j].active = rl->active;
+			h2c->r.rlink[i][j].bw = rl->bw;
+			h2c->r.rlink[i][j].role = rl->role;
+
+			h2c->r.rlink[i][j].ch = rl->ch;
+			h2c->r.rlink[i][j].noa_dur = rl->noa_dur;
+			h2c->r.rlink[i][j].client_cnt = rl->client_cnt;
+			h2c->r.rlink[i][j].mode = rl->mode;
+			h2c->r.rlink[i][j].mac_id = rl->mac_id;
+		}
+	}
+
+	h2c->r.link_mode = r->link_mode;
+	h2c->r.link_mode_hb1 = r->link_mode_hb1;
+	h2c->r.p2p_exist = r->p2p_exist;
+	h2c->r.p2p_exist_hb1 = r->p2p_exist_hb1;
+
+	h2c->r.pta_req_band = r->pta_req_band;
+	h2c->r.dbcc_en = r->dbcc_en;
+	h2c->r.dbcc_2g_phy = r->dbcc_2g_phy;
+
+	rm = cpu_to_le32(r->role_map);
+	memcpy(&h2c->r.role_map, &rm, sizeof(h2c->r.role_map));
+	rm = cpu_to_le32(r->role_map_hb1);
+	memcpy(&h2c->r.role_map_hb1, &rm, sizeof(h2c->r.role_map_hb1));
+	h2c->r.mrole_type = cpu_to_le32(r->mrole_type);
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_OUTSRC, BTFC_SET,

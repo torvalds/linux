@@ -11,6 +11,40 @@
 #define BTC_TLV_SLOT_ID_LEN_V7 1
 #define BTC_SLOT_REQ_TH 2
 
+#define BTC_FREQ_W2G 2412
+#define BTC_FREQ_W5G 5005
+#define BTC_FREQ_W6G 5955
+
+#define BTC_FREQ_B2G 2402
+#define BTC_FREQ_B6G 5125
+
+#define BTC_FREQ_W2G_CH14 2484
+
+#define BTC_LO_2G_DNM 125 /* LO Coefficient Denominator */
+#define BTC_LO_5G_DNM 125
+#define BTC_LO_6G_DNM 150
+
+#define BTC_LO_2G_NMR 400 /* LO Coefficient Numerator */
+#define BTC_LO_5G_NMR 200
+#define BTC_LO_6G_NMR 200
+
+#define BTC_CH_W2G_MIN 1    /* start from 2412MHz */
+#define BTC_CH_W2G_MAX 14
+#define BTC_CH_W5G_MIN 1    /* start from 5005MHz */
+#define BTC_CH_W5G_MAX 165
+#define BTC_CH_W6G_MIN 1    /* start from 5955MHz */
+#define BTC_CH_W6G_MAX 233
+
+#define BTC_CH_B2G_MIN 0    /* start from 2402MHz */
+#define BTC_CH_B2G_MAX 78
+
+#define BTC_CH_B5G_MIN 600    /* start from 5725MHz */
+#define BTC_CH_B5G_MAX 1300
+
+#define BTC_VCO_GUARD_W2W 10 /* WiFi to WiFi VCO freq forbiddened range (MHZ) */
+#define BTC_VCO_GUARD_W2B 25 /* WiFi to WiFi VCO freq forbiddened range (MHZ) */
+#define BTC_VCO_GUARD_B2B 10 /* WiFi to WiFi VCO freq forbiddened range (MHZ) */
+
 enum btc_mode {
 	BTC_MODE_NORMAL,
 	BTC_MODE_WL,

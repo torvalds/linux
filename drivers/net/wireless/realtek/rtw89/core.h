@@ -1854,7 +1854,7 @@ union rtw89_btc_wl_role_info_map {
 	struct rtw89_btc_wl_role_info_bpos role;
 };
 
-struct rtw89_btc_wl_role_info { /* struct size must be n*4 bytes */
+struct rtw89_btc_wl_role_info_v0 { /* struct size must be n*4 bytes */
 	u8 connect_cnt;
 	u8 link_mode;
 	union rtw89_btc_wl_role_info_map role_map;
@@ -1891,7 +1891,7 @@ struct rtw89_btc_wl_role_info_v2 { /* struct size must be n*4 bytes */
 	u32 rsvd: 27;
 };
 
-struct rtw89_btc_wl_rlink { /* H2C info, struct size must be n*4 bytes */
+struct rtw89_btc_wl_rlink_v0 { /* H2C info, struct size must be n*4 bytes */
 	u8 connected;
 	u8 pid;
 	u8 phy;
@@ -1908,6 +1908,28 @@ struct rtw89_btc_wl_rlink { /* H2C info, struct size must be n*4 bytes */
 	u8 mode; /* wifi protocol */
 } __packed;
 
+struct rtw89_btc_wl_rlink_v10 { /* H2C info, struct size must be n*4 bytes */
+	u8 connected;
+	u8 pid;
+	u8 phy;
+	u8 noa;
+
+	u8 rf_band; /* enum band_type RF band: 2.4G/5G/6G */
+	u8 active; /* 0:rlink is under doze */
+	u8 bw; /* enum channel_width */
+	u8 role; /*enum role_type */
+
+	u8 ch;
+	u8 noa_dur; /* ms */
+	u8 client_cnt; /* for Role = P2P-Go/AP */
+	u8 mode; /* wifi protocol */
+
+	u8 mac_id;
+	u8 rsvd0;
+	u8 rsvd1;
+	u8 rsvd2;
+} __packed;
+
 #define RTW89_BE_BTC_WL_MAX_ROLE_NUMBER 6
 struct rtw89_btc_wl_role_info_v7 { /* struct size must be n*4 bytes */
 	u8 connect_cnt;
@@ -1917,12 +1939,12 @@ struct rtw89_btc_wl_role_info_v7 { /* struct size must be n*4 bytes */
 
 	struct rtw89_btc_wl_active_role_v7 active_role[RTW89_BE_BTC_WL_MAX_ROLE_NUMBER];
 
-	u32 role_map;
-	u32 mrole_type; /* btc_wl_mrole_type */
-	u32 mrole_noa_duration; /* ms */
-	u32 dbcc_en;
-	u32 dbcc_chg;
-	u32 dbcc_2g_phy; /* which phy operate in 2G, HW_PHY_0 or HW_PHY_1 */
+	__le32 role_map;
+	__le32 mrole_type; /* btc_wl_mrole_type */
+	__le32 mrole_noa_duration; /* ms */
+	__le32 dbcc_en;
+	__le32 dbcc_chg;
+	__le32 dbcc_2g_phy; /* which phy operate in 2G, HW_PHY_0 or HW_PHY_1 */
 } __packed;
 
 struct rtw89_btc_wl_role_info_v8 { /* H2C info, struct size must be n*4 bytes */
@@ -1936,12 +1958,90 @@ struct rtw89_btc_wl_role_info_v8 { /* H2C info, struct size must be n*4 bytes */
 	u8 dbcc_chg;
 	u8 dbcc_2g_phy; /* which phy operate in 2G, HW_PHY_0 or HW_PHY_1 */
 
+	struct rtw89_btc_wl_rlink_v0 rlink[RTW89_BE_BTC_WL_MAX_ROLE_NUMBER][RTW89_MAC_NUM];
+
+	__le32 role_map;
+	__le32 mrole_type; /* btc_wl_mrole_type */
+	__le32 mrole_noa_duration; /* ms */
+} __packed;
+
+struct rtw89_btc_wl_role_info_v10 { /* H2C info, struct size must be n*4 bytes */
+	struct rtw89_btc_wl_rlink_v10 rlink[RTW89_BE_BTC_WL_MAX_ROLE_NUMBER][RTW89_MAC_NUM];
+	u8 link_mode;
+	u8 link_mode_hb1;
+	u8 p2p_exist;
+	u8 p2p_exist_hb1;
+
+	u8 pta_req_band;
+	u8 dbcc_en; /* 1+1 and 2.4G-included */
+	u8 dbcc_2g_phy; /* which phy operate in 2G, HW_PHY_0 or HW_PHY_1 */
+	u8 rsvd;
+
+	__le32 role_map;
+	__le32 role_map_hb1;
+	__le32 mrole_type; /* btc_wl_mrole_type: [31:16]:band1, [15:0]:band0 */
+} __packed;
+
+struct rtw89_btc_wl_rlink { /* Logic dynamic using */
+	u8 connected;
+	u8 pid;
+	u8 phy;
+	u8 noa;
+
+	u8 rf_band; /* enum band_type RF band: 2.4G/5G/6G */
+	u8 active; /* 0:rlink is under doze */
+	u8 bw; /* enum channel_width */
+	u8 role; /*enum role_type */
+
+	u8 ch;
+	u8 noa_dur; /* ms */
+	u8 client_cnt; /* for Role = P2P-Go/AP */
+	u8 mode; /* wifi protocol */
+
+	/*v0 v1*/
+	u16 tx_lvl;
+	u16 rx_lvl;
+	u16 tx_rate;
+	u16 rx_rate;
+
+	/* v7 */
+	u8 client_ps; /*v7 v2 v1 v0*/
+
+	/* v10 */
+	u8 mac_id;
+	u8 rsvd0;
+	u8 rsvd1;
+	u8 rsvd2;
+};
+
+struct rtw89_btc_wl_role_info { /* Logic dynamic using */
 	struct rtw89_btc_wl_rlink rlink[RTW89_BE_BTC_WL_MAX_ROLE_NUMBER][RTW89_MAC_NUM];
+	u8 link_mode;
+	u8 link_mode_hb1;
+	u8 p2p_exist;
+	u8 p2p_exist_hb1;
+
+	u8 pta_req_band;
+	u8 dbcc_en; /* 1+1 and 2.4G-included */
+	u8 dbcc_2g_phy; /* which phy operate in 2G, HW_PHY_0 or HW_PHY_1 */
+	u8 rsvd;
 
 	u32 role_map;
-	u32 mrole_type; /* btc_wl_mrole_type */
-	u32 mrole_noa_duration; /* ms */
-} __packed;
+	u32 role_map_hb1;
+	u32 mrole_type; /* btc_wl_mrole_type: [31:16]:band1, [15:0]:band0 */
+
+	/* Before v10 use this linkmode */
+	u8 link_mode_v0;
+
+	/* v7 */
+	u8 connect_cnt;
+	u32 dbcc_chg; /* v7 v2*/
+
+	/* v8 */
+	u8 link_mode_chg; /* v8, v7 v2*/
+	u8 p2p_2g; /* v8, v7 */
+	u32 mrole_noa_duration; /* v8, v7 v2*/
+};
 
 struct rtw89_btc_wl_ver_info {
 	u32 fw_coex; /* match with which coex_ver */
@@ -1955,7 +2055,7 @@ struct rtw89_btc_wl_afh_info {
 	u8 en;
 	u8 ch;
 	u8 bw;
-	u8 rsvd;
+	u8 band;
 } __packed;
 
 struct rtw89_btc_wl_rfk_info {
@@ -2167,16 +2267,13 @@ struct rtw89_btc_wl_nhm {
 };
 
 struct rtw89_btc_wl_info {
-	struct rtw89_btc_wl_link_info link_info[RTW89_PORT_NUM];
 	struct rtw89_btc_wl_link_info rlink_info[RTW89_BE_BTC_WL_MAX_ROLE_NUMBER][RTW89_MAC_NUM];
+	struct rtw89_btc_chdef rf_ch_info[RTW89_PHY_NUM];
 	struct rtw89_btc_wl_rfk_info rfk_info;
-	struct rtw89_btc_wl_ver_info  ver_info;
-	struct rtw89_btc_wl_afh_info afh_info;
+	struct rtw89_btc_wl_ver_info ver_info;
+	struct rtw89_btc_wl_afh_info afh_info[RTW89_MAC_NUM][RTW89_BAND_NUM];
+	struct rtw89_btc_wl_afh_info afh_info_last[RTW89_MAC_NUM][RTW89_BAND_NUM];
 	struct rtw89_btc_wl_role_info role_info;
-	struct rtw89_btc_wl_role_info_v1 role_info_v1;
-	struct rtw89_btc_wl_role_info_v2 role_info_v2;
-	struct rtw89_btc_wl_role_info_v7 role_info_v7;
-	struct rtw89_btc_wl_role_info_v8 role_info_v8;
 	struct rtw89_btc_wl_scan_info scan_info;
 	struct rtw89_btc_wl_dbcc_info dbcc_info;
 	struct rtw89_btc_wl_mlo_info mlo_info;
@@ -2191,12 +2288,18 @@ struct rtw89_btc_wl_info {
 	u8 pta_req_mac;
 	u8 bt_polut_type[RTW89_PHY_NUM]; /* BT polluted WL-Tx type for phy0/1  */
 	u8 rf_band_map[RTW89_PHY_NUM]; /* rf_band bit-map */
+	u8 ch_map[12];
+	u8 ch_map_le[5];
 
-	bool is_5g_hi_channel;
+	bool is_5g_hi_ch;
+	bool is_5g_hi_ch_hb1;
 	bool go_client_exist;
+	bool go_client_exist_hb1;
 	bool noa_exist;
+	bool noa_exist_hb1;
 	bool pta_reg_mac_chg;
 	bool bg_mode;
+	bool bg_mode_hb1;
 	bool he_mode;
 	bool scbd_chg[BTC_ALL_BT];
 	bool fw_ver_mismatch;
@@ -3280,6 +3383,14 @@ struct rtw89_btc_fbtc_outsrc_set_info {
 	u8 rf_gbt_source;
 	u8 bt_enable_state;
 	u8 wl_btg_standby_chg;
+	/* bit[15]-> 0:2G/1:5G,6G, bit[14:0]-> WL HWBx ch freq in MHz */
+	/* forbidden group-> bit[1]:fbd rf-band, bit[0]: fbd enable */
+	u8 fbd_group_en[RTW89_MAC_NUM][2]; /* HWB0/1 +.Group0/1 */
+	u16 rf_center_freq[RTW89_MAC_NUM]; /* HWB0/1 */
+	/* forbidden group boundary: [15:8]->UP, [7:0]->LO */
+	u16 fbd_group_bound[RTW89_MAC_NUM][2]; /* HWB0/1 +.Group0/1 */
+	/* 11-bit in MHz, freq diff threshold */
+	u16 freq_diff_thres[RTW89_MAC_NUM][BTC_ALL_BT_EZL]; /* HWB0/1 vs.BT0/1/2 */
 } __packed;
 
 union rtw89_btc_fbtc_slot_u {
@@ -3363,6 +3474,7 @@ struct rtw89_btc_dm {
 	u8 lps_ctrl_change: 1;
 	u8 scbd_write_instant;
 	bool scbd_b2w_update;
+	bool pre_agc_chg;
 };
 
 struct rtw89_btc_ctrl {
@@ -4961,6 +5073,7 @@ struct rtw89_chip_info {
 	u8 mailbox;
 
 	u8 afh_guard_ch;
+	u16 fdd_iso_freq;
 	const u8 *wl_rssi_thres;
 	const u8 *bt_rssi_thres;
 	u8 rssi_tol;

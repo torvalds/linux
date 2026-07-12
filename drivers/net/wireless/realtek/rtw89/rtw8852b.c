@@ -1060,6 +1060,7 @@ const struct rtw89_chip_info rtw8852b_chip_info = {
 	.mailbox		= 0x1,
 
 	.afh_guard_ch		= 6,
+	.fdd_iso_freq		= 1000,
 	.wl_rssi_thres		= rtw89_btc_8852b_wl_rssi_thres,
 	.bt_rssi_thres		= rtw89_btc_8852b_bt_rssi_thres,
 	.rssi_tol		= 2,
