@@ -229,25 +229,15 @@ bool ksmbd_inode_pending_delete(struct ksmbd_file *fp)
 	struct ksmbd_inode *ci = fp->f_ci;
 	int ret;
 
-	/*
-	 * Stream delete-pending is tracked per-handle (see
-	 * ksmbd_fd_set_delete_pending()), not on the shared inode -- the
-	 * whole-file flags checked below would never see it set, and would
-	 * also incorrectly report a whole-file pending-delete as applying
-	 * to an unrelated stream handle on the same inode.
-	 */
-	if (ksmbd_stream_fd(fp)) {
-		bool pending;
-
-		spin_lock(&fp->f_lock);
-		pending = fp->stream_del_pending;
-		spin_unlock(&fp->f_lock);
-		return pending;
-	}
-
 	down_read(&ci->m_lock);
 	ret = (ci->m_flags & S_DEL_PENDING);
 	up_read(&ci->m_lock);
+	if (ret || !ksmbd_stream_fd(fp))
+		return ret;
+
+	spin_lock(&fp->f_lock);
+	ret = fp->stream_del_pending;
+	spin_unlock(&fp->f_lock);
 
 	return ret;
 }
