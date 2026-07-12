@@ -8216,8 +8216,12 @@ static inline void rtw89_chip_bb_sethw(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 
+	rtw89_io_pack(rtwdev);
+
 	if (chip->ops->bb_sethw)
 		chip->ops->bb_sethw(rtwdev);
+
+	rtw89_io_unpack(rtwdev);
 }
 
 static inline void rtw89_chip_rfk_init(struct rtw89_dev *rtwdev)
