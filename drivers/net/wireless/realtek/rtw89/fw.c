@@ -11916,6 +11916,12 @@ fw_tx_shape_lmt_entry_valid(const struct rtw89_fw_tx_shape_lmt_entry *e,
 	if (e->regd >= RTW89_REGD_NUM)
 		return false;
 
+	/* ensure compatibility work with 2/5 GHz */
+	static_assert(RTW89_REG_6GHZ_POWER_DFLT == 0);
+
+	if (e->reg6_pwr >= NUM_OF_RTW89_REG_6GHZ_POWER)
+		return false;
+
 	return true;
 }
 
@@ -11930,7 +11936,7 @@ void rtw89_fw_load_tx_shape_lmt(struct rtw89_tx_shape_lmt_data *data)
 		if (!fw_tx_shape_lmt_entry_valid(&entry, cursor, conf))
 			continue;
 
-		data->v[entry.band][entry.tx_shape_rs][entry.regd] = entry.v;
+		data->v[entry.band][entry.tx_shape_rs][entry.regd][entry.reg6_pwr] = entry.v;
 	}
 }
 
@@ -11947,6 +11953,12 @@ fw_tx_shape_lmt_ru_entry_valid(const struct rtw89_fw_tx_shape_lmt_ru_entry *e,
 	if (e->regd >= RTW89_REGD_NUM)
 		return false;
 
+	/* ensure compatibility work with 2/5 GHz */
+	static_assert(RTW89_REG_6GHZ_POWER_DFLT == 0);
+
+	if (e->reg6_pwr >= NUM_OF_RTW89_REG_6GHZ_POWER)
+		return false;
+
 	return true;
 }
 
@@ -11961,7 +11973,7 @@ void rtw89_fw_load_tx_shape_lmt_ru(struct rtw89_tx_shape_lmt_ru_data *data)
 		if (!fw_tx_shape_lmt_ru_entry_valid(&entry, cursor, conf))
 			continue;
 
-		data->v[entry.band][entry.regd] = entry.v;
+		data->v[entry.band][entry.regd][entry.reg6_pwr] = entry.v;
 	}
 }
 

@@ -4921,8 +4921,9 @@ struct rtw89_txpwr_rule_6ghz {
 };
 
 struct rtw89_tx_shape {
-	const u8 (*lmt)[RTW89_BAND_NUM][RTW89_RS_TX_SHAPE_NUM][RTW89_REGD_NUM];
-	const u8 (*lmt_ru)[RTW89_BAND_NUM][RTW89_REGD_NUM];
+	const u8 (*lmt)[RTW89_BAND_NUM][RTW89_RS_TX_SHAPE_NUM][RTW89_REGD_NUM]
+		       [NUM_OF_RTW89_REG_6GHZ_POWER];
+	const u8 (*lmt_ru)[RTW89_BAND_NUM][RTW89_REGD_NUM][NUM_OF_RTW89_REG_6GHZ_POWER];
 
 	const u8 (*lmt_v0)[RTW89_BAND_NUM][RTW89_RS_TX_SHAPE_NUM][RTW89_REGD_NUM];
 	const u8 (*lmt_ru_v0)[RTW89_BAND_NUM][RTW89_REGD_NUM];
@@ -5019,12 +5020,13 @@ struct rtw89_txpwr_lmt_ru_6ghz_data {
 
 struct rtw89_tx_shape_lmt_data {
 	struct rtw89_txpwr_conf conf;
-	u8 v[RTW89_BAND_NUM][RTW89_RS_TX_SHAPE_NUM][RTW89_REGD_NUM];
+	u8 v[RTW89_BAND_NUM][RTW89_RS_TX_SHAPE_NUM][RTW89_REGD_NUM]
+	    [NUM_OF_RTW89_REG_6GHZ_POWER];
 };
 
 struct rtw89_tx_shape_lmt_ru_data {
 	struct rtw89_txpwr_conf conf;
-	u8 v[RTW89_BAND_NUM][RTW89_REGD_NUM];
+	u8 v[RTW89_BAND_NUM][RTW89_REGD_NUM][NUM_OF_RTW89_REG_6GHZ_POWER];
 };
 
 struct rtw89_rfe_data {
@@ -8454,8 +8456,10 @@ static inline u8 rtw89_regd_get(struct rtw89_dev *rtwdev, u8 band)
 static inline u8 rtw89_get_tx_shape_idx(struct rtw89_dev *rtwdev, u8 band,
 					enum rtw89_rate_section rs)
 {
+	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
 	const struct rtw89_rfe_parms *rfe_parms = rtwdev->rfe_parms;
 	const struct rtw89_tx_shape *tx_shape = &rfe_parms->tx_shape;
+	u8 reg6_pwr = regulatory->reg_6ghz_power;
 	u8 regd = rtw89_regd_get(rtwdev, band);
 
 	if (unlikely(rs >= RTW89_RS_TX_SHAPE_NUM))
@@ -8464,7 +8468,10 @@ static inline u8 rtw89_get_tx_shape_idx(struct rtw89_dev *rtwdev, u8 band,
 	if (!tx_shape->lmt)
 		goto v0;
 
-	return (*tx_shape->lmt)[band][rs][regd];
+	if (band != RTW89_BAND_6G)
+		reg6_pwr = RTW89_REG_6GHZ_POWER_DFLT;
+
+	return (*tx_shape->lmt)[band][rs][regd][reg6_pwr];
 
 v0:
 	return (*tx_shape->lmt_v0)[band][rs][regd];
