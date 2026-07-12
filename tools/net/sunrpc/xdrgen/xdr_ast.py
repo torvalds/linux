@@ -498,7 +498,7 @@ class _RpcProcedure(_XdrAst):
     """RPC procedure definition"""
 
     name: str
-    number: str
+    number: int
     argument: _XdrTypeSpecifier
     result: _XdrTypeSpecifier
 
@@ -508,7 +508,7 @@ class _RpcVersion(_XdrAst):
     """RPC version definition"""
 
     name: str
-    number: str
+    number: int
     procedures: List[_RpcProcedure]
 
 
@@ -517,7 +517,7 @@ class _RpcProgram(_XdrAst):
     """RPC program definition"""
 
     name: str
-    number: str
+    number: int
     versions: List[_RpcVersion]
 
 
@@ -933,11 +933,69 @@ def check_duplicate_definitions(root: "Specification") -> None:
             _check_rpc_scope_names(definition.value)
 
 
+# RFC 5531 (Section 9) encodes program, version, and procedure numbers
+# as unsigned 32-bit integers, so each must fall within [0, 2**32 - 1].
+_RPC_NUMBER_MAX = 2**32 - 1
+
+
+def _check_rpc_number(kind: str, number: int, scope: str, meta) -> None:
+    """Reject one RPC number that is negative or wider than 32 bits."""
+    if number < 0:
+        raise XdrSemanticError(
+            f"negative {kind} number {number} {scope}",
+            meta,
+        )
+    if number > _RPC_NUMBER_MAX:
+        raise XdrSemanticError(
+            f"{kind} number {number} {scope} exceeds {_RPC_NUMBER_MAX}",
+            meta,
+        )
+
+
+def check_rpc_number_range(root: "Specification") -> None:
+    """Reject an out-of-range program, version, or procedure number.
+
+    RFC 5531 assigns only unsigned constants to program, version, and
+    procedure numbers (Section 12.3) and encodes each as an unsigned
+    32-bit integer (Section 9). RFC 4506 Section 6.2 permits a signed
+    decimal constant for XDR constants in general and sets no ceiling on
+    magnitude, so the grammar accepts an out-of-range value; the range
+    is enforced here instead. The parser retains no per-version or
+    per-procedure source location, so a violation is reported against the
+    program definition.
+    """
+    for definition in root.definitions:
+        program = definition.value
+        if not isinstance(program, _RpcProgram):
+            continue
+        _check_rpc_number(
+            "program",
+            program.number,
+            f"in program '{program.name}'",
+            definition.meta,
+        )
+        for version in program.versions:
+            _check_rpc_number(
+                "version",
+                version.number,
+                f"in program '{program.name}'",
+                definition.meta,
+            )
+            for procedure in version.procedures:
+                _check_rpc_number(
+                    "procedure",
+                    procedure.number,
+                    f"in version '{version.name}'",
+                    definition.meta,
+                )
+
+
 def transform_parse_tree(parse_tree):
     """Transform productions into an abstract syntax tree"""
     ast = transformer.transform(parse_tree)
     ast.definitions = _merge_consecutive_passthru(ast.definitions)
     check_duplicate_definitions(ast)
+    check_rpc_number_range(ast)
     return ast
 
 
