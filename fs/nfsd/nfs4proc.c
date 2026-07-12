@@ -42,6 +42,7 @@
 #include <linux/sunrpc/addr.h>
 #include <linux/nfs_ssc.h>
 
+#include "attr4.h"
 #include "idmap.h"
 #include "cache.h"
 #include "xdr4.h"
