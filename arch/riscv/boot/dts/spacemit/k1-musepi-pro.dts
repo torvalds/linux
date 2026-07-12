@@ -102,7 +102,7 @@
 &eth0 {
 	phy-handle = <&rgmii0>;
 	phy-mode = "rgmii-id";
-	pinctrl-0 = <&gmac0_cfg>;
+	pinctrl-0 = <&gmac0_cfg>, <&gmac0_clk_ref_cfg>;
 	pinctrl-names = "default";
 	rx-internal-delay-ps = <0>;
 	tx-internal-delay-ps = <0>;
