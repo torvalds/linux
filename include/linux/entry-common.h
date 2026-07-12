@@ -58,7 +58,7 @@ static __always_inline bool arch_ptrace_report_syscall_permit_entry(struct pt_re
 }
 #endif
 
-long trace_syscall_enter(struct pt_regs *regs, long syscall);
+void trace_syscall_enter(struct pt_regs *regs);
 void trace_syscall_exit(struct pt_regs *regs, long ret);
 void syscall_enter_audit(struct pt_regs *regs);
 
@@ -99,16 +99,14 @@ static __always_inline long syscall_trace_enter(struct pt_regs *regs, unsigned l
 			return -1L;
 	}
 
-	/* Either of the above might have changed the syscall number */
-	syscall = syscall_get_nr(current, regs);
-
 	if (unlikely(work & SYSCALL_WORK_SYSCALL_TRACEPOINT))
-		syscall = trace_syscall_enter(regs, syscall);
+		trace_syscall_enter(regs);
 
 	if (unlikely(audit_context()))
 		syscall_enter_audit(regs);
 
-	return syscall;
+	/* Either of the above might have changed the syscall number */
+	return syscall_get_nr(current, regs);
 }
 
 /**
