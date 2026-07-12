@@ -1454,6 +1454,7 @@ int smb_grant_oplock(struct ksmbd_work *work, int req_op_level, u64 pid,
 	bool prev_durable_detached = false;
 	unsigned long long prev_fid = KSMBD_NO_FID;
 	bool new_lease = false;
+	bool break_needed;
 	__le32 prev_op_state = 0;
 
 	/* Only v2 leases handle the directory */
@@ -1532,8 +1533,11 @@ int smb_grant_oplock(struct ksmbd_work *work, int req_op_level, u64 pid,
 		goto err_out;
 	}
 
-	if (prev_opinfo->level != SMB2_OPLOCK_LEVEL_BATCH &&
-	    prev_opinfo->level != SMB2_OPLOCK_LEVEL_EXCLUSIVE) {
+	break_needed = prev_opinfo->level == SMB2_OPLOCK_LEVEL_BATCH ||
+		prev_opinfo->level == SMB2_OPLOCK_LEVEL_EXCLUSIVE ||
+		(share_ret < 0 && prev_op_has_lease &&
+		 (prev_op_state & SMB2_LEASE_HANDLE_CACHING_LE));
+	if (!break_needed) {
 		opinfo_put(prev_opinfo);
 		goto op_break_not_needed;
 	}
