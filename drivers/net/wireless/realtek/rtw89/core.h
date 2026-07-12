@@ -5418,6 +5418,7 @@ struct rtw89_chip_info {
 	const struct wiphy_wowlan_support *wowlan_stub;
 	const struct rtw89_xtal_info *xtal_info;
 	unsigned long default_quirks; /* bitmap of rtw89_quirks */
+	u16 txtime_limit_2ghz;
 };
 
 struct rtw89_chip_variant {

@@ -1173,8 +1173,10 @@ static void rtw8922d_set_channel_mac(struct rtw89_dev *rtwdev,
 	u32 sub_carr = rtw89_mac_reg_by_idx(rtwdev, R_BE_TX_SUB_BAND_VALUE, mac_idx);
 	u32 chk_rate = rtw89_mac_reg_by_idx(rtwdev, R_BE_TXRATE_CHK, mac_idx);
 	u32 rf_mod = rtw89_mac_reg_by_idx(rtwdev, R_BE_WMAC_RFMOD, mac_idx);
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	u8 txsb20 = 0, txsb40 = 0, txsb80 = 0;
 	u8 rf_mod_val, chk_rate_mask, sifs;
+	u16 tx_time = AMPDU_MAX_TIME_V1;
 	u32 txsb;
 	u32 reg;
 
@@ -1255,6 +1257,12 @@ static void rtw8922d_set_channel_mac(struct rtw89_dev *rtwdev,
 
 	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_MUEDCA_EN, mac_idx);
 	rtw89_write32_mask(rtwdev, reg, B_BE_SIFS_MACTXEN_TB_T1_DOT05US_MASK, sifs);
+
+	if (chan->band_type == RTW89_BAND_2G && chip->txtime_limit_2ghz)
+		tx_time = min_t(u32, tx_time, chip->txtime_limit_2ghz * 1000 >> 15);
+
+	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_AMPDU_AGG_LIMIT, mac_idx);
+	rtw89_write32_mask(rtwdev, reg, B_BE_AMPDU_MAX_TIME_MASK, tx_time);
 }
 
 static const u32 rtw8922d_sco_barker_threshold[14] = {
@@ -3757,6 +3765,7 @@ const struct rtw89_chip_info rtw8922d_chip_info = {
 #endif
 	.xtal_info		= NULL,
 	.default_quirks		= BIT(RTW89_QUIRK_THERMAL_PROT_120C),
+	.txtime_limit_2ghz	= 4608,
 };
 EXPORT_SYMBOL(rtw8922d_chip_info);
 

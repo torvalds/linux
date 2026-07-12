@@ -7050,10 +7050,22 @@ __rtw89_mac_set_tx_time(struct rtw89_dev *rtwdev, struct rtw89_sta_link *rtwsta_
 {
 #define MAC_AX_DFLT_TX_TIME 5280
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	u8 mac_idx = rtwsta_link->rtwvif_link->mac_idx;
 	u32 max_tx_time = tx_time == 0 ? MAC_AX_DFLT_TX_TIME : tx_time;
+	struct rtw89_entity_conf conf;
+	const struct rtw89_chan *chan;
 	u32 reg;
 	int ret = 0;
+
+	if (chip->txtime_limit_2ghz) {
+		rtw89_entity_get_conf(rtwdev, &conf);
+		chan = conf.chans[mac_idx];
+
+		if (chan->band_type == RTW89_BAND_2G)
+			max_tx_time = min_t(u32, max_tx_time,
+					    chip->txtime_limit_2ghz);
+	}
 
 	if (rtwsta_link->cctl_tx_time) {
 		rtwsta_link->ampdu_max_time = (max_tx_time - 512) >> 9;
@@ -7065,9 +7077,13 @@ __rtw89_mac_set_tx_time(struct rtw89_dev *rtwdev, struct rtw89_sta_link *rtwsta_
 			return ret;
 		}
 
+		if (chip->chip_gen == RTW89_CHIP_AX)
+			max_tx_time >>= 5;
+		else
+			max_tx_time = max_tx_time * 1000 >> 15;
+
 		reg = rtw89_mac_reg_by_idx(rtwdev, mac->agg_limit.addr, mac_idx);
-		rtw89_write32_mask(rtwdev, reg, mac->agg_limit.mask,
-				   max_tx_time >> 5);
+		rtw89_write32_mask(rtwdev, reg, mac->agg_limit.mask, max_tx_time);
 	}
 
 	return ret;
