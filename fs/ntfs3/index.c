@@ -2711,18 +2711,28 @@ int indx_delete_entry(struct ntfs_index *indx, struct ntfs_inode *ni,
 
 		err = attr_set_size(ni, ATTR_ALLOC, in->name, in->name_len,
 				    &indx->alloc_run, 0, NULL, false);
+		if (err)
+			goto out;
+
 		if (in->name == I30_NAME)
 			i_size_write(&ni->vfs_inode, 0);
 
 		err = ni_remove_attr(ni, ATTR_ALLOC, in->name, in->name_len,
 				     false, NULL);
 		run_close(&indx->alloc_run);
+		if (err)
+			goto out;
 
 		err = attr_set_size(ni, ATTR_BITMAP, in->name, in->name_len,
 				    &indx->bitmap_run, 0, NULL, false);
+		if (err)
+			goto out;
+
 		err = ni_remove_attr(ni, ATTR_BITMAP, in->name, in->name_len,
 				     false, NULL);
 		run_close(&indx->bitmap_run);
+		if (err)
+			goto out;
 
 		root = indx_get_root(indx, ni, &attr, &mi);
 		if (!root) {
