@@ -3395,6 +3395,7 @@ int smb2_open(struct ksmbd_work *work)
 	u64 time, alloc_size = 0;
 	umode_t posix_mode = 0;
 	__le32 daccess, maximal_access = 0;
+	u32 dos_attr;
 	int iov_len = 0;
 
 	ksmbd_debug(SMB, "Received smb2 create request\n");
@@ -4205,12 +4206,18 @@ int smb2_open(struct ksmbd_work *work)
 	fp->change_time = ksmbd_UnixTimeToNT(stat.ctime);
 	fp->allocation_size = S_ISDIR(stat.mode) ? 0 :
 		(alloc_size ?: stat.blocks << 9);
-	if (req->FileAttributes || fp->f_ci->m_fattr == 0)
+	if (created || fp->f_ci->m_fattr == 0)
 		fp->f_ci->m_fattr =
 			cpu_to_le32(smb2_get_dos_mode(&stat, le32_to_cpu(req->FileAttributes)));
 
 	if (!created)
 		smb2_update_xattrs(tcon, &path, fp);
+	if (need_truncate && req->FileAttributes) {
+		dos_attr = le32_to_cpu(req->FileAttributes);
+		fp->f_ci->m_fattr =
+			cpu_to_le32(smb2_get_dos_mode(&stat, dos_attr));
+		smb2_new_xattrs(tcon, &path, fp);
+	}
 
 	ksmbd_vfs_update_compressed_fattr(path.dentry, &fp->f_ci->m_fattr);
 
