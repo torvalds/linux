@@ -3,6 +3,7 @@
 
 #include <linux/sched.h>
 #include "nfsd.h"
+#include "export.h"
 #include "auth.h"
 
 int nfsexp_flags(struct svc_cred *cred, struct svc_export *exp)

@@ -23,8 +23,6 @@
 
 #include <uapi/linux/nfsd/debug.h>
 
-#include "export.h"
-
 #undef ifdebug
 #ifdef CONFIG_SUNRPC_DEBUG
 # define ifdebug(flag)		if (nfsd_debug & NFSDDBG_##flag)
