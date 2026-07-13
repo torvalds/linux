@@ -444,6 +444,7 @@ static inline void list_del_init_careful(struct list_head *entry)
  * if another CPU could re-list_add() it.
  */
 static inline int list_empty_careful(const struct list_head *head)
+	__context_unsafe(/* intentional lockless access to @head */)
 {
 	struct list_head *next = smp_load_acquire(&head->next);
 	return list_is_head(next, head) && (next == READ_ONCE(head->prev));
