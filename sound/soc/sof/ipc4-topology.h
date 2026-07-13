@@ -167,7 +167,7 @@ struct sof_ipc4_pipeline {
 };
 
 /**
- * struct sof_ipc4_multi_pipeline_data - multi pipeline trigger IPC data
+ * struct ipc4_pipeline_set_state_data - multi pipeline trigger IPC data
  * @count: Number of pipelines to be triggered
  * @pipeline_instance_ids: Flexible array of IDs of the pipelines to be triggered
  */
@@ -210,7 +210,7 @@ struct sof_ipc4_available_audio_format {
  * @node_id: ID of Gateway Node
  * @dma_buffer_size: Preferred Gateway DMA buffer size (in bytes)
  * @config_length: Length of gateway node configuration blob specified in #config_data
- * config_data: Gateway node configuration blob
+ * @config_data: Gateway node configuration blob
  */
 struct sof_copier_gateway_cfg {
 	uint32_t node_id;
@@ -285,7 +285,9 @@ struct sof_ipc4_dma_stream_ch_map {
 struct sof_ipc4_dma_config {
 	uint8_t dma_method;
 	uint8_t pre_allocated_by_host;
+	/* private: */
 	uint16_t rsvd;
+	/* public: */
 	uint32_t dma_channel_id;
 	uint32_t stream_id;
 	struct sof_ipc4_dma_stream_ch_map dma_stream_channel_map;
@@ -296,7 +298,7 @@ struct sof_ipc4_dma_config {
 #define SOF_IPC4_GTW_DMA_CONFIG_ID 0x1000
 
 /**
- * struct sof_ipc4_dma_config: DMA configuration
+ * struct sof_ipc4_dma_config_tlv - DMA configuration
  * @type: set to SOF_IPC4_GTW_DMA_CONFIG_ID
  * @length: sizeof(struct sof_ipc4_dma_config) + dma_config.dma_priv_config_size
  * @dma_config: actual DMA configuration
@@ -321,6 +323,7 @@ struct sof_ipc4_alh_configuration_blob {
  * @data: IPC copier data
  * @copier_config: Copier + blob
  * @ipc_config_size: Size of copier_config
+ * @ipc_config_data: Copier module config data
  * @available_fmt: Available audio format
  * @frame_fmt: frame format
  * @msg: message structure for copier
