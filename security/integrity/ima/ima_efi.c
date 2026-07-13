@@ -17,6 +17,8 @@ static const char * const sb_arch_rules[] = {
 #endif
 #if IS_ENABLED(CONFIG_INTEGRITY_MACHINE_KEYRING) && IS_ENABLED(CONFIG_IMA_KEYRINGS_PERMIT_SIGNED_BY_BUILTIN_OR_SECONDARY)
 	"appraise func=POLICY_CHECK appraise_type=imasig",
+#else
+	"measure func=CRITICAL_DATA label=ima_policy",
 #endif
 	"measure func=MODULE_CHECK",
 	NULL
