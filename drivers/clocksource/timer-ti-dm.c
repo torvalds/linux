@@ -1375,10 +1375,8 @@ static int omap_dm_timer_setup_clockevent(struct dmtimer *timer)
 
 	ret = devm_request_irq(dev, timer->irq, omap_dm_timer_evt_interrupt,
 			       IRQF_TIMER, "omap_dm_timer_clockevent", clkevt);
-	if (ret) {
-		dev_err(dev, "Failed to request interrupt: %d\n", ret);
+	if (ret)
 		return ret;
-	}
 
 	__omap_dm_timer_int_enable(timer, OMAP_TIMER_INT_OVERFLOW);
 

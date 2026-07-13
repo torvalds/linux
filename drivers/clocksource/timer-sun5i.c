@@ -247,10 +247,8 @@ static int sun5i_setup_clockevent(struct platform_device *pdev,
 	ret = devm_request_irq(dev, irq, sun5i_timer_interrupt,
 			       IRQF_TIMER | IRQF_IRQPOLL,
 			       "sun5i_timer0", ce);
-	if (ret) {
-		dev_err(dev, "Unable to register interrupt\n");
+	if (ret)
 		return ret;
-	}
 
 	return 0;
 }

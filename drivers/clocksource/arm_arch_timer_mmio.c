@@ -313,10 +313,8 @@ static int arch_timer_mmio_frame_register(struct platform_device *pdev,
 	ret = devm_request_irq(&pdev->dev, irq, arch_timer_mmio_handler,
 			       IRQF_TIMER | IRQF_NO_AUTOEN, "arch_mem_timer",
 			       &at->evt);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to request mem timer irq\n");
+	if (ret)
 		return ret;
-	}
 
 	/* Afer this point, we're not allowed to fail anymore */
 	arch_timer_mmio_setup(at, irq);
