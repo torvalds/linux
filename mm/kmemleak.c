@@ -2015,6 +2015,26 @@ scan_gray:
 }
 
 /*
+ * Promote a suspected object to a reported leak once it has stayed
+ * unreferenced for min_unref_scans consecutive scans. Called with
+ * object->lock held; returns true when the object is newly reported.
+ */
+static bool confirm_leak(struct kmemleak_object *object)
+{
+	if (!unreferenced_object(object) ||
+	    !(object->flags & OBJECT_SUSPECT) ||
+	    (object->flags & OBJECT_REPORTED))
+		return false;
+
+	object->unref_scans += 1;
+	if (object->unref_scans < min_unref_scans)
+		return false;
+
+	object->flags |= OBJECT_REPORTED;
+	return true;
+}
+
+/*
  * Scan the memory and report the unreferenced objects as leaks. Must be
  * called with the scan_mutex held.
  */
@@ -2074,11 +2094,7 @@ static void kmemleak_scan(void)
 		trace_handle = 0;
 		dedup_print = false;
 
-		if (unreferenced_object(object) &&
-		    (object->flags & OBJECT_SUSPECT) &&
-		    !(object->flags & OBJECT_REPORTED) &&
-		    ++object->unref_scans >= min_unref_scans) {
-			object->flags |= OBJECT_REPORTED;
+		if (confirm_leak(object)) {
 			if (kmemleak_verbose) {
 				trace_handle = object->trace_handle;
 				dedup_print = true;
