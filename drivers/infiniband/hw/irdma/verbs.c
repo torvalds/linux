@@ -1315,6 +1315,11 @@ int irdma_modify_qp_roce(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	u8 issue_modify_qp = 0;
 	int ret = 0;
 
+	/* Clear the response buffer (if any). It may be updated again later. */
+	ret = ib_respond_empty_udata(udata);
+	if (ret)
+		return ret;
+
 	ctx_info = &iwqp->ctx_info;
 	roce_info = &iwqp->roce_info;
 	udp_info = &iwqp->udp_info;
@@ -1674,6 +1679,10 @@ int irdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask,
 	u8 dont_wait = 0;
 	int err;
 	unsigned long flags;
+
+	err = ib_respond_empty_udata(udata);
+	if (err)
+		return err;
 
 	if (udata) {
 		/* udata inlen/outlen can be 0 when supporting legacy libi40iw */
@@ -2094,6 +2103,10 @@ static int irdma_resize_cq(struct ib_cq *ibcq, unsigned int entries,
 	if (entries > rf->max_cqe)
 		return -EINVAL;
 
+	ret = ib_respond_empty_udata(udata);
+	if (ret)
+		return ret;
+
 	if (!iwcq->user_mode) {
 		entries += 2;
 
@@ -2394,6 +2407,7 @@ static int irdma_create_srq(struct ib_srq *ibsrq,
 			    struct ib_srq_init_attr *initattrs,
 			    struct ib_udata *udata)
 {
+#define IRDMA_CREATE_SRQ_MIN_RESP_LEN offsetofend(struct irdma_create_srq_resp, srq_size)
 	struct irdma_device *iwdev = to_iwdev(ibsrq->device);
 	struct ib_srq_attr *attr = &initattrs->attr;
 	struct irdma_pd *iwpd = to_iwpd(ibsrq->pd);
@@ -2413,6 +2427,9 @@ static int irdma_create_srq(struct ib_srq *ibsrq,
 
 	if (initattrs->srq_type != IB_SRQT_BASIC)
 		return -EOPNOTSUPP;
+
+	if (udata && udata->outlen < IRDMA_CREATE_SRQ_MIN_RESP_LEN)
+		return -EINVAL;
 
 	if (!(uk_attrs->feature_flags & IRDMA_FEATURE_SRQ) ||
 	    attr->max_sge > uk_attrs->max_hw_wq_frags)
@@ -3605,6 +3622,10 @@ static struct ib_mr *irdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 len,
 
 	if (dmah)
 		return ERR_PTR(-EOPNOTSUPP);
+
+	err = ib_respond_empty_udata(udata);
+	if (err)
+		return ERR_PTR(err);
 
 	if (len > iwdev->rf->sc_dev.hw_attrs.max_mr_size)
 		return ERR_PTR(-EINVAL);
