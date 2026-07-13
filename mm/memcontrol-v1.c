@@ -752,7 +752,7 @@ static int compare_thresholds(const void *a, const void *b)
 	return 0;
 }
 
-static int mem_cgroup_oom_notify_cb(struct mem_cgroup *memcg)
+static void mem_cgroup_oom_notify_cb(struct mem_cgroup *memcg)
 {
 	struct mem_cgroup_eventfd_list *ev;
 
@@ -762,7 +762,6 @@ static int mem_cgroup_oom_notify_cb(struct mem_cgroup *memcg)
 		eventfd_signal(ev->eventfd);
 
 	spin_unlock(&memcg_oom_lock);
-	return 0;
 }
 
 static void mem_cgroup_oom_notify(struct mem_cgroup *memcg)
