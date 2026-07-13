@@ -1072,6 +1072,12 @@ static void swap_reclaim_full_clusters(struct swap_info_struct *si, bool force)
 		swap_cluster_unlock(ci);
 		if (to_scan <= 0)
 			break;
+
+		/*
+		 * When 'force' is false, 'to_scan' is initialized to 1.
+		 * The loop breaks above, making this cond_resched() unreachable
+		 * in atomic contexts.
+		 */
 		cond_resched();
 	}
 }
