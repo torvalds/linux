@@ -93,6 +93,7 @@ static inline int mem_cgroup_swappiness(struct mem_cgroup *memcg)
 
 struct swap_io_ctx {
 	struct swap_iocb	*sio;
+	struct swap_info_struct	*sis;
 };
 
 #ifdef CONFIG_SWAP
