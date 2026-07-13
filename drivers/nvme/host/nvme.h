@@ -575,7 +575,7 @@ struct nvme_ns_head {
 #define NVME_NSHEAD_DISK_LIVE		0
 #define NVME_NSHEAD_QUEUE_IF_NO_PATH	1
 #define NVME_NSHEAD_CDEV_LIVE		2
-	struct nvme_ns __rcu	*current_path[];
+	struct nvme_ns __rcu_guarded	*current_path[];
 #endif
 };
 
