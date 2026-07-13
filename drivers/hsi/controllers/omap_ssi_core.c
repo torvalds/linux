@@ -370,11 +370,8 @@ static int ssi_add_controller(struct hsi_controller *ssi,
 							(unsigned long)ssi);
 	err = devm_request_irq(&ssi->device, omap_ssi->gdd_irq, ssi_gdd_isr,
 						0, "gdd_mpu", ssi);
-	if (err < 0) {
-		dev_err(&ssi->device, "Request GDD IRQ %d failed (%d)",
-							omap_ssi->gdd_irq, err);
+	if (err < 0)
 		goto out_err;
-	}
 
 	omap_ssi->port = devm_kcalloc(&ssi->device, ssi->num_ports,
 				      sizeof(*omap_ssi->port), GFP_KERNEL);
