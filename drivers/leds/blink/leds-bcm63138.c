@@ -236,8 +236,8 @@ static void bcm63138_leds_create_led(struct bcm63138_leds *leds,
 
 	pinctrl = devm_pinctrl_get_select_default(led->cdev.dev);
 	if (IS_ERR(pinctrl) && PTR_ERR(pinctrl) != -ENODEV) {
-		dev_warn(led->cdev.dev, "Failed to select %pOF pinctrl: %ld\n",
-			 np, PTR_ERR(pinctrl));
+		dev_warn(led->cdev.dev, "Failed to select %pOF pinctrl: %pe\n",
+			 np, pinctrl);
 	}
 
 	bit = BIT(led->pin);
