@@ -21,20 +21,20 @@
 #include "kvm_util.h"
 #include "processor.h"
 
-#define TEST_INVALID_CR_BIT(vcpu, cr, orig, bit)				\
+#define TEST_INVALID_SREG_BIT(vcpu, reg, orig, bit)				\
 do {										\
 	struct kvm_sregs new;							\
 	int rc;									\
 										\
 	/* Skip the sub-test, the feature/bit is supported. */			\
-	if (orig.cr & bit)							\
+	if (orig.reg & bit)							\
 		break;								\
 										\
-	memcpy(&new, &orig, sizeof(sregs));					\
-	new.cr |= bit;								\
+	memcpy(&new, &orig, sizeof(new));					\
+	new.reg |= bit;								\
 										\
 	rc = _vcpu_sregs_set(vcpu, &new);					\
-	TEST_ASSERT(rc, "KVM allowed invalid " #cr " bit (0x%lx)", bit);	\
+	TEST_ASSERT(rc, "KVM allowed invalid " #reg " bit (0x%lx)", (u64)bit);	\
 										\
 	/* Sanity check that KVM didn't change anything. */			\
 	vcpu_sregs_get(vcpu, &new);						\
@@ -45,6 +45,8 @@ do {										\
 				X86_CR4_DE | X86_CR4_PSE | X86_CR4_PAE |	\
 				X86_CR4_MCE | X86_CR4_PGE | X86_CR4_PCE |	\
 				X86_CR4_OSFXSR | X86_CR4_OSXMMEXCPT)
+
+#define KVM_ALWAYS_ALLOWED_EFER EFER_SCE
 
 static u64 calc_supported_cr4_feature_bits(void)
 {
@@ -74,6 +76,24 @@ static u64 calc_supported_cr4_feature_bits(void)
 	return cr4;
 }
 
+static u64 calc_supported_efer_feature_bits(void)
+{
+	u64 efer = KVM_ALWAYS_ALLOWED_EFER;
+
+	if (kvm_cpu_has(X86_FEATURE_LM))
+		efer |= (EFER_LME | EFER_LMA);
+	if (kvm_cpu_has(X86_FEATURE_NX))
+		efer |= EFER_NX;
+	if (kvm_cpu_has(X86_FEATURE_SVM))
+		efer |= EFER_SVME;
+	if (kvm_cpu_has(X86_FEATURE_FXSR_OPT))
+		efer |= EFER_FFXSR;
+	if (kvm_cpu_has(X86_FEATURE_AUTOIBRS))
+		efer |= EFER_AUTOIBRS;
+
+	return efer;
+}
+
 static void test_cr_bits(struct kvm_vcpu *vcpu, u64 cr4)
 {
 	struct kvm_sregs sregs;
@@ -96,26 +116,45 @@ static void test_cr_bits(struct kvm_vcpu *vcpu, u64 cr4)
 		    (sregs.cr4 & X86_CR4_PKE) ? "set" : "clear");
 
 	vcpu_sregs_get(vcpu, &sregs);
-	TEST_ASSERT(sregs.cr4 == cr4, "sregs.CR4 (0x%llx) != CR4 (0x%lx)",
-		    sregs.cr4, cr4);
+	TEST_ASSERT_EQ(sregs.cr4, cr4);
 
-	TEST_INVALID_CR_BIT(vcpu, cr4, sregs, X86_CR4_UMIP);
-	TEST_INVALID_CR_BIT(vcpu, cr4, sregs, X86_CR4_LA57);
-	TEST_INVALID_CR_BIT(vcpu, cr4, sregs, X86_CR4_VMXE);
-	TEST_INVALID_CR_BIT(vcpu, cr4, sregs, X86_CR4_SMXE);
-	TEST_INVALID_CR_BIT(vcpu, cr4, sregs, X86_CR4_FSGSBASE);
-	TEST_INVALID_CR_BIT(vcpu, cr4, sregs, X86_CR4_PCIDE);
-	TEST_INVALID_CR_BIT(vcpu, cr4, sregs, X86_CR4_OSXSAVE);
-	TEST_INVALID_CR_BIT(vcpu, cr4, sregs, X86_CR4_SMEP);
-	TEST_INVALID_CR_BIT(vcpu, cr4, sregs, X86_CR4_SMAP);
-	TEST_INVALID_CR_BIT(vcpu, cr4, sregs, X86_CR4_PKE);
+	TEST_INVALID_SREG_BIT(vcpu, cr4, sregs, X86_CR4_UMIP);
+	TEST_INVALID_SREG_BIT(vcpu, cr4, sregs, X86_CR4_LA57);
+	TEST_INVALID_SREG_BIT(vcpu, cr4, sregs, X86_CR4_VMXE);
+	TEST_INVALID_SREG_BIT(vcpu, cr4, sregs, X86_CR4_SMXE);
+	TEST_INVALID_SREG_BIT(vcpu, cr4, sregs, X86_CR4_FSGSBASE);
+	TEST_INVALID_SREG_BIT(vcpu, cr4, sregs, X86_CR4_PCIDE);
+	TEST_INVALID_SREG_BIT(vcpu, cr4, sregs, X86_CR4_OSXSAVE);
+	TEST_INVALID_SREG_BIT(vcpu, cr4, sregs, X86_CR4_SMEP);
+	TEST_INVALID_SREG_BIT(vcpu, cr4, sregs, X86_CR4_SMAP);
+	TEST_INVALID_SREG_BIT(vcpu, cr4, sregs, X86_CR4_PKE);
 
 	for (i = 32; i < 64; i++)
-		TEST_INVALID_CR_BIT(vcpu, cr0, sregs, BIT(i));
+		TEST_INVALID_SREG_BIT(vcpu, cr0, sregs, BIT(i));
 
 	/* NW without CD is illegal, as is PG without PE. */
-	TEST_INVALID_CR_BIT(vcpu, cr0, sregs, X86_CR0_NW);
-	TEST_INVALID_CR_BIT(vcpu, cr0, sregs, X86_CR0_PG);
+	TEST_INVALID_SREG_BIT(vcpu, cr0, sregs, X86_CR0_NW);
+	TEST_INVALID_SREG_BIT(vcpu, cr0, sregs, X86_CR0_PG);
+}
+
+static void test_efer_bits(struct kvm_vcpu *vcpu, u64 efer)
+{
+	struct kvm_sregs sregs;
+	int rc;
+
+	vcpu_sregs_get(vcpu, &sregs);
+	sregs.efer |= efer;
+	rc = _vcpu_sregs_set(vcpu, &sregs);
+	TEST_ASSERT(!rc, "Failed to set supported EFER bits (0x%llx)", sregs.efer);
+
+	vcpu_sregs_get(vcpu, &sregs);
+	TEST_ASSERT_EQ(sregs.efer, efer);
+
+	TEST_INVALID_SREG_BIT(vcpu, efer, sregs, EFER_LME);
+	TEST_INVALID_SREG_BIT(vcpu, efer, sregs, EFER_NX);
+	TEST_INVALID_SREG_BIT(vcpu, efer, sregs, EFER_SVME);
+	TEST_INVALID_SREG_BIT(vcpu, efer, sregs, EFER_FFXSR);
+	TEST_INVALID_SREG_BIT(vcpu, efer, sregs, EFER_AUTOIBRS);
 }
 
 int main(int argc, char *argv[])
@@ -132,6 +171,7 @@ int main(int argc, char *argv[])
 	 */
 	vm = vm_create_barebones();
 	vcpu = __vm_vcpu_add(vm, 0);
+	test_efer_bits(vcpu, KVM_ALWAYS_ALLOWED_EFER);
 	test_cr_bits(vcpu, KVM_ALWAYS_ALLOWED_CR4);
 	kvm_vm_free(vm);
 
@@ -151,6 +191,7 @@ int main(int argc, char *argv[])
 		    sregs.apic_base);
 
 	test_cr_bits(vcpu, calc_supported_cr4_feature_bits());
+	test_efer_bits(vcpu, calc_supported_efer_feature_bits());
 
 	kvm_vm_free(vm);
 
