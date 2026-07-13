@@ -28,6 +28,7 @@ struct nf_ct_ftp_master {
  * connection we should expect. */
 typedef unsigned int
 nf_nat_ftp_hook_fn(struct sk_buff *skb,
+		   struct nf_conn *ct,
 		   enum ip_conntrack_info ctinfo,
 		   enum nf_ct_ftp_type type,
 		   unsigned int protoff,
