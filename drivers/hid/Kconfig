@@ -433,6 +433,19 @@ config HOLTEK_FF
 	  Say Y here if you have a Holtek On Line Grip based game controller
 	  and want to have force feedback support for it.
 
+config HID_HYPERX
+	tristate "HyperX microphones"
+	depends on USB_HID
+	help
+	  Support for the mute button of HyperX microphones.
+
+	  The button is handled in the device firmware and only reports the
+	  resulting mute state through a vendor-defined collection, so without
+	  this driver userspace never learns that the microphone was muted.
+
+	  Supported devices:
+	  - HyperX QuadCast 2
+
 config HID_VIVALDI_COMMON
 	tristate
 	help
