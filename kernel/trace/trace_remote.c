@@ -1004,11 +1004,10 @@ int trace_remote_alloc_buffer(struct trace_buffer_desc *desc, size_t desc_size, 
 		desc->nr_cpus++;
 
 		for (id = 0; id < nr_pages; id++) {
+			rb_desc->nr_page_va++;
 			rb_desc->page_va[id] = (unsigned long)__get_free_page(GFP_KERNEL);
 			if (!rb_desc->page_va[id])
 				goto err;
-
-			rb_desc->nr_page_va++;
 		}
 		rb_desc = __next_ring_buffer_desc(rb_desc);
 	}
