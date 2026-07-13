@@ -8,7 +8,12 @@
 #include <kunit/test.h>
 #include <linux/device.h>
 
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_audio_component.h>
+#include <drm/drm_connector.h>
+#include <drm/drm_eld.h>
+#include <drm/drm_kunit_helpers.h>
+#include <drm/drm_probe_helper.h>
 
 #include "dc.h"
 #include "dc/inc/core_types.h"
@@ -17,6 +22,20 @@
 #include "amdgpu_mode.h"
 #include "amdgpu_dm.h"
 #include "amdgpu_dm_audio.h"
+#include "amdgpu_dm_kunit_test_helpers.h"
+
+static const struct drm_connector_funcs dm_test_audio_connector_funcs = {
+	.reset = drm_atomic_helper_connector_reset,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+	.fill_modes = drm_helper_probe_single_connector_modes,
+	.destroy = drm_connector_cleanup,
+};
+
+static void dm_test_audio_connector_cleanup(void *data)
+{
+	drm_connector_cleanup(data);
+}
 
 /* Tests for amdgpu_dm_audio_init() */
 
@@ -569,6 +588,103 @@ static void dm_test_audio_init_pins_zero_count(struct kunit *test)
 
 /* End of tests for amdgpu_dm_audio_init_pins() */
 
+/* Tests for amdgpu_dm_audio_component_get_eld() */
+
+/**
+ * dm_test_audio_component_get_eld_copies_matching_connector - Test ELD lookup
+ * @test: The KUnit test context
+ *
+ * The bound component callback should find the connector whose audio instance
+ * matches the requested port, report it enabled, and copy the connector ELD.
+ */
+static void dm_test_audio_component_get_eld_copies_matching_connector(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct amdgpu_dm_connector *aconnector;
+	struct drm_connector *wb_connector;
+	struct drm_audio_component *acomp;
+	struct device *kdev;
+	unsigned char buf[DRM_ELD_HEADER_BLOCK_SIZE + 8] = {0};
+	bool enabled = false;
+	int ret;
+
+	kdev = adev->ddev.dev;
+	KUNIT_ASSERT_NOT_NULL(test, kdev);
+	acomp = kunit_kzalloc(test, sizeof(*acomp), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, acomp);
+	wb_connector = kunit_kzalloc(test, sizeof(*wb_connector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, wb_connector);
+	KUNIT_ASSERT_EQ(test, drm_connector_init(&adev->ddev, wb_connector,
+						 &dm_test_audio_connector_funcs,
+						 DRM_MODE_CONNECTOR_WRITEBACK), 0);
+	KUNIT_ASSERT_EQ(test, kunit_add_action_or_reset(test,
+			 dm_test_audio_connector_cleanup, wb_connector), 0);
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+	KUNIT_ASSERT_EQ(test, drm_connector_init(&adev->ddev, &aconnector->base,
+						 &dm_test_audio_connector_funcs,
+						 DRM_MODE_CONNECTOR_HDMIA), 0);
+	KUNIT_ASSERT_EQ(test, kunit_add_action_or_reset(test,
+			 dm_test_audio_connector_cleanup, &aconnector->base), 0);
+
+	mutex_init(&adev->dm.audio_lock);
+	aconnector->audio_inst = 3;
+	aconnector->base.eld[DRM_ELD_BASELINE_ELD_LEN] = 2;
+	aconnector->base.eld[DRM_ELD_VER] = DRM_ELD_VER_CEA861D;
+	aconnector->base.eld[DRM_ELD_SPEAKER] = DRM_ELD_SPEAKER_FLR;
+	dev_set_drvdata(kdev, &adev->ddev);
+
+	KUNIT_ASSERT_EQ(test, amdgpu_dm_audio_component_bind(kdev, NULL, acomp), 0);
+	ret = acomp->ops->get_eld(kdev, 3, 0, &enabled, buf, sizeof(buf));
+
+	KUNIT_EXPECT_EQ(test, ret, DRM_ELD_HEADER_BLOCK_SIZE + 8);
+	KUNIT_EXPECT_TRUE(test, enabled);
+	KUNIT_EXPECT_EQ(test, memcmp(buf, aconnector->base.eld, ret), 0);
+}
+
+/**
+ * dm_test_audio_component_get_eld_no_match - Test ELD lookup miss
+ * @test: The KUnit test context
+ *
+ * A non-matching connector should leave the audio port disabled and return an
+ * empty ELD size without copying data.
+ */
+static void dm_test_audio_component_get_eld_no_match(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct amdgpu_dm_connector *aconnector;
+	struct drm_audio_component *acomp;
+	struct device *kdev;
+	unsigned char buf[DRM_ELD_HEADER_BLOCK_SIZE] = {0x5a};
+	bool enabled = true;
+	int ret;
+
+	kdev = adev->ddev.dev;
+	KUNIT_ASSERT_NOT_NULL(test, kdev);
+	acomp = kunit_kzalloc(test, sizeof(*acomp), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, acomp);
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+	KUNIT_ASSERT_EQ(test, drm_connector_init(&adev->ddev, &aconnector->base,
+						 &dm_test_audio_connector_funcs,
+						 DRM_MODE_CONNECTOR_HDMIA), 0);
+	KUNIT_ASSERT_EQ(test, kunit_add_action_or_reset(test,
+			 dm_test_audio_connector_cleanup, &aconnector->base), 0);
+
+	mutex_init(&adev->dm.audio_lock);
+	aconnector->audio_inst = 4;
+	dev_set_drvdata(kdev, &adev->ddev);
+
+	KUNIT_ASSERT_EQ(test, amdgpu_dm_audio_component_bind(kdev, NULL, acomp), 0);
+	ret = acomp->ops->get_eld(kdev, 3, 0, &enabled, buf, sizeof(buf));
+
+	KUNIT_EXPECT_EQ(test, ret, 0);
+	KUNIT_EXPECT_FALSE(test, enabled);
+	KUNIT_EXPECT_EQ(test, buf[0], 0x5a);
+}
+
 static struct kunit_case dm_audio_test_cases[] = {
 	/* amdgpu_dm_audio_init */
 	KUNIT_CASE(dm_test_audio_init_disabled),
@@ -593,6 +709,9 @@ static struct kunit_case dm_audio_test_cases[] = {
 	KUNIT_CASE(dm_test_eld_notify_no_component),
 	KUNIT_CASE(dm_test_eld_notify_null_audio_ops),
 	KUNIT_CASE(dm_test_eld_notify_null_callback),
+	/* amdgpu_dm_audio_component_get_eld */
+	KUNIT_CASE(dm_test_audio_component_get_eld_copies_matching_connector),
+	KUNIT_CASE(dm_test_audio_component_get_eld_no_match),
 	{}
 };
 
