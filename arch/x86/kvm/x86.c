@@ -6910,24 +6910,25 @@ EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_setup_xss_caps);
 
 static void kvm_setup_efer_caps(void)
 {
-	kvm_init_efer_bits();
+	/* Enable syscall by default because its emulated by KVM */
+	kvm_caps.supported_efer_bits = (u64)EFER_SCE;
 
 	if (kvm_cpu_cap_has(X86_FEATURE_LM))
-		kvm_enable_efer_bits(EFER_LME | EFER_LMA);
+		kvm_caps.supported_efer_bits |= (EFER_LME | EFER_LMA);
 
 	if (kvm_cpu_cap_has(X86_FEATURE_NX))
-		kvm_enable_efer_bits(EFER_NX);
+		kvm_caps.supported_efer_bits |= EFER_NX;
 
 	if (kvm_cpu_cap_has(X86_FEATURE_FXSR_OPT))
-		kvm_enable_efer_bits(EFER_FFXSR);
+		kvm_caps.supported_efer_bits |= EFER_FFXSR;
 
 	if (kvm_cpu_cap_has(X86_FEATURE_AUTOIBRS))
-		kvm_enable_efer_bits(EFER_AUTOIBRS);
+		kvm_caps.supported_efer_bits |= EFER_AUTOIBRS;
 
 	if (kvm_cpu_cap_has(X86_FEATURE_SVM)) {
-		kvm_enable_efer_bits(EFER_SVME);
+		kvm_caps.supported_efer_bits |= EFER_SVME;
 		if (!boot_cpu_has(X86_FEATURE_EFER_LMSLE_MBZ))
-			kvm_enable_efer_bits(EFER_LMSLE);
+			kvm_caps.supported_efer_bits |= EFER_LMSLE;
 	}
 }
 

@@ -272,6 +272,8 @@ struct kvm_caps {
 	u64 supported_xss;
 	u64 supported_perf_cap;
 
+	u64 supported_efer_bits;
+
 	u64 supported_quirks;
 	u64 inapplicable_quirks;
 };

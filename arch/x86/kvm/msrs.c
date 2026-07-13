@@ -19,8 +19,6 @@ bool __read_mostly report_ignored_msrs = true;
 module_param(report_ignored_msrs, bool, 0644);
 EXPORT_SYMBOL_FOR_KVM_INTERNAL(report_ignored_msrs);
 
-static u64 __read_mostly efer_supported_bits;
-
 #define MAX_IO_MSRS 256
 
 struct msr_bitmap_range {
@@ -605,7 +603,7 @@ static bool __kvm_valid_efer(struct kvm_vcpu *vcpu, u64 efer)
 }
 bool kvm_valid_efer(struct kvm_vcpu *vcpu, u64 efer)
 {
-	if (efer & ~efer_supported_bits)
+	if (efer & ~kvm_caps.supported_efer_bits)
 		return false;
 
 	return __kvm_valid_efer(vcpu, efer);
@@ -618,7 +616,7 @@ static int set_efer(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	u64 efer = msr_info->data;
 	int r;
 
-	if (efer & ~efer_supported_bits)
+	if (efer & ~kvm_caps.supported_efer_bits)
 		return 1;
 
 	if (!msr_info->host_initiated) {
@@ -648,19 +646,6 @@ static int set_efer(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 
 	return 0;
 }
-
-void kvm_init_efer_bits(void)
-{
-	/* Enable syscall by default because its emulated by KVM */
-	efer_supported_bits = (u64)EFER_SCE;
-}
-EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_init_efer_bits);
-
-void kvm_enable_efer_bits(u64 mask)
-{
-	efer_supported_bits |= mask;
-}
-EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_enable_efer_bits);
 
 bool kvm_msr_allowed(struct kvm_vcpu *vcpu, u32 index, u32 type)
 {
