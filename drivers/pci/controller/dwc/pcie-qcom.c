@@ -372,6 +372,12 @@ static void qcom_pcie_set_slot_cap(struct dw_pcie *pci)
 	 */
 	val = readl(pci->dbi_base + offset + PCI_EXP_SLTCAP);
 	val |= PCI_EXP_SLTCAP_NCCS;
+
+	/*
+	 * Qcom PCIe Root Ports do not support Attention Button, so clear
+	 * Attention Button Present in Slot Capabilities.
+	 */
+	val &= ~PCI_EXP_SLTCAP_ABP;
 	writel(val, pci->dbi_base + offset + PCI_EXP_SLTCAP);
 
 	dw_pcie_dbi_ro_wr_dis(pci);
