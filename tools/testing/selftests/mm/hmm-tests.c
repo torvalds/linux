@@ -229,6 +229,53 @@ static void hmm_buffer_free(struct hmm_buffer *buffer)
 }
 
 /*
+ * Allocate a buffer structure with memory mapping and mirror.
+ *
+ * @mmap_size:   total size of the mmap region (may differ from @mirror_size
+ *               for alignment padding in THP tests).
+ * @mirror_size: size of the mirror data buffer (the actual working set).
+ * @prot:        protection flags for the mmap (e.g. PROT_READ | PROT_WRITE).
+ * @flags:       flags for the mmap (e.g. MAP_PRIVATE, MAP_SHARED,
+ *               MAP_ANONYMOUS, MAP_HUGETLB).
+ * @fd:          file descriptor for the mmap; pass -1 for MAP_ANONYMOUS.
+ *
+ * All internal allocations are checked; returns NULL and cleans up on any
+ * failure. Caller must ASSERT_NE or otherwise check the return value.
+ */
+static struct hmm_buffer *hmm_buffer_alloc(unsigned long mmap_size,
+						unsigned long mirror_size,
+						int prot, int flags,
+						int fd)
+{
+	struct hmm_buffer *buffer;
+
+	buffer = malloc(sizeof(*buffer));
+	if (!buffer) {
+		perror("malloc buffer");
+		return NULL;
+	}
+
+	buffer->fd = fd;
+	buffer->size = mmap_size;
+	buffer->mirror = malloc(mirror_size);
+	if (!buffer->mirror) {
+		perror("malloc mirror");
+		free(buffer);
+		return NULL;
+	}
+
+	buffer->ptr = mmap(NULL, mmap_size, prot, flags, fd, 0);
+	if (buffer->ptr == MAP_FAILED) {
+		perror("mmap");
+		free(buffer->mirror);
+		free(buffer);
+		return NULL;
+	}
+
+	return buffer;
+}
+
+/*
  * Create a temporary file that will be deleted on close.
  */
 static int hmm_create_file(unsigned long size)
@@ -318,19 +365,10 @@ TEST_F(hmm, anon_read)
 	ASSERT_NE(npages, 0);
 	size = npages << self->page_shift;
 
-	buffer = malloc(sizeof(*buffer));
+	buffer = hmm_buffer_alloc(size, size,
+				  PROT_READ | PROT_WRITE,
+				  MAP_PRIVATE | MAP_ANONYMOUS, -1);
 	ASSERT_NE(buffer, NULL);
-
-	buffer->fd = -1;
-	buffer->size = size;
-	buffer->mirror = malloc(size);
-	ASSERT_NE(buffer->mirror, NULL);
-
-	buffer->ptr = mmap(NULL, size,
-			   PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
-			   buffer->fd, 0);
-	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
 	/*
 	 * Initialize buffer in system memory but leave the first two pages
@@ -381,19 +419,10 @@ TEST_F(hmm, anon_read_prot)
 	ASSERT_NE(npages, 0);
 	size = npages << self->page_shift;
 
-	buffer = malloc(sizeof(*buffer));
+	buffer = hmm_buffer_alloc(size, size,
+				  PROT_READ | PROT_WRITE,
+				  MAP_PRIVATE | MAP_ANONYMOUS, -1);
 	ASSERT_NE(buffer, NULL);
-
-	buffer->fd = -1;
-	buffer->size = size;
-	buffer->mirror = malloc(size);
-	ASSERT_NE(buffer->mirror, NULL);
-
-	buffer->ptr = mmap(NULL, size,
-			   PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
-			   buffer->fd, 0);
-	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
 	/* Initialize buffer in system memory. */
 	for (i = 0, ptr = buffer->ptr; i < size / sizeof(*ptr); ++i)
@@ -440,19 +469,10 @@ TEST_F(hmm, anon_write)
 	ASSERT_NE(npages, 0);
 	size = npages << self->page_shift;
 
-	buffer = malloc(sizeof(*buffer));
+	buffer = hmm_buffer_alloc(size, size,
+				  PROT_READ | PROT_WRITE,
+				  MAP_PRIVATE | MAP_ANONYMOUS, -1);
 	ASSERT_NE(buffer, NULL);
-
-	buffer->fd = -1;
-	buffer->size = size;
-	buffer->mirror = malloc(size);
-	ASSERT_NE(buffer->mirror, NULL);
-
-	buffer->ptr = mmap(NULL, size,
-			   PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
-			   buffer->fd, 0);
-	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
 	/* Initialize data that the device will write to buffer->ptr. */
 	for (i = 0, ptr = buffer->mirror; i < size / sizeof(*ptr); ++i)
@@ -488,19 +508,10 @@ TEST_F(hmm, anon_write_prot)
 	ASSERT_NE(npages, 0);
 	size = npages << self->page_shift;
 
-	buffer = malloc(sizeof(*buffer));
+	buffer = hmm_buffer_alloc(size, size,
+				  PROT_READ,
+				  MAP_PRIVATE | MAP_ANONYMOUS, -1);
 	ASSERT_NE(buffer, NULL);
-
-	buffer->fd = -1;
-	buffer->size = size;
-	buffer->mirror = malloc(size);
-	ASSERT_NE(buffer->mirror, NULL);
-
-	buffer->ptr = mmap(NULL, size,
-			   PROT_READ,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
-			   buffer->fd, 0);
-	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
 	/* Simulate a device reading a zero page of memory. */
 	ret = hmm_dmirror_cmd(self->fd, HMM_DMIRROR_READ, buffer, 1);
@@ -563,20 +574,10 @@ TEST_F(hmm, anon_write_child)
 			ASSERT_NE(npages, 0);
 			size = npages << self->page_shift;
 
-			buffer = malloc(sizeof(*buffer));
+			buffer = hmm_buffer_alloc(size * 2, size,
+						  PROT_READ | PROT_WRITE,
+						  MAP_PRIVATE | MAP_ANONYMOUS, -1);
 			ASSERT_NE(buffer, NULL);
-
-			buffer->fd = -1;
-			buffer->size = size * 2;
-			buffer->mirror = malloc(size);
-			ASSERT_NE(buffer->mirror, NULL);
-
-			buffer->ptr = mmap(NULL, size * 2,
-					   PROT_READ | PROT_WRITE,
-					   MAP_PRIVATE | MAP_ANONYMOUS,
-					   buffer->fd, 0);
-			ASSERT_NE(buffer->ptr, MAP_FAILED);
-
 			old_ptr = buffer->ptr;
 			if (use_thp) {
 				map = (void *)ALIGN((uintptr_t)buffer->ptr, size);
@@ -665,19 +666,10 @@ TEST_F(hmm, anon_write_child_shared)
 	ASSERT_NE(npages, 0);
 	size = npages << self->page_shift;
 
-	buffer = malloc(sizeof(*buffer));
+	buffer = hmm_buffer_alloc(size, size,
+				  PROT_READ | PROT_WRITE,
+				  MAP_SHARED | MAP_ANONYMOUS, -1);
 	ASSERT_NE(buffer, NULL);
-
-	buffer->fd = -1;
-	buffer->size = size;
-	buffer->mirror = malloc(size);
-	ASSERT_NE(buffer->mirror, NULL);
-
-	buffer->ptr = mmap(NULL, size,
-			   PROT_READ | PROT_WRITE,
-			   MAP_SHARED | MAP_ANONYMOUS,
-			   buffer->fd, 0);
-	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
 	/* Initialize buffer->ptr so we can tell if it is written. */
 	for (i = 0, ptr = buffer->ptr; i < size / sizeof(*ptr); ++i)
@@ -740,20 +732,10 @@ TEST_F(hmm, anon_write_huge)
 
 	size = 2 * read_pmd_pagesize();
 
-	buffer = malloc(sizeof(*buffer));
+	buffer = hmm_buffer_alloc(size, size,
+				  PROT_READ | PROT_WRITE,
+				  MAP_PRIVATE | MAP_ANONYMOUS, -1);
 	ASSERT_NE(buffer, NULL);
-
-	buffer->fd = -1;
-	buffer->size = size;
-	buffer->mirror = malloc(size);
-	ASSERT_NE(buffer->mirror, NULL);
-
-	buffer->ptr = mmap(NULL, size,
-			   PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
-			   buffer->fd, 0);
-	ASSERT_NE(buffer->ptr, MAP_FAILED);
-
 	size /= 2;
 	npages = size >> self->page_shift;
 	map = (void *)ALIGN((uintptr_t)buffer->ptr, size);
@@ -799,22 +781,11 @@ TEST_F(hmm, anon_write_hugetlbfs)
 	size = ALIGN(TWOMEG, default_hsize);
 	npages = size >> self->page_shift;
 
-	buffer = malloc(sizeof(*buffer));
-	ASSERT_NE(buffer, NULL);
-
-	buffer->ptr = mmap(NULL, size,
-				   PROT_READ | PROT_WRITE,
-				   MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB,
-				   -1, 0);
-	if (buffer->ptr == MAP_FAILED) {
-		free(buffer);
+	buffer = hmm_buffer_alloc(size, size,
+				  PROT_READ | PROT_WRITE,
+				  MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1);
+	if (!buffer)
 		SKIP(return, "Huge page could not be allocated");
-	}
-
-	buffer->fd = -1;
-	buffer->size = size;
-	buffer->mirror = malloc(size);
-	ASSERT_NE(buffer->mirror, NULL);
 
 	/* Initialize data that the device will write to buffer->ptr. */
 	for (i = 0, ptr = buffer->mirror; i < size / sizeof(*ptr); ++i)
@@ -856,13 +827,10 @@ TEST_F(hmm, file_read)
 	fd = hmm_create_file(size);
 	ASSERT_GE(fd, 0);
 
-	buffer = malloc(sizeof(*buffer));
+	buffer = hmm_buffer_alloc(size, size,
+				  PROT_READ,
+				  MAP_SHARED, fd);
 	ASSERT_NE(buffer, NULL);
-
-	buffer->fd = fd;
-	buffer->size = size;
-	buffer->mirror = malloc(size);
-	ASSERT_NE(buffer->mirror, NULL);
 
 	/* Write initial contents of the file. */
 	for (i = 0, ptr = buffer->mirror; i < size / sizeof(*ptr); ++i)
@@ -870,12 +838,6 @@ TEST_F(hmm, file_read)
 	len = pwrite(fd, buffer->mirror, size, 0);
 	ASSERT_EQ(len, size);
 	memset(buffer->mirror, 0, size);
-
-	buffer->ptr = mmap(NULL, size,
-			   PROT_READ,
-			   MAP_SHARED,
-			   buffer->fd, 0);
-	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
 	/* Simulate a device reading system memory. */
 	ret = hmm_dmirror_cmd(self->fd, HMM_DMIRROR_READ, buffer, npages);
@@ -911,19 +873,10 @@ TEST_F(hmm, file_write)
 	fd = hmm_create_file(size);
 	ASSERT_GE(fd, 0);
 
-	buffer = malloc(sizeof(*buffer));
+	buffer = hmm_buffer_alloc(size, size,
+				  PROT_READ | PROT_WRITE,
+				  MAP_SHARED, fd);
 	ASSERT_NE(buffer, NULL);
-
-	buffer->fd = fd;
-	buffer->size = size;
-	buffer->mirror = malloc(size);
-	ASSERT_NE(buffer->mirror, NULL);
-
-	buffer->ptr = mmap(NULL, size,
-			   PROT_READ | PROT_WRITE,
-			   MAP_SHARED,
-			   buffer->fd, 0);
-	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
 	/* Initialize data that the device will write to buffer->ptr. */
 	for (i = 0, ptr = buffer->mirror; i < size / sizeof(*ptr); ++i)
@@ -964,19 +917,10 @@ TEST_F(hmm, migrate)
 	ASSERT_NE(npages, 0);
 	size = npages << self->page_shift;
 
-	buffer = malloc(sizeof(*buffer));
+	buffer = hmm_buffer_alloc(size, size,
+				  PROT_READ | PROT_WRITE,
+				  MAP_PRIVATE | MAP_ANONYMOUS, -1);
 	ASSERT_NE(buffer, NULL);
-
-	buffer->fd = -1;
-	buffer->size = size;
-	buffer->mirror = malloc(size);
-	ASSERT_NE(buffer->mirror, NULL);
-
-	buffer->ptr = mmap(NULL, size,
-			   PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
-			   buffer->fd, 0);
-	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
 	/* Initialize buffer in system memory. */
 	for (i = 0, ptr = buffer->ptr; i < size / sizeof(*ptr); ++i)
@@ -1014,19 +958,10 @@ TEST_F(hmm, migrate_file_private)
 	fd = hmm_create_file(size);
 	ASSERT_GE(fd, 0);
 
-	buffer = malloc(sizeof(*buffer));
+	buffer = hmm_buffer_alloc(size, size,
+				  PROT_READ | PROT_WRITE,
+				  MAP_PRIVATE, fd);
 	ASSERT_NE(buffer, NULL);
-
-	buffer->fd = fd;
-	buffer->size = size;
-	buffer->mirror = malloc(size);
-	ASSERT_NE(buffer->mirror, NULL);
-
-	buffer->ptr = mmap(NULL, size,
-			   PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE,
-			   buffer->fd, 0);
-	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
 	/* Initialize buffer in system memory. */
 	for (i = 0, ptr = buffer->ptr; i < size / sizeof(*ptr); ++i)
@@ -1062,19 +997,10 @@ TEST_F(hmm, migrate_fault)
 	ASSERT_NE(npages, 0);
 	size = npages << self->page_shift;
 
-	buffer = malloc(sizeof(*buffer));
+	buffer = hmm_buffer_alloc(size, size,
+				  PROT_READ | PROT_WRITE,
+				  MAP_PRIVATE | MAP_ANONYMOUS, -1);
 	ASSERT_NE(buffer, NULL);
-
-	buffer->fd = -1;
-	buffer->size = size;
-	buffer->mirror = malloc(size);
-	ASSERT_NE(buffer->mirror, NULL);
-
-	buffer->ptr = mmap(NULL, size,
-			   PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
-			   buffer->fd, 0);
-	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
 	/* Initialize buffer in system memory. */
 	for (i = 0, ptr = buffer->ptr; i < size / sizeof(*ptr); ++i)
@@ -1118,17 +1044,10 @@ TEST_F(hmm, migrate_release)
 	ASSERT_NE(npages, 0);
 	size = npages << self->page_shift;
 
-	buffer = malloc(sizeof(*buffer));
+	buffer = hmm_buffer_alloc(size, size,
+				  PROT_READ | PROT_WRITE,
+				  MAP_PRIVATE | MAP_ANONYMOUS, -1);
 	ASSERT_NE(buffer, NULL);
-
-	buffer->fd = -1;
-	buffer->size = size;
-	buffer->mirror = malloc(size);
-	ASSERT_NE(buffer->mirror, NULL);
-
-	buffer->ptr = mmap(NULL, size, PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS, buffer->fd, 0);
-	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
 	/* Initialize buffer in system memory. */
 	for (i = 0, ptr = buffer->ptr; i < size / sizeof(*ptr); ++i)
@@ -1168,19 +1087,10 @@ TEST_F(hmm, migrate_shared)
 	ASSERT_NE(npages, 0);
 	size = npages << self->page_shift;
 
-	buffer = malloc(sizeof(*buffer));
+	buffer = hmm_buffer_alloc(size, size,
+				  PROT_READ | PROT_WRITE,
+				  MAP_SHARED | MAP_ANONYMOUS, -1);
 	ASSERT_NE(buffer, NULL);
-
-	buffer->fd = -1;
-	buffer->size = size;
-	buffer->mirror = malloc(size);
-	ASSERT_NE(buffer->mirror, NULL);
-
-	buffer->ptr = mmap(NULL, size,
-			   PROT_READ | PROT_WRITE,
-			   MAP_SHARED | MAP_ANONYMOUS,
-			   buffer->fd, 0);
-	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
 	/* Migrate memory to device. */
 	ret = hmm_migrate_sys_to_dev(self->fd, buffer, npages);
@@ -1205,20 +1115,10 @@ TEST_F(hmm2, migrate_mixed)
 	npages = 6;
 	size = npages << self->page_shift;
 
-	buffer = malloc(sizeof(*buffer));
+	buffer = hmm_buffer_alloc(size, size,
+				  PROT_NONE,
+				  MAP_PRIVATE | MAP_ANONYMOUS, -1);
 	ASSERT_NE(buffer, NULL);
-
-	buffer->fd = -1;
-	buffer->size = size;
-	buffer->mirror = malloc(size);
-	ASSERT_NE(buffer->mirror, NULL);
-
-	/* Reserve a range of addresses. */
-	buffer->ptr = mmap(NULL, size,
-			   PROT_NONE,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
-			   buffer->fd, 0);
-	ASSERT_NE(buffer->ptr, MAP_FAILED);
 	p = buffer->ptr;
 
 	/* Migrating a protected area should be an error. */
@@ -1299,19 +1199,10 @@ TEST_F(hmm, migrate_multiple)
 	size = npages << self->page_shift;
 
 	for (c = 0; c < NTIMES; c++) {
-		buffer = malloc(sizeof(*buffer));
+		buffer = hmm_buffer_alloc(size, size,
+					  PROT_READ | PROT_WRITE,
+					  MAP_PRIVATE | MAP_ANONYMOUS, -1);
 		ASSERT_NE(buffer, NULL);
-
-		buffer->fd = -1;
-		buffer->size = size;
-		buffer->mirror = malloc(size);
-		ASSERT_NE(buffer->mirror, NULL);
-
-		buffer->ptr = mmap(NULL, size,
-				   PROT_READ | PROT_WRITE,
-				   MAP_PRIVATE | MAP_ANONYMOUS,
-				   buffer->fd, 0);
-		ASSERT_NE(buffer->ptr, MAP_FAILED);
 
 		/* Initialize buffer in system memory. */
 		for (i = 0, ptr = buffer->ptr; i < size / sizeof(*ptr); ++i)
@@ -1358,19 +1249,10 @@ TEST_F(hmm, anon_read_multiple)
 	size = npages << self->page_shift;
 
 	for (c = 0; c < NTIMES; c++) {
-		buffer = malloc(sizeof(*buffer));
+		buffer = hmm_buffer_alloc(size, size,
+					  PROT_READ | PROT_WRITE,
+					  MAP_PRIVATE | MAP_ANONYMOUS, -1);
 		ASSERT_NE(buffer, NULL);
-
-		buffer->fd = -1;
-		buffer->size = size;
-		buffer->mirror = malloc(size);
-		ASSERT_NE(buffer->mirror, NULL);
-
-		buffer->ptr = mmap(NULL, size,
-				   PROT_READ | PROT_WRITE,
-				   MAP_PRIVATE | MAP_ANONYMOUS,
-				   buffer->fd, 0);
-		ASSERT_NE(buffer->ptr, MAP_FAILED);
 
 		/* Initialize buffer in system memory. */
 		for (i = 0, ptr = buffer->ptr; i < size / sizeof(*ptr); ++i)
@@ -1424,19 +1306,10 @@ TEST_F(hmm, anon_teardown)
 		int *ptr;
 		int rc;
 
-		buffer = malloc(sizeof(*buffer));
+		buffer = hmm_buffer_alloc(size, size,
+					  PROT_READ | PROT_WRITE,
+					  MAP_PRIVATE | MAP_ANONYMOUS, -1);
 		ASSERT_NE(buffer, NULL);
-
-		buffer->fd = -1;
-		buffer->size = size;
-		buffer->mirror = malloc(size);
-		ASSERT_NE(buffer->mirror, NULL);
-
-		buffer->ptr = mmap(NULL, size,
-				   PROT_READ | PROT_WRITE,
-				   MAP_PRIVATE | MAP_ANONYMOUS,
-				   buffer->fd, 0);
-		ASSERT_NE(buffer->ptr, MAP_FAILED);
 
 		/* Initialize buffer in system memory. */
 		for (i = 0, ptr = buffer->ptr; i < size / sizeof(*ptr); ++i)
@@ -1478,21 +1351,10 @@ TEST_F(hmm, mixedmap)
 	npages = 1;
 	size = npages << self->page_shift;
 
-	buffer = malloc(sizeof(*buffer));
+	buffer = hmm_buffer_alloc(size, npages,
+				  PROT_READ | PROT_WRITE,
+				  MAP_PRIVATE, self->fd);
 	ASSERT_NE(buffer, NULL);
-
-	buffer->fd = -1;
-	buffer->size = size;
-	buffer->mirror = malloc(npages);
-	ASSERT_NE(buffer->mirror, NULL);
-
-
-	/* Reserve a range of addresses. */
-	buffer->ptr = mmap(NULL, size,
-			   PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE,
-			   self->fd, 0);
-	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
 	/* Simulate a device snapshotting CPU pagetables. */
 	ret = hmm_dmirror_cmd(self->fd, HMM_DMIRROR_SNAPSHOT, buffer, npages);
@@ -1523,20 +1385,10 @@ TEST_F(hmm2, snapshot)
 	npages = 7;
 	size = npages << self->page_shift;
 
-	buffer = malloc(sizeof(*buffer));
+	buffer = hmm_buffer_alloc(size, npages,
+				  PROT_NONE,
+				  MAP_PRIVATE | MAP_ANONYMOUS, -1);
 	ASSERT_NE(buffer, NULL);
-
-	buffer->fd = -1;
-	buffer->size = size;
-	buffer->mirror = malloc(npages);
-	ASSERT_NE(buffer->mirror, NULL);
-
-	/* Reserve a range of addresses. */
-	buffer->ptr = mmap(NULL, size,
-			   PROT_NONE,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
-			   buffer->fd, 0);
-	ASSERT_NE(buffer->ptr, MAP_FAILED);
 	p = buffer->ptr;
 
 	/* Punch a hole after the first page address. */
@@ -1630,21 +1482,11 @@ TEST_F(hmm, compound)
 	size = ALIGN(TWOMEG, default_hsize);
 	npages = size >> self->page_shift;
 
-	buffer = malloc(sizeof(*buffer));
-	ASSERT_NE(buffer, NULL);
-
-	buffer->ptr = mmap(NULL, size,
-				   PROT_READ | PROT_WRITE,
-				   MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB,
-				   -1, 0);
-	if (buffer->ptr == MAP_FAILED) {
-		free(buffer);
-		return;
-	}
-
-	buffer->size = size;
-	buffer->mirror = malloc(npages);
-	ASSERT_NE(buffer->mirror, NULL);
+	buffer = hmm_buffer_alloc(size, npages,
+				  PROT_READ | PROT_WRITE,
+				  MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1);
+	if (!buffer)
+		SKIP(return, "Huge page could not be allocated");
 
 	/* Initialize the pages the device will snapshot in buffer->ptr. */
 	for (i = 0, ptr = buffer->ptr; i < size / sizeof(*ptr); ++i)
@@ -1711,20 +1553,10 @@ TEST_F(hmm2, double_map)
 	npages = 6;
 	size = npages << self->page_shift;
 
-	buffer = malloc(sizeof(*buffer));
+	buffer = hmm_buffer_alloc(size, size,
+				  PROT_READ | PROT_WRITE,
+				  MAP_PRIVATE | MAP_ANONYMOUS, -1);
 	ASSERT_NE(buffer, NULL);
-
-	buffer->fd = -1;
-	buffer->size = size;
-	buffer->mirror = malloc(size);
-	ASSERT_NE(buffer->mirror, NULL);
-
-	/* Reserve a range of addresses. */
-	buffer->ptr = mmap(NULL, size,
-			   PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
-			   buffer->fd, 0);
-	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
 	/* Initialize buffer in system memory. */
 	for (i = 0, ptr = buffer->ptr; i < size / sizeof(*ptr); ++i)
@@ -1787,19 +1619,10 @@ TEST_F(hmm, exclusive)
 	ASSERT_NE(npages, 0);
 	size = npages << self->page_shift;
 
-	buffer = malloc(sizeof(*buffer));
+	buffer = hmm_buffer_alloc(size, size,
+				  PROT_READ | PROT_WRITE,
+				  MAP_PRIVATE | MAP_ANONYMOUS, -1);
 	ASSERT_NE(buffer, NULL);
-
-	buffer->fd = -1;
-	buffer->size = size;
-	buffer->mirror = malloc(size);
-	ASSERT_NE(buffer->mirror, NULL);
-
-	buffer->ptr = mmap(NULL, size,
-			   PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
-			   buffer->fd, 0);
-	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
 	/* Initialize buffer in system memory. */
 	for (i = 0, ptr = buffer->ptr; i < size / sizeof(*ptr); ++i)
@@ -1841,19 +1664,10 @@ TEST_F(hmm, exclusive_mprotect)
 	ASSERT_NE(npages, 0);
 	size = npages << self->page_shift;
 
-	buffer = malloc(sizeof(*buffer));
+	buffer = hmm_buffer_alloc(size, size,
+				  PROT_READ | PROT_WRITE,
+				  MAP_PRIVATE | MAP_ANONYMOUS, -1);
 	ASSERT_NE(buffer, NULL);
-
-	buffer->fd = -1;
-	buffer->size = size;
-	buffer->mirror = malloc(size);
-	ASSERT_NE(buffer->mirror, NULL);
-
-	buffer->ptr = mmap(NULL, size,
-			   PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
-			   buffer->fd, 0);
-	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
 	/* Initialize buffer in system memory. */
 	for (i = 0, ptr = buffer->ptr; i < size / sizeof(*ptr); ++i)
@@ -1896,19 +1710,10 @@ TEST_F(hmm, exclusive_cow)
 	ASSERT_NE(npages, 0);
 	size = npages << self->page_shift;
 
-	buffer = malloc(sizeof(*buffer));
+	buffer = hmm_buffer_alloc(size, size,
+				  PROT_READ | PROT_WRITE,
+				  MAP_PRIVATE | MAP_ANONYMOUS, -1);
 	ASSERT_NE(buffer, NULL);
-
-	buffer->fd = -1;
-	buffer->size = size;
-	buffer->mirror = malloc(size);
-	ASSERT_NE(buffer->mirror, NULL);
-
-	buffer->ptr = mmap(NULL, size,
-			   PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
-			   buffer->fd, 0);
-	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
 	/* Initialize buffer in system memory. */
 	for (i = 0, ptr = buffer->ptr; i < size / sizeof(*ptr); ++i)
@@ -1997,19 +1802,10 @@ TEST_F(hmm, hmm_gup_test)
 	npages = 4;
 	size = npages << self->page_shift;
 
-	buffer = malloc(sizeof(*buffer));
+	buffer = hmm_buffer_alloc(size, size,
+				  PROT_READ | PROT_WRITE,
+				  MAP_PRIVATE | MAP_ANONYMOUS, -1);
 	ASSERT_NE(buffer, NULL);
-
-	buffer->fd = -1;
-	buffer->size = size;
-	buffer->mirror = malloc(size);
-	ASSERT_NE(buffer->mirror, NULL);
-
-	buffer->ptr = mmap(NULL, size,
-			   PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
-			   buffer->fd, 0);
-	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
 	/* Initialize buffer in system memory. */
 	for (i = 0, ptr = buffer->ptr; i < size / sizeof(*ptr); ++i)
@@ -2083,19 +1879,10 @@ TEST_F(hmm, hmm_cow_in_device)
 	npages = 4;
 	size = npages << self->page_shift;
 
-	buffer = malloc(sizeof(*buffer));
+	buffer = hmm_buffer_alloc(size, size,
+				  PROT_READ | PROT_WRITE,
+				  MAP_PRIVATE | MAP_ANONYMOUS, -1);
 	ASSERT_NE(buffer, NULL);
-
-	buffer->fd = -1;
-	buffer->size = size;
-	buffer->mirror = malloc(size);
-	ASSERT_NE(buffer->mirror, NULL);
-
-	buffer->ptr = mmap(NULL, size,
-			   PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
-			   buffer->fd, 0);
-	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
 	/* Initialize buffer in system memory. */
 	for (i = 0, ptr = buffer->ptr; i < size / sizeof(*ptr); ++i)
@@ -2156,20 +1943,11 @@ TEST_F(hmm, migrate_anon_huge_empty)
 
 	size = read_pmd_pagesize();
 
-	buffer = malloc(sizeof(*buffer));
+	buffer = hmm_buffer_alloc(2 * size, size,
+				  PROT_READ,
+				  MAP_PRIVATE | MAP_ANONYMOUS, -1);
 	ASSERT_NE(buffer, NULL);
-
-	buffer->fd = -1;
-	buffer->size = 2 * size;
-	buffer->mirror = malloc(size);
-	ASSERT_NE(buffer->mirror, NULL);
 	memset(buffer->mirror, 0xFF, size);
-
-	buffer->ptr = mmap(NULL, 2 * size,
-			   PROT_READ,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
-			   buffer->fd, 0);
-	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
 	npages = size >> self->page_shift;
 	map = (void *)ALIGN((uintptr_t)buffer->ptr, size);
@@ -2208,20 +1986,11 @@ TEST_F(hmm, migrate_anon_huge_zero)
 
 	size = read_pmd_pagesize();
 
-	buffer = malloc(sizeof(*buffer));
+	buffer = hmm_buffer_alloc(2 * size, size,
+				  PROT_READ,
+				  MAP_PRIVATE | MAP_ANONYMOUS, -1);
 	ASSERT_NE(buffer, NULL);
-
-	buffer->fd = -1;
-	buffer->size = 2 * size;
-	buffer->mirror = malloc(size);
-	ASSERT_NE(buffer->mirror, NULL);
 	memset(buffer->mirror, 0xFF, size);
-
-	buffer->ptr = mmap(NULL, 2 * size,
-			   PROT_READ,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
-			   buffer->fd, 0);
-	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
 	npages = size >> self->page_shift;
 	map = (void *)ALIGN((uintptr_t)buffer->ptr, size);
@@ -2271,20 +2040,11 @@ TEST_F(hmm, migrate_anon_huge_free)
 
 	size = read_pmd_pagesize();
 
-	buffer = malloc(sizeof(*buffer));
+	buffer = hmm_buffer_alloc(2 * size, size,
+				  PROT_READ | PROT_WRITE,
+				  MAP_PRIVATE | MAP_ANONYMOUS, -1);
 	ASSERT_NE(buffer, NULL);
-
-	buffer->fd = -1;
-	buffer->size = 2 * size;
-	buffer->mirror = malloc(size);
-	ASSERT_NE(buffer->mirror, NULL);
 	memset(buffer->mirror, 0xFF, size);
-
-	buffer->ptr = mmap(NULL, 2 * size,
-			   PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
-			   buffer->fd, 0);
-	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
 	npages = size >> self->page_shift;
 	map = (void *)ALIGN((uintptr_t)buffer->ptr, size);
@@ -2333,20 +2093,11 @@ TEST_F(hmm, migrate_anon_huge_fault)
 
 	size = read_pmd_pagesize();
 
-	buffer = malloc(sizeof(*buffer));
+	buffer = hmm_buffer_alloc(2 * size, size,
+				  PROT_READ | PROT_WRITE,
+				  MAP_PRIVATE | MAP_ANONYMOUS, -1);
 	ASSERT_NE(buffer, NULL);
-
-	buffer->fd = -1;
-	buffer->size = 2 * size;
-	buffer->mirror = malloc(size);
-	ASSERT_NE(buffer->mirror, NULL);
 	memset(buffer->mirror, 0xFF, size);
-
-	buffer->ptr = mmap(NULL, 2 * size,
-			   PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
-			   buffer->fd, 0);
-	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
 	npages = size >> self->page_shift;
 	map = (void *)ALIGN((uintptr_t)buffer->ptr, size);
@@ -2429,21 +2180,11 @@ TEST_F(hmm, migrate_partial_unmap_fault)
 
 	for (use_thp = 0; use_thp < 2; ++use_thp) {
 		for (j = 0; j < ARRAY_SIZE(offsets); ++j) {
-			buffer = malloc(sizeof(*buffer));
+			buffer = hmm_buffer_alloc(2 * size, size,
+						  PROT_READ | PROT_WRITE,
+						  MAP_PRIVATE | MAP_ANONYMOUS, -1);
 			ASSERT_NE(buffer, NULL);
-
-			buffer->fd = -1;
-			buffer->size = 2 * size;
-			buffer->mirror = malloc(size);
-			ASSERT_NE(buffer->mirror, NULL);
 			memset(buffer->mirror, 0xFF, size);
-
-			buffer->ptr = mmap(NULL, 2 * size,
-					   PROT_READ | PROT_WRITE,
-					   MAP_PRIVATE | MAP_ANONYMOUS,
-					   buffer->fd, 0);
-			ASSERT_NE(buffer->ptr, MAP_FAILED);
-
 			npages = size >> self->page_shift;
 			map = (void *)ALIGN((uintptr_t)buffer->ptr, size);
 			if (use_thp)
@@ -2509,21 +2250,11 @@ TEST_F(hmm, migrate_remap_fault)
 					if (dont_unmap)
 						flags |= MREMAP_DONTUNMAP;
 
-					buffer = malloc(sizeof(*buffer));
+					buffer = hmm_buffer_alloc(8 * size, size,
+								  PROT_READ | PROT_WRITE,
+								  MAP_PRIVATE | MAP_ANONYMOUS, -1);
 					ASSERT_NE(buffer, NULL);
-
-					buffer->fd = -1;
-					buffer->size = 8 * size;
-					buffer->mirror = malloc(size);
-					ASSERT_NE(buffer->mirror, NULL);
 					memset(buffer->mirror, 0xFF, size);
-
-					buffer->ptr = mmap(NULL, buffer->size,
-							   PROT_READ | PROT_WRITE,
-							   MAP_PRIVATE | MAP_ANONYMOUS,
-							   buffer->fd, 0);
-					ASSERT_NE(buffer->ptr, MAP_FAILED);
-
 					npages = size >> self->page_shift;
 					map = (void *)ALIGN((uintptr_t)buffer->ptr, size);
 					if (use_thp)
@@ -2594,18 +2325,13 @@ TEST_F(hmm, migrate_anon_huge_err)
 
 	size = read_pmd_pagesize();
 
-	buffer = malloc(sizeof(*buffer));
+	buffer = hmm_buffer_alloc(2 * size, 2 * size,
+				  PROT_READ | PROT_WRITE,
+				  MAP_PRIVATE | MAP_ANONYMOUS, -1);
 	ASSERT_NE(buffer, NULL);
-
-	buffer->fd = -1;
-	buffer->size = 2 * size;
-	buffer->mirror = malloc(2 * size);
-	ASSERT_NE(buffer->mirror, NULL);
 	memset(buffer->mirror, 0xFF, 2 * size);
 
-	old_ptr = mmap(NULL, 2 * size, PROT_READ | PROT_WRITE,
-			MAP_PRIVATE | MAP_ANONYMOUS, buffer->fd, 0);
-	ASSERT_NE(old_ptr, MAP_FAILED);
+	old_ptr = buffer->ptr;
 
 	npages = size >> self->page_shift;
 	map = (void *)ALIGN((uintptr_t)old_ptr, size);
@@ -2689,18 +2415,13 @@ TEST_F(hmm, migrate_anon_huge_zero_err)
 
 	size = read_pmd_pagesize();
 
-	buffer = malloc(sizeof(*buffer));
+	buffer = hmm_buffer_alloc(2 * size, 2 * size,
+				  PROT_READ,
+				  MAP_PRIVATE | MAP_ANONYMOUS, -1);
 	ASSERT_NE(buffer, NULL);
-
-	buffer->fd = -1;
-	buffer->size = 2 * size;
-	buffer->mirror = malloc(2 * size);
-	ASSERT_NE(buffer->mirror, NULL);
 	memset(buffer->mirror, 0xFF, 2 * size);
 
-	old_ptr = mmap(NULL, 2 * size, PROT_READ,
-			MAP_PRIVATE | MAP_ANONYMOUS, buffer->fd, 0);
-	ASSERT_NE(old_ptr, MAP_FAILED);
+	old_ptr = buffer->ptr;
 
 	npages = size >> self->page_shift;
 	map = (void *)ALIGN((uintptr_t)old_ptr, size);
@@ -2770,19 +2491,6 @@ static double get_time_ms(void)
 	return (tv.tv_sec * 1000.0) + (tv.tv_usec / 1000.0);
 }
 
-static inline struct hmm_buffer *hmm_buffer_alloc(unsigned long size)
-{
-	struct hmm_buffer *buffer;
-
-	buffer = malloc(sizeof(*buffer));
-
-	buffer->fd = -1;
-	buffer->size = size;
-	buffer->mirror = malloc(size);
-	memset(buffer->mirror, 0xFF, size);
-	return buffer;
-}
-
 static void print_benchmark_results(const char *test_name, size_t buffer_size,
 				     struct benchmark_results *thp,
 				     struct benchmark_results *regular)
@@ -2827,17 +2535,14 @@ static inline int run_migration_benchmark(int fd, int use_thp, size_t buffer_siz
 	int ret, i;
 	int *ptr;
 
-	buffer = hmm_buffer_alloc(buffer_size);
-
-	/* Map memory */
-	buffer->ptr = mmap(NULL, buffer_size, PROT_READ | PROT_WRITE,
-			  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-
-	if (buffer->ptr == MAP_FAILED) {
-		buffer->ptr = NULL;
+	buffer = hmm_buffer_alloc(buffer_size, buffer_size,
+				  PROT_READ | PROT_WRITE,
+				  MAP_PRIVATE | MAP_ANONYMOUS, -1);
+	if (!buffer) {
 		ret = -1;
 		goto cleanup;
 	}
+	memset(buffer->mirror, 0xFF, buffer_size);
 
 	/* Apply THP hint if requested */
 	if (use_thp)
