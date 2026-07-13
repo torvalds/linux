@@ -95,6 +95,14 @@
 
 extern nodemask_t _unused_nodemask_arg_;
 
+#if MAX_NUMNODES > 1
+extern unsigned int nr_node_ids;
+extern unsigned int nr_online_nodes;
+#else
+#define nr_node_ids		1U
+#define nr_online_nodes		1U
+#endif
+
 /**
  * nodemask_pr_args - printf args to output a nodemask
  * @maskp: nodemask to be printed
@@ -105,7 +113,7 @@ extern nodemask_t _unused_nodemask_arg_;
 				__nodemask_pr_bits(maskp)
 static __always_inline unsigned int __nodemask_pr_numnodes(const nodemask_t *m)
 {
-	return m ? MAX_NUMNODES : 0;
+	return m ? nr_node_ids : 0;
 }
 static __always_inline const unsigned long *__nodemask_pr_bits(const nodemask_t *m)
 {
@@ -438,9 +446,6 @@ static __always_inline unsigned int next_memory_node(int nid)
 	return next_node(nid, node_states[N_MEMORY]);
 }
 
-extern unsigned int nr_node_ids;
-extern unsigned int nr_online_nodes;
-
 static __always_inline void node_set_online(int nid)
 {
 	node_set_state(nid, N_ONLINE);
@@ -480,8 +485,6 @@ static __always_inline int num_node_state(enum node_states state)
 #define first_memory_node	0
 #define next_online_node(nid)	(MAX_NUMNODES)
 #define next_memory_node(nid)	(MAX_NUMNODES)
-#define nr_node_ids		1U
-#define nr_online_nodes		1U
 
 #define node_set_online(node)	   node_set_state((node), N_ONLINE)
 #define node_set_offline(node)	   node_clear_state((node), N_ONLINE)
