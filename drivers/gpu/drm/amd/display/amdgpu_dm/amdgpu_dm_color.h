@@ -44,6 +44,7 @@ struct dc_plane_state;
 struct fixed31_32;
 struct tetrahedral_params;
 struct dc_transfer_func;
+struct dc_3dlut;
 
 #if IS_ENABLED(CONFIG_DRM_AMD_DC_KUNIT_TEST)
 /*
