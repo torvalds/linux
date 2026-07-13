@@ -139,7 +139,8 @@ void dpcs60_program_eq_setting(
 		bool no_ffe,
 		const struct dc_hdmi_frl_link_settings *link_settings)
 {
-	const uint8_t max_ffe_level = 0x7;
+	const uint8_t max_ffe_level =
+			(link_settings->frl_link_rate > HDMI_FRL_LINK_RATE_12GBPS) ? 0x7 : 0x3;
 	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
 	struct bp_transmitter_control cntl = { 0 };
 
