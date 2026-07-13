@@ -561,7 +561,8 @@ struct nvme_ns_head {
 	u16			nr_plids;
 	u16			*plids;
 #ifdef CONFIG_NVME_MULTIPATH
-	struct bio_list		requeue_list;
+	struct bio_list		requeue_list
+		__guarded_by(&requeue_lock);
 	spinlock_t		requeue_lock;
 	struct work_struct	requeue_work;
 	struct work_struct	partition_scan_work;
