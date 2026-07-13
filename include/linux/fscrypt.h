@@ -872,8 +872,6 @@ void fscrypt_set_bio_crypt_ctx(struct bio *bio, const struct inode *inode,
 bool fscrypt_mergeable_bio(struct bio *bio, const struct inode *inode,
 			   loff_t pos);
 
-bool fscrypt_dio_supported(struct inode *inode);
-
 u64 fscrypt_limit_io_blocks(const struct inode *inode, u64 lblk, u64 nr_blocks);
 
 #else /* CONFIG_FS_ENCRYPTION_INLINE_CRYPT */
@@ -887,11 +885,6 @@ static inline bool fscrypt_mergeable_bio(struct bio *bio,
 					 loff_t pos)
 {
 	return true;
-}
-
-static inline bool fscrypt_dio_supported(struct inode *inode)
-{
-	return !fscrypt_needs_contents_encryption(inode);
 }
 
 static inline u64 fscrypt_limit_io_blocks(const struct inode *inode, u64 lblk,
