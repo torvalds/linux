@@ -321,6 +321,7 @@ notify:
 		amdgpu_dm_audio_eld_notify(adev, inst);
 	}
 }
+EXPORT_IF_KUNIT(amdgpu_dm_commit_audio);
 
 #if IS_ENABLED(CONFIG_DRM_AMD_DC_KUNIT_TEST)
 int amdgpu_dm_audio_get_param(void)
