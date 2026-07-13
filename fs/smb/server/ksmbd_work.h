@@ -90,6 +90,8 @@ struct ksmbd_work {
 	bool                            compress_response:1;
 	/* Is this SYNC or ASYNC ksmbd_work */
 	bool                            asynchronous:1;
+	/* Work owns a reference to @conn. */
+	bool				owns_conn_ref:1;
 	bool                            need_invalidate_rkey:1;
 
 	unsigned int                    remote_key;

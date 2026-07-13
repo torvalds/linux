@@ -86,6 +86,8 @@ void ksmbd_free_work_struct(struct ksmbd_work *work)
 
 	if (work->async_id)
 		ksmbd_release_id(&work->conn->async_ida, work->async_id);
+	if (work->owns_conn_ref)
+		ksmbd_conn_put(work->conn);
 	kmem_cache_free(work_cache, work);
 }
 

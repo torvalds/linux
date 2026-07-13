@@ -10510,7 +10510,9 @@ int smb2_notify(struct ksmbd_work *work)
 
 	smb2_send_interim_resp(work, STATUS_PENDING);
 
-	in_work->conn = work->conn;
+	/* Keep the async IDA alive until the deferred work is released. */
+	in_work->conn = ksmbd_conn_get(work->conn);
+	in_work->owns_conn_ref = true;
 	in_hdr = smb_get_msg(in_work->response_buf);
 	memcpy(in_hdr, ksmbd_resp_buf_next(work), __SMB2_HEADER_STRUCTURE_SIZE);
 	in_hdr->Flags |= SMB2_FLAGS_ASYNC_COMMAND;
