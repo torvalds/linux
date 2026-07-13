@@ -504,7 +504,11 @@ pub struct Normal;
 /// callback it appears in. It is intended to be used for synchronization purposes. Bus device
 /// implementations can implement methods for [`Device<Core>`], such that they can only be called
 /// from bus callbacks.
-pub struct Core<'a>(PhantomData<&'a ()>);
+///
+/// The lifetime `'a` is for "lifetime branding" purpose. Callbacks need to polymorphic over this
+/// lifetime so the `&'bound Device<Core<'_>>` provided to them cannot outlive the scope of the
+/// function. For this reason, it needs to be invariant.
+pub struct Core<'a>(PhantomData<fn(&'a ()) -> &'a ()>);
 
 /// Semantically the same as [`Core`], but reserved for internal usage of the corresponding bus
 /// abstraction.
@@ -515,7 +519,9 @@ pub struct Core<'a>(PhantomData<&'a ()>);
 ///
 /// This context mainly exists to share generic [`Device`] infrastructure that should only be called
 /// from bus callbacks with bus abstractions, but without making them accessible for drivers.
-pub struct CoreInternal<'a>(PhantomData<&'a ()>);
+///
+/// Lifetime `'a` is invariant for the same reason as [`Core`].
+pub struct CoreInternal<'a>(PhantomData<fn(&'a ()) -> &'a ()>);
 
 /// Semantically the same as [`Bound`], but reserved for internal usage of the corresponding bus
 /// abstraction.
