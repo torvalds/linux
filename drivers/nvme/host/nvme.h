@@ -1300,10 +1300,16 @@ static inline void nvme_auth_revoke_tls_key(struct nvme_ctrl *ctrl) {};
 
 u32 nvme_command_effects(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
 			 u8 opcode);
-u32 nvme_passthru_start(struct nvme_ctrl *ctrl, struct nvme_ns *ns, u8 opcode);
+u32 nvme_passthru_start(struct nvme_ctrl *ctrl, struct nvme_ns *ns, u8 opcode)
+	__cond_acquires(nonzero, &ctrl->subsys->lock)
+	__cond_acquires(nonzero, &ctrl->scan_lock);
+
 int nvme_execute_rq(struct request *rq, bool at_head);
 u32 nvme_passthru_end(struct nvme_ctrl *ctrl, struct nvme_ns *ns, u32 effects,
-		       struct nvme_command *cmd, int status);
+		       struct nvme_command *cmd, int status)
+		       __cond_releases(nonzero, &ctrl->scan_lock)
+		       __cond_releases(nonzero, &ctrl->subsys->lock);
+
 struct nvme_ctrl *nvme_ctrl_from_file(struct file *file);
 struct nvme_ns *nvme_find_get_ns(struct nvme_ctrl *ctrl, unsigned nsid);
 bool nvme_get_ns(struct nvme_ns *ns);
