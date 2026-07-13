@@ -2247,11 +2247,15 @@ int ib_destroy_cq_user(struct ib_cq *cq, struct ib_udata *udata)
 	if (atomic_read(&cq->usecnt))
 		return -EBUSY;
 
-	ret = cq->device->ops.destroy_cq(cq, udata);
-	if (ret)
-		return ret;
+	rdma_restrack_begin_del(&cq->res);
 
-	rdma_restrack_del(&cq->res);
+	ret = cq->device->ops.destroy_cq(cq, udata);
+	if (ret) {
+		rdma_restrack_abort_del(&cq->res);
+		return ret;
+	}
+
+	rdma_restrack_commit_del(&cq->res);
 	kfree(cq);
 	return ret;
 }
