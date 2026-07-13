@@ -693,6 +693,11 @@ static void nvme_free_ns_head(struct kref *ref)
 	kfree(head);
 }
 
+void nvme_get_ns_head(struct nvme_ns_head *head)
+{
+	kref_get(&head->ref);
+}
+
 bool nvme_tryget_ns_head(struct nvme_ns_head *head)
 {
 	return kref_get_unless_zero(&head->ref);
