@@ -242,14 +242,22 @@ TEST(check_file_mmap)
 	}
 
 	/*
-	 * Touch a page in the middle of the mapping. We expect the next
-	 * few pages (the readahead window) to be populated too.
+	 * Touch a page in the middle of the mapping. We expect some
+	 * surrounding pages (the readahead window) to be populated too.
+	 * Depending on the page size and readahead setting, the pages may
+	 * land before the faulted page rather than after it.
 	 */
 	addr[FILE_SIZE / 2] = 1;
 	retval = mincore(addr, FILE_SIZE, vec);
 	ASSERT_EQ(0, retval);
 	ASSERT_EQ(1, vec[FILE_SIZE / 2 / page_size]) {
 		TH_LOG("Page not found in memory after use");
+	}
+
+	i = FILE_SIZE / 2 / page_size - 1;
+	while (i >= 0 && vec[i]) {
+		ra_pages++;
+		i--;
 	}
 
 	i = FILE_SIZE / 2 / page_size + 1;
