@@ -72,6 +72,12 @@ static const struct smu_feature_bits vangogh_dpm_features = {
 	}
 };
 
+/*
+ * SMU support new GFXOFF residency log interface since version 4.63.62.00,
+ * use this to get live readings of GFXOFF residency
+ */
+#define SUPPORT_LIVE_RESIDENCY_MSG_VERSION 0x043f3e00
+
 static struct cmn2asic_msg_mapping vangogh_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,                    PPSMC_MSG_TestMessage,			0),
 	MSG_MAP(GetSmuVersion,                  PPSMC_MSG_GetSmuVersion,		0),
@@ -142,7 +148,9 @@ static struct cmn2asic_msg_mapping vangogh_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(GetSlowPPTLimit,                    PPSMC_MSG_GetSlowPPTLimit,						0),
 	MSG_MAP(GetGfxOffStatus,		    PPSMC_MSG_GetGfxOffStatus,						0),
 	MSG_MAP(GetGfxOffEntryCount,		    PPSMC_MSG_GetGfxOffEntryCount,					0),
-	MSG_MAP(LogGfxOffResidency,		    PPSMC_MSG_LogGfxOffResidency,					0),
+	MSG_MAP(StartGfxOffResidencyLogging,  PPSMC_MSG_StartGfxOffResidencyLogging,	0),
+	MSG_MAP(GfxOffResidencyLogReadSample, PPSMC_MSG_GfxOffResidencyLogReadSample,	0),
+	MSG_MAP(StopGfxOffResidencyLogging,   PPSMC_MSG_StopGfxOffResidencyLogging,		0),
 };
 
 static struct cmn2asic_mapping vangogh_feature_mask_map[SMU_FEATURE_COUNT] = {
@@ -2449,19 +2457,32 @@ static int vangogh_set_power_limit(struct smu_context *smu,
 static u32 vangogh_set_gfxoff_residency(struct smu_context *smu, bool start)
 {
 	int ret = 0;
-	u32 residency;
 	struct amdgpu_device *adev = smu->adev;
 
 	if (!(adev->pm.pp_feature & PP_GFXOFF_MASK))
 		return 0;
 
-	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_LogGfxOffResidency,
-					      start, &residency);
-	if (ret)
-		return ret;
+	if (smu->smc_fw_version < SUPPORT_LIVE_RESIDENCY_MSG_VERSION) {
+		u32 residency;
 
-	if (!start)
-		adev->gfx.gfx_off_residency = residency;
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GfxOffResidencyLogReadSample,
+							start, &residency);
+		if (ret)
+			return ret;
+
+		if (!start)
+			adev->gfx.gfx_off_residency = residency;
+	} else {
+		if (start) {
+			ret = smu_cmn_send_smc_msg(smu, SMU_MSG_StartGfxOffResidencyLogging, NULL);
+			if (ret)
+				return ret;
+		} else {
+			ret = smu_cmn_send_smc_msg(smu, SMU_MSG_StopGfxOffResidencyLogging, NULL);
+			if (ret)
+				return ret;
+		}
+	}
 
 	return ret;
 }
@@ -2478,11 +2499,20 @@ static u32 vangogh_set_gfxoff_residency(struct smu_context *smu, bool start)
  */
 static u32 vangogh_get_gfxoff_residency(struct smu_context *smu, uint32_t *residency)
 {
+	int ret = 0;
 	struct amdgpu_device *adev = smu->adev;
 
-	*residency = adev->gfx.gfx_off_residency;
+	if (!(adev->pm.pp_feature & PP_GFXOFF_MASK))
+		return 0;
 
-	return 0;
+	if (smu->smc_fw_version < SUPPORT_LIVE_RESIDENCY_MSG_VERSION) {
+		*residency = adev->gfx.gfx_off_residency;
+	} else {
+		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GfxOffResidencyLogReadSample,
+								residency);
+	}
+
+	return ret;
 }
 
 /**
