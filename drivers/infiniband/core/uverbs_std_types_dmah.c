@@ -18,11 +18,14 @@ static int uverbs_free_dmah(struct ib_uobject *uobject,
 	if (atomic_read(&dmah->usecnt))
 		return -EBUSY;
 
+	rdma_restrack_begin_del(&dmah->res);
 	ret = dmah->device->ops.dealloc_dmah(dmah, attrs);
-	if (ret)
+	if (ret) {
+		rdma_restrack_abort_del(&dmah->res);
 		return ret;
+	}
 
-	rdma_restrack_del(&dmah->res);
+	rdma_restrack_commit_del(&dmah->res);
 	kfree(dmah);
 	return 0;
 }
