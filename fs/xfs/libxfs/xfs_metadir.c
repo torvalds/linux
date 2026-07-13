@@ -182,7 +182,7 @@ xfs_metadir_teardown(
  * Begin the process of creating a metadata file by allocating transactions
  * and taking whatever resources we're going to need.
  */
-int
+static int
 xfs_metadir_start_create(
 	struct xfs_metadir_update	*upd)
 {
@@ -236,7 +236,7 @@ out_teardown:
  * a negative error code.  If an inode is passed back, the caller must finish
  * setting up the inode before releasing it.
  */
-int
+static int
 xfs_metadir_create(
 	struct xfs_metadir_update	*upd,
 	umode_t				mode)
@@ -425,7 +425,7 @@ xfs_metadir_commit(
 }
 
 /* Cancel a metadir update and unlock/drop all resources. */
-void
+static void
 xfs_metadir_cancel(
 	struct xfs_metadir_update	*upd,
 	int				error)
