@@ -1232,6 +1232,15 @@ static int ntfs_writepages(struct address_space *mapping,
 
 			folio_unlock(folio);
 			if (err2) {
+				/*
+				 * attr_data_write_resident() can return the
+				 * positive internal code E_NTFS_NONRESIDENT;
+				 * both mapping_set_error() and writeback_iter()
+				 * need a negative errno and warn on a positive
+				 * value.
+				 */
+				if (err2 > 0)
+					err2 = -EIO;
 				mapping_set_error(mapping, err2);
 				if (!err)
 					err = err2;
