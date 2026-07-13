@@ -291,6 +291,14 @@ struct ksmbd_conn *ksmbd_conn_alloc(void)
 	conn->total_credits = 1;
 	conn->outstanding_credits = 0;
 
+	/*
+	 * The command sequence window starts as the set { 0 } when the
+	 * connection is established.
+	 */
+	conn->seq_low = 0;
+	conn->seq_high = 1;
+	__set_bit(0, conn->seq_bitmap);
+
 	init_waitqueue_head(&conn->req_running_q);
 	init_waitqueue_head(&conn->r_count_q);
 	INIT_LIST_HEAD(&conn->requests);

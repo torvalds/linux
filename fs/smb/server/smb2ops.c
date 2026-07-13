@@ -331,6 +331,13 @@ void init_smb2_max_trans_size(unsigned int sz)
 
 void init_smb2_max_credits(unsigned int sz)
 {
+	/*
+	 * The command sequence window (and its backing bitmap) can track at
+	 * most SMB2_MAX_CREDITS outstanding sequence numbers, so the number of
+	 * credits granted on a connection must not exceed that.
+	 */
+	if (sz > SMB2_MAX_CREDITS)
+		sz = SMB2_MAX_CREDITS;
 	smb21_server_values.max_credits = sz;
 	smb30_server_values.max_credits = sz;
 	smb302_server_values.max_credits = sz;

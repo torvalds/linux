@@ -388,6 +388,7 @@ int smb2_set_rsp_credits(struct ksmbd_work *work)
 	struct ksmbd_conn *conn = work->conn;
 	unsigned short credits_requested, aux_max;
 	unsigned short credit_charge, credits_granted = 0;
+	u64 window_room, i;
 
 	if (work->send_no_response)
 		return 0;
@@ -424,10 +425,25 @@ int smb2_set_rsp_credits(struct ksmbd_work *work)
 		aux_max = 1;
 	else
 		aux_max = conn->vals->max_credits - conn->total_credits;
+
+	/*
+	 * The command sequence window must not grow beyond
+	 * KSMBD_CMD_SEQ_WINDOW sequence numbers ahead of the oldest one still
+	 * outstanding. Cap the grant by the room left in the window so that
+	 * credits are withheld until the client consumes the low end (and so
+	 * that seq_bitmap stays usable as a ring).
+	 */
+	window_room = conn->seq_low + KSMBD_CMD_SEQ_WINDOW - conn->seq_high;
+	aux_max = min_t(unsigned short, aux_max, window_room);
 	credits_granted = min_t(unsigned short, credits_requested, aux_max);
 
 	conn->total_credits += credits_granted;
 	work->credits_granted += credits_granted;
+
+	/* Extend the sequence window to cover the newly granted credits. */
+	for (i = conn->seq_high; i < conn->seq_high + credits_granted; i++)
+		__set_bit(i & (KSMBD_CMD_SEQ_WINDOW - 1), conn->seq_bitmap);
+	conn->seq_high += credits_granted;
 
 	if (!req_hdr->NextCommand) {
 		/* Update CreditRequest in last request */

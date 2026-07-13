@@ -17,6 +17,7 @@
 #include <linux/nls.h>
 #include <linux/unicode.h>
 #include <linux/workqueue.h>
+#include <linux/bitmap.h>
 
 #include "smb_common.h"
 #include "ksmbd_work.h"
@@ -24,6 +25,15 @@
 struct smbdirect_buffer_descriptor_v1;
 
 #define KSMBD_SOCKET_BACKLOG		16
+
+/*
+ * Size of the per-connection SMB2 command sequence window. This mirrors
+ * SMB2_MAX_CREDITS, the maximum number of credits (and therefore the
+ * maximum number of outstanding sequence numbers) that can be granted on
+ * a connection. It must be a power of two so the window can be indexed as
+ * a ring.
+ */
+#define KSMBD_CMD_SEQ_WINDOW		8192
 
 enum {
 	KSMBD_SESS_NEW = 0,
@@ -74,6 +84,16 @@ struct ksmbd_conn {
 	unsigned int			total_credits;
 	unsigned int			outstanding_credits;
 	spinlock_t			credits_lock;
+	/*
+	 * Connection command sequence window. [seq_low, seq_high) is the
+	 * range of granted sequence numbers (message IDs). seq_bitmap marks
+	 * the ones in that range that have been granted but
+	 * not yet consumed by a received request.  All three are protected by
+	 * credits_lock.
+	 */
+	u64				seq_low;
+	u64				seq_high;
+	DECLARE_BITMAP(seq_bitmap, KSMBD_CMD_SEQ_WINDOW);
 	wait_queue_head_t		req_running_q;
 	wait_queue_head_t		r_count_q;
 	/* Lock to protect requests list*/
