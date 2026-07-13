@@ -144,9 +144,9 @@ err_free_tfm:
 
 /*
  * Prepare the crypto transform object or blk-crypto key in @prep_key, given the
- * raw key, encryption mode (@ci->ci_mode), flag indicating which encryption
- * implementation (fs-layer or blk-crypto) will be used (@ci->ci_inlinecrypt),
- * and IV generation method (@ci->ci_policy.flags).
+ * raw key, encryption mode (@ci->ci_mode), predicate indicating which style of
+ * key is needed (fscrypt_using_inline_encryption(ci)), IV generation method
+ * (@ci->ci_policy.flags), and data unit size (@ci->ci_data_unit_bits).
  */
 int fscrypt_prepare_key(struct fscrypt_prepared_key *prep_key,
 			const u8 *raw_key, const struct fscrypt_inode_info *ci)
@@ -224,22 +224,7 @@ static int setup_per_mode_enc_key(struct fscrypt_inode_info *ci,
 	u8 raw_mode_key[FSCRYPT_MAX_RAW_KEY_SIZE];
 	u8 hkdf_info[sizeof(mode_num) + sizeof(sb->s_uuid)];
 	unsigned int hkdf_infolen = 0;
-	bool use_hw_wrapped_key = false;
 	int err;
-
-	if (mk->mk_secret.is_hw_wrapped && S_ISREG(inode->i_mode)) {
-		/* Using a hardware-wrapped key for file contents encryption */
-		if (!fscrypt_using_inline_encryption(ci)) {
-			if (sb->s_flags & SB_INLINECRYPT)
-				fscrypt_warn(ci->ci_inode,
-					     "Hardware-wrapped key required, but no suitable inline encryption capabilities are available");
-			else
-				fscrypt_warn(ci->ci_inode,
-					     "Hardware-wrapped keys require inline encryption (-o inlinecrypt)");
-			return -EINVAL;
-		}
-		use_hw_wrapped_key = true;
-	}
 
 	prep_key = fscrypt_find_mode_key(mk, hkdf_context, mode_num, ci);
 	if (prep_key) {
@@ -263,7 +248,7 @@ static int setup_per_mode_enc_key(struct fscrypt_inode_info *ci,
 	new_node->data_unit_bits = ci->ci_data_unit_bits;
 	prep_key = &new_node->key;
 
-	if (use_hw_wrapped_key) {
+	if (mk->mk_secret.is_hw_wrapped && S_ISREG(inode->i_mode)) {
 		err = fscrypt_prepare_inline_crypt_key(prep_key,
 						       mk->mk_secret.bytes,
 						       mk->mk_secret.size, true,
@@ -509,10 +494,6 @@ static int setup_file_encryption_key(struct fscrypt_inode_info *ci,
 		if (ci->ci_policy.version != FSCRYPT_POLICY_V1)
 			return -ENOKEY;
 
-		err = fscrypt_select_encryption_impl(ci, false);
-		if (err)
-			return err;
-
 		/*
 		 * As a legacy fallback for v1 policies, search for the key in
 		 * the current task's subscribed keyrings too.  Don't move this
@@ -533,10 +514,6 @@ static int setup_file_encryption_key(struct fscrypt_inode_info *ci,
 		err = -ENOKEY;
 		goto out_release_key;
 	}
-
-	err = fscrypt_select_encryption_impl(ci, mk->mk_secret.is_hw_wrapped);
-	if (err)
-		goto out_release_key;
 
 	switch (ci->ci_policy.version) {
 	case FSCRYPT_POLICY_V1:

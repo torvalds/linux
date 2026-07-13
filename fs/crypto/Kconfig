@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config FS_ENCRYPTION
 	bool "FS Encryption (Per-file encryption)"
+	select BLK_INLINE_ENCRYPTION if BLOCK
+	select BLK_INLINE_ENCRYPTION_FALLBACK if BLOCK
 	select CRYPTO
 	select CRYPTO_SKCIPHER
 	select CRYPTO_LIB_AES
@@ -34,7 +36,5 @@ config FS_ENCRYPTION_ALGS
 	select CRYPTO_XTS
 
 config FS_ENCRYPTION_INLINE_CRYPT
-	bool "Enable fscrypt to use inline crypto"
-	depends on FS_ENCRYPTION && BLK_INLINE_ENCRYPTION
-	help
-	  Enable fscrypt to use inline encryption hardware if available.
+	bool
+	default y if FS_ENCRYPTION && BLOCK

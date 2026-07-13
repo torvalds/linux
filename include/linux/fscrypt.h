@@ -72,14 +72,15 @@ struct fscrypt_operations {
 	ptrdiff_t inode_info_offs;
 
 	/*
-	 * If set, then fs/crypto/ will allocate a global bounce page pool the
-	 * first time an encryption key is set up for a file.  The bounce page
-	 * pool is required by the following functions:
-	 *
-	 * - fscrypt_encrypt_pagecache_blocks()
-	 * - fscrypt_zeroout_range() for files not using inline crypto
-	 *
-	 * If the filesystem doesn't use those, it doesn't need to set this.
+	 * Set to 1 if the filesystem is block-based.  This causes fs/crypto/ to
+	 * set up the key for regular files as a blk_crypto_key.  The filesystem
+	 * then uses fscrypt_set_bio_crypt_ctx() and similar functions.
+	 */
+	unsigned int is_block_based : 1;
+
+	/*
+	 * Set to 1 if the filesystem uses fscrypt_encrypt_pagecache_blocks().
+	 * This enables the allocation of the bounce page pool it requires.
 	 */
 	unsigned int needs_bounce_pages : 1;
 
@@ -865,8 +866,6 @@ static inline void fscrypt_set_ops(struct super_block *sb,
 /* inline_crypt.c */
 #ifdef CONFIG_FS_ENCRYPTION_INLINE_CRYPT
 
-bool __fscrypt_inode_uses_inline_crypto(const struct inode *inode);
-
 void fscrypt_set_bio_crypt_ctx(struct bio *bio, const struct inode *inode,
 			       loff_t pos, gfp_t gfp_mask);
 
@@ -878,11 +877,6 @@ bool fscrypt_dio_supported(struct inode *inode);
 u64 fscrypt_limit_io_blocks(const struct inode *inode, u64 lblk, u64 nr_blocks);
 
 #else /* CONFIG_FS_ENCRYPTION_INLINE_CRYPT */
-
-static inline bool __fscrypt_inode_uses_inline_crypto(const struct inode *inode)
-{
-	return false;
-}
 
 static inline void fscrypt_set_bio_crypt_ctx(struct bio *bio,
 					     const struct inode *inode,
@@ -919,7 +913,7 @@ static inline u64 fscrypt_limit_io_blocks(const struct inode *inode, u64 lblk,
 static inline bool fscrypt_inode_uses_inline_crypto(const struct inode *inode)
 {
 	return fscrypt_needs_contents_encryption(inode) &&
-	       __fscrypt_inode_uses_inline_crypto(inode);
+	       inode->i_sb->s_cop->is_block_based;
 }
 
 /**
@@ -934,7 +928,7 @@ static inline bool fscrypt_inode_uses_inline_crypto(const struct inode *inode)
 static inline bool fscrypt_inode_uses_fs_layer_crypto(const struct inode *inode)
 {
 	return fscrypt_needs_contents_encryption(inode) &&
-	       !__fscrypt_inode_uses_inline_crypto(inode);
+	       !inode->i_sb->s_cop->is_block_based;
 }
 
 /**

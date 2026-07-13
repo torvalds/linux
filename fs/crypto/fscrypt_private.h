@@ -266,14 +266,6 @@ struct fscrypt_inode_info {
 	/* True if ci_enc_key should be freed when this struct is freed */
 	u8 ci_owns_key : 1;
 
-#ifdef CONFIG_FS_ENCRYPTION_INLINE_CRYPT
-	/*
-	 * True if this inode will use inline encryption (blk-crypto) instead of
-	 * the traditional filesystem-layer encryption.
-	 */
-	u8 ci_inlinecrypt : 1;
-#endif
-
 	/* True if ci_dirhash_key is initialized */
 	u8 ci_dirhash_key_initialized : 1;
 
@@ -410,13 +402,12 @@ void fscrypt_hkdf_expand(const struct hmac_sha512_key *hkdf, u8 context,
 
 /* inline_crypt.c */
 #ifdef CONFIG_FS_ENCRYPTION_INLINE_CRYPT
-int fscrypt_select_encryption_impl(struct fscrypt_inode_info *ci,
-				   bool is_hw_wrapped_key);
-
 static inline bool
 fscrypt_using_inline_encryption(const struct fscrypt_inode_info *ci)
 {
-	return ci->ci_inlinecrypt;
+	const struct inode *inode = ci->ci_inode;
+
+	return S_ISREG(inode->i_mode) && inode->i_sb->s_cop->is_block_based;
 }
 
 int fscrypt_prepare_inline_crypt_key(struct fscrypt_prepared_key *prep_key,
@@ -445,12 +436,6 @@ fscrypt_is_key_prepared(const struct fscrypt_prepared_key *prep_key,
 }
 
 #else /* CONFIG_FS_ENCRYPTION_INLINE_CRYPT */
-
-static inline int fscrypt_select_encryption_impl(struct fscrypt_inode_info *ci,
-						 bool is_hw_wrapped_key)
-{
-	return 0;
-}
 
 static inline bool
 fscrypt_using_inline_encryption(const struct fscrypt_inode_info *ci)

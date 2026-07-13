@@ -62,70 +62,17 @@ static unsigned int fscrypt_get_dun_bytes(const struct fscrypt_inode_info *ci)
  * helpful for debugging problems where the "wrong" implementation is used.
  */
 static void fscrypt_log_blk_crypto_impl(struct fscrypt_mode *mode,
-					struct block_device **devs,
-					unsigned int num_devs,
-					const struct blk_crypto_config *cfg)
+					struct block_device *dev,
+					const struct blk_crypto_key *blk_key)
 {
-	unsigned int i;
-
-	for (i = 0; i < num_devs; i++) {
-		if (!IS_ENABLED(CONFIG_BLK_INLINE_ENCRYPTION_FALLBACK) ||
-		    blk_crypto_config_supported_natively(devs[i], cfg)) {
-			if (!xchg(&mode->logged_blk_crypto_native, 1))
-				pr_info("fscrypt: %s using blk-crypto (native)\n",
-					mode->friendly_name);
-		} else if (!xchg(&mode->logged_blk_crypto_fallback, 1)) {
-			pr_info("fscrypt: %s using blk-crypto-fallback\n",
+	if (blk_crypto_config_supported_natively(dev, &blk_key->crypto_cfg)) {
+		if (!xchg(&mode->logged_blk_crypto_native, 1))
+			pr_info("fscrypt: %s using blk-crypto (native)\n",
 				mode->friendly_name);
-		}
+	} else if (!xchg(&mode->logged_blk_crypto_fallback, 1)) {
+		pr_info("fscrypt: %s using blk-crypto-fallback\n",
+			mode->friendly_name);
 	}
-}
-
-/* Enable inline encryption for this file if supported. */
-int fscrypt_select_encryption_impl(struct fscrypt_inode_info *ci,
-				   bool is_hw_wrapped_key)
-{
-	const struct inode *inode = ci->ci_inode;
-	struct super_block *sb = inode->i_sb;
-	struct blk_crypto_config crypto_cfg;
-	struct block_device *devs[FSCRYPT_MAX_DEVICES];
-	unsigned int num_devs;
-	unsigned int i;
-
-	/* The file must need contents encryption, not filenames encryption */
-	if (!S_ISREG(inode->i_mode))
-		return 0;
-
-	/* The crypto mode must have a blk-crypto counterpart */
-	if (ci->ci_mode->blk_crypto_mode == BLK_ENCRYPTION_MODE_INVALID)
-		return 0;
-
-	/* The filesystem must be mounted with -o inlinecrypt */
-	if (!(sb->s_flags & SB_INLINECRYPT))
-		return 0;
-
-	/*
-	 * On all the filesystem's block devices, blk-crypto must support the
-	 * crypto configuration that the file would use.
-	 */
-	crypto_cfg.crypto_mode = ci->ci_mode->blk_crypto_mode;
-	crypto_cfg.data_unit_size = 1U << ci->ci_data_unit_bits;
-	crypto_cfg.dun_bytes = fscrypt_get_dun_bytes(ci);
-	crypto_cfg.key_type = is_hw_wrapped_key ?
-		BLK_CRYPTO_KEY_TYPE_HW_WRAPPED : BLK_CRYPTO_KEY_TYPE_RAW;
-	crypto_cfg.flags = BLK_CRYPTO_CFG_ALLOW_HW;
-
-	num_devs = fscrypt_get_devices(sb, devs);
-	for (i = 0; i < num_devs; i++) {
-		if (!blk_crypto_config_supported(devs[i], &crypto_cfg))
-			return 0;
-	}
-
-	fscrypt_log_blk_crypto_impl(ci->ci_mode, devs, num_devs, &crypto_cfg);
-
-	ci->ci_inlinecrypt = true;
-
-	return 0;
 }
 
 int fscrypt_prepare_inline_crypt_key(struct fscrypt_prepared_key *prep_key,
@@ -135,7 +82,8 @@ int fscrypt_prepare_inline_crypt_key(struct fscrypt_prepared_key *prep_key,
 {
 	const struct inode *inode = ci->ci_inode;
 	struct super_block *sb = inode->i_sb;
-	enum blk_crypto_mode_num crypto_mode = ci->ci_mode->blk_crypto_mode;
+	bool inlinecrypt = sb->s_flags & SB_INLINECRYPT;
+	struct fscrypt_mode *mode = ci->ci_mode;
 	enum blk_crypto_key_type key_type = is_hw_wrapped ?
 		BLK_CRYPTO_KEY_TYPE_HW_WRAPPED : BLK_CRYPTO_KEY_TYPE_RAW;
 	struct blk_crypto_key *blk_key;
@@ -144,16 +92,28 @@ int fscrypt_prepare_inline_crypt_key(struct fscrypt_prepared_key *prep_key,
 	unsigned int i;
 	int err;
 
+	if (is_hw_wrapped && !inlinecrypt) {
+		/*
+		 * blk_crypto_init_key() would catch this anyway, but this
+		 * provides a clearer error message.
+		 */
+		fscrypt_err(
+			inode,
+			"Hardware-wrapped keys require inline encryption (-o inlinecrypt)");
+		return -EINVAL;
+	}
+
 	blk_key = kmalloc_obj(*blk_key);
 	if (!blk_key)
 		return -ENOMEM;
 
 	err = blk_crypto_init_key(blk_key, key_bytes, key_size, key_type,
-				  crypto_mode, fscrypt_get_dun_bytes(ci),
+				  mode->blk_crypto_mode,
+				  fscrypt_get_dun_bytes(ci),
 				  1U << ci->ci_data_unit_bits,
-				  BLK_CRYPTO_CFG_ALLOW_HW);
+				  inlinecrypt ? BLK_CRYPTO_CFG_ALLOW_HW : 0);
 	if (err) {
-		fscrypt_err(inode, "error %d initializing blk-crypto key", err);
+		fscrypt_err(inode, "Error %d initializing blk-crypto key", err);
 		goto fail;
 	}
 
@@ -163,9 +123,16 @@ int fscrypt_prepare_inline_crypt_key(struct fscrypt_prepared_key *prep_key,
 		err = blk_crypto_start_using_key(devs[i], blk_key);
 		if (err)
 			break;
+		fscrypt_log_blk_crypto_impl(mode, devs[i], blk_key);
 	}
 	if (err) {
-		fscrypt_err(inode, "error %d starting to use blk-crypto", err);
+		if (err == -EOPNOTSUPP && is_hw_wrapped)
+			fscrypt_err(
+				inode,
+				"Hardware-wrapped key required, but no suitable inline encryption capabilities are available");
+		else
+			fscrypt_err(inode,
+				    "Error %d starting to use blk-crypto", err);
 		goto fail;
 	}
 
@@ -226,12 +193,6 @@ int fscrypt_derive_sw_secret(struct super_block *sb,
 			     sb->s_id);
 	return err;
 }
-
-bool __fscrypt_inode_uses_inline_crypto(const struct inode *inode)
-{
-	return fscrypt_get_inode_info_raw(inode)->ci_inlinecrypt;
-}
-EXPORT_SYMBOL_GPL(__fscrypt_inode_uses_inline_crypto);
 
 static void fscrypt_generate_dun(const struct fscrypt_inode_info *ci,
 				 loff_t pos, u64 dun[BLK_CRYPTO_DUN_ARRAY_SIZE])
