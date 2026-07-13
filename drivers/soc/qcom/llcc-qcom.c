@@ -4595,6 +4595,7 @@ static const struct qcom_llcc_config shikra_cfg[] = {
 		.size		= ARRAY_SIZE(shikra_data),
 		.reg_offset	= llcc_v2_1_reg_offset,
 		.edac_reg_offset = &llcc_v2_1_edac_reg_offset,
+		.irq_configured = true,
 	},
 };
 
