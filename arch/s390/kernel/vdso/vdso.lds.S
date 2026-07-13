@@ -82,12 +82,15 @@ SECTIONS
  * We must supply the ELF program headers explicitly to get just one
  * PT_LOAD segment, and set the flags explicitly to make segments read-only.
  */
+#define PF_R	FLAGS(4)
+#define PF_RX	FLAGS(5)
+
 PHDRS
 {
-	text		PT_LOAD FILEHDR PHDRS FLAGS(5);	/* PF_R|PF_X */
-	dynamic		PT_DYNAMIC FLAGS(4);		/* PF_R */
-	note		PT_NOTE FLAGS(4);		/* PF_R */
-	eh_frame_hdr	PT_GNU_EH_FRAME;
+	text		PT_LOAD		PF_RX FILEHDR PHDRS;
+	dynamic		PT_DYNAMIC	PF_R;
+	note		PT_NOTE		PF_R;
+	eh_frame_hdr	PT_GNU_EH_FRAME	PF_R;
 }
 
 /*
