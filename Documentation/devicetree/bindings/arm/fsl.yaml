@@ -1619,11 +1619,13 @@ properties:
           in the assembled SOC.
           MBa91xxCA mainboard can be used as starterkit for the SOM
           soldered on an adapter board or for the connector variant
-          MBa91xxLA mainboard is a single board computer using the solderable
-          SOM variant
+          to demonstrate parallel display and majority of interfaces while
+          MBa93xxCA starterkit mainboard is focused on communication
+          interfaces without display support.
         items:
           - enum:
               - tq,imx91-tqma9131-mba91xxca # TQ-Systems GmbH i.MX91 TQMa91xxCA/LA SOM on MBa91xxCA
+              - tq,imx91-tqma9131-mba93xxca # TQ-Systems GmbH i.MX91 TQMa91xxCA/LA SOM on MBa93xxCA
           - const: tq,imx91-tqma9131        # TQ-Systems GmbH i.MX91 TQMa91xxCA/LA SOM
           - const: fsl,imx91
 
