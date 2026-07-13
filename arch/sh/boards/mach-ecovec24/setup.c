@@ -26,6 +26,7 @@
 #include <linux/platform_data/tmio.h>
 #include <linux/platform_data/tsc2007.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
 #include <linux/sh_eth.h>
@@ -589,39 +590,21 @@ static struct platform_device keysc_device = {
 /* TouchScreen */
 #define IRQ0 evt2irq(0x600)
 
-static int ts_get_pendown_state(struct device *dev)
-{
-	int val = 0;
-	gpio_free(GPIO_FN_INTC_IRQ0);
-	gpio_request(GPIO_PTZ0, NULL);
-	gpio_direction_input(GPIO_PTZ0);
+static const struct property_entry tsc2007_properties[] = {
+	PROPERTY_ENTRY_U32("ti,x-plate-ohms", 180),
+	{ }
+};
 
-	val = gpio_get_value(GPIO_PTZ0);
-
-	gpio_free(GPIO_PTZ0);
-	gpio_request(GPIO_FN_INTC_IRQ0, NULL);
-
-	return val ? 0 : 1;
-}
-
-static int ts_init(void)
-{
-	gpio_request(GPIO_FN_INTC_IRQ0, NULL);
-	return 0;
-}
-
-static struct tsc2007_platform_data tsc2007_info = {
-	.model			= 2007,
-	.x_plate_ohms		= 180,
-	.get_pendown_state	= ts_get_pendown_state,
-	.init_platform_hw	= ts_init,
+static const struct software_node tsc2007_swnode = {
+	.name = "tsc2007",
+	.properties = tsc2007_properties,
 };
 
 static struct i2c_board_info ts_i2c_clients = {
 	I2C_BOARD_INFO("tsc2007", 0x48),
 	.type		= "tsc2007",
-	.platform_data	= &tsc2007_info,
 	.irq		= IRQ0,
+	.swnode		= &tsc2007_swnode,
 };
 
 static struct regulator_consumer_supply cn12_power_consumers[] =
@@ -1242,8 +1225,9 @@ static int __init arch_setup(void)
 		gpio_direction_output(GPIO_PTF4, 1);
 
 		/* enable TouchScreen */
-		i2c_register_board_info(0, &ts_i2c_clients, 1);
+		gpio_request(GPIO_FN_INTC_IRQ0, NULL);
 		irq_set_irq_type(IRQ0, IRQ_TYPE_LEVEL_LOW);
+		i2c_register_board_info(0, &ts_i2c_clients, 1);
 	}
 
 	/* enable CEU0 */
