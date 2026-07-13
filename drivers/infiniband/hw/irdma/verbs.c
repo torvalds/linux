@@ -631,37 +631,29 @@ static void irdma_setup_virt_qp(struct irdma_device *iwdev,
 
 /**
  * irdma_setup_umode_qp - setup sq and rq size in user mode qp
- * @udata: udata
+ * @ucontext: user context
+ * @req: user request pointer
  * @iwdev: iwarp device
  * @iwqp: qp ptr (user or kernel)
  * @info: initialize info to return
  * @init_attr: Initial QP create attributes
  */
-static int irdma_setup_umode_qp(struct ib_udata *udata,
+static int irdma_setup_umode_qp(struct irdma_ucontext *ucontext,
+				struct irdma_create_qp_req *req,
 				struct irdma_device *iwdev,
 				struct irdma_qp *iwqp,
 				struct irdma_qp_init_info *info,
 				struct ib_qp_init_attr *init_attr)
 {
-	struct irdma_ucontext *ucontext = rdma_udata_to_drv_context(udata,
-				struct irdma_ucontext, ibucontext);
 	struct irdma_qp_uk_init_info *ukinfo = &info->qp_uk_init_info;
-	struct irdma_create_qp_req req;
 	unsigned long flags;
 	int ret;
 
-	ret = ib_copy_from_udata(&req, udata,
-				 min(sizeof(req), udata->inlen));
-	if (ret) {
-		ibdev_dbg(&iwdev->ibdev, "VERBS: ib_copy_from_data fail\n");
-		return ret;
-	}
-
-	iwqp->ctx_info.qp_compl_ctx = req.user_compl_ctx;
+	iwqp->ctx_info.qp_compl_ctx = req->user_compl_ctx;
 	iwqp->user_mode = 1;
 
 	spin_lock_irqsave(&ucontext->qp_reg_mem_list_lock, flags);
-	iwqp->iwpbl = irdma_get_pbl((unsigned long)req.user_wqe_bufs,
+	iwqp->iwpbl = irdma_get_pbl((unsigned long)req->user_wqe_bufs,
 				    &ucontext->qp_reg_mem_list);
 	spin_unlock_irqrestore(&ucontext->qp_reg_mem_list_lock, flags);
 
@@ -988,6 +980,7 @@ static int irdma_create_qp(struct ib_qp *ibqp,
 	struct irdma_uk_attrs *uk_attrs = &dev->hw_attrs.uk_attrs;
 	struct irdma_qp_init_info init_info = {};
 	struct irdma_qp_host_ctx_info *ctx_info;
+	struct irdma_create_qp_req ureq = {};
 	struct irdma_srq *iwsrq;
 	bool srq_valid = false;
 	u32 srq_id = 0;
@@ -1005,9 +998,14 @@ static int irdma_create_qp(struct ib_qp *ibqp,
 	if (err_code)
 		return err_code;
 
-	if (udata && (udata->inlen < IRDMA_CREATE_QP_MIN_REQ_LEN ||
-		      udata->outlen < IRDMA_CREATE_QP_MIN_RESP_LEN))
-		return -EINVAL;
+	if (udata) {
+		if (udata->outlen < IRDMA_CREATE_QP_MIN_RESP_LEN)
+			return -EINVAL;
+
+		err_code = ib_copy_validate_udata_in(udata, ureq, user_compl_ctx);
+		if (err_code)
+			return err_code;
+	}
 
 	init_info.vsi = &iwdev->vsi;
 	init_info.qp_uk_init_info.uk_attrs = uk_attrs;
@@ -1066,9 +1064,14 @@ static int irdma_create_qp(struct ib_qp *ibqp,
 	init_waitqueue_head(&iwqp->mod_qp_waitq);
 
 	if (udata) {
+		struct irdma_ucontext *ucontext =
+			rdma_udata_to_drv_context(udata,
+						  struct irdma_ucontext,
+						  ibucontext);
+
 		init_info.qp_uk_init_info.abi_ver = iwpd->sc_pd.abi_ver;
-		err_code = irdma_setup_umode_qp(udata, iwdev, iwqp, &init_info,
-						init_attr);
+		err_code = irdma_setup_umode_qp(ucontext, &ureq, iwdev, iwqp,
+						&init_info, init_attr);
 	} else {
 		INIT_DELAYED_WORK(&iwqp->dwork_flush, irdma_flush_worker);
 		init_info.qp_uk_init_info.abi_ver = IRDMA_ABI_VER;
