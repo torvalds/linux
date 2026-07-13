@@ -1138,8 +1138,12 @@ static int irdma_create_qp(struct ib_qp *ibqp,
 	init_completion(&iwqp->free_qp);
 
 	if (udata) {
-		/* GEN_1 legacy support with libi40iw does not have expanded uresp struct */
-		if (udata->outlen < sizeof(uresp)) {
+		/* GEN_1 legacy support with libi40iw does not have expanded
+		 * uresp struct. Check for the exact legacy size (20 bytes) to
+		 * ensure that newer expanded uresp structs don't accidentally
+		 * trigger the legacy fallback.
+		 */
+		if (udata->outlen == IRDMA_CREATE_QP_MIN_RESP_LEN) {
 			uresp.lsmm = 1;
 			uresp.push_idx = IRDMA_INVALID_PUSH_PAGE_INDEX_GEN_1;
 		} else {
