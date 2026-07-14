@@ -1376,6 +1376,146 @@ static void dm_test_set_tf_distributed_points_pq(struct kunit *test)
 }
 
 /**
+ * dm_test_set_legacy_tf_identity - Legacy identity LUT uses the sRGB ROM path
+ * @test: KUnit test context
+ */
+static void dm_test_set_legacy_tf_identity(struct kunit *test)
+{
+	struct drm_color_lut *lut;
+	struct dc_transfer_func *tf;
+	int i;
+
+	tf = kunit_kzalloc(test, sizeof(*tf), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, tf);
+	lut = kunit_kcalloc(test, MAX_COLOR_LEGACY_LUT_ENTRIES, sizeof(*lut), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, lut);
+
+	for (i = 0; i < MAX_COLOR_LEGACY_LUT_ENTRIES; i++) {
+		u16 value = i * MAX_DRM_LUT_VALUE / (MAX_COLOR_LEGACY_LUT_ENTRIES - 1);
+
+		lut[i].red = value;
+		lut[i].green = value;
+		lut[i].blue = value;
+	}
+
+	tf->type = TF_TYPE_PREDEFINED;
+	tf->tf = TRANSFER_FUNCTION_SRGB;
+
+	KUNIT_EXPECT_EQ(test,
+			__set_legacy_tf(tf, lut, MAX_COLOR_LEGACY_LUT_ENTRIES, true),
+			0);
+}
+
+/**
+ * dm_test_set_output_tf_linear - Linear output without a LUT calculates degamma
+ * @test: KUnit test context
+ */
+static void dm_test_set_output_tf_linear(struct kunit *test)
+{
+	struct dc_transfer_func *tf;
+
+	tf = kunit_kzalloc(test, sizeof(*tf), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, tf);
+	tf->type = TF_TYPE_PREDEFINED;
+	tf->tf = TRANSFER_FUNCTION_LINEAR;
+
+	KUNIT_EXPECT_EQ(test, __set_output_tf(tf, NULL, 0, false), 0);
+}
+
+/**
+ * dm_test_set_output_tf_32_srgb_rom - sRGB output uses the no-LUT ROM path
+ * @test: KUnit test context
+ */
+static void dm_test_set_output_tf_32_srgb_rom(struct kunit *test)
+{
+	struct dc_transfer_func *tf;
+
+	tf = kunit_kzalloc(test, sizeof(*tf), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, tf);
+	tf->type = TF_TYPE_PREDEFINED;
+	tf->tf = TRANSFER_FUNCTION_SRGB;
+
+	KUNIT_EXPECT_EQ(test, __set_output_tf_32(tf, NULL, 0, true), 0);
+}
+
+/**
+ * dm_test_set_input_tf_srgb - Predefined sRGB input needs no generated curve
+ * @test: KUnit test context
+ */
+static void dm_test_set_input_tf_srgb(struct kunit *test)
+{
+	struct dc_transfer_func *tf;
+
+	tf = kunit_kzalloc(test, sizeof(*tf), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, tf);
+	tf->type = TF_TYPE_PREDEFINED;
+	tf->tf = TRANSFER_FUNCTION_SRGB;
+
+	KUNIT_EXPECT_EQ(test, __set_input_tf(NULL, tf, NULL, 0), 0);
+}
+
+/**
+ * dm_test_set_input_tf_32_srgb - 32-bit input wrapper accepts predefined sRGB
+ * @test: KUnit test context
+ */
+static void dm_test_set_input_tf_32_srgb(struct kunit *test)
+{
+	struct dc_transfer_func *tf;
+
+	tf = kunit_kzalloc(test, sizeof(*tf), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, tf);
+	tf->type = TF_TYPE_PREDEFINED;
+	tf->tf = TRANSFER_FUNCTION_SRGB;
+
+	KUNIT_EXPECT_EQ(test, __set_input_tf_32(NULL, tf, NULL, 0), 0);
+}
+
+/**
+ * dm_test_set_transfer_funcs_with_luts - LUT-backed transfer functions succeed
+ * @test: KUnit test context
+ */
+static void dm_test_set_transfer_funcs_with_luts(struct kunit *test)
+{
+	struct drm_color_lut32 *lut32;
+	struct drm_color_lut *lut;
+	struct dc_transfer_func *tf;
+
+	lut = kunit_kcalloc(test, MAX_COLOR_LUT_ENTRIES, sizeof(*lut), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, lut);
+	lut32 = kunit_kcalloc(test, MAX_COLOR_LUT_ENTRIES, sizeof(*lut32), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, lut32);
+	tf = kunit_kzalloc(test, sizeof(*tf), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, tf);
+
+	tf->type = TF_TYPE_DISTRIBUTED_POINTS;
+	tf->tf = TRANSFER_FUNCTION_LINEAR;
+	KUNIT_EXPECT_EQ(test,
+			__set_output_tf(tf, lut, MAX_COLOR_LUT_ENTRIES, false),
+			0);
+
+	memset(tf, 0, sizeof(*tf));
+	tf->type = TF_TYPE_DISTRIBUTED_POINTS;
+	tf->tf = TRANSFER_FUNCTION_LINEAR;
+	KUNIT_EXPECT_EQ(test,
+			__set_output_tf_32(tf, lut32, MAX_COLOR_LUT_ENTRIES, false),
+			0);
+
+	memset(tf, 0, sizeof(*tf));
+	tf->type = TF_TYPE_DISTRIBUTED_POINTS;
+	tf->tf = TRANSFER_FUNCTION_SRGB;
+	KUNIT_EXPECT_EQ(test,
+			__set_input_tf(NULL, tf, lut, MAX_COLOR_LUT_ENTRIES),
+			0);
+
+	memset(tf, 0, sizeof(*tf));
+	tf->type = TF_TYPE_DISTRIBUTED_POINTS;
+	tf->tf = TRANSFER_FUNCTION_SRGB;
+	KUNIT_EXPECT_EQ(test,
+			__set_input_tf_32(NULL, tf, lut32, MAX_COLOR_LUT_ENTRIES),
+			0);
+}
+
+/**
  * dm_test_set_atomic_regamma_bypass - No LUT and linear TF: must take bypass path
  * @test: KUnit test context
  */
@@ -2384,6 +2524,13 @@ static struct kunit_case dm_color_test_cases[] = {
 	/* __set_tf_distributed_points */
 	KUNIT_CASE(dm_test_set_tf_distributed_points_srgb),
 	KUNIT_CASE(dm_test_set_tf_distributed_points_pq),
+	/* Transfer-function calculation helpers */
+	KUNIT_CASE(dm_test_set_legacy_tf_identity),
+	KUNIT_CASE(dm_test_set_output_tf_linear),
+	KUNIT_CASE(dm_test_set_output_tf_32_srgb_rom),
+	KUNIT_CASE(dm_test_set_input_tf_srgb),
+	KUNIT_CASE(dm_test_set_input_tf_32_srgb),
+	KUNIT_CASE(dm_test_set_transfer_funcs_with_luts),
 	/* amdgpu_dm_set_atomic_regamma */
 	KUNIT_CASE(dm_test_set_atomic_regamma_bypass),
 	/* amdgpu_dm_atomic_shaper_lut */

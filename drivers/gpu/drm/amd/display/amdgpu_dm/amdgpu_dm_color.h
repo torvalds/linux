@@ -64,6 +64,20 @@ void __drm_ctm_to_dc_matrix(const struct drm_color_ctm *ctm,
 			     struct fixed31_32 *matrix);
 void __drm_ctm_3x4_to_dc_matrix(const struct drm_color_ctm_3x4 *ctm,
 				 struct fixed31_32 *matrix);
+int __set_legacy_tf(struct dc_transfer_func *func,
+		    const struct drm_color_lut *lut, uint32_t lut_size,
+		    bool has_rom);
+int __set_output_tf(struct dc_transfer_func *func,
+		    const struct drm_color_lut *lut, uint32_t lut_size,
+		    bool has_rom);
+int __set_output_tf_32(struct dc_transfer_func *func,
+		       const struct drm_color_lut32 *lut, uint32_t lut_size,
+		       bool has_rom);
+struct dc_color_caps;
+int __set_input_tf(struct dc_color_caps *caps, struct dc_transfer_func *func,
+		   const struct drm_color_lut *lut, uint32_t lut_size);
+int __set_input_tf_32(struct dc_color_caps *caps, struct dc_transfer_func *func,
+		      const struct drm_color_lut32 *lut, uint32_t lut_size);
 enum dc_transfer_func_predefined
 amdgpu_tf_to_dc_tf(enum amdgpu_transfer_function tf);
 enum dc_transfer_func_predefined

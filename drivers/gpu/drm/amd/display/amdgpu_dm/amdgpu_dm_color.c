@@ -618,9 +618,10 @@ EXPORT_IF_KUNIT(__drm_ctm_3x4_to_dc_matrix);
  * Returns:
  * 0 in case of success, -ENOMEM if fails
  */
-static int __set_legacy_tf(struct dc_transfer_func *func,
-			   const struct drm_color_lut *lut, uint32_t lut_size,
-			   bool has_rom)
+STATIC_IFN_KUNIT int
+__set_legacy_tf(struct dc_transfer_func *func,
+		const struct drm_color_lut *lut, uint32_t lut_size,
+		bool has_rom)
 {
 	struct dc_gamma *gamma = NULL;
 	struct calculate_buffer cal_buffer = {0};
@@ -645,6 +646,7 @@ static int __set_legacy_tf(struct dc_transfer_func *func,
 
 	return res ? 0 : -ENOMEM;
 }
+EXPORT_IF_KUNIT(__set_legacy_tf);
 
 /**
  * __set_output_tf - calculates the output transfer function based on expected input space.
@@ -656,9 +658,10 @@ static int __set_legacy_tf(struct dc_transfer_func *func,
  * Returns:
  * 0 in case of success. -ENOMEM if fails.
  */
-static int __set_output_tf(struct dc_transfer_func *func,
-			   const struct drm_color_lut *lut, uint32_t lut_size,
-			   bool has_rom)
+STATIC_IFN_KUNIT int
+__set_output_tf(struct dc_transfer_func *func,
+		const struct drm_color_lut *lut, uint32_t lut_size,
+		bool has_rom)
 {
 	struct dc_gamma *gamma = NULL;
 	struct calculate_buffer cal_buffer = {0};
@@ -703,6 +706,7 @@ static int __set_output_tf(struct dc_transfer_func *func,
 
 	return res ? 0 : -ENOMEM;
 }
+EXPORT_IF_KUNIT(__set_output_tf);
 
 /**
  * __set_output_tf_32 - calculates the output transfer function based on expected input space.
@@ -714,9 +718,10 @@ static int __set_output_tf(struct dc_transfer_func *func,
  * Returns:
  * 0 in case of success. -ENOMEM if fails.
  */
-static int __set_output_tf_32(struct dc_transfer_func *func,
-			      const struct drm_color_lut32 *lut, uint32_t lut_size,
-			      bool has_rom)
+STATIC_IFN_KUNIT int
+__set_output_tf_32(struct dc_transfer_func *func,
+		   const struct drm_color_lut32 *lut, uint32_t lut_size,
+		   bool has_rom)
 {
 	struct dc_gamma *gamma = NULL;
 	struct calculate_buffer cal_buffer = {0};
@@ -759,6 +764,7 @@ static int __set_output_tf_32(struct dc_transfer_func *func,
 
 	return res ? 0 : -ENOMEM;
 }
+EXPORT_IF_KUNIT(__set_output_tf_32);
 
 STATIC_IFN_KUNIT void __set_tf_bypass(struct dc_transfer_func *tf)
 {
@@ -820,8 +826,9 @@ EXPORT_IF_KUNIT(amdgpu_dm_set_atomic_regamma);
  * Returns:
  * 0 in case of success. -ENOMEM if fails.
  */
-static int __set_input_tf(struct dc_color_caps *caps, struct dc_transfer_func *func,
-			  const struct drm_color_lut *lut, uint32_t lut_size)
+STATIC_IFN_KUNIT int __set_input_tf(struct dc_color_caps *caps,
+				    struct dc_transfer_func *func,
+				    const struct drm_color_lut *lut, uint32_t lut_size)
 {
 	struct dc_gamma *gamma = NULL;
 	bool res;
@@ -844,6 +851,7 @@ static int __set_input_tf(struct dc_color_caps *caps, struct dc_transfer_func *f
 
 	return res ? 0 : -ENOMEM;
 }
+EXPORT_IF_KUNIT(__set_input_tf);
 
 /**
  * __set_input_tf_32 - calculates the input transfer function based on expected
@@ -856,8 +864,9 @@ static int __set_input_tf(struct dc_color_caps *caps, struct dc_transfer_func *f
  * Returns:
  * 0 in case of success. -ENOMEM if fails.
  */
-static int __set_input_tf_32(struct dc_color_caps *caps, struct dc_transfer_func *func,
-			     const struct drm_color_lut32 *lut, uint32_t lut_size)
+STATIC_IFN_KUNIT int __set_input_tf_32(struct dc_color_caps *caps,
+				       struct dc_transfer_func *func,
+				       const struct drm_color_lut32 *lut, uint32_t lut_size)
 {
 	struct dc_gamma *gamma = NULL;
 	bool res;
@@ -880,6 +889,7 @@ static int __set_input_tf_32(struct dc_color_caps *caps, struct dc_transfer_func
 
 	return res ? 0 : -ENOMEM;
 }
+EXPORT_IF_KUNIT(__set_input_tf_32);
 
 STATIC_IFN_KUNIT
 enum dc_transfer_func_predefined
