@@ -10,6 +10,9 @@
 #include <linux/kobject.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
+#include <linux/i2c.h>
+
+#include <drm/display/drm_dp_helper.h>
 
 #include "amdgpu.h"
 #include "amdgpu_dm.h"
@@ -1461,6 +1464,369 @@ static void dm_test_srm_data_read_empty_srm_returns_zero(struct kunit *test)
 
 /* End of tests for srm_data_write() and srm_data_read() */
 
+/* Tests for lp_write_i2c() / lp_read_i2c() / lp_write_dpcd() / lp_read_dpcd() */
+
+/* Defined further below with the display helper tests. */
+static struct amdgpu_dm_connector *alloc_test_connector(struct kunit *test,
+						       unsigned int index);
+
+/*
+ * Recording fakes for the DDC layer. The lp_* wrappers build i2c/DPCD
+ * transactions and forward them through dm_helpers_*, which end up calling
+ * i2c_transfer() / drm_dp_dpcd_*(). These fakes capture the resulting
+ * messages so the tests can assert what the wrappers built, without touching
+ * real hardware. KUnit runs cases sequentially, so file-scope capture state
+ * is reset at the start of each test.
+ */
+#define FAKE_DDC_MAX_MSGS 4
+
+static struct fake_i2c_capture {
+	int num;
+	struct i2c_msg msgs[FAKE_DDC_MAX_MSGS];
+} fake_i2c_cap;
+
+static int fake_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
+				int num)
+{
+	int i;
+
+	fake_i2c_cap.num = num;
+	for (i = 0; i < num && i < FAKE_DDC_MAX_MSGS; i++)
+		fake_i2c_cap.msgs[i] = msgs[i];
+
+	return num;
+}
+
+static u32 fake_i2c_functionality(struct i2c_adapter *adap)
+{
+	return I2C_FUNC_I2C;
+}
+
+static const struct i2c_algorithm fake_i2c_algo = {
+	.master_xfer = fake_i2c_master_xfer,
+	.functionality = fake_i2c_functionality,
+};
+
+static void fake_i2c_lock_bus(struct i2c_adapter *adap, unsigned int flags) {}
+static int fake_i2c_trylock_bus(struct i2c_adapter *adap, unsigned int flags)
+{
+	return 1;
+}
+static void fake_i2c_unlock_bus(struct i2c_adapter *adap, unsigned int flags) {}
+
+static const struct i2c_lock_operations fake_i2c_lock_ops = {
+	.lock_bus = fake_i2c_lock_bus,
+	.trylock_bus = fake_i2c_trylock_bus,
+	.unlock_bus = fake_i2c_unlock_bus,
+};
+
+static struct fake_aux_capture {
+	int calls;
+	u8 request;
+	unsigned int address;
+	size_t size;
+} fake_aux_cap;
+
+static ssize_t fake_aux_transfer(struct drm_dp_aux *aux,
+				 struct drm_dp_aux_msg *msg)
+{
+	fake_aux_cap.calls++;
+	fake_aux_cap.request = msg->request;
+	fake_aux_cap.address = msg->address;
+	fake_aux_cap.size = msg->size;
+	msg->reply = DP_AUX_NATIVE_REPLY_ACK;
+
+	return msg->size;
+}
+
+/**
+ * alloc_test_ddc_link - connector/link wired to the recording i2c + aux fakes
+ * @test: KUnit test context for managed allocation
+ *
+ * Builds an amdgpu_dm_connector with a fake i2c adapter and a fake DP aux, and
+ * points link->priv at the connector so dm_helpers_* find it. Returns the
+ * dc_link that the lp_* wrappers take as their opaque handle.
+ */
+static struct dc_link *alloc_test_ddc_link(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector = alloc_test_connector(test, 0);
+	struct amdgpu_i2c_adapter *i2c;
+	struct dc_link *link;
+
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+
+	i2c = kunit_kzalloc(test, sizeof(*i2c), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, i2c);
+	i2c->base.algo = &fake_i2c_algo;
+	i2c->base.lock_ops = &fake_i2c_lock_ops;
+	aconnector->i2c = i2c;
+
+	mutex_init(&aconnector->dm_dp_aux.aux.hw_mutex);
+	aconnector->dm_dp_aux.aux.transfer = fake_aux_transfer;
+	/* Skip the DPCD "throw away" probe read so we capture only our access. */
+	aconnector->dm_dp_aux.aux.dpcd_probe_disabled = true;
+
+	link = aconnector->dc_link;
+	link->priv = aconnector;
+
+	return link;
+}
+
+/**
+ * dm_test_lp_write_i2c_builds_single_write_payload - write builds one i2c msg
+ * @test: KUnit test context
+ *
+ * lp_write_i2c() must forward a single write payload carrying the address,
+ * length and data buffer unchanged.
+ */
+static void dm_test_lp_write_i2c_builds_single_write_payload(struct kunit *test)
+{
+	struct dc_link *link = alloc_test_ddc_link(test);
+	u8 data[3] = {0x11, 0x22, 0x33};
+	bool ok;
+
+	memset(&fake_i2c_cap, 0, sizeof(fake_i2c_cap));
+
+	ok = lp_write_i2c(link, 0x3a, data, sizeof(data));
+
+	KUNIT_EXPECT_TRUE(test, ok);
+	KUNIT_ASSERT_EQ(test, fake_i2c_cap.num, 1);
+	/* write => flags without I2C_M_RD */
+	KUNIT_EXPECT_EQ(test, (int)fake_i2c_cap.msgs[0].flags, 0);
+	KUNIT_EXPECT_EQ(test, (int)fake_i2c_cap.msgs[0].addr, 0x3a);
+	KUNIT_EXPECT_EQ(test, (int)fake_i2c_cap.msgs[0].len, (int)sizeof(data));
+	KUNIT_EXPECT_PTR_EQ(test, fake_i2c_cap.msgs[0].buf, (void *)data);
+}
+
+/**
+ * dm_test_lp_read_i2c_builds_offset_then_read - read builds offset + read msgs
+ * @test: KUnit test context
+ *
+ * lp_read_i2c() must build a 1-byte write of the offset followed by a
+ * size-byte read into the caller buffer, both at the same address.
+ */
+static void dm_test_lp_read_i2c_builds_offset_then_read(struct kunit *test)
+{
+	struct dc_link *link = alloc_test_ddc_link(test);
+	u8 data[4];
+	bool ok;
+
+	memset(&fake_i2c_cap, 0, sizeof(fake_i2c_cap));
+
+	ok = lp_read_i2c(link, 0x50, 0x07, data, sizeof(data));
+
+	KUNIT_EXPECT_TRUE(test, ok);
+	KUNIT_ASSERT_EQ(test, fake_i2c_cap.num, 2);
+	/* first: 1-byte write of the offset */
+	KUNIT_EXPECT_EQ(test, (int)fake_i2c_cap.msgs[0].flags, 0);
+	KUNIT_EXPECT_EQ(test, (int)fake_i2c_cap.msgs[0].addr, 0x50);
+	KUNIT_EXPECT_EQ(test, (int)fake_i2c_cap.msgs[0].len, 1);
+	/* second: size-byte read into the caller buffer */
+	KUNIT_EXPECT_EQ(test, (int)fake_i2c_cap.msgs[1].flags, I2C_M_RD);
+	KUNIT_EXPECT_EQ(test, (int)fake_i2c_cap.msgs[1].addr, 0x50);
+	KUNIT_EXPECT_EQ(test, (int)fake_i2c_cap.msgs[1].len, (int)sizeof(data));
+	KUNIT_EXPECT_PTR_EQ(test, fake_i2c_cap.msgs[1].buf, (void *)data);
+}
+
+/**
+ * dm_test_lp_write_dpcd_forwards_native_write - write forwards a native write
+ * @test: KUnit test context
+ *
+ * lp_write_dpcd() must issue a single DP_AUX_NATIVE_WRITE at the requested
+ * address for the requested size.
+ */
+static void dm_test_lp_write_dpcd_forwards_native_write(struct kunit *test)
+{
+	struct dc_link *link = alloc_test_ddc_link(test);
+	u8 data[2] = {0xDE, 0xAD};
+	bool ok;
+
+	memset(&fake_aux_cap, 0, sizeof(fake_aux_cap));
+
+	ok = lp_write_dpcd(link, 0x68000, data, sizeof(data));
+
+	KUNIT_EXPECT_TRUE(test, ok);
+	KUNIT_EXPECT_EQ(test, fake_aux_cap.calls, 1);
+	KUNIT_EXPECT_EQ(test, (int)fake_aux_cap.request, DP_AUX_NATIVE_WRITE);
+	KUNIT_EXPECT_EQ(test, fake_aux_cap.address, 0x68000u);
+	KUNIT_EXPECT_EQ(test, (int)fake_aux_cap.size, (int)sizeof(data));
+}
+
+/**
+ * dm_test_lp_read_dpcd_forwards_native_read - read forwards a native read
+ * @test: KUnit test context
+ *
+ * lp_read_dpcd() must issue a single DP_AUX_NATIVE_READ at the requested
+ * address for the requested size.
+ */
+static void dm_test_lp_read_dpcd_forwards_native_read(struct kunit *test)
+{
+	struct dc_link *link = alloc_test_ddc_link(test);
+	u8 data[4];
+	bool ok;
+
+	memset(&fake_aux_cap, 0, sizeof(fake_aux_cap));
+
+	ok = lp_read_dpcd(link, 0x00220, data, sizeof(data));
+
+	KUNIT_EXPECT_TRUE(test, ok);
+	KUNIT_EXPECT_EQ(test, fake_aux_cap.calls, 1);
+	KUNIT_EXPECT_EQ(test, (int)fake_aux_cap.request, DP_AUX_NATIVE_READ);
+	KUNIT_EXPECT_EQ(test, fake_aux_cap.address, 0x00220u);
+	KUNIT_EXPECT_EQ(test, (int)fake_aux_cap.size, (int)sizeof(data));
+}
+
+/**
+ * dm_test_lp_write_i2c_no_connector_returns_false - missing connector fails
+ * @test: KUnit test context
+ *
+ * When link->priv has no connector, dm_helpers_submit_i2c() cannot proceed,
+ * so lp_write_i2c() must report failure without invoking the adapter.
+ */
+static void dm_test_lp_write_i2c_no_connector_returns_false(struct kunit *test)
+{
+	struct dc_link *link = alloc_test_ddc_link(test);
+	u8 data[2] = {0x01, 0x02};
+	bool ok;
+
+	link->priv = NULL;
+	memset(&fake_i2c_cap, 0, sizeof(fake_i2c_cap));
+
+	ok = lp_write_i2c(link, 0x3a, data, sizeof(data));
+
+	KUNIT_EXPECT_FALSE(test, ok);
+	KUNIT_EXPECT_EQ(test, fake_i2c_cap.num, 0);
+}
+
+/**
+ * dm_test_lp_read_dpcd_no_connector_returns_false - missing connector fails
+ * @test: KUnit test context
+ *
+ * When link->priv has no connector, dm_helpers_dp_read_dpcd() cannot proceed,
+ * so lp_read_dpcd() must report failure without invoking the aux transfer.
+ */
+static void dm_test_lp_read_dpcd_no_connector_returns_false(struct kunit *test)
+{
+	struct dc_link *link = alloc_test_ddc_link(test);
+	u8 data[4];
+	bool ok;
+
+	link->priv = NULL;
+	memset(&fake_aux_cap, 0, sizeof(fake_aux_cap));
+
+	ok = lp_read_dpcd(link, 0x00220, data, sizeof(data));
+
+	KUNIT_EXPECT_FALSE(test, ok);
+	KUNIT_EXPECT_EQ(test, fake_aux_cap.calls, 0);
+}
+
+/* End of tests for lp_write_i2c() / lp_read_i2c() / lp_write_dpcd() / lp_read_dpcd() */
+
+/*
+ * Tests for lp_atomic_write_poll_read_i2c() / lp_atomic_write_poll_read_aux()
+ *
+ * These wrappers cast the opaque handle to a dc_link and forward to the
+ * dc_fused_io helpers. The success path submits a fused-IO command sequence to
+ * the DMCUB, which is out of reach for a unit test, so the coverage here is the
+ * hardware-free early returns: a NULL link and a payload that fails conversion
+ * (op size larger than the fused request buffer).
+ */
+
+/**
+ * dm_test_lp_atomic_i2c_null_handle_returns_false - NULL link fails cleanly
+ * @test: KUnit test context
+ *
+ * With a NULL handle the forwarded dc_link is NULL, so the helper must return
+ * false without dereferencing anything.
+ */
+static void dm_test_lp_atomic_i2c_null_handle_returns_false(struct kunit *test)
+{
+	struct mod_hdcp_atomic_op_i2c op = { 0 };
+
+	KUNIT_EXPECT_FALSE(test,
+			   lp_atomic_write_poll_read_i2c(NULL, &op, &op, &op, 0, 0));
+}
+
+/**
+ * dm_test_lp_atomic_i2c_oversized_op_returns_false - bad payload fails conversion
+ * @test: KUnit test context
+ *
+ * An op whose size exceeds the fused request buffer must fail conversion, so
+ * the helper returns false before any fused-IO submission. no_ddc_pin routes
+ * the DDC line through aux_hw_inst, avoiding the GPIO pin dereference.
+ */
+static void dm_test_lp_atomic_i2c_oversized_op_returns_false(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector = alloc_test_connector(test, 0);
+	struct mod_hdcp_atomic_op_i2c write = { .size = 0x100 };
+	struct mod_hdcp_atomic_op_i2c op = { 0 };
+	struct dc_link *link;
+
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+
+	link = aconnector->dc_link;
+	link->no_ddc_pin = true;
+
+	KUNIT_EXPECT_FALSE(test,
+			   lp_atomic_write_poll_read_i2c(link, &write, &op, &op, 0, 0));
+}
+
+/**
+ * dm_test_lp_atomic_aux_null_handle_returns_false - NULL link fails cleanly
+ * @test: KUnit test context
+ *
+ * With a NULL handle the forwarded dc_link is NULL, so the helper must return
+ * false without dereferencing anything.
+ */
+static void dm_test_lp_atomic_aux_null_handle_returns_false(struct kunit *test)
+{
+	struct mod_hdcp_atomic_op_aux op = { 0 };
+
+	KUNIT_EXPECT_FALSE(test,
+			   lp_atomic_write_poll_read_aux(NULL, &op, &op, &op, 0, 0));
+}
+
+/**
+ * dm_test_lp_atomic_aux_oversized_op_returns_false - bad payload fails conversion
+ * @test: KUnit test context
+ *
+ * The aux helper reads the DDC line from link->ddc->ddc_pin->pin_data before
+ * converting, so a minimal pin chain is wired up. An op larger than the fused
+ * request buffer then fails conversion and the helper returns false without
+ * any fused-IO submission.
+ */
+static void dm_test_lp_atomic_aux_oversized_op_returns_false(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector = alloc_test_connector(test, 0);
+	struct mod_hdcp_atomic_op_aux write = { .size = 0x100 };
+	struct mod_hdcp_atomic_op_aux op = { 0 };
+	struct ddc_service *ddc;
+	struct ddc *ddc_pin;
+	struct dc_link *link;
+	void *pin_data;
+
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+
+	ddc = kunit_kzalloc(test, sizeof(*ddc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ddc);
+	ddc_pin = kunit_kzalloc(test, sizeof(*ddc_pin), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ddc_pin);
+	/* Only ->en is read; over-allocate so struct gpio stays opaque here. */
+	pin_data = kunit_kzalloc(test, 128, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, pin_data);
+
+	ddc_pin->pin_data = pin_data;
+	ddc->ddc_pin = ddc_pin;
+
+	link = aconnector->dc_link;
+	link->ddc = ddc;
+
+	KUNIT_EXPECT_FALSE(test,
+			   lp_atomic_write_poll_read_aux(link, &write, &op, &op, 0, 0));
+}
+
+/* End of tests for lp_atomic_write_poll_read_i2c() / lp_atomic_write_poll_read_aux() */
+
 /*
  * Tests for hdcp_update_display() / hdcp_remove_display() /
  * hdcp_reset_display().
@@ -1994,6 +2360,18 @@ static struct kunit_case dm_hdcp_test_cases[] = {
 	KUNIT_CASE(dm_test_srm_data_write_uninitialized_ta_keeps_srm),
 	KUNIT_CASE(dm_test_srm_data_read_uninitialized_ta_returns_einval),
 	KUNIT_CASE(dm_test_srm_data_read_empty_srm_returns_zero),
+	/* lp_write_i2c() / lp_read_i2c() / lp_write_dpcd() / lp_read_dpcd() */
+	KUNIT_CASE(dm_test_lp_write_i2c_builds_single_write_payload),
+	KUNIT_CASE(dm_test_lp_read_i2c_builds_offset_then_read),
+	KUNIT_CASE(dm_test_lp_write_dpcd_forwards_native_write),
+	KUNIT_CASE(dm_test_lp_read_dpcd_forwards_native_read),
+	KUNIT_CASE(dm_test_lp_write_i2c_no_connector_returns_false),
+	KUNIT_CASE(dm_test_lp_read_dpcd_no_connector_returns_false),
+	/* lp_atomic_write_poll_read_i2c() / lp_atomic_write_poll_read_aux() */
+	KUNIT_CASE(dm_test_lp_atomic_i2c_null_handle_returns_false),
+	KUNIT_CASE(dm_test_lp_atomic_i2c_oversized_op_returns_false),
+	KUNIT_CASE(dm_test_lp_atomic_aux_null_handle_returns_false),
+	KUNIT_CASE(dm_test_lp_atomic_aux_oversized_op_returns_false),
 	/* hdcp_update_display() / hdcp_remove_display() / hdcp_reset_display() */
 	KUNIT_CASE(dm_test_hdcp_update_display_enable_registers_connector),
 	KUNIT_CASE(dm_test_hdcp_update_display_disable_sets_status_off),

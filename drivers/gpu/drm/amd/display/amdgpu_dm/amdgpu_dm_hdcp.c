@@ -38,8 +38,7 @@
  */
 #define PSP_SRM_VERSION_MAX 0xFFFF
 
-static bool
-lp_write_i2c(void *handle, uint32_t address, const uint8_t *data, uint32_t size)
+STATIC_IFN_KUNIT bool lp_write_i2c(void *handle, uint32_t address, const uint8_t *data, uint32_t size)
 {
 	struct dc_link *link = handle;
 	struct i2c_payload i2c_payloads[] = {{true, address, size, (void *)data} };
@@ -48,9 +47,9 @@ lp_write_i2c(void *handle, uint32_t address, const uint8_t *data, uint32_t size)
 
 	return dm_helpers_submit_i2c(link->ctx, link, &cmd);
 }
+EXPORT_IF_KUNIT(lp_write_i2c);
 
-static bool
-lp_read_i2c(void *handle, uint32_t address, uint8_t offset, uint8_t *data, uint32_t size)
+STATIC_IFN_KUNIT bool lp_read_i2c(void *handle, uint32_t address, uint8_t offset, uint8_t *data, uint32_t size)
 {
 	struct dc_link *link = handle;
 
@@ -61,50 +60,53 @@ lp_read_i2c(void *handle, uint32_t address, uint8_t offset, uint8_t *data, uint3
 
 	return dm_helpers_submit_i2c(link->ctx, link, &cmd);
 }
+EXPORT_IF_KUNIT(lp_read_i2c);
 
-static bool
-lp_write_dpcd(void *handle, uint32_t address, const uint8_t *data, uint32_t size)
+STATIC_IFN_KUNIT bool lp_write_dpcd(void *handle, uint32_t address, const uint8_t *data, uint32_t size)
 {
 	struct dc_link *link = handle;
 
 	return dm_helpers_dp_write_dpcd(link->ctx, link, address, data, size);
 }
+EXPORT_IF_KUNIT(lp_write_dpcd);
 
-static bool
-lp_read_dpcd(void *handle, uint32_t address, uint8_t *data, uint32_t size)
+STATIC_IFN_KUNIT bool lp_read_dpcd(void *handle, uint32_t address, uint8_t *data, uint32_t size)
 {
 	struct dc_link *link = handle;
 
 	return dm_helpers_dp_read_dpcd(link->ctx, link, address, data, size);
 }
+EXPORT_IF_KUNIT(lp_read_dpcd);
 
-static bool lp_atomic_write_poll_read_i2c(
-		void *handle,
-		const struct mod_hdcp_atomic_op_i2c *write,
-		const struct mod_hdcp_atomic_op_i2c *poll,
-		struct mod_hdcp_atomic_op_i2c *read,
-		uint32_t poll_timeout_us,
-		uint8_t poll_mask_msb
+STATIC_IFN_KUNIT bool lp_atomic_write_poll_read_i2c(
+						void *handle,
+						const struct mod_hdcp_atomic_op_i2c *write,
+						const struct mod_hdcp_atomic_op_i2c *poll,
+						struct mod_hdcp_atomic_op_i2c *read,
+						uint32_t poll_timeout_us,
+						uint8_t poll_mask_msb
 )
 {
 	struct dc_link *link = handle;
 
 	return dm_atomic_write_poll_read_i2c(link, write, poll, read, poll_timeout_us, poll_mask_msb);
 }
+EXPORT_IF_KUNIT(lp_atomic_write_poll_read_i2c);
 
-static bool lp_atomic_write_poll_read_aux(
-		void *handle,
-		const struct mod_hdcp_atomic_op_aux *write,
-		const struct mod_hdcp_atomic_op_aux *poll,
-		struct mod_hdcp_atomic_op_aux *read,
-		uint32_t poll_timeout_us,
-		uint8_t poll_mask_msb
+STATIC_IFN_KUNIT bool lp_atomic_write_poll_read_aux(
+						void *handle,
+						const struct mod_hdcp_atomic_op_aux *write,
+						const struct mod_hdcp_atomic_op_aux *poll,
+						struct mod_hdcp_atomic_op_aux *read,
+						uint32_t poll_timeout_us,
+						uint8_t poll_mask_msb
 )
 {
 	struct dc_link *link = handle;
 
 	return dm_atomic_write_poll_read_aux(link, write, poll, read, poll_timeout_us, poll_mask_msb);
 }
+EXPORT_IF_KUNIT(lp_atomic_write_poll_read_aux);
 
 STATIC_IFN_KUNIT
 uint8_t *psp_get_srm(struct psp_context *psp, uint32_t *srm_version, uint32_t *srm_size)
