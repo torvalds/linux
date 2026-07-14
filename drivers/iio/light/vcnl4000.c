@@ -1922,7 +1922,7 @@ static void vcnl4000_cleanup(void *data)
 
 static int vcnl4000_probe(struct i2c_client *client)
 {
-	const char * const regulator_names[] = { "vdd", "vio", "vled" };
+	static const char * const regulator_names[] = { "vdd", "vio", "vled" };
 	struct device *dev = &client->dev;
 	struct vcnl4000_data *data;
 	struct iio_dev *indio_dev;
