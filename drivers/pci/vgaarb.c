@@ -575,9 +575,7 @@ static bool vga_is_firmware_default(struct pci_dev *pdev)
 static bool vga_arb_integrated_gpu(struct device *dev)
 {
 #if defined(CONFIG_ACPI)
-	struct acpi_device *adev = ACPI_COMPANION(dev);
-
-	return adev && !strcmp(acpi_device_hid(adev), ACPI_VIDEO_HID);
+	return acpi_dev_is_video_device(ACPI_COMPANION(dev));
 #else
 	return false;
 #endif
