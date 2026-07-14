@@ -4568,6 +4568,102 @@ out_dput:
 	goto out;
 }
 
+/**
+ * vfs_lookup_open - open and possibly create a regular file
+ * @parent: directory to contain file
+ * @last: final component of file name
+ * @open_flag: O_flags
+ * @mode: initial permissions for file
+ *
+ * Open a file after lookup and/or create.  This provides similar
+ * functionality open_last_lookups() for non-VFS users, particularly
+ * nfsd.
+ * It uses ->atomic_open or ->lookup / ->create / ->open as appropriate.
+ *
+ * If the fs object found is not a regular file then an error is returned.
+ * In some cases, related errors are repurposed so that the caller can
+ * determine the type of file found from the error.
+ * -EISDIR : a directory was found
+ * -ELOOP  : a symlink was found
+ * -ENODEV : a block or character device special file was found
+ * -EFTYPE : any other non-regular file was found, such as FIFO or SOCK.
+ *           or ->atomic_open responded to __O_REGULAR.
+ *
+ * Returns: the opened struct file, or an error.
+ */
+struct file *vfs_lookup_open(struct path *parent, struct qstr *last,
+			     int open_flag, umode_t mode)
+{
+	struct file *file __free(fput) = NULL;
+	struct nameidata nd = {};
+	struct open_flags op = {};
+	struct dentry *dentry;
+	int error = 0;
+
+	WARN_ONCE(mode & ~S_IALLUGO, "mode must only have permission bits");
+	WARN_ONCE(open_flag & ~(O_ACCMODE|O_CREAT|O_EXCL|O_TRUNC|__O_REGULAR),
+		  "open_flag has unsupported flags");
+
+	mode |= S_IFREG;
+	open_flag |= __O_REGULAR;
+
+	error = lookup_noperm_common(last, parent->dentry);
+	if (error)
+		return ERR_PTR(error);
+
+	file = alloc_empty_file(open_flag, current_cred());
+	if (IS_ERR(file))
+		return file;
+
+	nd.path = *parent;
+	nd.last = *last;
+	nd.flags = LOOKUP_OPEN;
+	if (open_flag & O_CREAT) {
+		nd.flags |= LOOKUP_CREATE;
+		if (open_flag & O_EXCL)
+			nd.flags |= LOOKUP_EXCL;
+	}
+	op.open_flag = open_flag;
+	op.mode = mode;
+	dentry = lookup_open(&nd, file, &op);
+
+	if (IS_ERR(dentry))
+		return ERR_CAST(dentry);
+
+	if (d_really_is_negative(dentry)) {
+		error = -ENOENT;
+	} else if (!(file->f_mode & FMODE_CREATED) && (open_flag & O_EXCL)) {
+		error = -EEXIST;
+	} else if ((dentry->d_inode->i_mode & S_IFMT) != S_IFREG) {
+		switch (dentry->d_inode->i_mode & S_IFMT) {
+		case S_IFDIR:
+			error = -EISDIR;
+			break;
+		case S_IFLNK:
+			error = -ELOOP;
+			break;
+		case S_IFBLK:
+		case S_IFCHR:
+			error = -ENODEV;
+			break;
+		case S_IFIFO:
+		case S_IFSOCK:
+		default:
+			error = -EFTYPE;
+			break;
+		}
+	} else if (!(file->f_mode & FMODE_OPENED)) {
+		nd.path.dentry = dentry;
+		error = vfs_open(&nd.path, file);
+	}
+	dput(dentry);
+
+	if (error)
+		return ERR_PTR(error);
+	return no_free_ptr(file);
+}
+EXPORT_SYMBOL_FOR_MODULES(vfs_lookup_open, "nfsd");
+
 static inline bool trailing_slashes(struct nameidata *nd)
 {
 	return (bool)nd->last.name[nd->last.len];
