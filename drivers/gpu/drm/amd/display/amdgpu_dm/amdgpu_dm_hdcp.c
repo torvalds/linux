@@ -570,7 +570,8 @@ void hdcp_destroy(struct kobject *kobj, struct hdcp_workqueue *hdcp_work)
 }
 EXPORT_IF_KUNIT(hdcp_destroy);
 
-static bool enable_assr(void *handle, struct dc_link *link)
+STATIC_IFN_KUNIT
+bool enable_assr(void *handle, struct dc_link *link)
 {
 	struct hdcp_workqueue *hdcp_work = handle;
 	struct mod_hdcp hdcp = hdcp_work->hdcp;
@@ -603,6 +604,7 @@ static bool enable_assr(void *handle, struct dc_link *link)
 
 	return true;
 }
+EXPORT_IF_KUNIT(enable_assr);
 
 static void update_config(void *handle, struct cp_psp_stream_config *config)
 {
