@@ -45,6 +45,9 @@ struct mod_hdcp_display;
 struct cp_psp;
 struct amdgpu_device;
 struct psp_context;
+struct file;
+struct kobject;
+struct bin_attribute;
 
 struct hdcp_workqueue {
 	struct work_struct cpirq_work;
@@ -125,6 +128,12 @@ uint8_t *psp_get_srm(struct psp_context *psp, uint32_t *srm_version, uint32_t *s
 int psp_set_srm(struct psp_context *psp, u8 *srm, uint32_t srm_size, uint32_t *srm_version);
 bool enable_assr(void *handle, struct dc_link *link);
 void update_config(void *handle, struct cp_psp_stream_config *config);
+ssize_t srm_data_write(struct file *filp, struct kobject *kobj,
+		       const struct bin_attribute *bin_attr, char *buffer,
+		       loff_t pos, size_t count);
+ssize_t srm_data_read(struct file *filp, struct kobject *kobj,
+		      const struct bin_attribute *bin_attr, char *buffer,
+		      loff_t pos, size_t count);
 #endif
 
 #endif /* AMDGPU_DM_AMDGPU_DM_HDCP_H_ */

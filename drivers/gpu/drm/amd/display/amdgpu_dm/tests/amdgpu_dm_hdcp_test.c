@@ -1348,6 +1348,119 @@ static void dm_test_psp_set_srm_uninitialized_returns_einval(struct kunit *test)
 
 /* End of tests for psp_get_srm() and psp_set_srm() */
 
+/* Tests for srm_data_write() and srm_data_read() */
+
+/**
+ * dm_test_srm_data_write_uninitialized_ta_keeps_srm - write with TA not initialized
+ * @test: KUnit test context
+ *
+ * srm_data_write() always copies the incoming buffer into work->srm_temp and
+ * returns the byte count. When the HDCP TA is not initialized, psp_set_srm()
+ * fails, so the committed SRM (work->srm / work->srm_size) must stay untouched.
+ */
+static void dm_test_srm_data_write_uninitialized_ta_keeps_srm(struct kunit *test)
+{
+	struct hdcp_workqueue *work;
+	struct psp_context *psp;
+	u8 buf[4] = {0xAA, 0xBB, 0xCC, 0xDD};
+	ssize_t ret;
+
+	work = kunit_kzalloc(test, sizeof(*work), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, work);
+	psp = kunit_kzalloc(test, sizeof(*psp), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, psp);
+
+	work->max_link = 1;
+	mutex_init(&work->mutex);
+	/* kzalloc leaves hdcp_context.context.initialized == false */
+	work->hdcp.config.psp.handle = psp;
+	work->srm_temp = kunit_kzalloc(test, PSP_HDCP_SRM_FIRST_GEN_MAX_SIZE, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, work->srm_temp);
+	work->srm = kunit_kzalloc(test, PSP_HDCP_SRM_FIRST_GEN_MAX_SIZE, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, work->srm);
+
+	ret = srm_data_write(NULL, NULL, &work->attr, buf, 0, sizeof(buf));
+
+	KUNIT_EXPECT_EQ(test, ret, (ssize_t)sizeof(buf));
+	/* Incoming data is always staged into srm_temp. */
+	KUNIT_EXPECT_MEMEQ(test, work->srm_temp, buf, sizeof(buf));
+	/* psp_set_srm() failed, so the committed SRM must be unchanged. */
+	KUNIT_EXPECT_EQ(test, work->srm_size, 0u);
+}
+
+/**
+ * dm_test_srm_data_read_uninitialized_ta_returns_einval - read with TA not initialized
+ * @test: KUnit test context
+ *
+ * When the HDCP TA is not initialized, psp_get_srm() returns NULL, so
+ * srm_data_read() must take the error path and return -EINVAL.
+ */
+static void dm_test_srm_data_read_uninitialized_ta_returns_einval(struct kunit *test)
+{
+	struct hdcp_workqueue *work;
+	struct psp_context *psp;
+	u8 buf[4];
+	ssize_t ret;
+
+	work = kunit_kzalloc(test, sizeof(*work), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, work);
+	psp = kunit_kzalloc(test, sizeof(*psp), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, psp);
+
+	work->max_link = 1;
+	mutex_init(&work->mutex);
+	/* kzalloc leaves hdcp_context.context.initialized == false */
+	work->hdcp.config.psp.handle = psp;
+
+	ret = srm_data_read(NULL, NULL, &work->attr, buf, 0, sizeof(buf));
+
+	KUNIT_EXPECT_EQ(test, ret, (ssize_t)-EINVAL);
+}
+
+/**
+ * dm_test_srm_data_read_empty_srm_returns_zero - read of an empty SRM
+ * @test: KUnit test context
+ *
+ * With an initialized TA and the SR-IOV VF bypass, psp_hdcp_invoke() is a
+ * no-op and the zeroed shared buffer yields a SUCCESS status with srm_size 0.
+ * psp_get_srm() then returns a non-NULL (empty) buffer, so srm_data_read()
+ * takes the "nothing left to copy" path and returns 0.
+ */
+static void dm_test_srm_data_read_empty_srm_returns_zero(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct ta_hdcp_shared_memory *hdcp_cmd;
+	struct hdcp_workqueue *work;
+	struct psp_context *psp;
+	u8 buf[4];
+	ssize_t ret;
+
+	KUNIT_ASSERT_NOT_NULL(test, adev);
+
+	work = kunit_kzalloc(test, sizeof(*work), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, work);
+	psp = kunit_kzalloc(test, sizeof(*psp), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, psp);
+	hdcp_cmd = kunit_kzalloc(test, sizeof(*hdcp_cmd), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, hdcp_cmd);
+
+	work->max_link = 1;
+	mutex_init(&work->mutex);
+	psp->adev = adev;
+	psp->hdcp_context.context.initialized = true;
+	psp->hdcp_context.context.mem_context.shared_buf = (uint8_t *)hdcp_cmd;
+	work->hdcp.config.psp.handle = psp;
+
+	/* SR-IOV VF makes psp_hdcp_invoke() return early without firmware. */
+	adev->virt.caps |= AMDGPU_SRIOV_CAPS_IS_VF;
+
+	ret = srm_data_read(NULL, NULL, &work->attr, buf, 0, sizeof(buf));
+
+	KUNIT_EXPECT_EQ(test, ret, 0);
+}
+
+/* End of tests for srm_data_write() and srm_data_read() */
+
 /*
  * Tests for hdcp_update_display() / hdcp_remove_display() /
  * hdcp_reset_display().
@@ -1877,6 +1990,10 @@ static struct kunit_case dm_hdcp_test_cases[] = {
 	/* psp_get_srm() / psp_set_srm() */
 	KUNIT_CASE(dm_test_psp_get_srm_uninitialized_returns_null),
 	KUNIT_CASE(dm_test_psp_set_srm_uninitialized_returns_einval),
+	/* srm_data_write() / srm_data_read() */
+	KUNIT_CASE(dm_test_srm_data_write_uninitialized_ta_keeps_srm),
+	KUNIT_CASE(dm_test_srm_data_read_uninitialized_ta_returns_einval),
+	KUNIT_CASE(dm_test_srm_data_read_empty_srm_returns_zero),
 	/* hdcp_update_display() / hdcp_remove_display() / hdcp_reset_display() */
 	KUNIT_CASE(dm_test_hdcp_update_display_enable_registers_connector),
 	KUNIT_CASE(dm_test_hdcp_update_display_disable_sets_status_off),
