@@ -492,15 +492,14 @@ static void samsung_keypad_toggle_wakeup(struct samsung_keypad *keypad,
 
 	val = readl(keypad->base + SAMSUNG_KEYIFCON);
 	if (enable) {
+		enable_irq_wake(keypad->irq);
 		val |= SAMSUNG_KEYIFCON_WAKEUPEN;
-		if (device_may_wakeup(&keypad->pdev->dev))
-			enable_irq_wake(keypad->irq);
+		writel(val, keypad->base + SAMSUNG_KEYIFCON);
 	} else {
 		val &= ~SAMSUNG_KEYIFCON_WAKEUPEN;
-		if (device_may_wakeup(&keypad->pdev->dev))
-			disable_irq_wake(keypad->irq);
+		writel(val, keypad->base + SAMSUNG_KEYIFCON);
+		disable_irq_wake(keypad->irq);
 	}
-	writel(val, keypad->base + SAMSUNG_KEYIFCON);
 
 	clk_disable(keypad->clk);
 }
@@ -516,7 +515,8 @@ static int samsung_keypad_suspend(struct device *dev)
 	if (input_device_enabled(input_dev))
 		samsung_keypad_stop(keypad);
 
-	samsung_keypad_toggle_wakeup(keypad, true);
+	if (device_may_wakeup(dev))
+		samsung_keypad_toggle_wakeup(keypad, true);
 
 	return 0;
 }
@@ -529,7 +529,8 @@ static int samsung_keypad_resume(struct device *dev)
 
 	guard(mutex)(&input_dev->mutex);
 
-	samsung_keypad_toggle_wakeup(keypad, false);
+	if (device_may_wakeup(dev))
+		samsung_keypad_toggle_wakeup(keypad, false);
 
 	if (input_device_enabled(input_dev))
 		samsung_keypad_start(keypad);
