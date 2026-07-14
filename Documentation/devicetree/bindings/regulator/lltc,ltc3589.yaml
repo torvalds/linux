@@ -1,0 +1,149 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/lltc,ltc3589.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Linear Technology LTC3589 PMIC
+
+maintainers:
+  - Frank Li <Frank.li@kernel.org>
+
+description:
+  Linear Technology LTC3589, LTC3589-1 and LTC3589-2 are PMICs
+  containing three buck regulators, one boost regulator and four
+  LDO regulators.
+
+properties:
+  compatible:
+    enum:
+      - lltc,ltc3589
+      - lltc,ltc3589-1
+      - lltc,ltc3589-2
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  regulators:
+    type: object
+    additionalProperties: false
+
+    patternProperties:
+      "^(sw1|sw2|sw3|bb-out|ldo1|ldo2)$":
+        type: object
+        unevaluatedProperties: false
+        $ref: regulator.yaml#
+
+        properties:
+          lltc,fb-voltage-divider:
+            description:
+              Feedback voltage divider resistor values (R1, R2) in ohms.
+              Regulators sw1, sw2, sw3, and ldo2 can regulate the feedback
+              reference from 0.3625 V to 0.75 V in 12.5 mV steps. The output
+              voltage thus ranges between 0.3625 * (1 + R1/R2) V and
+              0.75 * (1 + R1/R2) V. Regulators bb-out and ldo1 have a fixed
+              0.8 V reference and thus output 0.8 * (1 + R1/R2) V. The ldo3
+              regulator is fixed to 1.8 V on LTC3589 and to 2.8 V on
+              LTC3589-1,2. The ldo4 regulator can output between 1.8 V and
+              3.3 V on LTC3589 and between 1.2 V and 3.2 V on LTC3589-1,2 in
+              four steps. The ldo1 standby regulator can not be disabled and
+              thus should have the regulator-always-on property set.
+            $ref: /schemas/types.yaml#/definitions/uint32-array
+            items:
+              - description: R1 in ohms
+              - description: R2 in ohms.
+
+        required:
+          - lltc,fb-voltage-divider
+
+      "^(ldo3|ldo4)$":
+        type: object
+        unevaluatedProperties: false
+        $ref: regulator.yaml#
+
+required:
+  - compatible
+  - reg
+  - regulators
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        pmic@34 {
+            compatible = "lltc,ltc3589-1";
+            reg = <0x34>;
+
+            regulators {
+                sw1 {
+                    regulator-min-microvolt = <591930>;
+                    regulator-max-microvolt = <1224671>;
+                    lltc,fb-voltage-divider = <100000 158000>;
+                    regulator-ramp-delay = <7000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                };
+
+                sw2 {
+                    regulator-min-microvolt = <704123>;
+                    regulator-max-microvolt = <1456803>;
+                    lltc,fb-voltage-divider = <180000 191000>;
+                    regulator-ramp-delay = <7000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                };
+
+                sw3 {
+                    regulator-min-microvolt = <1341250>;
+                    regulator-max-microvolt = <2775000>;
+                    lltc,fb-voltage-divider = <270000 100000>;
+                    regulator-ramp-delay = <7000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                };
+
+                bb-out {
+                    regulator-min-microvolt = <3387341>;
+                    regulator-max-microvolt = <3387341>;
+                    lltc,fb-voltage-divider = <511000 158000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                };
+
+                ldo1 {
+                    regulator-min-microvolt = <1306329>;
+                    regulator-max-microvolt = <1306329>;
+                    lltc,fb-voltage-divider = <100000 158000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                };
+
+                ldo2 {
+                    regulator-min-microvolt = <704123>;
+                    regulator-max-microvolt = <1456806>;
+                    lltc,fb-voltage-divider = <180000 191000>;
+                    regulator-ramp-delay = <7000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                };
+
+                ldo3 {
+                    regulator-min-microvolt = <2800000>;
+                    regulator-max-microvolt = <2800000>;
+                    regulator-boot-on;
+                };
+
+                ldo4 {
+                    regulator-min-microvolt = <1200000>;
+                    regulator-max-microvolt = <3200000>;
+                };
+            };
+        };
+    };
