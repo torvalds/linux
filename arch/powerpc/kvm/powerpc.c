@@ -277,6 +277,12 @@ int kvmppc_sanity_check(struct kvm_vcpu *vcpu)
 	if (!vcpu->arch.pvr)
 		goto out;
 
+#if defined(CONFIG_KVM_BOOK3S_HV_POSSIBLE)
+	if (vcpu->arch.vcore &&
+	    vcpu->arch.vcore->arch_compat == PVR_ARCH_INVALID)
+		goto out;
+#endif
+
 	/* PAPR only works with book3s_64 */
 	if ((vcpu->arch.cpu_type != KVM_CPU_3S_64) && vcpu->arch.papr_enabled)
 		goto out;
