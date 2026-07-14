@@ -311,25 +311,30 @@ static void tegra241_vintf_user_handle_error(struct tegra241_vintf *vintf)
 
 static void tegra241_vintf0_handle_error(struct tegra241_vintf *vintf)
 {
+	struct tegra241_cmdqv *cmdqv = vintf->cmdqv;
 	int i;
 
 	for (i = 0; i < LVCMDQ_ERR_MAP_NUM_64; i++) {
 		u64 map = readq_relaxed(REG_VINTF(vintf, LVCMDQ_ERR_MAP_64(i)));
 
 		while (map) {
-			unsigned long lidx = __ffs64(map);
+			unsigned long map_bit = __ffs64(map);
+			unsigned long lidx = 64 * i + map_bit;
 			struct tegra241_vcmdq *vcmdq;
 			u32 gerror;
 
-			map &= ~BIT_ULL(lidx);
+			map &= ~BIT_ULL(map_bit);
 
+			/* A bit beyond the count means a HW error; skip it */
+			if (WARN_ON_ONCE(lidx >= cmdqv->num_lvcmdqs_per_vintf))
+				continue;
 			/* Pairs with smp_store_release() publishing it */
 			vcmdq = smp_load_acquire(&vintf->lvcmdqs[lidx]);
 			if (!vcmdq)
 				continue;
 
 			gerror = readl_relaxed(REG_VCMDQ_PAGE0(vcmdq, GERROR));
-			__arm_smmu_cmdq_skip_err(&vintf->cmdqv->smmu, &vcmdq->cmdq);
+			__arm_smmu_cmdq_skip_err(&cmdqv->smmu, &vcmdq->cmdq);
 			writel(gerror, REG_VCMDQ_PAGE0(vcmdq, GERRORN));
 		}
 	}
@@ -381,6 +386,9 @@ static irqreturn_t tegra241_cmdqv_isr(int irq, void *devid)
 
 		vintf_map &= ~BIT_ULL(idx);
 
+		/* A bit beyond the count means a HW error; skip it */
+		if (WARN_ON_ONCE(idx >= cmdqv->num_vintfs))
+			continue;
 		/* The slot may be published or torn down (NULL'd) concurrently */
 		vintf = smp_load_acquire(&cmdqv->vintfs[idx]);
 		if (vintf)
