@@ -33,6 +33,12 @@ static inline void mm_slot_free(struct kmem_cache *cache, void *objp)
 	kmem_cache_free(cache, objp);
 }
 
+/*
+ * Note: mm_slot_lookup and mm_slot_insert cannot be converted to static inline
+ * functions because the hash helpers (hash_for_each_possible and hash_add) rely
+ * on the actual array argument 'hashtable' for sizeof() instead of pointers.
+ */
+
 #define mm_slot_lookup(_hashtable, _mm) 				       \
 ({									       \
 	struct mm_slot *tmp_slot, *mm_slot = NULL;			       \
