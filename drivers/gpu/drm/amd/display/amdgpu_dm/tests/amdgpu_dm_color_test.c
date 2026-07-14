@@ -1536,6 +1536,23 @@ static void dm_test_set_atomic_regamma_bypass(struct kunit *test)
 }
 
 /**
+ * dm_test_set_atomic_regamma_srgb - Non-linear TF enables generated regamma
+ * @test: KUnit test context
+ */
+static void dm_test_set_atomic_regamma_srgb(struct kunit *test)
+{
+	struct dc_transfer_func *out_tf;
+
+	out_tf = kunit_kzalloc(test, sizeof(*out_tf), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, out_tf);
+
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_set_atomic_regamma(out_tf, NULL, 0, true, TRANSFER_FUNCTION_SRGB),
+			0);
+	KUNIT_EXPECT_EQ(test, (int)out_tf->type, (int)TF_TYPE_DISTRIBUTED_POINTS);
+}
+
+/**
  * dm_test_atomic_shaper_lut_bypass - No LUT and linear TF: must take bypass path
  * @test: KUnit test context
  */
@@ -1575,6 +1592,28 @@ static void dm_test_atomic_blend_lut_bypass(struct kunit *test)
 		0);
 	KUNIT_EXPECT_EQ(test, (int)cm->blend_func.type, (int)TF_TYPE_BYPASS);
 	KUNIT_EXPECT_EQ(test, (int)cm->blend_func.tf, (int)TRANSFER_FUNCTION_LINEAR);
+}
+
+/**
+ * dm_test_atomic_shaper_blend_srgb - Non-linear TFs enable shaper and blend
+ * @test: KUnit test context
+ */
+static void dm_test_atomic_shaper_blend_srgb(struct kunit *test)
+{
+	struct dc_plane_cm *cm;
+
+	cm = kunit_kzalloc(test, sizeof(*cm), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, cm);
+
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_atomic_shaper_lut(NULL, true, TRANSFER_FUNCTION_SRGB, 0, cm),
+			0);
+	KUNIT_EXPECT_TRUE(test, cm->flags.bits.shaper_enable);
+
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_atomic_blend_lut(NULL, false, TRANSFER_FUNCTION_SRGB, 0, cm),
+			0);
+	KUNIT_EXPECT_TRUE(test, cm->flags.bits.blend_enable);
 }
 
 /* ---- Tests for __set_colorop_in_tf_1d_curve ---- */
@@ -2533,10 +2572,12 @@ static struct kunit_case dm_color_test_cases[] = {
 	KUNIT_CASE(dm_test_set_transfer_funcs_with_luts),
 	/* amdgpu_dm_set_atomic_regamma */
 	KUNIT_CASE(dm_test_set_atomic_regamma_bypass),
+	KUNIT_CASE(dm_test_set_atomic_regamma_srgb),
 	/* amdgpu_dm_atomic_shaper_lut */
 	KUNIT_CASE(dm_test_atomic_shaper_lut_bypass),
 	/* amdgpu_dm_atomic_blend_lut */
 	KUNIT_CASE(dm_test_atomic_blend_lut_bypass),
+	KUNIT_CASE(dm_test_atomic_shaper_blend_srgb),
 	/* __set_colorop_in_tf_1d_curve */
 	KUNIT_CASE(dm_test_set_colorop_in_tf_1d_curve_invalid_type),
 	KUNIT_CASE(dm_test_set_colorop_in_tf_1d_curve_unsupported_curve),
