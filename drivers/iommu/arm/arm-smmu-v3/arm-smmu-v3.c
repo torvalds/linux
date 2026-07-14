@@ -3252,7 +3252,7 @@ static void arm_smmu_remove_master_domain(struct arm_smmu_master *master,
  *  5. old domain updates its invs array, unreferencing master->build_invs
  *
  * For 1 and 5, prepare the two updated arrays in advance, handling any changes
- * that can possibly failure. So the actual update of either 1 or 5 won't fail.
+ * that can possibly fail. So the actual update of either 1 or 5 won't fail.
  * arm_smmu_asid_lock ensures that the old invs in the domains are intact while
  * we are sequencing to update them.
  */
