@@ -315,35 +315,12 @@ static const struct iio_chan_spec opt3002_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(1),
 };
 
-static int opt3001_get_processed(struct opt3001 *opt, int *val, int *val2)
+static int opt3001_start_conversion(struct opt3001 *opt)
 {
 	struct i2c_client *client = opt->client;
 	struct device *dev = &client->dev;
-	int ret;
-	u16 mantissa;
 	u16 reg;
-	u8 exponent;
-	u16 value;
-	long timeout;
-
-	if (opt->use_irq) {
-		/*
-		 * Enable the end-of-conversion interrupt mechanism. Note that
-		 * doing so will overwrite the low-level limit value however we
-		 * will restore this value later on.
-		 */
-		ret = i2c_smbus_write_word_swapped(client,
-						   OPT3001_LOW_LIMIT,
-						   OPT3001_LOW_LIMIT_EOC_ENABLE);
-		if (ret < 0) {
-			dev_err(dev, "failed to write register %02x\n",
-				OPT3001_LOW_LIMIT);
-			return ret;
-		}
-
-		/* Allow IRQ to access the device despite lock being set */
-		opt->ok_to_ignore_lock = true;
-	}
+	int ret;
 
 	/* Reset data-ready indicator flag */
 	opt->result_ready = false;
@@ -353,84 +330,127 @@ static int opt3001_get_processed(struct opt3001 *opt, int *val, int *val2)
 	if (ret < 0) {
 		dev_err(dev, "failed to read register %02x\n",
 			OPT3001_CONFIGURATION);
-		goto err;
+		return ret;
 	}
 
 	reg = ret;
 	opt3001_set_mode(opt, &reg, OPT3001_CONFIGURATION_M_SINGLE);
 
 	ret = i2c_smbus_write_word_swapped(client, OPT3001_CONFIGURATION, reg);
-	if (ret < 0) {
+	if (ret)
 		dev_err(dev, "failed to write register %02x\n",
 			OPT3001_CONFIGURATION);
+
+	return ret;
+}
+
+static int opt3001_get_processed_irq(struct opt3001 *opt)
+{
+	struct i2c_client *client = opt->client;
+	struct device *dev = &client->dev;
+	u16 value;
+	int ret;
+
+	/*
+	 * Enable the end-of-conversion interrupt mechanism. Note that doing so
+	 * will overwrite the low-level limit value however we will restore this
+	 * value later on.
+	 */
+	ret = i2c_smbus_write_word_swapped(client,
+					   OPT3001_LOW_LIMIT,
+					   OPT3001_LOW_LIMIT_EOC_ENABLE);
+	if (ret < 0) {
+		dev_err(dev, "failed to write register %02x\n",
+			OPT3001_LOW_LIMIT);
+		return ret;
+	}
+
+	/* Allow IRQ to access the device despite lock being set */
+	opt->ok_to_ignore_lock = true;
+
+	ret = opt3001_start_conversion(opt);
+	if (ret)
 		goto err;
-	}
 
-	if (opt->use_irq) {
-		/* Wait for the IRQ to indicate the conversion is complete */
-		ret = wait_event_timeout(opt->result_ready_queue,
-					 opt->result_ready,
-					 msecs_to_jiffies(OPT3001_RESULT_READY_LONG));
-		if (ret == 0) {
-			ret = -ETIMEDOUT;
-			goto err;
-		}
-	} else {
-		/* Sleep for result ready time */
-		timeout = (opt->int_time == OPT3001_INT_TIME_SHORT) ?
-			OPT3001_RESULT_READY_SHORT : OPT3001_RESULT_READY_LONG;
-		msleep(timeout);
-
-		/* Check result ready flag */
-		ret = i2c_smbus_read_word_swapped(client, OPT3001_CONFIGURATION);
-		if (ret < 0) {
-			dev_err(dev, "failed to read register %02x\n",
-				OPT3001_CONFIGURATION);
-			goto err;
-		}
-
-		if (!(ret & OPT3001_CONFIGURATION_CRF)) {
-			ret = -ETIMEDOUT;
-			goto err;
-		}
-
-		/* Obtain value */
-		ret = i2c_smbus_read_word_swapped(client, OPT3001_RESULT);
-		if (ret < 0) {
-			dev_err(dev, "failed to read register %02x\n",
-				OPT3001_RESULT);
-			goto err;
-		}
-		opt->result = ret;
-		opt->result_ready = true;
-	}
+	if (wait_event_timeout(opt->result_ready_queue, opt->result_ready,
+			       msecs_to_jiffies(OPT3001_RESULT_READY_LONG)))
+		ret = 0;
+	else
+		ret = -ETIMEDOUT;
 
 err:
-	if (opt->use_irq)
-		/* Disallow IRQ to access the device while lock is active */
-		opt->ok_to_ignore_lock = false;
+	opt->ok_to_ignore_lock = false;
 
 	if (ret < 0)
 		return ret;
 
-	if (opt->use_irq) {
-		/*
-		 * Disable the end-of-conversion interrupt mechanism by
-		 * restoring the low-level limit value (clearing
-		 * OPT3001_LOW_LIMIT_EOC_ENABLE). Note that selectively clearing
-		 * those enable bits would affect the actual limit value due to
-		 * bit-overlap and therefore can't be done.
-		 */
-		value = (opt->low_thresh_exp << 12) | opt->low_thresh_mantissa;
-		ret = i2c_smbus_write_word_swapped(client,
-						   OPT3001_LOW_LIMIT,
-						   value);
-		if (ret < 0) {
-			dev_err(dev, "failed to write register %02x\n",
-				OPT3001_LOW_LIMIT);
-			return ret;
-		}
+	/*
+	 * Disable the end-of-conversion interrupt mechanism by restoring the
+	 * low-level limit value (clearing OPT3001_LOW_LIMIT_EOC_ENABLE). Note
+	 * that selectively clearing those enable bits would affect the actual
+	 * limit value due to bit-overlap and therefore can't be done.
+	 */
+	value = (opt->low_thresh_exp << 12) | opt->low_thresh_mantissa;
+	ret = i2c_smbus_write_word_swapped(client, OPT3001_LOW_LIMIT, value);
+	if (ret)
+		dev_err(dev, "failed to write register %02x\n",
+			OPT3001_LOW_LIMIT);
+
+	return ret;
+}
+
+static int opt3001_get_processed_noirq(struct opt3001 *opt)
+{
+	struct i2c_client *client = opt->client;
+	struct device *dev = &client->dev;
+	int ret;
+
+	ret = opt3001_start_conversion(opt);
+	if (ret)
+		return ret;
+
+	if (opt->int_time == OPT3001_INT_TIME_SHORT)
+		msleep(OPT3001_RESULT_READY_SHORT);
+	else
+		msleep(OPT3001_RESULT_READY_LONG);
+
+	/* Check result ready flag */
+	ret = i2c_smbus_read_word_swapped(client, OPT3001_CONFIGURATION);
+	if (ret < 0) {
+		dev_err(dev, "failed to read register %02x\n",
+			OPT3001_CONFIGURATION);
+		return ret;
 	}
+
+	if (!(ret & OPT3001_CONFIGURATION_CRF))
+		return -ETIMEDOUT;
+
+	/* Obtain value */
+	ret = i2c_smbus_read_word_swapped(client, OPT3001_RESULT);
+	if (ret < 0) {
+		dev_err(dev, "failed to read register %02x\n",
+			OPT3001_RESULT);
+		return ret;
+	}
+
+	opt->result = ret;
+	opt->result_ready = true;
+
+	return 0;
+}
+
+static int opt3001_get_processed(struct opt3001 *opt, int *val, int *val2)
+{
+	u16 mantissa;
+	u8 exponent;
+	int ret;
+
+	if (opt->use_irq)
+		ret = opt3001_get_processed_irq(opt);
+	else
+		ret = opt3001_get_processed_noirq(opt);
+	if (ret)
+		return ret;
 
 	exponent = OPT3001_REG_EXPONENT(opt->result);
 	mantissa = OPT3001_REG_MANTISSA(opt->result);
