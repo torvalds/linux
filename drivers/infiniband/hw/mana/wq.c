@@ -55,6 +55,11 @@ int mana_ib_destroy_wq(struct ib_wq *ibwq, struct ib_udata *udata)
 	struct mana_ib_wq *wq = container_of(ibwq, struct mana_ib_wq, ibwq);
 	struct ib_device *ib_dev = ibwq->device;
 	struct mana_ib_dev *mdev;
+	int err;
+
+	err = ib_no_udata_io(udata);
+	if (err)
+		return err;
 
 	mdev = container_of(ib_dev, struct mana_ib_dev, ib_dev);
 
@@ -69,10 +74,17 @@ int mana_ib_create_rwq_ind_table(struct ib_rwq_ind_table *ib_rwq_ind_table,
 				 struct ib_rwq_ind_table_init_attr *init_attr,
 				 struct ib_udata *udata)
 {
+	int err;
+
+	err = ib_no_udata_io(udata);
+	if (err)
+		return err;
+
 	/*
 	 * There is no additional data in ind_table to be maintained by this
 	 * driver, do nothing
 	 */
+
 	return 0;
 }
 

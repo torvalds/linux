@@ -25,7 +25,7 @@ enum mana_ib_create_cq_flags {
 
 struct mana_ib_create_cq {
 	__aligned_u64 buf_addr;
-	__u16	flags;
+	__u16	comp_mask;
 	__u16	reserved0;
 	__u32	reserved1;
 };
