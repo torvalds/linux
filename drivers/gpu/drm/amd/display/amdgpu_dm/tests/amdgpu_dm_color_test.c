@@ -2122,6 +2122,36 @@ static void dm_test_check_crtc_color_mgmt_no_luts(struct kunit *test)
 }
 
 /**
+ * dm_test_check_crtc_color_mgmt_legacy_regamma - Legacy LUT uses sRGB regamma
+ * @test: KUnit test context
+ */
+static void dm_test_check_crtc_color_mgmt_legacy_regamma(struct kunit *test)
+{
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+
+	f.crtc_state->base.gamma_lut = dm_test_make_lut_blob(test, MAX_COLOR_LEGACY_LUT_ENTRIES);
+
+	KUNIT_EXPECT_EQ(test, amdgpu_dm_check_crtc_color_mgmt(f.crtc_state, true), 0);
+	KUNIT_EXPECT_TRUE(test, f.crtc_state->cm_is_degamma_srgb);
+}
+
+/**
+ * dm_test_check_crtc_color_mgmt_degamma - Atomic degamma is mapped to the plane
+ * @test: KUnit test context
+ */
+static void dm_test_check_crtc_color_mgmt_degamma(struct kunit *test)
+{
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+
+	f.crtc_state->base.degamma_lut =
+		dm_test_make_lut_blob(test, MAX_COLOR_LUT_ENTRIES);
+
+	KUNIT_EXPECT_EQ(test, amdgpu_dm_check_crtc_color_mgmt(f.crtc_state, true), 0);
+	KUNIT_EXPECT_TRUE(test, f.crtc_state->cm_has_degamma);
+	KUNIT_EXPECT_FALSE(test, f.crtc_state->cm_is_degamma_srgb);
+}
+
+/**
  * dm_test_update_crtc_color_mgmt_no_ctm - No CRTC CTM leaves remap bypassed
  * @test: KUnit test context
  */
@@ -2212,6 +2242,98 @@ static void dm_test_update_plane_color_mgmt_maps_crtc_degamma(struct kunit *test
 	KUNIT_EXPECT_EQ(test,
 			(int)f.dc_plane_state->in_transfer_func.tf,
 			(int)TRANSFER_FUNCTION_SRGB);
+}
+
+/**
+ * dm_test_update_plane_color_mgmt_maps_crtc_degamma_lut - CRTC LUT maps to plane degamma
+ * @test: KUnit test context
+ */
+static void dm_test_update_plane_color_mgmt_maps_crtc_degamma_lut(struct kunit *test)
+{
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+	struct drm_plane_state *plane_state = &f.dm_plane_state->base;
+	int ret;
+
+	f.crtc_state->cm_has_degamma = true;
+	f.crtc_state->cm_is_degamma_srgb = true;
+	f.crtc_state->base.degamma_lut =
+		dm_test_make_lut_blob(test, MAX_COLOR_LUT_ENTRIES);
+
+	ret = amdgpu_dm_update_plane_color_mgmt(f.crtc_state, plane_state,
+						f.dc_plane_state);
+	KUNIT_EXPECT_EQ(test, ret, 0);
+	KUNIT_EXPECT_EQ(test, (int)f.dc_plane_state->in_transfer_func.type,
+			(int)TF_TYPE_DISTRIBUTED_POINTS);
+	KUNIT_EXPECT_EQ(test, (int)f.dc_plane_state->in_transfer_func.tf,
+			(int)TRANSFER_FUNCTION_SRGB);
+}
+
+/**
+ * dm_test_update_plane_color_mgmt_maps_bt709_degamma - Video uses BT.709 degamma
+ * @test: KUnit test context
+ */
+static void dm_test_update_plane_color_mgmt_maps_bt709_degamma(struct kunit *test)
+{
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+	struct drm_plane_state *plane_state = &f.dm_plane_state->base;
+	int ret;
+
+	f.crtc_state->cm_is_degamma_srgb = true;
+	f.dc_plane_state->format = SURFACE_PIXEL_FORMAT_VIDEO_420_YCbCr;
+
+	ret = amdgpu_dm_update_plane_color_mgmt(f.crtc_state, plane_state,
+						f.dc_plane_state);
+	KUNIT_EXPECT_EQ(test, ret, 0);
+	KUNIT_EXPECT_EQ(test, (int)f.dc_plane_state->in_transfer_func.tf,
+			(int)TRANSFER_FUNCTION_BT709);
+}
+
+/**
+ * dm_test_update_plane_color_mgmt_plane_degamma_lut - Non-linear plane LUT succeeds
+ * @test: KUnit test context
+ */
+static void dm_test_update_plane_color_mgmt_plane_degamma_lut(struct kunit *test)
+{
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+	struct drm_plane_state *plane_state = &f.dm_plane_state->base;
+	struct drm_color_lut *lut;
+	int ret;
+
+	f.dm_plane_state->degamma_lut =
+		dm_test_make_lut_blob(test, MAX_COLOR_LUT_ENTRIES);
+	lut = f.dm_plane_state->degamma_lut->data;
+	lut[0].red = MAX_DRM_LUT_VALUE;
+	lut[0].green = MAX_DRM_LUT_VALUE;
+	lut[0].blue = MAX_DRM_LUT_VALUE;
+
+	ret = amdgpu_dm_update_plane_color_mgmt(f.crtc_state, plane_state,
+						f.dc_plane_state);
+	KUNIT_EXPECT_EQ(test, ret, 0);
+	KUNIT_EXPECT_EQ(test, (int)f.dc_plane_state->in_transfer_func.type,
+			(int)TF_TYPE_DISTRIBUTED_POINTS);
+}
+
+/**
+ * dm_test_update_plane_color_mgmt_rejects_dual_degamma - Reject two degamma stages
+ * @test: KUnit test context
+ */
+static void dm_test_update_plane_color_mgmt_rejects_dual_degamma(struct kunit *test)
+{
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+	struct drm_plane_state *plane_state = &f.dm_plane_state->base;
+	struct drm_crtc *crtc;
+	int ret;
+
+	crtc = kunit_kzalloc(test, sizeof(*crtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, crtc);
+	crtc->dev = &f.adev->ddev;
+	f.crtc_state->base.crtc = crtc;
+	f.crtc_state->cm_has_degamma = true;
+	f.dm_plane_state->degamma_tf = AMDGPU_TRANSFER_FUNCTION_SRGB_EOTF;
+
+	ret = amdgpu_dm_update_plane_color_mgmt(f.crtc_state, plane_state,
+						f.dc_plane_state);
+	KUNIT_EXPECT_EQ(test, ret, -EINVAL);
 }
 
 /**
@@ -2600,11 +2722,17 @@ static struct kunit_case dm_color_test_cases[] = {
 	KUNIT_CASE(dm_test_colorop_degamma_no_match),
 	/* CRTC and plane color management update paths */
 	KUNIT_CASE(dm_test_check_crtc_color_mgmt_no_luts),
+	KUNIT_CASE(dm_test_check_crtc_color_mgmt_legacy_regamma),
+	KUNIT_CASE(dm_test_check_crtc_color_mgmt_degamma),
 	KUNIT_CASE(dm_test_update_crtc_color_mgmt_no_ctm),
 	KUNIT_CASE(dm_test_update_crtc_color_mgmt_ctm),
 	KUNIT_CASE(dm_test_update_plane_color_mgmt_bad_lut3d),
 	KUNIT_CASE(dm_test_update_plane_color_mgmt_fallback_defaults),
 	KUNIT_CASE(dm_test_update_plane_color_mgmt_maps_crtc_degamma),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_maps_crtc_degamma_lut),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_maps_bt709_degamma),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_plane_degamma_lut),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_rejects_dual_degamma),
 	KUNIT_CASE(dm_test_update_plane_color_mgmt_uses_color_caps),
 	KUNIT_CASE(dm_test_update_plane_color_mgmt_plane_ctm),
 	KUNIT_CASE(dm_test_update_plane_color_mgmt_colorop_bypass_pipeline),
