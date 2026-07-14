@@ -52,4 +52,9 @@ static inline void mm_slot_free(struct kmem_cache *cache, void *objp)
 	hash_add(_hashtable, &_mm_slot->hash, (unsigned long)_mm);	       \
 })
 
+static inline void mm_slot_remove(struct mm_slot *slot)
+{
+	hash_del(&slot->hash);
+	list_del(&slot->mm_node);
+}
 #endif /* _LINUX_MM_SLOT_H */
