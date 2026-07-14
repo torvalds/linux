@@ -79,9 +79,6 @@ struct damon_region {
 /**
  * struct damon_target - Represents a monitoring target.
  * @pid:		The PID of the virtual address space to monitor.
- * @nr_regions:		Number of monitoring target regions of this target.
- * @regions_list:	Head of the monitoring target regions of this target.
- * @list:		List head for siblings.
  * @obsolete:		Whether the commit destination target is obsolete.
  *
  * Each monitoring context could have multiple targets.  For example, a context
@@ -95,10 +92,14 @@ struct damon_region {
  */
 struct damon_target {
 	struct pid *pid;
-	unsigned int nr_regions;
-	struct list_head regions_list;
-	struct list_head list;
 	bool obsolete;
+/* private: */
+	/* Number of monitoring target regions of this target. */
+	unsigned int nr_regions;
+	/* Head of the monitoring target regions of this target. */
+	struct list_head regions_list;
+	/* List head for siblings. */
+	struct list_head list;
 };
 
 /**
