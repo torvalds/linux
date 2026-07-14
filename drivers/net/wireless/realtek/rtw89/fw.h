@@ -3114,7 +3114,6 @@ enum rtw89_fw_cmd_ofld_arg_src {
 	RTW89_FW_CMD_OFLD_SRC_RF,
 	RTW89_FW_CMD_OFLD_SRC_MAC,
 	RTW89_FW_CMD_OFLD_SRC_RF_DDIE,
-	RTW89_FW_CMD_OFLD_SRC_OTHER,
 };
 
 enum rtw89_fw_cmd_ofld_arg_type {
