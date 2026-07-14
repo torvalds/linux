@@ -23,6 +23,7 @@
 ``arm64``      Maintained        仅小端序。
 ``loongarch``  Maintained        \-
 ``riscv``      Maintained        仅 ``riscv64``，且仅限 LLVM/Clang。
+``s390``       Maintained        必须禁用 ``CONFIG_EXPOLINE``。
 ``um``         Maintained        \-
 ``x86``        Maintained        仅 ``x86_64``。
 =============  ================  ==============================================
