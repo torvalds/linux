@@ -2356,6 +2356,33 @@ static void dm_test_update_plane_color_mgmt_uses_color_caps(struct kunit *test)
 }
 
 /**
+ * dm_test_update_plane_color_mgmt_legacy_luts - Legacy shaper and blend LUTs succeed
+ * @test: KUnit test context
+ */
+static void dm_test_update_plane_color_mgmt_legacy_luts(struct kunit *test)
+{
+	const u32 lut3d_entries =
+		MAX_COLOR_3DLUT_SIZE * MAX_COLOR_3DLUT_SIZE * MAX_COLOR_3DLUT_SIZE;
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+	struct drm_plane_state *plane_state = &f.dm_plane_state->base;
+	int ret;
+
+	f.adev->dm.dc->caps.color.dpp.hw_3d_lut = true;
+	f.dm_plane_state->shaper_lut =
+		dm_test_make_lut_blob(test, MAX_COLOR_LUT_ENTRIES);
+	f.dm_plane_state->lut3d = dm_test_make_lut_blob(test, lut3d_entries);
+	f.dm_plane_state->blend_lut =
+		dm_test_make_lut_blob(test, MAX_COLOR_LUT_ENTRIES);
+
+	ret = amdgpu_dm_update_plane_color_mgmt(f.crtc_state, plane_state,
+						f.dc_plane_state);
+	KUNIT_EXPECT_EQ(test, ret, 0);
+	KUNIT_EXPECT_TRUE(test, f.dc_plane_state->cm.flags.bits.shaper_enable);
+	KUNIT_EXPECT_TRUE(test, f.dc_plane_state->cm.flags.bits.lut3d_enable);
+	KUNIT_EXPECT_TRUE(test, f.dc_plane_state->cm.flags.bits.blend_enable);
+}
+
+/**
  * dm_test_update_plane_color_mgmt_plane_ctm - Plane CTM maps to gamut remap
  * @test: KUnit test context
  *
@@ -2734,6 +2761,7 @@ static struct kunit_case dm_color_test_cases[] = {
 	KUNIT_CASE(dm_test_update_plane_color_mgmt_plane_degamma_lut),
 	KUNIT_CASE(dm_test_update_plane_color_mgmt_rejects_dual_degamma),
 	KUNIT_CASE(dm_test_update_plane_color_mgmt_uses_color_caps),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_legacy_luts),
 	KUNIT_CASE(dm_test_update_plane_color_mgmt_plane_ctm),
 	KUNIT_CASE(dm_test_update_plane_color_mgmt_colorop_bypass_pipeline),
 	KUNIT_CASE(dm_test_update_plane_color_mgmt_colorop_missing_multiplier),
