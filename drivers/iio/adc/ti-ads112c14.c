@@ -12,9 +12,11 @@
 #include <linux/cleanup.h>
 #include <linux/delay.h>
 #include <linux/dev_printk.h>
+#include <linux/device/devres.h>
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
 #include <linux/math64.h>
+#include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/property.h>
@@ -77,6 +79,7 @@
 #define ADS112C14_REG_MUX_CFG				0x07
 #define   ADS112C14_MUX_CFG_AINP			GENMASK(7, 4)
 #define   ADS112C14_MUX_CFG_AINN			GENMASK(3, 0)
+#define     ADS112C14_MUX_CFG_AIN_GND			  8
 
 #define ADS112C14_REG_GAIN_CFG				0x08
 #define   ADS112C14_GAIN_CFG_SPARE			BIT(7)
@@ -129,6 +132,20 @@
 
 #define ADS112C14_INT_REF0_mV				1250
 #define ADS112C14_INT_REF1_mV				2500
+
+enum {
+	ADS112C14_VREF_SOURCE_INTERNAL_2_5V,
+	ADS112C14_VREF_SOURCE_INTERNAL_1_25V,
+	ADS112C14_VREF_SOURCE_EXTERNAL,
+	ADS112C14_VREF_SOURCE_AVDD,
+};
+
+static const char * const ads112c14_vref_source_names[] = {
+	[ADS112C14_VREF_SOURCE_INTERNAL_2_5V] = "internal-2.5v",
+	[ADS112C14_VREF_SOURCE_INTERNAL_1_25V] = "internal-1.25v",
+	[ADS112C14_VREF_SOURCE_EXTERNAL] = "external",
+	[ADS112C14_VREF_SOURCE_AVDD] = "avdd",
+};
 
 /*
  * Available gains as tenths (e.g. value 5 == 0.5 gain). Indexes correspond to
@@ -204,11 +221,33 @@ static const struct iio_chan_spec ads112c14_sys_mon_channels[] = {
 	},
 };
 
+struct ads112c14_measurement {
+	const char *label;
+	u32 vref_source;
+	u8 iunit;
+	u8 idac1_mag;
+	u8 idac2_mag;
+	u8 idac1_mux;
+	u8 idac2_mux;
+	u8 iadc_count;
+	u8 gain_val;
+	bool global_chop;
+	bool bipolar;
+	int scale_available[ARRAY_SIZE(ads112c14_pga_gains_x10)][2];
+};
+
 struct ads112c14_data {
 	const struct ads112c14_chip_info *chip_info;
 	struct regmap *regmap;
 	/* Synchronizes access to register value fields. */
 	struct mutex lock;
+	u32 avdd_uV;
+	u32 ext_ref_uV;
+	bool refp_is_avdd;
+	bool refn_is_gnd;
+	u32 ext_ref_ohms;
+	struct ads112c14_measurement *measurements;
+	u32 num_measurements;
 	u8 sys_mon_chan_short_gain_val;
 	int sys_mon_chan_short_scale_available[ARRAY_SIZE(ads112c14_pga_gains_x10)][2];
 };
@@ -263,11 +302,111 @@ static const struct regmap_config ads112c14_regmap_config = {
 	.cache_type = REGCACHE_MAPLE,
 };
 
+static int ads112c14_prepare_measurement_channel(struct ads112c14_data *data,
+						 const struct iio_chan_spec *chan)
+{
+	struct ads112c14_measurement *measurement = &data->measurements[chan->scan_index];
+	u32 refp_buf_en, refn_buf_en, ref_val, ref_sel;
+	int ret;
+
+	ret = regmap_update_bits(data->regmap, ADS112C14_REG_MUX_CFG,
+				 ADS112C14_MUX_CFG_AINP | ADS112C14_MUX_CFG_AINN,
+				 FIELD_PREP(ADS112C14_MUX_CFG_AINP, chan->channel) |
+				 FIELD_PREP(ADS112C14_MUX_CFG_AINN, chan->channel2));
+	if (ret)
+		return ret;
+
+	ret = regmap_assign_bits(data->regmap, ADS112C14_REG_DIGITAL_CFG,
+				 ADS112C14_DIGITAL_CFG_CODING,
+				 !measurement->bipolar);
+	if (ret)
+		return ret;
+
+	ret = regmap_update_bits(data->regmap, ADS112C14_REG_GAIN_CFG,
+				 ADS112C14_GAIN_CFG_SYS_MON |
+				 ADS112C14_GAIN_CFG_GAIN,
+				 FIELD_PREP(ADS112C14_GAIN_CFG_SYS_MON, 0) |
+				 FIELD_PREP(ADS112C14_GAIN_CFG_GAIN,
+					    measurement->gain_val));
+	if (ret)
+		return ret;
+
+	ret = regmap_update_bits(data->regmap, ADS112C14_REG_IDAC_MAG_CFG,
+				 ADS112C14_IDAC_MAG_CFG_I2MAG |
+				 ADS112C14_IDAC_MAG_CFG_I1MAG,
+				 FIELD_PREP(ADS112C14_IDAC_MAG_CFG_I2MAG,
+					    measurement->idac2_mag) |
+				 FIELD_PREP(ADS112C14_IDAC_MAG_CFG_I1MAG,
+					    measurement->idac1_mag));
+	if (ret)
+		return ret;
+
+	ret = regmap_update_bits(data->regmap, ADS112C14_REG_IDAC_MUX_CFG,
+				 ADS112C14_IDAC_MUX_CFG_IUNIT |
+				 ADS112C14_IDAC_MUX_CFG_I2MUX |
+				 ADS112C14_IDAC_MUX_CFG_I1MUX,
+				 FIELD_PREP(ADS112C14_IDAC_MUX_CFG_IUNIT,
+					    measurement->iunit) |
+				 FIELD_PREP(ADS112C14_IDAC_MUX_CFG_I2MUX,
+					    measurement->idac2_mux) |
+				 FIELD_PREP(ADS112C14_IDAC_MUX_CFG_I1MUX,
+					    measurement->idac1_mux));
+	if (ret)
+		return ret;
+
+	ret = regmap_update_bits(data->regmap, ADS112C14_REG_DATA_RATE_CFG,
+				 ADS112C14_DATA_RATE_CFG_GC_EN,
+				 FIELD_PREP(ADS112C14_DATA_RATE_CFG_GC_EN,
+					    measurement->global_chop));
+	if (ret)
+		return ret;
+
+	refp_buf_en = !data->refp_is_avdd &&
+		      measurement->vref_source == ADS112C14_VREF_SOURCE_EXTERNAL;
+	refn_buf_en = !data->refn_is_gnd &&
+		      measurement->vref_source == ADS112C14_VREF_SOURCE_EXTERNAL;
+
+	ref_val = measurement->vref_source == ADS112C14_VREF_SOURCE_INTERNAL_2_5V ?
+		ADS112C14_REFERENCE_CFG_REF_VAL_2_5V :
+		ADS112C14_REFERENCE_CFG_REF_VAL_1_25V;
+
+	switch (measurement->vref_source) {
+	case ADS112C14_VREF_SOURCE_AVDD:
+		ref_sel = ADS112C14_REFERENCE_CFG_REF_SEL_AVDD;
+		break;
+	case ADS112C14_VREF_SOURCE_EXTERNAL:
+		ref_sel = ADS112C14_REFERENCE_CFG_REF_SEL_EXTERNAL;
+		break;
+	default:
+		ref_sel = ADS112C14_REFERENCE_CFG_REF_SEL_INTERNAL;
+		break;
+	}
+
+	return regmap_update_bits(data->regmap, ADS112C14_REG_REFERENCE_CFG,
+				  ADS112C14_REFERENCE_CFG_REFP_BUF_EN |
+				  ADS112C14_REFERENCE_CFG_REFN_BUF_EN |
+				  ADS112C14_REFERENCE_CFG_REF_VAL |
+				  ADS112C14_REFERENCE_CFG_REF_SEL,
+				  FIELD_PREP(ADS112C14_REFERENCE_CFG_REFP_BUF_EN,
+					     refp_buf_en) |
+				  FIELD_PREP(ADS112C14_REFERENCE_CFG_REFN_BUF_EN,
+					     refn_buf_en) |
+				  FIELD_PREP(ADS112C14_REFERENCE_CFG_REF_VAL,
+					     ref_val) |
+				  FIELD_PREP(ADS112C14_REFERENCE_CFG_REF_SEL,
+					     ref_sel));
+}
+
 static int ads112c14_prepare_sys_mon_channel(struct ads112c14_data *data,
 					     const struct iio_chan_spec *chan)
 {
 	u32 gain_val;
 	int ret;
+
+	/*
+	 * NB: IDAC registers are left as-is in case they are generating current
+	 * needed for the external reference measurement.
+	 */
 
 	/*
 	 * All SYS_MON channels use GAIN of 1 to keep it simple. Other than
@@ -326,8 +465,9 @@ static int ads112c14_single_conversion(struct ads112c14_data *data,
 	guard(mutex)(&data->lock);
 
 	if (chan->channel < ADS112C14_SYS_MON_CHANNEL_BASE) {
-		/* Not implemented yet. */
-		return -EINVAL;
+		ret = ads112c14_prepare_measurement_channel(data, chan);
+		if (ret)
+			return ret;
 	} else {
 		ret = ads112c14_prepare_sys_mon_channel(data, chan);
 		if (ret)
@@ -360,6 +500,7 @@ static int ads112c14_read_raw(struct iio_dev *indio_dev,
 			      int *val, int *val2, long mask)
 {
 	struct ads112c14_data *data = iio_priv(indio_dev);
+	struct ads112c14_measurement *measurement = NULL;
 	const int *scale_avail;
 	u32 vref_uV, fsr_bits;
 
@@ -367,8 +508,8 @@ static int ads112c14_read_raw(struct iio_dev *indio_dev,
 	vref_uV = ADS112C14_INT_REF1_mV * (MICRO / MILLI);
 
 	if (chan->channel < ADS112C14_SYS_MON_CHANNEL_BASE) {
-		/* Not implemented yet. */
-		return -EINVAL;
+		measurement = &data->measurements[chan->scan_index];
+		fsr_bits = data->chip_info->resolution_bits - measurement->bipolar;
 	} else {
 		/* All SYS_MON channels are using signed coding. */
 		fsr_bits = data->chip_info->resolution_bits - 1;
@@ -398,7 +539,8 @@ static int ads112c14_read_raw(struct iio_dev *indio_dev,
 			return -EINVAL;
 		}
 
-		*val = sign_extend32(*val, fsr_bits);
+		if (!measurement || measurement->bipolar)
+			*val = sign_extend32(*val, fsr_bits);
 
 		return IIO_VAL_INT;
 	}
@@ -408,6 +550,16 @@ static int ads112c14_read_raw(struct iio_dev *indio_dev,
 			*val = MILLI * vref_uV / 405;
 			*val2 = fsr_bits;
 			return IIO_VAL_FRACTIONAL_LOG2;
+		}
+
+		if (chan->channel < ADS112C14_SYS_MON_CHANNEL_BASE) {
+			guard(mutex)(&data->lock);
+
+			scale_avail = measurement->scale_available[measurement->gain_val];
+			*val = scale_avail[0];
+			*val2 = scale_avail[1];
+
+			return IIO_VAL_DECIMAL64_PICO;
 		}
 
 		if (chan->channel == ADS112C14_SYS_MON_CHANNEL_SHORT) {
@@ -463,6 +615,18 @@ static int ads112c14_read_avail(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
+		if (chan->channel < ADS112C14_SYS_MON_CHANNEL_BASE) {
+			struct ads112c14_measurement *measurement;
+
+			guard(mutex)(&data->lock);
+
+			measurement = &data->measurements[chan->scan_index];
+			*vals = (const int *)measurement->scale_available;
+			*length = 2 * ARRAY_SIZE(measurement->scale_available);
+			*type = IIO_VAL_DECIMAL64_PICO;
+			return IIO_AVAIL_LIST;
+		}
+
 		if (chan->channel == ADS112C14_SYS_MON_CHANNEL_SHORT) {
 			guard(mutex)(&data->lock);
 
@@ -490,7 +654,13 @@ static int ads112c14_write_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE: {
 		guard(mutex)(&data->lock);
 
-		if (chan->channel == ADS112C14_SYS_MON_CHANNEL_SHORT) {
+		if (chan->channel < ADS112C14_SYS_MON_CHANNEL_BASE) {
+			struct ads112c14_measurement *measurement;
+
+			measurement = &data->measurements[chan->scan_index];
+			scale_avail = measurement->scale_available;
+			gain_val = &measurement->gain_val;
+		} else if (chan->channel == ADS112C14_SYS_MON_CHANNEL_SHORT) {
 			scale_avail = data->sys_mon_chan_short_scale_available;
 			gain_val = &data->sys_mon_chan_short_gain_val;
 		} else {
@@ -527,7 +697,19 @@ static int ads112c14_write_raw_get_fmt(struct iio_dev *indio_dev,
 static int ads112c14_read_label(struct iio_dev *indio_dev,
 				struct iio_chan_spec const *chan, char *label)
 {
+	struct ads112c14_data *data = iio_priv(indio_dev);
 	const char *label_source;
+
+	/* measurement channels */
+	if (chan->channel < ADS112C14_SYS_MON_CHANNEL_BASE) {
+		struct ads112c14_measurement *measurement;
+
+		measurement = &data->measurements[chan->scan_index];
+		if (!measurement->label)
+			return -EINVAL;
+
+		return sysfs_emit(label, "%s\n", measurement->label);
+	}
 
 	/* System monitor channels. */
 	switch (chan->channel) {
@@ -561,6 +743,215 @@ static const struct iio_info ads112c14_info = {
 	.read_label = ads112c14_read_label,
 };
 
+static int ads112c14_populate_idac_mag(u32 current_nA, u8 *idac_mag)
+{
+	u32 current_uA = current_nA / (NANO / MICRO);
+
+	/* Convert microamps to IMAG bits */
+	if (current_uA == 1)
+		*idac_mag = 1;
+	else if (in_range(current_uA, 10, 100) && current_uA % 10 == 0)
+		*idac_mag = current_uA / 10 + 1;
+	else
+		return dev_err_probe(NULL, -EINVAL,
+				     "invalid excitation-current-nanoamp value\n");
+
+	return 0;
+}
+
+static int ads112c14_parse_channels(struct iio_dev *indio_dev,
+				    bool *need_avdd_ref, bool *need_ext_ref)
+{
+	struct ads112c14_data *data = iio_priv(indio_dev);
+	struct device *dev = indio_dev->dev.parent;
+	struct iio_chan_spec *channels;
+	u32 num_child_nodes, i, pair[2];
+	int ret;
+
+	*need_avdd_ref = false;
+	*need_ext_ref = false;
+
+	num_child_nodes = device_get_named_child_node_count(dev, "channel");
+
+	data->measurements = devm_kcalloc(dev, num_child_nodes,
+					  sizeof(*data->measurements), GFP_KERNEL);
+	if (!data->measurements)
+		return -ENOMEM;
+
+	channels = devm_kcalloc(dev, num_child_nodes +
+				ARRAY_SIZE(ads112c14_sys_mon_channels),
+				sizeof(*channels), GFP_KERNEL);
+	if (!channels)
+		return -ENOMEM;
+
+	i = 0;
+	device_for_each_named_child_node_scoped(dev, child, "channel") {
+		struct ads112c14_measurement *measurement = &data->measurements[i];
+		struct iio_chan_spec *spec = &channels[i];
+
+		spec->indexed = 1;
+		spec->scan_index = i;
+		measurement->gain_val = 1;
+
+		if (fwnode_property_present(child, "label")) {
+			ret = fwnode_property_read_string(child, "label", &measurement->label);
+			if (ret)
+				return dev_err_probe(dev, ret,
+						     "failed to read label property\n");
+		}
+
+		if (fwnode_property_present(child, "single-channel")) {
+			ret = fwnode_property_read_u32(child, "single-channel",
+						       &pair[0]);
+			if (ret)
+				return dev_err_probe(dev, ret,
+						     "failed to read single-channel property\n");
+
+			if (pair[0] >= 8)
+				return dev_err_probe(dev, -EINVAL,
+						     "single-channel value must be between 0 and 7\n");
+
+			spec->channel = pair[0];
+			/*
+			 * NB: channel2 is unused by iio core code in this case.
+			 * Let's us avoid special case for negative input mux
+			 * for single-ended channels when taking measurements.
+			 */
+			spec->channel2 = ADS112C14_MUX_CFG_AIN_GND;
+		} else if (fwnode_property_present(child, "diff-channels")) {
+			ret = fwnode_property_read_u32_array(child, "diff-channels",
+							     pair, ARRAY_SIZE(pair));
+			if (ret)
+				return dev_err_probe(dev, ret,
+						     "failed to read diff-channels property\n");
+
+			if (pair[0] >= 8 || pair[1] >= 8)
+				return dev_err_probe(dev, -EINVAL,
+						     "diff-channels values must be between 0 and 7\n");
+
+			spec->differential = 1;
+			spec->channel = pair[0];
+			spec->channel2 = pair[1];
+		} else {
+			return dev_err_probe(dev, -EINVAL,
+					     "channel node missing channel type property\n");
+		}
+
+		if (fwnode_property_present(child, "excitation-channels")) {
+			ret = fwnode_property_count_u32(child, "excitation-channels");
+			if (ret < 0)
+				return dev_err_probe(dev, ret,
+						     "failed to read excitation-channels property\n");
+
+			if (ret < 1 || ret > 2)
+				return dev_err_probe(dev, -EINVAL,
+						     "excitation-channels property must have 1 or 2 values\n");
+
+			measurement->iadc_count = ret;
+			pair[1] = 0;
+
+			ret = fwnode_property_read_u32_array(child, "excitation-channels",
+							     pair, measurement->iadc_count);
+			if (ret)
+				return dev_err_probe(dev, ret,
+						     "failed to read excitation-channels property\n");
+
+			if (pair[0] >= 8 || pair[1] >= 8)
+				return dev_err_probe(dev, -EINVAL,
+						     "excitation-channels values must be between 0 and 7\n");
+
+			measurement->idac1_mux = pair[0];
+			measurement->idac2_mux = measurement->iadc_count > 1 ? pair[1] : 0;
+
+			ret = fwnode_property_read_u32_array(child, "excitation-current-nanoamp",
+							     pair, measurement->iadc_count);
+			if (ret)
+				return dev_err_probe(dev, ret,
+						     "failed to read excitation-current-nanoamp property\n");
+
+			if (pair[0] <= 100 * (NANO / MICRO) &&
+			    (measurement->iadc_count == 1 || pair[1] <= 100 * (NANO / MICRO))) {
+				/*
+				 * If both values are 100µA or less, then we can
+				 * use IUNIT = 1µA for better precision.
+				 */
+				ret = ads112c14_populate_idac_mag(pair[0],
+								  &measurement->idac1_mag);
+				if (ret)
+					return ret;
+
+				if (measurement->iadc_count > 1) {
+					ret = ads112c14_populate_idac_mag(pair[1],
+									  &measurement->idac2_mag);
+					if (ret)
+						return ret;
+				}
+			} else {
+				/*
+				 * Otherwise, IUINT is 10µA (flag set) and so
+				 * IxMAG is 1/10 of the actual current.
+				 */
+				measurement->iunit = 1;
+
+				ret = ads112c14_populate_idac_mag(pair[0] / 10,
+								  &measurement->idac1_mag);
+				if (ret)
+					return ret;
+
+				if (measurement->iadc_count > 1) {
+					ret = ads112c14_populate_idac_mag(pair[1] / 10,
+									  &measurement->idac2_mag);
+					if (ret)
+						return ret;
+				}
+			}
+		}
+
+		measurement->bipolar = fwnode_property_read_bool(child, "bipolar");
+		measurement->global_chop = fwnode_property_read_bool(child,
+								     "input-chopping");
+
+		if (fwnode_property_present(child, "reference-sources")) {
+			ret = fwnode_property_match_property_string(child,
+				"reference-sources", ads112c14_vref_source_names,
+				ARRAY_SIZE(ads112c14_vref_source_names));
+			if (ret < 0)
+				return dev_err_probe(dev, ret,
+						     "invalid reference-sources value\n");
+
+			measurement->vref_source = ret;
+		}
+
+		if (measurement->vref_source == ADS112C14_VREF_SOURCE_AVDD)
+			*need_avdd_ref = true;
+		if (measurement->vref_source == ADS112C14_VREF_SOURCE_EXTERNAL)
+			*need_ext_ref = true;
+
+		spec->info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE);
+		spec->info_mask_separate_available = BIT(IIO_CHAN_INFO_SCALE);
+
+		/*
+		 * If reference source is resistor rather than voltage supply,
+		 * then the measurement is effectively a resistance measurement.
+		 */
+		spec->type = (measurement->vref_source == ADS112C14_VREF_SOURCE_EXTERNAL &&
+			      data->ext_ref_ohms) ? IIO_RESISTANCE : IIO_VOLTAGE;
+
+		if (spec->type == IIO_RESISTANCE)
+			spec->differential = 0;
+
+		i++;
+	}
+
+	data->num_measurements = i;
+	memcpy(channels + i, ads112c14_sys_mon_channels, sizeof(ads112c14_sys_mon_channels));
+
+	indio_dev->channels = channels;
+	indio_dev->num_channels = i + ARRAY_SIZE(ads112c14_sys_mon_channels);
+
+	return 0;
+}
+
 static void ads112c14_populate_scale_available(int (*scale_avail)[2],
 					       u32 full_scale, u32 fsr_bits)
 {
@@ -580,6 +971,33 @@ static void ads112c14_populate_tables(struct ads112c14_data *data)
 {
 	u32 full_scale, fsr_bits;
 
+	for (u32 i = 0; i < data->num_measurements; i++) {
+		struct ads112c14_measurement *measurement = &data->measurements[i];
+
+		switch (measurement->vref_source) {
+		case ADS112C14_VREF_SOURCE_EXTERNAL:
+			if (data->ext_ref_ohms)
+				full_scale = data->ext_ref_ohms;
+			else
+				full_scale = data->ext_ref_uV / (MICRO / MILLI);
+			break;
+		case ADS112C14_VREF_SOURCE_AVDD:
+			full_scale = data->avdd_uV / (MICRO / MILLI);
+			break;
+		case ADS112C14_VREF_SOURCE_INTERNAL_1_25V:
+			full_scale = ADS112C14_INT_REF0_mV;
+			break;
+		default:
+			full_scale = ADS112C14_INT_REF1_mV;
+			break;
+		}
+
+		fsr_bits = data->chip_info->resolution_bits - measurement->bipolar;
+
+		ads112c14_populate_scale_available(measurement->scale_available,
+						   full_scale, fsr_bits);
+	}
+
 	/* For now, assuming all sys_mon channels are using 2.5V reference. */
 	full_scale = ADS112C14_INT_REF1_mV;
 	fsr_bits = data->chip_info->resolution_bits - 1;
@@ -594,6 +1012,9 @@ static int ads112c14_probe(struct i2c_client *client)
 	const struct ads112c14_chip_info *info;
 	struct iio_dev *indio_dev;
 	struct ads112c14_data *data;
+	bool need_avdd_ref, need_ext_ref;
+	u32 refp_uV = 0;
+	u32 refn_uV = 0;
 	u32 reg_val;
 	int ret;
 
@@ -612,13 +1033,76 @@ static int ads112c14_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
+	if (device_property_present(dev, "ti,refp-refn-resistor-ohms")) {
+		ret = device_property_read_u32(dev, "ti,refp-refn-resistor-ohms",
+					       &data->ext_ref_ohms);
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "failed to read ti,refp-refn-resistor-ohms property\n");
+	}
+
+	ret = ads112c14_parse_channels(indio_dev, &need_avdd_ref, &need_ext_ref);
+	if (ret)
+		return ret;
+
 	ret = devm_regulator_get_enable(dev, "dvdd");
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to get dvdd regulator\n");
 
-	ret = devm_regulator_get_enable(dev, "avdd");
-	if (ret)
-		return dev_err_probe(dev, ret, "failed to get avdd regulator\n");
+	if (need_avdd_ref) {
+		ret = devm_regulator_get_enable_read_voltage(dev, "avdd");
+		if (ret < 0)
+			return dev_err_probe(dev, ret, "failed to get avdd voltage\n");
+
+		data->avdd_uV = ret;
+	} else {
+		ret = devm_regulator_get_enable(dev, "avdd");
+		if (ret)
+			return dev_err_probe(dev, ret, "failed to get avdd regulator\n");
+	}
+
+	if (device_property_present(dev, "refp-supply")) {
+		ret = devm_regulator_get_enable_read_voltage(dev, "refp");
+		if (ret < 0)
+			return dev_err_probe(dev, ret, "failed to get refp voltage\n");
+
+		refp_uV = ret;
+
+		struct fwnode_handle *refp_fwnode __free(fwnode_handle) =
+			fwnode_find_reference(dev->fwnode, "refp-supply", 0);
+		if (IS_ERR(refp_fwnode))
+			return dev_err_probe(dev, PTR_ERR(refp_fwnode),
+					     "failed to get refp fwnode\n");
+
+		struct fwnode_handle *avdd_fwnode __free(fwnode_handle) =
+			fwnode_find_reference(dev->fwnode, "avdd-supply", 0);
+		if (IS_ERR(avdd_fwnode))
+			return dev_err_probe(dev, PTR_ERR(avdd_fwnode),
+					     "failed to get avdd fwnode\n");
+
+		/* REFP buffer should not be enabled when connected to AVDD */
+		data->refp_is_avdd = refp_fwnode == avdd_fwnode;
+	}
+
+	if (device_property_present(dev, "refn-supply")) {
+		ret = devm_regulator_get_enable_read_voltage(dev, "refn");
+		if (ret < 0)
+			return dev_err_probe(dev, ret, "failed to get refn voltage\n");
+
+		refn_uV = ret;
+	} else {
+		data->refn_is_gnd = true;
+	}
+
+	data->ext_ref_uV = refp_uV - refn_uV;
+
+	if (data->ext_ref_uV && data->ext_ref_ohms)
+		return dev_err_probe(dev, -EINVAL,
+				     "ti,refp-refn-resistor-ohms property should not be present when refp-supply or refn-supply is present\n");
+
+	if (need_ext_ref && !data->ext_ref_uV && !data->ext_ref_ohms)
+		return dev_err_probe(dev, -EINVAL,
+				     "external reference measurements require either refp-supply or ti,refp-refn-resistor-ohms property\n");
 
 	/* It takes some time for the internal reference to stabilize. */
 	fsleep(10 * USEC_PER_MSEC);
@@ -680,8 +1164,6 @@ static int ads112c14_probe(struct i2c_client *client)
 
 	indio_dev->name = info->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	indio_dev->channels = ads112c14_sys_mon_channels;
-	indio_dev->num_channels = ARRAY_SIZE(ads112c14_sys_mon_channels);
 	indio_dev->info = &ads112c14_info;
 
 	return devm_iio_device_register(dev, indio_dev);
