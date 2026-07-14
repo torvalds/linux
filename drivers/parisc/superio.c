@@ -15,7 +15,7 @@
  *	(C) Copyright 2005 Kyle McMartin <kyle@parisc-linux.org>
  *	(C) Copyright 2006 Helge Deller <deller@gmx.de>
  *
- *	The initial version of this is by Martin Peterson.  Alex deVries
+ *	The initial version of this is by Martin Petersen.  Alex deVries
  *	has spent a bit of time trying to coax it into working.
  *
  *      Major changes to get basic interrupt infrastructure working to
