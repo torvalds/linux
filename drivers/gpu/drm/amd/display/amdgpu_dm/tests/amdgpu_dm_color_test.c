@@ -2582,6 +2582,57 @@ static void dm_test_update_plane_color_mgmt_colorop_missing_3x4(struct kunit *te
 }
 
 /**
+ * dm_test_update_plane_color_mgmt_colorop_truncated - truncated pipelines fall back
+ * @test: KUnit test context
+ *
+ * Covers each pipeline exit after the 3x4 matrix while all present colorops
+ * remain bypassed, avoiding the floating-point color calculation paths.
+ */
+static void dm_test_update_plane_color_mgmt_colorop_truncated(struct kunit *test)
+{
+	static const enum drm_colorop_type types[] = {
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_MULTIPLIER,
+		DRM_COLOROP_CTM_3X4,
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_1D_LUT,
+		DRM_COLOROP_3D_LUT,
+		DRM_COLOROP_1D_CURVE,
+	};
+	static const enum drm_colorop_curve_1d_type curves[] = {
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_INV_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+	};
+	static const bool bypass[] = {
+		true, true, true, true, true, true, true,
+	};
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+	struct dc_plane_state *dc_plane_state = f.dc_plane_state;
+	struct drm_plane_state *plane_state = &f.dm_plane_state->base;
+	struct dm_crtc_state *crtc_state = f.crtc_state;
+	int count, ret;
+
+	f.adev->dm.dc->caps.color.dpp.hw_3d_lut = true;
+
+	for (count = 3; count <= ARRAY_SIZE(types); count++) {
+		f.dm_plane_state->base.color_pipeline =
+			dm_test_colorop_pipeline_setup(test, &f, types, curves, bypass, count);
+		memset(f.dc_plane_state, 0, sizeof(*f.dc_plane_state));
+
+		ret = amdgpu_dm_update_plane_color_mgmt(crtc_state, plane_state, dc_plane_state);
+		KUNIT_EXPECT_EQ_MSG(test, ret, 0, "pipeline length %d should fall back", count);
+		KUNIT_EXPECT_FALSE(test, f.dc_plane_state->cm.flags.bits.shaper_enable);
+		KUNIT_EXPECT_FALSE(test, f.dc_plane_state->cm.flags.bits.lut3d_enable);
+		KUNIT_EXPECT_FALSE(test, f.dc_plane_state->cm.flags.bits.blend_enable);
+	}
+}
+
+/**
  * dm_test_update_plane_color_mgmt_colorop_no_3dlut_hw - no 3D LUT skips 3D ops
  * @test: KUnit test context
  */
@@ -2766,6 +2817,7 @@ static struct kunit_case dm_color_test_cases[] = {
 	KUNIT_CASE(dm_test_update_plane_color_mgmt_colorop_bypass_pipeline),
 	KUNIT_CASE(dm_test_update_plane_color_mgmt_colorop_missing_multiplier),
 	KUNIT_CASE(dm_test_update_plane_color_mgmt_colorop_missing_3x4),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_colorop_truncated),
 	KUNIT_CASE(dm_test_update_plane_color_mgmt_colorop_no_3dlut_hw),
 	{}
 };
