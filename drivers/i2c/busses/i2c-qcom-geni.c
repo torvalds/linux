@@ -1126,27 +1126,25 @@ static int geni_i2c_probe(struct platform_device *pdev)
 	gi2c->adap.dev.of_node = dev->of_node;
 	strscpy(gi2c->adap.name, "Geni-I2C", sizeof(gi2c->adap.name));
 
-	pm_runtime_set_suspended(gi2c->se.dev);
-	pm_runtime_set_autosuspend_delay(gi2c->se.dev, I2C_AUTO_SUSPEND_DELAY);
-	pm_runtime_use_autosuspend(gi2c->se.dev);
-	pm_runtime_enable(gi2c->se.dev);
+	pm_runtime_set_suspended(dev);
+	pm_runtime_set_autosuspend_delay(dev, I2C_AUTO_SUSPEND_DELAY);
+	pm_runtime_use_autosuspend(dev);
+
+	ret = devm_pm_runtime_enable(dev);
+	if (ret)
+		return ret;
 
 	ret = geni_i2c_init(gi2c);
-	if (ret < 0) {
-		pm_runtime_disable(gi2c->se.dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	ret = i2c_add_adapter(&gi2c->adap);
-	if (ret) {
-		dev_err_probe(dev, ret, "Error adding i2c adapter\n");
-		pm_runtime_disable(gi2c->se.dev);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Error adding i2c adapter\n");
 
 	dev_dbg(dev, "Geni-I2C adaptor successfully added\n");
 
-	return ret;
+	return 0;
 }
 
 static void geni_i2c_remove(struct platform_device *pdev)
@@ -1155,7 +1153,6 @@ static void geni_i2c_remove(struct platform_device *pdev)
 
 	i2c_del_adapter(&gi2c->adap);
 	release_gpi_dma(gi2c);
-	pm_runtime_disable(gi2c->se.dev);
 }
 
 static void geni_i2c_shutdown(struct platform_device *pdev)
