@@ -1580,6 +1580,145 @@ static void dm_test_enable_assr_initialized_builds_command_and_fails(struct kuni
 
 /* End of tests for enable_assr() */
 
+/* Tests for update_config() */
+
+/**
+ * dm_test_update_config_null_connector_is_noop - NULL stream ctx returns early
+ * @test: KUnit test context
+ *
+ * When config->dm_stream_ctx is NULL, update_config() must return before
+ * touching the workqueue, leaving the per-link aconnector array untouched.
+ */
+static void dm_test_update_config_null_connector_is_noop(struct kunit *test)
+{
+	struct hdcp_workqueue *work = alloc_test_workqueue_locked(test);
+	struct cp_psp_stream_config config = {0};
+
+	config.dm_stream_ctx = NULL;
+
+	update_config(work, &config);
+
+	KUNIT_EXPECT_PTR_EQ(test, work->aconnector[0], NULL);
+}
+
+/**
+ * dm_test_update_config_null_dc_link_is_noop - NULL dc_link returns early
+ * @test: KUnit test context
+ *
+ * A connector without a dc_link must cause update_config() to return before
+ * registering the connector, leaving the aconnector array untouched.
+ */
+static void dm_test_update_config_null_dc_link_is_noop(struct kunit *test)
+{
+	struct hdcp_workqueue *work = alloc_test_workqueue_locked(test);
+	struct amdgpu_dm_connector *aconnector;
+	struct cp_psp_stream_config config = {0};
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+	aconnector->dc_link = NULL;
+
+	config.dm_stream_ctx = aconnector;
+
+	update_config(work, &config);
+
+	KUNIT_EXPECT_PTR_EQ(test, work->aconnector[0], NULL);
+}
+
+/**
+ * dm_test_update_config_dpms_off_removes_display - dpms_off path removes display
+ * @test: KUnit test context
+ *
+ * With config->dpms_off set, update_config() must take the removal path:
+ * hdcp_remove_display() reverts an ENABLED connector to DESIRED and clears
+ * its per-link aconnector entry.
+ */
+static void dm_test_update_config_dpms_off_removes_display(struct kunit *test)
+{
+	struct hdcp_workqueue *work = alloc_test_workqueue_locked(test);
+	struct amdgpu_dm_connector *aconnector = alloc_test_connector(test, 0);
+	struct drm_connector_state *conn_state;
+	struct cp_psp_stream_config config = {0};
+
+	conn_state = kunit_kzalloc(test, sizeof(*conn_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, conn_state);
+	conn_state->content_protection = DRM_MODE_CONTENT_PROTECTION_ENABLED;
+	aconnector->base.state = conn_state;
+	work->aconnector[0] = aconnector;
+
+	config.dm_stream_ctx = aconnector;
+	config.dpms_off = true;
+
+	update_config(work, &config);
+
+	KUNIT_EXPECT_EQ(test, conn_state->content_protection,
+			DRM_MODE_CONTENT_PROTECTION_DESIRED);
+	KUNIT_EXPECT_PTR_EQ(test, work->aconnector[0], NULL);
+
+	cancel_delayed_work_sync(&work->property_validate_dwork);
+	cancel_delayed_work_sync(&work->callback_dwork);
+	cancel_delayed_work_sync(&work->watchdog_timer_dwork);
+}
+
+/**
+ * dm_test_update_config_populates_display_and_link - active path fills state
+ * @test: KUnit test context
+ *
+ * With dpms_off clear, update_config() must build the display and link from
+ * @config, reset the connector's encryption_status to HDCP_OFF, register the
+ * connector and reach process_output() (which enqueues property_validate).
+ *
+ * mod_hdcp_add_display() reaches add_display_to_topology(), which returns
+ * early because the DTM TA is left uninitialized, so no firmware is touched.
+ */
+static void dm_test_update_config_populates_display_and_link(struct kunit *test)
+{
+	struct hdcp_workqueue *work = alloc_test_workqueue_locked(test);
+	struct amdgpu_dm_connector *aconnector = alloc_test_connector(test, 0);
+	struct psp_context *psp;
+	struct cp_psp_stream_config config = {0};
+
+	/* add_display_to_topology() dereferences the psp handle. */
+	psp = kunit_kzalloc(test, sizeof(*psp), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, psp);
+	work->hdcp.config.psp.handle = psp;
+
+	config.dm_stream_ctx = aconnector;
+	config.dpms_off = false;
+	config.otg_inst = 1;
+	config.dig_fe = 4;
+	config.dig_be = 5;
+	config.stream_enc_idx = 6;
+	config.link_enc_idx = 7;
+	config.dio_output_idx = 8;
+	config.phy_idx = 2;
+
+	update_config(work, &config);
+
+	KUNIT_EXPECT_EQ(test, work->encryption_status[0],
+			MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF);
+	KUNIT_EXPECT_PTR_EQ(test, work->aconnector[0], aconnector);
+
+	KUNIT_EXPECT_EQ(test, work->display.state, MOD_HDCP_DISPLAY_ACTIVE);
+	KUNIT_EXPECT_EQ(test, work->display.controller,
+			CONTROLLER_ID_D0 + config.otg_inst);
+	KUNIT_EXPECT_EQ(test, work->display.dig_fe, config.dig_fe);
+	KUNIT_EXPECT_EQ(test, work->display.stream_enc_idx, config.stream_enc_idx);
+
+	KUNIT_EXPECT_EQ(test, work->link.dig_be, config.dig_be);
+	KUNIT_EXPECT_EQ(test, work->link.link_enc_idx, config.link_enc_idx);
+	KUNIT_EXPECT_EQ(test, work->link.dio_output_id, config.dio_output_idx);
+	KUNIT_EXPECT_EQ(test, work->link.phy_idx, config.phy_idx);
+
+	KUNIT_EXPECT_TRUE(test, work_pending(&work->property_validate_dwork.work));
+
+	cancel_delayed_work_sync(&work->property_validate_dwork);
+	cancel_delayed_work_sync(&work->callback_dwork);
+	cancel_delayed_work_sync(&work->watchdog_timer_dwork);
+}
+
+/* End of tests for update_config() */
+
 static struct kunit_case dm_hdcp_test_cases[] = {
 	/* hdcp_get_content_protection_from_status() */
 	KUNIT_CASE(dm_test_hdcp_get_cp_disabled_returns_desired),
@@ -1645,6 +1784,11 @@ static struct kunit_case dm_hdcp_test_cases[] = {
 	KUNIT_CASE(dm_test_enable_assr_uninitialized_dtm_returns_false),
 	KUNIT_CASE(dm_test_enable_assr_uninitialized_dtm_ignores_link),
 	KUNIT_CASE(dm_test_enable_assr_initialized_builds_command_and_fails),
+	/* update_config() */
+	KUNIT_CASE(dm_test_update_config_null_connector_is_noop),
+	KUNIT_CASE(dm_test_update_config_null_dc_link_is_noop),
+	KUNIT_CASE(dm_test_update_config_dpms_off_removes_display),
+	KUNIT_CASE(dm_test_update_config_populates_display_and_link),
 	{}
 };
 

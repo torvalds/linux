@@ -124,6 +124,7 @@ void hdcp_remove_display(struct hdcp_workqueue *hdcp_work, unsigned int link_ind
 uint8_t *psp_get_srm(struct psp_context *psp, uint32_t *srm_version, uint32_t *srm_size);
 int psp_set_srm(struct psp_context *psp, u8 *srm, uint32_t srm_size, uint32_t *srm_version);
 bool enable_assr(void *handle, struct dc_link *link);
+void update_config(void *handle, struct cp_psp_stream_config *config);
 #endif
 
 #endif /* AMDGPU_DM_AMDGPU_DM_HDCP_H_ */
