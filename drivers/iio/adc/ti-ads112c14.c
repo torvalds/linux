@@ -9,12 +9,14 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/cleanup.h>
 #include <linux/delay.h>
 #include <linux/dev_printk.h>
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
 #include <linux/math64.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
@@ -128,6 +130,15 @@
 #define ADS112C14_INT_REF0_mV				1250
 #define ADS112C14_INT_REF1_mV				2500
 
+/*
+ * Available gains as tenths (e.g. value 5 == 0.5 gain). Indexes correspond to
+ * ADS112C14_GAIN_CFG_GAIN values.
+ */
+static const u32 ads112c14_pga_gains_x10[] = {
+	5, 10, 20, 40, 50, 80, 100, 160,		/* 0 -  7 */
+	200, 320, 500, 640, 1000, 1280, 2000, 2560,	/* 8 - 15 */
+};
+
 struct ads112c14_chip_info {
 	const char *name;
 	u8 device_id;
@@ -189,12 +200,17 @@ static const struct iio_chan_spec ads112c14_sys_mon_channels[] = {
 		.address = 1,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW)
 				    | BIT(IIO_CHAN_INFO_SCALE),
+		.info_mask_separate_available = BIT(IIO_CHAN_INFO_SCALE),
 	},
 };
 
 struct ads112c14_data {
 	const struct ads112c14_chip_info *chip_info;
 	struct regmap *regmap;
+	/* Synchronizes access to register value fields. */
+	struct mutex lock;
+	u8 sys_mon_chan_short_gain_val;
+	int sys_mon_chan_short_scale_available[ARRAY_SIZE(ads112c14_pga_gains_x10)][2];
 };
 
 static bool ads112c14_writeable_reg(struct device *dev, unsigned int reg)
@@ -250,15 +266,21 @@ static const struct regmap_config ads112c14_regmap_config = {
 static int ads112c14_prepare_sys_mon_channel(struct ads112c14_data *data,
 					     const struct iio_chan_spec *chan)
 {
+	u32 gain_val;
 	int ret;
 
-	/* TODO: GAIN is useful for shorted PGA inputs. */
-	/* All SYS_MON channels use GAIN of 1 to keep it simple. */
+	/*
+	 * All SYS_MON channels use GAIN of 1 to keep it simple. Other than
+	 * the internal short channel, where it is useful in practice.
+	 */
+	gain_val = chan->channel == ADS112C14_SYS_MON_CHANNEL_SHORT ?
+		   data->sys_mon_chan_short_gain_val : 1;
+
 	ret = regmap_update_bits(data->regmap, ADS112C14_REG_GAIN_CFG,
 				 ADS112C14_GAIN_CFG_SYS_MON |
 				 ADS112C14_GAIN_CFG_GAIN,
 				 FIELD_PREP(ADS112C14_GAIN_CFG_SYS_MON, chan->address) |
-				 FIELD_PREP(ADS112C14_GAIN_CFG_GAIN, 1));
+				 FIELD_PREP(ADS112C14_GAIN_CFG_GAIN, gain_val));
 	if (ret)
 		return ret;
 
@@ -301,6 +323,8 @@ static int ads112c14_single_conversion(struct ads112c14_data *data,
 	u32 reg_val;
 	int ret;
 
+	guard(mutex)(&data->lock);
+
 	if (chan->channel < ADS112C14_SYS_MON_CHANNEL_BASE) {
 		/* Not implemented yet. */
 		return -EINVAL;
@@ -336,6 +360,7 @@ static int ads112c14_read_raw(struct iio_dev *indio_dev,
 			      int *val, int *val2, long mask)
 {
 	struct ads112c14_data *data = iio_priv(indio_dev);
+	const int *scale_avail;
 	u32 vref_uV, fsr_bits;
 
 	/* Selecting V_REF source is not implemented yet. */
@@ -385,6 +410,19 @@ static int ads112c14_read_raw(struct iio_dev *indio_dev,
 			return IIO_VAL_FRACTIONAL_LOG2;
 		}
 
+		if (chan->channel == ADS112C14_SYS_MON_CHANNEL_SHORT) {
+			u8 idx;
+
+			guard(mutex)(&data->lock);
+
+			idx = data->sys_mon_chan_short_gain_val;
+			scale_avail = data->sys_mon_chan_short_scale_available[idx];
+			*val = scale_avail[0];
+			*val2 = scale_avail[1];
+
+			return IIO_VAL_DECIMAL64_PICO;
+		}
+
 		*val = vref_uV / (MICRO / MILLI);
 
 		/*
@@ -414,6 +452,75 @@ static int ads112c14_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 	default:
 		return -EINVAL;
+	}
+}
+
+static int ads112c14_read_avail(struct iio_dev *indio_dev,
+				const struct iio_chan_spec *chan, const int **vals,
+				int *type, int *length, long mask)
+{
+	struct ads112c14_data *data = iio_priv(indio_dev);
+
+	switch (mask) {
+	case IIO_CHAN_INFO_SCALE:
+		if (chan->channel == ADS112C14_SYS_MON_CHANNEL_SHORT) {
+			guard(mutex)(&data->lock);
+
+			*vals = (const int *)data->sys_mon_chan_short_scale_available;
+			*length = 2 * ARRAY_SIZE(data->sys_mon_chan_short_scale_available);
+			*type = IIO_VAL_DECIMAL64_PICO;
+			return IIO_AVAIL_LIST;
+		}
+
+		return -EINVAL;
+	default:
+		return -EINVAL;
+	}
+}
+
+static int ads112c14_write_raw(struct iio_dev *indio_dev,
+			       struct iio_chan_spec const *chan, int val,
+			       int val2, long mask)
+{
+	struct ads112c14_data *data = iio_priv(indio_dev);
+	const int (*scale_avail)[2];
+	u8 *gain_val;
+
+	switch (mask) {
+	case IIO_CHAN_INFO_SCALE: {
+		guard(mutex)(&data->lock);
+
+		if (chan->channel == ADS112C14_SYS_MON_CHANNEL_SHORT) {
+			scale_avail = data->sys_mon_chan_short_scale_available;
+			gain_val = &data->sys_mon_chan_short_gain_val;
+		} else {
+			return -EINVAL;
+		}
+
+		for (u32 i = 0; i < ARRAY_SIZE(ads112c14_pga_gains_x10); i++) {
+			if (iio_val_s64_compose(val, val2) ==
+			    iio_val_s64_compose(scale_avail[i][0], scale_avail[i][1])) {
+				*gain_val = i;
+				return 0;
+			}
+		}
+
+		return -EINVAL;
+	}
+	default:
+		return -EINVAL;
+	}
+}
+
+static int ads112c14_write_raw_get_fmt(struct iio_dev *indio_dev,
+				       struct iio_chan_spec const *chan,
+				       long mask)
+{
+	switch (mask) {
+	case IIO_CHAN_INFO_SCALE:
+		return IIO_VAL_DECIMAL64_PICO;
+	default:
+		return IIO_VAL_INT_PLUS_MICRO;
 	}
 }
 
@@ -448,8 +555,38 @@ static int ads112c14_read_label(struct iio_dev *indio_dev,
 
 static const struct iio_info ads112c14_info = {
 	.read_raw = ads112c14_read_raw,
+	.read_avail = ads112c14_read_avail,
+	.write_raw = ads112c14_write_raw,
+	.write_raw_get_fmt = ads112c14_write_raw_get_fmt,
 	.read_label = ads112c14_read_label,
 };
+
+static void ads112c14_populate_scale_available(int (*scale_avail)[2],
+					       u32 full_scale, u32 fsr_bits)
+{
+	for (u32 i = 0; i < ARRAY_SIZE(ads112c14_pga_gains_x10); i++) {
+		u64 gain_x10 = ads112c14_pga_gains_x10[i];
+		s64 scale;
+
+		scale = div64_u64((u64)PICO * 10U * full_scale,
+				  gain_x10 * BIT(fsr_bits));
+
+		iio_val_s64_decompose(scale, &scale_avail[i][0],
+				      &scale_avail[i][1]);
+	}
+}
+
+static void ads112c14_populate_tables(struct ads112c14_data *data)
+{
+	u32 full_scale, fsr_bits;
+
+	/* For now, assuming all sys_mon channels are using 2.5V reference. */
+	full_scale = ADS112C14_INT_REF1_mV;
+	fsr_bits = data->chip_info->resolution_bits - 1;
+
+	ads112c14_populate_scale_available(data->sys_mon_chan_short_scale_available,
+					   full_scale, fsr_bits);
+}
 
 static int ads112c14_probe(struct i2c_client *client)
 {
@@ -470,6 +607,10 @@ static int ads112c14_probe(struct i2c_client *client)
 
 	data = iio_priv(indio_dev);
 	data->chip_info = info;
+
+	ret = devm_mutex_init(dev, &data->lock);
+	if (ret)
+		return ret;
 
 	ret = devm_regulator_get_enable(dev, "dvdd");
 	if (ret)
@@ -506,6 +647,9 @@ static int ads112c14_probe(struct i2c_client *client)
 	if (FIELD_GET(ADS112C14_STATUS_MSB_RESETN, reg_val))
 		return dev_err_probe(dev, -EIO, "reset failed\n");
 
+	/* Default gain after reset is 1. */
+	data->sys_mon_chan_short_gain_val = 1;
+
 	/*
 	 * Clear reset bit to prepare for next probe. And clear AVDD fault since
 	 * that happens on every reset.
@@ -531,6 +675,8 @@ static int ads112c14_probe(struct i2c_client *client)
 					    ADS112C14_DEVICE_CFG_CONV_MODE_SINGLE_SHOT));
 	if (ret)
 		return ret;
+
+	ads112c14_populate_tables(data);
 
 	indio_dev->name = info->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
