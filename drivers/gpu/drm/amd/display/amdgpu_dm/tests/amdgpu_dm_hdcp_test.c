@@ -1349,6 +1349,52 @@ static void dm_test_psp_set_srm_uninitialized_returns_einval(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, srm_version, 0xdead);
 }
 
+/**
+ * dm_test_psp_set_srm_initialized_stages_command - initialized path builds the command
+ * @test: KUnit test context
+ *
+ * With an initialized TA and the SR-IOV VF bypass, psp_hdcp_invoke() is a
+ * no-op, so the shared command buffer keeps the values psp_set_srm() staged.
+ * The function must copy the SRM into the SET_SRM in-message, record its size
+ * and command id, and then fail the response validation (the zeroed reply has
+ * valid_signature == 0), returning -EINVAL without updating srm_version.
+ */
+static void dm_test_psp_set_srm_initialized_stages_command(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct ta_hdcp_shared_memory *hdcp_cmd;
+	struct psp_context *psp;
+	uint32_t srm_version = 0xdead;
+	u8 srm_buf[4] = {0x1, 0x2, 0x3, 0x4};
+	int ret;
+
+	KUNIT_ASSERT_NOT_NULL(test, adev);
+
+	psp = kunit_kzalloc(test, sizeof(*psp), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, psp);
+	hdcp_cmd = kunit_kzalloc(test, sizeof(*hdcp_cmd), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, hdcp_cmd);
+
+	psp->adev = adev;
+	psp->hdcp_context.context.initialized = true;
+	psp->hdcp_context.context.mem_context.shared_buf = (uint8_t *)hdcp_cmd;
+
+	/* SR-IOV VF makes psp_hdcp_invoke() return early without firmware. */
+	adev->virt.caps |= AMDGPU_SRIOV_CAPS_IS_VF;
+
+	ret = psp_set_srm(psp, srm_buf, sizeof(srm_buf), &srm_version);
+
+	/* Response validation fails (valid_signature == 0 in the zeroed reply). */
+	KUNIT_EXPECT_EQ(test, ret, -EINVAL);
+	KUNIT_EXPECT_EQ(test, srm_version, 0xdead);
+	/* The initialized path must have staged the SET_SRM command. */
+	KUNIT_EXPECT_EQ(test, hdcp_cmd->cmd_id, TA_HDCP_COMMAND__HDCP_SET_SRM);
+	KUNIT_EXPECT_EQ(test, hdcp_cmd->in_msg.hdcp_set_srm.srm_buf_size,
+			(uint32_t)sizeof(srm_buf));
+	KUNIT_EXPECT_MEMEQ(test, hdcp_cmd->in_msg.hdcp_set_srm.srm_buf, srm_buf,
+			   sizeof(srm_buf));
+}
+
 /* End of tests for psp_get_srm() and psp_set_srm() */
 
 /* Tests for srm_data_write() and srm_data_read() */
@@ -2356,6 +2402,7 @@ static struct kunit_case dm_hdcp_test_cases[] = {
 	/* psp_get_srm() / psp_set_srm() */
 	KUNIT_CASE(dm_test_psp_get_srm_uninitialized_returns_null),
 	KUNIT_CASE(dm_test_psp_set_srm_uninitialized_returns_einval),
+	KUNIT_CASE(dm_test_psp_set_srm_initialized_stages_command),
 	/* srm_data_write() / srm_data_read() */
 	KUNIT_CASE(dm_test_srm_data_write_uninitialized_ta_keeps_srm),
 	KUNIT_CASE(dm_test_srm_data_read_uninitialized_ta_returns_einval),
