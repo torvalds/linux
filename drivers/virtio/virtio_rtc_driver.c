@@ -574,8 +574,8 @@ static int viortc_msg_xfer(struct viortc_vq *vq, struct viortc_msg *msg,
  * read requests
  */
 
-/** timeout for clock readings, where timeouts are considered non-fatal */
-#define VIORTC_MSG_READ_TIMEOUT secs_to_jiffies(60)
+/** timeout for runtime requests, where timeouts are considered non-fatal */
+#define VIORTC_MSG_TIMEOUT secs_to_jiffies(60)
 
 /**
  * viortc_read() - VIRTIO_RTC_REQ_READ wrapper
@@ -600,7 +600,7 @@ int viortc_read(struct viortc_dev *viortc, u16 vio_clk_id, u64 *reading)
 	VIORTC_MSG_WRITE(hdl, clock_id, &vio_clk_id);
 
 	ret = viortc_msg_xfer(&viortc->vqs[VIORTC_REQUESTQ], VIORTC_MSG(hdl),
-			      VIORTC_MSG_READ_TIMEOUT);
+			      VIORTC_MSG_TIMEOUT);
 	if (ret) {
 		dev_dbg(&viortc->vdev->dev, "%s: xfer returned %d\n", __func__,
 			ret);
@@ -642,7 +642,7 @@ int viortc_read_cross(struct viortc_dev *viortc, u16 vio_clk_id, u8 hw_counter,
 	VIORTC_MSG_WRITE(hdl, hw_counter, &hw_counter);
 
 	ret = viortc_msg_xfer(&viortc->vqs[VIORTC_REQUESTQ], VIORTC_MSG(hdl),
-			      VIORTC_MSG_READ_TIMEOUT);
+			      VIORTC_MSG_TIMEOUT);
 	if (ret) {
 		dev_dbg(&viortc->vdev->dev, "%s: xfer returned %d\n", __func__,
 			ret);
@@ -809,7 +809,7 @@ int viortc_read_alarm(struct viortc_dev *viortc, u16 vio_clk_id,
 	VIORTC_MSG_WRITE(hdl, clock_id, &vio_clk_id);
 
 	ret = viortc_msg_xfer(&viortc->vqs[VIORTC_REQUESTQ], VIORTC_MSG(hdl),
-			      0);
+			      VIORTC_MSG_TIMEOUT);
 	if (ret) {
 		dev_dbg(&viortc->vdev->dev, "%s: xfer returned %d\n", __func__,
 			ret);
@@ -858,7 +858,7 @@ int viortc_set_alarm(struct viortc_dev *viortc, u16 vio_clk_id, u64 alarm_time,
 	VIORTC_MSG_WRITE(hdl, flags, &flags);
 
 	ret = viortc_msg_xfer(&viortc->vqs[VIORTC_REQUESTQ], VIORTC_MSG(hdl),
-			      0);
+			      VIORTC_MSG_TIMEOUT);
 	if (ret) {
 		dev_dbg(&viortc->vdev->dev, "%s: xfer returned %d\n", __func__,
 			ret);
@@ -900,7 +900,7 @@ int viortc_set_alarm_enabled(struct viortc_dev *viortc, u16 vio_clk_id,
 	VIORTC_MSG_WRITE(hdl, flags, &flags);
 
 	ret = viortc_msg_xfer(&viortc->vqs[VIORTC_REQUESTQ], VIORTC_MSG(hdl),
-			      0);
+			      VIORTC_MSG_TIMEOUT);
 	if (ret) {
 		dev_dbg(&viortc->vdev->dev, "%s: xfer returned %d\n", __func__,
 			ret);
