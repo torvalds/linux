@@ -128,6 +128,14 @@
 		reg = <0x18>;
 		gpio-controller;
 		#gpio-cells = <2>;
+		gpio-line-names = "",
+				  "cam0_reset",
+				  "cam1_reset",
+				  "cam2_reset",
+				  "wl_host_wake_dev",
+				  "bt_resetn",
+				  "",
+				  "bt_host_wake_dev";
 	};
 };
 
