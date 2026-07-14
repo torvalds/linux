@@ -59,7 +59,7 @@ Fedora Linux 提供较新的 Rust 版本，因此通常开箱即用，例如::
 Gentoo Linux
 ************
 
-Gentoo Linux（尤其是 testing 分支）提供较新的 Rust 版本，因此通常开箱即用，
+Gentoo Linux 提供较新的 Rust 版本，因此通常开箱即用，
 例如::
 
 	USE='rust-src rustfmt clippy' emerge dev-lang/rust dev-util/bindgen
@@ -70,7 +70,7 @@ Gentoo Linux（尤其是 testing 分支）提供较新的 Rust 版本，因此�
 Nix
 ***
 
-Nix（unstable 频道）提供较新的 Rust 版本，因此通常开箱即用，例如::
+Nix 提供较新的 Rust 版本，因此通常开箱即用，例如::
 
 	{ pkgs ? import <nixpkgs> {} }:
 	pkgs.mkShell {
@@ -85,16 +85,14 @@ openSUSE
 openSUSE Slowroll 和 openSUSE Tumbleweed 提供较新的 Rust 版本，因此通常开箱
 即用，例如::
 
-	zypper install rust rust1.79-src rust-bindgen clang
+	zypper install rust rust-src rust-bindgen clang
 
 
 Ubuntu
 ******
 
-25.04
-~~~~~
-
-最新的 Ubuntu 版本提供较新的 Rust 版本，因此通常开箱即用，例如::
+Ubuntu 25.10 和 26.04 LTS 提供较新的 Rust 版本，因此通常开箱即用，
+例如::
 
 	apt install rustc rust-src bindgen rustfmt rust-clippy
 
@@ -111,32 +109,32 @@ Ubuntu
 虽然 Ubuntu 24.04 LTS 及更早版本仍然提供较新的 Rust 版本，但它们需要一些额外的配
 置，使用带版本号的软件包，例如::
 
-	apt install rustc-1.80 rust-1.80-src bindgen-0.65 rustfmt-1.80 \
-		rust-1.80-clippy
-	ln -s /usr/lib/rust-1.80/bin/rustfmt /usr/bin/rustfmt-1.80
-	ln -s /usr/lib/rust-1.80/bin/clippy-driver /usr/bin/clippy-driver-1.80
+	apt install rustc-1.85 rust-1.85-src bindgen-0.71 rustfmt-1.85 \
+		rust-1.85-clippy
+	ln -s /usr/lib/rust-1.85/bin/rustfmt /usr/bin/rustfmt-1.85
+	ln -s /usr/lib/rust-1.85/bin/clippy-driver /usr/bin/clippy-driver-1.85
 
 这些软件包都不会将其工具设置为默认值；因此应该显式指定它们，例如::
 
-	make LLVM=1 RUSTC=rustc-1.80 RUSTDOC=rustdoc-1.80 RUSTFMT=rustfmt-1.80 \
-		CLIPPY_DRIVER=clippy-driver-1.80 BINDGEN=bindgen-0.65
+	make LLVM=1 RUSTC=rustc-1.85 RUSTDOC=rustdoc-1.85 RUSTFMT=rustfmt-1.85 \
+		CLIPPY_DRIVER=clippy-driver-1.85 BINDGEN=bindgen-0.71
 
-或者，修改 ``PATH`` 变量将 Rust 1.80 的二进制文件放在前面，并将 ``bindgen`` 设
+或者，修改 ``PATH`` 变量将 Rust 1.85 的二进制文件放在前面，并将 ``bindgen`` 设
 置为默认值，例如::
 
-	PATH=/usr/lib/rust-1.80/bin:$PATH
+	PATH=/usr/lib/rust-1.85/bin:$PATH
 	update-alternatives --install /usr/bin/bindgen bindgen \
-		/usr/bin/bindgen-0.65 100
-	update-alternatives --set bindgen /usr/bin/bindgen-0.65
+		/usr/bin/bindgen-0.71 100
+	update-alternatives --set bindgen /usr/bin/bindgen-0.71
 
-使用带版本号的软件包时需要设置 ``RUST_LIB_SRC``，例如::
+使用带版本号的软件包时可能需要设置 ``RUST_LIB_SRC``，例如::
 
-	RUST_LIB_SRC=/usr/src/rustc-$(rustc-1.80 --version | cut -d' ' -f2)/library
+	RUST_LIB_SRC=/usr/src/rustc-$(rustc-1.85 --version | cut -d' ' -f2)/library
 
 为方便起见，可以将 ``RUST_LIB_SRC`` 导出到全局环境中。
 
-此外， ``bindgen-0.65`` 在较新的版本（24.04 LTS 和 24.10）中可用，但在更早的版
-本（20.04 LTS 和 22.04 LTS）中可能不可用，因此可能需要手动构建 ``bindgen``
+此外， ``bindgen-0.71`` 在较新的版本（24.04 LTS）中可用，但在更早的版本
+（20.04 LTS 和 22.04 LTS）中可能不可用，因此可能需要手动构建 ``bindgen``
 （请参见下文）。
 
 
@@ -325,11 +323,3 @@ Rust支持（CONFIG_RUST）需要在 ``General setup`` 菜单中启用。在其�
 
 要想深入了解，请看 ``samples/rust/`` 下的样例源代码、 ``rust/`` 下的Rust支持代码和
 ``Kernel hacking`` 下的 ``Rust hacking`` 菜单。
-
-如果使用的是GDB/Binutils，而Rust符号没有被demangled，原因是工具链还不支持Rust的新v0
-mangling方案。有几个办法可以解决：
-
-- 安装一个较新的版本（GDB >= 10.2, Binutils >= 2.36）。
-
-- 一些版本的GDB（例如vanilla GDB 10.1）能够使用嵌入在调试信息(``CONFIG_DEBUG_INFO``)
-  中的pre-demangled的名字。
