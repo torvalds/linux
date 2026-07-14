@@ -12,6 +12,13 @@ struct coredump_params;
 
 #define CORENAME_MAX_SIZE 128
 
+/* Interpreter selection staged by a bpf binfmt_misc handler. */
+struct binfmt_misc_bpf {
+	const char *bpf_interp;		/* interpreter selected by a bpf handler */
+	const char *bpf_interp_arg;	/* interpreter argument from a bpf handler */
+	u64 bpf_flags;			/* enum bpf_binprm_flags from a bpf handler */
+};
+
 /*
  * This structure is used to hold the arguments that are used when loading binaries.
  */
@@ -65,6 +72,7 @@ struct linux_binprm {
 				   of the time same as filename, but could be
 				   different for binfmt_{misc,script} */
 	const char *fdpath;	/* generated filename for execveat */
+	struct binfmt_misc_bpf;	/* bpf handler interpreter selection */
 	unsigned interp_flags;
 	int execfd;		/* File descriptor of the executable */
 	unsigned long exec;
