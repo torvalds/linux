@@ -1222,6 +1222,33 @@ int psp_memory_partition(struct psp_context *psp, int mode)
 	return ret;
 }
 
+int psp_set_mmhub_eco_sec_level(struct amdgpu_device *adev)
+{
+	int ret;
+	struct psp_context *psp = &adev->psp;
+	struct psp_gfx_cmd_resp *cmd = acquire_psp_cmd_buf(psp);
+
+	cmd->cmd_id = GFX_CMD_ID_SET_MMHUB_ECO_SEC_LEVEL;
+
+	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
+	if (ret) {
+		dev_err(psp->adev->dev,
+			"PSP request failed to set mmuhub eco sec level with ret=%d\n", ret);
+		release_psp_cmd_buf(psp);
+		return ret;
+	}
+
+	if (cmd->resp.status) {
+		dev_err(psp->adev->dev,
+			"MMHUB ECO SEC LEVEL command 0x%x failed, PSP response status: 0x%X\n",
+				cmd->cmd_id, cmd->resp.status);
+		ret = -EIO;
+	}
+	release_psp_cmd_buf(psp);
+
+	return ret;
+}
+
 static int psp_ptl_fmt_verify(struct psp_context *psp, enum amdgpu_ptl_fmt fmt,
 						 uint32_t *ptl_fmt)
 {
