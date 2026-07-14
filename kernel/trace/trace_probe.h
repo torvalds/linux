@@ -437,6 +437,34 @@ static inline bool tparg_is_event_probe(unsigned int flags)
 	return !!(flags & TPARG_FL_TEVENT);
 }
 
+/* Each typecast consumes nested level. So the max number of typecast is 8. */
+#define TRACEPROBE_MAX_NESTED_LEVEL 8
+
+enum parse_state_type {
+	STATE_DEREF,
+	STATE_TYPECAST,
+};
+
+struct parse_state {
+	int type;
+	union {
+		struct {
+			int deref;
+			long offset;
+			int cur_offs;
+			char *inner_arg;
+			bool is_cpu_read;
+		} deref;
+		struct {
+			char *casttype;
+			char *fieldname;
+			int orig_offset;
+			int field_offset_diff;
+			char *inner_arg;
+		} typecast;
+	};
+};
+
 struct traceprobe_parse_context {
 	struct trace_event_call *event;
 	/* BTF related parameters */
@@ -453,12 +481,11 @@ struct traceprobe_parse_context {
 	struct trace_probe *tp;
 	unsigned int flags;
 	int offset;
-	int nested_level;
 	int prefix_byteoffs;	/* The byte offset of the prefix field of typecast */
+	struct parse_state stack[TRACEPROBE_MAX_NESTED_LEVEL + 1];
+	int depth;
 };
 
-/* Each typecast consumes nested level. So the max number of typecast is 3. */
-#define TRACEPROBE_MAX_NESTED_LEVEL 3
 
 extern int traceprobe_parse_probe_arg(struct trace_probe *tp, int i,
 				      const char *argv,

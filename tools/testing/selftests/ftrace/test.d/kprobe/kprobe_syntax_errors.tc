@@ -56,7 +56,7 @@ check_error 'p vfs_read ^&1'		# BAD_FETCH_ARG
 
 # We've introduced this limitation with array support
 if grep -q ' <type>\\\[<array-size>\\\]' README; then
-check_error 'p vfs_read +0(^+0(+0(+0(+0(+0(+0(+0(+0(+0(+0(+0(+0(+0(@0))))))))))))))'	# TOO_MANY_OPS?
+check_error 'p vfs_read +0(+0(+0(+0(+0(+0(+0(+0(^+0(@0)))))))))'	# TOO_MANY_NESTED
 check_error 'p vfs_read +0(@11):u8[10^'		# ARRAY_NO_CLOSE
 check_error 'p vfs_read +0(@11):u8[10]^a'	# BAD_ARRAY_SUFFIX
 check_error 'p vfs_read +0(@11):u8[^10a]'	# BAD_ARRAY_NUM
@@ -117,7 +117,7 @@ check_error 'p kfree ^$arg10'			# NO_BTFARG (exceed the number of parameters)
 check_error 'r kfree ^$retval'			# NO_RETVAL
 if grep -qF "[(structname" README ; then
 check_error 'p vfs_read arg1=(task_struct)file^'		# TYPECAST_REQ_FIELD
-check_error 'p vfs_read arg1=(a)((b)((c)(^(d)file->d)->c)->b)->a'	# TOO_MANY_NESTED
+check_error 'p vfs_read arg1=(a)((b)((c)((d)((e)((f)((g)((h)(^(i)file->i)->h)->g)->f)->e)->d)->c)->b)->a'	# TOO_MANY_NESTED
 check_error 'p vfs_read arg1=(task_struct,^in_execve)file->comm'	# TYPECAST_NOT_ALIGNED
 check_error 'p vfs_read arg1=(task_struct,^foo_bar)file->pid'	# NO_BTF_FIELD
 check_error 'p vfs_read arg1=(^task_struct1234)file->pid'		# NO_PTR_STRCT

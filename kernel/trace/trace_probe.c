@@ -356,61 +356,10 @@ parse_probe_arg(char *arg, const struct fetch_type *type,
 		struct fetch_insn **pcode, struct fetch_insn *end,
 		struct traceprobe_parse_context *ctx);
 
-/* handle dereference nested call */
-static inline int handle_dereference(char *arg, struct fetch_insn **pcode,
-	struct fetch_insn *end, struct traceprobe_parse_context *ctx,
-	int deref, long offset)
+static int parse_this_cpu(char *arg, struct traceprobe_parse_context *ctx)
 {
-	const struct fetch_type *type = find_fetch_type(NULL, ctx->flags);
-	struct fetch_insn *code = *pcode;
-	int cur_offs = ctx->offset;
+	bool is_read = false;
 	char *tmp;
-	int ret;
-
-	tmp = strrchr(arg, ')');
-	if (!tmp) {
-		trace_probe_log_err(ctx->offset + strlen(arg),
-					DEREF_OPEN_BRACE);
-		return -EINVAL;
-	}
-
-	*tmp = '\0';
-	ret = parse_probe_arg(arg, type, &code, end, ctx);
-	if (ret)
-		return ret;
-	ctx->offset = cur_offs;
-	if (code->op == FETCH_OP_COMM || code->op == FETCH_OP_IMMSTR) {
-		trace_probe_log_err(ctx->offset, COMM_CANT_DEREF);
-		return -EINVAL;
-	}
-
-	/*
-	 * this_cpu_ptr(@SYM) does not use SYM value, but use SYM address.
-	 * So we overwrite the last FETCH_OP_DEREF with FETCH_OP_CPU_PTR.
-	 */
-	if (!(deref == FETCH_OP_CPU_PTR && *arg == '@')) {
-		code++;
-		if (code == end) {
-			trace_probe_log_err(ctx->offset, TOO_MANY_OPS);
-			return -EINVAL;
-		}
-	}
-	*pcode = code;
-
-	code->op = deref;
-	code->offset = offset;
-	/* Reset the last type if used */
-	ctx->last_type = NULL;
-	return 0;
-}
-
-static int parse_this_cpu(char *arg, struct fetch_insn **pcode,
-			  struct fetch_insn *end,
-			  struct traceprobe_parse_context *ctx)
-{
-	struct fetch_insn *code;
-	bool is_ptr = false;
-	int ret;
 
 	/*
 	 * This is only for kernel probes, excluding eprobe, because per-cpu
@@ -424,27 +373,29 @@ static int parse_this_cpu(char *arg, struct fetch_insn **pcode,
 	if (str_has_prefix(arg, THIS_CPU_PTR_PREFIX)) {
 		arg += THIS_CPU_PTR_LEN;
 		ctx->offset += THIS_CPU_PTR_LEN;
-		is_ptr = true;
 	} else if (str_has_prefix(arg, THIS_CPU_READ_PREFIX)) {
 		arg += THIS_CPU_READ_LEN;
 		ctx->offset += THIS_CPU_READ_LEN;
-	} else
-		return -EINVAL;
-
-	ret = handle_dereference(arg, pcode, end, ctx, FETCH_OP_CPU_PTR, 0);
-	if (ret || is_ptr)
-		return ret;
-
-	/* this_cpu_read(VAR) -> +0(this_cpu_ptr(VAR)) */
-	code = *pcode;
-	code++;
-	if (code == end) {
-		trace_probe_log_err(ctx->offset, TOO_MANY_OPS);
+		is_read = true;
+	} else {
+		trace_probe_log_err(ctx->offset, BAD_FETCH_ARG);
 		return -EINVAL;
 	}
-	code->op = FETCH_OP_DEREF;
-	code->offset = 0;
-	*pcode = code;
+
+	tmp = strrchr(arg, ')');
+	if (!tmp) {
+		trace_probe_log_err(ctx->offset + strlen(arg),
+					DEREF_OPEN_BRACE);
+		return -EINVAL;
+	}
+	*tmp = '\0';
+
+	ctx->stack[ctx->depth].type = STATE_DEREF;
+	ctx->stack[ctx->depth].deref.deref = FETCH_OP_CPU_PTR;
+	ctx->stack[ctx->depth].deref.offset = 0;
+	ctx->stack[ctx->depth].deref.cur_offs = ctx->offset;
+	ctx->stack[ctx->depth].deref.inner_arg = arg;
+	ctx->stack[ctx->depth].deref.is_cpu_read = is_read;
 	return 0;
 }
 
@@ -1007,14 +958,12 @@ static char *find_matched_close_paren(char *s)
 	return NULL;
 }
 
-static int handle_typecast(char *arg, struct fetch_insn **pcode,
-			   struct fetch_insn *end,
-			   struct traceprobe_parse_context *ctx)
+static int handle_typecast(char *arg, struct traceprobe_parse_context *ctx)
 {
 	int orig_offset = ctx->offset;
 	char *close;
 	char *tmp;
-	int ret;
+	char *fieldname;
 
 	if (!(tparg_is_event_probe(ctx->flags) ||
 	      tparg_is_function_entry(ctx->flags) ||
@@ -1028,12 +977,6 @@ static int handle_typecast(char *arg, struct fetch_insn **pcode,
 	 * For example: (STRUCT)VAR->FIELD and (STRUCT)(VAR)->FIELD are same.
 	 * VAR is solved in the nested call.
 	 */
-	ctx->nested_level++;
-	if (ctx->nested_level > TRACEPROBE_MAX_NESTED_LEVEL) {
-		trace_probe_log_err(ctx->offset, TOO_MANY_NESTED);
-		return -E2BIG;
-	}
-
 	tmp = strchr(arg, ')');
 	if (!tmp) {
 		trace_probe_log_err(ctx->offset + strlen(arg),
@@ -1103,30 +1046,19 @@ static int handle_typecast(char *arg, struct fetch_insn **pcode,
 	}
 	*close = '\0';
 
-	/* We need to parse the nested one */
-	ret = parse_probe_arg(tmp, find_fetch_type(NULL, ctx->flags),
-			      pcode, end, ctx);
-	if (ret < 0)
-		return ret;
-	ctx->nested_level--;
-	clear_struct_btf(ctx);
-
-	/* Let tmp point the field name. */
+	/* Let fieldname point the field name. */
 	if (close[1] == '-')
-		tmp = close + 3; /* Skip "->" after closing parenthesis */
+		fieldname = close + 3; /* Skip "->" after closing parenthesis */
 	else
-		tmp = close + 2; /* Skip ">" after inner variable name */
+		fieldname = close + 2; /* Skip ">" after inner variable name */
 
-	/* resolve the typecast struct name */
-	ctx->offset = orig_offset + 1; /* for the '(' */
-	ret = parse_btf_casttype(arg + 1, ctx);
-	if (ret < 0)
-		return ret;
-
-	ctx->offset = orig_offset + tmp - arg;
-	ret = parse_btf_field(tmp, ctx->last_struct, pcode, end, ctx);
-	ctx->prefix_byteoffs = 0;
-	return ret;
+	ctx->stack[ctx->depth].type = STATE_TYPECAST;
+	ctx->stack[ctx->depth].typecast.casttype = arg + 1;
+	ctx->stack[ctx->depth].typecast.fieldname = fieldname;
+	ctx->stack[ctx->depth].typecast.orig_offset = orig_offset;
+	ctx->stack[ctx->depth].typecast.field_offset_diff = fieldname - arg;
+	ctx->stack[ctx->depth].typecast.inner_arg = tmp;
+	return 0;
 }
 
 #else /* !CONFIG_PROBE_EVENTS_BTF_ARGS */
@@ -1171,9 +1103,20 @@ static int check_prepare_btf_string_fetch(char *typename,
 	return 0;
 }
 
-static int handle_typecast(char *arg, struct fetch_insn **pcode,
-			   struct fetch_insn *end,
+static int parse_btf_casttype(char *casttype,
+			      struct traceprobe_parse_context *ctx)
+{
+	return -EOPNOTSUPP;
+}
+
+static int parse_btf_field(char *fieldname, const struct btf_type *type,
+			   struct fetch_insn **pcode, struct fetch_insn *end,
 			   struct traceprobe_parse_context *ctx)
+{
+	return -EOPNOTSUPP;
+}
+
+static int handle_typecast(char *arg, struct traceprobe_parse_context *ctx)
 {
 	trace_probe_log_err(ctx->offset, NOSUP_BTFARG);
 	return -EOPNOTSUPP;
@@ -1598,9 +1541,7 @@ static int parse_probe_arg_mem_symbol(char *arg, struct fetch_insn **pcode,
 	return 0;
 }
 
-static int parse_probe_arg_deref(char *arg, struct fetch_insn **pcode,
-				 struct fetch_insn *end,
-				 struct traceprobe_parse_context *ctx)
+static int parse_probe_arg_deref(char *arg, struct traceprobe_parse_context *ctx)
 {
 	int deref = FETCH_OP_DEREF;
 	long offset = 0;
@@ -1627,7 +1568,22 @@ static int parse_probe_arg_deref(char *arg, struct fetch_insn **pcode,
 	}
 	ctx->offset += (tmp + 1 - arg) + (arg[0] != '-' ? 1 : 0);
 	arg = tmp + 1;
-	return handle_dereference(arg, pcode, end, ctx, deref, offset);
+
+	tmp = strrchr(arg, ')');
+	if (!tmp) {
+		trace_probe_log_err(ctx->offset + strlen(arg),
+					DEREF_OPEN_BRACE);
+		return -EINVAL;
+	}
+	*tmp = '\0';
+
+	ctx->stack[ctx->depth].type = STATE_DEREF;
+	ctx->stack[ctx->depth].deref.deref = deref;
+	ctx->stack[ctx->depth].deref.offset = offset;
+	ctx->stack[ctx->depth].deref.cur_offs = ctx->offset;
+	ctx->stack[ctx->depth].deref.inner_arg = arg;
+	ctx->stack[ctx->depth].deref.is_cpu_read = false;
+	return 0;
 }
 
 static int parse_probe_arg_imm(char *arg, struct fetch_insn *code,
@@ -1659,11 +1615,6 @@ static int parse_probe_arg_default(char *arg, struct fetch_insn **pcode,
 {
 	int ret;
 
-	if (str_has_prefix(arg, THIS_CPU_PTR_PREFIX) ||
-	    str_has_prefix(arg, THIS_CPU_READ_PREFIX)) {
-		return parse_this_cpu(arg, pcode, end, ctx);
-	}
-
 	if (isalpha(arg[0]) || arg[0] == '_') {
 		/* BTF variable or event field */
 		if (ctx->flags & TPARG_FL_TEVENT) {
@@ -1685,11 +1636,56 @@ static int parse_probe_arg_default(char *arg, struct fetch_insn **pcode,
 	return 0;
 }
 
-/* Recursive argument parser */
-static int
-parse_probe_arg(char *arg, const struct fetch_type *type,
-		struct fetch_insn **pcode, struct fetch_insn *end,
-		struct traceprobe_parse_context *ctx)
+static int parse_probe_arg_nested(char **parg, struct traceprobe_parse_context *ctx)
+{
+	char *arg = *parg;
+	int ret;
+
+	while (true) {
+		/* Determine if this is a nested argument */
+		if (arg[0] != '+' && arg[0] != '-' && arg[0] != '(' &&
+		    !str_has_prefix(arg, THIS_CPU_PTR_PREFIX) &&
+		    !str_has_prefix(arg, THIS_CPU_READ_PREFIX))
+			break;
+
+		/* If nested, check the maximum depth limit */
+		if (ctx->depth >= TRACEPROBE_MAX_NESTED_LEVEL) {
+			trace_probe_log_err(ctx->offset, TOO_MANY_NESTED);
+			return -E2BIG;
+		}
+
+		/* Perform the actual parsing subroutine calls */
+		switch (arg[0]) {
+		case '+':
+		case '-':
+			ret = parse_probe_arg_deref(arg, ctx);
+			if (ret)
+				return ret;
+			arg = ctx->stack[ctx->depth].deref.inner_arg;
+			break;
+		case '(':
+			ret = handle_typecast(arg, ctx);
+			if (ret)
+				return ret;
+			arg = ctx->stack[ctx->depth].typecast.inner_arg;
+			break;
+		default:
+			ret = parse_this_cpu(arg, ctx);
+			if (ret)
+				return ret;
+			arg = ctx->stack[ctx->depth].deref.inner_arg;
+			break;
+		}
+		ctx->depth++;
+	}
+
+	*parg = arg;
+	return 0;
+}
+
+static int parse_probe_arg_leaf(char *arg, const struct fetch_type *type,
+				struct fetch_insn **pcode, struct fetch_insn *end,
+				struct traceprobe_parse_context *ctx)
 {
 	struct fetch_insn *code = *pcode;
 	int ret;
@@ -1704,26 +1700,112 @@ parse_probe_arg(char *arg, const struct fetch_type *type,
 	case '@':	/* memory, file-offset or symbol */
 		ret = parse_probe_arg_mem_symbol(arg, pcode, end, ctx);
 		break;
-	case '+':	/* deref memory */
-	case '-':
-		ret = parse_probe_arg_deref(arg, pcode, end, ctx);
-		break;
 	case '\\':	/* Immediate value */
 		ret = parse_probe_arg_imm(arg, code, ctx);
-		break;
-	case '(':
-		ret = handle_typecast(arg, pcode, end, ctx);
 		break;
 	default:
 		ret = parse_probe_arg_default(arg, pcode, end, ctx);
 		break;
 	}
-	if (!ret && code->op == FETCH_OP_NOP) {
+
+	if (ret)
+		return ret;
+
+	if (code->op == FETCH_OP_NOP) {
 		/* Parsed, but do not find fetch method */
 		trace_probe_log_err(ctx->offset, BAD_FETCH_ARG);
-		ret = -EINVAL;
+		return -EINVAL;
 	}
-	return ret;
+
+	return 0;
+}
+
+static int unwind_parse_states(struct fetch_insn **pcode, struct fetch_insn *end,
+			       struct traceprobe_parse_context *ctx)
+{
+	struct parse_state *state;
+	struct fetch_insn *code;
+	int ret;
+
+	while (ctx->depth > 0) {
+		ctx->depth--;
+		state = &ctx->stack[ctx->depth];
+
+		if (state->type == STATE_DEREF) {
+			code = *pcode;
+			ctx->offset = state->deref.cur_offs;
+			if (code->op == FETCH_OP_COMM || code->op == FETCH_OP_IMMSTR) {
+				trace_probe_log_err(ctx->offset, COMM_CANT_DEREF);
+				return -EINVAL;
+			}
+
+			if (!(state->deref.deref == FETCH_OP_CPU_PTR &&
+			      *state->deref.inner_arg == '@')) {
+				code++;
+				if (code == end) {
+					trace_probe_log_err(ctx->offset, TOO_MANY_OPS);
+					return -EINVAL;
+				}
+			}
+			*pcode = code;
+
+			code->op = state->deref.deref;
+			code->offset = state->deref.offset;
+			ctx->last_type = NULL;
+
+			if (state->deref.is_cpu_read) {
+				code = *pcode;
+				code++;
+				if (code == end) {
+					trace_probe_log_err(ctx->offset, TOO_MANY_OPS);
+					return -EINVAL;
+				}
+				code->op = FETCH_OP_DEREF;
+				code->offset = 0;
+				*pcode = code;
+			}
+		} else if (state->type == STATE_TYPECAST) {
+			clear_struct_btf(ctx);
+
+			/* resolve the typecast struct name */
+			ctx->offset = state->typecast.orig_offset + 1; /* for the '(' */
+			ret = parse_btf_casttype(state->typecast.casttype, ctx);
+			if (ret < 0)
+				return ret;
+
+			ctx->offset = state->typecast.orig_offset +
+				      state->typecast.field_offset_diff;
+			ret = parse_btf_field(state->typecast.fieldname,
+					      ctx->last_struct, pcode,
+					      end, ctx);
+			ctx->prefix_byteoffs = 0;
+			if (ret < 0)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+
+/* Loop-based (non-recursive) argument parser */
+static int
+parse_probe_arg(char *arg, const struct fetch_type *type,
+		struct fetch_insn **pcode, struct fetch_insn *end,
+		struct traceprobe_parse_context *ctx)
+{
+	int ret;
+
+	ctx->depth = 0;
+
+	ret = parse_probe_arg_nested(&arg, ctx);
+	if (ret)
+		return ret;
+
+	ret = parse_probe_arg_leaf(arg, type, pcode, end, ctx);
+	if (ret)
+		return ret;
+
+	return unwind_parse_states(pcode, end, ctx);
 }
 
 /* Bitfield type needs to be parsed into a fetch function */
@@ -1984,12 +2066,6 @@ static int traceprobe_parse_probe_arg_body(const char *argv, ssize_t *size,
 			      ctx);
 	if (ret < 0)
 		goto fail;
-	/* nested_level must be 0 here, otherwise there is a bug. */
-	if (WARN_ON_ONCE(ctx->nested_level)) {
-		ret = -EINVAL;
-		goto fail;
-	}
-
 	/* Update storing type if BTF is available */
 	if (IS_ENABLED(CONFIG_PROBE_EVENTS_BTF_ARGS) &&
 	    ctx->last_type) {

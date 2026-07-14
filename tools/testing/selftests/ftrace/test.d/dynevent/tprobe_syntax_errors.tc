@@ -46,7 +46,7 @@ check_error 't kfree ^&1'		# BAD_FETCH_ARG
 
 # We've introduced this limitation with array support
 if grep -q ' <type>\\\[<array-size>\\\]' README; then
-check_error 't kfree +0(^+0(+0(+0(+0(+0(+0(+0(+0(+0(+0(+0(+0(+0(@0))))))))))))))'	# TOO_MANY_OPS?
+check_error 't kfree +0(+0(+0(+0(+0(+0(+0(+0(^+0(@0)))))))))'	# TOO_MANY_NESTED
 check_error 't kfree +0(@11):u8[10^'		# ARRAY_NO_CLOSE
 check_error 't kfree +0(@11):u8[10]^a'		# BAD_ARRAY_SUFFIX
 check_error 't kfree +0(@11):u8[^10a]'		# BAD_ARRAY_NUM
