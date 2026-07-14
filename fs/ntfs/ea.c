@@ -275,6 +275,15 @@ create_ea_info:
 		ea_info_qsize -= ea_size;
 		p_ea_info->ea_query_length = cpu_to_le32(ea_info_qsize);
 
+		if ((flags & XATTR_REPLACE) && !val_size && !ea_info_qsize) {
+			err = ntfs_attr_remove(ni, AT_EA, AT_UNNAMED, 0);
+			if (err)
+				goto out;
+
+			err = ntfs_attr_remove(ni, AT_EA_INFORMATION, AT_UNNAMED, 0);
+			goto out;
+		}
+
 		err = ntfs_write_ea(ni, AT_EA_INFORMATION, (char *)p_ea_info, 0,
 				sizeof(struct ea_information), false);
 		if (err)
