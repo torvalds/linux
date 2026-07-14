@@ -89,7 +89,9 @@ int ksmbd_vfs_link(struct ksmbd_work *work,
 		   const char *oldname, const char *newname);
 int ksmbd_vfs_getattr(const struct path *path, struct kstat *stat);
 int ksmbd_vfs_rename(struct ksmbd_work *work, const struct path *old_path,
-		     char *newname, int flags);
+			     char *newname, int flags);
+int ksmbd_vfs_check_rename_share(struct ksmbd_work *work,
+				 const struct path *old_path);
 int ksmbd_vfs_truncate(struct ksmbd_work *work,
 		       struct ksmbd_file *fp, loff_t size);
 struct srv_copychunk;

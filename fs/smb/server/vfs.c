@@ -658,15 +658,34 @@ out1:
 	return err;
 }
 
+int ksmbd_vfs_check_rename_share(struct ksmbd_work *work,
+				 const struct path *old_path)
+{
+	struct ksmbd_file *parent_fp;
+	int err = 0;
+
+	parent_fp = ksmbd_lookup_fd_inode(old_path->dentry->d_parent);
+	if (!parent_fp)
+		return 0;
+
+	if ((parent_fp->daccess & FILE_DELETE_LE) ||
+	    (!parent_fp->attrib_only &&
+	     !(parent_fp->saccess & FILE_SHARE_DELETE_LE))) {
+		ksmbd_debug(VFS, "parent dir blocks delete sharing\n");
+		err = -ESHARE;
+	}
+	ksmbd_fd_put(work, parent_fp);
+	return err;
+}
+
 int ksmbd_vfs_rename(struct ksmbd_work *work, const struct path *old_path,
-		     char *newname, int flags)
+			     char *newname, int flags)
 {
 	struct dentry *old_child = old_path->dentry;
 	struct path new_path;
 	struct qstr new_last;
 	struct renamedata rd;
 	struct ksmbd_share_config *share_conf = work->tcon->share_conf;
-	struct ksmbd_file *parent_fp;
 	int err, lookup_flags = LOOKUP_NO_SYMLINKS;
 
 	if (ksmbd_override_fsids(work))
@@ -704,18 +723,9 @@ retry:
 		goto out3;
 	}
 
-	parent_fp = ksmbd_lookup_fd_inode(old_child->d_parent);
-	if (parent_fp) {
-		if ((parent_fp->daccess & FILE_DELETE_LE) ||
-		    (!parent_fp->attrib_only &&
-		     !(parent_fp->saccess & FILE_SHARE_DELETE_LE))) {
-			pr_err("parent dir blocks delete sharing\n");
-			err = -ESHARE;
-			ksmbd_fd_put(work, parent_fp);
-			goto out3;
-		}
-		ksmbd_fd_put(work, parent_fp);
-	}
+	err = ksmbd_vfs_check_rename_share(work, old_path);
+	if (err)
+		goto out3;
 
 	if (d_is_symlink(rd.new_dentry)) {
 		err = -EACCES;

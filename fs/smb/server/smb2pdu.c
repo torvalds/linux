@@ -7135,9 +7135,12 @@ static int smb2_rename(struct ksmbd_work *work,
 	if (!file_info->ReplaceIfExists)
 		flags = RENAME_NOREPLACE;
 
+	rc = ksmbd_vfs_check_rename_share(work, &fp->filp->f_path);
+	if (rc)
+		goto out;
+
+	smb_break_all_levII_oplock_rename(work, fp);
 	rc = ksmbd_vfs_rename(work, &fp->filp->f_path, new_name, flags);
-	if (!rc)
-		smb_break_all_levII_oplock(work, fp, 0);
 out:
 	kfree(new_name);
 	return rc;

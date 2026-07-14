@@ -98,7 +98,8 @@ int smb_grant_oplock(struct ksmbd_work *work, int req_op_level,
 		     u64 pid, struct ksmbd_file *fp, __u16 tid,
 		     struct lease_ctx_info *lctx, int share_ret);
 void smb_break_all_levII_oplock(struct ksmbd_work *work,
-				struct ksmbd_file *fp, int is_trunc);
+					struct ksmbd_file *fp, int is_trunc);
+void smb_break_all_levII_oplock_rename(struct ksmbd_work *work, struct ksmbd_file *fp);
 void smb_break_all_levII_oplock_no_interim(struct ksmbd_work *work,
 					   struct ksmbd_file *fp, int is_trunc);
 void smb_break_all_levII_oplock_for_delete(struct ksmbd_work *work,
