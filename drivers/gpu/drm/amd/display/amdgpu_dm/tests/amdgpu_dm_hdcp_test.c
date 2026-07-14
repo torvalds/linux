@@ -473,7 +473,8 @@ static void dm_test_process_output_watchdog_stop_and_needed_requeues(struct kuni
  * @test: KUnit test context for managed allocation
  *
  * Allocates a minimal hdcp_workqueue with property_update_work initialised
- * so event_property_update() can resolve container_of() safely.
+ * so event_property_update() can resolve container_of() safely. The mutex is
+ * initialised as well because the connected path takes guard(mutex).
  */
 static struct hdcp_workqueue *alloc_test_workqueue_for_property_update(struct kunit *test)
 {
@@ -482,9 +483,39 @@ static struct hdcp_workqueue *alloc_test_workqueue_for_property_update(struct ku
 	work = kunit_kzalloc(test, sizeof(*work), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, work);
 
+	mutex_init(&work->mutex);
 	INIT_WORK(&work->property_update_work, dummy_work_fn);
 
 	return work;
+}
+
+/**
+ * alloc_update_connector - connector for event_property_update() tests
+ * @test: KUnit test context for managed allocation
+ * @status: drm connector detection status to assign
+ * @conn_state: drm_connector_state to attach (may be NULL)
+ * @dev: drm_device to attach as connector->dev (may be NULL)
+ *
+ * Allocates an amdgpu_dm_connector wired for the traversal in
+ * event_property_update(). The caller supplies the state and device so the
+ * various skip branches (disconnected, no state, no device) and the fully
+ * connected path can all be exercised.
+ */
+static struct amdgpu_dm_connector *alloc_update_connector(struct kunit *test,
+							  enum drm_connector_status status,
+							  struct drm_connector_state *conn_state,
+							  struct drm_device *dev)
+{
+	struct amdgpu_dm_connector *aconnector;
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+
+	aconnector->base.status = status;
+	aconnector->base.state = conn_state;
+	aconnector->base.dev = dev;
+
+	return aconnector;
 }
 
 /**
@@ -505,6 +536,142 @@ static void dm_test_event_property_update_skips_null_connector(struct kunit *tes
 	event_property_update(&work->property_update_work);
 
 	KUNIT_EXPECT_EQ(test, work->encryption_status[0], before);
+}
+
+/**
+ * dm_test_event_property_update_skips_disconnected - disconnected is skipped
+ * @test: KUnit test context
+ *
+ * A connector whose status is not connector_status_connected must be skipped
+ * before any modeset lock is taken, leaving encryption_status untouched.
+ */
+static void dm_test_event_property_update_skips_disconnected(struct kunit *test)
+{
+	struct hdcp_workqueue *work = alloc_test_workqueue_for_property_update(test);
+	struct drm_connector_state *conn_state;
+
+	conn_state = kunit_kzalloc(test, sizeof(*conn_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, conn_state);
+
+	work->aconnector[1] = alloc_update_connector(test, connector_status_disconnected,
+						     conn_state, NULL);
+	work->encryption_status[1] = MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE1_ON;
+
+	event_property_update(&work->property_update_work);
+
+	KUNIT_EXPECT_EQ(test, work->encryption_status[1],
+			MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE1_ON);
+}
+
+/**
+ * dm_test_event_property_update_skips_null_state - missing state is skipped
+ * @test: KUnit test context
+ *
+ * A connected connector without a drm_connector_state must be skipped before
+ * the modeset lock, leaving encryption_status unchanged.
+ */
+static void dm_test_event_property_update_skips_null_state(struct kunit *test)
+{
+	struct hdcp_workqueue *work = alloc_test_workqueue_for_property_update(test);
+
+	work->aconnector[2] = alloc_update_connector(test, connector_status_connected,
+						     NULL, NULL);
+	work->encryption_status[2] = MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE1_ON;
+
+	event_property_update(&work->property_update_work);
+
+	KUNIT_EXPECT_EQ(test, work->encryption_status[2],
+			MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE1_ON);
+}
+
+/**
+ * dm_test_event_property_update_skips_null_dev - missing device is skipped
+ * @test: KUnit test context
+ *
+ * A connected connector with state but no drm_device must be skipped before
+ * the modeset lock, leaving encryption_status unchanged.
+ */
+static void dm_test_event_property_update_skips_null_dev(struct kunit *test)
+{
+	struct hdcp_workqueue *work = alloc_test_workqueue_for_property_update(test);
+	struct drm_connector_state *conn_state;
+
+	conn_state = kunit_kzalloc(test, sizeof(*conn_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, conn_state);
+
+	work->aconnector[3] = alloc_update_connector(test, connector_status_connected,
+						     conn_state, NULL);
+	work->encryption_status[3] = MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE1_ON;
+
+	event_property_update(&work->property_update_work);
+
+	KUNIT_EXPECT_EQ(test, work->encryption_status[3],
+			MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE1_ON);
+}
+
+/**
+ * dm_test_event_property_update_desired_when_off - HDCP off maps to DESIRED
+ * @test: KUnit test context
+ *
+ * A fully connected display with HDCP_OFF encryption drives the connected
+ * path: the modeset lock is taken, hdcp_get_content_protection_from_status()
+ * reports DRM_MODE_CONTENT_PROTECTION_DESIRED and
+ * drm_hdcp_update_content_protection() is called. The connector state is
+ * pre-set to DESIRED so the value is unchanged (no sysfs event) and the deep
+ * path completes cleanly.
+ */
+static void dm_test_event_property_update_desired_when_off(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct hdcp_workqueue *work = alloc_test_workqueue_for_property_update(test);
+	struct drm_connector_state *conn_state;
+
+	conn_state = kunit_kzalloc(test, sizeof(*conn_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, conn_state);
+	conn_state->content_protection = DRM_MODE_CONTENT_PROTECTION_DESIRED;
+
+	work->aconnector[0] = alloc_update_connector(test, connector_status_connected,
+						     conn_state, &adev->ddev);
+	work->encryption_status[0] = MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF;
+
+	event_property_update(&work->property_update_work);
+
+	KUNIT_EXPECT_EQ(test, conn_state->content_protection,
+			(unsigned int)DRM_MODE_CONTENT_PROTECTION_DESIRED);
+	KUNIT_EXPECT_EQ(test, work->encryption_status[0],
+			MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF);
+}
+
+/**
+ * dm_test_event_property_update_enabled_when_encrypted - encrypted maps to ENABLED
+ * @test: KUnit test context
+ *
+ * A fully connected display with TYPE0 content and HDCP1 encryption drives
+ * the connected path where hdcp_get_content_protection_from_status() reports
+ * DRM_MODE_CONTENT_PROTECTION_ENABLED. The connector state is pre-set to
+ * ENABLED so drm_hdcp_update_content_protection() leaves it unchanged.
+ */
+static void dm_test_event_property_update_enabled_when_encrypted(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct hdcp_workqueue *work = alloc_test_workqueue_for_property_update(test);
+	struct drm_connector_state *conn_state;
+
+	conn_state = kunit_kzalloc(test, sizeof(*conn_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, conn_state);
+	conn_state->hdcp_content_type = DRM_MODE_HDCP_CONTENT_TYPE0;
+	conn_state->content_protection = DRM_MODE_CONTENT_PROTECTION_ENABLED;
+
+	work->aconnector[0] = alloc_update_connector(test, connector_status_connected,
+						     conn_state, &adev->ddev);
+	work->encryption_status[0] = MOD_HDCP_ENCRYPTION_STATUS_HDCP1_ON;
+
+	event_property_update(&work->property_update_work);
+
+	KUNIT_EXPECT_EQ(test, conn_state->content_protection,
+			(unsigned int)DRM_MODE_CONTENT_PROTECTION_ENABLED);
+	KUNIT_EXPECT_EQ(test, work->encryption_status[0],
+			MOD_HDCP_ENCRYPTION_STATUS_HDCP1_ON);
 }
 
 /* End of tests for event_property_update() */
@@ -2367,6 +2534,11 @@ static struct kunit_case dm_hdcp_test_cases[] = {
 	KUNIT_CASE(dm_test_process_output_watchdog_stop_and_needed_requeues),
 	/* event_property_update() */
 	KUNIT_CASE(dm_test_event_property_update_skips_null_connector),
+	KUNIT_CASE(dm_test_event_property_update_skips_disconnected),
+	KUNIT_CASE(dm_test_event_property_update_skips_null_state),
+	KUNIT_CASE(dm_test_event_property_update_skips_null_dev),
+	KUNIT_CASE(dm_test_event_property_update_desired_when_off),
+	KUNIT_CASE(dm_test_event_property_update_enabled_when_encrypted),
 	/* event_callback() */
 	KUNIT_CASE(dm_test_event_callback_cancels_callback_dwork),
 	KUNIT_CASE(dm_test_event_callback_schedules_property_validate),
