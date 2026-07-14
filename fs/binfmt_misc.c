@@ -29,6 +29,7 @@
 #include <linux/refcount.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
+#include <linux/srcu.h>
 #include <linux/string.h>
 #include <linux/string_helpers.h>
 #include <linux/uaccess.h>
@@ -82,6 +83,9 @@ struct binfmt_misc_entry {
 /* Trailing delimiter pad so field parsing always terminates at a delimiter. */
 #define MISC_DELIM_PAD 8
 
+/* Protects the entry walk in load_misc_binary(), which may sleep in it. */
+DEFINE_STATIC_SRCU_FAST(bm_entries_srcu);
+
 /* Check if @e's magic matches @bprm's buffer, applying the mask if set. */
 static bool entry_matches_magic(const struct binfmt_misc_entry *e,
 				const struct linux_binprm *bprm)
@@ -111,11 +115,14 @@ static bool entry_matches_extension(const struct binfmt_misc_entry *e,
  * @bprm: binary for which we are looking for a handler
  *
  * Search for a binary type handler for @bprm in the list of registered binary
- * type handlers.
+ * type handlers. The matched entry is returned with a reference taken while
+ * the walk still held it; a dying entry - unlinked with its last reference
+ * gone - cannot be matched and the walk moves on.
  *
- * The caller must hold the RCU read lock.
+ * The caller must hold the bm_entries_srcu read lock, which allows an
+ * entry's evaluation to sleep.
  *
- * Return: binary type list entry on success, NULL on failure
+ * Return: referenced binary type list entry on success, NULL on failure
  */
 static struct binfmt_misc_entry *
 search_binfmt_handler(struct binfmt_misc *misc, struct linux_binprm *bprm)
@@ -125,18 +132,23 @@ search_binfmt_handler(struct binfmt_misc *misc, struct linux_binprm *bprm)
 	struct binfmt_misc_entry *e;
 
 	/* Walk all the registered handlers. */
-	hlist_for_each_entry_rcu(e, &misc->entries, node) {
+	hlist_for_each_entry_rcu(e, &misc->entries, node,
+				 srcu_read_lock_held(&bm_entries_srcu)) {
 		/* Make sure this one is currently enabled. */
 		if (!test_bit(MISC_FMT_ENABLED_BIT, &e->flags))
 			continue;
 
 		if (test_bit(MISC_FMT_MAGIC_BIT, &e->flags)) {
-			if (entry_matches_magic(e, bprm))
-				return e;
+			if (!entry_matches_magic(e, bprm))
+				continue;
 		} else {
-			if (entry_matches_extension(e, ext))
-				return e;
+			if (!entry_matches_extension(e, ext))
+				continue;
 		}
+
+		/* A dying entry cannot be matched, walk on. */
+		if (refcount_inc_not_zero(&e->users))
+			return e;
 	}
 
 	return NULL;
@@ -147,24 +159,22 @@ search_binfmt_handler(struct binfmt_misc *misc, struct linux_binprm *bprm)
  * @misc: handle to binfmt_misc instance
  * @bprm: binary for which we are looking for a handler
  *
- * Try to find a binfmt handler for the binary type. If one is found take a
- * reference to protect against removal via bm_{entry,status}_write(). The
- * refcount of an entry can only drop to zero once it has been unlinked and
- * a restarted search cannot find an unlinked entry again so the retry loop
- * is bounded.
+ * Try to find a binfmt handler for the binary type. If one is found it is
+ * returned with a reference protecting it against removal via
+ * bm_{entry,status}_write().
  *
  * Return: binary type list entry on success, NULL on failure
  */
 static struct binfmt_misc_entry *get_binfmt_handler(struct binfmt_misc *misc,
 						    struct linux_binprm *bprm)
 {
-	struct binfmt_misc_entry *e;
+	guard(srcu_fast)(&bm_entries_srcu);
+	return search_binfmt_handler(misc, bprm);
+}
 
-	guard(rcu)();
-	do {
-		e = search_binfmt_handler(misc, bprm);
-	} while (e && !refcount_inc_not_zero(&e->users));
-	return e;
+static void bm_entry_free_rcu(struct rcu_head *rcu)
+{
+	kfree(container_of(rcu, struct binfmt_misc_entry, rcu));
 }
 
 /**
@@ -182,8 +192,8 @@ static void put_binfmt_handler(struct binfmt_misc_entry *e)
 			exe_file_allow_write_access(e->interp_file);
 			filp_close(e->interp_file, NULL);
 		}
-		/* Lockless walkers may still dereference this entry. */
-		kfree_rcu(e, rcu);
+		/* Walkers may still dereference this entry, even sleeping. */
+		call_srcu(&bm_entries_srcu, &e->rcu, bm_entry_free_rcu);
 	}
 }
 
@@ -669,7 +679,7 @@ static void bm_evict_inode(struct inode *inode)
  * Adding and removing entries via bm_{entry,register,status}_write() and
  * unlink(2) happens under the exclusively held inode lock of the root
  * dentry keeping the list stable for writers. load_misc_binary() walks it
- * concurrently under RCU. The entries_lock is only held around the actual
+ * concurrently under SRCU. The entries_lock is only held around the actual
  * unlink to serialize against bm_evict_inode() which unlinks entries
  * during umount without holding the root inode lock.
  */
@@ -1055,6 +1065,8 @@ static void __exit exit_misc_binfmt(void)
 {
 	unregister_binfmt(&misc_format);
 	unregister_filesystem(&bm_fs_type);
+	/* Flush pending bm_entry_free_rcu() callbacks before the text goes. */
+	srcu_barrier(&bm_entries_srcu);
 }
 
 core_initcall(init_misc_binfmt);
