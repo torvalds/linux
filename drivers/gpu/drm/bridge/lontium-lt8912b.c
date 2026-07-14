@@ -677,7 +677,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(lt8912_bridge_pm_ops, lt8912_bridge_suspend, lt8
 static int lt8912_get_regulators(struct lt8912 *lt)
 {
 	unsigned int i;
-	const char * const supply_names[] = {
+	static const char * const supply_names[] = {
 		"vdd", "vccmipirx", "vccsysclk", "vcclvdstx",
 		"vcchdmitx", "vcclvdspll", "vcchdmipll"
 	};
