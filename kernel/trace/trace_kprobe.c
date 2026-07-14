@@ -149,7 +149,7 @@ static bool trace_kprobe_is_busy(struct dyn_event *ev)
 static bool trace_kprobe_match_command_head(struct trace_kprobe *tk,
 					    int argc, const char **argv)
 {
-	char buf[MAX_ARGSTR_LEN + 1];
+	char buf[MAX_COMMON_HEAD_LEN + 1];
 
 	if (!argc)
 		return true;

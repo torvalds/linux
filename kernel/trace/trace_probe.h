@@ -32,7 +32,8 @@
 #include "trace_output.h"
 
 #define MAX_TRACE_ARGS		128
-#define MAX_ARGSTR_LEN		63
+#define MAX_ARGSTR_LEN		255
+#define MAX_COMMON_HEAD_LEN	63
 #define MAX_ARRAY_LEN		64
 #define MAX_ARG_NAME_LEN	32
 #define MAX_BTF_ARGS_LEN	128
