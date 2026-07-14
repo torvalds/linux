@@ -135,17 +135,28 @@ interpreter and the binary, exactly like the optional argument of a ``#!``
 interpreter line, e.g. for a handler that resolves ``$ORIGIN`` in a script's
 ``#!`` path and needs to preserve the argument that followed it.
 
+The invocation flags a static entry fixes at registration - ``P``, ``C``
+and ``O`` - are per-exec choices for a bpf handler, made by the ``load``
+program with the ``bpf_binprm_set_flags()`` kfunc, so a single handler can
+decide them differently for each binary it handles:
+
+- ``BPF_BINPRM_PRESERVE_ARGV0`` keeps the caller's ``argv[0]`` (the ``P``
+  flag).
+- ``BPF_BINPRM_CREDENTIALS`` computes credentials from the binary (the ``C``
+  flag), bounded to user namespaces that map the binary's owner just like
+  any other setuid exec.
+- ``BPF_BINPRM_EXECFD`` opens the binary on the interpreter's behalf and
+  passes it through the ``AT_EXECFD`` aux vector entry (the ``O`` flag), so
+  the interpreter can run binaries it could not open by path.
+
+Because these are program choices, a ``B`` entry carries no flags in the
+register string; ``F`` (pre-open a fixed interpreter) has no meaning for it.
+
 A handler is looked up only in the user namespace the struct_ops map was
 registered in. Handlers are not inherited, so an entry can only reference a
 handler registered in the same user namespace as its binfmt_misc instance.
 The entry keeps the handler alive; deleting the struct_ops map only prevents
 new activations.
-
-The ``F`` flag cannot be combined with ``B`` entries: it pre-opens a fixed
-interpreter at registration time and a ``B`` entry has none. The ``C`` flag
-works as it does for a static entry: the interpreter runs with the matched
-binary's credentials, bounded to user namespaces that map the binary's owner
-just like any other setuid exec.
 
 To use binfmt_misc you have to mount it first. You can mount it with
 ``mount -t binfmt_misc none /proc/sys/fs/binfmt_misc`` command, or you can add

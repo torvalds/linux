@@ -284,6 +284,7 @@ drop_staged:
 	/* A failing load leaves nothing behind for later entries. */
 	kfree(bprm->bpf_interp_arg);
 	bprm->bpf_interp_arg = NULL;
+	bprm->bpf_flags = 0;
 	return ERR_PTR(retval);
 }
 
@@ -296,6 +297,7 @@ static int load_misc_binary(struct linux_binprm *bprm)
 	const char *interpreter;
 	struct file *interp_file;
 	struct binfmt_misc *misc;
+	bool preserve_argv0, want_execfd, want_creds;
 	int retval;
 
 	misc = current_binfmt_misc();
@@ -314,7 +316,28 @@ static int load_misc_binary(struct linux_binprm *bprm)
 	if (IS_ERR(interpreter))
 		return PTR_ERR(interpreter);
 
-	if (fmt->flags & MISC_FMT_PRESERVE_ARGV0) {
+	/*
+	 * The invocation flags are fixed at registration for a static handler
+	 * and chosen per exec by the load program, via bpf_binprm_set_flags(),
+	 * for a bpf one.
+	 */
+	if (test_bit(MISC_FMT_BPF_BIT, &fmt->flags)) {
+		u64 f = bprm->bpf_flags;
+
+		/* Clear so it can't accumulate into a nested interpreter level. */
+		bprm->bpf_flags = 0;
+
+		preserve_argv0 = f & BPF_BINPRM_PRESERVE_ARGV0;
+		want_creds = f & BPF_BINPRM_CREDENTIALS;
+		want_execfd = f & (BPF_BINPRM_CREDENTIALS | BPF_BINPRM_EXECFD);
+	} else {
+		preserve_argv0 = fmt->flags & MISC_FMT_PRESERVE_ARGV0;
+		want_creds = fmt->flags & MISC_FMT_CREDENTIALS;
+		want_execfd = fmt->flags & MISC_FMT_OPEN_BINARY;
+	}
+
+	/* The entry's own choice - not one accumulated from an earlier level. */
+	if (preserve_argv0) {
 		bprm->interp_flags |= BINPRM_FLAGS_PRESERVE_ARGV0;
 	} else {
 		retval = remove_arg_zero(bprm);
@@ -370,9 +393,9 @@ static int load_misc_binary(struct linux_binprm *bprm)
 		return PTR_ERR(interp_file);
 
 	bprm->interpreter = interp_file;
-	if (fmt->flags & MISC_FMT_OPEN_BINARY)
+	if (want_execfd)
 		bprm->have_execfd = 1;
-	if (fmt->flags & MISC_FMT_CREDENTIALS)
+	if (want_creds)
 		bprm->execfd_creds = 1;
 	return 0;
 }
@@ -650,14 +673,14 @@ static struct binfmt_misc_entry *create_entry(const char __user *buffer,
 		return ERR_PTR(-EINVAL);
 
 	/*
-	 * 'F' pre-opens a fixed interpreter at registration time which is
-	 * meaningless for a per-exec computed path. 'C' is fine: it honors the
-	 * suid bits of the matched binary exactly like a static entry, gated by
-	 * the same vfsuid_has_mapping() check in bprm_fill_uid() that keeps the
-	 * transition to uids mapped in the caller's user namespace.
+	 * A bpf handler decides the invocation flags per exec with
+	 * bpf_binprm_set_flags() rather than fixing them at registration, so a
+	 * 'B' entry carries no flags: 'P', 'C' and 'O' become per-exec choices
+	 * and 'F' (pre-open a fixed interpreter) is meaningless for it.
 	 */
 	if (test_bit(MISC_FMT_BPF_BIT, &e->flags) &&
-	    (e->flags & MISC_FMT_OPEN_FILE))
+	    (e->flags & (MISC_FMT_PRESERVE_ARGV0 | MISC_FMT_OPEN_BINARY |
+			 MISC_FMT_CREDENTIALS | MISC_FMT_OPEN_FILE)))
 		return ERR_PTR(-EINVAL);
 
 	return no_free_ptr(e);
