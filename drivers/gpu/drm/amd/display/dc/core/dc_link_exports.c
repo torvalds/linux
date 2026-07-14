@@ -534,6 +534,13 @@ bool dc_link_set_pr_general_cmd(struct dc_link *link,
 	return link->dc->link_srv->dp_pr_set_general_cmd(link, general_cmd_data);
 }
 
+void dc_link_edp_replay_residency(const struct dc_link *link,
+		unsigned int *residency, bool is_start, enum pr_residency_mode mode)
+{
+	if (link && link->dc && link->dc->link_srv)
+		link->dc->link_srv->edp_replay_residency(link, residency, is_start, mode);
+}
+
 bool dc_link_get_pr_state(const struct dc_link *link, uint64_t *state)
 {
 	return link->dc->link_srv->dp_pr_get_state(link, state);

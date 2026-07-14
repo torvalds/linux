@@ -2985,6 +2985,14 @@ bool dc_link_set_pr_general_cmd(struct dc_link *link,
 		struct dmub_cmd_pr_general_cmd_data *general_cmd_data);
 
 /*
+ * Measure Panel Replay residency for the given link.
+ * mode: PR_RESIDENCY_MODE_PHY, PR_RESIDENCY_MODE_ALPM, or
+ *       PR_RESIDENCY_MODE_ENABLEMENT_PERIOD
+ */
+void dc_link_edp_replay_residency(const struct dc_link *link,
+		unsigned int *residency, bool is_start, enum pr_residency_mode mode);
+
+/*
  * Get Panel Replay state:
  *
  * @link: pointer to the dc_link struct instance
