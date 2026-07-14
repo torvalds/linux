@@ -790,6 +790,10 @@ struct ieee80211_bss_npca_params {
  *	be updated to 1, even if bss_param_ch_cnt didn't change. This allows
  *	the link to know that it heard the latest value from its own beacon
  *	(as opposed to hearing its value from another link's beacon).
+ * @enh_bss_param_ch_cnt: In BSS-mode, the enhanced BSS parameters change
+ *	counter. See @bss_param_ch_cnt, it works the same way.
+ * @enh_bss_param_ch_cnt_link_id: In BSS-mode, the link_id for the enhanced
+ *	BSS parameter change counter, see @bss_param_ch_cnt_link_id.
  * @s1g_long_beacon_period: number of beacon intervals between each long
  *	beacon transmission.
  * @npca: NPCA parameters
@@ -894,6 +898,8 @@ struct ieee80211_bss_conf {
 
 	u8 bss_param_ch_cnt;
 	u8 bss_param_ch_cnt_link_id;
+	u8 enh_bss_param_ch_cnt;
+	u8 enh_bss_param_ch_cnt_link_id;
 
 	u8 s1g_long_beacon_period;
 

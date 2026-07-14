@@ -5931,11 +5931,28 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 			ieee80211_mle_basic_sta_prof_bss_param_ch_cnt(elems->prof);
 		bss_conf->bss_param_ch_cnt = bss_param_ch_cnt;
 		bss_conf->bss_param_ch_cnt_link_id = link_id;
+
+		if (link->u.mgd.conn.mode >= IEEE80211_CONN_MODE_UHR) {
+			const struct ieee80211_enh_crit_upd *enh_crit_upd;
+
+			enh_crit_upd = ieee80211_mle_basic_sta_prof_enh_crit_upd(elems->prof);
+			if (!enh_crit_upd) {
+				link_info(link,
+					  "per-STA profile missing enhanced critical updates\n");
+				ret = false;
+				goto out;
+			}
+
+			bss_conf->enh_bss_param_ch_cnt =
+				u8_get_bits(enh_crit_upd->v,
+					    IEEE80211_ENH_CRIT_UPD_EBPCC);
+			bss_conf->enh_bss_param_ch_cnt_link_id = link_id;
+		}
 	}
 
 	if (link_id == assoc_data->assoc_link_id && elems->ml_basic) {
-		int bss_param_ch_cnt =
-			ieee80211_mle_get_bss_param_ch_cnt((const void *)elems->ml_basic);
+		const void *mle = (const void *)elems->ml_basic;
+		int bss_param_ch_cnt = ieee80211_mle_get_bss_param_ch_cnt(mle);
 
 		if (bss_param_ch_cnt < 0) {
 			sdata_info(sdata,
@@ -5945,6 +5962,23 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 		}
 		bss_conf->bss_param_ch_cnt = bss_param_ch_cnt;
 		bss_conf->bss_param_ch_cnt_link_id = link_id;
+
+		if (link->u.mgd.conn.mode >= IEEE80211_CONN_MODE_UHR) {
+			const struct ieee80211_enh_crit_upd *enh_crit_upd;
+
+			enh_crit_upd = ieee80211_mle_get_enh_crit_upd_info(mle);
+			if (!enh_crit_upd) {
+				link_info(link,
+					  "No enhanced critical updates in assoc response\n");
+				ret = false;
+				goto out;
+			}
+
+			bss_conf->enh_bss_param_ch_cnt =
+				u8_get_bits(enh_crit_upd->v,
+					    IEEE80211_ENH_CRIT_UPD_EBPCC);
+			bss_conf->enh_bss_param_ch_cnt_link_id = link_id;
+		}
 	}
 
 	if (!is_s1g && !elems->supp_rates) {
