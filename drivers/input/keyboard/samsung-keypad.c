@@ -142,7 +142,7 @@ static irqreturn_t samsung_keypad_irq(int irq, void *dev_id)
 	unsigned int row_state[SAMSUNG_MAX_COLS];
 	bool key_down;
 
-	pm_runtime_get_sync(&keypad->pdev->dev);
+	guard(pm_runtime_active)(&keypad->pdev->dev);
 
 	do {
 		readl(keypad->base + SAMSUNG_KEYIFSTSCLR);
@@ -158,8 +158,6 @@ static irqreturn_t samsung_keypad_irq(int irq, void *dev_id)
 
 	} while (key_down && !keypad->stopped);
 
-	pm_runtime_put(&keypad->pdev->dev);
-
 	return IRQ_HANDLED;
 }
 
@@ -167,7 +165,7 @@ static void samsung_keypad_start(struct samsung_keypad *keypad)
 {
 	unsigned int val;
 
-	pm_runtime_get_sync(&keypad->pdev->dev);
+	guard(pm_runtime_active)(&keypad->pdev->dev);
 
 	/* Tell IRQ thread that it may poll the device. */
 	keypad->stopped = false;
@@ -182,8 +180,6 @@ static void samsung_keypad_start(struct samsung_keypad *keypad)
 	/* KEYIFCOL reg clear. */
 	writel(0, keypad->base + SAMSUNG_KEYIFCOL);
 
-	pm_runtime_put(&keypad->pdev->dev);
-
 	enable_irq(keypad->irq);
 }
 
@@ -191,7 +187,7 @@ static void samsung_keypad_stop(struct samsung_keypad *keypad)
 {
 	unsigned int val;
 
-	pm_runtime_get_sync(&keypad->pdev->dev);
+	guard(pm_runtime_active)(&keypad->pdev->dev);
 
 	/* Signal IRQ thread to stop polling and disable the handler. */
 	keypad->stopped = true;
@@ -207,8 +203,6 @@ static void samsung_keypad_stop(struct samsung_keypad *keypad)
 	writel(val, keypad->base + SAMSUNG_KEYIFCON);
 
 	clk_disable(keypad->clk);
-
-	pm_runtime_put(&keypad->pdev->dev);
 }
 
 static int samsung_keypad_open(struct input_dev *input_dev)
