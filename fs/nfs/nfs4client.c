@@ -917,20 +917,22 @@ static int nfs4_server_common_setup(struct nfs_server *server,
 		return error;
 
 	/* data servers support only a subset of NFSv4.1 */
-	if (is_ds_only_client(server->nfs_client))
-		return -EPROTONOSUPPORT;
+	if (is_ds_only_client(server->nfs_client)) {
+		error = -EPROTONOSUPPORT;
+		goto out_free_delegation_hash;
+	}
 
 	/* We must ensure the session is initialised first */
 	error = nfs4_init_session(server->nfs_client);
 	if (error < 0)
-		return error;
+		goto out_free_delegation_hash;
 
 	nfs_server_set_init_caps(server);
 
 	/* Probe the root fh to retrieve its FSID and filehandle */
 	error = nfs4_get_rootfh(server, mntfh, auth_probe);
 	if (error < 0)
-		return error;
+		goto out_free_delegation_hash;
 
 	dprintk("Server FSID: %llx:%llx\n",
 			(unsigned long long) server->fsid.major,
@@ -939,7 +941,7 @@ static int nfs4_server_common_setup(struct nfs_server *server,
 
 	error = nfs_probe_server(server, mntfh);
 	if (error < 0)
-		return error;
+		goto out_free_delegation_hash;
 
 	nfs4_session_limit_rwsize(server);
 	nfs4_session_limit_xasize(server);
@@ -951,6 +953,11 @@ static int nfs4_server_common_setup(struct nfs_server *server,
 	server->mount_time = jiffies;
 	server->destroy = nfs4_destroy_server;
 	return 0;
+
+out_free_delegation_hash:
+	kfree(server->delegation_hash_table);
+	server->delegation_hash_table = NULL;
+	return error;
 }
 
 /*
