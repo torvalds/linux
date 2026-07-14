@@ -5877,8 +5877,6 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 	const struct cfg80211_bss_ies *bss_ies = NULL;
 	struct ieee80211_supported_band *sband;
 	struct ieee802_11_elems *elems;
-	const __le16 prof_bss_param_ch_present =
-		cpu_to_le16(IEEE80211_MLE_STA_CONTROL_BSS_PARAM_CHANGE_CNT_PRESENT);
 	u16 capab_info;
 	bool ret;
 
@@ -5894,20 +5892,13 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 		 * successful, so set the status directly to success
 		 */
 		assoc_data->link[link_id].status = WLAN_STATUS_SUCCESS;
-		if (elems->ml_basic) {
-			int bss_param_ch_cnt =
-				ieee80211_mle_get_bss_param_ch_cnt((const void *)elems->ml_basic);
-
-			if (bss_param_ch_cnt < 0) {
-				ret = false;
-				goto out;
-			}
-			bss_conf->bss_param_ch_cnt = bss_param_ch_cnt;
-			bss_conf->bss_param_ch_cnt_link_id = link_id;
-		}
-	} else if (elems->parse_error & IEEE80211_PARSE_ERR_DUP_NEST_ML_BASIC ||
-		   !elems->prof ||
-		   !(elems->prof->control & prof_bss_param_ch_present)) {
+	} else if (elems->parse_error & IEEE80211_PARSE_ERR_DUP_NEST_ML_BASIC) {
+		sdata_info(sdata,
+			   "association response had nested multi-link element\n");
+		ret = false;
+		goto out;
+	} else if (!elems->prof) {
+		link_info(link, "link missing from association response\n");
 		ret = false;
 		goto out;
 	} else {
@@ -5921,10 +5912,6 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 		 */
 		capab_info = get_unaligned_le16(ptr);
 		assoc_data->link[link_id].status = get_unaligned_le16(ptr + 2);
-		bss_param_ch_cnt =
-			ieee80211_mle_basic_sta_prof_bss_param_ch_cnt(elems->prof);
-		bss_conf->bss_param_ch_cnt = bss_param_ch_cnt;
-		bss_conf->bss_param_ch_cnt_link_id = link_id;
 
 		if (assoc_data->link[link_id].status != WLAN_STATUS_SUCCESS) {
 			link_info(link, "association response status code=%u\n",
@@ -5932,6 +5919,32 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 			ret = true;
 			goto out;
 		}
+
+		if (!(elems->prof->control &
+		      cpu_to_le16(IEEE80211_MLE_STA_CONTROL_BSS_PARAM_CHANGE_CNT_PRESENT))) {
+			link_info(link,
+				  "per-STA profile missing BSS parameter change count\n");
+			ret = false;
+			goto out;
+		}
+		bss_param_ch_cnt =
+			ieee80211_mle_basic_sta_prof_bss_param_ch_cnt(elems->prof);
+		bss_conf->bss_param_ch_cnt = bss_param_ch_cnt;
+		bss_conf->bss_param_ch_cnt_link_id = link_id;
+	}
+
+	if (link_id == assoc_data->assoc_link_id && elems->ml_basic) {
+		int bss_param_ch_cnt =
+			ieee80211_mle_get_bss_param_ch_cnt((const void *)elems->ml_basic);
+
+		if (bss_param_ch_cnt < 0) {
+			sdata_info(sdata,
+				   "No BSS parameter change count in assoc response\n");
+			ret = false;
+			goto out;
+		}
+		bss_conf->bss_param_ch_cnt = bss_param_ch_cnt;
+		bss_conf->bss_param_ch_cnt_link_id = link_id;
 	}
 
 	if (!is_s1g && !elems->supp_rates) {
