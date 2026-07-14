@@ -129,6 +129,12 @@ entries; ``-ENOEXEC`` lets the remaining binary formats have a go. The
 interpreter is opened with the credentials of the task doing the exec,
 exactly as a statically registered interpreter would be.
 
+The ``load`` program can also pass a single argument to the interpreter with
+the ``bpf_binprm_set_interp_arg()`` kfunc. It is inserted between the
+interpreter and the binary, exactly like the optional argument of a ``#!``
+interpreter line, e.g. for a handler that resolves ``$ORIGIN`` in a script's
+``#!`` path and needs to preserve the argument that followed it.
+
 A handler is looked up only in the user namespace the struct_ops map was
 registered in. Handlers are not inherited, so an entry can only reference a
 handler registered in the same user namespace as its binfmt_misc instance.

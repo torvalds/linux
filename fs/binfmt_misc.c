@@ -259,23 +259,32 @@ static const char *entry_select_interpreter(const struct binfmt_misc_entry *e,
 	if (!test_bit(MISC_FMT_BPF_BIT, &e->flags))
 		return e->interpreter;
 
-	/* Drop any interpreter a previous chain level staged. */
+	/* Drop any interpreter or flags a previous chain level staged. */
 	kfree(bprm->bpf_interp);
 	bprm->bpf_interp = NULL;
+	bprm->bpf_flags = 0;
 
 	retval = e->bpf_ops->load(bprm);
 	if (retval) {
 		/* Keep a program-supplied error within errno range. */
 		if (retval > 0 || retval < -MAX_ERRNO)
 			retval = -ENOEXEC;
-		return ERR_PTR(retval);
+		goto drop_staged;
 	}
 
 	/* Selecting an interpreter is part of the contract. */
-	if (!bprm->bpf_interp)
-		return ERR_PTR(-ENOEXEC);
+	if (!bprm->bpf_interp) {
+		retval = -ENOEXEC;
+		goto drop_staged;
+	}
 
 	return bprm->bpf_interp;
+
+drop_staged:
+	/* A failing load leaves nothing behind for later entries. */
+	kfree(bprm->bpf_interp_arg);
+	bprm->bpf_interp_arg = NULL;
+	return ERR_PTR(retval);
 }
 
 /*
@@ -313,11 +322,25 @@ static int load_misc_binary(struct linux_binprm *bprm)
 			return retval;
 	}
 
-	/* make argv[1] be the path to the binary */
+	/* make the binary the last argument to the interpreter */
 	retval = copy_string_kernel(bprm->interp, bprm);
 	if (retval < 0)
 		return retval;
 	bprm->argc++;
+
+	/*
+	 * A single optional argument to the interpreter, inserted between it
+	 * and the binary just like the argument of a #! interpreter line.
+	 */
+	if (bprm->bpf_interp_arg) {
+		retval = copy_string_kernel(bprm->bpf_interp_arg, bprm);
+		if (retval < 0)
+			return retval;
+		bprm->argc++;
+		/* Consumed - don't let it leak into a nested interpreter's argv. */
+		kfree(bprm->bpf_interp_arg);
+		bprm->bpf_interp_arg = NULL;
+	}
 
 	/* add the interp as argv[0] */
 	retval = copy_string_kernel(interpreter, bprm);
