@@ -951,8 +951,8 @@ int clk_set_parent(struct clk *clk, struct clk *parent);
  * clk_get_parent - get the parent clock source for this clock
  * @clk: clock source
  *
- * Returns struct clk corresponding to parent clock source, or
- * valid IS_ERR() condition containing errno.
+ * Returns struct clk corresponding to parent clock source, or NULL
+ * if clk is NULL.
  */
 struct clk *clk_get_parent(struct clk *clk);
 
