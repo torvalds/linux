@@ -1319,6 +1319,133 @@ NOKPROBE_SYMBOL(store_trace_entry_data)
 
 #define PARAM_MAX_STACK (THREAD_SIZE / sizeof(unsigned long))
 
+static int parse_probe_var_retval(char *orig_arg, char *arg,
+				  struct fetch_insn **pcode,
+				  struct fetch_insn *end,
+				  struct traceprobe_parse_context *ctx)
+{
+	struct fetch_insn *code = *pcode;
+
+	if (!(ctx->flags & TPARG_FL_RETURN)) {
+		trace_probe_log_err(ctx->offset, RETVAL_ON_PROBE);
+		return -EINVAL;
+	}
+	if (!(ctx->flags & TPARG_FL_KERNEL) ||
+	    !IS_ENABLED(CONFIG_PROBE_EVENTS_BTF_ARGS)) {
+		code->op = FETCH_OP_RETVAL;
+		return 0;
+	}
+	return parse_btf_arg(orig_arg, pcode, end, ctx);
+}
+
+static int parse_probe_var_stack(char *arg, int len, struct fetch_insn *code,
+				 struct traceprobe_parse_context *ctx)
+{
+	unsigned long param;
+	int ret;
+
+	if (arg[len] == '\0') {
+		code->op = FETCH_OP_STACKP;
+		return 0;
+	}
+
+	if (isdigit(arg[len])) {
+		ret = kstrtoul(arg + len, 10, &param);
+		if (ret) {
+			trace_probe_log_err(ctx->offset, BAD_VAR);
+			return ret;
+		}
+
+		if ((ctx->flags & TPARG_FL_KERNEL) &&
+		    param > PARAM_MAX_STACK) {
+			trace_probe_log_err(ctx->offset, BAD_STACK_NUM);
+			return -EINVAL;
+		}
+		code->op = FETCH_OP_STACK;
+		code->param = (unsigned int)param;
+		return 0;
+	}
+
+	trace_probe_log_err(ctx->offset, BAD_VAR);
+	return -EINVAL;
+}
+
+static int parse_probe_var_current(char *orig_arg, char *arg,
+				   struct fetch_insn **pcode,
+				   struct fetch_insn *end,
+				   struct traceprobe_parse_context *ctx)
+{
+	struct fetch_insn *code = *pcode;
+
+	/* $current is only supported by kernel probe. */
+	if (!(ctx->flags & TPARG_FL_KERNEL)) {
+		trace_probe_log_err(ctx->offset, BAD_VAR);
+		return -EINVAL;
+	}
+	arg += strlen("current");
+	if (*arg == '-' && IS_ENABLED(CONFIG_PROBE_EVENTS_BTF_ARGS))
+		return parse_btf_arg(orig_arg, pcode, end, ctx);
+
+	if (*arg != '\0') {
+		trace_probe_log_err(ctx->offset, BAD_VAR);
+		return -EINVAL;
+	}
+
+	code->op = FETCH_OP_CURRENT;
+	return 0;
+}
+
+#ifdef CONFIG_HAVE_FUNCTION_ARG_ACCESS_API
+static int parse_probe_var_arg(char *arg, int len, struct fetch_insn *code,
+			       struct traceprobe_parse_context *ctx)
+{
+	unsigned long param;
+	int ret;
+
+	ret = kstrtoul(arg + len, 10, &param);
+	if (ret) {
+		trace_probe_log_err(ctx->offset, BAD_VAR);
+		return ret;
+	}
+
+	if (!param || param > PARAM_MAX_STACK) {
+		trace_probe_log_err(ctx->offset, BAD_ARG_NUM);
+		return -EINVAL;
+	}
+	param--; /* argN starts from 1, but internal arg[N] starts from 0 */
+
+	if (tparg_is_function_entry(ctx->flags)) {
+		code->op = FETCH_OP_ARG;
+		code->param = (unsigned int)param;
+		/*
+		 * The tracepoint probe will probe a stub function, and the
+		 * first parameter of the stub is a dummy and should be ignored.
+		 */
+		if (ctx->flags & TPARG_FL_TPOINT)
+			code->param++;
+	} else if (tparg_is_function_return(ctx->flags)) {
+		/* function entry argument access from return probe */
+		ret = __store_entry_arg(ctx->tp, param);
+		if (ret < 0)	/* This error should be an internal error */
+			return ret;
+
+		code->op = FETCH_OP_EDATA;
+		code->offset = ret;
+	} else {
+		trace_probe_log_err(ctx->offset, NOFENTRY_ARGS);
+		return -EINVAL;
+	}
+	return 0;
+}
+#else
+static int parse_probe_var_arg(char *arg, int len, struct fetch_insn *code,
+			       struct traceprobe_parse_context *ctx)
+{
+	trace_probe_log_err(ctx->offset, BAD_VAR);
+	return -EINVAL;
+}
+#endif
+
 /* Parse $vars. @orig_arg points '$', which syncs to @ctx->offset */
 static int parse_probe_vars(char *orig_arg, const struct fetch_type *t,
 			    struct fetch_insn **pcode,
@@ -1326,60 +1453,13 @@ static int parse_probe_vars(char *orig_arg, const struct fetch_type *t,
 			    struct traceprobe_parse_context *ctx)
 {
 	struct fetch_insn *code = *pcode;
-	int err = TP_ERR_BAD_VAR;
 	char *arg = orig_arg + 1;
-	unsigned long param;
-	int ret = 0;
-	int len;
+	int len, ret;
 
 	if (ctx->flags & TPARG_FL_TEVENT) {
-		if (parse_trace_event(arg, code, ctx) < 0) {
-			/* 'comm' should be checked after field parsing. */
-			if (strcmp(arg, "comm") == 0 || strcmp(arg, "COMM") == 0) {
-				code->op = FETCH_OP_COMM;
-				return 0;
-			}
-			goto inval;
-		}
-		return 0;
-	}
-
-	if (str_has_prefix(arg, "retval")) {
-		if (!(ctx->flags & TPARG_FL_RETURN)) {
-			err = TP_ERR_RETVAL_ON_PROBE;
-			goto inval;
-		}
-		if (!(ctx->flags & TPARG_FL_KERNEL) ||
-		    !IS_ENABLED(CONFIG_PROBE_EVENTS_BTF_ARGS)) {
-			code->op = FETCH_OP_RETVAL;
+		ret = parse_trace_event(arg, code, ctx);
+		if (!ret)
 			return 0;
-		}
-		return parse_btf_arg(orig_arg, pcode, end, ctx);
-	}
-
-	len = str_has_prefix(arg, "stack");
-	if (len) {
-
-		if (arg[len] == '\0') {
-			code->op = FETCH_OP_STACKP;
-			return 0;
-		}
-
-		if (isdigit(arg[len])) {
-			ret = kstrtoul(arg + len, 10, &param);
-			if (ret)
-				goto inval;
-
-			if ((ctx->flags & TPARG_FL_KERNEL) &&
-			    param > PARAM_MAX_STACK) {
-				err = TP_ERR_BAD_STACK_NUM;
-				goto inval;
-			}
-			code->op = FETCH_OP_STACK;
-			code->param = (unsigned int)param;
-			return 0;
-		}
-		goto inval;
 	}
 
 	if (strcmp(arg, "comm") == 0 || strcmp(arg, "COMM") == 0) {
@@ -1387,64 +1467,27 @@ static int parse_probe_vars(char *orig_arg, const struct fetch_type *t,
 		return 0;
 	}
 
+	/* eprobe only support event fields or '$comm'. */
+	if (ctx->flags & TPARG_FL_TEVENT)
+		goto inval;
+
+	if (str_has_prefix(arg, "retval"))
+		return parse_probe_var_retval(orig_arg, arg, pcode, end, ctx);
+
+	len = str_has_prefix(arg, "stack");
+	if (len)
+		return parse_probe_var_stack(arg, len, code, ctx);
+
 	/* $current returns the address of the current task_struct. */
-	if (str_has_prefix(arg, "current")) {
-		/* $current is only supported by kernel probe. */
-		if (!(ctx->flags & TPARG_FL_KERNEL)) {
-			err = TP_ERR_BAD_VAR;
-			goto inval;
-		}
-		arg += strlen("current");
-		if (*arg == '-' && IS_ENABLED(CONFIG_PROBE_EVENTS_BTF_ARGS))
-			return parse_btf_arg(orig_arg, pcode, end, ctx);
+	if (str_has_prefix(arg, "current"))
+		return parse_probe_var_current(orig_arg, arg, pcode, end, ctx);
 
-		if (*arg != '\0')
-			goto inval;
-
-		code->op = FETCH_OP_CURRENT;
-		return 0;
-	}
-
-#ifdef CONFIG_HAVE_FUNCTION_ARG_ACCESS_API
 	len = str_has_prefix(arg, "arg");
-	if (len) {
-		ret = kstrtoul(arg + len, 10, &param);
-		if (ret)
-			goto inval;
-
-		if (!param || param > PARAM_MAX_STACK) {
-			err = TP_ERR_BAD_ARG_NUM;
-			goto inval;
-		}
-		param--; /* argN starts from 1, but internal arg[N] starts from 0 */
-
-		if (tparg_is_function_entry(ctx->flags)) {
-			code->op = FETCH_OP_ARG;
-			code->param = (unsigned int)param;
-			/*
-			 * The tracepoint probe will probe a stub function, and the
-			 * first parameter of the stub is a dummy and should be ignored.
-			 */
-			if (ctx->flags & TPARG_FL_TPOINT)
-				code->param++;
-		} else if (tparg_is_function_return(ctx->flags)) {
-			/* function entry argument access from return probe */
-			ret = __store_entry_arg(ctx->tp, param);
-			if (ret < 0)	/* This error should be an internal error */
-				return ret;
-
-			code->op = FETCH_OP_EDATA;
-			code->offset = ret;
-		} else {
-			err = TP_ERR_NOFENTRY_ARGS;
-			goto inval;
-		}
-		return 0;
-	}
-#endif
+	if (len)
+		return parse_probe_var_arg(arg, len, code, ctx);
 
 inval:
-	__trace_probe_log_err(ctx->offset, err);
+	trace_probe_log_err(ctx->offset, BAD_VAR);
 	return -EINVAL;
 }
 
