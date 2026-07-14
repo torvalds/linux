@@ -174,6 +174,13 @@ static unsigned iomap_find_dirty_range(struct folio *folio, u64 *range_start,
 	return range_end - *range_start;
 }
 
+/*
+ * Clear the per-block dirty bits for the range [@off, @off + @len) within a
+ * folio.  The range is rounded inwards so that only blocks fully covered by
+ * the range are cleared.  This is required for operations like folio
+ * invalidation, where we must ensure a block is fully clean before discarding
+ * it.
+ */
 static void ifs_clear_range_dirty(struct folio *folio,
 		struct iomap_folio_state *ifs, size_t off, size_t len)
 {
@@ -201,6 +208,13 @@ static void iomap_clear_range_dirty(struct folio *folio, size_t off, size_t len)
 		ifs_clear_range_dirty(folio, ifs, off, len);
 }
 
+/*
+ * Set the per-block dirty bits for the range [@off, @off + @len) within a
+ * folio.  The range is rounded outwards so that any block partially touched
+ * by the range is marked dirty.  This ensures blocks containing even a
+ * single dirty byte will be included in subsequent writeback, preventing
+ * data loss when partial blocks are written.
+ */
 static void ifs_set_range_dirty(struct folio *folio,
 		struct iomap_folio_state *ifs, size_t off, size_t len)
 {
