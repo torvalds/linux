@@ -874,14 +874,58 @@ static int emit_load_r64(const s8 *dst, const s8 *src, s16 off,
 	return 0;
 }
 
-static int emit_store_r64(const s8 *dst, const s8 *src, s16 off,
-			  struct rv_jit_context *ctx, const u8 size,
-			  const u8 mode)
+static int emit_bpf_atomic(s8 dst, const s8 *src, const s8 *rs,
+			   struct rv_jit_context *ctx,
+			   const struct bpf_insn *insn)
+{
+	s32 imm = insn->imm;
+	bool is_fetch = (imm & BPF_FETCH) || (imm == BPF_XCHG);
+	s8 fetch_reg = is_fetch ? lo(rs) : RV_REG_ZERO;
+	int aq = is_fetch ? 1 : 0;
+	int rl = is_fetch ? 1 : 0;
+
+	switch (imm) {
+	case BPF_ADD:
+	case BPF_ADD | BPF_FETCH:
+		emit(rv_amoadd_w(fetch_reg, lo(rs), dst, aq, rl), ctx);
+		break;
+	case BPF_AND:
+	case BPF_AND | BPF_FETCH:
+		emit(rv_amoand_w(fetch_reg, lo(rs), dst, aq, rl), ctx);
+		break;
+	case BPF_OR:
+	case BPF_OR | BPF_FETCH:
+		emit(rv_amoor_w(fetch_reg, lo(rs), dst, aq, rl), ctx);
+		break;
+	case BPF_XOR:
+	case BPF_XOR | BPF_FETCH:
+		emit(rv_amoxor_w(fetch_reg, lo(rs), dst, aq, rl), ctx);
+		break;
+	case BPF_XCHG:
+		emit(rv_amoswap_w(fetch_reg, lo(rs), dst, aq, rl), ctx);
+		break;
+	default:
+		return -1;
+	}
+
+	if (is_fetch) {
+		emit(rv_addi(hi(rs), RV_REG_ZERO, 0), ctx);
+		bpf_put_reg64(src, rs, ctx);
+	}
+	return 0;
+}
+
+static int emit_store_r64(const s8 *dst, const s8 *src,
+			  struct rv_jit_context *ctx,
+			  const struct bpf_insn *insn)
 {
 	const s8 *tmp1 = bpf2rv32[TMP_REG_1];
 	const s8 *tmp2 = bpf2rv32[TMP_REG_2];
 	const s8 *rd = bpf_get_reg64(dst, tmp1, ctx);
 	const s8 *rs = bpf_get_reg64(src, tmp2, ctx);
+	u8 size = BPF_SIZE(insn->code);
+	u8 mode = BPF_MODE(insn->code);
+	s16 off = insn->off;
 
 	if (mode == BPF_ATOMIC && size != BPF_W)
 		return -1;
@@ -901,9 +945,9 @@ static int emit_store_r64(const s8 *dst, const s8 *src, s16 off,
 		case BPF_MEM:
 			emit(rv_sw(RV_REG_T0, 0, lo(rs)), ctx);
 			break;
-		case BPF_ATOMIC: /* Only BPF_ADD supported */
-			emit(rv_amoadd_w(RV_REG_ZERO, lo(rs), RV_REG_T0, 0, 0),
-			     ctx);
+		case BPF_ATOMIC:
+			if (emit_bpf_atomic(RV_REG_T0, src, rs, ctx, insn))
+				return -1;
 			break;
 		}
 		break;
@@ -1303,21 +1347,19 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
 			src = tmp2;
 		}
 
-		if (emit_store_r64(dst, src, off, ctx, BPF_SIZE(code),
-				   BPF_MODE(code)))
+		if (emit_store_r64(dst, src, ctx, insn))
 			return -1;
 		break;
 
 	case BPF_STX | BPF_ATOMIC | BPF_W:
-		if (insn->imm != BPF_ADD) {
+		if (insn->imm == BPF_CMPXCHG) {
 			pr_info_once(
 				"bpf-jit: not supported: atomic operation %02x ***\n",
 				insn->imm);
 			return -EFAULT;
 		}
 
-		if (emit_store_r64(dst, src, off, ctx, BPF_SIZE(code),
-				   BPF_MODE(code)))
+		if (emit_store_r64(dst, src, ctx, insn))
 			return -1;
 		break;
 
