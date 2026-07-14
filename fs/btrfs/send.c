@@ -8250,7 +8250,7 @@ out:
 	}
 
 	if (sort_clone_roots) {
-		for (i = 0; i < sctx->clone_roots_cnt; i++) {
+		for (i = 0; sctx && i < sctx->clone_roots_cnt; i++) {
 			btrfs_root_dec_send_in_progress(
 					sctx->clone_roots[i].root);
 			btrfs_put_root(sctx->clone_roots[i].root);
