@@ -1010,6 +1010,106 @@ static void dm_test_hdcp_create_workqueue_zero_max_links_returns_null(struct kun
 	KUNIT_EXPECT_PTR_EQ(test, work, NULL);
 }
 
+/**
+ * dm_test_hdcp_create_workqueue_initializes_work - success path wires everything up
+ * @test: KUnit test context
+ *
+ * With a single link, hdcp_create_workqueue() must allocate the workqueue and
+ * both SRM buffers, record max_link, publish the cp_psp callbacks and handle,
+ * and point every link's psp handle at the device psp. A non-matching
+ * dce_version must leave dtm_v3_supported clear. hdcp_destroy() is used to
+ * tear the workqueue down (it also removes the SRM sysfs file created on the
+ * device kobject).
+ */
+static void dm_test_hdcp_create_workqueue_initializes_work(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct cp_psp cp_psp = {0};
+	struct dc *dc = dm_kunit_alloc_dc_with_ctx(test);
+	struct hdcp_workqueue *work;
+
+	/* sysfs_create_bin_file() needs a real device kobject. */
+	adev->dev = adev->ddev.dev;
+	dc->caps.max_links = 1;
+	/* DCE_VERSION_UNKNOWN (0) is not in the DTM v3 list. */
+	dc->ctx->dce_version = DCE_VERSION_UNKNOWN;
+
+	work = hdcp_create_workqueue(adev, &cp_psp, dc);
+
+	KUNIT_ASSERT_NOT_NULL(test, work);
+	KUNIT_EXPECT_EQ(test, work->max_link, 1);
+	KUNIT_EXPECT_NOT_NULL(test, work->srm);
+	KUNIT_EXPECT_NOT_NULL(test, work->srm_temp);
+	KUNIT_EXPECT_PTR_EQ(test, (void *)cp_psp.funcs.update_stream_config,
+			    (void *)update_config);
+	KUNIT_EXPECT_PTR_EQ(test, (void *)cp_psp.funcs.enable_assr,
+			    (void *)enable_assr);
+	KUNIT_EXPECT_PTR_EQ(test, cp_psp.handle, work);
+	KUNIT_EXPECT_PTR_EQ(test, work[0].hdcp.config.psp.handle, &adev->psp);
+	KUNIT_EXPECT_EQ(test, work[0].hdcp.config.psp.caps.dtm_v3_supported, 0);
+
+	hdcp_destroy(&adev->dev->kobj, work);
+}
+
+/**
+ * dm_test_hdcp_create_workqueue_sets_dtm_v3_for_dcn31 - DCN 3.1 enables DTM v3
+ * @test: KUnit test context
+ *
+ * On a DCN 3.1 device, hdcp_create_workqueue() must set the per-link
+ * dtm_v3_supported cap; an unmatched dce_version must leave it clear.
+ */
+static void dm_test_hdcp_create_workqueue_sets_dtm_v3_for_dcn31(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct cp_psp cp_psp = {0};
+	struct dc *dc = dm_kunit_alloc_dc_with_ctx(test);
+	struct hdcp_workqueue *work;
+
+	adev->dev = adev->ddev.dev;
+	dc->caps.max_links = 1;
+	dc->ctx->dce_version = DCN_VERSION_3_1;
+
+	work = hdcp_create_workqueue(adev, &cp_psp, dc);
+
+	KUNIT_ASSERT_NOT_NULL(test, work);
+	KUNIT_EXPECT_EQ(test, work[0].hdcp.config.psp.caps.dtm_v3_supported, 1);
+
+	hdcp_destroy(&adev->dev->kobj, work);
+}
+
+/**
+ * dm_test_hdcp_create_workqueue_initializes_all_links - loop covers every link
+ * @test: KUnit test context
+ *
+ * With more than one link, hdcp_create_workqueue() must run its init loop for
+ * every entry: each link records max_link, points its psp handle at the device
+ * psp and gets the DTM v3 cap set for a matching dce_version.
+ */
+static void dm_test_hdcp_create_workqueue_initializes_all_links(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct cp_psp cp_psp = {0};
+	struct dc *dc = dm_kunit_alloc_dc_with_ctx(test);
+	struct hdcp_workqueue *work;
+	int i;
+
+	adev->dev = adev->ddev.dev;
+	dc->caps.max_links = 3;
+	dc->ctx->dce_version = DCN_VERSION_3_1;
+
+	work = hdcp_create_workqueue(adev, &cp_psp, dc);
+
+	KUNIT_ASSERT_NOT_NULL(test, work);
+	KUNIT_EXPECT_EQ(test, work->max_link, 3);
+	for (i = 0; i < 3; i++) {
+		KUNIT_EXPECT_PTR_EQ(test, work[i].hdcp.config.psp.handle,
+				    &adev->psp);
+		KUNIT_EXPECT_EQ(test, work[i].hdcp.config.psp.caps.dtm_v3_supported, 1);
+	}
+
+	hdcp_destroy(&adev->dev->kobj, work);
+}
+
 /* End of tests for hdcp_create_workqueue() */
 
 /* Tests for hdcp_destroy() */
@@ -1765,6 +1865,9 @@ static struct kunit_case dm_hdcp_test_cases[] = {
 	KUNIT_CASE(dm_test_hdcp_update_display_disable_resets_status_and_cancels_validate),
 	/* hdcp_create_workqueue() */
 	KUNIT_CASE(dm_test_hdcp_create_workqueue_zero_max_links_returns_null),
+	KUNIT_CASE(dm_test_hdcp_create_workqueue_initializes_work),
+	KUNIT_CASE(dm_test_hdcp_create_workqueue_sets_dtm_v3_for_dcn31),
+	KUNIT_CASE(dm_test_hdcp_create_workqueue_initializes_all_links),
 	/* hdcp_destroy() */
 	KUNIT_CASE(dm_test_hdcp_destroy_frees_and_removes_sysfs),
 	KUNIT_CASE(dm_test_hdcp_destroy_zero_links_null_srm),
