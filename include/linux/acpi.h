@@ -448,6 +448,7 @@ extern char *wmi_get_acpi_device_uid(const char *guid);
 #define ACPI_VIDEO_OUTPUT_SWITCHING_DMI_VIDEO		0x0800
 
 extern char acpi_video_backlight_string[];
+extern bool acpi_dev_is_video_device(struct acpi_device *adev);
 extern long acpi_is_video_device(acpi_handle handle);
 
 extern void acpi_osi_setup(char *str);
