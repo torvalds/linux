@@ -19,3 +19,8 @@ null-argv
 xxxxxxxx*
 pipe
 S_I*.test
+binfmt_misc_bpf
+binfmt_bpf_interp
+binfmt_bpf_app
+*.bpf.o
+vmlinux.h
