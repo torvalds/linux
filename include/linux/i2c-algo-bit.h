@@ -34,6 +34,7 @@ struct i2c_algo_bit_data {
 				   maximum 50 us for SMBus */
 	int timeout;		/* in jiffies */
 	bool can_do_atomic;	/* callbacks don't sleep, we can be atomic */
+	bool skip_bit_test;	/* override bit_test module parameter */
 };
 
 int i2c_bit_add_bus(struct i2c_adapter *);

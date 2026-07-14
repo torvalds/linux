@@ -639,7 +639,7 @@ static int __i2c_bit_add_bus(struct i2c_adapter *adap,
 	struct i2c_algo_bit_data *bit_adap = adap->algo_data;
 	int ret;
 
-	if (bit_test) {
+	if (bit_test && !bit_adap->skip_bit_test) {
 		ret = test_bus(adap);
 		if (bit_test >= 2 && ret < 0)
 			return -ENODEV;
