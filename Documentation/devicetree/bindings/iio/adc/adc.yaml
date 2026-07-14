@@ -80,6 +80,14 @@ properties:
       ADCs usually allow choosing between internal reference sources or a pair
       of external pins.
 
+  input-chopping:
+    type: boolean
+    description:
+      If set, the positive and negative input channels are swapped on every
+      other conversion to reduce offset error. This generally comes at the
+      expense of added settling time between conversions, so should be omitted
+      on systems with high-frequency signals or high data rate requirements.
+
   excitation-channels:
     $ref: /schemas/types.yaml#/definitions/uint32-array
     description:
