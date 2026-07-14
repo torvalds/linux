@@ -25,6 +25,7 @@
 #include <linux/module.h>	/* for KSYM_SYMBOL_LEN */
 #include <linux/types.h>
 #include <linux/string.h>
+#include <linux/string_helpers.h>
 #include <linux/ctype.h>
 #include <linux/hex.h>
 #include <linux/kernel.h>
@@ -54,12 +55,13 @@
 #include <asm/byteorder.h>	/* cpu_to_le16 */
 #include <linux/unaligned.h>
 
-#include <linux/string_helpers.h>
+#include <kunit/visibility.h>
+
 #include "kstrtox.h"
 
 /* Disable pointer hashing if requested */
 bool no_hash_pointers __ro_after_init;
-EXPORT_SYMBOL_FOR_MODULES(no_hash_pointers, "printf_kunit");
+EXPORT_SYMBOL_IF_KUNIT(no_hash_pointers);
 
 /*
  * Hashed pointers policy selected by "hash_pointers=..." boot param
@@ -847,7 +849,7 @@ static char *default_pointer(char *buf, char *end, const void *ptr,
 }
 
 int kptr_restrict __read_mostly;
-EXPORT_SYMBOL_FOR_MODULES(kptr_restrict, "printf_kunit");
+EXPORT_SYMBOL_IF_KUNIT(kptr_restrict);
 
 static noinline_for_stack
 char *restricted_pointer(char *buf, char *end, const void *ptr,
