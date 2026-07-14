@@ -1766,7 +1766,6 @@ static bool acpi_device_enumeration_by_parent(struct acpi_device *device)
 	 * Some ACPI devs contain SerialBus resources even though they are not
 	 * attached to a serial bus at all.
 	 */
-		{ACPI_VIDEO_HID, },
 		{"MSHW0028", },
 	/*
 	 * HIDs of device with an UartSerialBusV2 resource for which userspace
@@ -1788,6 +1787,9 @@ static bool acpi_device_enumeration_by_parent(struct acpi_device *device)
 	     fwnode_property_present(&device->fwnode, "i2cAddress") ||
 	     fwnode_property_present(&device->fwnode, "baud")))
 		return true;
+
+	if (acpi_dev_is_video_device(device))
+		return false;
 
 	if (!acpi_match_device_ids(device, ignore_serial_bus_ids))
 		return false;
