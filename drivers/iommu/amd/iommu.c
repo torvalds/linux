@@ -456,7 +456,7 @@ static void clone_aliases(struct amd_iommu *iommu, struct device *dev)
 
 	/*
 	 * The IVRS alias stored in the alias table may not be
-	 * part of the PCI DMA aliases if it's bus differs
+	 * part of the PCI DMA aliases if its bus differs
 	 * from the original device.
 	 */
 	clone_alias(pdev, iommu->pci_seg->alias_table[pci_dev_id(pdev)], pdev);
@@ -505,7 +505,7 @@ static struct iommu_dev_data *find_dev_data(struct amd_iommu *iommu, u16 devid)
 }
 
 /*
-* Find or create an IOMMU group for a acpihid device.
+* Find or create an IOMMU group for an acpihid device.
 */
 static struct iommu_group *acpihid_device_group(struct device *dev)
 {
@@ -1268,7 +1268,7 @@ static void build_inv_dte(struct iommu_cmd *cmd, u16 devid)
 
 /*
  * Builds an invalidation address which is suitable for one page or multiple
- * pages. Sets the size bit (S) as needed is more than one page is flushed.
+ * pages. Sets the size bit (S) as needed if more than one page is flushed.
  */
 static inline u64 build_inv_address(u64 address, u64 last)
 {
@@ -3687,7 +3687,7 @@ static void fill_msi_msg(struct msi_msg *msg, u32 index)
 	/*
 	 * The struct msi_msg.dest_mode_logical is used to set the DM bit
 	 * in MSI Message Address Register. For device w/ 2K int-remap support,
-	 * this is bit must be set to 1 regardless of the actual destination
+	 * this bit must be set to 1 regardless of the actual destination
 	 * mode, which is signified by the IRTE[DM].
 	 */
 	if (FEATURE_NUM_INT_REMAP_SUP_2K(amd_iommu_efr2))
