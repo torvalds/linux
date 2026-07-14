@@ -3336,13 +3336,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	if (atomic_read(&root->log_commit[(index1 + 1) % 2]))
 		wait_log_commit(root, log_transid - 1);
 
-	while (1) {
-		int batch = atomic_read(&root->log_batch);
-
-		wait_for_writer(root);
-		if (batch == atomic_read(&root->log_batch))
-			break;
-	}
+	wait_for_writer(root);
 
 	/* bail out if we need to do a full commit */
 	if (btrfs_need_log_full_commit(trans)) {

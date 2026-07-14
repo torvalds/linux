@@ -1573,8 +1573,6 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	else
 		btrfs_inode_lock(inode, BTRFS_ILOCK_MMAP);
 
-	atomic_inc(&root->log_batch);
-
 	/*
 	 * Before we acquired the inode's lock and the mmap lock, someone may
 	 * have dirtied more pages in the target range. We need to make sure
@@ -1656,8 +1654,6 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 
 	if (ret)
 		goto out_release_extents;
-
-	atomic_inc(&root->log_batch);
 
 	if (skip_inode_logging(&ctx)) {
 		/*
