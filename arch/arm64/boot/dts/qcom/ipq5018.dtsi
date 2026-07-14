@@ -758,9 +758,6 @@
 			/* The controller supports Gen3, but the connected PHY is Gen2-capable */
 			max-link-speed = <2>;
 
-			phys = <&pcie1_phy>;
-			phy-names = "pciephy";
-
 			ranges = <0x01000000 0 0x00000000 0x80200000 0 0x00100000>,
 				 <0x02000000 0 0x80300000 0x80300000 0 0x10000000>;
 
@@ -829,6 +826,8 @@
 				reg = <0x0 0x0 0x0 0x0 0x0>;
 				bus-range = <0x01 0xff>;
 
+				phys = <&pcie1_phy>;
+
 				#address-cells = <3>;
 				#size-cells = <2>;
 				ranges;
@@ -858,9 +857,6 @@
 
 			/* The controller supports Gen3, but the connected PHY is Gen2-capable */
 			max-link-speed = <2>;
-
-			phys = <&pcie0_phy>;
-			phy-names = "pciephy";
 
 			ranges = <0x01000000 0 0x00000000 0xa0200000 0 0x00100000>,
 				 <0x02000000 0 0xa0300000 0xa0300000 0 0x10000000>;
@@ -925,10 +921,12 @@
 
 			status = "disabled";
 
-			pcie@0 {
+			pcie0_port0: pcie@0 {
 				device_type = "pci";
 				reg = <0x0 0x0 0x0 0x0 0x0>;
 				bus-range = <0x01 0xff>;
+
+				phys = <&pcie0_phy>;
 
 				#address-cells = <3>;
 				#size-cells = <2>;
