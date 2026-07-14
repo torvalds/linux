@@ -23,6 +23,15 @@ config REMOTEPROC_CDEV
 
 	  It's safe to say N if you don't want to use this interface.
 
+config AMD_MBV_BRAM_REMOTEPROC
+	tristate "AMD MicroBlaze/V BRAM-based remoteproc support"
+	depends on OF && COMMON_CLK && (GPIOLIB || COMPILE_TEST)
+	help
+	  Say y or m here to support a MicroBlaze/V BRAM-based remote
+	  processor managed through the remoteproc framework.
+
+	  If unsure, say N.
+
 config IMX_REMOTEPROC
 	tristate "i.MX remoteproc support"
 	depends on ARCH_MXC
