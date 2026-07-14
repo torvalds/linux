@@ -183,6 +183,8 @@ static void samsung_keypad_start(struct samsung_keypad *keypad)
 	writel(0, keypad->base + SAMSUNG_KEYIFCOL);
 
 	pm_runtime_put(&keypad->pdev->dev);
+
+	enable_irq(keypad->irq);
 }
 
 static void samsung_keypad_stop(struct samsung_keypad *keypad)
@@ -205,12 +207,6 @@ static void samsung_keypad_stop(struct samsung_keypad *keypad)
 	writel(val, keypad->base + SAMSUNG_KEYIFCON);
 
 	clk_disable(keypad->clk);
-
-	/*
-	 * Now that chip should not generate interrupts we can safely
-	 * re-enable the handler.
-	 */
-	enable_irq(keypad->irq);
 
 	pm_runtime_put(&keypad->pdev->dev);
 }
@@ -412,7 +408,8 @@ static int samsung_keypad_probe(struct platform_device *pdev)
 	}
 
 	error = devm_request_threaded_irq(&pdev->dev, keypad->irq, NULL,
-					  samsung_keypad_irq, IRQF_ONESHOT,
+					  samsung_keypad_irq,
+					  IRQF_ONESHOT | IRQF_NO_AUTOEN,
 					  dev_name(&pdev->dev), keypad);
 	if (error) {
 		dev_err(&pdev->dev, "failed to register keypad interrupt\n");
@@ -499,6 +496,9 @@ static void samsung_keypad_toggle_wakeup(struct samsung_keypad *keypad,
 		val &= ~SAMSUNG_KEYIFCON_WAKEUPEN;
 		writel(val, keypad->base + SAMSUNG_KEYIFCON);
 		disable_irq_wake(keypad->irq);
+
+		if (!input_device_enabled(keypad->input_dev))
+			writel(~0x0, keypad->base + SAMSUNG_KEYIFSTSCLR);
 	}
 
 	clk_disable(keypad->clk);
