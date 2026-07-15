@@ -785,7 +785,8 @@ static int iqs5xx_fw_file_parse(struct i2c_client *client,
 		switch (rec_type) {
 		case IQS5XX_REC_TYPE_DATA:
 			if (rec_addr < IQS5XX_CHKSM ||
-			    rec_addr > IQS5XX_PMAP_END) {
+			    rec_addr > IQS5XX_PMAP_END ||
+			    rec_len > IQS5XX_PMAP_END + 1 - rec_addr) {
 				dev_err(&client->dev,
 					"Invalid address at record %u\n",
 					rec_num);
