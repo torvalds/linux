@@ -39,6 +39,9 @@ struct pwrkey_drv_data {
 	int keycode;
 	int keystate;  /* 1:pressed */
 	int wakeup;
+	bool suspended;     /* Track suspend state */
+	bool pending_press; /* Key pressed during suspend, report from timer callback */
+	spinlock_t lock;    /* Protects keystate, suspended and pending_press */
 	struct timer_list check_timer;
 	struct input_dev *input;
 	u8 minor_rev;
@@ -49,14 +52,38 @@ static void imx_imx_snvs_check_for_events(struct timer_list *t)
 	struct pwrkey_drv_data *pdata = timer_container_of(pdata, t,
 							   check_timer);
 	struct input_dev *input = pdata->input;
+	bool state_changed = false;
+	bool pending_press;
 	u32 state;
 
 	regmap_read(pdata->snvs, SNVS_HPSR_REG, &state);
 	state = state & SNVS_HPSR_BTN ? 1 : 0;
 
-	/* only report new event if status changed */
-	if (state ^ pdata->keystate) {
-		pdata->keystate = state;
+	scoped_guard(spinlock_irqsave, &pdata->lock) {
+		pending_press = pdata->pending_press;
+		if (pending_press) {
+			pdata->pending_press = false;
+			pdata->keystate = 1;
+		}
+		/* only report new event if status changed */
+		if (state ^ pdata->keystate) {
+			pdata->keystate = state;
+			state_changed = true;
+		}
+	}
+
+	/*
+	 * Report a press event latched during suspend. If the key is still
+	 * held, state_changed will be 0 (keystate already set to 1 above),
+	 * so no duplicate press is reported. If already released,
+	 * state_changed will fire next to report the release.
+	 */
+	if (pending_press) {
+		input_report_key(input, pdata->keycode, 1);
+		input_sync(input);
+	}
+
+	if (state_changed) {
 		input_event(input, EV_KEY, pdata->keycode, state);
 		input_sync(input);
 		pm_relax(pdata->input->dev.parent);
@@ -92,8 +119,17 @@ static irqreturn_t imx_snvs_pwrkey_interrupt(int irq, void *dev_id)
 			input_sync(input);
 			pm_relax(input->dev.parent);
 		} else {
+			/*
+			 * If the key is pressed during suspend, latch it so
+			 * the timer callback can report the press event in
+			 * softirq context, avoiding out-of-order events.
+			 */
+			scoped_guard(spinlock_irqsave, &pdata->lock) {
+				if (pdata->suspended)
+					pdata->pending_press = true;
+			}
 			mod_timer(&pdata->check_timer,
-			          jiffies + msecs_to_jiffies(DEBOUNCE_TIME));
+				  jiffies + msecs_to_jiffies(DEBOUNCE_TIME));
 		}
 	}
 
@@ -151,6 +187,7 @@ static int imx_snvs_pwrkey_probe(struct platform_device *pdev)
 	if (pdata->irq < 0)
 		return pdata->irq;
 
+	spin_lock_init(&pdata->lock);
 	error = of_property_read_u32(np, "power-off-time-sec", &val);
 	if (!error) {
 		switch (val) {
@@ -217,6 +254,32 @@ static int imx_snvs_pwrkey_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int imx_snvs_pwrkey_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct pwrkey_drv_data *pdata = platform_get_drvdata(pdev);
+
+	guard(spinlock_irq)(&pdata->lock);
+	pdata->suspended = true;
+
+	return 0;
+}
+
+static int imx_snvs_pwrkey_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct pwrkey_drv_data *pdata = platform_get_drvdata(pdev);
+
+	guard(spinlock_irq)(&pdata->lock);
+	pdata->suspended = false;
+
+	return 0;
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(imx_snvs_pwrkey_pm_ops,
+				imx_snvs_pwrkey_suspend,
+				imx_snvs_pwrkey_resume);
+
 static const struct of_device_id imx_snvs_pwrkey_ids[] = {
 	{ .compatible = "fsl,sec-v4.0-pwrkey" },
 	{ /* sentinel */ }
@@ -227,6 +290,7 @@ static struct platform_driver imx_snvs_pwrkey_driver = {
 	.driver = {
 		.name = "snvs_pwrkey",
 		.of_match_table = imx_snvs_pwrkey_ids,
+		.pm = pm_ptr(&imx_snvs_pwrkey_pm_ops),
 	},
 	.probe = imx_snvs_pwrkey_probe,
 };
