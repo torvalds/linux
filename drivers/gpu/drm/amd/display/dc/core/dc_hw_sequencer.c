@@ -1111,7 +1111,7 @@ void hwss_build_fast_sequence(struct dc *dc,
 					(*num_steps)++;
 				}
 			}
-			if (current_mpc_pipe->stream->update_flags.bits.out_tf) {
+			if (hws->funcs.set_output_transfer_func && current_mpc_pipe->stream->update_flags.bits.out_tf) {
 				struct set_output_transfer_func_params *otf_params =
 					&block_sequence[*num_steps].params.set_output_transfer_func_params;
 
@@ -1119,7 +1119,7 @@ void hwss_build_fast_sequence(struct dc *dc,
 				otf_params->xfm = current_mpc_pipe->plane_res.xfm;
 				otf_params->mpc = dc->res_pool->mpc;
 				otf_params->mpcc_id = current_mpc_pipe->plane_res.hubp->inst;
-				otf_params->is_top_pipe = resource_is_pipe_type(pipe_ctx, OPP_HEAD);
+				otf_params->is_top_pipe = resource_is_pipe_type(current_mpc_pipe, OPP_HEAD);
 				otf_params->stream = current_mpc_pipe->stream;
 				block_sequence[*num_steps].func = DPP_SET_OUTPUT_TRANSFER_FUNC;
 				(*num_steps)++;
