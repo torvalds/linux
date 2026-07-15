@@ -165,7 +165,7 @@ bool amdgpu_dm_is_headless(struct amdgpu_device *adev)
 }
 EXPORT_IF_KUNIT(amdgpu_dm_is_headless);
 
-static void amdgpu_dm_idle_worker(struct work_struct *work)
+STATIC_IFN_KUNIT void amdgpu_dm_idle_worker(struct work_struct *work)
 {
 	struct idle_workqueue *idle_work;
 
@@ -199,6 +199,7 @@ static void amdgpu_dm_idle_worker(struct work_struct *work)
 	}
 	idle_work->dm->idle_workqueue->running = false;
 }
+EXPORT_IF_KUNIT(amdgpu_dm_idle_worker);
 
 struct idle_workqueue *idle_create_workqueue(struct amdgpu_device *adev)
 {

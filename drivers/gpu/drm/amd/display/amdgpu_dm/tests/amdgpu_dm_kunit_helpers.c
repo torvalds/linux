@@ -12,6 +12,7 @@
 
 #include "dc.h"
 #include "core_types.h"
+#include "clk_mgr.h"
 #include "amdgpu.h"
 #include "amdgpu_mode.h"
 #include "amdgpu_dm.h"
@@ -113,6 +114,34 @@ struct dc_stream_state *dm_kunit_alloc_stream(struct kunit *test,
 	return stream;
 }
 EXPORT_SYMBOL(dm_kunit_alloc_stream);
+
+struct dc_state *dm_kunit_alloc_dc_state(struct kunit *test)
+{
+	struct dc_state *state;
+
+	state = kunit_kzalloc(test, sizeof(*state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, state);
+
+	return state;
+}
+EXPORT_SYMBOL(dm_kunit_alloc_dc_state);
+
+struct clk_mgr *dm_kunit_alloc_clk_mgr(struct kunit *test)
+{
+	struct clk_mgr *clk_mgr;
+	struct clk_mgr_funcs *funcs;
+
+	clk_mgr = kunit_kzalloc(test, sizeof(*clk_mgr), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, clk_mgr);
+
+	funcs = kunit_kzalloc(test, sizeof(*funcs), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, funcs);
+
+	clk_mgr->funcs = funcs;
+
+	return clk_mgr;
+}
+EXPORT_SYMBOL(dm_kunit_alloc_clk_mgr);
 
 void dm_kunit_add_stream_to_state(struct kunit *test, struct dc_state *state,
 				  unsigned int index, struct dc_link *link)

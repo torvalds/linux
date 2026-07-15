@@ -457,6 +457,182 @@ static void dm_test_idle_create_workqueue(struct kunit *test)
 	kfree(idle_work);
 }
 
+/**
+ * dm_test_idle_worker_disabled_clears_running - Test worker exits when disabled
+ * @test: The KUnit test context
+ *
+ * With the idle workqueue disabled, amdgpu_dm_idle_worker() must skip the idle
+ * optimization loop entirely and leave the shared running flag cleared.
+ */
+static void dm_test_idle_worker_disabled_clears_running(struct kunit *test)
+{
+	struct idle_workqueue *idle_work;
+	struct amdgpu_device *adev;
+
+	adev = dm_kunit_alloc_adev(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	idle_work = kunit_kzalloc(test, sizeof(*idle_work), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, idle_work);
+
+	idle_work->dm = &adev->dm;
+	idle_work->enable = false;
+	idle_work->running = true;
+	/* The worker toggles running through dm->idle_workqueue. */
+	adev->dm.idle_workqueue = idle_work;
+
+	amdgpu_dm_idle_worker(&idle_work->work);
+
+	KUNIT_EXPECT_FALSE(test, idle_work->running);
+}
+
+/**
+ * dm_test_idle_worker_enabled_breaks_when_idle_disallowed - Test loop entry/exit
+ * @test: The KUnit test context
+ *
+ * With the workqueue enabled but idle optimizations disallowed, the worker enters
+ * the detection loop once, takes the early break, and clears the running flag.
+ */
+static void dm_test_idle_worker_enabled_breaks_when_idle_disallowed(struct kunit *test)
+{
+	struct idle_workqueue *idle_work;
+	struct amdgpu_device *adev;
+
+	adev = dm_kunit_alloc_adev(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	mutex_init(&adev->dm.dc_lock);
+	adev->dm.dc = dm_kunit_alloc_dc_with_ctx(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev->dm.dc);
+	/* First loop iteration breaks before any dc_allow_idle_optimizations(). */
+	adev->dm.dc->idle_optimizations_allowed = false;
+
+	idle_work = kunit_kzalloc(test, sizeof(*idle_work), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, idle_work);
+
+	idle_work->dm = &adev->dm;
+	idle_work->enable = true;
+	adev->dm.idle_workqueue = idle_work;
+
+	amdgpu_dm_idle_worker(&idle_work->work);
+
+	KUNIT_EXPECT_FALSE(test, idle_work->running);
+}
+
+/**
+ * dm_test_idle_worker_enabled_breaks_when_not_headless - Test second break path
+ * @test: The KUnit test context
+ *
+ * With idle optimizations allowed, the worker passes the first branch and runs
+ * dc_allow_idle_optimizations(). A connected display makes the device non-headless
+ * while no PSR is active, so the worker takes the second break and stops running.
+ */
+static void dm_test_idle_worker_enabled_breaks_when_not_headless(struct kunit *test)
+{
+	struct idle_workqueue *idle_work;
+	struct drm_connector *display;
+	struct amdgpu_device *adev;
+
+	adev = dm_kunit_alloc_adev(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	mutex_init(&adev->dm.dc_lock);
+	adev->dm.adev = adev;
+	adev->dm.ddev = dm_kunit_alloc_drm_with_connector_list(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev->dm.ddev);
+
+	adev->dm.dc = dm_kunit_alloc_dc_with_ctx(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev->dm.dc);
+	/* Allow idle so the first branch is skipped and dc_allow() is exercised. */
+	adev->dm.dc->idle_optimizations_allowed = true;
+	/* is_apu path avoids DC_LOG_DC()'s NULL-logger dereference. */
+	adev->dm.dc->caps.is_apu = true;
+	/* Empty stream list -> amdgpu_dm_psr_is_active_allowed() returns false. */
+	adev->dm.dc->current_state = dm_kunit_alloc_dc_state(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev->dm.dc->current_state);
+
+	/* A connected display makes amdgpu_dm_is_headless() false. */
+	display = kunit_kzalloc(test, sizeof(*display), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, display);
+	dm_test_add_connector(adev->dm.ddev, display, DRM_MODE_CONNECTOR_HDMIA,
+			      connector_status_connected);
+
+	idle_work = kunit_kzalloc(test, sizeof(*idle_work), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, idle_work);
+	idle_work->dm = &adev->dm;
+	idle_work->enable = true;
+	adev->dm.idle_workqueue = idle_work;
+
+	amdgpu_dm_idle_worker(&idle_work->work);
+
+	KUNIT_EXPECT_FALSE(test, idle_work->running);
+}
+
+/*
+ * Report success only when disabling idle. dc_allow_idle_optimizations() then
+ * clears dc->idle_optimizations_allowed on the disable call but leaves it clear
+ * on the re-enable call inside the worker's enable-body, so the next loop
+ * iteration breaks at the first branch instead of looping forever.
+ */
+static bool dm_test_idle_apply_flip(struct dc *dc, bool enable)
+{
+	return !enable;
+}
+
+/**
+ * dm_test_idle_worker_enabled_runs_body - Test the enable-body path
+ * @test: The KUnit test context
+ *
+ * A headless device makes the second branch false so the worker runs the
+ * enable-body (dc_post_update_surfaces_to_stream() + re-enable). An injected
+ * hwss.apply_idle_power_optimizations() callback lets dc_allow_idle_optimizations()
+ * clear idle_optimizations_allowed on the disable half, so the following loop
+ * iteration breaks at the first branch and the worker stops.
+ */
+static void dm_test_idle_worker_enabled_runs_body(struct kunit *test)
+{
+	struct idle_workqueue *idle_work;
+	struct amdgpu_device *adev;
+	struct dal_logger *logger;
+
+	adev = dm_kunit_alloc_adev(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	mutex_init(&adev->dm.dc_lock);
+	adev->dm.adev = adev;
+	/* Empty connector list keeps the device headless -> second branch false. */
+	adev->dm.ddev = dm_kunit_alloc_drm_with_connector_list(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev->dm.ddev);
+
+	adev->dm.dc = dm_kunit_alloc_dc_with_ctx(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev->dm.dc);
+	/* Allow idle so the first branch is skipped and dc_allow() is exercised. */
+	adev->dm.dc->idle_optimizations_allowed = true;
+	/* is_apu path avoids DC_LOG_DC()'s NULL-logger dereference. */
+	adev->dm.dc->caps.is_apu = true;
+	/* dc_allow() logs via DC_LOG_DEBUG() when it flips the flag. */
+	logger = kunit_kzalloc(test, sizeof(*logger), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, logger);
+	logger->dev = &adev->ddev;
+	adev->dm.dc->ctx->logger = logger;
+	/* dc_allow() only flips the flag when clk_mgr and apply() are present. */
+	adev->dm.dc->clk_mgr = dm_kunit_alloc_clk_mgr(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev->dm.dc->clk_mgr);
+	adev->dm.dc->hwss.apply_idle_power_optimizations = dm_test_idle_apply_flip;
+
+	idle_work = kunit_kzalloc(test, sizeof(*idle_work), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, idle_work);
+	idle_work->dm = &adev->dm;
+	idle_work->enable = true;
+	adev->dm.idle_workqueue = idle_work;
+
+	amdgpu_dm_idle_worker(&idle_work->work);
+
+	/* Enable-body ran, then the next iteration disabled idle and stopped. */
+	KUNIT_EXPECT_FALSE(test, adev->dm.dc->idle_optimizations_allowed);
+	KUNIT_EXPECT_FALSE(test, idle_work->running);
+}
+
 /* Tests for amdgpu_dm_crtc_set_static_screen_optimze() */
 
 /**
@@ -857,6 +1033,11 @@ static struct kunit_case amdgpu_dm_crtc_tests[] = {
 	KUNIT_CASE(dm_test_crtc_set_vupdate_irq_no_otg),
 	/* idle_create_workqueue */
 	KUNIT_CASE(dm_test_idle_create_workqueue),
+	/* amdgpu_dm_idle_worker */
+	KUNIT_CASE(dm_test_idle_worker_disabled_clears_running),
+	KUNIT_CASE(dm_test_idle_worker_enabled_breaks_when_idle_disallowed),
+	KUNIT_CASE(dm_test_idle_worker_enabled_breaks_when_not_headless),
+	KUNIT_CASE(dm_test_idle_worker_enabled_runs_body),
 	/* amdgpu_dm_crtc_set_static_screen_optimze */
 	KUNIT_CASE(dm_test_crtc_set_static_screen_optimze_no_sr_entry),
 	/* amdgpu_dm_crtc_enable_vblank */
