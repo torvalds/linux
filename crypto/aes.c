@@ -7,6 +7,7 @@
 
 #include <crypto/aes-cbc-macs.h>
 #include <crypto/aes-cbc.h>
+#include <crypto/aes-ctr.h>
 #include <crypto/aes-ecb.h>
 #include <crypto/aes.h>
 #include <crypto/algapi.h>
@@ -456,6 +457,31 @@ crypto_aes_cbc_cts_decrypt(struct skcipher_request *req)
 	return crypto_aes_cbc_cts_crypt_nonlinear(req, /* enc= */ false);
 }
 
+/* AES-CTR */
+
+static __maybe_unused int crypto_aes_ctr_crypt(struct skcipher_request *req)
+{
+	const struct aes_enckey *key =
+		crypto_skcipher_ctx(crypto_skcipher_reqtfm(req));
+
+	AES_CRYPT_SG(aes_ctr, req->dst, req->src, req->cryptlen, 0, req->iv,
+		     key);
+	return 0;
+}
+
+/* AES-XCTR */
+
+static __maybe_unused int crypto_aes_xctr_crypt(struct skcipher_request *req)
+{
+	const struct aes_enckey *key =
+		crypto_skcipher_ctx(crypto_skcipher_reqtfm(req));
+	u64 ctr = 1;
+
+	AES_CRYPT_SG(aes_xctr, req->dst, req->src, req->cryptlen, 0, &ctr,
+		     req->iv, key);
+	return 0;
+}
+
 static struct skcipher_alg skcipher_algs[] = {
 #if IS_ENABLED(CONFIG_CRYPTO_ECB)
 	{
@@ -502,6 +528,40 @@ static struct skcipher_alg skcipher_algs[] = {
 		.setkey = crypto_aes_skcipher_setkey,
 		.encrypt = crypto_aes_cbc_cts_encrypt,
 		.decrypt = crypto_aes_cbc_cts_decrypt,
+	},
+#endif
+#if IS_ENABLED(CONFIG_CRYPTO_CTR)
+	{
+		.base.cra_name = "ctr(aes)",
+		.base.cra_driver_name = "ctr-aes-lib",
+		.base.cra_priority = 110,
+		.base.cra_blocksize = 1,
+		.base.cra_ctxsize = sizeof(struct aes_enckey),
+		.base.cra_module = THIS_MODULE,
+		.min_keysize = AES_MIN_KEY_SIZE,
+		.max_keysize = AES_MAX_KEY_SIZE,
+		.ivsize = AES_BLOCK_SIZE,
+		.chunksize = AES_BLOCK_SIZE,
+		.setkey = crypto_aes_skcipher_setenckey,
+		.encrypt = crypto_aes_ctr_crypt,
+		.decrypt = crypto_aes_ctr_crypt,
+	},
+#endif
+#if IS_ENABLED(CONFIG_CRYPTO_XCTR)
+	{
+		.base.cra_name = "xctr(aes)",
+		.base.cra_driver_name = "xctr-aes-lib",
+		.base.cra_priority = 110,
+		.base.cra_blocksize = 1,
+		.base.cra_ctxsize = sizeof(struct aes_enckey),
+		.base.cra_module = THIS_MODULE,
+		.min_keysize = AES_MIN_KEY_SIZE,
+		.max_keysize = AES_MAX_KEY_SIZE,
+		.ivsize = AES_BLOCK_SIZE,
+		.chunksize = AES_BLOCK_SIZE,
+		.setkey = crypto_aes_skcipher_setenckey,
+		.encrypt = crypto_aes_xctr_crypt,
+		.decrypt = crypto_aes_xctr_crypt,
 	},
 #endif
 };
@@ -575,4 +635,12 @@ MODULE_ALIAS_CRYPTO("cbc-aes-lib");
 #if IS_ENABLED(CONFIG_CRYPTO_CTS)
 MODULE_ALIAS_CRYPTO("cts(cbc(aes))");
 MODULE_ALIAS_CRYPTO("cts-cbc-aes-lib");
+#endif
+#if IS_ENABLED(CONFIG_CRYPTO_CTR)
+MODULE_ALIAS_CRYPTO("ctr(aes)");
+MODULE_ALIAS_CRYPTO("ctr-aes-lib");
+#endif
+#if IS_ENABLED(CONFIG_CRYPTO_XCTR)
+MODULE_ALIAS_CRYPTO("xctr(aes)");
+MODULE_ALIAS_CRYPTO("xctr-aes-lib");
 #endif
