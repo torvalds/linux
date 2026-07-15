@@ -587,7 +587,7 @@ static void amdgpu_dm_crtc_helper_disable(struct drm_crtc *crtc)
 {
 }
 
-static int amdgpu_dm_crtc_count_crtc_active_planes(struct drm_crtc_state *new_crtc_state)
+STATIC_IFN_KUNIT int amdgpu_dm_crtc_count_crtc_active_planes(struct drm_crtc_state *new_crtc_state)
 {
 	struct drm_atomic_commit *state = new_crtc_state->state;
 	struct drm_plane *plane;
@@ -618,6 +618,7 @@ static int amdgpu_dm_crtc_count_crtc_active_planes(struct drm_crtc_state *new_cr
 
 	return num_active;
 }
+EXPORT_IF_KUNIT(amdgpu_dm_crtc_count_crtc_active_planes);
 
 STATIC_IFN_KUNIT void amdgpu_dm_crtc_update_crtc_active_planes(struct drm_crtc *crtc,
 						     struct drm_crtc_state *new_crtc_state)

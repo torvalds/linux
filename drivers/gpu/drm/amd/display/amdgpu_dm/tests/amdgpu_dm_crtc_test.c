@@ -706,6 +706,118 @@ static void dm_test_crtc_update_active_planes_no_stream(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, dm_state->active_planes, 0);
 }
 
+/* Tests for amdgpu_dm_crtc_count_crtc_active_planes() */
+
+static void dm_test_add_plane(struct drm_device *dev, struct drm_plane *plane,
+			      unsigned int index, enum drm_plane_type type)
+{
+	INIT_LIST_HEAD(&plane->head);
+	plane->index = index;
+	plane->type = type;
+	list_add_tail(&plane->head, &dev->mode_config.plane_list);
+}
+
+/**
+ * dm_test_count_crtc_active_planes_none - Test empty plane list counts zero
+ * @test: The KUnit test context
+ *
+ * With no planes attached to the CRTC the active plane count must be zero.
+ */
+static void dm_test_count_crtc_active_planes_none(struct kunit *test)
+{
+	struct drm_crtc_state *crtc_state;
+	struct drm_atomic_commit *state;
+	struct drm_device *dev;
+
+	dev = dm_kunit_alloc_drm_with_connector_list(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+	INIT_LIST_HEAD(&dev->mode_config.plane_list);
+
+	state = kunit_kzalloc(test, sizeof(*state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, state);
+	state->dev = dev;
+
+	crtc_state = kunit_kzalloc(test, sizeof(*crtc_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, crtc_state);
+	crtc_state->state = state;
+	crtc_state->plane_mask = 0;
+
+	KUNIT_EXPECT_EQ(test, amdgpu_dm_crtc_count_crtc_active_planes(crtc_state), 0);
+}
+
+/**
+ * dm_test_count_crtc_active_planes_mixed - Test counting across all plane cases
+ * @test: The KUnit test context
+ *
+ * Exercises every branch of the counting loop: a plane excluded by the mask,
+ * a cursor plane (skipped), a masked plane with no new state (counted), a
+ * masked plane with a framebuffer (counted) and a masked plane without a
+ * framebuffer (not counted). Only two planes should be reported active.
+ */
+static void dm_test_count_crtc_active_planes_mixed(struct kunit *test)
+{
+	struct drm_plane *plane_no_state;
+	struct drm_plane *plane_cursor;
+	struct drm_plane *plane_with_fb;
+	struct drm_plane *plane_no_fb;
+	struct drm_plane *plane_excluded;
+	struct drm_plane_state *ps_fb;
+	struct drm_plane_state *ps_no_fb;
+	struct drm_crtc_state *crtc_state;
+	struct drm_atomic_commit *state;
+	struct drm_framebuffer *fb;
+	struct drm_device *dev;
+
+	dev = dm_kunit_alloc_drm_with_connector_list(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+	INIT_LIST_HEAD(&dev->mode_config.plane_list);
+
+	plane_no_state = kunit_kzalloc(test, sizeof(*plane_no_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, plane_no_state);
+	plane_cursor = kunit_kzalloc(test, sizeof(*plane_cursor), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, plane_cursor);
+	plane_with_fb = kunit_kzalloc(test, sizeof(*plane_with_fb), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, plane_with_fb);
+	plane_no_fb = kunit_kzalloc(test, sizeof(*plane_no_fb), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, plane_no_fb);
+	plane_excluded = kunit_kzalloc(test, sizeof(*plane_excluded), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, plane_excluded);
+
+	dm_test_add_plane(dev, plane_no_state, 0, DRM_PLANE_TYPE_PRIMARY);
+	dm_test_add_plane(dev, plane_cursor, 1, DRM_PLANE_TYPE_CURSOR);
+	dm_test_add_plane(dev, plane_with_fb, 2, DRM_PLANE_TYPE_PRIMARY);
+	dm_test_add_plane(dev, plane_no_fb, 3, DRM_PLANE_TYPE_PRIMARY);
+	dm_test_add_plane(dev, plane_excluded, 4, DRM_PLANE_TYPE_PRIMARY);
+
+	fb = kunit_kzalloc(test, sizeof(*fb), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, fb);
+	ps_fb = kunit_kzalloc(test, sizeof(*ps_fb), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ps_fb);
+	ps_fb->fb = fb;
+	ps_no_fb = kunit_kzalloc(test, sizeof(*ps_no_fb), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ps_no_fb);
+	ps_no_fb->fb = NULL;
+
+	state = kunit_kzalloc(test, sizeof(*state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, state);
+	state->dev = dev;
+	state->planes = kunit_kzalloc(test, sizeof(*state->planes) * 5, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, state->planes);
+	state->planes[0].new_state = NULL;
+	state->planes[1].new_state = ps_fb;
+	state->planes[2].new_state = ps_fb;
+	state->planes[3].new_state = ps_no_fb;
+	state->planes[4].new_state = ps_fb;
+
+	crtc_state = kunit_kzalloc(test, sizeof(*crtc_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, crtc_state);
+	crtc_state->state = state;
+	/* Exclude plane index 4 from the CRTC. */
+	crtc_state->plane_mask = BIT(0) | BIT(1) | BIT(2) | BIT(3);
+
+	KUNIT_EXPECT_EQ(test, amdgpu_dm_crtc_count_crtc_active_planes(crtc_state), 2);
+}
+
 /* Tests for amdgpu_dm_crtc_duplicate_state() */
 
 /**
@@ -1044,6 +1156,9 @@ static struct kunit_case amdgpu_dm_crtc_tests[] = {
 	KUNIT_CASE(dm_test_crtc_enable_vblank_rejects_unconfigured),
 	/* amdgpu_dm_crtc_update_crtc_active_planes */
 	KUNIT_CASE(dm_test_crtc_update_active_planes_no_stream),
+	/* amdgpu_dm_crtc_count_crtc_active_planes */
+	KUNIT_CASE(dm_test_count_crtc_active_planes_none),
+	KUNIT_CASE(dm_test_count_crtc_active_planes_mixed),
 	/* amdgpu_dm_crtc_duplicate_state */
 	KUNIT_CASE(dm_test_crtc_duplicate_state_copies_fields),
 	/* amdgpu_dm_crtc_reset_state */
