@@ -221,7 +221,7 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 static int link_to_fixup_dir(struct walk_control *wc, u64 objectid);
 static noinline int replay_dir_deletes(struct walk_control *wc,
 				       u64 dirid, bool del_all);
-static void wait_log_commit(struct btrfs_root *root, int transid);
+static bool wait_log_commit(struct btrfs_root *root, int transid);
 
 /*
  * tree logging is a special write ahead log used to make sure that
@@ -305,17 +305,13 @@ static int start_log_trans(struct btrfs_trans_handle *trans,
 
 again:
 	if (root->log_root) {
-		int index = (root->log_transid + 1) % 2;
-
 		if (btrfs_need_log_full_commit(trans)) {
 			ret = BTRFS_LOG_FORCE_COMMIT;
 			goto out;
 		}
 
-		if (zoned && atomic_read(&root->log_commit[index])) {
-			wait_log_commit(root, root->log_transid - 1);
+		if (zoned && wait_log_commit(root, root->log_transid - 1))
 			goto again;
-		}
 	} else {
 		/*
 		 * This means fs_info->log_root_tree was already created
@@ -363,13 +359,9 @@ static int join_running_log_trans(struct btrfs_root *root)
 	mutex_lock(&root->log_mutex);
 again:
 	if (root->log_root) {
-		int index = (root->log_transid + 1) % 2;
-
 		ret = 0;
-		if (zoned && atomic_read(&root->log_commit[index])) {
-			wait_log_commit(root, root->log_transid - 1);
+		if (zoned && wait_log_commit(root, root->log_transid - 1))
 			goto again;
-		}
 		atomic_inc(&root->log_writers);
 	}
 	mutex_unlock(&root->log_mutex);
@@ -3172,10 +3164,14 @@ static int update_log_root(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-static void wait_log_commit(struct btrfs_root *root, int transid)
+/* Returns true if we had to wait, false otherwise. */
+static bool wait_log_commit(struct btrfs_root *root, int transid)
 {
 	DEFINE_WAIT(wait);
-	int index = transid % 2;
+	const int index = (transid >= 0 ? transid % 2 : -transid % 2);
+
+	if (atomic_read(&root->log_commit[index]) == 0)
+		return false;
 
 	/*
 	 * we only allow two pending log transactions at a time,
@@ -3195,6 +3191,8 @@ static void wait_log_commit(struct btrfs_root *root, int transid)
 		mutex_lock(&root->log_mutex);
 	}
 	finish_wait(&root->log_commit_wait[index], &wait);
+
+	return true;
 }
 
 static void wait_for_writer(struct btrfs_root *root)
@@ -3298,15 +3296,15 @@ static inline void btrfs_remove_all_log_ctxs(struct btrfs_root *root,
 int btrfs_sync_log(struct btrfs_trans_handle *trans,
 		   struct btrfs_root *root, struct btrfs_log_ctx *ctx)
 {
-	int index1;
-	int index2;
 	int mark;
 	int ret;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_root *log = root->log_root;
 	struct btrfs_root *log_root_tree = fs_info->log_root_tree;
 	struct btrfs_root_item new_root_item;
-	int log_transid = 0;
+	int log_transid = ctx->log_transid;
+	int index1 = log_transid % 2;
+	int index2;
 	struct btrfs_log_ctx root_log_ctx;
 	struct blk_plug plug;
 	u64 log_root_start;
@@ -3314,16 +3312,13 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 
 	mutex_lock(&root->log_mutex);
 	trace_btrfs_sync_log_enter(trans, root, ctx);
-	log_transid = ctx->log_transid;
 	if (root->log_transid_committed >= log_transid) {
 		trace_btrfs_sync_log_exit(trans, root, ctx, ctx->log_ret);
 		mutex_unlock(&root->log_mutex);
 		return ctx->log_ret;
 	}
 
-	index1 = log_transid % 2;
-	if (atomic_read(&root->log_commit[index1])) {
-		wait_log_commit(root, log_transid);
+	if (wait_log_commit(root, log_transid)) {
 		trace_btrfs_sync_log_exit(trans, root, ctx, ctx->log_ret);
 		mutex_unlock(&root->log_mutex);
 		return ctx->log_ret;
@@ -3333,8 +3328,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	atomic_set(&root->log_commit[index1], 1);
 
 	/* wait for previous tree log sync to complete */
-	if (atomic_read(&root->log_commit[(index1 + 1) % 2]))
-		wait_log_commit(root, log_transid - 1);
+	wait_log_commit(root, log_transid - 1);
 
 	wait_for_writer(root);
 
@@ -3467,10 +3461,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 		root_log_ctx.log_transid, log_root_tree->log_transid);
 	atomic_set(&log_root_tree->log_commit[index2], 1);
 
-	if (atomic_read(&log_root_tree->log_commit[(index2 + 1) % 2])) {
-		wait_log_commit(log_root_tree,
-				root_log_ctx.log_transid - 1);
-	}
+	wait_log_commit(log_root_tree, root_log_ctx.log_transid - 1);
 
 	/*
 	 * now that we've moved on to the tree of log tree roots,
