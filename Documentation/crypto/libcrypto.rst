@@ -159,6 +159,7 @@ API documentation
 .. toctree::
    :maxdepth: 2
 
+   libcrypto-auth-encryption
    libcrypto-blockcipher
    libcrypto-hash
    libcrypto-signature

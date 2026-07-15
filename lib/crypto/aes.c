@@ -8,6 +8,7 @@
 #include <crypto/aes-cbc.h>
 #include <crypto/aes-ctr.h>
 #include <crypto/aes-ecb.h>
+#include <crypto/aes-gcm.h>
 #include <crypto/aes-xts.h>
 #include <crypto/aes.h>
 #include <crypto/gf128mul.h>
@@ -1306,6 +1307,285 @@ void aes_xts_decrypt(u8 *dst, const u8 *src, size_t len,
 }
 EXPORT_SYMBOL_GPL(aes_xts_decrypt);
 #endif /* CONFIG_CRYPTO_LIB_AES_XTS */
+
+#if IS_ENABLED(CONFIG_CRYPTO_LIB_AES_GCM)
+/*
+ * Hooks for optimized AES-GCM implementations, overridable by the architecture.
+ * They are called with len > 0 && len % AES_BLOCK_SIZE == 0.  I.e. they aren't
+ * expected to handle empty inputs or partial blocks, as those cases are handled
+ * by non-arch-specific code instead.
+ *
+ * The GHASH accumulator is provided in POLYVAL format.  The counter is provided
+ * in big endian format, and it's read-only, as the caller handles updating it.
+ *
+ * Returning false causes the fallback implementation to be used instead.
+ *
+ * These hooks are used only for en/decrypted data.  For the associated data the
+ * GHASH functions are called instead, so those should be implemented too.
+ */
+#ifndef aes_gcm_encrypt_update_arch
+static bool aes_gcm_encrypt_update_arch(u8 *dst, const u8 *src, size_t len,
+					struct polyval_elem *ghash_acc,
+					const __be32 ctr32[4],
+					const struct aes_enckey *aes_key,
+					const struct ghash_key *ghash_key)
+{
+	return false;
+}
+#endif
+#ifndef aes_gcm_decrypt_update_arch
+static bool aes_gcm_decrypt_update_arch(u8 *dst, const u8 *src, size_t len,
+					struct polyval_elem *ghash_acc,
+					const __be32 ctr32[4],
+					const struct aes_enckey *aes_key,
+					const struct ghash_key *ghash_key)
+{
+	return false;
+}
+#endif
+
+int aes_gcm_preparekey(struct aes_gcm_key *key, const u8 *in_key,
+		       size_t key_len, size_t authtag_len)
+{
+	u8 h[AES_BLOCK_SIZE] = { 0 };
+	int err;
+
+	err = crypto_gcm_check_authsize(authtag_len);
+	if (unlikely(err))
+		return err;
+
+	err = aes_prepareenckey(&key->aes, in_key, key_len);
+	if (unlikely(err))
+		return err;
+
+	aes_encrypt(&key->aes, h, h);
+	ghash_preparekey(&key->ghash, h);
+
+	key->authtag_len = authtag_len;
+
+	memzero_explicit(h, sizeof(h));
+	return 0;
+}
+EXPORT_SYMBOL_GPL(aes_gcm_preparekey);
+
+void aes_gcm_init(struct aes_gcm_ctx *ctx, const u8 nonce[12],
+		  const struct aes_gcm_key *key)
+{
+	ctx->key = key;
+	ctx->ad_len = 0;
+	ctx->data_len = 0;
+	ghash_init(&ctx->ghash, &key->ghash);
+	memset(ctx->keystream, 0, sizeof(ctx->keystream));
+
+	memcpy(ctx->ctr32, nonce, 12);
+	ctx->ctr32[3] = cpu_to_be32(1);
+
+	aes_encrypt(&key->aes, ctx->j0_enc, ctx->ctr);
+	ctx->ctr32[3] = cpu_to_be32(2);
+}
+EXPORT_SYMBOL_GPL(aes_gcm_init);
+
+void aes_gcm_auth_update(struct aes_gcm_ctx *ctx, const u8 *ad, size_t len)
+{
+	WARN_ON_ONCE(ctx->data_len != 0);
+	if (len) {
+		ghash_update(&ctx->ghash, ad, len);
+		ctx->ad_len += len;
+	}
+}
+EXPORT_SYMBOL_GPL(aes_gcm_auth_update);
+
+static const u8 gcm_zeroes[AES_BLOCK_SIZE];
+
+static __always_inline void ghash_pad(struct ghash_ctx *ghash, u64 len)
+{
+	if (len % AES_BLOCK_SIZE)
+		ghash_update(ghash, gcm_zeroes, -len % AES_BLOCK_SIZE);
+}
+
+static __always_inline void aes_gcm_crypt_update(struct aes_gcm_ctx *ctx,
+						 u8 *dst, const u8 *src,
+						 size_t len, bool enc)
+{
+	size_t partial_len, n;
+
+	if (unlikely(len == 0))
+		return;
+
+	partial_len = ctx->data_len % AES_BLOCK_SIZE;
+	if (ctx->data_len == 0)
+		ghash_pad(&ctx->ghash, ctx->ad_len);
+	ctx->data_len += len;
+
+	if (unlikely(partial_len != 0)) {
+		/*
+		 * The previous call ended on a non-block-aligned data_len, so
+		 * continue using a previously-generated keystream block.
+		 */
+		n = min(len, AES_BLOCK_SIZE - partial_len);
+		if (enc) {
+			crypto_xor_cpy(dst, src, &ctx->keystream[partial_len],
+				       n);
+			ghash_update(&ctx->ghash, dst, n);
+		} else {
+			ghash_update(&ctx->ghash, src, n);
+			crypto_xor_cpy(dst, src, &ctx->keystream[partial_len],
+				       n);
+		}
+		dst += n;
+		src += n;
+		len -= n;
+	}
+
+	if (len >= AES_BLOCK_SIZE) {
+		n = round_down(len, AES_BLOCK_SIZE);
+		if (enc) {
+			if (likely(aes_gcm_encrypt_update_arch(
+				    dst, src, n, &ctx->ghash.acc, ctx->ctr32,
+				    &ctx->key->aes, &ctx->key->ghash))) {
+				be32_add_cpu(&ctx->ctr32[3],
+					     n / AES_BLOCK_SIZE);
+			} else {
+				aes_ctr(dst, src, n, ctx->ctr, &ctx->key->aes);
+				ghash_update(&ctx->ghash, dst, n);
+			}
+		} else {
+			if (likely(aes_gcm_decrypt_update_arch(
+				    dst, src, n, &ctx->ghash.acc, ctx->ctr32,
+				    &ctx->key->aes, &ctx->key->ghash))) {
+				be32_add_cpu(&ctx->ctr32[3],
+					     n / AES_BLOCK_SIZE);
+			} else {
+				ghash_update(&ctx->ghash, src, n);
+				aes_ctr(dst, src, n, ctx->ctr, &ctx->key->aes);
+			}
+		}
+		dst += n;
+		src += n;
+		len -= n;
+	}
+
+	if (len != 0) {
+		/*
+		 * Ending on a non-block aligned data_len.  Generate the next
+		 * keystream block, use the needed portion of it, and leave it
+		 * cached in ctx->keystream in case this isn't the final call.
+		 */
+		aes_encrypt(&ctx->key->aes, ctx->keystream, ctx->ctr);
+		be32_add_cpu(&ctx->ctr32[3], 1);
+		if (enc) {
+			crypto_xor_cpy(dst, src, ctx->keystream, len);
+			ghash_update(&ctx->ghash, dst, len);
+		} else {
+			ghash_update(&ctx->ghash, src, len);
+			crypto_xor_cpy(dst, src, ctx->keystream, len);
+		}
+	}
+}
+
+void aes_gcm_encrypt_update(struct aes_gcm_ctx *ctx, u8 *dst, const u8 *src,
+			    size_t len)
+{
+	aes_gcm_crypt_update(ctx, dst, src, len, /* enc= */ true);
+}
+EXPORT_SYMBOL_GPL(aes_gcm_encrypt_update);
+
+void aes_gcm_decrypt_update(struct aes_gcm_ctx *ctx, u8 *dst, const u8 *src,
+			    size_t len)
+{
+	aes_gcm_crypt_update(ctx, dst, src, len, /* enc= */ false);
+}
+EXPORT_SYMBOL_GPL(aes_gcm_decrypt_update);
+
+/* Maximum AES-GCM associated data length in bytes */
+#define AES_GCM_MAX_AD_LEN ((1ULL << 61) - 1)
+/* Maximum AES-GCM en/decrypted data length in bytes */
+#define AES_GCM_MAX_DATA_LEN ((1ULL << 36) - 32)
+
+void aes_gcm_encrypt_final(struct aes_gcm_ctx *ctx, u8 *authtag)
+{
+	__be64 tail[2];
+
+	WARN_ON_ONCE(ctx->ad_len > AES_GCM_MAX_AD_LEN);
+	WARN_ON_ONCE(ctx->data_len > AES_GCM_MAX_DATA_LEN);
+
+	ghash_pad(&ctx->ghash,
+		  ctx->data_len == 0 ? ctx->ad_len : ctx->data_len);
+
+	tail[0] = cpu_to_be64(ctx->ad_len * 8);
+	tail[1] = cpu_to_be64(ctx->data_len * 8);
+	ghash_update(&ctx->ghash, (const u8 *)tail, 16);
+	ghash_final(&ctx->ghash, ctx->ctr); /* Use ctr as temp buffer */
+
+	crypto_xor_cpy(authtag, ctx->ctr, ctx->j0_enc, ctx->key->authtag_len);
+	memzero_explicit(ctx, sizeof(*ctx));
+}
+EXPORT_SYMBOL_GPL(aes_gcm_encrypt_final);
+
+int aes_gcm_decrypt_final(struct aes_gcm_ctx *ctx, const u8 *authtag)
+{
+	__be64 tail[2];
+	int err;
+
+	if (WARN_ON_ONCE(ctx->ad_len > AES_GCM_MAX_AD_LEN) ||
+	    WARN_ON_ONCE(ctx->data_len > AES_GCM_MAX_DATA_LEN)) {
+		err = -EBADMSG;
+		goto out;
+	}
+
+	ghash_pad(&ctx->ghash,
+		  ctx->data_len == 0 ? ctx->ad_len : ctx->data_len);
+
+	tail[0] = cpu_to_be64(ctx->ad_len * 8);
+	tail[1] = cpu_to_be64(ctx->data_len * 8);
+	ghash_update(&ctx->ghash, (const u8 *)tail, 16);
+	ghash_final(&ctx->ghash, ctx->ctr); /* Use ctr as temp buffer */
+	crypto_xor(ctx->ctr, ctx->j0_enc, ctx->key->authtag_len);
+	err = crypto_memneq(ctx->ctr, authtag, ctx->key->authtag_len) ?
+		      -EBADMSG :
+		      0;
+out:
+	memzero_explicit(ctx, sizeof(*ctx));
+	return err;
+}
+EXPORT_SYMBOL_GPL(aes_gcm_decrypt_final);
+
+void aes_gcm_encrypt(u8 *dst, const u8 *src, size_t data_len, u8 *authtag,
+		     const u8 *ad, size_t ad_len, const u8 nonce[12],
+		     const struct aes_gcm_key *key)
+{
+	struct aes_gcm_ctx ctx;
+
+	aes_gcm_init(&ctx, nonce, key);
+	aes_gcm_auth_update(&ctx, ad, ad_len);
+	aes_gcm_encrypt_update(&ctx, dst, src, data_len);
+	aes_gcm_encrypt_final(&ctx, authtag);
+}
+EXPORT_SYMBOL_GPL(aes_gcm_encrypt);
+
+int aes_gcm_decrypt(u8 *dst, const u8 *src, size_t data_len, const u8 *authtag,
+		    const u8 *ad, size_t ad_len, const u8 nonce[12],
+		    const struct aes_gcm_key *key)
+{
+	struct aes_gcm_ctx ctx;
+	int err;
+
+	aes_gcm_init(&ctx, nonce, key);
+	aes_gcm_auth_update(&ctx, ad, ad_len);
+	aes_gcm_decrypt_update(&ctx, dst, src, data_len);
+	err = aes_gcm_decrypt_final(&ctx, authtag);
+	if (unlikely(err) && data_len) {
+		/*
+		 * Clear the inauthentic decrypted data so that callers won't
+		 * receive it even if they fail to correctly handle errors.
+		 */
+		memset(dst, 0, data_len);
+	}
+	return err;
+}
+EXPORT_SYMBOL_GPL(aes_gcm_decrypt);
+
+#endif /* CONFIG_CRYPTO_LIB_AES_GCM */
 
 static int __init aes_mod_init(void)
 {

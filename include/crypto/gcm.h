@@ -13,7 +13,7 @@
 /*
  * validate authentication tag for GCM
  */
-static inline int crypto_gcm_check_authsize(unsigned int authsize)
+static inline int crypto_gcm_check_authsize(size_t authsize)
 {
 	switch (authsize) {
 	case 4:
@@ -34,7 +34,7 @@ static inline int crypto_gcm_check_authsize(unsigned int authsize)
 /*
  * validate authentication tag for RFC4106
  */
-static inline int crypto_rfc4106_check_authsize(unsigned int authsize)
+static inline int crypto_rfc4106_check_authsize(size_t authsize)
 {
 	switch (authsize) {
 	case 8:
