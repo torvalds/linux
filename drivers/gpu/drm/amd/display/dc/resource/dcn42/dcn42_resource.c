@@ -9,6 +9,7 @@
 #include "dcn42/dcn42_init.h"
 
 #include "resource.h"
+#include "basics/conversion.h"
 #include "include/irq_service_interface.h"
 
 #include "dcn42_resource.h"
@@ -2110,6 +2111,7 @@ static bool dcn42_resource_construct(
 	dc->caps.color.mpc.rmcm_3d_lut_caps.mem_format_support.float_fp1_5_10 = 1;
 	dc->caps.color.mpc.rmcm_3d_lut_caps.mem_pixel_order_support.order_rgba = 1;
 	dc->caps.color.mpc.rmcm_3d_lut_caps.mem_pixel_order_support.order_bgra = 1;
+	dc->caps.color.mpc.max_gamut_remap_coeff = dc_fixpt_from_fraction(S3D12_MAX, DIVIDER);
 
 	dc->caps.num_of_host_routers = 3;
 	dc->caps.num_of_dpias_per_host_router = 2;

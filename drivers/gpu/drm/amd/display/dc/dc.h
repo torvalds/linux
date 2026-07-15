@@ -315,6 +315,7 @@ struct mpc_color_caps {
 	struct lut3d_caps mcm_3d_lut_caps;
 	struct lut3d_caps rmcm_3d_lut_caps;
 	bool preblend;
+	struct fixed31_32 max_gamut_remap_coeff;
 };
 
 /**

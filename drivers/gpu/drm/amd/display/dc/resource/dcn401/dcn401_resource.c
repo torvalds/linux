@@ -10,6 +10,7 @@
 
 #include "resource.h"
 #include "include/irq_service_interface.h"
+#include "basics/conversion.h"
 #include "dcn401_resource.h"
 
 #include "dcn20/dcn20_resource.h"
@@ -2131,6 +2132,7 @@ static bool dcn401_resource_construct(
 	dc->caps.color.mpc.ogam_rom_caps.hlg = 0;
 	dc->caps.color.mpc.ocsc = 1;
 	dc->caps.color.mpc.preblend = true;
+	dc->caps.color.mpc.max_gamut_remap_coeff = dc_fixpt_from_fraction(S3D12_MAX, DIVIDER);
 	/* HACK: Force FRL support until BIOS is ready. */
 	dc->config.force_hdmi21_frl_enc_enable = true;
 	dc->config.use_spl = true;

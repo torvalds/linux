@@ -10,6 +10,7 @@
 
 #include "resource.h"
 #include "include/irq_service_interface.h"
+#include "basics/conversion.h"
 #include "dcn351_resource.h"
 
 #include "dcn20/dcn20_resource.h"
@@ -2051,6 +2052,7 @@ static bool dcn351_resource_construct(
 	dc->caps.color.mpc.ogam_rom_caps.hlg = 0;
 	dc->caps.color.mpc.ocsc = 1;
 	dc->caps.color.mpc.preblend = true;
+	dc->caps.color.mpc.max_gamut_remap_coeff = dc_fixpt_from_fraction(S3D12_MAX, DIVIDER);
 
 	dc->caps.num_of_host_routers = 2;
 	dc->caps.num_of_dpias_per_host_router = 2;

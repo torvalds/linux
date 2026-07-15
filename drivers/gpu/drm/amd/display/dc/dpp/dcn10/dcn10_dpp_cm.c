@@ -171,8 +171,8 @@ void dpp1_cm_set_gamut_remap(
 		for (i = 0; i < 12; i++)
 			arr_matrix[i] = adjust->temperature_matrix[i];
 
-		convert_float_matrix(
-			arr_reg_val, arr_matrix, 12);
+		convert_float_matrix(arr_reg_val, arr_matrix,
+			CM_GAMUT_REMAP_COEF_FORMAT_S2_13, 12);
 
 		program_gamut_remap(dpp, arr_reg_val, GAMUT_REMAP_COEFF);
 	}
@@ -242,8 +242,8 @@ void dpp1_cm_get_gamut_remap(struct dpp *dpp_base,
 	}
 
 	adjust->gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_SW;
-	convert_hw_matrix(adjust->temperature_matrix,
-			  arr_reg_val, ARRAY_SIZE(arr_reg_val));
+	convert_hw_matrix(adjust->temperature_matrix, arr_reg_val,
+			CM_GAMUT_REMAP_COEF_FORMAT_S2_13, ARRAY_SIZE(arr_reg_val));
 }
 
 static void dpp1_cm_program_color_matrix(

@@ -242,13 +242,15 @@ void mpc_program_gamut_remap(
 	unsigned int mpcc_id,
 	const uint16_t *regval,
 	enum mpcc_gamut_remap_id gamut_remap_block_id,
-	enum mpcc_gamut_remap_mode_select mode_select);
+	enum mpcc_gamut_remap_mode_select mode_select,
+	enum cm_gamut_coef_format coef_format);
 
 void mpc_read_gamut_remap(struct mpc *mpc,
 	int mpcc_id,
 	uint16_t *regval,
 	enum mpcc_gamut_remap_id gamut_remap_block_id,
-	uint32_t *mode_select);
+	uint32_t *mode_select,
+	enum cm_gamut_coef_format *coef_format);
 
 void mpc401_get_3dlut_fast_load_status(
 	struct mpc *mpc,
