@@ -88,6 +88,14 @@ static inline long rsi_set_addr_range_state(phys_addr_t start,
 	return res.a0;
 }
 
+#define RSI_ATTEST_CHALLENGE_MIN_SIZE	32
+#define RSI_ATTEST_CHALLENGE_MAX_SIZE	64
+
+struct rsi_attestation_token_init_args {
+	unsigned long fid;
+	u8 challenge[RSI_ATTEST_CHALLENGE_MAX_SIZE];
+};
+
 /**
  * rsi_attestation_token_init - Initialise the operation to retrieve an
  * attestation token.
@@ -109,18 +117,21 @@ static inline long rsi_set_addr_range_state(phys_addr_t start,
 static inline long
 rsi_attestation_token_init(const u8 *challenge, unsigned long size)
 {
-	struct arm_smccc_1_2_regs regs = { 0 };
+	union {
+		struct arm_smccc_1_2_regs regs;
+		struct rsi_attestation_token_init_args init;
+	} args = { 0 };
 
-	/* The challenge must be at least 32bytes and at most 64bytes */
-	if (!challenge || size < 32 || size > 64)
+	if (!challenge || size < RSI_ATTEST_CHALLENGE_MIN_SIZE ||
+	    size > RSI_ATTEST_CHALLENGE_MAX_SIZE)
 		return -EINVAL;
 
-	regs.a0 = SMC_RSI_ATTESTATION_TOKEN_INIT;
-	memcpy(&regs.a1, challenge, size);
-	arm_smccc_1_2_smc(&regs, &regs);
+	args.init.fid = SMC_RSI_ATTESTATION_TOKEN_INIT;
+	memcpy(args.init.challenge, challenge, size);
+	arm_smccc_1_2_smc(&args.regs, &args.regs);
 
-	if (regs.a0 == RSI_SUCCESS)
-		return regs.a1;
+	if (args.regs.a0 == RSI_SUCCESS)
+		return args.regs.a1;
 
 	return -EINVAL;
 }
