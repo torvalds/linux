@@ -577,12 +577,6 @@ xfs_find_get_buf(
 			return error;
 	}
 
-	error = xfs_buf_find_lock(bp, flags);
-	if (error) {
-		xfs_buf_rele(bp);
-		return error;
-	}
-
 	*bpp = bp;
 	return 0;
 }
@@ -607,6 +601,12 @@ xfs_buf_get_map(
 	error = xfs_find_get_buf(btp, map, nmaps, flags, bpp);
 	if (error)
 		return error;
+
+	error = xfs_buf_find_lock(*bpp, flags);
+	if (error) {
+		xfs_buf_rele(*bpp);
+		return error;
+	}
 	XFS_STATS_INC(btp->bt_mount, xb_get);
 	trace_xfs_buf_get(*bpp, flags, _RET_IP_);
 	xfs_buf_ioerror(*bpp, 0);
@@ -647,6 +647,11 @@ xfs_buf_read_map(
 	error = xfs_find_get_buf(target, map, nmaps, flags, &bp);
 	if (error)
 		return error;
+	error = xfs_buf_find_lock(bp, flags);
+	if (error) {
+		xfs_buf_rele(bp);
+		return error;
+	}
 
 	trace_xfs_buf_read(bp, flags, _RET_IP_);
 
@@ -749,20 +754,26 @@ xfs_buf_readahead_map(
 	if (xfs_buftarg_is_mem(target))
 		return;
 
-	if (xfs_find_get_buf(target, map, nmaps, flags | XBF_TRYLOCK, &bp))
+	if (xfs_find_get_buf(target, map, nmaps, flags, &bp))
 		return;
-	trace_xfs_buf_readahead(bp, 0, _RET_IP_);
+	if (xfs_buf_find_lock(bp, XBF_TRYLOCK))
+		goto out_rele;
 
-	if (bp->b_flags & XBF_DONE) {
-		xfs_buf_relse(bp);
-		return;
-	}
+	trace_xfs_buf_readahead(bp, 0, _RET_IP_);
+	if (bp->b_flags & XBF_DONE)
+		goto out_unlock;
+
 	XFS_STATS_INC(target->bt_mount, xb_get_read);
 	bp->b_ops = ops;
 	xfs_buf_clear_flags(bp, XBF_WRITE | XBF_DONE);
 	xfs_buf_set_flags(bp, flags);
 	percpu_counter_inc(&target->bt_readahead_count);
 	xfs_buf_submit(bp);
+	return;
+out_unlock:
+	xfs_buf_unlock(bp);
+out_rele:
+	xfs_buf_rele(bp);
 }
 
 /*
