@@ -40,3 +40,10 @@ AES-ECB
 This API provides support for AES in the ECB mode of operation.
 
 .. kernel-doc:: include/crypto/aes-ecb.h
+
+AES-XTS
+-------
+
+This API provides support for AES in the XTS mode of operation.
+
+.. kernel-doc:: include/crypto/aes-xts.h

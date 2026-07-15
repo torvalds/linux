@@ -8,7 +8,9 @@
 #include <crypto/aes-cbc.h>
 #include <crypto/aes-ctr.h>
 #include <crypto/aes-ecb.h>
+#include <crypto/aes-xts.h>
 #include <crypto/aes.h>
+#include <crypto/gf128mul.h>
 #include <crypto/utils.h>
 #include <linux/cache.h>
 #include <linux/crypto.h>
@@ -1075,6 +1077,235 @@ void aes_xctr(u8 *dst, const u8 *src, size_t len, u64 *ctr,
 }
 EXPORT_SYMBOL_GPL(aes_xctr);
 #endif /* CONFIG_CRYPTO_LIB_AES_CTR */
+
+#if IS_ENABLED(CONFIG_CRYPTO_LIB_AES_XTS)
+int aes_xts_preparekey(struct aes_xts_key *key, const u8 *in_key,
+		       size_t key_len, int flags)
+{
+	int err;
+
+	err = __xts_verify_key(in_key, key_len, flags);
+	if (unlikely(err))
+		goto out_zeroize;
+	/* First half of XTS key is the main key */
+	err = aes_preparekey(&key->main_key, in_key, key_len / 2);
+	if (unlikely(err))
+		goto out_zeroize;
+	/* Second half of XTS key is the tweak key */
+	err = aes_prepareenckey(&key->tweak_key, &in_key[key_len / 2],
+				key_len / 2);
+	if (unlikely(err))
+		goto out_zeroize;
+	return 0;
+
+out_zeroize:
+	memzero_explicit(key, sizeof(*key));
+	return err;
+}
+EXPORT_SYMBOL_GPL(aes_xts_preparekey);
+
+/*
+ * Hooks for optimized AES-XTS implementations, overridable by the architecture.
+ * They are called with len > 0 && len % AES_BLOCK_SIZE == 0.  In other words,
+ * they aren't expected to handle ciphertext stealing or empty inputs.
+ * Returning false causes the fallback implementation to be used instead.
+ *
+ * (Currently, all users of AES-XTS in the kernel seem to en/decrypt whole
+ * numbers of blocks anyway, with len >= 512.  So there's no need to heavily
+ * optimize ciphertext stealing for short messages.)
+ */
+#ifndef aes_xts_encrypt_arch
+static bool aes_xts_encrypt_arch(u8 *dst, const u8 *src, size_t len,
+				 u8 tweak[AES_BLOCK_SIZE],
+				 const struct aes_xts_key *key, bool cont)
+{
+	return false;
+}
+#endif
+#ifndef aes_xts_decrypt_arch
+static bool aes_xts_decrypt_arch(u8 *dst, const u8 *src, size_t len,
+				 u8 tweak[AES_BLOCK_SIZE],
+				 const struct aes_xts_key *key, bool cont)
+{
+	return false;
+}
+#endif
+
+static noinline void aes_xts_crypt_nocts_blockbyblock(
+	u8 *dst, const u8 *src, size_t len, u8 tweak[AES_BLOCK_SIZE],
+	const struct aes_xts_key *key, bool cont, bool enc)
+{
+	le128 t;
+
+	if (cont)
+		memcpy(&t, tweak, sizeof(t));
+	else
+		aes_encrypt(&key->tweak_key, (u8 *)&t, tweak);
+	do {
+		crypto_xor_cpy(dst, src, (const u8 *)&t, AES_BLOCK_SIZE);
+		if (enc)
+			aes_encrypt(&key->main_key, dst, dst);
+		else
+			aes_decrypt(&key->main_key, dst, dst);
+		crypto_xor(dst, (const u8 *)&t, AES_BLOCK_SIZE);
+		gf128mul_x_ble(&t, &t);
+		dst += AES_BLOCK_SIZE;
+		src += AES_BLOCK_SIZE;
+		len -= AES_BLOCK_SIZE;
+	} while (len);
+	memcpy(tweak, &t, sizeof(t));
+	memzero_explicit(&t, sizeof(t));
+}
+
+/* Requires len > 0 && len % AES_BLOCK_SIZE == 0 */
+static __always_inline void aes_xts_encrypt_nocts(u8 *dst, const u8 *src,
+						  size_t len,
+						  u8 tweak[AES_BLOCK_SIZE],
+						  const struct aes_xts_key *key,
+						  bool cont)
+{
+	if (likely(aes_xts_encrypt_arch(dst, src, len, tweak, key, cont)))
+		return;
+
+	/*
+	 * For the fallback, just go block-by-block.  It could be implemented on
+	 * top of AES-ECB, which could be significantly faster than this if the
+	 * arch has optimized AES-ECB code but not AES-XTS.  However, AES-XTS
+	 * performance is important enough that it needs to be (and has been)
+	 * implemented directly by every non-obsolete arch anyway.
+	 */
+	aes_xts_crypt_nocts_blockbyblock(dst, src, len, tweak, key, cont,
+					 /* enc= */ true);
+}
+
+/* Requires len > 0 && len % AES_BLOCK_SIZE == 0 */
+static __always_inline void aes_xts_decrypt_nocts(u8 *dst, const u8 *src,
+						  size_t len,
+						  u8 tweak[AES_BLOCK_SIZE],
+						  const struct aes_xts_key *key,
+						  bool cont)
+{
+	if (likely(aes_xts_decrypt_arch(dst, src, len, tweak, key, cont)))
+		return;
+
+	/* Just go block-by-block.  See comment in aes_xts_encrypt_nocts(). */
+	aes_xts_crypt_nocts_blockbyblock(dst, src, len, tweak, key, cont,
+					 /* enc= */ false);
+}
+
+static noinline void aes_xts_encrypt_cts(u8 *dst, const u8 *src, size_t len,
+					 u8 tweak[AES_BLOCK_SIZE],
+					 const struct aes_xts_key *key,
+					 bool cont)
+{
+	size_t partial_len = len % AES_BLOCK_SIZE; /* Length of partial block */
+	size_t nocts_len = round_down(len, AES_BLOCK_SIZE);
+	u8 tmp_block[AES_BLOCK_SIZE] __aligned(__alignof__(long));
+
+	/* Encrypt all full blocks. */
+	aes_xts_encrypt_nocts(dst, src, nocts_len, tweak, key, cont);
+	dst += nocts_len - AES_BLOCK_SIZE;
+	src += nocts_len - AES_BLOCK_SIZE;
+
+	/*
+	 * Swap the partial block with the first 'partial_len' bytes of the
+	 * encrypted last full block.  Note that a temporary buffer is needed to
+	 * support in-place encryption.
+	 */
+	memcpy(tmp_block, src + AES_BLOCK_SIZE, partial_len);
+	memcpy(dst + AES_BLOCK_SIZE, dst, partial_len);
+	memcpy(dst, tmp_block, partial_len);
+
+	/* Encrypt the last full block again. */
+	crypto_xor(dst, tweak, AES_BLOCK_SIZE);
+	aes_encrypt(&key->main_key, dst, dst);
+	crypto_xor(dst, tweak, AES_BLOCK_SIZE);
+	memzero_explicit(tmp_block, sizeof(tmp_block));
+}
+
+static noinline void aes_xts_decrypt_cts(u8 *dst, const u8 *src, size_t len,
+					 u8 tweak[AES_BLOCK_SIZE],
+					 const struct aes_xts_key *key,
+					 bool cont)
+{
+	size_t partial_len = len % AES_BLOCK_SIZE; /* Length of partial block */
+	size_t nocts_len = round_down(len, AES_BLOCK_SIZE) - AES_BLOCK_SIZE;
+	union {
+		u8 block[AES_BLOCK_SIZE];
+		le128 tweak;
+	} tmp __aligned(__alignof__(long));
+
+	/*
+	 * Decrypt all blocks except the last full block and the partial block.
+	 * The last full block has to be handled specially because decryption
+	 * ciphertext stealing uses the last two tweaks in reverse order.
+	 *
+	 * nocts_len == 0 is possible here, which aes_xts_decrypt_nocts()
+	 * doesn't handle (so that the length doesn't get checked redundantly in
+	 * the fast path).  So handle that case specially as well.
+	 */
+	if (nocts_len)
+		aes_xts_decrypt_nocts(dst, src, nocts_len, tweak, key, cont);
+	else if (!cont)
+		aes_encrypt(&key->tweak_key, tweak, tweak);
+	dst += nocts_len;
+	src += nocts_len;
+
+	/* Copy the tweak, advance it again, then decrypt last full block. */
+	memcpy(&tmp.tweak, tweak, AES_BLOCK_SIZE);
+	gf128mul_x_ble(&tmp.tweak, &tmp.tweak);
+	crypto_xor_cpy(dst, src, tmp.block, AES_BLOCK_SIZE);
+	aes_decrypt(&key->main_key, dst, dst);
+	crypto_xor(dst, tmp.block, AES_BLOCK_SIZE);
+
+	/*
+	 * Swap the partial block with the first 'partial_len' bytes of the
+	 * decrypted last full block.  Note that a temporary buffer is needed to
+	 * support in-place decryption.
+	 */
+	memcpy(tmp.block, src + AES_BLOCK_SIZE, partial_len);
+	memcpy(dst + AES_BLOCK_SIZE, dst, partial_len);
+	memcpy(dst, tmp.block, partial_len);
+
+	/* Decrypt the last full block again. */
+	crypto_xor(dst, tweak, AES_BLOCK_SIZE);
+	aes_decrypt(&key->main_key, dst, dst);
+	crypto_xor(dst, tweak, AES_BLOCK_SIZE);
+	memzero_explicit(&tmp, sizeof(tmp));
+}
+
+void aes_xts_encrypt(u8 *dst, const u8 *src, size_t len,
+		     u8 tweak[AES_BLOCK_SIZE], const struct aes_xts_key *key,
+		     bool cont)
+{
+	if (WARN_ON_ONCE(len < AES_BLOCK_SIZE))
+		return;
+
+	if (unlikely(len % AES_BLOCK_SIZE)) {
+		aes_xts_encrypt_cts(dst, src, len, tweak, key, cont);
+		return;
+	}
+
+	aes_xts_encrypt_nocts(dst, src, len, tweak, key, cont);
+}
+EXPORT_SYMBOL_GPL(aes_xts_encrypt);
+
+void aes_xts_decrypt(u8 *dst, const u8 *src, size_t len,
+		     u8 tweak[AES_BLOCK_SIZE], const struct aes_xts_key *key,
+		     bool cont)
+{
+	if (WARN_ON_ONCE(len < AES_BLOCK_SIZE))
+		return;
+
+	if (unlikely(len % AES_BLOCK_SIZE)) {
+		aes_xts_decrypt_cts(dst, src, len, tweak, key, cont);
+		return;
+	}
+
+	aes_xts_decrypt_nocts(dst, src, len, tweak, key, cont);
+}
+EXPORT_SYMBOL_GPL(aes_xts_decrypt);
+#endif /* CONFIG_CRYPTO_LIB_AES_XTS */
 
 static int __init aes_mod_init(void)
 {
