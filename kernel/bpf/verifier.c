@@ -17941,6 +17941,7 @@ static int __add_used_map(struct bpf_verifier_env *env, struct bpf_map *map)
 			return err;
 		}
 		env->insn_array_maps[env->insn_array_map_cnt++] = map;
+		env->prog->jit_required = true;
 	}
 
 	return env->used_map_cnt - 1;
