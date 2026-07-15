@@ -9,6 +9,7 @@
 #include <crypto/aes-cbc.h>
 #include <crypto/aes-ctr.h>
 #include <crypto/aes-ecb.h>
+#include <crypto/aes-xts.h>
 #include <crypto/aes.h>
 #include <crypto/algapi.h>
 #include <crypto/internal/hash.h>
@@ -482,6 +483,102 @@ static __maybe_unused int crypto_aes_xctr_crypt(struct skcipher_request *req)
 	return 0;
 }
 
+/* AES-XTS */
+
+static __maybe_unused int crypto_aes_xts_setkey(struct crypto_skcipher *tfm,
+						const u8 *in_key,
+						unsigned int key_len)
+{
+	struct aes_xts_key *key = crypto_skcipher_ctx(tfm);
+	int flags = (crypto_skcipher_get_flags(tfm) &
+		     CRYPTO_TFM_REQ_FORBID_WEAK_KEYS) ?
+			    XTS_FORBID_WEAK_KEYS :
+			    0;
+
+	return aes_xts_preparekey(key, in_key, key_len, flags);
+}
+
+static void aes_xts_crypt_wrapper(u8 *dst, const u8 *src, size_t len,
+				  u8 iv[AES_BLOCK_SIZE],
+				  const struct aes_xts_key *key, bool enc,
+				  bool *cont)
+{
+	if (enc)
+		aes_xts_encrypt(dst, src, len, iv, key, *cont);
+	else
+		aes_xts_decrypt(dst, src, len, iv, key, *cont);
+	*cont = true;
+}
+
+/*
+ * This handles AES-XTS en/decryption requests that use a nonlinear scatterlist
+ * layout or where HIGHMEM is enabled.  It is explicitly 'noinline' to keep the
+ * temporary buffer out of the stack frame of the fast path.
+ */
+static noinline int crypto_aes_xts_crypt_nonlinear(struct skcipher_request *req,
+						   bool enc)
+{
+	const struct aes_xts_key *key =
+		crypto_skcipher_ctx(crypto_skcipher_reqtfm(req));
+	u8 tmp[2 * AES_BLOCK_SIZE] __aligned(__alignof__(long));
+	unsigned int main_len = req->cryptlen;
+	unsigned int tail_len = main_len % AES_BLOCK_SIZE;
+	bool cont = false;
+
+	if (unlikely(tail_len)) {
+		/*
+		 * Ciphertext stealing is needed.
+		 * Just do the last two blocks separately.
+		 */
+		tail_len += AES_BLOCK_SIZE;
+		main_len -= tail_len;
+	}
+
+	AES_CRYPT_SG(aes_xts_crypt_wrapper, req->dst, req->src, main_len, 0,
+		     req->iv, key, enc, &cont);
+
+	if (unlikely(tail_len)) {
+		memcpy_from_sglist(tmp, req->src, main_len, tail_len);
+		aes_xts_crypt_wrapper(tmp, tmp, tail_len, req->iv, key, enc,
+				      &cont);
+		memcpy_to_sglist(req->dst, main_len, tmp, tail_len);
+		memzero_explicit(tmp, sizeof(tmp));
+	}
+	return 0;
+}
+
+static __maybe_unused int crypto_aes_xts_encrypt(struct skcipher_request *req)
+{
+	const struct aes_xts_key *key =
+		crypto_skcipher_ctx(crypto_skcipher_reqtfm(req));
+
+	if (unlikely(req->cryptlen < AES_BLOCK_SIZE))
+		return -EINVAL;
+	if (likely(skcipher_request_is_linear_lowmem(req))) {
+		/* Fast path */
+		aes_xts_encrypt(sg_virt(req->dst), sg_virt(req->src),
+				req->cryptlen, req->iv, key, /* cont= */ false);
+		return 0;
+	}
+	return crypto_aes_xts_crypt_nonlinear(req, /* enc= */ true);
+}
+
+static __maybe_unused int crypto_aes_xts_decrypt(struct skcipher_request *req)
+{
+	const struct aes_xts_key *key =
+		crypto_skcipher_ctx(crypto_skcipher_reqtfm(req));
+
+	if (unlikely(req->cryptlen < AES_BLOCK_SIZE))
+		return -EINVAL;
+	if (likely(skcipher_request_is_linear_lowmem(req))) {
+		/* Fast path */
+		aes_xts_decrypt(sg_virt(req->dst), sg_virt(req->src),
+				req->cryptlen, req->iv, key, /* cont= */ false);
+		return 0;
+	}
+	return crypto_aes_xts_crypt_nonlinear(req, /* enc= */ false);
+}
+
 static struct skcipher_alg skcipher_algs[] = {
 #if IS_ENABLED(CONFIG_CRYPTO_ECB)
 	{
@@ -564,6 +661,22 @@ static struct skcipher_alg skcipher_algs[] = {
 		.decrypt = crypto_aes_xctr_crypt,
 	},
 #endif
+#if IS_ENABLED(CONFIG_CRYPTO_XTS)
+	{
+		.base.cra_name = "xts(aes)",
+		.base.cra_driver_name = "xts-aes-lib",
+		.base.cra_priority = 110,
+		.base.cra_blocksize = AES_BLOCK_SIZE,
+		.base.cra_ctxsize = sizeof(struct aes_xts_key),
+		.base.cra_module = THIS_MODULE,
+		.min_keysize = 2 * AES_MIN_KEY_SIZE,
+		.max_keysize = 2 * AES_MAX_KEY_SIZE,
+		.ivsize = AES_BLOCK_SIZE,
+		.setkey = crypto_aes_xts_setkey,
+		.encrypt = crypto_aes_xts_encrypt,
+		.decrypt = crypto_aes_xts_decrypt,
+	},
+#endif
 };
 
 static int __init crypto_aes_mod_init(void)
@@ -643,4 +756,8 @@ MODULE_ALIAS_CRYPTO("ctr-aes-lib");
 #if IS_ENABLED(CONFIG_CRYPTO_XCTR)
 MODULE_ALIAS_CRYPTO("xctr(aes)");
 MODULE_ALIAS_CRYPTO("xctr-aes-lib");
+#endif
+#if IS_ENABLED(CONFIG_CRYPTO_XTS)
+MODULE_ALIAS_CRYPTO("xts(aes)");
+MODULE_ALIAS_CRYPTO("xts-aes-lib");
 #endif
