@@ -699,6 +699,23 @@ xfs_buf_read_map(
 		ASSERT(bp->b_ops != NULL || ops == NULL);
 	}
 
+	if (error)
+		goto out_ioerror;
+
+	*bpp = bp;
+	return 0;
+
+out_ioerror:
+	/*
+	 * Check against log shutdown for error reporting because metadata
+	 * writeback may require a read first and we need to report errors in
+	 * metadata writeback until the log is shut down.  High level
+	 * transaction read functions already check against mount shutdown, so
+	 * we only need to be concerned about low level/ IO interactions here.
+	 */
+	if (!xlog_is_shutdown(target->bt_mount->m_log))
+		xfs_buf_ioerror_alert(bp, fa);
+
 	/*
 	 * If we've had a read error, then the contents of the buffer are
 	 * invalid and should not be used. To ensure that a followup read tries
@@ -708,30 +725,14 @@ xfs_buf_read_map(
 	 * future cache lookups will also treat it as an empty, uninitialised
 	 * buffer.
 	 */
-	if (error) {
-		/*
-		 * Check against log shutdown for error reporting because
-		 * metadata writeback may require a read first and we need to
-		 * report errors in metadata writeback until the log is shut
-		 * down. High level transaction read functions already check
-		 * against mount shutdown, anyway, so we only need to be
-		 * concerned about low level IO interactions here.
-		 */
-		if (!xlog_is_shutdown(target->bt_mount->m_log))
-			xfs_buf_ioerror_alert(bp, fa);
+	xfs_buf_clear_flags(bp, XBF_DONE);
+	xfs_buf_stale(bp);
+	xfs_buf_relse(bp);
 
-		xfs_buf_clear_flags(bp, XBF_DONE);
-		xfs_buf_stale(bp);
-		xfs_buf_relse(bp);
-
-		/* bad CRC means corrupted metadata */
-		if (error == -EFSBADCRC)
-			error = -EFSCORRUPTED;
-		return error;
-	}
-
-	*bpp = bp;
-	return 0;
+	/* bad CRC means corrupted metadata */
+	if (error == -EFSBADCRC)
+		return -EFSCORRUPTED;
+	return error;
 }
 
 /*
