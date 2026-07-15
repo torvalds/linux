@@ -134,6 +134,7 @@ void amdgpu_dm_crtc_set_static_screen_optimze(
 		amdgpu_dm_psr_set_event(dm, stream,
 			set_vsync_event, psr_event_vsync, set_vsync_event);
 }
+EXPORT_IF_KUNIT(amdgpu_dm_crtc_set_static_screen_optimze);
 
 bool amdgpu_dm_is_headless(struct amdgpu_device *adev)
 {
@@ -393,13 +394,14 @@ int amdgpu_dm_crtc_enable_vblank(struct drm_crtc *crtc)
 {
 	return amdgpu_dm_crtc_set_vblank(crtc, true);
 }
+EXPORT_IF_KUNIT(amdgpu_dm_crtc_enable_vblank);
 
 void amdgpu_dm_crtc_disable_vblank(struct drm_crtc *crtc)
 {
 	amdgpu_dm_crtc_set_vblank(crtc, false);
 }
 
-static void amdgpu_dm_crtc_destroy_state(struct drm_crtc *crtc,
+STATIC_IFN_KUNIT void amdgpu_dm_crtc_destroy_state(struct drm_crtc *crtc,
 				  struct drm_crtc_state *state)
 {
 	struct dm_crtc_state *cur = to_dm_crtc_state(state);
@@ -414,8 +416,9 @@ static void amdgpu_dm_crtc_destroy_state(struct drm_crtc *crtc,
 
 	kfree(state);
 }
+EXPORT_IF_KUNIT(amdgpu_dm_crtc_destroy_state);
 
-static struct drm_crtc_state *amdgpu_dm_crtc_duplicate_state(struct drm_crtc *crtc)
+STATIC_IFN_KUNIT struct drm_crtc_state *amdgpu_dm_crtc_duplicate_state(struct drm_crtc *crtc)
 {
 	struct dm_crtc_state *state, *cur;
 
@@ -450,6 +453,7 @@ static struct drm_crtc_state *amdgpu_dm_crtc_duplicate_state(struct drm_crtc *cr
 
 	return &state->base;
 }
+EXPORT_IF_KUNIT(amdgpu_dm_crtc_duplicate_state);
 
 static void amdgpu_dm_crtc_destroy(struct drm_crtc *crtc)
 {
@@ -463,7 +467,7 @@ static void amdgpu_dm_crtc_destroy(struct drm_crtc *crtc)
 	kfree(crtc);
 }
 
-static void amdgpu_dm_crtc_reset_state(struct drm_crtc *crtc)
+STATIC_IFN_KUNIT void amdgpu_dm_crtc_reset_state(struct drm_crtc *crtc)
 {
 	struct dm_crtc_state *state;
 
@@ -476,6 +480,7 @@ static void amdgpu_dm_crtc_reset_state(struct drm_crtc *crtc)
 
 	__drm_atomic_helper_crtc_reset(crtc, &state->base);
 }
+EXPORT_IF_KUNIT(amdgpu_dm_crtc_reset_state);
 
 #ifdef CONFIG_DEBUG_FS
 static int amdgpu_dm_crtc_late_register(struct drm_crtc *crtc)
@@ -610,7 +615,7 @@ static int amdgpu_dm_crtc_count_crtc_active_planes(struct drm_crtc_state *new_cr
 	return num_active;
 }
 
-static void amdgpu_dm_crtc_update_crtc_active_planes(struct drm_crtc *crtc,
+STATIC_IFN_KUNIT void amdgpu_dm_crtc_update_crtc_active_planes(struct drm_crtc *crtc,
 						     struct drm_crtc_state *new_crtc_state)
 {
 	struct dm_crtc_state *dm_new_crtc_state =
@@ -624,6 +629,7 @@ static void amdgpu_dm_crtc_update_crtc_active_planes(struct drm_crtc *crtc,
 	dm_new_crtc_state->active_planes =
 		amdgpu_dm_crtc_count_crtc_active_planes(new_crtc_state);
 }
+EXPORT_IF_KUNIT(amdgpu_dm_crtc_update_crtc_active_planes);
 
 STATIC_IFN_KUNIT bool amdgpu_dm_crtc_helper_mode_fixup(struct drm_crtc *crtc,
 					       const struct drm_display_mode *mode,

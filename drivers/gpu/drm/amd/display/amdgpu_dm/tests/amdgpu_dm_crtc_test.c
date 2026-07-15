@@ -456,6 +456,171 @@ static void dm_test_idle_create_workqueue(struct kunit *test)
 	kfree(idle_work);
 }
 
+/* Tests for amdgpu_dm_crtc_set_static_screen_optimze() */
+
+/**
+ * dm_test_crtc_set_static_screen_optimze_no_sr_entry - Test early return when SR entry disallowed
+ * @test: The KUnit test context
+ *
+ * When self-refresh entry is not allowed the function must return immediately
+ * without touching replay or PSR events, regardless of the requested SSO state.
+ */
+static void dm_test_crtc_set_static_screen_optimze_no_sr_entry(struct kunit *test)
+{
+	struct amdgpu_display_manager *dm;
+	struct dc_link *link;
+	struct dc_stream_state *stream;
+
+	dm = kunit_kzalloc(test, sizeof(*dm), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dm);
+
+	link = dm_kunit_alloc_link(test);
+	stream = dm_kunit_alloc_stream(test, link);
+
+	/* allow_sr_entry == false -> returns before any event is set. */
+	amdgpu_dm_crtc_set_static_screen_optimze(dm, stream, true, false);
+	amdgpu_dm_crtc_set_static_screen_optimze(dm, stream, false, false);
+}
+
+/* Tests for amdgpu_dm_crtc_enable_vblank() */
+
+/**
+ * dm_test_crtc_enable_vblank_rejects_unconfigured - Test vblank enable on disabled CRTC
+ * @test: The KUnit test context
+ *
+ * Enabling vblank on a CRTC that is not enabled must be rejected with -EINVAL
+ * before any interrupt state is touched.
+ */
+static void dm_test_crtc_enable_vblank_rejects_unconfigured(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct amdgpu_crtc *acrtc;
+
+	acrtc = kunit_kzalloc(test, sizeof(*acrtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, acrtc);
+
+	acrtc->base.dev = &adev->ddev;
+	acrtc->base.enabled = false;
+
+	KUNIT_EXPECT_EQ(test, amdgpu_dm_crtc_enable_vblank(&acrtc->base), -EINVAL);
+}
+
+/* Tests for amdgpu_dm_crtc_update_crtc_active_planes() */
+
+/**
+ * dm_test_crtc_update_active_planes_no_stream - Test active plane reset without a stream
+ * @test: The KUnit test context
+ *
+ * Without a DC stream attached the active plane count must be reset to zero
+ * and the plane-counting path must be skipped.
+ */
+static void dm_test_crtc_update_active_planes_no_stream(struct kunit *test)
+{
+	struct dm_crtc_state *dm_state;
+
+	dm_state = kunit_kzalloc(test, sizeof(*dm_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dm_state);
+
+	dm_state->stream = NULL;
+	dm_state->active_planes = 5;
+
+	amdgpu_dm_crtc_update_crtc_active_planes(NULL, &dm_state->base);
+
+	KUNIT_EXPECT_EQ(test, dm_state->active_planes, 0);
+}
+
+/* Tests for amdgpu_dm_crtc_duplicate_state() */
+
+/**
+ * dm_test_crtc_duplicate_state_copies_fields - Test duplicated state carries DM fields
+ * @test: The KUnit test context
+ *
+ * Duplicating a CRTC state without a stream must produce a new state that
+ * carries over the DM-specific fields from the current state.
+ */
+static void dm_test_crtc_duplicate_state_copies_fields(struct kunit *test)
+{
+	struct drm_crtc *crtc;
+	struct dm_crtc_state *cur;
+	struct drm_crtc_state *dup;
+	struct dm_crtc_state *dm_dup;
+
+	crtc = kunit_kzalloc(test, sizeof(*crtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, crtc);
+	cur = kunit_kzalloc(test, sizeof(*cur), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, cur);
+
+	cur->abm_level = 3;
+	cur->active_planes = 2;
+	cur->vrr_supported = true;
+	cur->cm_has_degamma = true;
+	cur->cm_is_degamma_srgb = true;
+	cur->crc_skip_count = 7;
+	cur->mpo_requested = true;
+	crtc->state = &cur->base;
+
+	dup = amdgpu_dm_crtc_duplicate_state(crtc);
+	KUNIT_ASSERT_NOT_NULL(test, dup);
+
+	dm_dup = to_dm_crtc_state(dup);
+	KUNIT_EXPECT_EQ(test, dm_dup->abm_level, 3);
+	KUNIT_EXPECT_EQ(test, dm_dup->active_planes, 2);
+	KUNIT_EXPECT_TRUE(test, dm_dup->vrr_supported);
+	KUNIT_EXPECT_TRUE(test, dm_dup->cm_has_degamma);
+	KUNIT_EXPECT_TRUE(test, dm_dup->cm_is_degamma_srgb);
+	KUNIT_EXPECT_EQ(test, dm_dup->crc_skip_count, 7);
+	KUNIT_EXPECT_TRUE(test, dm_dup->mpo_requested);
+
+	amdgpu_dm_crtc_destroy_state(crtc, dup);
+}
+
+/* Tests for amdgpu_dm_crtc_reset_state() */
+
+/**
+ * dm_test_crtc_reset_state_allocates_state - Test reset installs a fresh state
+ * @test: The KUnit test context
+ *
+ * Resetting a CRTC with no existing state must allocate and install a new
+ * drm_crtc_state.
+ */
+static void dm_test_crtc_reset_state_allocates_state(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct drm_crtc *crtc;
+
+	crtc = kunit_kzalloc(test, sizeof(*crtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, crtc);
+	crtc->dev = &adev->ddev;
+	crtc->state = NULL;
+
+	amdgpu_dm_crtc_reset_state(crtc);
+
+	KUNIT_EXPECT_NOT_NULL(test, crtc->state);
+
+	if (crtc->state)
+		amdgpu_dm_crtc_destroy_state(crtc, crtc->state);
+}
+
+/* Tests for amdgpu_dm_crtc_destroy_state() */
+
+/**
+ * dm_test_crtc_destroy_state_no_stream - Test destroy frees a stream-less state
+ * @test: The KUnit test context
+ *
+ * Destroying a CRTC state with no stream attached must free the state without
+ * attempting to release a DC stream.
+ */
+static void dm_test_crtc_destroy_state_no_stream(struct kunit *test)
+{
+	struct dm_crtc_state *dm_state;
+
+	/* destroy_state kfree()s the state, so use a plain (unmanaged) alloc. */
+	dm_state = kzalloc_obj(*dm_state, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dm_state);
+
+	amdgpu_dm_crtc_destroy_state(NULL, &dm_state->base);
+}
+
 static struct kunit_case amdgpu_dm_crtc_tests[] = {
 	/* amdgpu_dm_crtc_modeset_required */
 	KUNIT_CASE(dm_test_crtc_modeset_required_active_mode_changed),
@@ -488,6 +653,18 @@ static struct kunit_case amdgpu_dm_crtc_tests[] = {
 	KUNIT_CASE(dm_test_crtc_set_vupdate_irq_no_otg),
 	/* idle_create_workqueue */
 	KUNIT_CASE(dm_test_idle_create_workqueue),
+	/* amdgpu_dm_crtc_set_static_screen_optimze */
+	KUNIT_CASE(dm_test_crtc_set_static_screen_optimze_no_sr_entry),
+	/* amdgpu_dm_crtc_enable_vblank */
+	KUNIT_CASE(dm_test_crtc_enable_vblank_rejects_unconfigured),
+	/* amdgpu_dm_crtc_update_crtc_active_planes */
+	KUNIT_CASE(dm_test_crtc_update_active_planes_no_stream),
+	/* amdgpu_dm_crtc_duplicate_state */
+	KUNIT_CASE(dm_test_crtc_duplicate_state_copies_fields),
+	/* amdgpu_dm_crtc_reset_state */
+	KUNIT_CASE(dm_test_crtc_reset_state_allocates_state),
+	/* amdgpu_dm_crtc_destroy_state */
+	KUNIT_CASE(dm_test_crtc_destroy_state_no_stream),
 	{}
 };
 

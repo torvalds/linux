@@ -46,6 +46,12 @@ bool amdgpu_dm_crtc_vrr_active_irq(struct amdgpu_crtc *acrtc);
 bool amdgpu_dm_crtc_helper_mode_fixup(struct drm_crtc *crtc,
 				      const struct drm_display_mode *mode,
 				      struct drm_display_mode *adjusted_mode);
+void amdgpu_dm_crtc_destroy_state(struct drm_crtc *crtc,
+				  struct drm_crtc_state *state);
+struct drm_crtc_state *amdgpu_dm_crtc_duplicate_state(struct drm_crtc *crtc);
+void amdgpu_dm_crtc_reset_state(struct drm_crtc *crtc);
+void amdgpu_dm_crtc_update_crtc_active_planes(struct drm_crtc *crtc,
+					      struct drm_crtc_state *new_crtc_state);
 #endif
 
 bool amdgpu_dm_crtc_vrr_active(const struct dm_crtc_state *dm_state);
