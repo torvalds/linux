@@ -9,6 +9,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_connector.h>
 #include <drm/drm_kunit_helpers.h>
+#include <drm/drm_vblank.h>
 
 #include "dc.h"
 #include "amdgpu.h"
@@ -621,6 +622,209 @@ static void dm_test_crtc_destroy_state_no_stream(struct kunit *test)
 	amdgpu_dm_crtc_destroy_state(NULL, &dm_state->base);
 }
 
+/**
+ * dm_test_crtc_handle_vblank_no_event - Test vblank handling with no pending event
+ * @test: The KUnit test context
+ *
+ * With no flip event pending, handling a vblank must complete without sending a
+ * vblank event and must leave acrtc->event untouched (NULL).
+ */
+static void dm_test_crtc_handle_vblank_no_event(struct kunit *test)
+{
+	struct amdgpu_device *adev;
+	struct amdgpu_crtc *acrtc;
+
+	adev = dm_kunit_alloc_adev(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	/* Initialise vblank so drm_crtc_handle_vblank() runs cleanly. */
+	KUNIT_ASSERT_EQ(test, drm_vblank_init(&adev->ddev, 1), 0);
+
+	acrtc = kunit_kzalloc(test, sizeof(*acrtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, acrtc);
+	acrtc->base.dev = &adev->ddev;
+	acrtc->event = NULL;
+
+	amdgpu_dm_crtc_handle_vblank(acrtc);
+
+	KUNIT_EXPECT_NULL(test, acrtc->event);
+}
+
+/**
+ * dm_test_crtc_handle_vblank_skips_when_flip_submitted - Test event kept on submit
+ * @test: The KUnit test context
+ *
+ * A pending event whose flip is still AMDGPU_FLIP_SUBMITTED must not be signalled
+ * on vblank; acrtc->event must remain set for later completion.
+ */
+static void dm_test_crtc_handle_vblank_skips_when_flip_submitted(struct kunit *test)
+{
+	struct drm_pending_vblank_event *event;
+	struct amdgpu_device *adev;
+	struct amdgpu_crtc *acrtc;
+
+	adev = dm_kunit_alloc_adev(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	KUNIT_ASSERT_EQ(test, drm_vblank_init(&adev->ddev, 1), 0);
+
+	acrtc = kunit_kzalloc(test, sizeof(*acrtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, acrtc);
+	event = kunit_kzalloc(test, sizeof(*event), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, event);
+
+	acrtc->base.dev = &adev->ddev;
+	acrtc->event = event;
+	acrtc->pflip_status = AMDGPU_FLIP_SUBMITTED;
+
+	amdgpu_dm_crtc_handle_vblank(acrtc);
+
+	/* Flip still in-flight: event must be preserved, not signalled. */
+	KUNIT_EXPECT_PTR_EQ(test, acrtc->event, event);
+}
+
+/**
+ * dm_test_vblank_control_worker_setup - Build a vblank_control_work for the worker
+ * @test: The KUnit test context
+ * @enable: Value for vblank_work->enable
+ * @count: Initial dm->active_vblank_irq_count
+ *
+ * Returns a work item wired to a freshly allocated adev/crtc/stream. The CRTC is
+ * left without an atomic state so amdgpu_dm_ism_commit_event() short-circuits and
+ * only the vblank IRQ accounting in the worker runs.
+ */
+static struct vblank_control_work *
+dm_test_vblank_control_worker_setup(struct kunit *test, bool enable,
+				    uint32_t count)
+{
+	struct dc_stream_state *stream;
+	struct vblank_control_work *work;
+	struct amdgpu_device *adev;
+	struct amdgpu_crtc *acrtc;
+
+	adev = dm_kunit_alloc_adev(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	mutex_init(&adev->dm.dc_lock);
+	adev->dm.dc = dm_kunit_alloc_dc_with_ctx(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev->dm.dc);
+	adev->dm.active_vblank_irq_count = count;
+
+	acrtc = kunit_kzalloc(test, sizeof(*acrtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, acrtc);
+	acrtc->base.dev = &adev->ddev;
+	acrtc->base.state = NULL;
+
+	stream = dm_kunit_alloc_stream(test, NULL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, stream);
+	/* Worker releases the stream; keep an extra ref so kunit owns the free. */
+	kref_get(&stream->refcount);
+
+	/* Worker kfree()s the work item, so it must be a plain allocation. */
+	work = kzalloc_obj(*work, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, work);
+	work->dm = &adev->dm;
+	work->acrtc = acrtc;
+	work->stream = stream;
+	work->enable = enable;
+
+	return work;
+}
+
+/**
+ * dm_test_vblank_control_worker_enable_increments - Test enable bumps IRQ count
+ * @test: The KUnit test context
+ *
+ * Running the worker with enable set must increment the active vblank IRQ count.
+ */
+static void dm_test_vblank_control_worker_enable_increments(struct kunit *test)
+{
+	struct vblank_control_work *work;
+	struct amdgpu_display_manager *dm;
+
+	work = dm_test_vblank_control_worker_setup(test, true, 0);
+	dm = work->dm;
+
+	amdgpu_dm_crtc_vblank_control_worker(&work->work);
+
+	KUNIT_EXPECT_EQ(test, dm->active_vblank_irq_count, 1);
+}
+
+/**
+ * dm_test_vblank_control_worker_disable_decrements - Test disable drops IRQ count
+ * @test: The KUnit test context
+ *
+ * Running the worker with enable clear must decrement a non-zero active vblank
+ * IRQ count.
+ */
+static void dm_test_vblank_control_worker_disable_decrements(struct kunit *test)
+{
+	struct vblank_control_work *work;
+	struct amdgpu_display_manager *dm;
+
+	work = dm_test_vblank_control_worker_setup(test, false, 2);
+	dm = work->dm;
+
+	amdgpu_dm_crtc_vblank_control_worker(&work->work);
+
+	KUNIT_EXPECT_EQ(test, dm->active_vblank_irq_count, 1);
+}
+
+/**
+ * dm_test_vblank_control_worker_disable_clamps_zero - Test disable clamps at zero
+ * @test: The KUnit test context
+ *
+ * Disabling when the active vblank IRQ count is already zero must not underflow.
+ */
+static void dm_test_vblank_control_worker_disable_clamps_zero(struct kunit *test)
+{
+	struct vblank_control_work *work;
+	struct amdgpu_display_manager *dm;
+
+	work = dm_test_vblank_control_worker_setup(test, false, 0);
+	dm = work->dm;
+
+	amdgpu_dm_crtc_vblank_control_worker(&work->work);
+
+	KUNIT_EXPECT_EQ(test, dm->active_vblank_irq_count, 0);
+}
+
+/**
+ * dm_test_crtc_disable_vblank_no_irq_installed - Test disable with IRQ uninstalled
+ * @test: The KUnit test context
+ *
+ * Disabling vblank walks amdgpu_dm_crtc_set_vblank()'s disable path. With the
+ * IRQ subsystem not installed, amdgpu_irq_put() returns early so the routine
+ * completes without touching the vblank workqueue or the active IRQ count.
+ */
+static void dm_test_crtc_disable_vblank_no_irq_installed(struct kunit *test)
+{
+	struct amdgpu_device *adev;
+	struct amdgpu_crtc *acrtc;
+
+	adev = dm_kunit_alloc_adev(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	adev->dm.dc = dm_kunit_alloc_dc_with_ctx(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev->dm.dc);
+	/* DCE_VERSION_6_0 has no VRR, so the vupdate-irq branch is skipped. */
+	adev->dm.dc->ctx->dce_version = DCE_VERSION_6_0;
+	adev->dm.active_vblank_irq_count = 0;
+
+	/* No CRTCs registered and IRQs not installed -> irq_put returns early. */
+	adev->mode_info.num_crtc = 0;
+	adev->irq.installed = false;
+
+	acrtc = kunit_kzalloc(test, sizeof(*acrtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, acrtc);
+	acrtc->base.dev = &adev->ddev;
+	acrtc->crtc_id = 0;
+
+	amdgpu_dm_crtc_disable_vblank(&acrtc->base);
+
+	KUNIT_EXPECT_EQ(test, adev->dm.active_vblank_irq_count, 0);
+}
+
 static struct kunit_case amdgpu_dm_crtc_tests[] = {
 	/* amdgpu_dm_crtc_modeset_required */
 	KUNIT_CASE(dm_test_crtc_modeset_required_active_mode_changed),
@@ -665,6 +869,15 @@ static struct kunit_case amdgpu_dm_crtc_tests[] = {
 	KUNIT_CASE(dm_test_crtc_reset_state_allocates_state),
 	/* amdgpu_dm_crtc_destroy_state */
 	KUNIT_CASE(dm_test_crtc_destroy_state_no_stream),
+	/* amdgpu_dm_crtc_handle_vblank */
+	KUNIT_CASE(dm_test_crtc_handle_vblank_no_event),
+	KUNIT_CASE(dm_test_crtc_handle_vblank_skips_when_flip_submitted),
+	/* amdgpu_dm_crtc_vblank_control_worker */
+	KUNIT_CASE(dm_test_vblank_control_worker_enable_increments),
+	KUNIT_CASE(dm_test_vblank_control_worker_disable_decrements),
+	KUNIT_CASE(dm_test_vblank_control_worker_disable_clamps_zero),
+	/* amdgpu_dm_crtc_disable_vblank */
+	KUNIT_CASE(dm_test_crtc_disable_vblank_no_irq_installed),
 	{}
 };
 

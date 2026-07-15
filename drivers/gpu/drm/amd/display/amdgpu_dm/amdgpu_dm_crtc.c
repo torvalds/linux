@@ -59,6 +59,7 @@ void amdgpu_dm_crtc_handle_vblank(struct amdgpu_crtc *acrtc)
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
+EXPORT_IF_KUNIT(amdgpu_dm_crtc_handle_vblank);
 
 bool amdgpu_dm_crtc_modeset_required(struct drm_crtc_state *crtc_state,
 			     struct dc_stream_state *new_stream,
@@ -216,7 +217,7 @@ struct idle_workqueue *idle_create_workqueue(struct amdgpu_device *adev)
 }
 EXPORT_IF_KUNIT(idle_create_workqueue);
 
-static void amdgpu_dm_crtc_vblank_control_worker(struct work_struct *work)
+STATIC_IFN_KUNIT void amdgpu_dm_crtc_vblank_control_worker(struct work_struct *work)
 {
 	struct vblank_control_work *vblank_work =
 		container_of(work, struct vblank_control_work, work);
@@ -241,6 +242,7 @@ static void amdgpu_dm_crtc_vblank_control_worker(struct work_struct *work)
 
 	kfree(vblank_work);
 }
+EXPORT_IF_KUNIT(amdgpu_dm_crtc_vblank_control_worker);
 
 static inline int amdgpu_dm_crtc_set_vblank(struct drm_crtc *crtc, bool enable)
 {
@@ -400,6 +402,7 @@ void amdgpu_dm_crtc_disable_vblank(struct drm_crtc *crtc)
 {
 	amdgpu_dm_crtc_set_vblank(crtc, false);
 }
+EXPORT_IF_KUNIT(amdgpu_dm_crtc_disable_vblank);
 
 STATIC_IFN_KUNIT void amdgpu_dm_crtc_destroy_state(struct drm_crtc *crtc,
 				  struct drm_crtc_state *state)
