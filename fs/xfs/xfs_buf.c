@@ -756,13 +756,23 @@ xfs_buf_readahead_map(
 
 	if (xfs_find_get_buf(target, map, nmaps, flags, &bp))
 		return;
-	if (xfs_buf_find_lock(bp, XBF_TRYLOCK))
+
+	/*
+	 * Do a lockless fast path check for a valid uptodate buffer and avoid
+	 * locking entirely in this case.
+	 */
+	if ((READ_ONCE(bp->b_flags) & (XBF_DONE | XBF_STALE)) == XBF_DONE)
 		goto out_rele;
 
-	trace_xfs_buf_readahead(bp, 0, _RET_IP_);
-	if (bp->b_flags & XBF_DONE)
+	/* Otherwise lock the buffer to stabilize the state */
+	if (!xfs_buf_trylock(bp))
+		goto out_rele;
+
+	/* Let the actual reader deal with stale buffers. */
+	if (bp->b_flags & (XBF_STALE | XBF_DONE))
 		goto out_unlock;
 
+	trace_xfs_buf_readahead(bp, 0, _RET_IP_);
 	XFS_STATS_INC(target->bt_mount, xb_get_read);
 	bp->b_ops = ops;
 	xfs_buf_clear_flags(bp, XBF_WRITE | XBF_DONE);
