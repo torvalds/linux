@@ -162,5 +162,6 @@ API documentation
    libcrypto-blockcipher
    libcrypto-hash
    libcrypto-signature
+   libcrypto-unauth-encryption
    libcrypto-utils
    sha3

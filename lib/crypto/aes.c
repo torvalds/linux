@@ -5,6 +5,7 @@
  */
 
 #include <crypto/aes-cbc-macs.h>
+#include <crypto/aes-ecb.h>
 #include <crypto/aes.h>
 #include <crypto/utils.h>
 #include <linux/cache.h>
@@ -736,6 +737,61 @@ static inline void aes_cmac_fips_test(void)
 {
 }
 #endif /* !CONFIG_CRYPTO_LIB_AES_CBC_MACS */
+
+#if IS_ENABLED(CONFIG_CRYPTO_LIB_AES_ECB)
+/*
+ * Hooks for optimized AES-ECB implementations, overridable by the architecture.
+ * They are called with len > 0 && len % AES_BLOCK_SIZE == 0.  Returning false
+ * causes the fallback implementation to be used instead.
+ */
+#ifndef aes_ecb_encrypt_arch
+static bool aes_ecb_encrypt_arch(u8 *dst, const u8 *src, size_t len,
+				 const struct aes_enckey *key)
+{
+	return false;
+}
+#endif
+#ifndef aes_ecb_decrypt_arch
+static bool aes_ecb_decrypt_arch(u8 *dst, const u8 *src, size_t len,
+				 const struct aes_key *key)
+{
+	return false;
+}
+#endif
+
+void aes_ecb_encrypt(u8 *dst, const u8 *src, size_t len, aes_encrypt_arg key)
+{
+	if (WARN_ON_ONCE(len % AES_BLOCK_SIZE))
+		len = round_down(len, AES_BLOCK_SIZE);
+
+	if (unlikely(len == 0))
+		return;
+
+	if (likely(aes_ecb_encrypt_arch(dst, src, len, key.enc_key)))
+		return;
+
+	for (size_t i = 0; i < len; i += AES_BLOCK_SIZE)
+		aes_encrypt(key, &dst[i], &src[i]);
+}
+EXPORT_SYMBOL_GPL(aes_ecb_encrypt);
+
+void aes_ecb_decrypt(u8 *dst, const u8 *src, size_t len,
+		     const struct aes_key *key)
+{
+	if (WARN_ON_ONCE(len % AES_BLOCK_SIZE))
+		len = round_down(len, AES_BLOCK_SIZE);
+
+	if (unlikely(len == 0))
+		return;
+
+	if (likely(aes_ecb_decrypt_arch(dst, src, len, key)))
+		return;
+
+	for (size_t i = 0; i < len; i += AES_BLOCK_SIZE)
+		aes_decrypt(key, &dst[i], &src[i]);
+}
+EXPORT_SYMBOL_GPL(aes_ecb_decrypt);
+#endif /* CONFIG_CRYPTO_LIB_AES_ECB */
 
 static int __init aes_mod_init(void)
 {
