@@ -760,7 +760,6 @@ xfs_buf_readahead_map(
 	trace_xfs_buf_readahead(bp, 0, _RET_IP_);
 
 	if (bp->b_flags & XBF_DONE) {
-		xfs_buf_reverify(bp, ops);
 		xfs_buf_relse(bp);
 		return;
 	}
