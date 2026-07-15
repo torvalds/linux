@@ -2550,8 +2550,6 @@ static void btintel_pcie_inc_recovery_count(struct pci_dev *pdev,
 	}
 }
 
-static void btintel_pcie_reset(struct hci_dev *hdev);
-
 static int btintel_pcie_acpi_reset_method(struct btintel_pcie_data *data)
 {
 	union acpi_object *obj, argv4;
@@ -2749,56 +2747,86 @@ out:
 	pci_unlock_rescan_remove();
 }
 
-static void btintel_pcie_reset(struct hci_dev *hdev)
+/* Schedule a device reset of the requested type.
+ *
+ * BTINTEL_PCIE_RECOVERY_IN_PROGRESS serializes all reset requesters
+ * (sysfs reset attribute, hci_cmd_timeout(), hw_error, resume error
+ * path, etc.) so that:
+ *
+ *   - dev_data->reset_type is written by exactly one caller (the
+ *     thread that wins test_and_set_bit), eliminating the race where
+ *     a second hw_error could clobber an already-scheduled reset's
+ *     type;
+ *   - the write happens AFTER the bit is set, so reset_work observes
+ *     it through schedule_work()'s memory ordering;
+ *   - losers return without touching reset_type or scheduling the
+ *     work, so concurrent triggers are silently coalesced into the
+ *     in-flight one (whose recovery will reinitialize the device
+ *     regardless of the dropped trigger's variant).
+ *
+ * The bit is cleared only by .remove() / re-probe via fresh devm
+ * allocation, which is the intended one-shot semantics: a reset
+ * tears down and re-probes 'data', so there is no "in-flight"
+ * reset to follow up after device_reprobe() succeeds.
+ */
+static void btintel_pcie_request_reset(struct btintel_pcie_data *data,
+				       enum btintel_pcie_reset_type type)
 {
-	struct btintel_pcie_data *data;
-
-	data = hci_get_drvdata(hdev);
-
 	if (!test_bit(BTINTEL_PCIE_SETUP_DONE, &data->flags))
 		return;
 
 	if (test_and_set_bit(BTINTEL_PCIE_RECOVERY_IN_PROGRESS, &data->flags))
 		return;
 
+	data->reset_type = type;
+
 	pci_dev_get(data->pdev);
 	schedule_work(&data->reset_work);
 }
 
+static void btintel_pcie_hci_reset(struct hci_dev *hdev)
+{
+	struct btintel_pcie_data *data = hci_get_drvdata(hdev);
+
+	btintel_pcie_request_reset(data, BTINTEL_PCIE_IOSF_PRR_FLR);
+}
+
 static void btintel_pcie_hw_error(struct hci_dev *hdev, u8 code)
 {
-	struct btintel_pcie_dev_recovery *data;
+	struct btintel_pcie_dev_recovery *rec;
 	struct btintel_pcie_data *dev_data = hci_get_drvdata(hdev);
 	struct pci_dev *pdev = dev_data->pdev;
+	enum btintel_pcie_reset_type type;
 	time64_t retry_window;
+
+	if (test_bit(BTINTEL_PCIE_RECOVERY_IN_PROGRESS, &dev_data->flags))
+		return;
 
 	btintel_pcie_dump_debug_registers(hdev);
 
-	data = btintel_pcie_get_recovery(pdev, &hdev->dev);
-	if (!data)
+	rec = btintel_pcie_get_recovery(pdev, &hdev->dev);
+	if (!rec)
 		return;
 
-	if (code == 0x13)
-		dev_data->reset_type = BTINTEL_PCIE_IOSF_PRR_PLDR;
-	else
-		dev_data->reset_type = BTINTEL_PCIE_IOSF_PRR_FLR;
+	type = (code == 0x13) ? BTINTEL_PCIE_IOSF_PRR_PLDR
+			      : BTINTEL_PCIE_IOSF_PRR_FLR;
 
 	bt_dev_err(hdev, "Encountered exception err:0x%x triggering: %s", code,
-		   dev_data->reset_type == BTINTEL_PCIE_IOSF_PRR_PLDR ? "PLDR" : "FLR");
-	retry_window = ktime_get_boottime_seconds() - data->last_error;
+		   type == BTINTEL_PCIE_IOSF_PRR_PLDR ? "PLDR" : "FLR");
+	retry_window = ktime_get_boottime_seconds() - rec->last_error;
 
 	if (retry_window < BTINTEL_PCIE_RESET_WINDOW_SECS &&
-	    data->count >= BTINTEL_PCIE_FLR_MAX_RETRY) {
+	    rec->count >= BTINTEL_PCIE_FLR_MAX_RETRY) {
 		bt_dev_err(hdev, "Exhausted maximum: %d recovery attempts: %d",
-			   BTINTEL_PCIE_FLR_MAX_RETRY, data->count);
+			   BTINTEL_PCIE_FLR_MAX_RETRY, rec->count);
 		bt_dev_dbg(hdev, "Boot time: %lld seconds",
 			   ktime_get_boottime_seconds());
 		bt_dev_dbg(hdev, "last error at: %lld seconds",
-			   data->last_error);
+			   rec->last_error);
 		return;
 	}
 	btintel_pcie_inc_recovery_count(pdev, &hdev->dev);
-	btintel_pcie_reset(hdev);
+	btintel_pcie_request_reset(dev_data, type);
 }
 
 static bool btintel_pcie_wakeup(struct hci_dev *hdev)
@@ -2888,7 +2916,7 @@ static int btintel_pcie_setup_hdev(struct btintel_pcie_data *data)
 	hdev->hw_error = btintel_pcie_hw_error;
 	hdev->set_diag = btintel_set_diag;
 	hdev->set_bdaddr = btintel_set_bdaddr;
-	hdev->reset = btintel_pcie_reset;
+	hdev->reset = btintel_pcie_hci_reset;
 	hdev->wakeup = btintel_pcie_wakeup;
 	hdev->hci_drv = &btintel_pcie_hci_drv;
 
@@ -3176,8 +3204,7 @@ static int btintel_pcie_resume(struct device *dev)
 	if (data->pm_sx_event == PM_EVENT_FREEZE ||
 	    data->pm_sx_event == PM_EVENT_HIBERNATE) {
 		set_bit(BTINTEL_PCIE_CORE_HALTED, &data->flags);
-		data->reset_type = BTINTEL_PCIE_IOSF_PRR_FLR;
-		btintel_pcie_reset(data->hdev);
+		btintel_pcie_request_reset(data, BTINTEL_PCIE_IOSF_PRR_FLR);
 		return 0;
 	}
 
@@ -3204,7 +3231,7 @@ static int btintel_pcie_resume(struct device *dev)
 		btintel_pcie_queue_coredump(data,
 					    BTINTEL_PCIE_TRIGGER_REASON_FW_ASSERT);
 		set_bit(BTINTEL_PCIE_CORE_HALTED, &data->flags);
-		btintel_pcie_reset(data->hdev);
+		btintel_pcie_request_reset(data, BTINTEL_PCIE_IOSF_PRR_FLR);
 	}
 	return err;
 }
