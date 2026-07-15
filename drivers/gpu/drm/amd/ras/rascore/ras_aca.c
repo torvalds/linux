@@ -83,22 +83,20 @@ static void aca_report_ecc_info(struct ras_core_context *ras_core,
 			seq_no, skt, aid, ecc_count.total_ue_count, blk_name(blk));
 	}
 
-	if (ecc_count.new_de_count) {
+	if (ecc_count.new_de_count && blk == RAS_BLOCK_ID__UMC) {
 		RAS_DEV_INFO(ras_core->dev,
-		"{%llu} socket: %d, die: %d, %u new %s detected in %s block\n",
+		"{%llu} socket: %d, die: %d, %u new deferred hardware errors detected in %s block\n",
 			seq_no, skt, aid, ecc_count.new_de_count,
-			(blk == RAS_BLOCK_ID__UMC) ?
-				"deferred hardware errors" : "poison consumption",
 			blk_name(blk));
 		RAS_DEV_INFO(ras_core->dev,
-		"{%llu} socket: %d, die: %d, %u %s detected in total in %s block\n",
+		"{%llu} socket: %d, die: %d, %u deferred hardware errors detected in total in %s block\n",
 			seq_no, skt, aid, ecc_count.total_de_count,
-			(blk == RAS_BLOCK_ID__UMC) ?
-				"deferred hardware errors" : "poison consumption",
 			blk_name(blk));
 	}
 
 	if (ecc_count.new_ce_count) {
+		if (ras_core_is_ce_log_disabled(ras_core))
+			return;
 		RAS_DEV_INFO(ras_core->dev,
 		"{%llu} socket: %d, die: %d, %u new correctable hardware errors detected in %s block\n",
 			seq_no, skt, aid, ecc_count.new_ce_count, blk_name(blk));
@@ -113,6 +111,11 @@ static void aca_bank_log(struct ras_core_context *ras_core,
 			 struct aca_bank_ecc *bank_ecc)
 {
 	int i;
+
+	if (ras_core_is_ce_log_disabled(ras_core) &&
+	   bank->ecc_type == RAS_ERR_TYPE__CE &&
+	   !bank_ecc->de_count)
+		return;
 
 	RAS_DEV_INFO(ras_core->dev,
 		"{%llu}" RAS_HW_ERR "Accelerator Check Architecture events logged\n",

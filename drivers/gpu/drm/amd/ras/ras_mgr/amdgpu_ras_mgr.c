@@ -309,6 +309,7 @@ static struct ras_core_context *amdgpu_ras_mgr_create_ras_core(struct amdgpu_dev
 		amdgpu_ras_mgr_eeprom_is_supported(adev);
 	init_config.poison_supported =
 		amdgpu_ras_is_poison_mode_supported(adev);
+	init_config.ras_debug_mask = amdgpu_debug_mask;
 
 	amdgpu_ras_mgr_init_aca_config(adev, &init_config);
 	amdgpu_ras_mgr_init_eeprom_config(adev, &init_config);

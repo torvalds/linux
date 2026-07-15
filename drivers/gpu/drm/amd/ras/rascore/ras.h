@@ -301,6 +301,7 @@ struct ras_core_config {
 
 	bool poison_supported;
 	bool ras_eeprom_supported;
+	uint ras_debug_mask;
 	const struct ras_sys_func *sys_fn;
 
 	struct ras_aca_config aca_cfg;
@@ -403,4 +404,5 @@ int ras_core_convert_soc_pa_to_cur_nps_pages(struct ras_core_context *ras_core,
 int ras_core_check_address_sanity(struct ras_core_context *ras_core, uint64_t addr);
 
 int ras_core_set_debug_mode(struct ras_core_context *ras_core, bool enable);
+bool ras_core_is_ce_log_disabled(struct ras_core_context *ras_core);
 #endif
