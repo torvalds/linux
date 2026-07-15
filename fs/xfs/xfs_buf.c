@@ -514,8 +514,8 @@ out_free_buf:
  * cache hits, as metadata intensive workloads will see 3 orders of magnitude
  * more hits than misses.
  */
-int
-xfs_buf_get_map(
+static int
+xfs_find_get_buf(
 	struct xfs_buftarg	*btp,
 	struct xfs_buf_map	*map,
 	int			nmaps,
@@ -552,16 +552,33 @@ xfs_buf_get_map(
 		return error;
 	}
 
-	/*
-	 * Clear b_error if this is a lookup from a caller that doesn't expect
-	 * valid data to be found in the buffer.
-	 */
-	if (!(flags & XBF_READ))
-		xfs_buf_ioerror(bp, 0);
-
-	XFS_STATS_INC(btp->bt_mount, xb_get);
-	trace_xfs_buf_get(bp, flags, _RET_IP_);
 	*bpp = bp;
+	return 0;
+}
+
+int
+xfs_buf_get_map(
+	struct xfs_buftarg	*btp,
+	struct xfs_buf_map	*map,
+	int			nmaps,
+	xfs_buf_flags_t		flags,
+	struct xfs_buf		**bpp)
+{
+	int			error;
+
+	ASSERT(!(flags & ~(XBF_TRYLOCK | XBF_INCORE | XBF_LIVESCAN)));
+	ASSERT(!(flags & XBF_LIVESCAN) || (flags & XBF_INCORE));
+
+	/*
+	 * Zero the buffer and clear b_error as xfs_buf_get_map callers don't
+	 * expect valid data to be found in the buffer.
+	 */
+	error = xfs_find_get_buf(btp, map, nmaps, flags, bpp);
+	if (error)
+		return error;
+	XFS_STATS_INC(btp->bt_mount, xb_get);
+	trace_xfs_buf_get(*bpp, flags, _RET_IP_);
+	xfs_buf_ioerror(*bpp, 0);
 	return 0;
 }
 
@@ -625,12 +642,12 @@ xfs_buf_read_map(
 	struct xfs_buf		*bp;
 	int			error;
 
-	ASSERT(!(flags & (XBF_WRITE | XBF_ASYNC | XBF_READ_AHEAD)));
+	ASSERT(!(flags & ~XBF_TRYLOCK));
 
 	flags |= XBF_READ;
 	*bpp = NULL;
 
-	error = xfs_buf_get_map(target, map, nmaps, flags, &bp);
+	error = xfs_find_get_buf(target, map, nmaps, flags, &bp);
 	if (error)
 		return error;
 
@@ -706,7 +723,7 @@ xfs_buf_readahead_map(
 	if (xfs_buftarg_is_mem(target))
 		return;
 
-	if (xfs_buf_get_map(target, map, nmaps, flags | XBF_TRYLOCK, &bp))
+	if (xfs_find_get_buf(target, map, nmaps, flags | XBF_TRYLOCK, &bp))
 		return;
 	trace_xfs_buf_readahead(bp, 0, _RET_IP_);
 
