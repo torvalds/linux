@@ -358,7 +358,7 @@ static void rtw89_wow_get_key_info_iter(struct ieee80211_hw *hw,
 		key_info->gtk_keyidx = key->keyidx;
 		break;
 	default:
-		rtw89_debug(rtwdev, RTW89_DBG_WOW, "unsupport cipher %x\n",
+		rtw89_debug(rtwdev, RTW89_DBG_WOW, "unsupported cipher %x\n",
 			    key->cipher);
 		goto err;
 	}
@@ -443,7 +443,7 @@ static void rtw89_wow_set_key_info_iter(struct ieee80211_hw *hw,
 	case WLAN_CIPHER_SUITE_WEP104:
 		break;
 	default:
-		rtw89_debug(rtwdev, RTW89_DBG_WOW, "unsupport cipher %x\n",
+		rtw89_debug(rtwdev, RTW89_DBG_WOW, "unsupported cipher %x\n",
 			    key->cipher);
 		goto err;
 	}
