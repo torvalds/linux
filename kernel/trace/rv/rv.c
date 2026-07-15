@@ -164,7 +164,6 @@ struct dentry *get_monitors_root(void)
  */
 LIST_HEAD(rv_monitors_list);
 
-static int task_monitor_count;
 static bool task_monitor_slots[CONFIG_RV_PER_TASK_MONITORS];
 
 int rv_get_task_monitor_slot(void)
@@ -173,21 +172,14 @@ int rv_get_task_monitor_slot(void)
 
 	lockdep_assert_held(&rv_interface_lock);
 
-	if (task_monitor_count == CONFIG_RV_PER_TASK_MONITORS)
-		return -EBUSY;
-
-	task_monitor_count++;
-
 	for (i = 0; i < CONFIG_RV_PER_TASK_MONITORS; i++) {
-		if (task_monitor_slots[i] == false) {
+		if (!task_monitor_slots[i]) {
 			task_monitor_slots[i] = true;
 			return i;
 		}
 	}
 
-	WARN_ONCE(1, "RV task_monitor_count and slots are out of sync\n");
-
-	return -EINVAL;
+	return -EBUSY;
 }
 
 void rv_put_task_monitor_slot(int slot)
@@ -199,10 +191,10 @@ void rv_put_task_monitor_slot(int slot)
 		return;
 	}
 
-	WARN_ONCE(!task_monitor_slots[slot], "RV releasing unused task_monitor_slots: %d\n",
-		  slot);
+	if (WARN_ONCE(!task_monitor_slots[slot],
+		      "RV releasing unused task monitor slot: %d\n", slot))
+		return;
 
-	task_monitor_count--;
 	task_monitor_slots[slot] = false;
 }
 
