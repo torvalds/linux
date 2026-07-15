@@ -55,6 +55,13 @@ static inline bool xfs_buf_is_uncached(struct xfs_buf *bp)
 	return bp->b_rhash_key == XFS_BUF_DADDR_NULL;
 }
 
+void
+xfs_buf_set_uptodate(
+	struct xfs_buf	*bp)
+{
+	bp->b_flags |= XBF_DONE;
+}
+
 /*
  * When we mark a buffer stale, we remove the buffer from the LRU and clear the
  * b_lru_ref count so that the buffer is freed immediately when the buffer
@@ -83,6 +90,15 @@ xfs_buf_stale(
 	if (!__lockref_is_dead(&bp->b_lockref))
 		list_lru_del_obj(&bp->b_target->bt_lru, &bp->b_lru);
 	spin_unlock(&bp->b_lockref.lock);
+}
+
+void
+xfs_buf_clear_stale(
+	struct xfs_buf	*bp)
+{
+	ASSERT(bp->b_flags & XBF_STALE);
+
+	bp->b_flags &= ~XBF_STALE;
 }
 
 static void

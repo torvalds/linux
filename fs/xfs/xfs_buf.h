@@ -301,7 +301,9 @@ static inline void xfs_buf_zero(struct xfs_buf *bp, size_t boff, size_t bsize)
 	memset(bp->b_addr + boff, 0, bsize);
 }
 
-extern void xfs_buf_stale(struct xfs_buf *bp);
+void xfs_buf_set_uptodate(struct xfs_buf *bp);
+void xfs_buf_stale(struct xfs_buf *bp);
+void xfs_buf_clear_stale(struct xfs_buf *bp);
 
 /* Delayed Write Buffer Routines */
 extern void xfs_buf_delwri_cancel(struct list_head *);
