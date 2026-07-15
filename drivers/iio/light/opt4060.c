@@ -713,6 +713,7 @@ static ssize_t opt4060_read_ev_period(struct opt4060_chip *chip, int *val,
 {
 	int ret, pers, fault_count, int_time;
 	u64 uval;
+	u32 rem;
 
 	int_time = opt4060_int_time_reg[chip->int_time][0];
 
@@ -738,7 +739,8 @@ static ssize_t opt4060_read_ev_period(struct opt4060_chip *chip, int *val,
 	}
 
 	uval = mul_u32_u32(int_time, pers);
-	*val = div_u64_rem(uval, MICRO, val2);
+	*val = div_u64_rem(uval, MICRO, &rem);
+	*val2 = rem;
 
 	return IIO_VAL_INT_PLUS_MICRO;
 }
