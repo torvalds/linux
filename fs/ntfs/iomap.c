@@ -681,21 +681,7 @@ static int ntfs_write_iomap_begin_non_resident(struct inode *inode, loff_t offse
 					       loff_t length, unsigned int flags,
 					       struct iomap *iomap, int ntfs_iomap_flags)
 {
-	struct ntfs_inode *ni = NTFS_I(inode);
-
-	if (ntfs_iomap_flags & (NTFS_IOMAP_FLAGS_BEGIN | NTFS_IOMAP_FLAGS_DIO) &&
-	    offset + length > ni->initialized_size) {
-		int ret;
-
-		ret = ntfs_extend_initialized_size(inode, offset,
-						   offset + length,
-						   ntfs_iomap_flags &
-						   NTFS_IOMAP_FLAGS_DIO);
-		if (ret < 0)
-			return ret;
-	}
-
-	mutex_lock(&ni->mrec_lock);
+	mutex_lock(&NTFS_I(inode)->mrec_lock);
 	if (ntfs_iomap_flags & NTFS_IOMAP_FLAGS_BEGIN)
 		return  ntfs_write_simple_iomap_begin_non_resident(inode, offset,
 								   length, iomap);
@@ -711,27 +697,9 @@ static int __ntfs_write_iomap_begin(struct inode *inode, loff_t offset,
 				    struct iomap *iomap, int ntfs_iomap_flags)
 {
 	struct ntfs_inode *ni = NTFS_I(inode);
-	loff_t end = offset + length;
 
 	if (NVolShutdown(ni->vol))
 		return -EIO;
-
-	if (ntfs_iomap_flags & (NTFS_IOMAP_FLAGS_BEGIN | NTFS_IOMAP_FLAGS_DIO) &&
-	    end > ni->data_size) {
-		struct ntfs_volume *vol = ni->vol;
-		int ret;
-
-		mutex_lock(&ni->mrec_lock);
-		if (end > ni->allocated_size &&
-		    end < ni->allocated_size + vol->preallocated_size)
-			ret = ntfs_attr_expand(ni, end,
-					ni->allocated_size + vol->preallocated_size);
-		else
-			ret = ntfs_attr_expand(ni, end, 0);
-		mutex_unlock(&ni->mrec_lock);
-		if (ret)
-			return ret;
-	}
 
 	if (!NInoNonResident(ni)) {
 		mutex_lock(&ni->mrec_lock);

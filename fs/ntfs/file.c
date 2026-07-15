@@ -535,6 +535,31 @@ out:
 	return ret;
 }
 
+static int ntfs_expand_for_write(struct ntfs_inode *ni, loff_t end)
+{
+	struct ntfs_volume *vol = ni->vol;
+	loff_t prealloc_size = 0;
+	int err;
+
+	if (end <= ni->data_size)
+		return 0;
+
+	if (NInoCompressed(ni)) {
+		if (end > ni->allocated_size)
+			prealloc_size = round_up(end,
+						 ni->itype.compressed.block_size);
+	} else if (end > ni->allocated_size &&
+		   end < ni->allocated_size + vol->preallocated_size) {
+		prealloc_size = ni->allocated_size + vol->preallocated_size;
+	}
+
+	mutex_lock(&ni->mrec_lock);
+	err = ntfs_attr_expand(ni, end, prealloc_size);
+	mutex_unlock(&ni->mrec_lock);
+
+	return err;
+}
+
 static ssize_t ntfs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
@@ -543,7 +568,7 @@ static ssize_t ntfs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	struct ntfs_volume *vol = ni->vol;
 	ssize_t ret;
 	ssize_t count;
-	loff_t pos;
+	loff_t pos, end;
 	int err;
 	loff_t old_data_size, old_init_size;
 
@@ -580,9 +605,23 @@ static ssize_t ntfs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 
 	pos = iocb->ki_pos;
 	count = ret;
+	end = pos + count;
 
 	old_data_size = ni->data_size;
 	old_init_size = ni->initialized_size;
+
+	if (end > old_data_size) {
+		ret = ntfs_expand_for_write(ni, end);
+		if (ret < 0)
+			goto out;
+	}
+
+	if (NInoNonResident(ni) && !NInoCompressed(ni) &&
+	    end > old_init_size) {
+		ret = ntfs_extend_initialized_size(vi, pos, end);
+		if (ret < 0)
+			goto out;
+	}
 
 	if (NInoNonResident(ni) && NInoCompressed(ni)) {
 		ret = ntfs_compress_write(ni, pos, count, from);
@@ -655,7 +694,7 @@ static int ntfs_file_mmap_prepare(struct vm_area_desc *desc)
 			   from + desc->end - desc->start);
 
 		if (NTFS_I(inode)->initialized_size < to) {
-			err = ntfs_extend_initialized_size(inode, to, to, false);
+			err = ntfs_extend_initialized_size(inode, to, to);
 			if (err)
 				return err;
 		}

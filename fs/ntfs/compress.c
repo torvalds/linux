@@ -1459,16 +1459,6 @@ int ntfs_compress_write(struct ntfs_inode *ni, loff_t pos, size_t count,
 	size_t written = 0;
 	struct address_space *mapping = VFS_I(ni)->i_mapping;
 
-	if (NInoCompressed(ni) && pos + count > ni->allocated_size) {
-		int err;
-		loff_t end = pos + count;
-
-		err = ntfs_attr_expand(ni, end,
-				round_up(end, ni->itype.compressed.block_size));
-		if (err)
-			return err;
-	}
-
 	pages = kmalloc_array(pages_per_cb, sizeof(struct page *), GFP_NOFS);
 	if (!pages)
 		return -ENOMEM;
