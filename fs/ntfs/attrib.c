@@ -697,6 +697,11 @@ static bool ntfs_non_resident_attr_value_is_valid(const struct attr_record *a)
 	attr_len = le32_to_cpu(a->length);
 	min_len = offsetof(struct attr_record, data.non_resident.initialized_size) +
 		  sizeof(a->data.non_resident.initialized_size);
+
+	/* Sparse and compressed attributes have the extra compressed_size field */
+	if (a->flags & (ATTR_IS_SPARSE | ATTR_COMPRESSION_MASK))
+		min_len += sizeof(a->data.non_resident.compressed_size);
+
 	if (attr_len < min_len)
 		return false;
 
