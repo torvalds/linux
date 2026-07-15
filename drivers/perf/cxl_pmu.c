@@ -110,6 +110,7 @@ struct cxl_pmu_info {
 	int on_cpu;
 	struct hlist_node node;
 	bool filter_hdm;
+	bool filter_crb;
 	int irq;
 };
 
@@ -146,6 +147,8 @@ static int cxl_pmu_parse_caps(struct device *dev, struct cxl_pmu_info *info)
 	info->num_event_capabilities = FIELD_GET(CXL_PMU_CAP_NUM_EVN_CAP_REG_SUP_MSK, val) + 1;
 
 	info->filter_hdm = FIELD_GET(CXL_PMU_CAP_FILTERS_SUP_MSK, val) & CXL_PMU_FILTER_HDM;
+	info->filter_crb = FIELD_GET(CXL_PMU_CAP_FILTERS_SUP_MSK, val) &
+		CXL_PMU_FILTER_CHAN_RANK_BANK;
 	if (FIELD_GET(CXL_PMU_CAP_INT, val))
 		info->irq = FIELD_GET(CXL_PMU_CAP_MSI_N_MSK, val);
 	else
@@ -229,6 +232,8 @@ enum {
 	cxl_pmu_edge_attr,
 	cxl_pmu_hdm_filter_en_attr,
 	cxl_pmu_hdm_attr,
+	cxl_pmu_crb_filter_en_attr,
+	cxl_pmu_crb_attr,
 };
 
 static struct attribute *cxl_pmu_format_attr[] = {
@@ -240,6 +245,8 @@ static struct attribute *cxl_pmu_format_attr[] = {
 	[cxl_pmu_edge_attr] = CXL_PMU_FORMAT_ATTR(edge, "config1:17"),
 	[cxl_pmu_hdm_filter_en_attr] = CXL_PMU_FORMAT_ATTR(hdm_filter_en, "config1:18"),
 	[cxl_pmu_hdm_attr] = CXL_PMU_FORMAT_ATTR(hdm, "config2:0-15"),
+	[cxl_pmu_crb_filter_en_attr] = CXL_PMU_FORMAT_ATTR(crb_filter_en, "config1:19"),
+	[cxl_pmu_crb_attr] = CXL_PMU_FORMAT_ATTR(crb, "config2:32-63"),
 	NULL
 };
 
@@ -250,7 +257,9 @@ static struct attribute *cxl_pmu_format_attr[] = {
 #define CXL_PMU_ATTR_CONFIG1_INVERT_MSK		BIT(16)
 #define CXL_PMU_ATTR_CONFIG1_EDGE_MSK		BIT(17)
 #define CXL_PMU_ATTR_CONFIG1_FILTER_EN_MSK	BIT(18)
+#define CXL_PMU_ATTR_CONFIG1_CRB_FILTER_EN_MSK	BIT(19)
 #define CXL_PMU_ATTR_CONFIG2_HDM_MSK		GENMASK(15, 0)
+#define CXL_PMU_ATTR_CONFIG2_CRB_MSK		GENMASK_ULL(63, 32)
 
 static umode_t cxl_pmu_format_is_visible(struct kobject *kobj,
 					 struct attribute *attr, int a)
@@ -265,6 +274,11 @@ static umode_t cxl_pmu_format_is_visible(struct kobject *kobj,
 	if (!info->filter_hdm &&
 	    (attr == cxl_pmu_format_attr[cxl_pmu_hdm_filter_en_attr] ||
 	     attr == cxl_pmu_format_attr[cxl_pmu_hdm_attr]))
+		return 0;
+
+	if (!info->filter_crb &&
+	    (attr == cxl_pmu_format_attr[cxl_pmu_crb_filter_en_attr] ||
+	     attr == cxl_pmu_format_attr[cxl_pmu_crb_attr]))
 		return 0;
 
 	return attr->mode;
@@ -321,6 +335,17 @@ static bool cxl_pmu_config1_hdm_filter_en(struct perf_event *event)
 static u16 cxl_pmu_config2_get_hdm_decoder(struct perf_event *event)
 {
 	return FIELD_GET(CXL_PMU_ATTR_CONFIG2_HDM_MSK, event->attr.config2);
+}
+
+static u16 cxl_pmu_config1_crb_filter_en(struct perf_event *event)
+{
+	return FIELD_GET(CXL_PMU_ATTR_CONFIG1_CRB_FILTER_EN_MSK,
+			 event->attr.config1);
+}
+
+static u32 cxl_pmu_config2_get_crb(struct perf_event *event)
+{
+	return FIELD_GET(CXL_PMU_ATTR_CONFIG2_CRB_MSK, event->attr.config2);
 }
 
 static ssize_t cxl_pmu_event_sysfs_show(struct device *dev,
@@ -621,6 +646,36 @@ static int cxl_pmu_event_init(struct perf_event *event)
 		return -EOPNOTSUPP;
 	/* TODO: Validation of any filter */
 
+	if (cxl_pmu_config1_crb_filter_en(event)) {
+		if (!info->filter_crb)
+			return -EINVAL;
+		/* event group IDs are scoped by the CXL vendor ID */
+		if (cxl_pmu_config_get_vid(event) != PCI_VENDOR_ID_CXL)
+			return -EINVAL;
+
+		/*
+		 * CRB filtering (Filter ID 1) is only valid for the DDR
+		 * Interface, Queue Occupancy, Queue Residency and Retry
+		 * event groups (CXL 4.0 Table 13-5).
+		 */
+		switch (cxl_pmu_config_get_gid(event)) {
+		case CXL_PMU_GID_DDR:
+		case CXL_PMU_GID_QUEUE_OCC:
+		case CXL_PMU_GID_QUEUE_RESID:
+		case CXL_PMU_GID_RETRY_EVENTS:
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		/*
+		 * Filtering while counting multiple events is
+		 * undefined behavior.
+		 */
+		if (hweight32(cxl_pmu_config_get_mask(event)) > 1)
+			return -EINVAL;
+	}
+
 	/*
 	 * Verify that it is possible to count what was requested. Either must
 	 * be a fixed counter that is a precise match or a configurable counter
@@ -677,8 +732,8 @@ static void cxl_pmu_event_start(struct perf_event *event, int flags)
 	hwc->state = 0;
 
 	/*
-	 * Currently only hdm filter control is implemented, this code will
-	 * want generalizing when more filters are added.
+	 * Filter ID=0: HDM decoder filter
+	 * Filter ID=1: Channel/Rank/Bank (CRB) filter
 	 */
 	if (info->filter_hdm) {
 		if (cxl_pmu_config1_hdm_filter_en(event))
@@ -686,6 +741,14 @@ static void cxl_pmu_event_start(struct perf_event *event, int flags)
 		else
 			cfg = GENMASK(31, 0); /* No filtering if 0xFFFF_FFFF */
 		writel(cfg, base + CXL_PMU_FILTER_CFG_REG(hwc->idx, 0));
+	}
+
+	if (info->filter_crb) {
+		if (cxl_pmu_config1_crb_filter_en(event))
+			cfg = cxl_pmu_config2_get_crb(event);
+		else
+			cfg = GENMASK(31, 0); /* no filtering if 0xFFFF_FFFF */
+		writel(cfg, base + CXL_PMU_FILTER_CFG_REG(hwc->idx, 1));
 	}
 
 	cfg = readq(base + CXL_PMU_COUNTER_CFG_REG(hwc->idx));
