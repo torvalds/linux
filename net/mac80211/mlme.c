@@ -1701,8 +1701,7 @@ static int ieee80211_config_bw(struct ieee80211_link_data *link,
 	if (stype != IEEE80211_STYPE_BEACON &&
 	    chanreq.oper.npca_chan && elems->uhr_operation &&
 	    ieee80211_uhr_oper_size_ok((const void *)elems->uhr_operation,
-				       elems->uhr_operation_len,
-				       false)) {
+				       elems->uhr_operation_len)) {
 		const struct ieee80211_uhr_npca_info *npca;
 		struct ieee80211_bss_npca_params params = {};
 
