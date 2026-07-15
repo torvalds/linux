@@ -27,6 +27,13 @@ This API provides support for AES in the CBC and CBC-CTS modes of operation.
 
 .. kernel-doc:: include/crypto/aes-cbc.h
 
+AES-CTR and AES-XCTR
+--------------------
+
+This API provides support for AES in the CTR and XCTR modes of operation.
+
+.. kernel-doc:: include/crypto/aes-ctr.h
+
 AES-ECB
 -------
 

@@ -6,6 +6,7 @@
 
 #include <crypto/aes-cbc-macs.h>
 #include <crypto/aes-cbc.h>
+#include <crypto/aes-ctr.h>
 #include <crypto/aes-ecb.h>
 #include <crypto/aes.h>
 #include <crypto/utils.h>
@@ -979,6 +980,101 @@ void aes_cbc_cts_decrypt(u8 *dst, const u8 *src, size_t len,
 }
 EXPORT_SYMBOL_GPL(aes_cbc_cts_decrypt);
 #endif /* CONFIG_CRYPTO_LIB_AES_CBC */
+
+#if IS_ENABLED(CONFIG_CRYPTO_LIB_AES_CTR)
+/*
+ * Hooks for optimized AES-CTR and AES-XCTR implementations, overridable by the
+ * architecture.  They are called with any len >= 0.  Returning false causes the
+ * fallback implementation to be used instead.
+ */
+#ifndef aes_ctr_arch
+static bool aes_ctr_arch(u8 *dst, const u8 *src, size_t len,
+			 u8 ctr[AES_BLOCK_SIZE], const struct aes_enckey *key)
+{
+	return false;
+}
+#endif
+#ifndef aes_xctr_arch
+static bool aes_xctr_arch(u8 *dst, const u8 *src, size_t len, u64 *ctr,
+			  const u8 iv[AES_BLOCK_SIZE],
+			  const struct aes_enckey *key)
+{
+	return false;
+}
+#endif
+
+static __always_inline void inc_be128_ctr(u8 ctr[AES_BLOCK_SIZE])
+{
+	/*
+	 * 255 times out of 256 the first iteration is enough, so unroll the
+	 * first iteration as a micro-optimization.
+	 */
+	if ((++ctr[AES_BLOCK_SIZE - 1]) != 0)
+		return;
+	for (int i = AES_BLOCK_SIZE - 2; i >= 0; i--) {
+		if (++ctr[i] != 0)
+			break;
+	}
+}
+
+void aes_ctr(u8 *dst, const u8 *src, size_t len, u8 ctr[AES_BLOCK_SIZE],
+	     aes_encrypt_arg key)
+{
+	u8 keystream[AES_BLOCK_SIZE] __aligned(__alignof__(long));
+
+	if (likely(aes_ctr_arch(dst, src, len, ctr, key.enc_key)))
+		return;
+
+	/* Handle the full blocks. */
+	for (; len >= AES_BLOCK_SIZE; len -= AES_BLOCK_SIZE) {
+		aes_encrypt(key, keystream, ctr);
+		crypto_xor_cpy(dst, src, keystream, AES_BLOCK_SIZE);
+		inc_be128_ctr(ctr);
+		dst += AES_BLOCK_SIZE;
+		src += AES_BLOCK_SIZE;
+	}
+	/* Handle any partial block at the end. */
+	if (len) {
+		aes_encrypt(key, keystream, ctr);
+		crypto_xor_cpy(dst, src, keystream, len);
+		/* Counter is incremented even with just a partial block. */
+		inc_be128_ctr(ctr);
+	}
+	memzero_explicit(keystream, sizeof(keystream));
+}
+EXPORT_SYMBOL_GPL(aes_ctr);
+
+void aes_xctr(u8 *dst, const u8 *src, size_t len, u64 *ctr,
+	      const u8 iv[AES_BLOCK_SIZE], aes_encrypt_arg key)
+{
+	const __le64 iv0 = get_unaligned((const __le64 *)&iv[0]);
+	__le64 aes_input[2];
+	u8 keystream[AES_BLOCK_SIZE] __aligned(__alignof__(long));
+
+	if (likely(aes_xctr_arch(dst, src, len, ctr, iv, key.enc_key)))
+		return;
+
+	aes_input[1] = get_unaligned((const __le64 *)&iv[8]);
+	/* Handle the full blocks. */
+	for (; len >= AES_BLOCK_SIZE; len -= AES_BLOCK_SIZE) {
+		aes_input[0] = iv0 ^ cpu_to_le64((*ctr)++);
+		aes_encrypt(key, keystream, (const u8 *)aes_input);
+		crypto_xor_cpy(dst, src, keystream, AES_BLOCK_SIZE);
+		dst += AES_BLOCK_SIZE;
+		src += AES_BLOCK_SIZE;
+	}
+	/* Handle any partial block at the end. */
+	if (len) {
+		/* Counter is incremented even with just a partial block. */
+		aes_input[0] = iv0 ^ cpu_to_le64((*ctr)++);
+		aes_encrypt(key, keystream, (const u8 *)aes_input);
+		crypto_xor_cpy(dst, src, keystream, len);
+	}
+	memzero_explicit(keystream, sizeof(keystream));
+	memzero_explicit(aes_input, sizeof(aes_input));
+}
+EXPORT_SYMBOL_GPL(aes_xctr);
+#endif /* CONFIG_CRYPTO_LIB_AES_CTR */
 
 static int __init aes_mod_init(void)
 {
