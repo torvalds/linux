@@ -9,9 +9,11 @@
 #include <crypto/aes-cbc.h>
 #include <crypto/aes-ctr.h>
 #include <crypto/aes-ecb.h>
+#include <crypto/aes-gcm.h>
 #include <crypto/aes-xts.h>
 #include <crypto/aes.h>
 #include <crypto/algapi.h>
+#include <crypto/internal/aead.h>
 #include <crypto/internal/hash.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/scatterwalk.h>
@@ -315,6 +317,29 @@ skcipher_request_is_linear_lowmem(const struct skcipher_request *req)
 			} while (remaining);                                   \
 			memzero_explicit(tmp, sizeof(tmp));                    \
 		}                                                              \
+	})
+
+/*
+ * Call ad_func() as needed to process the associated data in the first
+ * 'assoclen' bytes of the scatterlist 'src'.
+ */
+#define AES_PROCESS_ASSOC_DATA(ad_func, src, assoclen, ctx)                 \
+	({                                                                  \
+		unsigned int remaining = (assoclen);                        \
+                                                                            \
+		if (remaining != 0) {                                       \
+			struct scatter_walk walk;                           \
+                                                                            \
+			scatterwalk_start(&walk, (src));                    \
+			do {                                                \
+				unsigned int n =                            \
+					scatterwalk_next(&walk, remaining); \
+                                                                            \
+				ad_func((ctx), walk.addr, n);               \
+				scatterwalk_done_src(&walk, n);             \
+				remaining -= n;                             \
+			} while (remaining);                                \
+		}                                                           \
 	})
 
 /* AES-ECB */
@@ -679,6 +704,208 @@ static struct skcipher_alg skcipher_algs[] = {
 #endif
 };
 
+/* AES-GCM */
+
+static __maybe_unused int crypto_aes_gcm_setkey(struct crypto_aead *tfm,
+						const u8 *in_key,
+						unsigned int key_len)
+{
+	struct aes_gcm_key *key = crypto_aead_ctx(tfm);
+
+	return aes_gcm_preparekey(key, in_key, key_len,
+				  crypto_aead_authsize(tfm));
+}
+
+static __maybe_unused int crypto_aes_gcm_setauthsize(struct crypto_aead *tfm,
+						     unsigned int authsize)
+{
+	struct aes_gcm_key *key = crypto_aead_ctx(tfm);
+
+	if (crypto_gcm_check_authsize(authsize) != 0)
+		return -EINVAL;
+	/* Synchronize the tag length to the struct aes_gcm_key. */
+	key->authtag_len = authsize;
+	return 0;
+}
+
+static void crypto_aes_gcm_auth_update(struct aes_gcm_ctx *ctx,
+				       struct scatterlist *src,
+				       unsigned int assoclen)
+{
+	AES_PROCESS_ASSOC_DATA(aes_gcm_auth_update, src, assoclen, ctx);
+}
+
+static void aes_gcm_encrypt_update_helper(u8 *dst, const u8 *src,
+					  unsigned int len,
+					  struct aes_gcm_ctx *ctx)
+{
+	aes_gcm_encrypt_update(ctx, dst, src, len);
+}
+
+static void aes_gcm_decrypt_update_helper(u8 *dst, const u8 *src,
+					  unsigned int len,
+					  struct aes_gcm_ctx *ctx)
+{
+	aes_gcm_decrypt_update(ctx, dst, src, len);
+}
+
+static int crypto_aes_gcm_encrypt_common(struct aead_request *req,
+					 const struct aes_gcm_key *key,
+					 u8 iv[12], unsigned int assoclen)
+{
+	struct aes_gcm_ctx ctx;
+	u8 authtag[16];
+
+	aes_gcm_init(&ctx, iv, key);
+	crypto_aes_gcm_auth_update(&ctx, req->src, assoclen);
+	AES_CRYPT_SG(aes_gcm_encrypt_update_helper, req->dst, req->src,
+		     req->cryptlen, req->assoclen, &ctx);
+	aes_gcm_encrypt_final(&ctx, authtag);
+	memcpy_to_sglist(req->dst, req->assoclen + req->cryptlen, authtag,
+			 key->authtag_len);
+	memzero_explicit(authtag, sizeof(authtag));
+	return 0;
+}
+
+static int crypto_aes_gcm_decrypt_common(struct aead_request *req,
+					 const struct aes_gcm_key *key,
+					 u8 iv[12], unsigned int assoclen)
+{
+	struct aes_gcm_ctx ctx;
+	unsigned int data_len;
+	u8 authtag[16];
+	int err;
+
+	aes_gcm_init(&ctx, iv, key);
+	crypto_aes_gcm_auth_update(&ctx, req->src, assoclen);
+
+	/* crypto_aead_decrypt() already checked cryptlen >= authtag_len. */
+	data_len = req->cryptlen - key->authtag_len;
+	AES_CRYPT_SG(aes_gcm_decrypt_update_helper, req->dst, req->src,
+		     data_len, req->assoclen, &ctx);
+
+	memcpy_from_sglist(authtag, req->src, req->assoclen + data_len,
+			   key->authtag_len);
+	err = aes_gcm_decrypt_final(&ctx, authtag);
+	memzero_explicit(authtag, sizeof(authtag));
+	return err;
+}
+
+static __maybe_unused int crypto_aes_gcm_encrypt(struct aead_request *req)
+{
+	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
+	const struct aes_gcm_key *key = crypto_aead_ctx(tfm);
+
+	return crypto_aes_gcm_encrypt_common(req, key, req->iv, req->assoclen);
+}
+
+static __maybe_unused int crypto_aes_gcm_decrypt(struct aead_request *req)
+{
+	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
+	const struct aes_gcm_key *key = crypto_aead_ctx(tfm);
+
+	return crypto_aes_gcm_decrypt_common(req, key, req->iv, req->assoclen);
+}
+
+struct aes_rfc4106_key {
+	struct aes_gcm_key gcm;
+	u8 nonce[4];
+};
+
+static __maybe_unused int crypto_aes_rfc4106_setkey(struct crypto_aead *tfm,
+						    const u8 *in_key,
+						    unsigned int key_len)
+{
+	struct aes_rfc4106_key *key = crypto_aead_ctx(tfm);
+
+	if (key_len < 4)
+		return -EINVAL;
+
+	key_len -= 4;
+	memcpy(key->nonce, in_key + key_len, 4);
+
+	return aes_gcm_preparekey(&key->gcm, in_key, key_len,
+				  crypto_aead_authsize(tfm));
+}
+
+static __maybe_unused int
+crypto_aes_rfc4106_setauthsize(struct crypto_aead *tfm, unsigned int authsize)
+{
+	struct aes_rfc4106_key *key = crypto_aead_ctx(tfm);
+
+	if (crypto_rfc4106_check_authsize(authsize) != 0)
+		return -EINVAL;
+
+	/* Synchronize the tag length to the struct aes_gcm_key. */
+	key->gcm.authtag_len = authsize;
+	return 0;
+}
+
+static __maybe_unused int crypto_aes_rfc4106_encrypt(struct aead_request *req)
+{
+	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
+	const struct aes_rfc4106_key *key = crypto_aead_ctx(tfm);
+	u8 iv[12];
+
+	if (crypto_ipsec_check_assoclen(req->assoclen) != 0)
+		return -EINVAL;
+	memcpy(iv, key->nonce, 4);
+	memcpy(&iv[4], req->iv, 8);
+
+	return crypto_aes_gcm_encrypt_common(req, &key->gcm, iv,
+					     req->assoclen - 8);
+}
+
+static __maybe_unused int crypto_aes_rfc4106_decrypt(struct aead_request *req)
+{
+	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
+	const struct aes_rfc4106_key *key = crypto_aead_ctx(tfm);
+	u8 iv[12];
+
+	if (crypto_ipsec_check_assoclen(req->assoclen) != 0)
+		return -EINVAL;
+	memcpy(iv, key->nonce, 4);
+	memcpy(&iv[4], req->iv, 8);
+
+	return crypto_aes_gcm_decrypt_common(req, &key->gcm, iv,
+					     req->assoclen - 8);
+}
+
+static struct aead_alg aead_algs[] = {
+#if IS_ENABLED(CONFIG_CRYPTO_GCM)
+	{
+		.base.cra_name = "gcm(aes)",
+		.base.cra_driver_name = "gcm-aes-lib",
+		.base.cra_priority = 110,
+		.base.cra_blocksize = 1,
+		.base.cra_ctxsize = sizeof(struct aes_gcm_key),
+		.base.cra_module = THIS_MODULE,
+		.setkey = crypto_aes_gcm_setkey,
+		.setauthsize = crypto_aes_gcm_setauthsize,
+		.encrypt = crypto_aes_gcm_encrypt,
+		.decrypt = crypto_aes_gcm_decrypt,
+		.ivsize = GCM_AES_IV_SIZE,
+		.maxauthsize = AES_BLOCK_SIZE,
+		.chunksize = AES_BLOCK_SIZE,
+	},
+	{
+		.base.cra_name = "rfc4106(gcm(aes))",
+		.base.cra_driver_name = "rfc4106-gcm-aes-lib",
+		.base.cra_priority = 110,
+		.base.cra_blocksize = 1,
+		.base.cra_ctxsize = sizeof(struct aes_rfc4106_key),
+		.base.cra_module = THIS_MODULE,
+		.setkey = crypto_aes_rfc4106_setkey,
+		.setauthsize = crypto_aes_rfc4106_setauthsize,
+		.encrypt = crypto_aes_rfc4106_encrypt,
+		.decrypt = crypto_aes_rfc4106_decrypt,
+		.ivsize = GCM_RFC4106_IV_SIZE,
+		.maxauthsize = AES_BLOCK_SIZE,
+		.chunksize = AES_BLOCK_SIZE,
+	},
+#endif /* CONFIG_CRYPTO_GCM */
+};
+
 static int __init crypto_aes_mod_init(void)
 {
 	int err = crypto_register_alg(&alg);
@@ -698,8 +925,18 @@ static int __init crypto_aes_mod_init(void)
 		if (err)
 			goto err_unregister_macs;
 	}
+
+	if (ARRAY_SIZE(aead_algs) > 0) {
+		err = crypto_register_aeads(aead_algs, ARRAY_SIZE(aead_algs));
+		if (err)
+			goto err_unregister_skciphers;
+	} /* Else, CONFIG_CRYPTO_AEAD might not be enabled. */
 	return 0;
 
+err_unregister_skciphers:
+	if (ARRAY_SIZE(skcipher_algs) > 0)
+		crypto_unregister_skciphers(skcipher_algs,
+					    ARRAY_SIZE(skcipher_algs));
 err_unregister_macs:
 	if (ARRAY_SIZE(mac_algs) > 0)
 		crypto_unregister_shashes(mac_algs, ARRAY_SIZE(mac_algs));
@@ -711,6 +948,8 @@ module_init(crypto_aes_mod_init);
 
 static void __exit crypto_aes_mod_exit(void)
 {
+	if (ARRAY_SIZE(aead_algs) > 0)
+		crypto_unregister_aeads(aead_algs, ARRAY_SIZE(aead_algs));
 	if (ARRAY_SIZE(skcipher_algs) > 0)
 		crypto_unregister_skciphers(skcipher_algs,
 					    ARRAY_SIZE(skcipher_algs));
@@ -760,4 +999,10 @@ MODULE_ALIAS_CRYPTO("xctr-aes-lib");
 #if IS_ENABLED(CONFIG_CRYPTO_XTS)
 MODULE_ALIAS_CRYPTO("xts(aes)");
 MODULE_ALIAS_CRYPTO("xts-aes-lib");
+#endif
+#if IS_ENABLED(CONFIG_CRYPTO_GCM)
+MODULE_ALIAS_CRYPTO("gcm(aes)");
+MODULE_ALIAS_CRYPTO("gcm-aes-lib");
+MODULE_ALIAS_CRYPTO("rfc4106(gcm(aes))");
+MODULE_ALIAS_CRYPTO("rfc4106-gcm-aes-lib");
 #endif
