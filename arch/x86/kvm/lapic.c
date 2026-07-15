@@ -1497,8 +1497,7 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 		break;
 
 	default:
-		printk(KERN_ERR "TODO: unsupported delivery mode %x\n",
-		       delivery_mode);
+		WARN_ON_ONCE(1);
 		break;
 	}
 	return result;
