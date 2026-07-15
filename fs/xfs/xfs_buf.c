@@ -469,7 +469,6 @@ xfs_buf_lookup(
 static int
 xfs_buf_find_insert(
 	struct xfs_buftarg	*btp,
-	struct xfs_perag	*pag,
 	struct xfs_buf_map	*cmap,
 	struct xfs_buf_map	*map,
 	int			nmaps,
@@ -482,10 +481,13 @@ xfs_buf_find_insert(
 
 	error = xfs_buf_alloc(btp, map, nmaps, flags, &new_bp);
 	if (error)
-		goto out_drop_pag;
+		return error;
 
 	/* The new buffer keeps the perag reference until it is freed. */
-	new_bp->b_pag = pag;
+	if (!xfs_buftarg_is_mem(btp)) {
+		new_bp->b_pag = xfs_perag_get(btp->bt_mount,
+			xfs_daddr_to_agno(btp->bt_mount, cmap->bm_bn));
+	}
 
 retry:
 	rcu_read_lock();
@@ -520,23 +522,10 @@ retry:
 	return 0;
 
 out_free_buf:
+	if (new_bp->b_pag)
+		xfs_perag_put(new_bp->b_pag);
 	xfs_buf_free(new_bp);
-out_drop_pag:
-	if (pag)
-		xfs_perag_put(pag);
 	return error;
-}
-
-static inline struct xfs_perag *
-xfs_buftarg_get_pag(
-	struct xfs_buftarg		*btp,
-	const struct xfs_buf_map	*map)
-{
-	struct xfs_mount		*mp = btp->bt_mount;
-
-	if (xfs_buftarg_is_mem(btp))
-		return NULL;
-	return xfs_perag_get(mp, xfs_daddr_to_agno(mp, map->bm_bn));
 }
 
 /*
@@ -552,7 +541,6 @@ xfs_buf_get_map(
 	xfs_buf_flags_t		flags,
 	struct xfs_buf		**bpp)
 {
-	struct xfs_perag	*pag;
 	struct xfs_buf		*bp = NULL;
 	struct xfs_buf_map	cmap = { .bm_bn = map[0].bm_bn };
 	int			error;
@@ -567,28 +555,21 @@ xfs_buf_get_map(
 	if (error)
 		return error;
 
-	pag = xfs_buftarg_get_pag(btp, &cmap);
-
 	error = xfs_buf_lookup(btp, &cmap, flags, &bp);
 	if (error && error != -ENOENT)
-		goto out_put_perag;
+		return error;
 
 	/* cache hits always outnumber misses by at least 10:1 */
 	if (unlikely(!bp)) {
 		XFS_STATS_INC(btp->bt_mount, xb_miss_locked);
 
 		if (flags & XBF_INCORE)
-			goto out_put_perag;
-
-		/* xfs_buf_find_insert() consumes the perag reference. */
-		error = xfs_buf_find_insert(btp, pag, &cmap, map, nmaps,
-				flags, &bp);
+			return 0;
+		error = xfs_buf_find_insert(btp, &cmap, map, nmaps, flags, &bp);
 		if (error)
 			return error;
 	} else {
 		XFS_STATS_INC(btp->bt_mount, xb_get_locked);
-		if (pag)
-			xfs_perag_put(pag);
 	}
 
 	/*
@@ -602,11 +583,6 @@ xfs_buf_get_map(
 	trace_xfs_buf_get(bp, flags, _RET_IP_);
 	*bpp = bp;
 	return 0;
-
-out_put_perag:
-	if (pag)
-		xfs_perag_put(pag);
-	return error;
 }
 
 int
