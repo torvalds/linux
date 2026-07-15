@@ -2316,67 +2316,54 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 
 	scodec->regmap = devm_regmap_init_mmio(&pdev->dev, base,
 					       quirks->regmap_config);
-	if (IS_ERR(scodec->regmap)) {
-		dev_err(&pdev->dev, "Failed to create our regmap\n");
-		return PTR_ERR(scodec->regmap);
-	}
+	if (IS_ERR(scodec->regmap))
+		return dev_err_probe(&pdev->dev, PTR_ERR(scodec->regmap),
+				     "Failed to create our regmap\n");
 
 	/* Get the clocks from the DT */
 	scodec->clk_apb = devm_clk_get_enabled(&pdev->dev, "apb");
-	if (IS_ERR(scodec->clk_apb)) {
-		dev_err(&pdev->dev, "Failed to get the APB clock\n");
-		return PTR_ERR(scodec->clk_apb);
-	}
+	if (IS_ERR(scodec->clk_apb))
+		return dev_err_probe(&pdev->dev, PTR_ERR(scodec->clk_apb),
+				     "Failed to get the APB clock\n");
 
 	scodec->clk_module = devm_clk_get(&pdev->dev, "codec");
-	if (IS_ERR(scodec->clk_module)) {
-		dev_err(&pdev->dev, "Failed to get the module clock\n");
-		return PTR_ERR(scodec->clk_module);
-	}
+	if (IS_ERR(scodec->clk_module))
+		return dev_err_probe(&pdev->dev, PTR_ERR(scodec->clk_module),
+				     "Failed to get the module clock\n");
 
 	if (quirks->has_reset) {
 		scodec->rst = devm_reset_control_get_exclusive_deasserted(&pdev->dev, NULL);
-		if (IS_ERR(scodec->rst)) {
-			dev_err(&pdev->dev, "Failed to get reset control\n");
-			return PTR_ERR(scodec->rst);
-		}
+		if (IS_ERR(scodec->rst))
+			return dev_err_probe(&pdev->dev, PTR_ERR(scodec->rst),
+					     "Failed to get reset control\n");
 	}
 
 	scodec->gpio_pa = devm_gpiod_get_optional(&pdev->dev, "allwinner,pa",
 						  GPIOD_OUT_LOW);
-	if (IS_ERR(scodec->gpio_pa)) {
-		ret = PTR_ERR(scodec->gpio_pa);
-		dev_err_probe(&pdev->dev, ret, "Failed to get pa gpio\n");
-		return ret;
-	}
+	if (IS_ERR(scodec->gpio_pa))
+		return dev_err_probe(&pdev->dev, PTR_ERR(scodec->gpio_pa),
+				     "Failed to get pa gpio\n");
+
 
 	scodec->gpio_hp = devm_gpiod_get_optional(&pdev->dev, "hp-det", GPIOD_IN);
-	if (IS_ERR(scodec->gpio_hp)) {
-		ret = PTR_ERR(scodec->gpio_hp);
-		dev_err_probe(&pdev->dev, ret, "Failed to get hp-det gpio\n");
-		return ret;
-	}
+	if (IS_ERR(scodec->gpio_hp))
+		return dev_err_probe(&pdev->dev, PTR_ERR(scodec->gpio_hp),
+				     "Failed to get hp-det gpio\n");
 
 	/* reg_field setup */
 	scodec->reg_adc_fifoc = devm_regmap_field_alloc(&pdev->dev,
 							scodec->regmap,
 							quirks->reg_adc_fifoc);
-	if (IS_ERR(scodec->reg_adc_fifoc)) {
-		ret = PTR_ERR(scodec->reg_adc_fifoc);
-		dev_err(&pdev->dev, "Failed to create regmap fields: %d\n",
-			ret);
-		return ret;
-	}
+	if (IS_ERR(scodec->reg_adc_fifoc))
+		return dev_err_probe(&pdev->dev, PTR_ERR(scodec->reg_adc_fifoc),
+				     "Failed to create regmap fields\n");
 
 	scodec->reg_dac_fifoc = devm_regmap_field_alloc(&pdev->dev,
 							scodec->regmap,
 							quirks->reg_dac_fifoc);
-	if (IS_ERR(scodec->reg_dac_fifoc)) {
-		ret = PTR_ERR(scodec->reg_dac_fifoc);
-		dev_err(&pdev->dev, "Failed to create regmap fields: %d\n",
-			ret);
-		return ret;
-	}
+	if (IS_ERR(scodec->reg_dac_fifoc))
+		return dev_err_probe(&pdev->dev, PTR_ERR(scodec->reg_dac_fifoc),
+				     "Failed to create regmap fields\n");
 
 	/* DMA configuration for TX FIFO */
 	scodec->playback_dma_data.addr = res->start + quirks->reg_dac_txdata;
@@ -2422,10 +2409,9 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 	snd_soc_card_set_drvdata(card, scodec);
 
 	ret = snd_soc_register_card(card);
-	if (ret) {
-		dev_err_probe(&pdev->dev, ret, "Failed to register our card\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret,
+				     "Failed to register our card\n");
 
 	return 0;
 }
