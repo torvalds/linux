@@ -2307,13 +2307,14 @@ ieee80211_add_link_elems(struct ieee80211_sub_if_data *sdata,
 	offset = ieee80211_add_before_reg_conn(skb, extra_elems,
 					       extra_elems_len, offset);
 
-	if (sband->band == NL80211_BAND_6GHZ) {
+	/* only add this on the assoc link, not in per-STA profiles */
+	if (link) {
 		/*
 		 * as per Section E.2.7 of IEEE 802.11 REVme D7.0, non-AP STA
 		 * capable of operating on the 6 GHz band shall transmit
 		 * regulatory connectivity element.
 		 */
-		ieee80211_put_reg_conn(skb, chan->flags);
+		ieee80211_put_reg_conn(sdata, skb);
 	}
 
 	/*
@@ -2564,11 +2565,8 @@ ieee80211_link_common_elems_size(struct ieee80211_sub_if_data *sdata,
 		sizeof(struct ieee80211_he_mcs_nss_supp) +
 		IEEE80211_HE_PPE_THRES_MAX_LEN;
 
-	if (sband->band == NL80211_BAND_6GHZ) {
+	if (sband->band == NL80211_BAND_6GHZ)
 		size += 2 + 1 + sizeof(struct ieee80211_he_6ghz_capa);
-		/* reg connection */
-		size += 4;
-	}
 
 	size += 2 + 1 + sizeof(struct ieee80211_eht_cap_elem) +
 		sizeof(struct ieee80211_eht_mcs_nss_supp) +
@@ -2615,7 +2613,8 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	       2 + assoc_data->ssid_len + /* SSID */
 	       assoc_data->ie_len + /* extra IEs */
 	       (assoc_data->fils_kek_len ? 16 /* AES-SIV */ : 0) +
-	       9; /* WMM */
+	       9 /* WMM */ +
+	       4 /* regulatory connectivity, if 6 GHz is supported */;
 
 	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++) {
 		struct cfg80211_bss *cbss = assoc_data->link[link_id].bss;
