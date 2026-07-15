@@ -1404,6 +1404,28 @@ config NVIDIA_CARMEL_CNP_ERRATUM
 
 	  If unsure, say Y.
 
+config NVIDIA_OLYMPUS_1027_ERRATUM
+	bool "NVIDIA Olympus: device store/load ordering erratum"
+	default y
+	help
+	  This option adds an alternative code sequence to work around an
+	  NVIDIA Olympus core erratum where a Device-nGnR* store can be
+	  observed by a peripheral after a younger Device-nGnR* load to the
+	  same peripheral. This breaks the program order that drivers rely
+	  on for MMIO and can leave a device in an incorrect state.
+
+	  The workaround inserts a DMB OSH immediately before raw MMIO loads.
+	  The erratum cannot occur when a DMB that orders loads appears
+	  between the store and load, preventing the younger load from being
+	  observed before the older store.
+
+	  The alternatives framework patches in DMB OSH only when an affected
+	  CPU is detected. Other CPUs execute a NOP in its place. Disabling
+	  this option leaves the original MMIO read instruction stream
+	  unchanged.
+
+	  If unsure, say Y.
+
 config ROCKCHIP_ERRATUM_3568002
 	bool "Rockchip 3568002: GIC600 can not access physical addresses higher than 4GB"
 	default y

@@ -54,7 +54,9 @@ static __always_inline void __raw_writeq(u64 val, volatile void __iomem *addr)
 static __always_inline u8 __raw_readb(const volatile void __iomem *addr)
 {
 	u8 val;
-	asm volatile(ALTERNATIVE("ldrb %w0, [%1]",
+	asm volatile(ALTERNATIVE("nop", "dmb osh",
+				 ARM64_WORKAROUND_NVIDIA_OLYMPUS_1027)
+		     ALTERNATIVE("ldrb %w0, [%1]",
 				 "ldarb %w0, [%1]",
 				 ARM64_WORKAROUND_DEVICE_LOAD_ACQUIRE)
 		     : "=r" (val) : "r" (addr));
@@ -66,7 +68,9 @@ static __always_inline u16 __raw_readw(const volatile void __iomem *addr)
 {
 	u16 val;
 
-	asm volatile(ALTERNATIVE("ldrh %w0, [%1]",
+	asm volatile(ALTERNATIVE("nop", "dmb osh",
+				 ARM64_WORKAROUND_NVIDIA_OLYMPUS_1027)
+		     ALTERNATIVE("ldrh %w0, [%1]",
 				 "ldarh %w0, [%1]",
 				 ARM64_WORKAROUND_DEVICE_LOAD_ACQUIRE)
 		     : "=r" (val) : "r" (addr));
@@ -77,7 +81,9 @@ static __always_inline u16 __raw_readw(const volatile void __iomem *addr)
 static __always_inline u32 __raw_readl(const volatile void __iomem *addr)
 {
 	u32 val;
-	asm volatile(ALTERNATIVE("ldr %w0, [%1]",
+	asm volatile(ALTERNATIVE("nop", "dmb osh",
+				 ARM64_WORKAROUND_NVIDIA_OLYMPUS_1027)
+		     ALTERNATIVE("ldr %w0, [%1]",
 				 "ldar %w0, [%1]",
 				 ARM64_WORKAROUND_DEVICE_LOAD_ACQUIRE)
 		     : "=r" (val) : "r" (addr));
@@ -88,7 +94,9 @@ static __always_inline u32 __raw_readl(const volatile void __iomem *addr)
 static __always_inline u64 __raw_readq(const volatile void __iomem *addr)
 {
 	u64 val;
-	asm volatile(ALTERNATIVE("ldr %0, [%1]",
+	asm volatile(ALTERNATIVE("nop", "dmb osh",
+				 ARM64_WORKAROUND_NVIDIA_OLYMPUS_1027)
+		     ALTERNATIVE("ldr %0, [%1]",
 				 "ldar %0, [%1]",
 				 ARM64_WORKAROUND_DEVICE_LOAD_ACQUIRE)
 		     : "=r" (val) : "r" (addr));
