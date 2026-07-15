@@ -130,8 +130,7 @@ int si476x_core_start(struct si476x_core *core, bool soft)
 	int err;
 
 	if (!soft) {
-		if (core->reset)
-			gpiod_set_value_cansleep(core->reset, 0);
+		gpiod_set_value_cansleep(core->reset, 0);
 
 		if (client->irq)
 			enable_irq(client->irq);
@@ -197,8 +196,7 @@ disable_irq:
 	else
 		cancel_delayed_work_sync(&core->status_monitor);
 
-	if (core->reset)
-		gpiod_set_value_cansleep(core->reset, 1);
+	gpiod_set_value_cansleep(core->reset, 1);
 
 	return err;
 }
@@ -242,10 +240,9 @@ int si476x_core_stop(struct si476x_core *core, bool soft)
 	else
 		cancel_delayed_work_sync(&core->status_monitor);
 
-	if (!soft) {
-		if (core->reset)
-			gpiod_set_value_cansleep(core->reset, 1);
-	}
+	if (!soft)
+		gpiod_set_value_cansleep(core->reset, 1);
+
 	return err;
 }
 EXPORT_SYMBOL_GPL(si476x_core_stop);
