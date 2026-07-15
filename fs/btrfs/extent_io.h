@@ -255,6 +255,11 @@ bool try_release_extent_mapping(struct folio *folio, gfp_t mask);
 int try_release_extent_buffer(struct folio *folio);
 
 int btrfs_read_folio(struct file *file, struct folio *folio);
+#ifdef CONFIG_BTRFS_DEBUG
+void btrfs_check_folio_write_protected(struct folio *folio);
+#else
+static inline void btrfs_check_folio_write_protected(struct folio *folio) { }
+#endif
 void extent_write_locked_range(struct inode *inode, const struct folio *locked_folio,
 			       u64 start, u64 end, struct writeback_control *wbc,
 			       bool pages_dirty);
