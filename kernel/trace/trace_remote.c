@@ -1149,9 +1149,20 @@ static ssize_t remote_events_dir_enable_write(struct file *filp, const char __us
 
 	for (i = 0; i < remote->nr_events; i++) {
 		struct remote_event *evt = &remote->events[i];
+		int eret;
 
-		trace_remote_enable_event(remote, evt, enable);
+		eret = trace_remote_enable_event(remote, evt, enable);
+		/*
+		 * Save the first error and return that. Some events
+		 * may still have been enabled, but let the user
+		 * know that something went wrong.
+		 */
+		if (!ret && eret)
+			ret = eret;
 	}
+
+	if (ret)
+		return ret;
 
 	return count;
 }
