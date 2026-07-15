@@ -268,21 +268,17 @@ static int ntfs_setattr_size(struct inode *vi, struct iattr *attr)
 		return err;
 
 	inode_dio_wait(vi);
-	truncate_setsize(vi, attr->ia_size);
+	if (attr->ia_size > old_size) {
+		truncate_pagecache(vi, old_size);
+		i_size_write(vi, attr->ia_size);
+		pagecache_isize_extended(vi, old_size, attr->ia_size);
+	} else
+		truncate_setsize(vi, attr->ia_size);
+
 	err = ntfs_truncate_vfs(vi, attr->ia_size, old_size);
 	if (err) {
 		i_size_write(vi, old_size);
 		return err;
-	}
-
-	if (NInoNonResident(ni) && attr->ia_size > old_size &&
-	    old_size % PAGE_SIZE != 0) {
-		loff_t len = min_t(loff_t,
-				round_up(old_size, PAGE_SIZE) - old_size,
-				attr->ia_size - old_size);
-		err = iomap_zero_range(vi, old_size, len,
-				NULL, &ntfs_seek_iomap_ops,
-				&ntfs_iomap_folio_ops, NULL);
 	}
 
 	return err;
@@ -1165,13 +1161,9 @@ out:
 		filemap_invalidate_unlock(vi->i_mapping);
 	if (!err) {
 		if (mode == 0 && NInoNonResident(ni) &&
-		    offset > old_size && old_size % PAGE_SIZE != 0) {
-			loff_t len = min_t(loff_t,
-					   round_up(old_size, PAGE_SIZE) - old_size,
-					   offset - old_size);
-			err = iomap_zero_range(vi, old_size, len, NULL,
-					       &ntfs_seek_iomap_ops,
-					       &ntfs_iomap_folio_ops, NULL);
+		    offset > old_size) {
+			truncate_pagecache(vi, old_size);
+			pagecache_isize_extended(vi, old_size, offset);
 		}
 		NInoSetFileNameDirty(ni);
 		inode_set_mtime_to_ts(vi, inode_set_ctime_current(vi));
