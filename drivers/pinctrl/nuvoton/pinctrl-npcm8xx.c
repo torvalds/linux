@@ -538,7 +538,7 @@ static const int wdog2_pins[] = { 219 };
 
 static const int bmcuart0a_pins[] = { 41, 42 };
 static const int bmcuart0b_pins[] = { 48, 49 };
-static const int bmcuart1_pins[] = { 43, 44, 62, 63 };
+static const int bmcuart1_pins[] = { 43, 63 };
 
 static const int scipme_pins[] = { 169 };
 static const int smi_pins[] = { 170 };
