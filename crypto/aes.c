@@ -7,6 +7,7 @@
 
 #include <crypto/aes-cbc-macs.h>
 #include <crypto/aes-cbc.h>
+#include <crypto/aes-ccm.h>
 #include <crypto/aes-ctr.h>
 #include <crypto/aes-ecb.h>
 #include <crypto/aes-gcm.h>
@@ -871,6 +872,113 @@ static __maybe_unused int crypto_aes_rfc4106_decrypt(struct aead_request *req)
 					     req->assoclen - 8);
 }
 
+/* AES-CCM */
+
+static __maybe_unused int crypto_aes_ccm_setkey(struct crypto_aead *tfm,
+						const u8 *in_key,
+						unsigned int key_len)
+{
+	struct aes_ccm_key *key = crypto_aead_ctx(tfm);
+
+	return aes_ccm_preparekey(key, in_key, key_len,
+				  crypto_aead_authsize(tfm));
+}
+
+static __maybe_unused int crypto_aes_ccm_setauthsize(struct crypto_aead *tfm,
+						     unsigned int authsize)
+{
+	struct aes_ccm_key *key = crypto_aead_ctx(tfm);
+
+	if (authsize < 4 || authsize > 16 || authsize % 2)
+		return -EINVAL;
+	/* Synchronize the tag length to the struct aes_ccm_key. */
+	key->authtag_len = authsize;
+	return 0;
+}
+
+static int crypto_aes_ccm_init(struct aes_ccm_ctx *ctx,
+			       struct aead_request *req, unsigned int data_len,
+			       const struct aes_ccm_key *key)
+{
+	int nonce_len;
+	const u8 *nonce;
+	int err;
+
+	/*
+	 * CCM accepts a variable-length nonce between 7 and 13 bytes
+	 * inclusively, while crypto_aead assumes a fixed-length IV.  This is
+	 * worked around by requiring that iv[0] contain '14 - nonce_len' and
+	 * iv[1..] contain the actual nonce.  Extra bytes at the end are unused.
+	 */
+	nonce_len = 14 - (int)req->iv[0];
+	if (unlikely(nonce_len < 7 || nonce_len > 13))
+		return -EINVAL;
+	nonce = &req->iv[1];
+	err = aes_ccm_init(ctx, data_len, req->assoclen, nonce, nonce_len, key);
+	if (unlikely(err))
+		return err;
+	AES_PROCESS_ASSOC_DATA(aes_ccm_auth_update, req->src, req->assoclen,
+			       ctx);
+	return 0;
+}
+
+static void aes_ccm_encrypt_update_helper(u8 *dst, const u8 *src,
+					  unsigned int len,
+					  struct aes_ccm_ctx *ctx)
+{
+	aes_ccm_encrypt_update(ctx, dst, src, len);
+}
+
+static void aes_ccm_decrypt_update_helper(u8 *dst, const u8 *src,
+					  unsigned int len,
+					  struct aes_ccm_ctx *ctx)
+{
+	aes_ccm_decrypt_update(ctx, dst, src, len);
+}
+
+static __maybe_unused int crypto_aes_ccm_encrypt(struct aead_request *req)
+{
+	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
+	const struct aes_ccm_key *key = crypto_aead_ctx(tfm);
+	struct aes_ccm_ctx ctx;
+	u8 authtag[16];
+	int err;
+
+	err = crypto_aes_ccm_init(&ctx, req, req->cryptlen, key);
+	if (unlikely(err))
+		return err;
+	AES_CRYPT_SG(aes_ccm_encrypt_update_helper, req->dst, req->src,
+		     req->cryptlen, req->assoclen, &ctx);
+	aes_ccm_encrypt_final(&ctx, authtag);
+	memcpy_to_sglist(req->dst, req->assoclen + req->cryptlen, authtag,
+			 key->authtag_len);
+	memzero_explicit(authtag, sizeof(authtag));
+	return 0;
+}
+
+static __maybe_unused int crypto_aes_ccm_decrypt(struct aead_request *req)
+{
+	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
+	const struct aes_ccm_key *key = crypto_aead_ctx(tfm);
+	unsigned int data_len;
+	struct aes_ccm_ctx ctx;
+	u8 authtag[16];
+	int err;
+
+	/* crypto_aead_decrypt() already checked cryptlen >= authtag_len. */
+	data_len = req->cryptlen - key->authtag_len;
+	err = crypto_aes_ccm_init(&ctx, req, data_len, key);
+	if (unlikely(err))
+		return err;
+	AES_CRYPT_SG(aes_ccm_decrypt_update_helper, req->dst, req->src,
+		     data_len, req->assoclen, &ctx);
+	memcpy_from_sglist(authtag, req->src, req->assoclen + data_len,
+			   key->authtag_len);
+	err = aes_ccm_decrypt_final(&ctx, authtag);
+	memzero_explicit(authtag, sizeof(authtag));
+	return err;
+}
+
 static struct aead_alg aead_algs[] = {
 #if IS_ENABLED(CONFIG_CRYPTO_GCM)
 	{
@@ -904,6 +1012,23 @@ static struct aead_alg aead_algs[] = {
 		.chunksize = AES_BLOCK_SIZE,
 	},
 #endif /* CONFIG_CRYPTO_GCM */
+#if IS_ENABLED(CONFIG_CRYPTO_CCM)
+	{
+		.base.cra_name = "ccm(aes)",
+		.base.cra_driver_name = "ccm-aes-lib",
+		.base.cra_priority = 110,
+		.base.cra_blocksize = 1,
+		.base.cra_ctxsize = sizeof(struct aes_ccm_key),
+		.base.cra_module = THIS_MODULE,
+		.setkey = crypto_aes_ccm_setkey,
+		.setauthsize = crypto_aes_ccm_setauthsize,
+		.encrypt = crypto_aes_ccm_encrypt,
+		.decrypt = crypto_aes_ccm_decrypt,
+		.ivsize = 16,
+		.maxauthsize = 16,
+		.chunksize = AES_BLOCK_SIZE,
+	},
+#endif /* CONFIG_CRYPTO_CCM */
 };
 
 static int __init crypto_aes_mod_init(void)
@@ -1005,4 +1130,8 @@ MODULE_ALIAS_CRYPTO("gcm(aes)");
 MODULE_ALIAS_CRYPTO("gcm-aes-lib");
 MODULE_ALIAS_CRYPTO("rfc4106(gcm(aes))");
 MODULE_ALIAS_CRYPTO("rfc4106-gcm-aes-lib");
+#endif
+#if IS_ENABLED(CONFIG_CRYPTO_CCM)
+MODULE_ALIAS_CRYPTO("ccm(aes)");
+MODULE_ALIAS_CRYPTO("ccm-aes-lib");
 #endif
