@@ -60,6 +60,12 @@ config RAID6_PQ_KUNIT_TEST
 	  This is intended to help people writing architecture-specific
 	  optimized versions.  If unsure, say N.
 
+config RAID6_PQ_KUNIT_BENCHMARK
+	bool "Benchmark for RAID6 PQ"
+	depends on RAID6_PQ_KUNIT_TEST
+	help
+	  Include benchmarks in the KUnit test suite for raid P/Q generation.
+
 config RAID6_PQ_BENCHMARK
 	bool "Automatically choose fastest RAID6 PQ functions"
 	depends on RAID6_PQ
