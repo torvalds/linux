@@ -11368,6 +11368,9 @@ static int tpacpi_usbc_security_init(struct ibm_init_struct *iibm)
 {
 	int err;
 
+	if (!acpi_has_method(hkey_handle, "USCS"))
+		return -ENODEV;
+
 	err = usbc_security_query(&tp_features.usbc_security_enabled);
 	if (err == -ENODEV)
 		return 0;
