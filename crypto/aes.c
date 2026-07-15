@@ -6,6 +6,7 @@
  */
 
 #include <crypto/aes-cbc-macs.h>
+#include <crypto/aes-cbc.h>
 #include <crypto/aes-ecb.h>
 #include <crypto/aes.h>
 #include <crypto/algapi.h>
@@ -222,6 +223,19 @@ crypto_aes_skcipher_setenckey(struct crypto_skcipher *tfm, const u8 *in_key,
 }
 
 /*
+ * Return true if the request uses only a single scatterlist element and high
+ * memory isn't enabled.  This assumes that both scatterlists are non-NULL, i.e.
+ * the caller must have handled the cryptlen == 0 case already.
+ */
+static inline bool
+skcipher_request_is_linear_lowmem(const struct skcipher_request *req)
+{
+	return !IS_ENABLED(CONFIG_HIGHMEM) &&
+	       req->dst->length >= req->cryptlen &&
+	       req->src->length >= req->cryptlen;
+}
+
+/*
  * Call crypt_func() (a function that operates on simple virtual addresses) zero
  * or more times to en/decrypt 'cryptlen' bytes of data from the source
  * scatterlist 'src' and write it into the destination scatterlist 'dst',
@@ -327,6 +341,121 @@ static __maybe_unused int crypto_aes_ecb_decrypt(struct skcipher_request *req)
 	return 0;
 }
 
+/* AES-CBC */
+
+static void crypto_aes_cbc_encrypt_sg(struct skcipher_request *req,
+				      unsigned int cryptlen,
+				      const struct aes_key *key)
+{
+	AES_CRYPT_SG(aes_cbc_encrypt, req->dst, req->src, cryptlen, 0, req->iv,
+		     key);
+}
+
+static void crypto_aes_cbc_decrypt_sg(struct skcipher_request *req,
+				      unsigned int cryptlen,
+				      const struct aes_key *key)
+{
+	AES_CRYPT_SG(aes_cbc_decrypt, req->dst, req->src, cryptlen, 0, req->iv,
+		     key);
+}
+
+static __maybe_unused int crypto_aes_cbc_encrypt(struct skcipher_request *req)
+{
+	const struct aes_key *key =
+		crypto_skcipher_ctx(crypto_skcipher_reqtfm(req));
+
+	if (unlikely(req->cryptlen % AES_BLOCK_SIZE))
+		return -EINVAL;
+	crypto_aes_cbc_encrypt_sg(req, req->cryptlen, key);
+	return 0;
+}
+
+static __maybe_unused int crypto_aes_cbc_decrypt(struct skcipher_request *req)
+{
+	const struct aes_key *key =
+		crypto_skcipher_ctx(crypto_skcipher_reqtfm(req));
+
+	if (unlikely(req->cryptlen % AES_BLOCK_SIZE))
+		return -EINVAL;
+	crypto_aes_cbc_decrypt_sg(req, req->cryptlen, key);
+	return 0;
+}
+
+/* AES-CBC-CTS */
+
+/*
+ * This handles AES-CBC-CTS en/decryption requests that use a nonlinear
+ * scatterlist layout or where HIGHMEM is enabled.  It is explicitly 'noinline'
+ * to keep the temporary buffer out of the stack frame of the fast path.
+ */
+static noinline int
+crypto_aes_cbc_cts_crypt_nonlinear(struct skcipher_request *req, bool enc)
+{
+	const struct aes_key *key =
+		crypto_skcipher_ctx(crypto_skcipher_reqtfm(req));
+	unsigned int main_len = req->cryptlen;
+	unsigned int tail_len;
+	u8 tmp[2 * AES_BLOCK_SIZE] __aligned(__alignof__(long));
+
+	if (main_len == AES_BLOCK_SIZE) {
+		/* Single block is a special case that just does CBC. */
+		if (enc)
+			crypto_aes_cbc_encrypt_sg(req, main_len, key);
+		else
+			crypto_aes_cbc_decrypt_sg(req, main_len, key);
+		return 0;
+	}
+	/* Just do the last two blocks separately. */
+	tail_len = AES_BLOCK_SIZE + ((main_len - 1) % AES_BLOCK_SIZE) + 1;
+	main_len -= tail_len;
+	if (enc)
+		crypto_aes_cbc_encrypt_sg(req, main_len, key);
+	else
+		crypto_aes_cbc_decrypt_sg(req, main_len, key);
+	memcpy_from_sglist(tmp, req->src, main_len, tail_len);
+	if (enc)
+		aes_cbc_cts_encrypt(tmp, tmp, tail_len, req->iv, key);
+	else
+		aes_cbc_cts_decrypt(tmp, tmp, tail_len, req->iv, key);
+	memcpy_to_sglist(req->dst, main_len, tmp, tail_len);
+	memzero_explicit(tmp, sizeof(tmp));
+	return 0;
+}
+
+static __maybe_unused int
+crypto_aes_cbc_cts_encrypt(struct skcipher_request *req)
+{
+	const struct aes_key *key =
+		crypto_skcipher_ctx(crypto_skcipher_reqtfm(req));
+
+	if (unlikely(req->cryptlen < AES_BLOCK_SIZE))
+		return -EINVAL;
+	if (likely(skcipher_request_is_linear_lowmem(req))) {
+		/* Fast path */
+		aes_cbc_cts_encrypt(sg_virt(req->dst), sg_virt(req->src),
+				    req->cryptlen, req->iv, key);
+		return 0;
+	}
+	return crypto_aes_cbc_cts_crypt_nonlinear(req, /* enc= */ true);
+}
+
+static __maybe_unused int
+crypto_aes_cbc_cts_decrypt(struct skcipher_request *req)
+{
+	const struct aes_key *key =
+		crypto_skcipher_ctx(crypto_skcipher_reqtfm(req));
+
+	if (unlikely(req->cryptlen < AES_BLOCK_SIZE))
+		return -EINVAL;
+	if (likely(skcipher_request_is_linear_lowmem(req))) {
+		/* Fast path */
+		aes_cbc_cts_decrypt(sg_virt(req->dst), sg_virt(req->src),
+				    req->cryptlen, req->iv, key);
+		return 0;
+	}
+	return crypto_aes_cbc_cts_crypt_nonlinear(req, /* enc= */ false);
+}
+
 static struct skcipher_alg skcipher_algs[] = {
 #if IS_ENABLED(CONFIG_CRYPTO_ECB)
 	{
@@ -341,6 +470,38 @@ static struct skcipher_alg skcipher_algs[] = {
 		.setkey = crypto_aes_skcipher_setkey,
 		.encrypt = crypto_aes_ecb_encrypt,
 		.decrypt = crypto_aes_ecb_decrypt,
+	},
+#endif
+#if IS_ENABLED(CONFIG_CRYPTO_CBC)
+	{
+		.base.cra_name = "cbc(aes)",
+		.base.cra_driver_name = "cbc-aes-lib",
+		.base.cra_priority = 110,
+		.base.cra_blocksize = AES_BLOCK_SIZE,
+		.base.cra_ctxsize = sizeof(struct aes_key),
+		.base.cra_module = THIS_MODULE,
+		.min_keysize = AES_MIN_KEY_SIZE,
+		.max_keysize = AES_MAX_KEY_SIZE,
+		.ivsize = AES_BLOCK_SIZE,
+		.setkey = crypto_aes_skcipher_setkey,
+		.encrypt = crypto_aes_cbc_encrypt,
+		.decrypt = crypto_aes_cbc_decrypt,
+	},
+#endif
+#if IS_ENABLED(CONFIG_CRYPTO_CTS)
+	{
+		.base.cra_name = "cts(cbc(aes))",
+		.base.cra_driver_name = "cts-cbc-aes-lib",
+		.base.cra_priority = 110,
+		.base.cra_blocksize = AES_BLOCK_SIZE,
+		.base.cra_ctxsize = sizeof(struct aes_key),
+		.base.cra_module = THIS_MODULE,
+		.min_keysize = AES_MIN_KEY_SIZE,
+		.max_keysize = AES_MAX_KEY_SIZE,
+		.ivsize = AES_BLOCK_SIZE,
+		.setkey = crypto_aes_skcipher_setkey,
+		.encrypt = crypto_aes_cbc_cts_encrypt,
+		.decrypt = crypto_aes_cbc_cts_decrypt,
 	},
 #endif
 };
@@ -406,4 +567,12 @@ MODULE_ALIAS_CRYPTO("cbcmac-aes-lib");
 #if IS_ENABLED(CONFIG_CRYPTO_ECB)
 MODULE_ALIAS_CRYPTO("ecb(aes)");
 MODULE_ALIAS_CRYPTO("ecb-aes-lib");
+#endif
+#if IS_ENABLED(CONFIG_CRYPTO_CBC)
+MODULE_ALIAS_CRYPTO("cbc(aes)");
+MODULE_ALIAS_CRYPTO("cbc-aes-lib");
+#endif
+#if IS_ENABLED(CONFIG_CRYPTO_CTS)
+MODULE_ALIAS_CRYPTO("cts(cbc(aes))");
+MODULE_ALIAS_CRYPTO("cts-cbc-aes-lib");
 #endif
