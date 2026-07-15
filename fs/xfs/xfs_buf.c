@@ -282,15 +282,8 @@ xfs_buf_alloc(
 	 * specifically set by later operations on the buffer.
 	 */
 	flags &= ~(XBF_TRYLOCK | XBF_ASYNC | XBF_READ_AHEAD);
-
-	/*
-	 * A new buffer is held and locked by the owner.  This ensures that the
-	 * buffer is owned by the caller and racing RCU lookups right after
-	 * inserting into the hash table are safe (and will have to wait for
-	 * the unlock to do anything non-trivial).
-	 */
 	lockref_init(&bp->b_lockref);
-	sema_init(&bp->b_sema, 0); /* held, no waiters */
+	sema_init(&bp->b_sema, 1); /* unlocked */
 	atomic_set(&bp->b_lru_ref, 1);
 	init_completion(&bp->b_iowait);
 	INIT_LIST_HEAD(&bp->b_lru);
@@ -433,33 +426,25 @@ xfs_buf_find_lock(
 	return 0;
 }
 
-static inline int
+static inline struct xfs_buf *
 xfs_buf_lookup(
 	struct xfs_buftarg	*btp,
-	struct xfs_buf_map	*map,
-	xfs_buf_flags_t		flags,
-	struct xfs_buf		**bpp)
+	struct xfs_buf_map	*map)
 {
 	struct xfs_buf          *bp;
-	int			error;
 
 	rcu_read_lock();
 	bp = rhashtable_lookup(&btp->bt_hash, map, xfs_buf_hash_params);
 	if (!bp || !lockref_get_not_dead(&bp->b_lockref)) {
 		rcu_read_unlock();
-		return -ENOENT;
+		XFS_STATS_INC(btp->bt_mount, xb_miss_locked);
+		return NULL;
 	}
 	rcu_read_unlock();
 
-	error = xfs_buf_find_lock(bp, flags);
-	if (error) {
-		xfs_buf_rele(bp);
-		return error;
-	}
-
-	trace_xfs_buf_find(bp, flags, _RET_IP_);
-	*bpp = bp;
-	return 0;
+	trace_xfs_buf_find(bp, _RET_IP_);
+	XFS_STATS_INC(btp->bt_mount, xb_get_locked);
+	return bp;
 }
 
 /*
@@ -509,11 +494,7 @@ retry:
 			goto retry;
 		}
 		rcu_read_unlock();
-		error = xfs_buf_find_lock(bp, flags);
-		if (error)
-			xfs_buf_rele(bp);
-		else
-			*bpp = bp;
+		*bpp = bp;
 		goto out_free_buf;
 	}
 	rcu_read_unlock();
@@ -555,21 +536,20 @@ xfs_buf_get_map(
 	if (error)
 		return error;
 
-	error = xfs_buf_lookup(btp, &cmap, flags, &bp);
-	if (error && error != -ENOENT)
-		return error;
-
 	/* cache hits always outnumber misses by at least 10:1 */
+	bp = xfs_buf_lookup(btp, &cmap);
 	if (unlikely(!bp)) {
-		XFS_STATS_INC(btp->bt_mount, xb_miss_locked);
-
 		if (flags & XBF_INCORE)
-			return 0;
+			return -ENOENT;
 		error = xfs_buf_find_insert(btp, &cmap, map, nmaps, flags, &bp);
 		if (error)
 			return error;
-	} else {
-		XFS_STATS_INC(btp->bt_mount, xb_get_locked);
+	}
+
+	error = xfs_buf_find_lock(bp, flags);
+	if (error) {
+		xfs_buf_rele(bp);
+		return error;
 	}
 
 	/*
@@ -794,9 +774,11 @@ xfs_buf_get_uncached(
 	DEFINE_SINGLE_BUF_MAP(map, XFS_BUF_DADDR_NULL, numblks);
 
 	error = xfs_buf_alloc(target, &map, 1, 0, bpp);
-	if (!error)
-		trace_xfs_buf_get_uncached(*bpp, _RET_IP_);
-	return error;
+	if (error)
+		return error;
+	xfs_buf_lock(*bpp);
+	trace_xfs_buf_get_uncached(*bpp, _RET_IP_);
+	return 0;
 }
 
 /*
