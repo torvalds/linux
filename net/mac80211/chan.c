@@ -607,9 +607,11 @@ ieee80211_get_chanctx_max_required_bw(struct ieee80211_local *local,
 		max_bw = max(max_bw, width);
 	}
 
-	if (!rsvd_for ||
-	    rsvd_for->sdata == rcu_access_pointer(local->monitor_sdata))
+	if (!rsvd_for)
 		goto check_monitor;
+
+	if (rsvd_for->sdata == rcu_access_pointer(local->monitor_sdata))
+		return max(max_bw, ctx->conf.def.width);
 
 	/* Consider the link for which this chanctx is reserved/going to be assigned */
 	width = ieee80211_get_width_of_link(rsvd_for);
