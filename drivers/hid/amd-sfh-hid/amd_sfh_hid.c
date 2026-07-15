@@ -162,6 +162,7 @@ int amdtp_hid_probe(u32 cur_hid_dev, struct amdtp_cl_data *cli_data)
 	return 0;
 
 err_hid_device:
+	cli_data->hid_sensor_hubs[cur_hid_dev] = NULL;
 	kfree(hid_data);
 err_hid_data:
 	hid_destroy_device(hid);
