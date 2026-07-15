@@ -2403,12 +2403,11 @@ drop:
 	return NULL;
 }
 
-static const struct element
-*cfg80211_get_profile_continuation(const u8 *ie, size_t ielen,
-				   const struct element *mbssid_elem,
-				   const struct element *sub_elem)
+static bool cfg80211_iter_profile_continuation(const u8 *ie, size_t ielen,
+					       const struct element **mbssid,
+					       const struct element **sub_elem)
 {
-	const u8 *mbssid_end = mbssid_elem->data + mbssid_elem->datalen;
+	const u8 *mbssid_end = (*mbssid)->data + (*mbssid)->datalen;
 	const struct element *next_mbssid;
 	const struct element *next_sub;
 
@@ -2420,30 +2419,34 @@ static const struct element
 	 * If it is not the last subelement in current MBSSID IE or there isn't
 	 * a next MBSSID IE - profile is complete.
 	*/
-	if ((sub_elem->data + sub_elem->datalen < mbssid_end - 1) ||
+	if (((*sub_elem)->data + (*sub_elem)->datalen < mbssid_end - 1) ||
 	    !next_mbssid)
-		return NULL;
+		return false;
 
-	/* For any length error, just return NULL */
+	/* For any length error, just return false to stop iteration */
 
 	if (next_mbssid->datalen < 4)
-		return NULL;
+		return false;
 
 	next_sub = (void *)&next_mbssid->data[1];
 
 	if (next_mbssid->data + next_mbssid->datalen <
 	    next_sub->data + next_sub->datalen)
-		return NULL;
+		return false;
 
 	if (next_sub->id != 0 || next_sub->datalen < 2)
-		return NULL;
+		return false;
 
 	/*
 	 * Check if the first element in the next sub element is a start
 	 * of a new profile
 	 */
-	return next_sub->data[0] == WLAN_EID_NON_TX_BSSID_CAP ?
-	       NULL : next_mbssid;
+	if (next_sub->data[0] == WLAN_EID_NON_TX_BSSID_CAP)
+		return false;
+
+	*mbssid = next_mbssid;
+	*sub_elem = next_sub;
+	return true;
 }
 
 size_t cfg80211_merge_profile(const u8 *ie, size_t ielen,
@@ -2452,26 +2455,20 @@ size_t cfg80211_merge_profile(const u8 *ie, size_t ielen,
 			      u8 *merged_ie, size_t max_copy_len)
 {
 	size_t copied_len = sub_elem->datalen;
-	const struct element *next_mbssid;
 
 	if (sub_elem->datalen > max_copy_len)
 		return 0;
 
 	memcpy(merged_ie, sub_elem->data, sub_elem->datalen);
 
-	while ((next_mbssid = cfg80211_get_profile_continuation(ie, ielen,
-								mbssid_elem,
-								sub_elem))) {
-		const struct element *next_sub = (void *)&next_mbssid->data[1];
-
-		if (copied_len + next_sub->datalen > max_copy_len)
+	while (cfg80211_iter_profile_continuation(ie, ielen,
+						  &mbssid_elem,
+						  &sub_elem)) {
+		if (copied_len + sub_elem->datalen > max_copy_len)
 			break;
-		memcpy(merged_ie + copied_len, next_sub->data,
-		       next_sub->datalen);
-		copied_len += next_sub->datalen;
-
-		mbssid_elem = next_mbssid;
-		sub_elem = next_sub;
+		memcpy(merged_ie + copied_len, sub_elem->data,
+		       sub_elem->datalen);
+		copied_len += sub_elem->datalen;
 	}
 
 	return copied_len;
