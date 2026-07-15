@@ -2380,31 +2380,22 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 
 	ret = devm_snd_soc_register_component(&pdev->dev, quirks->codec,
 				     &sun4i_codec_dai, 1);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to register our codec\n");
+	if (ret)
 		return ret;
-	}
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &sun4i_codec_component,
 					      &dummy_cpu_dai, 1);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to register our DAI\n");
+	if (ret)
 		return ret;
-	}
 
 	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to register against DMAEngine\n");
+	if (ret)
 		return ret;
-	}
 
 	card = quirks->create_card(&pdev->dev);
-	if (IS_ERR(card)) {
-		ret = PTR_ERR(card);
-		dev_err(&pdev->dev, "Failed to create our card\n");
-		return ret;
-	}
+	if (IS_ERR(card))
+		return PTR_ERR(card);
 
 	snd_soc_card_set_drvdata(card, scodec);
 
