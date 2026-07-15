@@ -684,11 +684,11 @@ static void build_vrr_infopacket_data_v3(const struct mod_vrr_params *vrr,
 	/* PB8 = FreeSync Maximum refresh rate (Hz) */
 	infopacket->sb[8] = max_refresh & 0xFF;
 
-	/* PB11 : MSB FreeSync Minimum refresh rate [Hz] - bits 9:8 */
-	infopacket->sb[11] = (min_programmed >> 8) & 0x03;
+	/* PB11 : MSB FreeSync Minimum refresh rate [Hz] - bits 11:8 */
+	infopacket->sb[11] = (min_programmed >> 8) & 0x0F;
 
-	/* PB12 : MSB FreeSync Maximum refresh rate [Hz] - bits 9:8 */
-	infopacket->sb[12] = (max_refresh >> 8) & 0x03;
+	/* PB12 : MSB FreeSync Maximum refresh rate [Hz] - bits 11:8 */
+	infopacket->sb[12] = (max_refresh >> 8) & 0x0F;
 
 	/* PB16 : Reserved bits 7:1, FixedRate bit 0 */
 	infopacket->sb[16] = (vrr->state == VRR_STATE_ACTIVE_FIXED) ? 1 : 0;
