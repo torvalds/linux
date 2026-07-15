@@ -1257,6 +1257,10 @@ again:
 	total_size = total_size0 + ((u64)*len << cluster_bits);
 
 	if (vcn != vcn0) {
+		if (vcn0 >= end) {
+			err = -ENOSPC;
+			goto undo1;
+		}
 		if (!run_lookup_entry(run, vcn0, lcn, len, NULL)) {
 			err = -EINVAL;
 			goto out;
