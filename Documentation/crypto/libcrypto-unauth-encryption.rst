@@ -20,6 +20,13 @@ block ciphers in XTS mode.  The legitimate use cases for these algorithms are:
 
 Besides the above, these shouldn't be used.
 
+AES-CBC and AES-CBC-CTS
+-----------------------
+
+This API provides support for AES in the CBC and CBC-CTS modes of operation.
+
+.. kernel-doc:: include/crypto/aes-cbc.h
+
 AES-ECB
 -------
 

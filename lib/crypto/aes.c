@@ -5,6 +5,7 @@
  */
 
 #include <crypto/aes-cbc-macs.h>
+#include <crypto/aes-cbc.h>
 #include <crypto/aes-ecb.h>
 #include <crypto/aes.h>
 #include <crypto/utils.h>
@@ -792,6 +793,192 @@ void aes_ecb_decrypt(u8 *dst, const u8 *src, size_t len,
 }
 EXPORT_SYMBOL_GPL(aes_ecb_decrypt);
 #endif /* CONFIG_CRYPTO_LIB_AES_ECB */
+
+#if IS_ENABLED(CONFIG_CRYPTO_LIB_AES_CBC)
+/*
+ * Hooks for optimized AES-CBC implementations, overridable by the architecture.
+ * They are called with len > 0 && len % AES_BLOCK_SIZE == 0.  Returning false
+ * causes the fallback implementation to be used instead.
+ */
+#ifndef aes_cbc_encrypt_arch
+static bool aes_cbc_encrypt_arch(u8 *dst, const u8 *src, size_t len,
+				 u8 iv[AES_BLOCK_SIZE],
+				 const struct aes_enckey *key)
+{
+	return false;
+}
+#endif
+#ifndef aes_cbc_decrypt_arch
+static bool aes_cbc_decrypt_arch(u8 *dst, const u8 *src, size_t len,
+				 u8 iv[AES_BLOCK_SIZE],
+				 const struct aes_key *key)
+{
+	return false;
+}
+#endif
+
+void aes_cbc_encrypt(u8 *dst, const u8 *src, size_t len, u8 iv[AES_BLOCK_SIZE],
+		     aes_encrypt_arg key)
+{
+	const u8 *prev = iv;
+
+	if (WARN_ON_ONCE(len % AES_BLOCK_SIZE))
+		len = round_down(len, AES_BLOCK_SIZE);
+
+	if (unlikely(len == 0))
+		return;
+
+	if (likely(aes_cbc_encrypt_arch(dst, src, len, iv, key.enc_key)))
+		return;
+
+	do {
+		crypto_xor_cpy(dst, src, prev, AES_BLOCK_SIZE);
+		aes_encrypt(key, dst, dst);
+		prev = dst;
+		dst += AES_BLOCK_SIZE;
+		src += AES_BLOCK_SIZE;
+		len -= AES_BLOCK_SIZE;
+	} while (len);
+	memcpy(iv, prev, AES_BLOCK_SIZE);
+}
+EXPORT_SYMBOL_GPL(aes_cbc_encrypt);
+
+void aes_cbc_decrypt(u8 *dst, const u8 *src, size_t len, u8 iv[AES_BLOCK_SIZE],
+		     const struct aes_key *key)
+{
+	u8 next_iv[AES_BLOCK_SIZE];
+
+	if (WARN_ON_ONCE(len % AES_BLOCK_SIZE))
+		len = round_down(len, AES_BLOCK_SIZE);
+
+	if (unlikely(len == 0))
+		return;
+
+	if (likely(aes_cbc_decrypt_arch(dst, src, len, iv, key)))
+		return;
+
+	len -= AES_BLOCK_SIZE;
+	dst += len;
+	src += len;
+	memcpy(next_iv, src, AES_BLOCK_SIZE);
+	for (;;) {
+		aes_decrypt(key, dst, src);
+		if (len == 0)
+			break;
+		src -= AES_BLOCK_SIZE;
+		crypto_xor(dst, src, AES_BLOCK_SIZE);
+		dst -= AES_BLOCK_SIZE;
+		len -= AES_BLOCK_SIZE;
+	}
+	crypto_xor(dst, iv, AES_BLOCK_SIZE);
+	memcpy(iv, next_iv, AES_BLOCK_SIZE);
+}
+EXPORT_SYMBOL_GPL(aes_cbc_decrypt);
+
+/*
+ * Hooks for optimized AES-CBC-CTS implementations, overridable by the
+ * architecture.  They are called with len > AES_BLOCK_SIZE.  Returning false
+ * causes the fallback implementation to be used instead.  The fallback
+ * implementation still uses the arch-optimized AES-CBC code if available, but
+ * direct implementation of AES-CBC-CTS is helpful on short messages.
+ */
+#ifndef aes_cbc_cts_encrypt_arch
+static bool aes_cbc_cts_encrypt_arch(u8 *dst, const u8 *src, size_t len,
+				     u8 iv[AES_BLOCK_SIZE],
+				     const struct aes_enckey *key)
+{
+	return false;
+}
+#endif
+#ifndef aes_cbc_cts_decrypt_arch
+static bool aes_cbc_cts_decrypt_arch(u8 *dst, const u8 *src, size_t len,
+				     u8 iv[AES_BLOCK_SIZE],
+				     const struct aes_key *key)
+{
+	return false;
+}
+#endif
+
+void aes_cbc_cts_encrypt(u8 *dst, const u8 *src, size_t len,
+			 u8 iv[AES_BLOCK_SIZE], aes_encrypt_arg key)
+{
+	/* Offset to P[n] and C[n] (last plaintext and ciphertext block) */
+	size_t pn_offset = round_down(len - 1, AES_BLOCK_SIZE);
+	/* Length of P[n] and C[n], 1 <= pn_len <= AES_BLOCK_SIZE */
+	size_t pn_len = len - pn_offset;
+	u8 tmp[AES_BLOCK_SIZE] __aligned(__alignof__(long));
+	u8 *pad;
+
+	if (WARN_ON_ONCE(len < AES_BLOCK_SIZE))
+		return;
+
+	if (len == AES_BLOCK_SIZE) {
+		aes_cbc_encrypt(dst, src, len, iv, key);
+		return;
+	}
+	if (likely(aes_cbc_cts_encrypt_arch(dst, src, len, iv, key.enc_key)))
+		return;
+
+	/* CBC-encrypt all blocks except the last. */
+	aes_cbc_encrypt(dst, src, pn_offset, iv, key);
+
+	/*
+	 * Compute C[n] and C[n - 1].
+	 *
+	 * Careful: src may equal dst (i.e., the encryption can be in-place), so
+	 * src[pn_offset..] can't be read after dst[pn_offset..] is written.
+	 */
+	pad = &dst[pn_offset - AES_BLOCK_SIZE];
+	memcpy(tmp, pad, AES_BLOCK_SIZE);
+	crypto_xor(tmp, &src[pn_offset], pn_len);
+	memcpy(&dst[pn_offset], pad, pn_len); /* C[n] */
+	aes_encrypt(key, pad, tmp); /* C[n - 1] */
+
+	memzero_explicit(tmp, sizeof(tmp));
+}
+EXPORT_SYMBOL_GPL(aes_cbc_cts_encrypt);
+
+void aes_cbc_cts_decrypt(u8 *dst, const u8 *src, size_t len,
+			 u8 iv[AES_BLOCK_SIZE], const struct aes_key *key)
+{
+	/* Offset to P[n] and C[n] (last plaintext and ciphertext block) */
+	size_t pn_offset = round_down(len - 1, AES_BLOCK_SIZE);
+	/* Length of P[n] and C[n], 1 <= pn_len <= AES_BLOCK_SIZE */
+	size_t pn_len = len - pn_offset;
+	u8 *pad;
+
+	if (WARN_ON_ONCE(len < AES_BLOCK_SIZE))
+		return;
+
+	if (len == AES_BLOCK_SIZE) {
+		aes_cbc_decrypt(dst, src, len, iv, key);
+		return;
+	}
+	if (likely(aes_cbc_cts_decrypt_arch(dst, src, len, iv, key)))
+		return;
+
+	/* Compute P[0]..P[n - 2]. */
+	aes_cbc_decrypt(dst, src, pn_offset - AES_BLOCK_SIZE, iv, key);
+
+	/*
+	 * Compute P[n] and P[n - 1].
+	 *
+	 * Careful: src may equal dst (i.e., the decryption can be in-place), so
+	 * src[pn_offset..] can't be read after dst[pn_offset..] is written.
+	 *
+	 * To avoid needing a temporary buffer, do a "redundant" XOR to recover
+	 * src[pn_offset..] from dst[pn_offset..] after the latter is written.
+	 */
+	pad = &dst[pn_offset - AES_BLOCK_SIZE];
+	aes_decrypt(key, pad, &src[pn_offset - AES_BLOCK_SIZE]);
+	crypto_xor_cpy(&dst[pn_offset], &src[pn_offset], pad,
+		       pn_len); /* P[n] */
+	crypto_xor(pad, &dst[pn_offset], pn_len);
+	aes_decrypt(key, pad, pad);
+	crypto_xor(pad, iv, AES_BLOCK_SIZE); /* P[n - 1] */
+}
+EXPORT_SYMBOL_GPL(aes_cbc_cts_decrypt);
+#endif /* CONFIG_CRYPTO_LIB_AES_CBC */
 
 static int __init aes_mod_init(void)
 {
