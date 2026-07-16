@@ -56,7 +56,8 @@
 
 enum geni_i2c_err_code {
 	GP_IRQ0,
-	NACK,
+	ADDR_NACK,
+	DATA_NACK,
 	GP_IRQ2,
 	BUS_PROTO,
 	ARB_LOST,
@@ -67,7 +68,7 @@ enum geni_i2c_err_code {
 	GENI_TIMEOUT,
 };
 
-#define DM_I2C_CB_ERR		((BIT(NACK) | BIT(BUS_PROTO) | BIT(ARB_LOST)) \
+#define DM_I2C_CB_ERR		((BIT(ADDR_NACK) | BIT(BUS_PROTO) | BIT(ARB_LOST)) \
 									<< 5)
 
 #define I2C_AUTO_SUSPEND_DELAY	250
@@ -143,7 +144,8 @@ struct geni_i2c_err_log {
 
 static const struct geni_i2c_err_log gi2c_log[] = {
 	[GP_IRQ0] = {-EIO, "Unknown I2C err GP_IRQ0"},
-	[NACK] = {-ENXIO, "NACK: slv unresponsive, check its power/reset-ln"},
+	[ADDR_NACK] = {-ENXIO, "NACK: target device unresponsive, check its power/reset-ln"},
+	[DATA_NACK] = {-EIO, "Data NACK: TX transfer NACK"},
 	[GP_IRQ2] = {-EIO, "Unknown I2C err GP IRQ2"},
 	[BUS_PROTO] = {-EPROTO, "Bus proto err, noisy/unexpected start/stop"},
 	[ARB_LOST] = {-EAGAIN, "Bus arbitration lost, clock line undriveable"},
@@ -258,7 +260,8 @@ static void geni_i2c_err(struct geni_i2c_dev *gi2c, int err)
 
 	switch (err) {
 	case GENI_ABORT_DONE:
-	case NACK:
+	case ADDR_NACK:
+	case DATA_NACK:
 	case GENI_TIMEOUT:
 		dev_dbg(gi2c->se.dev, "%s\n", gi2c_log[err].msg);
 		break;
@@ -267,6 +270,14 @@ static void geni_i2c_err(struct geni_i2c_dev *gi2c, int err)
 		geni_i2c_err_misc(gi2c);
 		break;
 	}
+}
+
+static void geni_i2c_check_addr_data_nack(struct geni_i2c_dev *gi2c)
+{
+	if (!readl_relaxed(gi2c->se.base + SE_GENI_M_GP_LENGTH))
+		geni_i2c_err(gi2c, ADDR_NACK);
+	else if (!(gi2c->cur->flags & I2C_M_RD))
+		geni_i2c_err(gi2c, DATA_NACK);
 }
 
 static irqreturn_t geni_i2c_irq(int irq, void *dev)
@@ -294,7 +305,7 @@ static irqreturn_t geni_i2c_irq(int irq, void *dev)
 	    m_stat & (M_CMD_FAILURE_EN | M_CMD_ABORT_EN) ||
 	    dm_rx_st & (DM_I2C_CB_ERR)) {
 		if (m_stat & M_GP_IRQ_1_EN)
-			geni_i2c_err(gi2c, NACK);
+			geni_i2c_check_addr_data_nack(gi2c);
 		if (m_stat & M_GP_IRQ_3_EN)
 			geni_i2c_err(gi2c, BUS_PROTO);
 		if (m_stat & M_GP_IRQ_4_EN)
@@ -443,7 +454,7 @@ static void geni_i2c_rx_msg_cleanup(struct geni_i2c_dev *gi2c,
 {
 	gi2c->cur_rd = 0;
 	if (gi2c->dma_buf) {
-		if (gi2c->err)
+		if (gi2c->err && gi2c->err != gi2c_log[ADDR_NACK].err)
 			geni_i2c_rx_fsm_rst(gi2c);
 		geni_se_rx_dma_unprep(&gi2c->se, gi2c->dma_addr, gi2c->xfer_len);
 		i2c_put_dma_safe_msg_buf(gi2c->dma_buf, cur, !gi2c->err);
@@ -455,7 +466,7 @@ static void geni_i2c_tx_msg_cleanup(struct geni_i2c_dev *gi2c,
 {
 	gi2c->cur_wr = 0;
 	if (gi2c->dma_buf) {
-		if (gi2c->err)
+		if (gi2c->err && gi2c->err != gi2c_log[ADDR_NACK].err)
 			geni_i2c_tx_fsm_rst(gi2c);
 		geni_se_tx_dma_unprep(&gi2c->se, gi2c->dma_addr, gi2c->xfer_len);
 		i2c_put_dma_safe_msg_buf(gi2c->dma_buf, cur, !gi2c->err);
@@ -493,7 +504,7 @@ static int geni_i2c_rx_one_msg(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
 
 	cur = gi2c->cur;
 	time_left = wait_for_completion_timeout(&gi2c->done, XFER_TIMEOUT);
-	if (!time_left)
+	if (!time_left || (gi2c->err && gi2c->err != gi2c_log[ADDR_NACK].err))
 		geni_i2c_cancel_xfer(gi2c);
 
 	geni_i2c_rx_msg_cleanup(gi2c, cur);
@@ -535,7 +546,7 @@ static int geni_i2c_tx_one_msg(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
 
 	cur = gi2c->cur;
 	time_left = wait_for_completion_timeout(&gi2c->done, XFER_TIMEOUT);
-	if (!time_left)
+	if (!time_left || (gi2c->err && gi2c->err != gi2c_log[ADDR_NACK].err))
 		geni_i2c_cancel_xfer(gi2c);
 
 	geni_i2c_tx_msg_cleanup(gi2c, cur);
