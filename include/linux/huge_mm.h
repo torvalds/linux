@@ -642,11 +642,6 @@ thp_get_unmapped_area_vmaflags(struct file *filp, unsigned long addr,
 	return 0;
 }
 
-static inline bool
-can_split_folio(struct folio *folio, int caller_pins, int *pextra_pins)
-{
-	return false;
-}
 static inline int
 split_huge_page_to_list_to_order(struct page *page, struct list_head *list,
 		unsigned int new_order)
