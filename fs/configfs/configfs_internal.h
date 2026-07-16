@@ -104,17 +104,17 @@ static inline struct config_item * to_item(struct dentry * dentry)
 	return ((struct config_item *) sd->s_element);
 }
 
-static inline struct configfs_attribute * to_attr(struct dentry * dentry)
+static inline const struct configfs_attribute * to_attr(struct dentry * dentry)
 {
 	struct configfs_dirent * sd = dentry->d_fsdata;
-	return ((struct configfs_attribute *) sd->s_element);
+	return ((const struct configfs_attribute *) sd->s_element);
 }
 
-static inline struct configfs_bin_attribute *to_bin_attr(struct dentry *dentry)
+static inline const struct configfs_bin_attribute *to_bin_attr(struct dentry *dentry)
 {
-	struct configfs_attribute *attr = to_attr(dentry);
+	const struct configfs_attribute *attr = to_attr(dentry);
 
-	return container_of(attr, struct configfs_bin_attribute, cb_attr);
+	return container_of_const(attr, struct configfs_bin_attribute, cb_attr);
 }
 
 static inline struct config_item *configfs_get_config_item(struct dentry *dentry)
