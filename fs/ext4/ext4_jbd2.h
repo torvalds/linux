@@ -182,15 +182,11 @@ handle_t *__ext4_journal_start_sb(struct inode *inode, struct super_block *sb,
 				  int rsv_blocks, int revoke_creds);
 int __ext4_journal_stop(const char *where, unsigned int line, handle_t *handle);
 
-#define EXT4_NOJOURNAL_MAX_REF_COUNT ((unsigned long) 4096)
-
 /* Note:  Do not use this for NULL handles.  This is only to determine if
  * a properly allocated handle is using a journal or not. */
 static inline int ext4_handle_valid(handle_t *handle)
 {
-	if ((unsigned long)handle < EXT4_NOJOURNAL_MAX_REF_COUNT)
-		return 0;
-	return 1;
+	return (handle && !handle->h_invalid);
 }
 
 static inline void ext4_handle_sync(handle_t *handle)

@@ -513,6 +513,7 @@ struct jbd2_journal_handle
 	unsigned int	h_sync:		1;
 	unsigned int	h_reserved:	1;
 	unsigned int	h_aborted:	1;
+	unsigned int	h_invalid:	1;
 	unsigned int	h_type:		8;
 	unsigned int	h_line_no:	16;
 
