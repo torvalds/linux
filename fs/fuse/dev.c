@@ -77,19 +77,16 @@ void fuse_chan_set_initialized(struct fuse_chan *fch, struct fuse_chan_param *pa
 		fch->max_pages = param->max_pages;
 	}
 
-	/* Make sure stores before this are seen on another CPU */
-	smp_wmb();
-	fch->initialized = 1;
+	/* Pairs with smp_load_acquire() readers of fch->initialized */
+	smp_store_release(&fch->initialized, 1);
 	wake_up_all(&fch->blocked_waitq);
 }
 
 static bool fuse_block_alloc(struct fuse_chan *fch, bool for_background)
 {
-	if (!fch->initialized)
+	/* Pairs with smp_store_release() in fuse_chan_set_initialized() */
+	if (!smp_load_acquire(&fch->initialized))
 		return true;
-
-	/* Pairs with smp_wmb() in fuse_chan_set_initialized() */
-	smp_rmb();
 
 	return (for_background && fch->blocked) ||
 	       (fch->io_uring && fch->connected && !fuse_uring_ready(fch));
@@ -1892,7 +1889,8 @@ static ssize_t fuse_dev_do_write(struct fuse_dev *fud,
 		 * initialized and connected state
 		 */
 		err = -EINVAL;
-		if (!fch->initialized || !fch->connected)
+		/* Pairs with smp_store_release() in fuse_chan_set_initialized() */
+		if (!smp_load_acquire(&fch->initialized) || !fch->connected)
 			goto copy_finish;
 
 		/* Don't try to move folios (yet) */
