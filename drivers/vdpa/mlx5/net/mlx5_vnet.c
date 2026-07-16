@@ -3055,18 +3055,24 @@ static int mlx5_vdpa_change_map(struct mlx5_vdpa_dev *mvdev,
 				unsigned int asid)
 {
 	struct mlx5_vdpa_net *ndev = to_mlx5_vdpa_ndev(mvdev);
+	struct mlx5_vdpa_mr *old_mr;
 	bool teardown = !is_resumable(ndev);
 	int err;
 
 	suspend_vqs(ndev, 0, ndev->cur_num_vqs);
 	if (teardown) {
 		err = save_channels_info(ndev);
-		if (err)
+		if (err) {
+			mlx5_vdpa_put_mr(mvdev, new_mr);
 			return err;
+		}
 
 		teardown_vq_resources(ndev);
 	}
 
+	/* Keep the old MR alive in case rebuilding the VQs fails. */
+	old_mr = mvdev->mres.mr[asid];
+	mlx5_vdpa_get_mr(mvdev, old_mr);
 	mlx5_vdpa_update_mr(mvdev, new_mr, asid);
 
 	for (int i = 0; i < mvdev->max_vqs; i++)
@@ -3074,17 +3080,22 @@ static int mlx5_vdpa_change_map(struct mlx5_vdpa_dev *mvdev,
 						MLX5_VIRTQ_MODIFY_MASK_DESC_GROUP_MKEY;
 
 	if (!(mvdev->status & VIRTIO_CONFIG_S_DRIVER_OK) || mvdev->suspended)
-		return 0;
+		goto out;
 
 	if (teardown) {
 		restore_channels_info(ndev);
 		err = setup_vq_resources(ndev, true);
-		if (err)
+		if (err) {
+			/* The saved reference becomes the restored map reference. */
+			mlx5_vdpa_update_mr(mvdev, old_mr, asid);
 			return err;
+		}
 	}
 
 	resume_vqs(ndev, 0, ndev->cur_num_vqs);
 
+out:
+	mlx5_vdpa_put_mr(mvdev, old_mr);
 	return 0;
 }
 
@@ -3368,15 +3379,11 @@ static int set_map_data(struct mlx5_vdpa_dev *mvdev, struct vhost_iotlb *iotlb,
 		err = mlx5_vdpa_change_map(mvdev, new_mr, asid);
 		if (err) {
 			mlx5_vdpa_err(mvdev, "change map failed(%d)\n", err);
-			goto out_err;
+			return err;
 		}
 	}
 
 	return mlx5_vdpa_update_cvq_iotlb(mvdev, iotlb, asid);
-
-out_err:
-	mlx5_vdpa_put_mr(mvdev, new_mr);
-	return err;
 }
 
 static int mlx5_vdpa_set_map(struct vdpa_device *vdev, unsigned int asid,
