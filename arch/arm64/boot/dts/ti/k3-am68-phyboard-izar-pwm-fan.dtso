@@ -1,0 +1,74 @@
+// SPDX-License-Identifier: GPL-2.0-only OR MIT
+/*
+ * Copyright (C) 2026 PHYTEC Messtechnik GmbH
+ * Author: Dominik Haller <d.haller@phytec.de>
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/pwm/pwm.h>
+#include "k3-pinctrl.h"
+
+&{/} {
+	pwmfan: pwm-fan {
+		compatible = "pwm-fan";
+		pinctrl-names = "default";
+		pinctrl-0 = <&main_pwmfan_default_pins>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 90 150 255>;
+		/* frequency needs to be the same as lvds backlight */
+		pwms = <&main_ehrpwm0 0 44000 PWM_POLARITY_INVERTED>;
+	};
+};
+
+&main_pmx0 {
+	main_pwmfan_default_pins: main-pwmfan-default-pins {
+		pinctrl-single,pins = <
+			J721S2_IOPAD(0x0cc, PIN_OUTPUT, 5) /* (AE27) SPI0_CS0.EHRPWM0_A */
+		>;
+	};
+};
+
+&main_ehrpwm0 {
+	status = "okay";
+};
+
+&main3_thermal {
+	trips {
+		cpu_low: cpu-low {
+			hysteresis = <3000>;
+			temperature = <55000>;
+			type = "active";
+		};
+
+		cpu_med: cpu-med {
+			hysteresis = <3000>;
+			temperature = <60000>;
+			type = "active";
+		};
+
+		cpu_high: cpu-high {
+			hysteresis = <3000>;
+			temperature = <65000>;
+			type = "active";
+		};
+	};
+
+	cooling-maps {
+		map1 {
+			cooling-device = <&pwmfan 1 1>;
+			trip = <&cpu_low>;
+		};
+
+		map2 {
+			cooling-device = <&pwmfan 2 2>;
+			trip = <&cpu_med>;
+		};
+
+		map3 {
+			cooling-device = <&pwmfan 3 3>;
+			trip = <&cpu_high>;
+		};
+	};
+};
