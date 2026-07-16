@@ -26,7 +26,8 @@ Here is what the fields mean:
    name below ``/proc/sys/fs/binfmt_misc``; cannot contain slashes ``/`` for
    obvious reasons.
 - ``type``
-   is the type of recognition. Give ``M`` for magic and ``E`` for extension.
+   is the type of recognition. Give ``M`` for magic, ``E`` for extension and
+   ``B`` for a bpf-backed handler (see below).
 - ``offset``
    is the offset of the magic/mask in the file, counted in bytes. This
    defaults to 0 if you omit it (i.e. you write ``:name:type::magic...``).
@@ -48,7 +49,8 @@ Here is what the fields mean:
    filename extension matching.
 - ``interpreter``
    is the program that should be invoked with the binary as first
-   argument (specify the full path)
+   argument (specify the full path). For ``B`` entries this field
+   carries the name of the bpf handler instead (see below).
 - ``flags``
    is an optional field that controls several aspects of the invocation
    of the interpreter. It is a string of capital letters, each controls a
@@ -96,6 +98,65 @@ There are some restrictions:
  - the magic must reside in the first 128 bytes of the file, i.e.
    offset+size(magic) has to be less than 128
  - the interpreter string may not exceed 127 characters
+
+
+bpf-backed handlers
+-------------------
+
+With ``CONFIG_BINFMT_MISC_BPF`` both the matching and the interpreter
+selection can be delegated to bpf programs. A handler is an instance of the
+``binfmt_misc_ops`` struct_ops with a ``match`` and a ``load`` program and a
+``name``. Once the struct_ops map is registered the handler can be activated
+with a ``B`` entry that references it by name in the ``interpreter`` field
+and carries neither offset, magic, nor mask::
+
+    echo ':qemu:B::::my_handler:' > register
+
+Both programs receive the ``linux_binprm`` of the binary and both can
+sleep. The ``match`` program decides whether the handler applies: it is
+consulted during the entry walk exactly like magic and extension matching,
+in the same registration order with the same first-match-wins semantics.
+Unlike static matching it is not limited to the prefetched first bytes of
+the file in ``bprm->buf``: it can read the file, e.g. to parse ELF program
+headers whose data sits at arbitrary offsets. It only decides, though: the
+selection kfuncs below are rejected in it. The ``load`` program of the
+matched handler then selects the interpreter: it can equally read the file
+and derive the interpreter from the binary's location. It selects the
+interpreter by calling the ``bpf_binprm_set_interp()`` kfunc with an
+absolute path and returning ``0``. A match is committed: a failing
+``load`` fails the exec with its error instead of falling through to later
+entries; ``-ENOEXEC`` lets the remaining binary formats have a go. The
+interpreter is opened with the credentials of the task doing the exec,
+exactly as a statically registered interpreter would be.
+
+The ``load`` program can also pass a single argument to the interpreter with
+the ``bpf_binprm_set_interp_arg()`` kfunc. It is inserted between the
+interpreter and the binary, exactly like the optional argument of a ``#!``
+interpreter line, e.g. for a handler that resolves ``$ORIGIN`` in a script's
+``#!`` path and needs to preserve the argument that followed it.
+
+The invocation flags a static entry fixes at registration - ``P``, ``C``
+and ``O`` - are per-exec choices for a bpf handler, made by the ``load``
+program with the ``bpf_binprm_set_flags()`` kfunc, so a single handler can
+decide them differently for each binary it handles:
+
+- ``BPF_BINPRM_PRESERVE_ARGV0`` keeps the caller's ``argv[0]`` (the ``P``
+  flag).
+- ``BPF_BINPRM_CREDENTIALS`` computes credentials from the binary (the ``C``
+  flag), bounded to user namespaces that map the binary's owner just like
+  any other setuid exec.
+- ``BPF_BINPRM_EXECFD`` opens the binary on the interpreter's behalf and
+  passes it through the ``AT_EXECFD`` aux vector entry (the ``O`` flag), so
+  the interpreter can run binaries it could not open by path.
+
+Because these are program choices, a ``B`` entry carries no flags in the
+register string; ``F`` (pre-open a fixed interpreter) has no meaning for it.
+
+A handler is looked up only in the user namespace the struct_ops map was
+registered in. Handlers are not inherited, so an entry can only reference a
+handler registered in the same user namespace as its binfmt_misc instance.
+The entry keeps the handler alive; deleting the struct_ops map only prevents
+new activations.
 
 To use binfmt_misc you have to mount it first. You can mount it with
 ``mount -t binfmt_misc none /proc/sys/fs/binfmt_misc`` command, or you can add
