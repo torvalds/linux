@@ -59,6 +59,67 @@
 			status = "disabled";
 		};
 
+		gpcdma: dma-controller@8400000 {
+			compatible = "nvidia,tegra264-gpcdma";
+			reg = <0x0 0x08400000 0x0 0x210000>;
+			interrupts = <GIC_SPI 584 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 585 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 586 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 587 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 588 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 589 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 590 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 591 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 592 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 593 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 594 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 595 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 596 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 597 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 598 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 599 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 600 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 601 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 602 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 603 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 604 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 605 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 606 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 607 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 608 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 609 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 610 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 611 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 612 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 613 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 614 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 615 IRQ_TYPE_LEVEL_HIGH>;
+			#dma-cells = <1>;
+			iommus = <&smmu1 0x00000800>;
+			iommu-map = <1 &smmu1 0x801 31>;
+			dma-coherent;
+			dma-channel-mask = <0xfffffffe>;
+			status = "disabled";
+		};
+
+		hsp_top: hsp@8800000 {
+			compatible = "nvidia,tegra264-hsp";
+			reg = <0x0 0x08800000 0x0 0xd0000>;
+			interrupts = <GIC_SPI 620 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 622 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 623 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 624 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 625 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 626 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 637 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 638 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 639 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "doorbell", "shared0", "shared1", "shared2",
+					  "shared3", "shared4", "shared5", "shared6",
+					  "shared7";
+			#mbox-cells = <2>;
+		};
+
 		aconnect@9000000 {
 			compatible = "nvidia,tegra264-aconnect",
 					"nvidia,tegra210-aconnect";
@@ -3216,67 +3277,6 @@
 			};
 		};
 
-		gpcdma: dma-controller@8400000 {
-			compatible = "nvidia,tegra264-gpcdma";
-			reg = <0x0 0x08400000 0x0 0x210000>;
-			interrupts = <GIC_SPI 584 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 585 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 586 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 587 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 588 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 589 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 590 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 591 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 592 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 593 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 594 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 595 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 596 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 597 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 598 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 599 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 600 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 601 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 602 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 603 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 604 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 605 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 606 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 607 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 608 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 609 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 610 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 611 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 612 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 613 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 614 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 615 IRQ_TYPE_LEVEL_HIGH>;
-			#dma-cells = <1>;
-			iommus = <&smmu1 0x00000800>;
-			iommu-map = <1 &smmu1 0x801 31>;
-			dma-coherent;
-			dma-channel-mask = <0xfffffffe>;
-			status = "disabled";
-		};
-
-		hsp_top: hsp@8800000 {
-			compatible = "nvidia,tegra264-hsp";
-			reg = <0x0 0x08800000 0x0 0xd0000>;
-			interrupts = <GIC_SPI 620 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 622 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 623 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 624 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 625 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 626 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 637 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 638 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 639 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "doorbell", "shared0", "shared1", "shared2",
-					  "shared3", "shared4", "shared5", "shared6",
-					  "shared7";
-			#mbox-cells = <2>;
-		};
-
 		hte_aon: hardware-timestamp@c2b0000 {
 			compatible = "nvidia,tegra264-gte-aon";
 			reg = <0x0 0x0c2b0000 0x0 0x10000>;
@@ -4134,6 +4134,28 @@
 		};
 	};
 
+	bpmp: bpmp {
+		compatible = "nvidia,tegra264-bpmp", "nvidia,tegra186-bpmp";
+		mboxes = <&hsp_top TEGRA_HSP_MBOX_TYPE_DB
+				   TEGRA_HSP_DB_MASTER_BPMP>;
+		memory-region = <&shmem_bpmp>;
+		#clock-cells = <1>;
+		#reset-cells = <1>;
+		#power-domain-cells = <1>;
+
+		i2c {
+			compatible = "nvidia,tegra186-bpmp-i2c";
+			nvidia,bpmp-bus-id = <5>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		thermal {
+			compatible = "nvidia,tegra186-bpmp-thermal";
+			#thermal-sensor-cells = <1>;
+		};
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -4488,28 +4510,6 @@
 			cache-unified;
 		};
 
-	};
-
-	bpmp: bpmp {
-		compatible = "nvidia,tegra264-bpmp", "nvidia,tegra186-bpmp";
-		mboxes = <&hsp_top TEGRA_HSP_MBOX_TYPE_DB
-				   TEGRA_HSP_DB_MASTER_BPMP>;
-		memory-region = <&shmem_bpmp>;
-		#clock-cells = <1>;
-		#reset-cells = <1>;
-		#power-domain-cells = <1>;
-
-		i2c {
-			compatible = "nvidia,tegra186-bpmp-i2c";
-			nvidia,bpmp-bus-id = <5>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-		};
-
-		thermal {
-			compatible = "nvidia,tegra186-bpmp-thermal";
-			#thermal-sensor-cells = <1>;
-		};
 	};
 
 	pmu {
