@@ -35,8 +35,8 @@ static int ad5310_control_sync(struct ad5686_state *st)
 	unsigned int pd_val = st->pwr_down_mask & st->pwr_down_mode;
 
 	return ad5686_write(st, AD5686_CMD_CONTROL_REG, 0,
-			    FIELD_PREP(AD5310_PD_MSK, pd_val & AD5686_PD_MSK) |
-			    FIELD_PREP(AD5310_REF_BIT_MSK, st->use_internal_vref ? 0 : 1));
+			    FIELD_PREP(AD5310_DATA_PD_MSK, pd_val & AD5686_PD_MSK) |
+			    FIELD_PREP(AD5310_DATA_REF_MSK, st->use_internal_vref ? 0 : 1));
 }
 
 static int ad5683_control_sync(struct ad5686_state *st)
@@ -44,8 +44,8 @@ static int ad5683_control_sync(struct ad5686_state *st)
 	unsigned int pd_val = st->pwr_down_mask & st->pwr_down_mode;
 
 	return ad5686_write(st, AD5686_CMD_CONTROL_REG, 0,
-			    FIELD_PREP(AD5683_PD_MSK, pd_val & AD5686_PD_MSK) |
-			    FIELD_PREP(AD5683_REF_BIT_MSK, st->use_internal_vref ? 0 : 1));
+			    FIELD_PREP(AD5683_DATA_PD_MSK, pd_val & AD5686_PD_MSK) |
+			    FIELD_PREP(AD5683_DATA_REF_MSK, st->use_internal_vref ? 0 : 1));
 }
 
 static inline unsigned int ad5686_pd_mask_shift(const struct iio_chan_spec *chan)
@@ -562,7 +562,7 @@ int ad5686_probe(struct device *dev,
 		break;
 	case AD5686_REGMAP:
 		ret = ad5686_write(st, AD5686_CMD_INTERNAL_REFER_SETUP, 0,
-				   st->use_internal_vref ? 0 : AD5686_REF_BIT_MSK);
+				   st->use_internal_vref ? 0 : AD5686_DATA_REF_MSK);
 		if (ret)
 			return ret;
 		break;

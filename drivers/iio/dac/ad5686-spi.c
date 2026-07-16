@@ -9,6 +9,7 @@
  */
 
 #include <linux/array_size.h>
+#include <linux/bitfield.h>
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/spi/spi.h>
@@ -25,21 +26,21 @@ static int ad5686_spi_write(struct ad5686_state *st,
 
 	switch (st->chip_info->regmap_type) {
 	case AD5310_REGMAP:
-		st->data[0].d16 = cpu_to_be16(AD5310_CMD(cmd) |
-					      val);
+		st->data[0].d16 = cpu_to_be16(FIELD_PREP(AD5310_CMD_MSK, cmd) |
+					      FIELD_PREP(AD5310_DATA_MSK, val));
 		buf = &st->data[0].d8[0];
 		tx_len = 2;
 		break;
 	case AD5683_REGMAP:
-		st->data[0].d32 = cpu_to_be32(AD5686_CMD(cmd) |
-					      AD5683_DATA(val));
+		st->data[0].d32 = cpu_to_be32(FIELD_PREP(AD5686_CMD_MSK, cmd) |
+					      FIELD_PREP(AD5683_DATA_MSK, val));
 		buf = &st->data[0].d8[1];
 		tx_len = 3;
 		break;
 	case AD5686_REGMAP:
-		st->data[0].d32 = cpu_to_be32(AD5686_CMD(cmd) |
-					      AD5686_ADDR(addr) |
-					      val);
+		st->data[0].d32 = cpu_to_be32(FIELD_PREP(AD5686_CMD_MSK, cmd) |
+					      FIELD_PREP(AD5686_ADDR_MSK, addr) |
+					      FIELD_PREP(AD5686_DATA_MSK, val));
 		buf = &st->data[0].d8[1];
 		tx_len = 3;
 		break;
@@ -80,9 +81,9 @@ static int ad5686_spi_read(struct ad5686_state *st, u8 addr)
 		return -EINVAL;
 	}
 
-	st->data[0].d32 = cpu_to_be32(AD5686_CMD(cmd) |
-				      AD5686_ADDR(addr));
-	st->data[1].d32 = cpu_to_be32(AD5686_CMD(AD5686_CMD_NOOP));
+	st->data[0].d32 = cpu_to_be32(FIELD_PREP(AD5686_CMD_MSK, cmd) |
+				      FIELD_PREP(AD5686_ADDR_MSK, addr));
+	st->data[1].d32 = cpu_to_be32(FIELD_PREP(AD5686_CMD_MSK, AD5686_CMD_NOOP));
 
 	ret = spi_sync_transfer(spi, t, ARRAY_SIZE(t));
 	if (ret < 0)

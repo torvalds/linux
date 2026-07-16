@@ -14,12 +14,14 @@
 
 #include <linux/iio/iio.h>
 
-#define AD5310_CMD(x)				((x) << 12)
+#define AD5310_CMD_MSK				GENMASK(15, 12)
+#define AD5310_DATA_MSK				GENMASK(11, 0)
 
-#define AD5683_DATA(x)				((x) << 4)
+#define AD5683_DATA_MSK				GENMASK(19, 4)
 
-#define AD5686_ADDR(x)				((x) << 16)
-#define AD5686_CMD(x)				((x) << 20)
+#define AD5686_CMD_MSK				GENMASK(23, 20)
+#define AD5686_ADDR_MSK				GENMASK(19, 16)
+#define AD5686_DATA_MSK				GENMASK(15, 0)
 
 #define AD5686_ADDR_DAC(chan)			(0x1 << (chan))
 #define AD5686_ADDR_ALL_DAC			0xF
@@ -38,15 +40,15 @@
 #define AD5686_CMD_CONTROL_REG			0x4
 #define AD5686_CMD_READBACK_ENABLE_V2		0x5
 
-#define AD5310_REF_BIT_MSK			BIT(8)
-#define AD5310_PD_MSK				GENMASK(10, 9)
+#define AD5310_DATA_REF_MSK			BIT(8)
+#define AD5310_DATA_PD_MSK			GENMASK(10, 9)
 
-#define AD5683_REF_BIT_MSK			BIT(12)
-#define AD5683_PD_MSK				GENMASK(14, 13)
+#define AD5683_DATA_REF_MSK			BIT(12) /* DB16 */
+#define AD5683_DATA_PD_MSK			GENMASK(14, 13) /* DB18:DB17 */
 
-#define AD5686_REF_BIT_MSK			BIT(0)
+#define AD5686_DATA_REF_MSK			BIT(0)
+
 #define AD5686_PD_MSK				GENMASK(1, 0)
-
 #define AD5686_PD_MODE_1K_TO_GND		0x1
 #define AD5686_PD_MODE_100K_TO_GND		0x2
 #define AD5686_PD_MODE_THREE_STATE		0x3
