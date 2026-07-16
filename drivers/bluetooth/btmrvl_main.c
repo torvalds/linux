@@ -43,9 +43,16 @@ bool btmrvl_check_evtpkt(struct btmrvl_private *priv, struct sk_buff *skb)
 {
 	struct hci_event_hdr *hdr = (void *) skb->data;
 
+	if (skb->len < sizeof(*hdr))
+		return true;
+
 	if (hdr->evt == HCI_EV_CMD_COMPLETE) {
 		struct hci_ev_cmd_complete *ec;
 		u16 opcode;
+
+		if (hdr->plen < sizeof(*ec) ||
+		    skb->len < HCI_EVENT_HDR_SIZE + sizeof(*ec))
+			return true;
 
 		ec = (void *) (skb->data + HCI_EVENT_HDR_SIZE);
 		opcode = __le16_to_cpu(ec->opcode);
@@ -73,6 +80,9 @@ int btmrvl_process_event(struct btmrvl_private *priv, struct sk_buff *skb)
 	struct btmrvl_adapter *adapter = priv->adapter;
 	struct btmrvl_event *event;
 	int ret = 0;
+
+	if (skb->len < sizeof(*event))
+		return -EINVAL;
 
 	event = (struct btmrvl_event *) skb->data;
 	if (event->ec != 0xff) {
