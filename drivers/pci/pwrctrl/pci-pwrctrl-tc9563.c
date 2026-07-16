@@ -549,7 +549,7 @@ static int tc9563_pwrctrl_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, ret, "Failed to read i2c-parent property\n");
 
 	i2c_node = of_parse_phandle(dev->of_node, "i2c-parent", 0);
-	tc9563->adapter = of_find_i2c_adapter_by_node(i2c_node);
+	tc9563->adapter = of_get_i2c_adapter_by_node(i2c_node);
 	of_node_put(i2c_node);
 	if (!tc9563->adapter)
 		return dev_err_probe(dev, -EPROBE_DEFER, "Failed to find I2C adapter\n");
@@ -557,7 +557,7 @@ static int tc9563_pwrctrl_probe(struct platform_device *pdev)
 	tc9563->client = i2c_new_dummy_device(tc9563->adapter, addr);
 	if (IS_ERR(tc9563->client)) {
 		dev_err(dev, "Failed to create I2C client\n");
-		put_device(&tc9563->adapter->dev);
+		i2c_put_adapter(tc9563->adapter);
 		return PTR_ERR(tc9563->client);
 	}
 
@@ -625,7 +625,7 @@ power_off:
 	tc9563_pwrctrl_power_off(&tc9563->pwrctrl);
 remove_i2c:
 	i2c_unregister_device(tc9563->client);
-	put_device(&tc9563->adapter->dev);
+	i2c_put_adapter(tc9563->adapter);
 	return ret;
 }
 
@@ -637,7 +637,7 @@ static void tc9563_pwrctrl_remove(struct platform_device *pdev)
 
 	tc9563_pwrctrl_power_off(&tc9563->pwrctrl);
 	i2c_unregister_device(tc9563->client);
-	put_device(&tc9563->adapter->dev);
+	i2c_put_adapter(tc9563->adapter);
 }
 
 static const struct of_device_id tc9563_pwrctrl_of_match[] = {
