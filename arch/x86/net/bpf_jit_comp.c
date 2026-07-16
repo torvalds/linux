@@ -3703,13 +3703,12 @@ int arch_bpf_trampoline_size(const struct btf_func_model *m, u32 flags,
 	int ret;
 
 	/* Allocate a temporary buffer for __arch_prepare_bpf_trampoline().
-	 * This will NOT cause fragmentation in direct map, as we do not
-	 * call set_memory_*() on this buffer.
 	 *
 	 * We cannot use kvmalloc here, because we need image to be in
 	 * module memory range.
+	 * Since it must be writable use bpf_jit_alloc_exec_rw().
 	 */
-	image = bpf_jit_alloc_exec(PAGE_SIZE);
+	image = bpf_jit_alloc_exec_rw(PAGE_SIZE);
 	if (!image)
 		return -ENOMEM;
 
