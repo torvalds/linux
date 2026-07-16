@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/anon_inodes.h>
+#include <linux/compat.h>
 #include <linux/exportfs.h>
 #include <linux/file.h>
 #include <linux/fs.h>
@@ -659,6 +660,17 @@ static long pidfd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return open_namespace(ns_common);
 }
 
+#ifdef CONFIG_COMPAT
+static long pidfd_compat_ioctl(struct file *file, unsigned int cmd,
+			       unsigned long arg)
+{
+	if (cmd == FS_IOC32_GETVERSION)
+		cmd = FS_IOC_GETVERSION;
+
+	return pidfd_ioctl(file, cmd, (unsigned long)compat_ptr(arg));
+}
+#endif
+
 static int pidfs_file_release(struct inode *inode, struct file *file)
 {
 	struct pid *pid = inode->i_private;
@@ -686,7 +698,9 @@ static const struct file_operations pidfs_file_operations = {
 	.show_fdinfo	= pidfd_show_fdinfo,
 #endif
 	.unlocked_ioctl	= pidfd_ioctl,
-	.compat_ioctl   = compat_ptr_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= pidfd_compat_ioctl,
+#endif
 };
 
 struct pid *pidfd_pid(const struct file *file)
