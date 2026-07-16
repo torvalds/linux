@@ -592,7 +592,7 @@
 		pwrgd-rmc-hog {
 			gpio-hog;
 			gpios = <14 GPIO_ACTIVE_LOW>;
-			output-low;
+			output-high;
 		};
 	};
 
