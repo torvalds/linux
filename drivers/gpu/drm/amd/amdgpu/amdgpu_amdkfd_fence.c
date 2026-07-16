@@ -135,9 +135,6 @@ static bool amdkfd_fence_enable_signaling(struct dma_fence *f)
 	if (!fence->svm_bo) {
 		if (!kgd2kfd_schedule_evict_and_restore_process(fence->mm, fence->context_id, f))
 			return true;
-	} else {
-		if (!svm_range_schedule_evict_svm_bo(fence))
-			return true;
 	}
 	return false;
 }

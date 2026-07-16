@@ -44,7 +44,6 @@ struct svm_range_bo {
 	struct list_head		range_list; /* all svm ranges shared this bo */
 	spinlock_t			list_lock;
 	struct amdgpu_amdkfd_fence	*eviction_fence;
-	struct work_struct		eviction_work;
 	uint32_t			evicting;
 	struct work_struct		release_work;
 	struct kfd_node			*node;
@@ -175,7 +174,8 @@ void svm_range_vram_node_free(struct svm_range *prange);
 int svm_range_restore_pages(struct amdgpu_device *adev, unsigned int pasid,
 			    uint32_t vmid, uint32_t node_id, uint64_t addr, uint64_t ts,
 			    bool write_fault);
-int svm_range_schedule_evict_svm_bo(struct amdgpu_amdkfd_fence *fence);
+int svm_range_evict_svm_bo(struct svm_range_bo *svm_bo);
+
 void svm_range_add_list_work(struct svm_range_list *svms,
 			     struct svm_range *prange, struct mm_struct *mm,
 			     enum svm_work_list_ops op);
@@ -229,11 +229,9 @@ static inline int svm_range_restore_pages(struct amdgpu_device *adev,
 	return -EFAULT;
 }
 
-static inline int svm_range_schedule_evict_svm_bo(
-		struct amdgpu_amdkfd_fence *fence)
+static inline int svm_range_evict_svm_bo(struct svm_range_bo *svm_bo)
 {
-	WARN_ONCE(1, "SVM eviction fence triggered, but SVM is disabled");
-	return -EINVAL;
+	return 0;
 }
 
 static inline void svm_range_get_info(struct kfd_process *p,
