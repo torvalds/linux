@@ -84,7 +84,7 @@ CONFIGFS_ATTR_RO(childless_, showme);
 CONFIGFS_ATTR(childless_, storeme);
 CONFIGFS_ATTR_RO(childless_, description);
 
-static struct configfs_attribute *childless_attrs[] = {
+static const struct configfs_attribute *const childless_attrs[] = {
 	&childless_attr_showme,
 	&childless_attr_storeme,
 	&childless_attr_description,
@@ -92,7 +92,7 @@ static struct configfs_attribute *childless_attrs[] = {
 };
 
 static const struct config_item_type childless_type = {
-	.ct_attrs	= childless_attrs,
+	.ct_attrs_const	= childless_attrs,
 	.ct_owner	= THIS_MODULE,
 };
 
@@ -148,7 +148,7 @@ static ssize_t simple_child_storeme_store(struct config_item *item,
 
 CONFIGFS_ATTR(simple_child_, storeme);
 
-static struct configfs_attribute *simple_child_attrs[] = {
+static const struct configfs_attribute *const simple_child_attrs[] = {
 	&simple_child_attr_storeme,
 	NULL,
 };
@@ -164,7 +164,7 @@ static const struct configfs_item_operations simple_child_item_ops = {
 
 static const struct config_item_type simple_child_type = {
 	.ct_item_ops	= &simple_child_item_ops,
-	.ct_attrs	= simple_child_attrs,
+	.ct_attrs_const	= simple_child_attrs,
 	.ct_owner	= THIS_MODULE,
 };
 
@@ -205,7 +205,7 @@ static ssize_t simple_children_description_show(struct config_item *item,
 
 CONFIGFS_ATTR_RO(simple_children_, description);
 
-static struct configfs_attribute *simple_children_attrs[] = {
+static const struct configfs_attribute *const simple_children_attrs[] = {
 	&simple_children_attr_description,
 	NULL,
 };
@@ -230,7 +230,7 @@ static const struct configfs_group_operations simple_children_group_ops = {
 static const struct config_item_type simple_children_type = {
 	.ct_item_ops	= &simple_children_item_ops,
 	.ct_group_ops	= &simple_children_group_ops,
-	.ct_attrs	= simple_children_attrs,
+	.ct_attrs_const	= simple_children_attrs,
 	.ct_owner	= THIS_MODULE,
 };
 
@@ -283,7 +283,7 @@ static ssize_t group_children_description_show(struct config_item *item,
 
 CONFIGFS_ATTR_RO(group_children_, description);
 
-static struct configfs_attribute *group_children_attrs[] = {
+static const struct configfs_attribute *const group_children_attrs[] = {
 	&group_children_attr_description,
 	NULL,
 };
@@ -298,7 +298,7 @@ static const struct configfs_group_operations group_children_group_ops = {
 
 static const struct config_item_type group_children_type = {
 	.ct_group_ops	= &group_children_group_ops,
-	.ct_attrs	= group_children_attrs,
+	.ct_attrs_const	= group_children_attrs,
 	.ct_owner	= THIS_MODULE,
 };
 
