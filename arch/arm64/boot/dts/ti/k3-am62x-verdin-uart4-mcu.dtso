@@ -2,7 +2,7 @@
 /*
  * Copyright (c) Toradex
  *
- * Verdin AM62 Cortex-M4F debug UART
+ * Verdin AM62 and AM62P UART_4 reserved for the MCU co-processor
  */
 
 /dts-v1/;
