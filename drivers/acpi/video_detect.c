@@ -73,7 +73,7 @@ find_video(acpi_handle handle, u32 lvl, void *context, void **rv)
 	};
 
 	if (acpi_dev && !acpi_match_device_ids(acpi_dev, video_ids)) {
-		dev = acpi_get_pci_dev(handle);
+		dev = acpi_dev_get_pci_dev(acpi_dev);
 		if (!dev)
 			return AE_OK;
 		pci_dev_put(dev);
