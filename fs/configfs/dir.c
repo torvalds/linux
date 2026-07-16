@@ -641,8 +641,8 @@ static int populate_attrs(struct config_item *item)
 
 	ops = t->ct_group_ops;
 
-	if (t->ct_attrs) {
-		for (i = 0; (attr = t->ct_attrs[i]) != NULL; i++) {
+	if (t->ct_attrs_const) {
+		for (i = 0; (attr = t->ct_attrs_const[i]) != NULL; i++) {
 			if (ops && ops->is_visible && !ops->is_visible(item, attr, i))
 				continue;
 

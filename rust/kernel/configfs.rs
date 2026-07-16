@@ -756,7 +756,9 @@ macro_rules! impl_item_type {
                         ct_owner: owner.as_ptr(),
                         ct_group_ops: GroupOperationsVTable::<Data, Child>::vtable_ptr(),
                         ct_item_ops: ItemOperationsVTable::<$tpe, Data>::vtable_ptr(),
-                        ct_attrs: core::ptr::from_ref(attributes).cast_mut().cast(),
+                        __bindgen_anon_1: bindings::config_item_type__bindgen_ty_1 {
+                            ct_attrs_const: core::ptr::from_ref(attributes).cast(),
+                        },
                         ct_bin_attrs: core::ptr::null(),
                     }),
                     _p: PhantomData,
@@ -773,7 +775,9 @@ macro_rules! impl_item_type {
                         ct_owner: owner.as_ptr(),
                         ct_group_ops: core::ptr::null(),
                         ct_item_ops: ItemOperationsVTable::<$tpe, Data>::vtable_ptr(),
-                        ct_attrs: core::ptr::from_ref(attributes).cast_mut().cast(),
+                        __bindgen_anon_1: bindings::config_item_type__bindgen_ty_1 {
+                            ct_attrs_const: core::ptr::from_ref(attributes).cast(),
+                        },
                         ct_bin_attrs: core::ptr::null(),
                     }),
                     _p: PhantomData,

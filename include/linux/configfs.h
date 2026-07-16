@@ -66,7 +66,10 @@ struct config_item_type {
 	struct module				*ct_owner;
 	const struct configfs_item_operations	*ct_item_ops;
 	const struct configfs_group_operations	*ct_group_ops;
-	struct configfs_attribute		**ct_attrs;
+	union {
+		struct configfs_attribute		**ct_attrs;
+		const struct configfs_attribute		*const *ct_attrs_const;
+	};
 	const struct configfs_bin_attribute	*const *ct_bin_attrs;
 };
 
