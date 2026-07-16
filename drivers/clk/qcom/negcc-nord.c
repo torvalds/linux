@@ -17,7 +17,6 @@
 #include "clk-rcg.h"
 #include "clk-regmap.h"
 #include "clk-regmap-divider.h"
-#include "clk-regmap-mux.h"
 #include "clk-regmap-phy-mux.h"
 #include "common.h"
 #include "gdsc.h"
@@ -42,8 +41,6 @@ enum {
 	P_UFS_PHY_RX_SYMBOL_0_CLK,
 	P_UFS_PHY_RX_SYMBOL_1_CLK,
 	P_UFS_PHY_TX_SYMBOL_0_CLK,
-	P_USB3_PHY_SEC_WRAPPER_NE_GCC_USB31_PIPE_CLK,
-	P_USB3_PHY_WRAPPER_NE_GCC_USB31_PIPE_CLK,
 };
 
 static struct clk_alpha_pll ne_gcc_gpll0 = {
@@ -166,26 +163,6 @@ static const struct clk_parent_data ne_gcc_parent_data_5[] = {
 	{ .index = DT_BI_TCXO },
 };
 
-static const struct parent_map ne_gcc_parent_map_6[] = {
-	{ P_USB3_PHY_WRAPPER_NE_GCC_USB31_PIPE_CLK, 0 },
-	{ P_BI_TCXO, 2 },
-};
-
-static const struct clk_parent_data ne_gcc_parent_data_6[] = {
-	{ .index = DT_USB3_PHY_WRAPPER_NE_GCC_USB31_PIPE_CLK },
-	{ .index = DT_BI_TCXO },
-};
-
-static const struct parent_map ne_gcc_parent_map_7[] = {
-	{ P_USB3_PHY_SEC_WRAPPER_NE_GCC_USB31_PIPE_CLK, 0 },
-	{ P_BI_TCXO, 2 },
-};
-
-static const struct clk_parent_data ne_gcc_parent_data_7[] = {
-	{ .index = DT_USB3_PHY_SEC_WRAPPER_NE_GCC_USB31_PIPE_CLK },
-	{ .index = DT_BI_TCXO },
-};
-
 static struct clk_regmap_phy_mux ne_gcc_ufs_phy_rx_symbol_0_clk_src = {
 	.reg = 0x33068,
 	.clkr = {
@@ -228,32 +205,30 @@ static struct clk_regmap_phy_mux ne_gcc_ufs_phy_tx_symbol_0_clk_src = {
 	},
 };
 
-static struct clk_regmap_mux ne_gcc_usb3_prim_phy_pipe_clk_src = {
+static struct clk_regmap_phy_mux ne_gcc_usb3_prim_phy_pipe_clk_src = {
 	.reg = 0x2a078,
-	.shift = 0,
-	.width = 2,
-	.parent_map = ne_gcc_parent_map_6,
 	.clkr = {
 		.hw.init = &(const struct clk_init_data) {
 			.name = "ne_gcc_usb3_prim_phy_pipe_clk_src",
-			.parent_data = ne_gcc_parent_data_6,
-			.num_parents = ARRAY_SIZE(ne_gcc_parent_data_6),
-			.ops = &clk_regmap_mux_closest_ops,
+			.parent_data = &(const struct clk_parent_data){
+				.index = DT_USB3_PHY_WRAPPER_NE_GCC_USB31_PIPE_CLK,
+			},
+			.num_parents = 1,
+			.ops = &clk_regmap_phy_mux_ops,
 		},
 	},
 };
 
-static struct clk_regmap_mux ne_gcc_usb3_sec_phy_pipe_clk_src = {
+static struct clk_regmap_phy_mux ne_gcc_usb3_sec_phy_pipe_clk_src = {
 	.reg = 0x2c078,
-	.shift = 0,
-	.width = 2,
-	.parent_map = ne_gcc_parent_map_7,
 	.clkr = {
 		.hw.init = &(const struct clk_init_data) {
 			.name = "ne_gcc_usb3_sec_phy_pipe_clk_src",
-			.parent_data = ne_gcc_parent_data_7,
-			.num_parents = ARRAY_SIZE(ne_gcc_parent_data_7),
-			.ops = &clk_regmap_mux_closest_ops,
+			.parent_data = &(const struct clk_parent_data){
+				.index = DT_USB3_PHY_SEC_WRAPPER_NE_GCC_USB31_PIPE_CLK,
+			},
+			.num_parents = 1,
+			.ops = &clk_regmap_phy_mux_ops,
 		},
 	},
 };
