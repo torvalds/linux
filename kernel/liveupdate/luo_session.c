@@ -316,8 +316,12 @@ static int luo_session_finish(struct luo_session *session,
 			      struct luo_ucmd *ucmd)
 {
 	struct liveupdate_session_finish *argp = ucmd->cmd;
-	int err = luo_session_finish_one(session);
+	int err;
 
+	if (argp->reserved)
+		return -EINVAL;
+
+	err = luo_session_finish_one(session);
 	if (err)
 		return err;
 
