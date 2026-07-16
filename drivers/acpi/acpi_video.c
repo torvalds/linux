@@ -1719,10 +1719,8 @@ static void acpi_video_dev_register_backlight(struct acpi_video_device *device)
 
 	if (ACPI_SUCCESS(acpi_get_parent(device->dev->handle, &acpi_parent))) {
 		pdev = acpi_get_pci_dev(acpi_parent);
-		if (pdev) {
+		if (pdev)
 			parent = &pdev->dev;
-			pci_dev_put(pdev);
-		}
 	}
 
 	memset(&props, 0, sizeof(struct backlight_properties));
@@ -1734,6 +1732,7 @@ static void acpi_video_dev_register_backlight(struct acpi_video_device *device)
 						      device,
 						      &acpi_backlight_ops,
 						      &props);
+	put_device(parent);
 	kfree(name);
 	if (IS_ERR(device->backlight)) {
 		device->backlight = NULL;
