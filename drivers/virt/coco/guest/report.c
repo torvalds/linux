@@ -356,7 +356,7 @@ static struct configfs_attribute *tsm_report_attrs[] = {
 	NULL,
 };
 
-static struct configfs_bin_attribute *tsm_report_bin_attrs[] = {
+static const struct configfs_bin_attribute *const tsm_report_bin_attrs[] = {
 	[TSM_REPORT_INBLOB] = &tsm_report_attr_inblob,
 	[TSM_REPORT_OUTBLOB] = &tsm_report_attr_outblob,
 	[TSM_REPORT_AUXBLOB] = &tsm_report_attr_auxblob,

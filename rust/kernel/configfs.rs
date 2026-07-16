@@ -757,7 +757,7 @@ macro_rules! impl_item_type {
                         ct_group_ops: GroupOperationsVTable::<Data, Child>::vtable_ptr(),
                         ct_item_ops: ItemOperationsVTable::<$tpe, Data>::vtable_ptr(),
                         ct_attrs: core::ptr::from_ref(attributes).cast_mut().cast(),
-                        ct_bin_attrs: core::ptr::null_mut(),
+                        ct_bin_attrs: core::ptr::null(),
                     }),
                     _p: PhantomData,
                 }
@@ -774,7 +774,7 @@ macro_rules! impl_item_type {
                         ct_group_ops: core::ptr::null(),
                         ct_item_ops: ItemOperationsVTable::<$tpe, Data>::vtable_ptr(),
                         ct_attrs: core::ptr::from_ref(attributes).cast_mut().cast(),
-                        ct_bin_attrs: core::ptr::null_mut(),
+                        ct_bin_attrs: core::ptr::null(),
                     }),
                     _p: PhantomData,
                 }
