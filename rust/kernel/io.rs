@@ -721,6 +721,8 @@ pub trait Io<'a>: IoBase<'a> {
     }
 
     /// Infallible 8-bit read with compile-time bounds check.
+    ///
+    /// `offset` should be constant.
     #[inline(always)]
     fn read8(self, offset: usize) -> u8
     where
@@ -731,6 +733,8 @@ pub trait Io<'a>: IoBase<'a> {
     }
 
     /// Infallible 16-bit read with compile-time bounds check.
+    ///
+    /// `offset` should be constant.
     #[inline(always)]
     fn read16(self, offset: usize) -> u16
     where
@@ -741,6 +745,8 @@ pub trait Io<'a>: IoBase<'a> {
     }
 
     /// Infallible 32-bit read with compile-time bounds check.
+    ///
+    /// `offset` should be constant.
     #[inline(always)]
     fn read32(self, offset: usize) -> u32
     where
@@ -751,6 +757,8 @@ pub trait Io<'a>: IoBase<'a> {
     }
 
     /// Infallible 64-bit read with compile-time bounds check.
+    ///
+    /// `offset` should be constant.
     #[inline(always)]
     fn read64(self, offset: usize) -> u64
     where
@@ -761,6 +769,8 @@ pub trait Io<'a>: IoBase<'a> {
     }
 
     /// Infallible 8-bit write with compile-time bounds check.
+    ///
+    /// `offset` should be constant.
     #[inline(always)]
     fn write8(self, value: u8, offset: usize)
     where
@@ -771,6 +781,8 @@ pub trait Io<'a>: IoBase<'a> {
     }
 
     /// Infallible 16-bit write with compile-time bounds check.
+    ///
+    /// `offset` should be constant.
     #[inline(always)]
     fn write16(self, value: u16, offset: usize)
     where
@@ -781,6 +793,8 @@ pub trait Io<'a>: IoBase<'a> {
     }
 
     /// Infallible 32-bit write with compile-time bounds check.
+    ///
+    /// `offset` should be constant.
     #[inline(always)]
     fn write32(self, value: u32, offset: usize)
     where
@@ -791,6 +805,8 @@ pub trait Io<'a>: IoBase<'a> {
     }
 
     /// Infallible 64-bit write with compile-time bounds check.
+    ///
+    /// `offset` should be constant.
     #[inline(always)]
     fn write64(self, value: u64, offset: usize)
     where
