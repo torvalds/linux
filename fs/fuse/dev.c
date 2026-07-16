@@ -85,7 +85,13 @@ void fuse_chan_set_initialized(struct fuse_chan *fch, struct fuse_chan_param *pa
 
 static bool fuse_block_alloc(struct fuse_chan *fch, bool for_background)
 {
-	return !fch->initialized || (for_background && fch->blocked) ||
+	if (!fch->initialized)
+		return true;
+
+	/* Pairs with smp_wmb() in fuse_chan_set_initialized() */
+	smp_rmb();
+
+	return (for_background && fch->blocked) ||
 	       (fch->io_uring && fch->connected && !fuse_uring_ready(fch));
 }
 
@@ -119,9 +125,6 @@ static struct fuse_req *fuse_get_req(struct fuse_chan *fch, bool for_background)
 				(TASK_KILLABLE | TASK_FREEZABLE)))
 			goto out;
 	}
-
-	/* Matches smp_wmb() in fuse_chan_set_initialized() */
-	smp_rmb();
 
 	err = -ENOTCONN;
 	if (!fch->connected)
