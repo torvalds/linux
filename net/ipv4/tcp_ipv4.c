@@ -2931,8 +2931,8 @@ static int bpf_iter_tcp_realloc_batch(struct bpf_tcp_iter_state *iter,
 {
 	union bpf_tcp_iter_batch_item *new_batch;
 
-	new_batch = kvmalloc(sizeof(*new_batch) * new_batch_sz,
-			     flags | __GFP_NOWARN);
+	new_batch = kvmalloc_array(new_batch_sz, sizeof(*new_batch),
+				   flags | __GFP_NOWARN);
 	if (!new_batch)
 		return -ENOMEM;
 
