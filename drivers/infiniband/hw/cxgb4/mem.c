@@ -541,7 +541,7 @@ struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	if (err)
 		goto err_umem_release;
 
-	pages = (__be64 *) __get_free_page(GFP_KERNEL);
+	pages = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!pages) {
 		err = -ENOMEM;
 		goto err_pbl_free;
@@ -568,7 +568,7 @@ struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				mhp->wr_waitp);
 
 pbl_done:
-	free_page((unsigned long) pages);
+	kfree(pages);
 	if (err)
 		goto err_pbl_free;
 
