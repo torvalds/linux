@@ -381,7 +381,7 @@ static struct configfs_item_operations tsm_report_item_ops = {
 };
 
 static bool tsm_report_is_visible(struct config_item *item,
-				  struct configfs_attribute *attr, int n)
+				  const struct configfs_attribute *attr, int n)
 {
 	guard(rwsem_read)(&tsm_rwsem);
 	if (!provider.ops)
@@ -394,7 +394,7 @@ static bool tsm_report_is_visible(struct config_item *item,
 }
 
 static bool tsm_report_is_bin_visible(struct config_item *item,
-				      struct configfs_bin_attribute *attr, int n)
+				      const struct configfs_bin_attribute *attr, int n)
 {
 	guard(rwsem_read)(&tsm_rwsem);
 	if (!provider.ops)
