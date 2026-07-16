@@ -592,7 +592,7 @@ static ssize_t rate_limit_us_show(struct gov_attr_set *attr_set, char *buf)
 {
 	struct sugov_tunables *tunables = to_sugov_tunables(attr_set);
 
-	return sprintf(buf, "%u\n", tunables->rate_limit_us);
+	return sysfs_emit(buf, "%u\n", tunables->rate_limit_us);
 }
 
 static ssize_t
