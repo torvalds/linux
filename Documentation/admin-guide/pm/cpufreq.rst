@@ -497,7 +497,7 @@ This governor exposes the following tunables:
 	represented by it to be 1.5 times as high as the transition latency
 	(the default)::
 
-	# echo `$(($(cat cpuinfo_transition_latency) * 3 / 2))` > ondemand/sampling_rate
+	# echo $(($(cat cpuinfo_transition_latency) * 3 / 2)) > ondemand/sampling_rate
 
 ``up_threshold``
 	If the estimated CPU load is above this value (in percent), the governor

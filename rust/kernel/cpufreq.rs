@@ -792,7 +792,13 @@ pub trait Driver {
     }
 
     /// Driver's `adjust_perf` callback.
-    fn adjust_perf(_policy: &mut Policy, _min_perf: usize, _target_perf: usize, _capacity: usize) {
+    fn adjust_perf(
+        _policy: &mut Policy,
+        _min_perf: usize,
+        _target_perf: usize,
+        _max_perf: usize,
+        _capacity: usize,
+    ) {
         build_error!(VTABLE_DEFAULT_ERROR)
     }
 
@@ -1263,12 +1269,13 @@ impl<T: Driver> Registration<T> {
         ptr: *mut bindings::cpufreq_policy,
         min_perf: c_ulong,
         target_perf: c_ulong,
+        max_perf: c_ulong,
         capacity: c_ulong,
     ) {
         // SAFETY: The `ptr` is guaranteed to be valid by the contract with the C code for the
         // lifetime of `policy`.
         let policy = unsafe { Policy::from_raw_mut(ptr) };
-        T::adjust_perf(policy, min_perf, target_perf, capacity);
+        T::adjust_perf(policy, min_perf, target_perf, max_perf, capacity);
     }
 
     /// Driver's `get_intermediate` callback.
