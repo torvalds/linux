@@ -581,7 +581,8 @@ int kvm_riscv_aia_aplic_init(struct kvm *kvm)
 		return 0;
 
 	/* Allocate APLIC global state */
-	aplic = kzalloc_flex(*aplic, irqs, kvm->arch.aia.nr_sources + 1);
+	aplic = kzalloc_flex(*aplic, irqs, kvm->arch.aia.nr_sources + 1,
+			     GFP_KERNEL_ACCOUNT);
 	if (!aplic)
 		return -ENOMEM;
 	kvm->arch.aia.aplic_state = aplic;

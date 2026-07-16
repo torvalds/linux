@@ -757,8 +757,8 @@ int kvm_riscv_mmu_alloc_pgd(struct kvm *kvm)
 		return -EINVAL;
 	}
 
-	pgd_page = alloc_pages(GFP_KERNEL | __GFP_ZERO,
-				get_order(kvm_riscv_gstage_pgd_size));
+	pgd_page = alloc_pages(GFP_KERNEL_ACCOUNT | __GFP_ZERO,
+			       get_order(kvm_riscv_gstage_pgd_size));
 	if (!pgd_page)
 		return -ENOMEM;
 	kvm->arch.pgd = page_to_virt(pgd_page);

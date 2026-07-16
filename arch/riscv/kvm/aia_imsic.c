@@ -1104,7 +1104,7 @@ int kvm_riscv_vcpu_aia_imsic_init(struct kvm_vcpu *vcpu)
 		return -EINVAL;
 
 	/* Allocate IMSIC context */
-	imsic = kzalloc_obj(*imsic);
+	imsic = kzalloc_obj(*imsic, GFP_KERNEL_ACCOUNT);
 	if (!imsic)
 		return -ENOMEM;
 	vcpu->arch.aia_context.imsic_state = imsic;
@@ -1117,7 +1117,7 @@ int kvm_riscv_vcpu_aia_imsic_init(struct kvm_vcpu *vcpu)
 	imsic->vsfile_hgei = imsic->vsfile_cpu = -1;
 
 	/* Setup IMSIC SW-file */
-	swfile_page = alloc_pages(GFP_KERNEL | __GFP_ZERO,
+	swfile_page = alloc_pages(GFP_KERNEL_ACCOUNT | __GFP_ZERO,
 				  get_order(sizeof(*imsic->swfile)));
 	if (!swfile_page) {
 		ret = -ENOMEM;
