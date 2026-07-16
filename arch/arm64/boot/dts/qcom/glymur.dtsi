@@ -2946,6 +2946,7 @@
 
 			pcie4_port0: pcie@0 {
 				device_type = "pci";
+				compatible = "pciclass,0604";
 				reg = <0x0 0x0 0x0 0x0 0x0>;
 				bus-range = <0x01 0xff>;
 
@@ -2954,6 +2955,11 @@
 				#address-cells = <3>;
 				#size-cells = <2>;
 				ranges;
+
+				port {
+					pcie4_port0_ep: endpoint {
+					};
+				};
 			};
 		};
 
@@ -3212,6 +3218,7 @@
 
 			pcie5_port0: pcie@0 {
 				device_type = "pci";
+				compatible = "pciclass,0604";
 				reg = <0x0 0x0 0x0 0x0 0x0>;
 				bus-range = <0x01 0xff>;
 
@@ -3220,6 +3227,11 @@
 				#address-cells = <3>;
 				#size-cells = <2>;
 				ranges;
+
+				port {
+					pcie5_port0_ep: endpoint {
+					};
+				};
 			};
 		};
 
@@ -3422,6 +3434,7 @@
 
 			pcie6_port0: pcie@0 {
 				device_type = "pci";
+				compatible = "pciclass,0604";
 				reg = <0x0 0x0 0x0 0x0 0x0>;
 				bus-range = <0x01 0xff>;
 
@@ -3430,6 +3443,11 @@
 				#address-cells = <3>;
 				#size-cells = <2>;
 				ranges;
+
+				port {
+					pcie6_port0_ep: endpoint {
+					};
+				};
 			};
 		};
 
@@ -3688,6 +3706,7 @@
 
 			pcie3b_port0: pcie@0 {
 				device_type = "pci";
+				compatible = "pciclass,0604";
 				reg = <0x0 0x0 0x0 0x0 0x0>;
 				bus-range = <0x01 0xff>;
 
@@ -3696,6 +3715,11 @@
 				#address-cells = <3>;
 				#size-cells = <2>;
 				ranges;
+
+				port {
+					pcie3b_port0_ep: endpoint {
+					};
+				};
 			};
 		};
 
