@@ -8,6 +8,7 @@
 
 #define pr_fmt(fmt) "ACPI: " fmt
 
+#include <linux/cleanup.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -307,24 +308,20 @@ struct pci_dev *acpi_get_pci_dev(acpi_handle handle)
 {
 	struct acpi_device *adev = acpi_fetch_acpi_dev(handle);
 	struct acpi_device_physical_node *pn;
-	struct pci_dev *pci_dev = NULL;
 
 	if (!adev)
 		return NULL;
 
-	mutex_lock(&adev->physical_node_lock);
+	guard(mutex)(&adev->physical_node_lock);
 
 	list_for_each_entry(pn, &adev->physical_node_list, node) {
 		if (dev_is_pci(pn->dev)) {
 			get_device(pn->dev);
-			pci_dev = to_pci_dev(pn->dev);
-			break;
+			return to_pci_dev(pn->dev);
 		}
 	}
 
-	mutex_unlock(&adev->physical_node_lock);
-
-	return pci_dev;
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(acpi_get_pci_dev);
 
