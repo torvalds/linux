@@ -9,14 +9,19 @@ use pin_init::Wrapper;
 
 use crate::{
     prelude::*,
-    sync::rcu,
+    sync::{
+        atomic::{
+            AtomicFlag,
+            Relaxed, //
+        },
+        rcu, //
+    },
     types::Opaque, //
 };
 use core::{
     marker::PhantomData,
     ops::Deref,
-    ptr::drop_in_place,
-    sync::atomic::{AtomicBool, Ordering},
+    ptr::drop_in_place, //
 };
 
 /// An object that can become inaccessible at runtime.
@@ -69,7 +74,7 @@ use core::{
 /// ```
 #[pin_data(PinnedDrop)]
 pub struct Revocable<T> {
-    is_available: AtomicBool,
+    is_available: AtomicFlag,
     #[pin]
     data: Opaque<T>,
 }
@@ -88,7 +93,7 @@ impl<T> Revocable<T> {
     /// Creates a new revocable instance of the given data.
     pub fn new<E>(data: impl PinInit<T, E>) -> impl PinInit<Self, E> {
         try_pin_init!(Self {
-            is_available: AtomicBool::new(true),
+            is_available: AtomicFlag::new(true),
             data <- Opaque::pin_init(data),
         }? E)
     }
@@ -102,7 +107,7 @@ impl<T> Revocable<T> {
     /// because another CPU may be waiting to complete the revocation of this object.
     pub fn try_access(&self) -> Option<RevocableGuard<'_, T>> {
         let guard = rcu::read_lock();
-        if self.is_available.load(Ordering::Relaxed) {
+        if self.is_available.load(Relaxed) {
             // Since `self.is_available` is true, data is initialised and has to remain valid
             // because the RCU read side lock prevents it from being dropped.
             Some(RevocableGuard::new(self.data.get(), guard))
@@ -120,7 +125,7 @@ impl<T> Revocable<T> {
     /// allowed to sleep because another CPU may be waiting to complete the revocation of this
     /// object.
     pub fn try_access_with_guard<'a>(&'a self, _guard: &'a rcu::Guard) -> Option<&'a T> {
-        if self.is_available.load(Ordering::Relaxed) {
+        if self.is_available.load(Relaxed) {
             // SAFETY: Since `self.is_available` is true, data is initialised and has to remain
             // valid because the RCU read side lock prevents it from being dropped.
             Some(unsafe { &*self.data.get() })
@@ -161,7 +166,7 @@ impl<T> Revocable<T> {
     ///
     /// Callers must ensure that there are no more concurrent users of the revocable object.
     unsafe fn revoke_internal<const SYNC: bool>(&self) -> bool {
-        let revoke = self.is_available.swap(false, Ordering::Relaxed);
+        let revoke = self.is_available.xchg(false, Relaxed);
 
         if revoke {
             if SYNC {
