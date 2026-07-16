@@ -163,6 +163,12 @@ restart:
 
 		set_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
 		len = tty->ops->write(tty, skb->data, skb->len);
+		if (len < 0 || len > skb->len) {
+			hdev->stat.err_tx++;
+			kfree_skb(skb);
+			continue;
+		}
+
 		hdev->stat.byte_tx += len;
 
 		skb_pull(skb, len);
