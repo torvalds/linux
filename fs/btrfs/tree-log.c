@@ -3182,13 +3182,13 @@ static bool wait_log_commit(struct btrfs_root *root, int transid)
 		prepare_to_wait(&root->log_commit_wait[index],
 				&wait, TASK_UNINTERRUPTIBLE);
 
-		if (!(root->log_transid_committed < transid &&
-		      atomic_read(&root->log_commit[index])))
-			break;
-
 		mutex_unlock(&root->log_mutex);
 		schedule();
 		mutex_lock(&root->log_mutex);
+
+		if (!(root->log_transid_committed < transid &&
+		      atomic_read(&root->log_commit[index]) != 0))
+			break;
 	}
 	finish_wait(&root->log_commit_wait[index], &wait);
 
