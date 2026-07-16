@@ -68,8 +68,13 @@ static const struct ad5686_bus_ops ad5686_i2c_ops = {
 
 static int ad5686_i2c_probe(struct i2c_client *i2c)
 {
-	return ad5686_probe(&i2c->dev, i2c_get_match_data(i2c),
-			    i2c->name, &ad5686_i2c_ops);
+	const struct ad5686_chip_info *info;
+
+	info = i2c_get_match_data(i2c);
+	if (!info)
+		return -ENODATA;
+
+	return ad5686_probe(&i2c->dev, info, i2c->name, &ad5686_i2c_ops);
 }
 
 static const struct i2c_device_id ad5686_i2c_id[] = {
