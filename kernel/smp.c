@@ -380,7 +380,8 @@ static DEFINE_PER_CPU_SHARED_ALIGNED(call_single_data_t, csd_data);
 #ifdef CONFIG_CSD_LOCK_WAIT_DEBUG
 static call_single_data_t *get_single_csd_data(int cpu)
 {
-	if (static_branch_unlikely(&csdlock_debug_enabled))
+	if (static_branch_unlikely(&csdlock_debug_enabled) &&
+	    (unsigned int)cpu < nr_cpu_ids)
 		return per_cpu_ptr(&csd_data, cpu);
 	return this_cpu_ptr(&csd_data);
 }
