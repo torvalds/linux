@@ -723,6 +723,7 @@ static void show_rcu_tasks_generic_gp_kthread(struct rcu_tasks *rtp, char *s)
 	bool havecbs = false;
 	bool haveurgent = false;
 	bool haveurgentcbs = false;
+	bool havependtimer = false;
 
 	for_each_possible_cpu(cpu) {
 		struct rcu_tasks_percpu *rtpcp = per_cpu_ptr(rtp->rtpcpu, cpu);
@@ -733,10 +734,12 @@ static void show_rcu_tasks_generic_gp_kthread(struct rcu_tasks *rtp, char *s)
 			haveurgent = true;
 		if (!data_race(rcu_segcblist_empty(&rtpcp->cblist)) && data_race(rtpcp->urgent_gp))
 			haveurgentcbs = true;
-		if (havecbs && haveurgent && haveurgentcbs)
+		if (data_race(timer_pending(&rtpcp->lazy_timer)))
+			havependtimer = true;
+		if (havecbs && haveurgent && haveurgentcbs && havependtimer)
 			break;
 	}
-	pr_info("%s: %s(%d) since %lu g:%lu i:%lu %c%c%c%c l:%lu %s\n",
+	pr_info("%s: %s(%d) since %lu g:%lu i:%lu %c%c%c%c%c l:%lu %s\n",
 		rtp->kname,
 		tasks_gp_state_getname(rtp), data_race(rtp->gp_state),
 		jiffies - data_race(rtp->gp_jiffies),
@@ -746,6 +749,7 @@ static void show_rcu_tasks_generic_gp_kthread(struct rcu_tasks *rtp, char *s)
 		".C"[havecbs],
 		".u"[haveurgent],
 		".U"[haveurgentcbs],
+		".P"[havependtimer],
 		rtp->lazy_jiffies,
 		s);
 }
