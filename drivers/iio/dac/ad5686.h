@@ -41,9 +41,11 @@
 #define AD5686_CMD_CONTROL_REG			0x4
 #define AD5686_CMD_READBACK_ENABLE_V2		0x5
 
+#define AD5310_DATA_GAIN_MSK			BIT(7)
 #define AD5310_DATA_REF_MSK			BIT(8)
 #define AD5310_DATA_PD_MSK			GENMASK(10, 9)
 
+#define AD5683_DATA_GAIN_MSK			BIT(11) /* DB15 */
 #define AD5683_DATA_REF_MSK			BIT(12) /* DB16 */
 #define AD5683_DATA_PD_MSK			GENMASK(14, 13) /* DB18:DB17 */
 
@@ -127,9 +129,12 @@ extern const struct ad5686_chip_info ad5679r_chip_info;
  * @chip_info:		chip model specific constants, available modes etc
  * @ops:		bus specific operations
  * @ldac_gpio:		LDAC pin GPIO descriptor
- * @vref_mv:		actual reference voltage used
+ * @gain_gpio:		GAIN pin GPIO descriptor
  * @pwr_down_mask:	power down mask
  * @pwr_down_mode:	current power down mode
+ * @scale_avail:	pre-calculated available scale values
+ * @vref_mv:		actual reference voltage used
+ * @double_scale:	flag to indicate the gain multiplier is applied
  * @use_internal_vref:	set to true if the internal reference voltage is used
  * @lock:		lock to protect access to state fields, which includes
  *			the data buffer during regmap ops
@@ -141,9 +146,12 @@ struct ad5686_state {
 	const struct ad5686_chip_info	*chip_info;
 	const struct ad5686_bus_ops	*ops;
 	struct gpio_desc		*ldac_gpio;
-	unsigned short			vref_mv;
+	struct gpio_desc		*gain_gpio;
 	unsigned int			pwr_down_mask;
 	unsigned int			pwr_down_mode;
+	int				scale_avail[4];
+	unsigned short			vref_mv;
+	bool				double_scale;
 	bool				use_internal_vref;
 	struct mutex			lock;
 	void				*bus_data;
