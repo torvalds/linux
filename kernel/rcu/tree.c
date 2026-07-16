@@ -357,9 +357,10 @@ bool rcu_watching_zero_in_eqs(int cpu, int *vp)
  */
 notrace void rcu_momentary_eqs(void)
 {
+	struct rcu_data *rdp = this_cpu_ptr(&rcu_data);
 	int seq;
 
-	raw_cpu_write(rcu_data.rcu_need_heavy_qs, false);
+	WRITE_ONCE(rdp->rcu_need_heavy_qs, false);
 	seq = ct_state_inc(2 * CT_RCU_WATCHING);
 	/* It is illegal to call this from idle state. */
 	WARN_ON_ONCE(!(seq & CT_RCU_WATCHING));
