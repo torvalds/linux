@@ -189,11 +189,8 @@ static int vp_vdpa_request_irq(struct vp_vdpa *vp_vdpa)
 				       vp_vdpa_vq_handler,
 				       0, vp_vdpa->vring[i].msix_name,
 				       &vp_vdpa->vring[i]);
-		if (ret) {
-			dev_err(&pdev->dev,
-				"vp_vdpa: fail to request irq for vq %d\n", i);
+		if (ret)
 			goto err;
-		}
 		vp_modern_queue_vector(mdev, i, msix_vec);
 		vp_vdpa->vring[i].irq = irq;
 		msix_vec++;
@@ -204,11 +201,8 @@ static int vp_vdpa_request_irq(struct vp_vdpa *vp_vdpa)
 	irq = pci_irq_vector(pdev, msix_vec);
 	ret = devm_request_irq(&pdev->dev, irq,	vp_vdpa_config_handler, 0,
 			       vp_vdpa->msix_name, vp_vdpa);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"vp_vdpa: fail to request irq for config: %d\n", ret);
-			goto err;
-	}
+	if (ret)
+		goto err;
 	vp_modern_config_vector(mdev, msix_vec);
 	vp_vdpa->config_irq = irq;
 

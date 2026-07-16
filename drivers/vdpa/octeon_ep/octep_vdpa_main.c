@@ -170,10 +170,8 @@ static int octep_request_irqs(struct octep_hw *oct_hw, irqreturn_t (*irq_handler
 		irq = pci_irq_vector(pdev, idx);
 		ret = devm_request_irq(&pdev->dev, irq, irq_handler, 0, dev_name(&pdev->dev),
 				       oct_hw);
-		if (ret) {
-			dev_err(&pdev->dev, "Failed to register interrupt handler\n");
+		if (ret)
 			goto free_irqs;
-		}
 		oct_hw->irqs[idx] = irq;
 	}
 	oct_hw->requested_irqs = nb_irqs;
