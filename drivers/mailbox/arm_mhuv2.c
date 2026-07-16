@@ -985,10 +985,7 @@ static int mhuv2_tx_init(struct amba_device *adev, struct mhuv2 *mhu,
 		ret = devm_request_threaded_irq(dev, adev->irq[0], NULL,
 						mhuv2_sender_interrupt,
 						IRQF_ONESHOT, "mhuv2-tx", mhu);
-		if (ret) {
-			dev_err(dev, "Failed to request tx IRQ, fallback to polling mode: %d\n",
-				ret);
-		} else {
+		if (!ret) {
 			mhu->mbox.txdone_irq = true;
 			mhu->mbox.txdone_poll = false;
 			mhu->irq = adev->irq[0];
@@ -1038,10 +1035,8 @@ static int mhuv2_rx_init(struct amba_device *adev, struct mhuv2 *mhu,
 	ret = devm_request_threaded_irq(dev, mhu->irq, NULL,
 					mhuv2_receiver_interrupt, IRQF_ONESHOT,
 					"mhuv2-rx", mhu);
-	if (ret) {
-		dev_err(dev, "Failed to request rx IRQ\n");
+	if (ret)
 		return ret;
-	}
 
 	/* Mask all the channel windows */
 	for (i = 0; i < mhu->windows; i++)

@@ -1403,11 +1403,8 @@ static int pdc_interrupts_init(struct pdc_state *pdcs)
 
 	err = devm_request_irq(dev, pdcs->pdc_irq, pdc_irq_handler, 0,
 			       dev_name(dev), dev);
-	if (err) {
-		dev_err(dev, "IRQ %u request failed with err %d\n",
-			pdcs->pdc_irq, err);
+	if (err)
 		return err;
-	}
 	return PDC_SUCCESS;
 }
 

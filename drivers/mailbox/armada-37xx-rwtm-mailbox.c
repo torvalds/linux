@@ -108,10 +108,8 @@ static int a37xx_mbox_startup(struct mbox_chan *chan)
 
 	ret = devm_request_irq(mbox->dev, mbox->irq, a37xx_mbox_irq_handler, 0,
 			       DRIVER_NAME, chan);
-	if (ret < 0) {
-		dev_err(mbox->dev, "Cannot request irq\n");
+	if (ret < 0)
 		return ret;
-	}
 
 	/* enable IRQ generation */
 	reg = readl(mbox->base + RWTM_HOST_INT_MASK);

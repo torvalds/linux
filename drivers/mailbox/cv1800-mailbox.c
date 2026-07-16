@@ -189,7 +189,7 @@ static int cv1800_mbox_probe(struct platform_device *pdev)
 					cv1800_mbox_isr, IRQF_ONESHOT,
 					dev_name(&pdev->dev), mb);
 	if (err < 0)
-		return dev_err_probe(dev, err, "Failed to register irq\n");
+		return err;
 
 	for (idx = 0; idx < MAILBOX_MAX_CHAN; idx++) {
 		mb->priv[idx].idx = idx;

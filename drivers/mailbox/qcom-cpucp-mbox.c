@@ -175,7 +175,7 @@ static int qcom_cpucp_mbox_probe(struct platform_device *pdev)
 	ret = devm_request_irq(dev, irq, qcom_cpucp_mbox_irq_fn,
 			       IRQF_TRIGGER_HIGH | IRQF_NO_SUSPEND, "apss_cpucp_mbox", cpucp);
 	if (ret < 0)
-		return dev_err_probe(dev, ret, "Failed to register irq: %d\n", irq);
+		return ret;
 
 	writeq(APSS_CPUCP_RX_MBOX_CMD_MASK, cpucp->rx_base + APSS_CPUCP_RX_MBOX_MAP);
 
