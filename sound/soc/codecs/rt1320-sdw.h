@@ -175,6 +175,13 @@ enum rt1320_rw_type {
 	RT1320_PARAM_READ = 3,
 };
 
+enum {
+	RT1320_CLK_FREQ_19_2_MHZ = 1,
+	RT1320_CLK_FREQ_24MHZ = 2,
+	RT1320_CLK_FREQ_24_576MHZ = 3,
+	RT1320_CLK_FREQ_22_5792MHZ = 4,
+};
+
 struct rt1320_sdw_priv {
 	struct snd_soc_component *component;
 	struct regmap *regmap;

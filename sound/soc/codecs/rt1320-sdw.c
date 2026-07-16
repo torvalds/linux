@@ -836,6 +836,7 @@ static const struct reg_default rt1320_mbq_defaults[] = {
 static bool rt1320_readable_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
+	case 0x004d:
 	case 0xc000 ... 0xc086:
 	case 0xc400 ... 0xc409:
 	case 0xc480 ... 0xc48f:
@@ -946,6 +947,7 @@ static bool rt1320_readable_register(struct device *dev, unsigned int reg)
 static bool rt1320_volatile_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
+	case 0x004d:
 	case 0xc000:
 	case 0xc003:
 	case 0xc081:
@@ -3383,6 +3385,37 @@ static int rt1320_sdw_pcm_hw_free(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static int rt1320_bus_config(struct sdw_slave *slave,
+				struct sdw_bus_params *params)
+{
+	struct  rt1320_sdw_priv *rt1320 = dev_get_drvdata(&slave->dev);
+	unsigned int clk_base;
+
+	regmap_read(rt1320->regmap, 0x004d, &clk_base);
+	dev_dbg(&rt1320->sdw_slave->dev, "%s clk_base=%x", __func__, clk_base);
+
+	switch (clk_base) {
+	case RT1320_CLK_FREQ_19_2_MHZ:
+	case RT1320_CLK_FREQ_24MHZ:
+		regmap_write(rt1320->regmap, 0xc600, 0x04);
+		regmap_write(rt1320->regmap, 0xc601, 0x83);
+		regmap_write(rt1320->regmap, 0xc602, 0x1f);
+		regmap_write(rt1320->regmap, 0xc603, 0x40);
+		break;
+	case RT1320_CLK_FREQ_24_576MHZ:
+	case RT1320_CLK_FREQ_22_5792MHZ:
+		regmap_write(rt1320->regmap, 0xc600, 0x07);
+		regmap_write(rt1320->regmap, 0xc601, 0x80);
+		regmap_write(rt1320->regmap, 0xc602, 0x0f);
+		regmap_write(rt1320->regmap, 0xc603, 0x40);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /*
  * slave_ops: callbacks for get_clock_stop_mode, clock_stop and
  * port_prep are not defined for now
@@ -3390,12 +3423,13 @@ static int rt1320_sdw_pcm_hw_free(struct snd_pcm_substream *substream,
 static const struct sdw_slave_ops rt1320_slave_ops = {
 	.read_prop = rt1320_read_prop,
 	.update_status = rt1320_update_status,
+	.bus_config = rt1320_bus_config,
 };
 
 static int rt1320_sdw_component_probe(struct snd_soc_component *component)
 {
-	int ret;
 	struct rt1320_sdw_priv *rt1320 = snd_soc_component_get_drvdata(component);
+	int ret;
 
 	rt1320->component = component;
 
