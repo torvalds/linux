@@ -1583,10 +1583,8 @@ static struct apple_nvme *apple_nvme_alloc(struct platform_device *pdev)
 
 	ret = devm_request_irq(anv->dev, anv->irq, apple_nvme_irq, 0,
 			       "nvme-apple", anv);
-	if (ret) {
-		dev_err_probe(dev, ret, "Failed to request IRQ");
+	if (ret)
 		goto put_dev;
-	}
 
 	anv->rtk =
 		devm_apple_rtkit_init(dev, anv, NULL, 0, &apple_nvme_rtkit_ops);
