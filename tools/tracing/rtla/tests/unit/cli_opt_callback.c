@@ -46,6 +46,28 @@ START_TEST(test_opt_llong_callback_min)
 }
 END_TEST
 
+START_TEST(test_opt_llong_callback_non_numeric)
+{
+	long long test_value = 0;
+	const struct option opt = TEST_CALLBACK(&test_value, opt_llong_callback);
+
+	assert(freopen("/dev/null", "w", stderr));
+	ck_assert_int_eq(opt_llong_callback(&opt, "abc", 0), -1);
+	ck_assert_int_eq(test_value, 0);
+}
+END_TEST
+
+START_TEST(test_opt_llong_callback_non_numeric_suffix)
+{
+	long long test_value = 0;
+	const struct option opt = TEST_CALLBACK(&test_value, opt_llong_callback);
+
+	assert(freopen("/dev/null", "w", stderr));
+	ck_assert_int_eq(opt_llong_callback(&opt, "1234567890abc", 0), -1);
+	ck_assert_int_eq(test_value, 0);
+}
+END_TEST
+
 START_TEST(test_opt_llong_callback_unset)
 {
 	long long test_value = 0;
@@ -105,6 +127,7 @@ START_TEST(test_opt_int_callback_non_numeric)
 	int test_value = 0;
 	const struct option opt = TEST_CALLBACK(&test_value, opt_int_callback);
 
+	assert(freopen("/dev/null", "w", stderr));
 	ck_assert_int_eq(opt_int_callback(&opt, "abc", 0), -1);
 	ck_assert_int_eq(test_value, 0);
 }
@@ -115,6 +138,7 @@ START_TEST(test_opt_int_callback_non_numeric_suffix)
 	int test_value = 0;
 	const struct option opt = TEST_CALLBACK(&test_value, opt_int_callback);
 
+	assert(freopen("/dev/null", "w", stderr));
 	ck_assert_int_eq(opt_int_callback(&opt, "1234567890abc", 0), -1);
 	ck_assert_int_eq(test_value, 0);
 }
@@ -245,7 +269,7 @@ START_TEST(test_opt_cpus_cb_invalid)
 
 	nr_cpus = 4;
 	assert(freopen("/dev/null", "w", stderr));
-	opt_cpus_cb(&opt, "0-3,5", 0);
+	ck_assert_int_eq(opt_cpus_cb(&opt, "0-3,5", 0), -1);
 }
 END_TEST
 
@@ -299,7 +323,7 @@ START_TEST(test_opt_duration_cb_invalid)
 	const struct option opt = TEST_CALLBACK(&params, opt_duration_cb);
 
 	assert(freopen("/dev/null", "w", stderr));
-	opt_duration_cb(&opt, "abc", 0);
+	ck_assert_int_eq(opt_duration_cb(&opt, "abc", 0), -1);
 }
 END_TEST
 
@@ -361,7 +385,7 @@ START_TEST(test_opt_housekeeping_cb_invalid)
 
 	nr_cpus = 4;
 	assert(freopen("/dev/null", "w", stderr));
-	opt_housekeeping_cb(&opt, "0-3,5", 0);
+	ck_assert_int_eq(opt_housekeeping_cb(&opt, "0-3,5", 0), -1);
 }
 END_TEST
 
@@ -395,7 +419,7 @@ START_TEST(test_opt_priority_cb_invalid)
 	const struct option opt = TEST_CALLBACK(&params, opt_priority_cb);
 
 	assert(freopen("/dev/null", "w", stderr));
-	opt_priority_cb(&opt, "abc", 0);
+	ck_assert_int_eq(opt_priority_cb(&opt, "abc", 0), -1);
 }
 END_TEST
 
@@ -427,7 +451,7 @@ START_TEST(test_opt_trigger_cb_no_event)
 	const struct option opt = TEST_CALLBACK(&events, opt_trigger_cb);
 
 	assert(freopen("/dev/null", "w", stderr));
-	opt_trigger_cb(&opt, "stacktrace", 0);
+	ck_assert_int_eq(opt_trigger_cb(&opt, "stacktrace", 0), -1);
 }
 END_TEST
 
@@ -447,7 +471,7 @@ START_TEST(test_opt_filter_cb_no_event)
 	const struct option opt = TEST_CALLBACK(&events, opt_filter_cb);
 
 	assert(freopen("/dev/null", "w", stderr));
-	opt_filter_cb(&opt, "comm ~ \"rtla\"", 0);
+	ck_assert_int_eq(opt_filter_cb(&opt, "comm ~ \"rtla\"", 0), -1);
 }
 END_TEST
 
@@ -528,7 +552,7 @@ START_TEST(test_opt_osnoise_on_threshold_cb_invalid)
 	const struct option opt = TEST_CALLBACK(&actions, opt_osnoise_on_threshold_cb);
 
 	assert(freopen("/dev/null", "w", stderr));
-	opt_osnoise_on_threshold_cb(&opt, "abc", 0);
+	ck_assert_int_eq(opt_osnoise_on_threshold_cb(&opt, "abc", 0), -1);
 }
 END_TEST
 
@@ -550,7 +574,7 @@ START_TEST(test_opt_osnoise_on_end_cb_invalid)
 	const struct option opt = TEST_CALLBACK(&actions, opt_osnoise_on_end_cb);
 
 	assert(freopen("/dev/null", "w", stderr));
-	opt_osnoise_on_end_cb(&opt, "abc", 0);
+	ck_assert_int_eq(opt_osnoise_on_end_cb(&opt, "abc", 0), -1);
 }
 END_TEST
 
@@ -660,7 +684,7 @@ START_TEST(test_opt_timerlat_on_threshold_cb_invalid)
 	const struct option opt = TEST_CALLBACK(&actions, opt_timerlat_on_threshold_cb);
 
 	assert(freopen("/dev/null", "w", stderr));
-	opt_timerlat_on_threshold_cb(&opt, "abc", 0);
+	ck_assert_int_eq(opt_timerlat_on_threshold_cb(&opt, "abc", 0), -1);
 }
 END_TEST
 
@@ -682,7 +706,7 @@ START_TEST(test_opt_timerlat_on_end_cb_invalid)
 	const struct option opt = TEST_CALLBACK(&actions, opt_timerlat_on_end_cb);
 
 	assert(freopen("/dev/null", "w", stderr));
-	opt_timerlat_on_end_cb(&opt, "abc", 0);
+	ck_assert_int_eq(opt_timerlat_on_end_cb(&opt, "abc", 0), -1);
 }
 END_TEST
 
@@ -782,7 +806,7 @@ START_TEST(test_opt_stack_format_cb_invalid)
 	const struct option opt = TEST_CALLBACK(&stack_format, opt_stack_format_cb);
 
 	assert(freopen("/dev/null", "w", stderr));
-	opt_stack_format_cb(&opt, "abc", 0);
+	ck_assert_int_eq(opt_stack_format_cb(&opt, "abc", 0), -1);
 }
 END_TEST
 
@@ -807,6 +831,8 @@ Suite *cli_opt_callback_suite(void)
 	tcase_add_test(tc, test_opt_llong_callback_simple);
 	tcase_add_test(tc, test_opt_llong_callback_max);
 	tcase_add_test(tc, test_opt_llong_callback_min);
+	tcase_add_test(tc, test_opt_llong_callback_non_numeric);
+	tcase_add_test(tc, test_opt_llong_callback_non_numeric_suffix);
 	tcase_add_test(tc, test_opt_llong_callback_unset);
 	tcase_add_test(tc, test_opt_llong_callback_unset_defval);
 	tcase_add_test(tc, test_opt_llong_callback_range_in);
@@ -825,25 +851,25 @@ Suite *cli_opt_callback_suite(void)
 	tcase_add_test(tc, test_opt_int_callback_range_above);
 	tcase_add_test(tc, test_opt_int_callback_range_boundary);
 	tcase_add_test(tc, test_opt_cpus_cb);
-	tcase_add_exit_test(tc, test_opt_cpus_cb_invalid, EXIT_FAILURE);
+	tcase_add_test(tc, test_opt_cpus_cb_invalid);
 	tcase_add_test(tc, test_opt_cgroup_cb);
 	tcase_add_test(tc, test_opt_cgroup_cb_equals);
 	tcase_add_test(tc, test_opt_cgroup_cb_unset);
 	tcase_add_test(tc, test_opt_duration_cb);
 	tcase_add_test(tc, test_opt_duration_cb_unset);
-	tcase_add_exit_test(tc, test_opt_duration_cb_invalid, EXIT_FAILURE);
+	tcase_add_test(tc, test_opt_duration_cb_invalid);
 	tcase_add_test(tc, test_opt_event_cb);
 	tcase_add_test(tc, test_opt_event_cb_multiple);
 	tcase_add_test(tc, test_opt_housekeeping_cb);
-	tcase_add_exit_test(tc, test_opt_housekeeping_cb_invalid, EXIT_FAILURE);
+	tcase_add_test(tc, test_opt_housekeeping_cb_invalid);
 	tcase_add_test(tc, test_opt_housekeeping_cb_unset);
 	tcase_add_test(tc, test_opt_priority_cb);
-	tcase_add_exit_test(tc, test_opt_priority_cb_invalid, EXIT_FAILURE);
+	tcase_add_test(tc, test_opt_priority_cb_invalid);
 	tcase_add_test(tc, test_opt_priority_cb_unset);
 	tcase_add_test(tc, test_opt_trigger_cb);
-	tcase_add_exit_test(tc, test_opt_trigger_cb_no_event, EXIT_FAILURE);
+	tcase_add_test(tc, test_opt_trigger_cb_no_event);
 	tcase_add_test(tc, test_opt_filter_cb);
-	tcase_add_exit_test(tc, test_opt_filter_cb_no_event, EXIT_FAILURE);
+	tcase_add_test(tc, test_opt_filter_cb_no_event);
 	suite_add_tcase(s, tc);
 
 	tc = tcase_create("osnoise");
@@ -853,9 +879,9 @@ Suite *cli_opt_callback_suite(void)
 	tcase_add_test(tc, test_opt_osnoise_trace_output_cb_noarg);
 	tcase_add_test(tc, test_opt_osnoise_trace_output_cb_unset);
 	tcase_add_test(tc, test_opt_osnoise_on_threshold_cb);
-	tcase_add_exit_test(tc, test_opt_osnoise_on_threshold_cb_invalid, EXIT_FAILURE);
+	tcase_add_test(tc, test_opt_osnoise_on_threshold_cb_invalid);
 	tcase_add_test(tc, test_opt_osnoise_on_end_cb);
-	tcase_add_exit_test(tc, test_opt_osnoise_on_end_cb_invalid, EXIT_FAILURE);
+	tcase_add_test(tc, test_opt_osnoise_on_end_cb_invalid);
 	suite_add_tcase(s, tc);
 
 	tc = tcase_create("timerlat");
@@ -867,15 +893,15 @@ Suite *cli_opt_callback_suite(void)
 	tcase_add_test(tc, test_opt_timerlat_trace_output_cb_noarg);
 	tcase_add_test(tc, test_opt_timerlat_trace_output_cb_unset);
 	tcase_add_test(tc, test_opt_timerlat_on_threshold_cb);
-	tcase_add_exit_test(tc, test_opt_timerlat_on_threshold_cb_invalid, EXIT_FAILURE);
+	tcase_add_test(tc, test_opt_timerlat_on_threshold_cb_invalid);
 	tcase_add_test(tc, test_opt_timerlat_on_end_cb);
-	tcase_add_exit_test(tc, test_opt_timerlat_on_end_cb_invalid, EXIT_FAILURE);
+	tcase_add_test(tc, test_opt_timerlat_on_end_cb_invalid);
 	tcase_add_test(tc, test_opt_user_threads_cb);
 	tcase_add_test(tc, test_opt_user_threads_cb_unset);
 	tcase_add_test(tc, test_opt_nano_cb);
 	tcase_add_test(tc, test_opt_nano_cb_unset);
 	tcase_add_test(tc, test_opt_stack_format_cb);
-	tcase_add_exit_test(tc, test_opt_stack_format_cb_invalid, EXIT_FAILURE);
+	tcase_add_test(tc, test_opt_stack_format_cb_invalid);
 	tcase_add_test(tc, test_opt_stack_format_cb_unset);
 	tcase_add_test(tc, test_opt_timerlat_align_cb);
 	tcase_add_test(tc, test_opt_timerlat_align_cb_invalid);

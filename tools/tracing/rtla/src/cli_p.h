@@ -5,6 +5,7 @@
 #error "Private header file included outside of cli.c module"
 #endif
 
+#include <errno.h>
 #include <limits.h>
 #include <linux/kernel.h>
 #include <subcmd/parse-options.h>
@@ -240,6 +241,41 @@ static int check_int_range(const struct option *opt, int value)
 	"print debug info")
 
 /*
+ * Helper functions for parsing numeric option arguments.
+ */
+static void opt_err(const struct option *opt, const char *arg, const char *msg)
+{
+	fprintf(stderr, " Error: --%s: '%s' %s\n", opt->long_name, arg, msg);
+}
+
+static int strtoll_safe(const struct option *opt, const char *arg, long long *value)
+{
+	long long tmp;
+	char *end;
+
+	errno = 0;
+	tmp = strtoll(arg, &end, 10);
+	if (errno || *end || end == arg) {
+		opt_err(opt, arg, "is not a valid number");
+		return -1;
+	}
+	*value = tmp;
+	return 0;
+}
+
+static int strtoi_safe(const struct option *opt, const char *arg, int *value)
+{
+	int tmp;
+
+	if (strtoi(arg, &tmp)) {
+		opt_err(opt, arg, "is not a valid number");
+		return -1;
+	}
+	*value = tmp;
+	return 0;
+}
+
+/*
  * Common callback functions for command line options
  */
 
@@ -255,7 +291,8 @@ static int opt_llong_callback(const struct option *opt, const char *arg, int uns
 	if (!arg)
 		return -1;
 
-	*value = get_llong_from_str((char *)arg);
+	if (strtoll_safe(opt, arg, value))
+		return -1;
 	if (check_llong_range(opt, *value))
 		return -1;
 	return 0;
@@ -273,7 +310,7 @@ static int opt_int_callback(const struct option *opt, const char *arg, int unset
 	if (!arg)
 		return -1;
 
-	if (strtoi(arg, value))
+	if (strtoi_safe(opt, arg, value))
 		return -1;
 	if (check_int_range(opt, *value))
 		return -1;
@@ -296,8 +333,10 @@ static int opt_cpus_cb(const struct option *opt, const char *arg, int unset)
 		return -1;
 
 	retval = parse_cpu_set((char *)arg, &params->monitored_cpus);
-	if (retval)
-		fatal("Invalid -c cpu list");
+	if (retval) {
+		opt_err(opt, arg, "is not a valid cpu set");
+		return -1;
+	}
 	params->cpus = (char *)arg;
 
 	return 0;
@@ -335,8 +374,10 @@ static int opt_duration_cb(const struct option *opt, const char *arg, int unset)
 		return -1;
 
 	params->duration = parse_seconds_duration((char *)arg);
-	if (!params->duration)
-		fatal("Invalid -d duration");
+	if (!params->duration) {
+		opt_err(opt, arg, "is not a valid duration");
+		return -1;
+	}
 
 	return 0;
 }
@@ -376,8 +417,10 @@ static int opt_housekeeping_cb(const struct option *opt, const char *arg, int un
 
 	params->hk_cpus = 1;
 	retval = parse_cpu_set((char *)arg, &params->hk_cpu_set);
-	if (retval)
-		fatal("Error parsing house keeping CPUs");
+	if (retval) {
+		opt_err(opt, arg, "is not a valid cpu set");
+		return -1;
+	}
 
 	return 0;
 }
@@ -397,8 +440,10 @@ static int opt_priority_cb(const struct option *opt, const char *arg, int unset)
 		return -1;
 
 	retval = parse_prio((char *)arg, &params->sched_param);
-	if (retval == -1)
-		fatal("Invalid -P priority");
+	if (retval == -1) {
+		opt_err(opt, arg, "is not a valid priority");
+		return -1;
+	}
 	params->set_sched = 1;
 
 	return 0;
@@ -411,8 +456,10 @@ static int opt_trigger_cb(const struct option *opt, const char *arg, int unset)
 	if (unset || !arg)
 		return -1;
 
-	if (!*events)
-		fatal("--trigger requires a previous -e");
+	if (!*events) {
+		opt_err(opt, arg, "has no previous event to apply to");
+		return -1;
+	}
 
 	trace_event_add_trigger(*events, (char *)arg);
 
@@ -426,8 +473,10 @@ static int opt_filter_cb(const struct option *opt, const char *arg, int unset)
 	if (unset || !arg)
 		return -1;
 
-	if (!*events)
-		fatal("--filter requires a previous -e");
+	if (!*events) {
+		opt_err(opt, arg, "has no previous event to apply to");
+		return -1;
+	}
 
 	trace_event_add_filter(*events, (char *)arg);
 
@@ -468,7 +517,8 @@ static int opt_osnoise_auto_cb(const struct option *opt, const char *arg, int un
 	if (!arg)
 		return -1;
 
-	auto_thresh = get_llong_from_str((char *)arg);
+	if (strtoll_safe(opt, arg, &auto_thresh))
+		return -1;
 	params->common.stop_us = auto_thresh;
 	params->threshold = 1;
 
@@ -508,8 +558,10 @@ static int opt_osnoise_on_threshold_cb(const struct option *opt, const char *arg
 		return -1;
 
 	retval = actions_parse(actions, (char *)arg, "osnoise_trace.txt");
-	if (retval)
-		fatal("Invalid action %s", arg);
+	if (retval) {
+		opt_err(opt, arg, "is not a valid action");
+		return -1;
+	}
 
 	return 0;
 }
@@ -523,8 +575,10 @@ static int opt_osnoise_on_end_cb(const struct option *opt, const char *arg, int 
 		return -1;
 
 	retval = actions_parse(actions, (char *)arg, "osnoise_trace.txt");
-	if (retval)
-		fatal("Invalid action %s", arg);
+	if (retval) {
+		opt_err(opt, arg, "is not a valid action");
+		return -1;
+	}
 
 	return 0;
 }
@@ -596,7 +650,8 @@ static int opt_timerlat_auto_cb(const struct option *opt, const char *arg, int u
 	if (!arg)
 		return -1;
 
-	auto_thresh = get_llong_from_str((char *)arg);
+	if (strtoll_safe(opt, arg, &auto_thresh))
+		return -1;
 	params->common.stop_total_us = auto_thresh;
 	params->common.stop_us = auto_thresh;
 	params->print_stack = auto_thresh;
@@ -623,7 +678,8 @@ static int opt_aa_only_cb(const struct option *opt, const char *arg, int unset)
 	if (!arg)
 		return -1;
 
-	auto_thresh = get_llong_from_str((char *)arg);
+	if (strtoll_safe(opt, arg, &auto_thresh))
+		return -1;
 	params->common.stop_total_us = auto_thresh;
 	params->common.stop_us = auto_thresh;
 	params->print_stack = auto_thresh;
@@ -662,8 +718,10 @@ static int opt_timerlat_on_threshold_cb(const struct option *opt, const char *ar
 		return -1;
 
 	retval = actions_parse(actions, (char *)arg, "timerlat_trace.txt");
-	if (retval)
-		fatal("Invalid action %s", arg);
+	if (retval) {
+		opt_err(opt, arg, "is not a valid action");
+		return -1;
+	}
 
 	return 0;
 }
@@ -677,8 +735,10 @@ static int opt_timerlat_on_end_cb(const struct option *opt, const char *arg, int
 		return -1;
 
 	retval = actions_parse(actions, (char *)arg, "timerlat_trace.txt");
-	if (retval)
-		fatal("Invalid action %s", arg);
+	if (retval) {
+		opt_err(opt, arg, "is not a valid action");
+		return -1;
+	}
 
 	return 0;
 }
@@ -727,8 +787,10 @@ static int opt_stack_format_cb(const struct option *opt, const char *arg, int un
 
 	*format = parse_stack_format((char *)arg);
 
-	if (*format == -1)
-		fatal("Invalid --stack-format option");
+	if (*format == -1) {
+		opt_err(opt, arg, "is not a valid stack format");
+		return -1;
+	}
 
 	return 0;
 }
@@ -736,6 +798,7 @@ static int opt_stack_format_cb(const struct option *opt, const char *arg, int un
 static int opt_timerlat_align_cb(const struct option *opt, const char *arg, int unset)
 {
 	struct timerlat_params *params = opt->value;
+	long long val;
 
 	if (unset) {
 		params->timerlat_align = false;
@@ -746,10 +809,13 @@ static int opt_timerlat_align_cb(const struct option *opt, const char *arg, int 
 	if (!arg)
 		return -1;
 
-	params->timerlat_align = true;
-	params->timerlat_align_us = get_llong_from_str((char *)arg);
-	if (check_llong_range(opt, params->timerlat_align_us))
+	if (strtoll_safe(opt, arg, &val))
 		return -1;
+	if (check_llong_range(opt, val))
+		return -1;
+
+	params->timerlat_align = true;
+	params->timerlat_align_us = val;
 
 	return 0;
 }
