@@ -4370,7 +4370,18 @@ static struct rockchip_pin_ctrl *rockchip_pinctrl_get_soc_data(
 
 			bank_pins += 8;
 		}
+	}
 
+	return ctrl;
+}
+
+static void iomux_recalced_routes_init(struct rockchip_pinctrl *info)
+{
+	struct rockchip_pin_ctrl *ctrl = info->ctrl;
+	struct rockchip_pin_bank *bank = ctrl->pin_banks;
+	int i, j;
+
+	for (i = 0; i < ctrl->nr_banks; ++i, ++bank) {
 		/* calculate the per-bank recalced_mask */
 		for (j = 0; j < ctrl->niomux_recalced; j++) {
 			int pin = 0;
@@ -4391,8 +4402,6 @@ static struct rockchip_pin_ctrl *rockchip_pinctrl_get_soc_data(
 			}
 		}
 	}
-
-	return ctrl;
 }
 
 #define RK3288_GRF_GPIO6C_IOMUX		0x64
@@ -4504,6 +4513,8 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 
 	/* try to find the optional reference to the ioc1 syscon */
 	info->regmap_ioc1 = syscon_regmap_lookup_by_phandle_optional(np, "rockchip,ioc1");
+
+	iomux_recalced_routes_init(info);
 
 	ret = rockchip_pinctrl_register(pdev, info);
 	if (ret)
