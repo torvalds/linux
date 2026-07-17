@@ -2276,10 +2276,8 @@ static int ufs_mtk_config_mcq_irq(struct ufs_hba *hba)
 
 		dev_dbg(hba->dev, "request irq %d intr %s\n", irq, ret ? "failed" : "");
 
-		if (ret) {
-			dev_err(hba->dev, "Cannot request irq %d\n", ret);
+		if (ret)
 			return ret;
-		}
 	}
 	host->is_mcq_intr_enabled = true;
 
