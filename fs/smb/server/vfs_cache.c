@@ -1845,7 +1845,7 @@ int ksmbd_reopen_durable_fd(struct ksmbd_work *work, struct ksmbd_file *fp)
 	unsigned int old_f_state;
 
 	write_lock(&global_ft.lock);
-	if (!fp->is_durable || fp->conn || fp->tcon) {
+	if ((!fp->is_durable && !fp->is_persistent) || fp->conn || fp->tcon) {
 		write_unlock(&global_ft.lock);
 		pr_err("Invalid durable fd [%p:%p]\n", fp->conn, fp->tcon);
 		return -EBADF;

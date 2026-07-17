@@ -2068,12 +2068,12 @@ void create_durable_v2_rsp_buf(char *cc, struct ksmbd_file *fp)
 	struct create_durable_rsp_v2 *buf;
 
 	buf = (struct create_durable_rsp_v2 *)cc;
-	memset(buf, 0, sizeof(struct create_durable_rsp));
+	memset(buf, 0, sizeof(*buf));
 	buf->ccontext.DataOffset = cpu_to_le16(offsetof
-			(struct create_durable_rsp, Data));
+			(struct create_durable_rsp_v2, dcontext));
 	buf->ccontext.DataLength = cpu_to_le32(8);
 	buf->ccontext.NameOffset = cpu_to_le16(offsetof
-			(struct create_durable_rsp, Name));
+			(struct create_durable_rsp_v2, Name));
 	buf->ccontext.NameLength = cpu_to_le16(4);
 	/* SMB2_CREATE_DURABLE_HANDLE_RESPONSE_V2 is "DH2Q" */
 	buf->Name[0] = 'D';

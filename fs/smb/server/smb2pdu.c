@@ -3430,6 +3430,7 @@ static int parse_durable_handle_context(struct ksmbd_work *work,
 		case DURABLE_RECONN_V2:
 		{
 			struct create_durable_handle_reconnect_v2 *recon_v2;
+			u32 flags;
 
 			if (dh_info->type == DURABLE_RECONN ||
 			    dh_info->type == DURABLE_REQ_V2) {
@@ -3444,6 +3445,12 @@ static int parse_durable_handle_context(struct ksmbd_work *work,
 			}
 
 			recon_v2 = (struct create_durable_handle_reconnect_v2 *)context;
+			flags = le32_to_cpu(recon_v2->dcontext.Flags);
+			if (flags & ~SMB2_DHANDLE_FLAG_PERSISTENT) {
+				err = -EINVAL;
+				goto out;
+			}
+			dh_info->persistent = flags & SMB2_DHANDLE_FLAG_PERSISTENT;
 			persistent_id = recon_v2->dcontext.Fid.PersistentFileId;
 			dh_info->fp = ksmbd_lookup_durable_fd(persistent_id);
 			if (!dh_info->fp) {
@@ -3462,6 +3469,13 @@ static int parse_durable_handle_context(struct ksmbd_work *work,
 			if (memcmp(dh_info->fp->create_guid, recon_v2->dcontext.CreateGuid,
 				   SMB2_CREATE_GUID_SIZE)) {
 				err = -EBADF;
+				ksmbd_put_durable_fd(dh_info->fp);
+				goto out;
+			}
+
+			/* A persistent reconnect must match the original open type. */
+			if (dh_info->fp->is_persistent != dh_info->persistent) {
+				err = dh_info->persistent ? -EINVAL : -EBADF;
 				ksmbd_put_durable_fd(dh_info->fp);
 				goto out;
 			}
@@ -3529,6 +3543,11 @@ static int parse_durable_handle_context(struct ksmbd_work *work,
 
 			durable_v2_blob =
 				(struct create_durable_req_v2 *)context;
+			if (le32_to_cpu(durable_v2_blob->dcontext.Flags) &
+			    ~SMB2_DHANDLE_FLAG_PERSISTENT) {
+				err = -EINVAL;
+				goto out;
+			}
 			ksmbd_debug(SMB, "Request for durable v2 open\n");
 			dh_info->CreateGuid = durable_v2_blob->dcontext.CreateGuid;
 			dh_info->persistent =
@@ -3812,14 +3831,14 @@ int smb2_open(struct ksmbd_work *work)
 			if (req_op_level == SMB2_OPLOCK_LEVEL_LEASE)
 				req_op_level = SMB2_OPLOCK_LEVEL_NONE;
 		}
+		rc = parse_app_instance_id(req, &dh_info);
+		if (rc)
+			goto err_out2;
 		rc = parse_durable_handle_context(work, req, lc, &dh_info);
 		if (rc) {
 			ksmbd_debug(SMB, "error parsing durable handle context\n");
 			goto err_out2;
 		}
-		rc = parse_app_instance_id(req, &dh_info);
-		if (rc)
-			goto err_out2;
 
 		if (dh_info.replay == true) {
 			fp = dh_info.fp;
@@ -4594,10 +4613,15 @@ int smb2_open(struct ksmbd_work *work)
 	if (dh_info.type == DURABLE_REQ_V2 || dh_info.type == DURABLE_REQ) {
 		if (dh_info.type == DURABLE_REQ_V2 && dh_info.persistent &&
 		    test_share_config_flag(work->tcon->share_conf,
-					   KSMBD_SHARE_FLAG_CONTINUOUS_AVAILABILITY))
-			fp->is_persistent = true;
-		else
+					   KSMBD_SHARE_FLAG_CONTINUOUS_AVAILABILITY) &&
+		    (conn->vals->req_capabilities &
+			     SMB2_GLOBAL_CAP_PERSISTENT_HANDLES)) {
+			/* MS-SMB2 3.3.5.9.10: a persistent open is durable too. */
 			fp->is_durable = true;
+			fp->is_persistent = true;
+		} else {
+			fp->is_durable = true;
+		}
 		if (dh_info.type == DURABLE_REQ_V2) {
 			if (dh_info.app_instance_id)
 				memcpy(fp->app_instance_id,
@@ -4760,7 +4784,9 @@ int smb2_open(struct ksmbd_work *work)
 		if (next_ptr)
 			*next_ptr = cpu_to_le32(next_off);
 		next_ptr = &durable_ccontext->Next;
-		next_off = conn->vals->create_durable_size;
+		next_off = dh_info.type == DURABLE_REQ ?
+			conn->vals->create_durable_size :
+			conn->vals->create_durable_v2_size;
 	}
 
 	if (posix_ctxt) {
