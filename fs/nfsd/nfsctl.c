@@ -2451,6 +2451,29 @@ static int nfsd_nl_server_stats_nfs4ops(struct sk_buff *skb,
 
 	return 0;
 }
+
+/*
+ * Emit NFSv4 callback (backchannel) per-operation counts, resuming at *idx,
+ * which counts from OP_CB_GETATTR. Same return convention as
+ * nfsd_nl_server_stats_proc().
+ */
+static int nfsd_nl_server_stats_cbops(struct sk_buff *skb,
+				      struct nfsd_net *nn, int *idx)
+{
+	int op;
+
+	for (op = OP_CB_GETATTR + *idx; op <= OP_CB_OFFLOAD; op++, (*idx)++) {
+		u64 cnt = percpu_counter_sum_positive(&nn->cb_counter[op]);
+
+		if (!cnt)
+			continue;
+		if (nfsd_nl_put_proc_entry(skb, NFSD_A_SERVER_STATS_PROC4CB_OPS,
+					   op, cnt))
+			return -EMSGSIZE;
+	}
+
+	return 0;
+}
 #endif
 
 /* Sections of the server-stats dump, emitted in order across messages. */
@@ -2459,6 +2482,7 @@ enum {
 	NFSD_SERVER_STATS_PROC2,
 	NFSD_SERVER_STATS_PROC3,
 	NFSD_SERVER_STATS_PROC4,
+	NFSD_SERVER_STATS_PROC4CB,
 	NFSD_SERVER_STATS_PROC4OPS,
 	NFSD_SERVER_STATS_DONE,
 };
@@ -2527,6 +2551,9 @@ int nfsd_nl_server_stats_get_dumpit(struct sk_buff *skb,
 					NFSD_A_SERVER_STATS_PROC4_OPS, &idx);
 			break;
 #ifdef CONFIG_NFSD_V4
+		case NFSD_SERVER_STATS_PROC4CB:
+			ret = nfsd_nl_server_stats_cbops(skb, nn, &idx);
+			break;
 		case NFSD_SERVER_STATS_PROC4OPS:
 			ret = nfsd_nl_server_stats_nfs4ops(skb, nn, &idx);
 			break;
