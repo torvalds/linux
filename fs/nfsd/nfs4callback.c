@@ -39,6 +39,7 @@
 #include "nfsd.h"
 #include "state.h"
 #include "netns.h"
+#include "stats.h"
 #include "trace.h"
 #include "xdr4cb.h"
 #include "xdr4.h"
@@ -1921,12 +1922,31 @@ void nfsd4_init_cb(struct nfsd4_callback *cb, struct nfs4_client *clp,
 bool nfsd4_run_cb(struct nfsd4_callback *cb)
 {
 	struct nfs4_client *clp = cb->cb_clp;
+	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
+	const struct nfsd4_callback_ops *ops = cb->cb_ops;
+	u32 minorversion = clp->cl_minorversion;
 	bool queued;
 
 	nfsd41_cb_inflight_begin(clp);
 	queued = nfsd4_queue_cb(cb);
-	if (!queued)
+	if (queued) {
+		if (ops) {
+			nfsd_stats_cb_op_inc(nn, ops->opcode);
+			/*
+			 * Minorversion > 0 callbacks prepend a CB_SEQUENCE op
+			 * (see encode_cb_sequence4args()); count it like the
+			 * forechannel counts SEQUENCE, so it isn't perpetually
+			 * reported as zero.  CB_NULL probes (ops == NULL) carry
+			 * no CB_SEQUENCE -- and on 4.1+ they are dropped without
+			 * sending any RPC (see nfsd4_run_cb_work()) -- so they
+			 * must not be counted here.
+			 */
+			if (minorversion > 0)
+				nfsd_stats_cb_op_inc(nn, OP_CB_SEQUENCE);
+		}
+	} else {
 		nfsd41_cb_inflight_end(clp);
+	}
 	return queued;
 }
 

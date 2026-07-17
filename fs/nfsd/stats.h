@@ -131,9 +131,10 @@ static inline void nfsd_stats_drc_mem_usage_sub(struct nfsd_net *nn, s64 amount)
 }
 
 #ifdef CONFIG_NFSD_V4
-static inline void nfsd_stats_wdeleg_getattr_inc(struct nfsd_net *nn)
+static inline void nfsd_stats_cb_op_inc(struct nfsd_net *nn, u32 opcode)
 {
-	percpu_counter_inc(&nn->counter[NFSD_STATS_WDELEG_GETATTR]);
+	if (opcode >= OP_CB_GETATTR && opcode <= OP_CB_OFFLOAD)
+		percpu_counter_inc(&nn->cb_counter[opcode]);
 }
 #endif
 #endif /* _NFSD_STATS_H */

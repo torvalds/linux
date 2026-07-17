@@ -53,10 +53,15 @@ enum {
 	NFSD_STATS_FIRST_NFS4_OP,	/* count of individual nfsv4 operations */
 	NFSD_STATS_LAST_NFS4_OP = NFSD_STATS_FIRST_NFS4_OP + LAST_NFS4_OP,
 #define NFSD_STATS_NFS4_OP(op)	(NFSD_STATS_FIRST_NFS4_OP + (op))
-	NFSD_STATS_WDELEG_GETATTR,	/* count of getattr conflict with wdeleg */
 #endif
 	NFSD_STATS_COUNTERS_NUM
 };
+
+/*
+ * Per-netns NFSv4 callback (backchannel) per-operation counters, indexed
+ * directly by RFC 8881 callback opcode (OP_CB_GETATTR..OP_CB_OFFLOAD).
+ */
+#define NFSD_STATS_CB_OPS_NUM	(OP_CB_OFFLOAD + 1)
 
 /*
  * Represents a nfsd "container". With respect to nfsv4 state tracking, the
@@ -199,6 +204,11 @@ struct nfsd_net {
 
 	/* Per-netns stats counters */
 	struct percpu_counter    counter[NFSD_STATS_COUNTERS_NUM];
+
+#ifdef CONFIG_NFSD_V4
+	/* Per-netns NFSv4 callback (backchannel) per-operation counters */
+	struct percpu_counter    cb_counter[NFSD_STATS_CB_OPS_NUM];
+#endif
 
 	/* sunrpc svc stats */
 	struct svc_stat          nfsd_svcstats;

@@ -65,7 +65,7 @@ static int nfsd_show(struct seq_file *seq, void *v)
 			   percpu_counter_sum_positive(&nn->counter[NFSD_STATS_NFS4_OP(i)]));
 	}
 	seq_printf(seq, "\nwdeleg_getattr %lld",
-		percpu_counter_sum_positive(&nn->counter[NFSD_STATS_WDELEG_GETATTR]));
+		percpu_counter_sum_positive(&nn->cb_counter[OP_CB_GETATTR]));
 
 	seq_putc(seq, '\n');
 #endif
