@@ -6678,16 +6678,12 @@ fail:
 	return ret;
 }
 
-int rtw89_fw_h2c_cxdrv_trx_v7(struct rtw89_dev *rtwdev, u8 type)
+static void rtw89_btc_load_trx_para(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_rf_trx_para_v9 rf_para = btc->dm.rf_trx_para;
 	struct rtw89_btc_trx_info *trx = &btc->dm.trx_info;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
-	struct rtw89_h2c_cxtrx_v7 *h2c;
-	u32 len = sizeof(*h2c);
-	struct sk_buff *skb;
-	int ret;
 	u8 i;
 
 	for (i = 0; i < RTW89_PHY_NUM; i++) {
@@ -6695,19 +6691,38 @@ int rtw89_fw_h2c_cxdrv_trx_v7(struct rtw89_dev *rtwdev, u8 type)
 						   RTW89_BTC_WL_DEF_TX_PWR);
 		trx->wl_rx_gain[i] = u32_get_bits(rf_para.wl_rx_gain[i],
 						  RTW89_BTC_WL_DEF_TX_PWR);
+		if (btc->ver->fcxtrx == 107)
+			break;
 	}
+
 	for (i = 0; i < BTC_ALL_BT; i++) {
 		trx->bt_tx_power[i] = u32_get_bits(rf_para.bt_tx_power[i],
 						   RTW89_BTC_WL_DEF_TX_PWR);
 		trx->bt_rx_gain[i] = u32_get_bits(rf_para.bt_rx_gain[i],
 						  RTW89_BTC_WL_DEF_TX_PWR);
+		if (btc->ver->fcxtrx == 107)
+			break;
+
 		trx->zb_tx_power[i] = u32_get_bits(rf_para.zb_tx_power[i],
 						   RTW89_BTC_WL_DEF_TX_PWR);
 		trx->zb_rx_gain[i] = u32_get_bits(rf_para.zb_rx_gain[i],
 						  RTW89_BTC_WL_DEF_TX_PWR);
 	}
+
 	trx->cn = wl->cn_report;
 	trx->nhm = wl->nhm.pwr;
+}
+
+int rtw89_fw_h2c_cxdrv_trx_v7(struct rtw89_dev *rtwdev, u8 type)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_trx_info *trx = &btc->dm.trx_info;
+	struct rtw89_h2c_cxtrx_v7 *h2c;
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
+	int ret;
+
+	rtw89_btc_load_trx_para(rtwdev);
 
 	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
 	if (!skb) {
@@ -6718,7 +6733,7 @@ int rtw89_fw_h2c_cxdrv_trx_v7(struct rtw89_dev *rtwdev, u8 type)
 	h2c = (struct rtw89_h2c_cxtrx_v7 *)skb->data;
 
 	h2c->hdr.type = type;
-	h2c->hdr.ver = btc->ver->fcxtrx;
+	h2c->hdr.ver = 7;
 	h2c->hdr.len = sizeof(*h2c) - H2C_LEN_CXDRVHDR_V7;
 
 	h2c->v7_u8.tx_lvl = trx->tx_lvl;
@@ -6761,33 +6776,14 @@ fail:
 int rtw89_fw_h2c_cxdrv_trx_v9(struct rtw89_dev *rtwdev, u8 type)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
-	struct rtw89_btc_rf_trx_para_v9 rf_para = btc->dm.rf_trx_para;
 	struct rtw89_btc_trx_info *trx = &btc->dm.trx_info;
-	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 	struct rtw89_h2c_cxtrx_v9 *h2c;
 	u32 len = sizeof(*h2c);
 	struct sk_buff *skb;
 	int ret;
 	u8 i;
 
-	for (i = 0; i < RTW89_PHY_NUM; i++) {
-		trx->wl_tx_power[i] = u32_get_bits(rf_para.wl_tx_power[i],
-						   RTW89_BTC_WL_DEF_TX_PWR);
-		trx->wl_rx_gain[i] = u32_get_bits(rf_para.wl_rx_gain[i],
-						  RTW89_BTC_WL_DEF_TX_PWR);
-	}
-	for (i = 0; i < BTC_ALL_BT; i++) {
-		trx->bt_tx_power[i] = u32_get_bits(rf_para.bt_tx_power[i],
-						   RTW89_BTC_WL_DEF_TX_PWR);
-		trx->bt_rx_gain[i] = u32_get_bits(rf_para.bt_rx_gain[i],
-						  RTW89_BTC_WL_DEF_TX_PWR);
-		trx->zb_tx_power[i] = u32_get_bits(rf_para.zb_tx_power[i],
-						   RTW89_BTC_WL_DEF_TX_PWR);
-		trx->zb_rx_gain[i] = u32_get_bits(rf_para.zb_rx_gain[i],
-						  RTW89_BTC_WL_DEF_TX_PWR);
-	}
-	trx->cn = wl->cn_report;
-	trx->nhm = wl->nhm.pwr;
+	rtw89_btc_load_trx_para(rtwdev);
 
 	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
 	if (!skb) {
@@ -6798,7 +6794,7 @@ int rtw89_fw_h2c_cxdrv_trx_v9(struct rtw89_dev *rtwdev, u8 type)
 	h2c = (struct rtw89_h2c_cxtrx_v9 *)skb->data;
 
 	h2c->hdr.type = type;
-	h2c->hdr.ver = btc->ver->fcxtrx;
+	h2c->hdr.ver = 9;
 	h2c->hdr.len = sizeof(*h2c) - H2C_LEN_CXDRVHDR_V7;
 
 	h2c->v9_u8.tx_lvl = trx->tx_lvl;
@@ -6826,6 +6822,64 @@ int rtw89_fw_h2c_cxdrv_trx_v9(struct rtw89_dev *rtwdev, u8 type)
 	h2c->v9_le.tx_tp = cpu_to_le32(trx->tx_tp);
 	h2c->v9_le.rx_tp = cpu_to_le32(trx->rx_tp);
 	h2c->v9_le.rx_err_ratio = cpu_to_le32(trx->rx_err_ratio);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_OUTSRC, BTFC_SET,
+			      SET_DRV_INFO, 0, 0, len);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+
+int rtw89_fw_h2c_cxdrv_trx_v107(struct rtw89_dev *rtwdev, u8 type)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_trx_info *trx = &btc->dm.trx_info;
+	struct rtw89_h2c_cxtrx_v107 *h2c;
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
+	int ret;
+
+	rtw89_btc_load_trx_para(rtwdev);
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for h2c cxtrx_v107\n");
+		return -ENOMEM;
+	}
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_cxtrx_v107 *)skb->data;
+
+	h2c->hdr.type = type;
+	h2c->hdr.ver = 7;
+	h2c->hdr.len = sizeof(*h2c) - H2C_LEN_CXDRVHDR_V7;
+
+	h2c->v107_u8.tx_lvl = trx->tx_lvl;
+	h2c->v107_u8.rx_lvl = trx->rx_lvl;
+	h2c->v107_u8.wl_rssi = trx->wl_rssi;
+	h2c->v107_u8.bt_rssi = trx->bt_rssi;
+	h2c->v107_u8.wl_tx_power = trx->bt_tx_power[RTW89_PHY_0];
+	h2c->v107_u8.wl_rx_gain = trx->wl_rx_gain[RTW89_PHY_0];
+	h2c->v107_u8.bt_tx_power = trx->bt_tx_power[BTC_BT_1ST];
+	h2c->v107_u8.bt_rx_gain = trx->bt_rx_gain[BTC_BT_1ST];
+	h2c->v107_u8.cn = trx->cn;
+	h2c->v107_u8.nhm = trx->nhm;
+	h2c->v107_u8.bt_profile = trx->bt_profile;
+	h2c->v107_u8.rsvd2 = trx->rsvd2;
+	h2c->v7_le.tx_rate = cpu_to_le16(trx->tx_rate);
+	h2c->v7_le.rx_rate = cpu_to_le16(trx->rx_rate);
+	h2c->v7_le.tx_tp = cpu_to_le32(trx->tx_tp);
+	h2c->v7_le.rx_tp = cpu_to_le32(trx->rx_tp);
+	h2c->v7_le.rx_err_ratio = cpu_to_le32(trx->rx_err_ratio);
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_OUTSRC, BTFC_SET,
@@ -6908,7 +6962,7 @@ int rtw89_fw_h2c_cxtxpwr_v7(struct rtw89_dev *rtwdev, u8 type)
 	h2c = (struct rtw89_h2c_cxtxpwr_v7 *)skb->data;
 
 	h2c->hdr.type = type;
-	h2c->hdr.ver = btc->ver->fcxtrx;
+	h2c->hdr.ver = 7;
 	h2c->hdr.len = sizeof(*h2c) - H2C_LEN_CXDRVHDR_V7;
 	h2c->pwr = rp.wl_tx_power[RTW89_PHY_0] & 0xff;
 
@@ -6948,7 +7002,7 @@ int rtw89_fw_h2c_cxtxpwr_v9(struct rtw89_dev *rtwdev, u8 type)
 	h2c = (struct rtw89_h2c_cxtxpwr_v9 *)skb->data;
 
 	h2c->hdr.type = type;
-	h2c->hdr.ver = btc->ver->fcxtrx;
+	h2c->hdr.ver = 9;
 	h2c->hdr.len = sizeof(*h2c) - H2C_LEN_CXDRVHDR_V7;
 	if (dm->wl_tx_pwr_phy_map == BIT(RTW89_PHY_1))
 		h2c->pwr = rp.wl_tx_power[RTW89_PHY_1] & 0xff;

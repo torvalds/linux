@@ -3081,10 +3081,15 @@ static void _fw_set_drv_info(struct rtw89_dev *rtwdev, u8 index)
 		if (ver->drvinfo_ver > 1)
 			index = 3;
 
+		if (ver->fcxtrx == 0)
+			return;
+
 		if (ver->fcxtrx == 7)
 			rtw89_fw_h2c_cxdrv_trx_v7(rtwdev, index);
 		else if (ver->fcxtrx == 9)
 			rtw89_fw_h2c_cxdrv_trx_v9(rtwdev, index);
+		else if (ver->fcxtrx == 107)
+			rtw89_fw_h2c_cxdrv_trx_v107(rtwdev, index);
 		break;
 	case CXDRVINFO_RFK:
 		if (ver->drvinfo_ver != 0)
@@ -3096,7 +3101,7 @@ static void _fw_set_drv_info(struct rtw89_dev *rtwdev, u8 index)
 		if (ver->drvinfo_ver == 3)
 			index = 4;
 
-		if (ver->fcxtrx == 7)
+		if (ver->fcxtrx == 7 || ver->fcxtrx == 107)
 			rtw89_fw_h2c_cxtxpwr_v7(rtwdev, index);
 		else if (ver->fcxtrx == 9)
 			rtw89_fw_h2c_cxtxpwr_v9(rtwdev, index);
@@ -3358,7 +3363,8 @@ static void _set_wl_tx_power(struct rtw89_dev *rtwdev, u32 level, u8 phy_map)
 		    dm->rf_trx_para.wl_tx_power[RTW89_PHY_0],
 		    dm->rf_trx_para.wl_tx_power[RTW89_PHY_1]);
 
-	if (ver->fcxtrx == 7 && chip->chip_id == RTL8922A) {
+	if ((ver->fcxtrx == 7 && chip->chip_id == RTL8922A) ||
+	    ver->fcxtrx == 107) {
 		_fw_set_drv_info(rtwdev, CXDRVINFO_TXPWR);
 	} else if (ver->fcxtrx == 9) {
 		_fw_set_drv_info(rtwdev, CXDRVINFO_TXPWR);
@@ -3632,12 +3638,17 @@ static void _set_rf_trx_para(struct rtw89_dev *rtwdev)
 	u8 bid = BTC_BT_1ST, lv;
 	u32 wl_stb_chg;
 
-	if (ver->fcxtrx == 9 && chip->rf_para_ulink_v9) {
-		ul_para_num = chip->rf_para_ulink_num_v9;
-		dl_para_num = chip->rf_para_dlink_num_v9;
-		_set_rf_trx_para_v9(rtwdev);
-		return;
-	} else if (ver->fcxtrx == 0 && chip->rf_para_ulink_v0) {
+	if (ver->fcxtrx == 9) {
+		/* Early v9 need to assign UL/DL RF para at driver */
+		if (chip->rf_para_ulink_v9) {
+			ul_para_num = chip->rf_para_ulink_num_v9;
+			dl_para_num = chip->rf_para_dlink_num_v9;
+		} else {
+			_set_rf_trx_para_v9(rtwdev);
+			return;
+		}
+	} else if ((ver->fcxtrx == 0 || ver->fcxtrx == 7 || ver->fcxtrx == 107) &&
+		   chip->rf_para_ulink_v0) {
 		ul_para_num = chip->rf_para_ulink_num_v0;
 		dl_para_num = chip->rf_para_dlink_num_v0;
 	} else {

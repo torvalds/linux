@@ -2517,6 +2517,23 @@ struct rtw89_btc_trx_info_v7_u8 {
 	u8 rsvd2;
 } __packed;
 
+struct rtw89_btc_trx_info_v107_u8 {
+	u8 tx_lvl;
+	u8 rx_lvl;
+	u8 wl_rssi;
+	u8 bt_rssi;
+
+	s8 wl_tx_power;
+	s8 wl_rx_gain;
+	s8 bt_tx_power;
+	s8 bt_rx_gain;
+
+	u8 cn;
+	s8 nhm;
+	u8 bt_profile;
+	u8 rsvd2;
+} __packed;
+
 struct rtw89_btc_trx_info_le {
 	__le16 tx_rate;
 	__le16 rx_rate;
@@ -2535,6 +2552,12 @@ struct rtw89_h2c_cxtrx_v9 {
 struct rtw89_h2c_cxtrx_v7 {
 	struct rtw89_h2c_cxhdr_v7 hdr;
 	struct rtw89_btc_trx_info_v7_u8 v7_u8;
+	struct rtw89_btc_trx_info_le v7_le;
+} __packed;
+
+struct rtw89_h2c_cxtrx_v107 {
+	struct rtw89_h2c_cxhdr_v7 hdr;
+	struct rtw89_btc_trx_info_v107_u8 v107_u8;
 	struct rtw89_btc_trx_info_le v7_le;
 } __packed;
 
@@ -5400,6 +5423,7 @@ int rtw89_fw_h2c_cxdrv_ctrl_v7(struct rtw89_dev *rtwdev, u8 type);
 int rtw89_fw_h2c_cxdrv_ctrl_v9(struct rtw89_dev *rtwdev, u8 type);
 int rtw89_fw_h2c_cxdrv_trx_v7(struct rtw89_dev *rtwdev, u8 type);
 int rtw89_fw_h2c_cxdrv_trx_v9(struct rtw89_dev *rtwdev, u8 type);
+int rtw89_fw_h2c_cxdrv_trx_v107(struct rtw89_dev *rtwdev, u8 type);
 int rtw89_fw_h2c_cxdrv_rfk(struct rtw89_dev *rtwdev, u8 type);
 int rtw89_fw_h2c_cxtxpwr_v7(struct rtw89_dev *rtwdev, u8 type);
 int rtw89_fw_h2c_cxtxpwr_v9(struct rtw89_dev *rtwdev, u8 type);
