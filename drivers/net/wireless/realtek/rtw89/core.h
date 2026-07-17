@@ -1501,7 +1501,7 @@ enum rtw89_btc_bt_profile {
 	BTC_PROFILE_MAX = 4,
 };
 
-struct rtw89_btc_ant_info {
+struct rtw89_btc_ant_info_v0 {
 	u8 type;  /* shared, dedicated */
 	u8 num;
 	u8 isolation;
@@ -1536,6 +1536,21 @@ struct rtw89_btc_ant_info_v10 {
 	u8 func[5]; /* function at 1~5 Ant refer to enum btc_bt_func_type */
 	u8 ant_xmap[2][4];
 } __packed;
+
+struct rtw89_btc_ant_info {
+	u8 type;  /* shared, dedicated(non-shared) */
+	u8 num;   /* antenna count  */
+	u8 isolation; /* Ant-Iso between WL/BT */
+	u8 single_pos; /* wifi 1ss-1ant at 0:S0 or 1:S1 */
+
+	u8 stream_cnt; /* spatial_stream count: Tx[7:4], Rx[3:0] */
+	u8 btg_pos;    /* BT0 btg-circuit at 0:WL-S0/1:WL-S1 */
+	u8 btg1_pos;   /* BT1 btg-circuit at 0:WL-S0/1:WL-S1 */
+	u8 func[5]; /* function at 1~5 Ant refer to enum btc_bt_func_type */
+	u8 ant_xmap[2][4];
+
+	u8 diversity; /* only for wifi use 1-antenna */
+};
 
 enum rtw89_tfc_dir {
 	RTW89_TFC_UL,
@@ -2331,8 +2346,8 @@ struct rtw89_btc_wl_info {
 	u32 wcnt[BTC_WCNT_NUM];
 };
 
-struct rtw89_btc_module {
-	struct rtw89_btc_ant_info ant;
+struct rtw89_btc_module_v0 {
+	struct rtw89_btc_ant_info_v0 ant;
 	u8 rfe_type;
 	u8 cv;
 
@@ -2373,9 +2388,25 @@ struct rtw89_btc_module_v10 {
 } __packed;
 
 union rtw89_btc_module_info {
-	struct rtw89_btc_module md;
+	struct rtw89_btc_module_v0 md_v0;
 	struct rtw89_btc_module_v7 md_v7;
 	struct rtw89_btc_module_v10 md_v10;
+};
+
+struct rtw89_btc_module {
+	u8 rfe_type;
+	u8 wa_type; /* Refer to enum btc_wa_type */
+	u8 kt_ver;
+	u8 kt_ver_adie;
+
+	u8 bt0_pos; /* wl-end view: get from efuse, must compare bt.btg_type*/
+	u8 bt0_sw_type; /* BT Ant-switch: None(non-share), Int(BTG), Ext(SPDT)*/
+	u8 bt1_pos; /* BTC_BT_ALONE or BTC_BT_BTG */
+	u8 bt1_sw_type;
+
+	u8 bt_solo;
+
+	struct rtw89_btc_ant_info ant;
 };
 
 #define RTW89_BTC_DM_MAXSTEP 30
@@ -2387,8 +2418,8 @@ struct rtw89_btc_dm_step {
 	bool step_ov;
 };
 
-struct rtw89_btc_init_info {
-	struct rtw89_btc_module module;
+struct rtw89_btc_init_info_v0 {
+	struct rtw89_btc_module_v0 module;
 	u8 wl_guard_ch;
 
 	u8 wl_only: 1;
@@ -2398,7 +2429,7 @@ struct rtw89_btc_init_info {
 	u8 bt_only: 1;
 
 	u16 rsvd;
-};
+} __packed;
 
 struct rtw89_btc_init_info_v7 {
 	u8 wl_guard_ch;
@@ -2410,6 +2441,20 @@ struct rtw89_btc_init_info_v7 {
 	u8 bt_only;
 	u8 pta_mode;
 	u8 pta_direction;
+
+	struct rtw89_btc_module_v7 module;
+} __packed;
+
+struct rtw89_btc_init_info_v107 {
+	u8 wl_guard_ch;
+	u8 wl_only;
+	u8 wl_init_ok;
+	u8 dbcc_en;
+
+	u8 cx_other;
+	u8 bt_only;
+	u8 rsvd;
+	u8 rsvd1;
 
 	struct rtw89_btc_module_v7 module;
 } __packed;
@@ -2426,12 +2471,34 @@ struct rtw89_btc_init_info_v10 {
 	u8 pta_direction;
 
 	struct rtw89_btc_module_v10 module;
-};
+} __packed;
 
 union rtw89_btc_init_info_u {
-	struct rtw89_btc_init_info init;
+	struct rtw89_btc_init_info_v0 init_v0;
 	struct rtw89_btc_init_info_v7 init_v7;
 	struct rtw89_btc_init_info_v10 init_v10;
+	struct rtw89_btc_init_info_v107 init_v107;
+};
+
+struct rtw89_btc_init_info {
+	u8 endian_type; /* 0: little-endian, 1:big-endian */
+	u8 init_mode; /* refer to enum BTC_MODE_xxx  */
+	u8 wl_init_ok;
+	u8 bt0_function;
+
+	u8 bt1_function;
+	u8 bt2_function;
+	u8 pta_mode;
+	u8 pta_direction;
+
+	u8 dbcc_en;
+	u8 cx_other;
+	u8 bt_only;
+	u8 wl_only;
+
+	u8 wl_guard_ch;
+
+	struct rtw89_btc_module module;
 };
 
 struct rtw89_btc_wl_tx_limit_para {
@@ -3659,7 +3726,7 @@ struct rtw89_btc_dm {
 	struct rtw89_btc_gnt_ctrl gnt_set[RTW89_MAC_AX_COEX_GNT_NR];
 	struct rtw89_btc_gnt_ctrl gnt_val[RTW89_MAC_AX_COEX_GNT_NR];
 	struct rtw89_mac_ax_wl_act wlact_set[BTC_ALL_BT_EZL];
-	union rtw89_btc_init_info_u init_info; /* pass to wl_fw if offload */
+	struct rtw89_btc_init_info init_info; /* pass to wl_fw if offload */
 	struct rtw89_btc_rf_trx_para_v9 rf_trx_para;
 	struct rtw89_btc_wl_tx_limit_para wl_tx_limit;
 	struct rtw89_btc_dm_step dm_step;
@@ -4012,7 +4079,7 @@ struct rtw89_btc {
 	struct rtw89_btc_cx cx;
 	struct rtw89_btc_dm dm;
 	struct rtw89_btc_ctrl ctrl;
-	union rtw89_btc_module_info mdinfo;
+	struct rtw89_btc_module mdinfo;
 	struct rtw89_btc_btf_fwinfo fwinfo;
 	struct rtw89_btc_dbg dbg;
 

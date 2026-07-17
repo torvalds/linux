@@ -3170,32 +3170,31 @@ static u32 rtw8922d_chan_to_rf18_val(struct rtw89_dev *rtwdev,
 static void rtw8922d_btc_set_rfe(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_module *md = &btc->mdinfo;
 	struct rtw89_btc_dm *dm = &btc->dm;
 	struct rtw89_btc_cx *cx = &btc->cx;
-	union rtw89_btc_module_info *md = &rtwdev->btc.mdinfo;
-	struct rtw89_btc_module_v10 *module = &md->md_v10;
 	u8 efuse_bt_func, efuse_ant_info, bt_sw_gpio_pos;
 	u8 is_combo, is_bt_share;
 
 	rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], %s !!\n", __func__);
 
 	/* get from final capability of device */
-	module->rfe_type = rtwdev->efuse.rfe_type;
-	module->kt_ver = rtwdev->hal.cv;
-	module->kt_ver_adie = rtwdev->hal.acv;
-	module->wa_type = 0;
+	md->rfe_type = rtwdev->efuse.rfe_type;
+	md->kt_ver = rtwdev->hal.cv;
+	md->kt_ver_adie = rtwdev->hal.acv;
+	md->wa_type = 0;
 	dm->wl_trx_nss_en = 0;
 
-	module->ant.num = 2;
-	module->ant.single_pos = BTC_RF_S0; /* WL 1ss+1Ant 0:s0(A)/ 1:s1(B) */
+	md->ant.num = 2;
+	md->ant.single_pos = BTC_RF_S0; /* WL 1ss+1Ant 0:s0(A)/ 1:s1(B) */
 
 	/* set default antenna isolation */
-	cx->bt0.ant_iso_to_wl = module->ant.isolation;
-	cx->bt1.ant_iso_to_wl = module->ant.isolation;
+	cx->bt0.ant_iso_to_wl = md->ant.isolation;
+	cx->bt1.ant_iso_to_wl = md->ant.isolation;
 
-	module->ant.stream_cnt = 2;
-	module->ant.btg_pos = BTC_RF_S1; /* BTG0 at WL-S1 */
-	module->ant.btg1_pos = BTC_RF_S0; /* BTG1 at WL-S0 if Dual-BTGA */
+	md->ant.stream_cnt = 2;
+	md->ant.btg_pos = BTC_RF_S1; /* BTG0 at WL-S1 */
+	md->ant.btg1_pos = BTC_RF_S0; /* BTG1 at WL-S0 if Dual-BTGA */
 
 	cx->bt0.band_56G_support = 1;
 	cx->bt1.band_56G_support = 1;
@@ -3223,21 +3222,21 @@ static void rtw8922d_btc_set_rfe(struct rtw89_dev *rtwdev)
 
 	efuse_bt_func &= 0x1f; /* 0xcd[4:0] */
 	efuse_ant_info = rtwdev->efuse.bt_setting_3;
-	module->ant.num = (efuse_ant_info & 0xe0) >> 5; /* 0xCE[7:5] */
+	md->ant.num = (efuse_ant_info & 0xe0) >> 5; /* 0xCE[7:5] */
 	is_combo = (efuse_ant_info & 0xe) >> 1; /* 0xCE[3:1] */
 	is_bt_share = efuse_ant_info & BIT(0); /* 0xCE[0] */
 
 	memset(dm->ant_xmap, 0, sizeof(dm->ant_xmap));
 
 	/* To-Do: "RFE_TYpe" to "ant.num" translation */
-	switch (module->ant.num) {
+	switch (md->ant.num) {
 	case 1: /* 1-Ant WL-S0 only & BT0 only */
-		module->ant.type = BTC_ANT_SHARED;
-		module->bt0_pos = BTC_BT_BTG;
-		module->bt0_sw_type = BTC_SWITCH_INTERNAL;
-		module->ant.btg_pos = BTC_RF_S0; /* BTG0 at WL-S0 */
-		module->ant.stream_cnt = 1;
-		module->ant.func[0] = BTC_EFMAP_BT0;
+		md->ant.type = BTC_ANT_SHARED;
+		md->bt0_pos = BTC_BT_BTG;
+		md->bt0_sw_type = BTC_SWITCH_INTERNAL;
+		md->ant.btg_pos = BTC_RF_S0; /* BTG0 at WL-S0 */
+		md->ant.stream_cnt = 1;
+		md->ant.func[0] = BTC_EFMAP_BT0;
 		dm->ant_xmap[BTC_RF_S0][BTC_BT_1ST] = 1; /* BT0 shared with S0*/
 		dm->ant_xmap[BTC_RF_S1][BTC_BT_1ST] = 0; /* WL 1T1R no RF-S1 */
 		break;
@@ -3245,34 +3244,34 @@ static void rtw8922d_btc_set_rfe(struct rtw89_dev *rtwdev)
 	default:
 		if (is_combo) {
 			if (efuse_bt_func == (BTC_EFMAP_BT0 | BTC_EFMAP_BT1))
-				module->ant.func[0] = BTC_EFMAP_BT1;
+				md->ant.func[0] = BTC_EFMAP_BT1;
 
-			module->ant.func[1] = BTC_EFMAP_BT0;
+			md->ant.func[1] = BTC_EFMAP_BT0;
 		} else {
-			module->ant.func[0] = BTC_EFMAP_NONE;
-			module->ant.func[1] = BTC_EFMAP_NONE;
+			md->ant.func[0] = BTC_EFMAP_NONE;
+			md->ant.func[1] = BTC_EFMAP_NONE;
 		}
 
 		if (is_bt_share) { /* WL-S0 + (WL-S1 & BT0-S1) */
-			module->ant.type = BTC_ANT_SHARED;
-			module->bt0_pos = BTC_BT_BTG;
-			module->bt0_sw_type = BTC_SWITCH_INTERNAL;
+			md->ant.type = BTC_ANT_SHARED;
+			md->bt0_pos = BTC_BT_BTG;
+			md->bt0_sw_type = BTC_SWITCH_INTERNAL;
 			dm->ant_xmap[BTC_RF_S1][BTC_BT_1ST] = 1;
 		} else { /* WL-S0 + BT0-S1 */
-			module->ant.type = BTC_ANT_DEDICATED;
-			module->bt0_pos = BTC_BT_ALONE;
-			module->bt0_sw_type = BTC_SWITCH_V1_NONE;
+			md->ant.type = BTC_ANT_DEDICATED;
+			md->bt0_pos = BTC_BT_ALONE;
+			md->bt0_sw_type = BTC_SWITCH_V1_NONE;
 		}
 
-		if (module->ant.func[0] == BTC_EFMAP_BT1) { /* if 2nd BT exist */
+		if (md->ant.func[0] == BTC_EFMAP_BT1) { /* if 2nd BT exist */
 			dm->ant_xmap[BTC_RF_S0][BTC_BT_2ND] = 1;
-			if (module->rfe_type == 12) { /* WL-S0 & BT1 by SPDT */
-				module->bt1_pos = BTC_BT_ALONE;
+			if (md->rfe_type == 12) { /* WL-S0 & BT1 by SPDT */
+				md->bt1_pos = BTC_BT_ALONE;
 				/* Todo: set SPDT GPIO-ctrl */
-				module->bt1_sw_type = bt_sw_gpio_pos;
+				md->bt1_sw_type = bt_sw_gpio_pos;
 			} else { /* WL-S0 & BT1-S1 by BTGA */
-				module->bt1_pos = BTC_BT_BTG;
-				module->bt1_sw_type = BTC_SWITCH_INTERNAL;
+				md->bt1_pos = BTC_BT_BTG;
+				md->bt1_sw_type = BTC_SWITCH_INTERNAL;
 			}
 		}
 
@@ -3280,48 +3279,48 @@ static void rtw8922d_btc_set_rfe(struct rtw89_dev *rtwdev)
 		break;
 	case 3: /* 3-Ant, 3 different BT-configuration */
 		if (is_bt_share) {
-			module->ant.func[0] = BTC_EFMAP_NONE;
-			module->ant.func[1] = BTC_EFMAP_BT0;
-			module->ant.func[2] = efuse_bt_func & (~BTC_EFMAP_BT0);
-			module->ant.type = BTC_ANT_SHARED;
-			module->bt0_pos = BTC_BT_BTG;
-			module->bt0_sw_type = BTC_SWITCH_INTERNAL;
+			md->ant.func[0] = BTC_EFMAP_NONE;
+			md->ant.func[1] = BTC_EFMAP_BT0;
+			md->ant.func[2] = efuse_bt_func & (~BTC_EFMAP_BT0);
+			md->ant.type = BTC_ANT_SHARED;
+			md->bt0_pos = BTC_BT_BTG;
+			md->bt0_sw_type = BTC_SWITCH_INTERNAL;
 			dm->ant_xmap[BTC_RF_S1][BTC_BT_1ST] = 1;
 			dm->wl_trx_nss_en = 1; /* 1ss MIMO-PS capability */
 		} else {
-			module->ant.func[0] = BTC_EFMAP_NONE;
-			module->ant.func[1] = BTC_EFMAP_NONE;
-			module->ant.func[2] = efuse_bt_func;
-			module->ant.type = BTC_ANT_DEDICATED;
-			module->bt0_pos = BTC_BT_ALONE;
-			module->bt0_sw_type = BTC_SWITCH_V1_NONE;
+			md->ant.func[0] = BTC_EFMAP_NONE;
+			md->ant.func[1] = BTC_EFMAP_NONE;
+			md->ant.func[2] = efuse_bt_func;
+			md->ant.type = BTC_ANT_DEDICATED;
+			md->bt0_pos = BTC_BT_ALONE;
+			md->bt0_sw_type = BTC_SWITCH_V1_NONE;
 		}
 
-		module->bt1_pos = BTC_BT_ALONE; /* BT1 may exist or not */
-		module->bt1_sw_type = BTC_SWITCH_V1_NONE;
+		md->bt1_pos = BTC_BT_ALONE; /* BT1 may exist or not */
+		md->bt1_sw_type = BTC_SWITCH_V1_NONE;
 		break;
 	case 4: /* 4-Ant,  WL-S0 + WL-S1 + BT0 + BT1 */
-		module->ant.func[0] = BTC_EFMAP_NONE;
-		module->ant.func[1] = BTC_EFMAP_NONE;
-		module->ant.func[2] = BTC_EFMAP_BT0;
-		module->ant.func[3] = efuse_bt_func & (~BTC_EFMAP_BT0);
-		module->ant.type = BTC_ANT_DEDICATED;
-		module->bt0_pos = BTC_BT_ALONE;
-		module->bt0_sw_type = BTC_SWITCH_V1_NONE;
-		module->bt1_pos = BTC_BT_ALONE;
-		module->bt1_sw_type = BTC_SWITCH_V1_NONE;
+		md->ant.func[0] = BTC_EFMAP_NONE;
+		md->ant.func[1] = BTC_EFMAP_NONE;
+		md->ant.func[2] = BTC_EFMAP_BT0;
+		md->ant.func[3] = efuse_bt_func & (~BTC_EFMAP_BT0);
+		md->ant.type = BTC_ANT_DEDICATED;
+		md->bt0_pos = BTC_BT_ALONE;
+		md->bt0_sw_type = BTC_SWITCH_V1_NONE;
+		md->bt1_pos = BTC_BT_ALONE;
+		md->bt1_sw_type = BTC_SWITCH_V1_NONE;
 		break;
 	case 5:
-		module->ant.func[0] = BTC_EFMAP_NONE;
-		module->ant.func[1] = BTC_EFMAP_NONE;
-		module->ant.func[2] = BTC_EFMAP_BT0;
-		module->ant.func[3] = BTC_EFMAP_BT1;
-		module->ant.func[4] = BTC_EFMAP_ZB;
-		module->ant.type = BTC_ANT_DEDICATED;
-		module->bt0_pos = BTC_BT_ALONE;
-		module->bt0_sw_type = BTC_SWITCH_V1_NONE;
-		module->bt1_pos = BTC_BT_ALONE;
-		module->bt1_sw_type = BTC_SWITCH_V1_NONE;
+		md->ant.func[0] = BTC_EFMAP_NONE;
+		md->ant.func[1] = BTC_EFMAP_NONE;
+		md->ant.func[2] = BTC_EFMAP_BT0;
+		md->ant.func[3] = BTC_EFMAP_BT1;
+		md->ant.func[4] = BTC_EFMAP_ZB;
+		md->ant.type = BTC_ANT_DEDICATED;
+		md->bt0_pos = BTC_BT_ALONE;
+		md->bt0_sw_type = BTC_SWITCH_V1_NONE;
+		md->bt1_pos = BTC_BT_ALONE;
+		md->bt1_sw_type = BTC_SWITCH_V1_NONE;
 		break;
 	}
 
@@ -3333,8 +3332,8 @@ static void rtw8922d_btc_set_rfe(struct rtw89_dev *rtwdev)
 	 */
 	if (dm->wl_trx_nss_en &&
 	    (dm->wl_trx_nss.tx_limit && dm->wl_trx_nss.rx_limit)) {
-		module->ant.type = BTC_ANT_DEDICATED;
-		module->ant.stream_cnt = 1;
+		md->ant.type = BTC_ANT_DEDICATED;
+		md->ant.stream_cnt = 1;
 		dm->ant_xmap[BTC_RF_S0][BTC_BT_1ST] = 0; /* wl 1ss-> RF-S0 */
 		dm->ant_xmap[BTC_RF_S1][BTC_BT_1ST] = 0; /* BT0-> RF-S1 */
 		dm->ant_xmap[BTC_RF_S0][BTC_BT_2ND] = 0;
@@ -3365,10 +3364,10 @@ static void rtw8922d_btc_set_rfe(struct rtw89_dev *rtwdev)
 		/* use GPIO 12~15 for Ext-4-wire-PTA */
 		cx->bt_ext.hpta_cfg = BIT(12) | BIT(13) | BIT(14) | BIT(15);
 		/* for Ext-SOC locate at Ant-2 */
-		if (module->ant.num >= 5)
-			module->ant.func[4] = BTC_EFMAP_ZB;
+		if (md->ant.num >= 5)
+			md->ant.func[4] = BTC_EFMAP_ZB;
 		else
-			module->ant.func[module->ant.num - 1] = BTC_EFMAP_ZB;
+			md->ant.func[md->ant.num - 1] = BTC_EFMAP_ZB;
 		break;
 	}
 

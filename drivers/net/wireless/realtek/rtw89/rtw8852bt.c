@@ -635,45 +635,40 @@ static void rtw8852bt_rfk_track(struct rtw89_dev *rtwdev)
 
 static void rtw8852bt_btc_set_rfe(struct rtw89_dev *rtwdev)
 {
-	const struct rtw89_btc_ver *ver = rtwdev->btc.ver;
-	union rtw89_btc_module_info *md = &rtwdev->btc.mdinfo;
+	struct rtw89_btc_module *md = &rtwdev->btc.mdinfo;
 
-	if (ver->fcxinit == 7) {
-		md->md_v7.rfe_type = rtwdev->efuse.rfe_type;
-		md->md_v7.kt_ver = rtwdev->hal.cv;
-		md->md_v7.kt_ver_adie = rtwdev->hal.acv;
-		md->md_v7.bt_solo = 0;
-		md->md_v7.bt_pos = BTC_BT_BTG;
-		md->md_v7.switch_type = BTC_SWITCH_INTERNAL;
-		md->md_v7.wa_type = 0;
+	md->rfe_type = rtwdev->efuse.rfe_type;
+	md->kt_ver = rtwdev->hal.cv;
+	md->kt_ver_adie = rtwdev->hal.acv;
+	md->bt_solo = 0;
+	md->bt0_pos = BTC_BT_BTG;
+	md->bt0_sw_type = BTC_SWITCH_INTERNAL;
+	md->wa_type = 0;
 
-		md->md_v7.ant.type = BTC_ANT_SHARED;
-		md->md_v7.ant.num = 2;
-		md->md_v7.ant.isolation = 10;
-		md->md_v7.ant.diversity = 0;
-		/* WL 1-stream+1-Ant is located at 0:s0(path-A) or 1:s1(path-B) */
-		md->md_v7.ant.single_pos = RF_PATH_A;
-		md->md_v7.ant.btg_pos = RF_PATH_B;
+	md->ant.type = BTC_ANT_SHARED;
+	md->ant.num = 2;
+	md->ant.isolation = 10;
+	md->ant.diversity = 0;
+	/* WL 1-stream+1-Ant is located at 0:s0(path-A) or 1:s1(path-B) */
+	md->ant.single_pos = RF_PATH_A;
+	md->ant.btg_pos = RF_PATH_B;
 
-		if (md->md_v7.rfe_type == 0) {
-			rtwdev->btc.dm.error.map.rfe_type0 = true;
-			return;
-		}
-
-		md->md_v7.ant.num = (md->md_v7.rfe_type % 2) ? 2 : 3;
-		md->md_v7.ant.stream_cnt = 2;
-		md->md_v7.wa_type |= BTC_WA_INIT_SCAN;
-
-		if (md->md_v7.ant.num == 2) {
-			md->md_v7.ant.type = BTC_ANT_SHARED;
-			md->md_v7.bt_pos = BTC_BT_BTG;
-			md->md_v7.wa_type |= BTC_WA_HFP_LAG;
-		} else {
-			md->md_v7.ant.type = BTC_ANT_DEDICATED;
-			md->md_v7.bt_pos = BTC_BT_ALONE;
-		}
-	} else {
+	if (md->rfe_type == 0) {
+		rtwdev->btc.dm.error.map.rfe_type0 = true;
 		return;
+	}
+
+	md->ant.num = (md->rfe_type % 2) ? 2 : 3;
+	md->ant.stream_cnt = 2;
+	md->wa_type |= BTC_WA_INIT_SCAN;
+
+	if (md->ant.num == 2) {
+		md->ant.type = BTC_ANT_SHARED;
+		md->bt0_pos = BTC_BT_BTG;
+		md->wa_type |= BTC_WA_HFP_LAG;
+	} else {
+		md->ant.type = BTC_ANT_DEDICATED;
+		md->bt0_pos = BTC_BT_ALONE;
 	}
 }
 

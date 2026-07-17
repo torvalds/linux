@@ -2721,46 +2721,45 @@ static u32 rtw8922a_chan_to_rf18_val(struct rtw89_dev *rtwdev,
 
 static void rtw8922a_btc_set_rfe(struct rtw89_dev *rtwdev)
 {
-	union rtw89_btc_module_info *md = &rtwdev->btc.mdinfo;
-	struct rtw89_btc_module_v7 *module = &md->md_v7;
+	struct rtw89_btc_module *md = &rtwdev->btc.mdinfo;
 
-	module->rfe_type = rtwdev->efuse.rfe_type;
-	module->kt_ver = rtwdev->hal.cv;
-	module->bt_solo = 0;
-	module->switch_type = BTC_SWITCH_INTERNAL;
-	module->wa_type = 0;
+	md->rfe_type = rtwdev->efuse.rfe_type;
+	md->kt_ver = rtwdev->hal.cv;
+	md->bt_solo = 0;
+	md->bt0_sw_type = BTC_SWITCH_INTERNAL;
+	md->wa_type = 0;
 
-	module->ant.type = BTC_ANT_SHARED;
-	module->ant.num = 2;
-	module->ant.isolation = 10;
-	module->ant.diversity = 0;
-	module->ant.single_pos = RF_PATH_A;
-	module->ant.btg_pos = RF_PATH_B;
+	md->ant.type = BTC_ANT_SHARED;
+	md->ant.num = 2;
+	md->ant.isolation = 10;
+	md->ant.diversity = 0;
+	md->ant.single_pos = RF_PATH_A;
+	md->ant.btg_pos = RF_PATH_B;
 
-	if (module->kt_ver <= 1)
-		module->wa_type |= BTC_WA_HFP_ZB;
+	if (md->kt_ver <= 1)
+		md->wa_type |= BTC_WA_HFP_ZB;
 
 	rtwdev->btc.cx.bt_ext.func_type = BTC_3CX_NONE;
 
-	if (module->rfe_type == 0) {
+	if (md->rfe_type == 0) {
 		rtwdev->btc.dm.error.map.rfe_type0 = true;
 		return;
 	}
 
-	module->ant.num = (module->rfe_type % 2) ?  2 : 3;
+	md->ant.num = (md->rfe_type % 2) ?  2 : 3;
 
-	if (module->kt_ver == 0)
-		module->ant.num = 2;
+	if (md->kt_ver == 0)
+		md->ant.num = 2;
 
-	if (module->ant.num == 3) {
-		module->ant.type = BTC_ANT_DEDICATED;
-		module->bt_pos = BTC_BT_ALONE;
+	if (md->ant.num == 3) {
+		md->ant.type = BTC_ANT_DEDICATED;
+		md->bt0_pos = BTC_BT_ALONE;
 	} else {
-		module->ant.type = BTC_ANT_SHARED;
-		module->bt_pos = BTC_BT_BTG;
+		md->ant.type = BTC_ANT_SHARED;
+		md->bt0_pos = BTC_BT_BTG;
 	}
-	rtwdev->btc.btg_pos = module->ant.btg_pos;
-	rtwdev->btc.ant_type = module->ant.type;
+	rtwdev->btc.btg_pos = md->ant.btg_pos;
+	rtwdev->btc.ant_type = md->ant.type;
 }
 
 static
@@ -2773,7 +2772,7 @@ void rtw8922a_set_trx_mask(struct rtw89_dev *rtwdev, u8 path, u8 group, u32 val)
 static void rtw8922a_btc_init_cfg(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
-	struct rtw89_btc_ant_info_v7 *ant = &btc->mdinfo.md_v7.ant;
+	struct rtw89_btc_ant_info *ant = &btc->mdinfo.ant;
 	u32 wl_pri, path_min, path_max;
 	u8 path;
 

@@ -2593,6 +2593,11 @@ struct rtw89_h2c_cxinit_v7 {
 	struct rtw89_btc_init_info_v7 init;
 } __packed;
 
+struct rtw89_h2c_cxinit_v107 {
+	struct rtw89_h2c_cxhdr_v7 hdr;
+	struct rtw89_btc_init_info_v107 init;
+} __packed;
+
 struct rtw89_h2c_cxinit_v10 {
 	struct rtw89_h2c_cxhdr_v7 hdr;
 	struct rtw89_btc_init_info_v10 init;

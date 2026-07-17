@@ -5771,9 +5771,9 @@ int rtw89_fw_h2c_cxdrv_init(struct rtw89_dev *rtwdev, u8 type)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_dm *dm = &btc->dm;
-	struct rtw89_btc_init_info *init_info = &dm->init_info.init;
-	struct rtw89_btc_module *module = &init_info->module;
-	struct rtw89_btc_ant_info *ant = &module->ant;
+	struct rtw89_btc_init_info *init = &dm->init_info;
+	struct rtw89_btc_module *md = &init->module;
+	struct rtw89_btc_ant_info *ant = &md->ant;
 	struct rtw89_h2c_cxinit *h2c;
 	u32 len = sizeof(*h2c);
 	struct sk_buff *skb;
@@ -5799,22 +5799,22 @@ int rtw89_fw_h2c_cxdrv_init(struct rtw89_dev *rtwdev, u8 type)
 		u8_encode_bits(ant->btg_pos, RTW89_H2C_CXINIT_ANT_INFO_BTG_POS) |
 		u8_encode_bits(ant->stream_cnt, RTW89_H2C_CXINIT_ANT_INFO_STREAM_CNT);
 
-	h2c->mod_rfe = module->rfe_type;
-	h2c->mod_cv = module->cv;
+	h2c->mod_rfe = md->rfe_type;
+	h2c->mod_cv = md->kt_ver;
 	h2c->mod_info =
-		u8_encode_bits(module->bt_solo, RTW89_H2C_CXINIT_MOD_INFO_BT_SOLO) |
-		u8_encode_bits(module->bt_pos, RTW89_H2C_CXINIT_MOD_INFO_BT_POS) |
-		u8_encode_bits(module->switch_type, RTW89_H2C_CXINIT_MOD_INFO_SW_TYPE) |
-		u8_encode_bits(module->wa_type, RTW89_H2C_CXINIT_MOD_INFO_WA_TYPE);
-	h2c->mod_adie_kt = module->kt_ver_adie;
-	h2c->wl_gch = init_info->wl_guard_ch;
+		u8_encode_bits(md->bt_solo, RTW89_H2C_CXINIT_MOD_INFO_BT_SOLO) |
+		u8_encode_bits(md->bt0_pos, RTW89_H2C_CXINIT_MOD_INFO_BT_POS) |
+		u8_encode_bits(md->bt0_sw_type, RTW89_H2C_CXINIT_MOD_INFO_SW_TYPE) |
+		u8_encode_bits(md->wa_type, RTW89_H2C_CXINIT_MOD_INFO_WA_TYPE);
+	h2c->mod_adie_kt = md->kt_ver_adie;
+	h2c->wl_gch = init->wl_guard_ch;
 
 	h2c->info =
-		u8_encode_bits(init_info->wl_only, RTW89_H2C_CXINIT_INFO_WL_ONLY) |
-		u8_encode_bits(init_info->wl_init_ok, RTW89_H2C_CXINIT_INFO_WL_INITOK) |
-		u8_encode_bits(init_info->dbcc_en, RTW89_H2C_CXINIT_INFO_DBCC_EN) |
-		u8_encode_bits(init_info->cx_other, RTW89_H2C_CXINIT_INFO_CX_OTHER) |
-		u8_encode_bits(init_info->bt_only, RTW89_H2C_CXINIT_INFO_BT_ONLY);
+		u8_encode_bits(init->wl_only, RTW89_H2C_CXINIT_INFO_WL_ONLY) |
+		u8_encode_bits(init->wl_init_ok, RTW89_H2C_CXINIT_INFO_WL_INITOK) |
+		u8_encode_bits(init->dbcc_en, RTW89_H2C_CXINIT_INFO_DBCC_EN) |
+		u8_encode_bits(init->cx_other, RTW89_H2C_CXINIT_INFO_CX_OTHER) |
+		u8_encode_bits(init->bt_only, RTW89_H2C_CXINIT_INFO_BT_ONLY);
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_OUTSRC, BTFC_SET,
@@ -5838,7 +5838,9 @@ int rtw89_fw_h2c_cxdrv_init_v7(struct rtw89_dev *rtwdev, u8 type)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_dm *dm = &btc->dm;
-	struct rtw89_btc_init_info_v7 *init_info = &dm->init_info.init_v7;
+	struct rtw89_btc_init_info *init = &dm->init_info;
+	struct rtw89_btc_module *md = &init->module;
+	struct rtw89_btc_ant_info *ant = &md->ant;
 	struct rtw89_h2c_cxinit_v7 *h2c;
 	u32 len = sizeof(*h2c);
 	struct sk_buff *skb;
@@ -5853,9 +5855,33 @@ int rtw89_fw_h2c_cxdrv_init_v7(struct rtw89_dev *rtwdev, u8 type)
 	h2c = (struct rtw89_h2c_cxinit_v7 *)skb->data;
 
 	h2c->hdr.type = type;
-	h2c->hdr.ver = btc->ver->fcxinit;
+	h2c->hdr.ver = 7;
 	h2c->hdr.len = len - H2C_LEN_CXDRVHDR_V7;
-	h2c->init = *init_info;
+
+	h2c->init.wl_guard_ch = init->wl_guard_ch;
+	h2c->init.wl_only = init->wl_only;
+	h2c->init.wl_init_ok = init->wl_init_ok;
+	h2c->init.cx_other = init->cx_other;
+	h2c->init.bt_only = init->bt_only;
+	h2c->init.pta_mode = init->pta_mode;
+	h2c->init.pta_direction = init->pta_direction;
+	h2c->init.rsvd3 = init->dbcc_en; /* available at v107 */
+
+	h2c->init.module.rfe_type = md->rfe_type;
+	h2c->init.module.kt_ver = md->kt_ver;
+	h2c->init.module.bt_solo = md->bt_solo;
+	h2c->init.module.bt_pos = md->bt0_pos;
+	h2c->init.module.switch_type = md->bt0_sw_type;
+	h2c->init.module.wa_type = md->wa_type;
+	h2c->init.module.kt_ver_adie = md->kt_ver_adie;
+
+	h2c->init.module.ant.type = ant->type;
+	h2c->init.module.ant.num = ant->num;
+	h2c->init.module.ant.isolation = ant->isolation;
+	h2c->init.module.ant.single_pos = ant->single_pos;
+	h2c->init.module.ant.diversity = ant->diversity;
+	h2c->init.module.ant.btg_pos = ant->btg_pos;
+	h2c->init.module.ant.stream_cnt = ant->stream_cnt;
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_OUTSRC, BTFC_SET,
@@ -5879,7 +5905,9 @@ int rtw89_fw_h2c_cxdrv_init_v10(struct rtw89_dev *rtwdev, u8 type)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_dm *dm = &btc->dm;
-	struct rtw89_btc_init_info_v10 *init_info = &dm->init_info.init_v10;
+	struct rtw89_btc_init_info *init = &dm->init_info;
+	struct rtw89_btc_module *md = &init->module;
+	struct rtw89_btc_ant_info *ant = &md->ant;
 	struct rtw89_h2c_cxinit_v10 *h2c;
 	u32 len = sizeof(*h2c);
 	struct sk_buff *skb;
@@ -5894,9 +5922,38 @@ int rtw89_fw_h2c_cxdrv_init_v10(struct rtw89_dev *rtwdev, u8 type)
 	h2c = (struct rtw89_h2c_cxinit_v10 *)skb->data;
 
 	h2c->hdr.type = type;
-	h2c->hdr.ver = btc->ver->fcxinit;
+	h2c->hdr.ver = 10;
 	h2c->hdr.len = len - H2C_LEN_CXDRVHDR_V7;
-	h2c->init = *init_info;
+
+	h2c->init.endian_type = init->endian_type;
+	h2c->init.init_mode = init->init_mode;
+	h2c->init.wl_init_ok = init->wl_init_ok;
+	h2c->init.bt0_function = init->bt0_function;
+	h2c->init.bt1_function = init->bt1_function;
+	h2c->init.bt2_function = init->bt2_function;
+	h2c->init.pta_mode = init->pta_mode;
+	h2c->init.pta_direction = init->pta_direction;
+
+	h2c->init.module.rfe_type = md->rfe_type;
+	h2c->init.module.wa_type = md->wa_type;
+	h2c->init.module.kt_ver = md->kt_ver;
+	h2c->init.module.kt_ver_adie = md->kt_ver_adie;
+	h2c->init.module.bt0_pos = md->bt0_pos;
+	h2c->init.module.bt0_sw_type = md->bt0_sw_type;
+	h2c->init.module.bt1_pos = md->bt1_pos;
+	h2c->init.module.bt1_sw_type = md->bt1_sw_type;
+
+	h2c->init.module.ant.type = ant->type;
+	h2c->init.module.ant.num = ant->num;
+	h2c->init.module.ant.isolation = ant->isolation;
+	h2c->init.module.ant.single_pos = ant->single_pos;
+	h2c->init.module.ant.stream_cnt = ant->stream_cnt;
+	h2c->init.module.ant.btg_pos = ant->btg_pos;
+	h2c->init.module.ant.btg1_pos = ant->btg1_pos;
+
+	memcpy(h2c->init.module.ant.func, ant->func,  sizeof(ant->func));
+	memcpy(h2c->init.module.ant.ant_xmap, ant->ant_xmap,
+	       sizeof(ant->ant_xmap));
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_OUTSRC, BTFC_SET,
