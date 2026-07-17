@@ -8,7 +8,7 @@ title:
   Xilinx CAN and CANFD controller
 
 maintainers:
-  - Appana Durga Kedareswara rao <appana.durga.rao@xilinx.com>
+  - Harini T <harini.t@amd.com>
 
 properties:
   compatible:
