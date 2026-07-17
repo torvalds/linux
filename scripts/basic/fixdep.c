@@ -15,13 +15,13 @@
  * gcc produces a very nice and correct list of dependencies which
  * tells make when to remake a file.
  *
- * To use this list as-is however has the drawback that virtually
+ * However, to use this list as-is has the drawback that virtually
  * every file in the kernel includes autoconf.h.
  *
  * If the user re-runs make *config, autoconf.h will be
  * regenerated.  make notices that and will rebuild every file which
  * includes autoconf.h, i.e. basically all files. This is extremely
- * annoying if the user just changed CONFIG_HIS_DRIVER from n to m.
+ * annoying if the user just changed CONFIG_USER_DRIVER from n to m.
  *
  * So we play the same trick that "mkdep" played before. We replace
  * the dependency on autoconf.h by a dependency on every config
@@ -33,9 +33,9 @@
  * which then let make pick up the changes and the files that use
  * the config symbols are rebuilt.
  *
- * So if the user changes his CONFIG_HIS_DRIVER option, only the objects
- * which depend on "include/config/HIS_DRIVER" will be rebuilt,
- * so most likely only his driver ;-)
+ * So if the user changes their CONFIG_USER_DRIVER option, only the objects
+ * which depend on "include/config/USER_DRIVER" will be rebuilt,
+ * so most likely only the user's driver ;-)
  *
  * The idea above dates, by the way, back to Michael E Chastain, AFAIK.
  *
