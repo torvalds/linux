@@ -4615,6 +4615,7 @@ F:	lib/bitmap.c
 F:	lib/cpumask.c
 F:	lib/find_bit.c
 F:	lib/find_bit_benchmark.c
+F:	lib/region_alloc_benchmark.c
 F:	lib/test_bitmap.c
 F:	lib/tests/cpumask_kunit.c
 F:	tools/include/linux/bitfield.h
@@ -15583,6 +15584,7 @@ F:	Documentation/core-api/maple_tree.rst
 F:	include/linux/maple_tree.h
 F:	include/trace/events/maple_tree.h
 F:	lib/maple_tree.c
+F:	lib/region_alloc_benchmark.c
 F:	lib/test_maple_tree.c
 F:	rust/helpers/maple_tree.c
 F:	rust/kernel/maple_tree.rs
@@ -29329,6 +29331,7 @@ F:	Documentation/core-api/xarray.rst
 F:	include/linux/idr.h
 F:	include/linux/xarray.h
 F:	lib/idr.c
+F:	lib/region_alloc_benchmark.c
 F:	lib/test_xarray.c
 F:	lib/xarray.c
 F:	tools/testing/radix-tree
