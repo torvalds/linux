@@ -57,8 +57,8 @@ static const struct of_device_id pvpanic_mmio_match[] = {
 MODULE_DEVICE_TABLE(of, pvpanic_mmio_match);
 
 static const struct acpi_device_id pvpanic_device_ids[] = {
-	{ "QEMU0001", 0 },
-	{ "", 0 }
+	{ .id = "QEMU0001" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, pvpanic_device_ids);
 
