@@ -3198,6 +3198,8 @@ static void _fw_set_drv_info(struct rtw89_dev *rtwdev, u8 index)
 			rtw89_fw_h2c_cxdrv_role(rtwdev, index);
 		else if (ver->fwlrole == 1)
 			rtw89_fw_h2c_cxdrv_role_v1(rtwdev, index);
+		else if (ver->fwlrole == 101)
+			rtw89_fw_h2c_cxdrv_role_v101(rtwdev, index);
 		else if (ver->fwlrole == 2)
 			rtw89_fw_h2c_cxdrv_role_v2(rtwdev, index);
 		else if (ver->fwlrole == 7)
@@ -6873,6 +6875,7 @@ static void _update_wl_link_mode(struct rtw89_dev *rtwdev, u8 hw_band, u8 type)
 	struct rtw89_btc_wl_mlo_info *mlo_info = &wl->mlo_info;
 	struct rtw89_btc_wl_role_info *r = &wl->role_info;
 	u8 p2p_exist = wl->role_info.p2p_exist;
+	u8 rver = ver->fwlrole;
 
 	if (hw_band == RTW89_PHY_1)
 		p2p_exist = wl->role_info.p2p_exist_hb1;
@@ -6893,7 +6896,7 @@ static void _update_wl_link_mode(struct rtw89_dev *rtwdev, u8 hw_band, u8 type)
 			r->link_mode = BTC_WLINK_STA;
 		}
 
-		if (ver->fwlrole >= 10)
+		if (rver >= 10 && rver < 100)
 			break;
 
 		if (mlo_info->hwb_rf_band[hw_band] != RTW89_BAND_2G) {
@@ -6921,7 +6924,7 @@ static void _update_wl_link_mode(struct rtw89_dev *rtwdev, u8 hw_band, u8 type)
 			r->link_mode = BTC_WLINK_SCC;
 		}
 
-		if (ver->fwlrole >= 10)
+		if (rver >= 10 && rver < 100)
 			break;
 
 		if (mlo_info->hwb_rf_band[hw_band] != RTW89_BAND_2G) {
@@ -6941,7 +6944,7 @@ static void _update_wl_link_mode(struct rtw89_dev *rtwdev, u8 hw_band, u8 type)
 		else
 			r->link_mode = BTC_WLINK_STA;
 
-		if (ver->fwlrole >= 10)
+		if (rver >= 10 && rver < 100)
 			break;
 
 		if (mlo_info->hwb_rf_band[hw_band] != RTW89_BAND_2G)
@@ -6959,7 +6962,7 @@ static void _update_wl_link_mode(struct rtw89_dev *rtwdev, u8 hw_band, u8 type)
 		 */
 		r->link_mode = BTC_WLINK_DB_MCC;
 
-		if (ver->fwlrole >= 10)
+		if (rver >= 10 && rver < 100)
 			break;
 
 		r->link_mode_v0 = BTC_WLINK_V0_25G_MCC;
@@ -6968,7 +6971,7 @@ static void _update_wl_link_mode(struct rtw89_dev *rtwdev, u8 hw_band, u8 type)
 		/* MLMR only support STA now (2024) */
 		r->link_mode = BTC_WLINK_STA;
 
-		if (ver->fwlrole >= 10)
+		if (rver >= 10 && rver < 100)
 			break;
 
 		if (mlo_info->hwb_rf_band[hw_band] != RTW89_BAND_2G) {

@@ -2603,6 +2603,40 @@ struct rtw89_h2c_cxinit_v10 {
 	struct rtw89_btc_init_info_v10 init;
 } __packed;
 
+#define RTW89_H2C_CXROLE_V101_ROLE_STAT_CONNTECTED BIT(0)
+#define RTW89_H2C_CXROLE_V101_ROLE_STAT_PID GENMASK(3, 1)
+#define RTW89_H2C_CXROLE_V101_ROLE_STAT_PHY BIT(4)
+#define RTW89_H2C_CXROLE_V101_ROLE_STAT_NOA BIT(5)
+#define RTW89_H2C_CXROLE_V101_ROLE_STAT_BADN GENMASK(7, 6)
+
+#define RTW89_H2C_CXROLE_V101_CLIPS_BW_CLIENTPS BIT(0)
+#define RTW89_H2C_CXROLE_V101_CLIPS_BW_BW GENMASK(7, 1)
+
+#define RTW89_H2C_CXROLE_V101_DBCC_EN BIT(0)
+#define RTW89_H2C_CXROLE_V101_DBCC_CHG BIT(1)
+#define RTW89_H2C_CXROLE_V101_DBCC_2G_PHY GENMASK(3, 2)
+#define RTW89_H2C_CXROLE_V101_DBCC_LINKMODE_CHG BIT(4)
+#define RTW89_H2C_CXROLE_V101_DBCC_RSVD GENMASK(31, 5)
+
+struct rtw89_btc_wl_active_role_v101 {
+	u8 map_role_status;
+	u8 map_clips_bw;
+	u8 role;
+	u8 ch;
+	__le32 noa_duration;
+} __packed;
+
+struct rtw89_h2c_cxrole_v101 {
+	struct rtw89_h2c_cxhdr hdr;
+	u8 connect_cnt;
+	u8 link_mode;
+	__le16 role_map;
+	struct rtw89_btc_wl_active_role_v101 act_role[RTW89_PORT_NUM];
+	__le32 mrole_type;
+	__le32 mrole_noa_duration;
+	__le32 map_dbcc_linkmode_chg;
+} __packed;
+
 static inline void RTW89_SET_FWCMD_CXROLE_CONNECT_CNT(void *cmd, u8 val)
 {
 	u8p_replace_bits((u8 *)(cmd) + 2, val, GENMASK(7, 0));
@@ -5417,6 +5451,7 @@ int rtw89_fw_h2c_cxdrv_init_v7(struct rtw89_dev *rtwdev, u8 type);
 int rtw89_fw_h2c_cxdrv_init_v10(struct rtw89_dev *rtwdev, u8 type);
 int rtw89_fw_h2c_cxdrv_role(struct rtw89_dev *rtwdev, u8 type);
 int rtw89_fw_h2c_cxdrv_role_v1(struct rtw89_dev *rtwdev, u8 type);
+int rtw89_fw_h2c_cxdrv_role_v101(struct rtw89_dev *rtwdev, u8 type);
 int rtw89_fw_h2c_cxdrv_role_v2(struct rtw89_dev *rtwdev, u8 type);
 int rtw89_fw_h2c_cxdrv_role_v7(struct rtw89_dev *rtwdev, u8 type);
 int rtw89_fw_h2c_cxdrv_role_v8(struct rtw89_dev *rtwdev, u8 type);
