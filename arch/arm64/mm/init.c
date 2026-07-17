@@ -339,9 +339,7 @@ void __init arch_mm_preinit(void)
 {
 	unsigned int flags = SWIOTLB_VERBOSE;
 
-	if (is_realm_world() || is_protected_kvm_guest()) {
-		flags |= SWIOTLB_FORCE;
-	} else if (max_pfn <= PFN_DOWN(arm64_dma_phys_limit)) {
+	if (max_pfn <= PFN_DOWN(arm64_dma_phys_limit)) {
 		/*
 		 * If no bouncing needed for ZONE_DMA, reduce the swiotlb
 		 * buffer for kmalloc() bouncing to 1MB per 1GB of RAM.
