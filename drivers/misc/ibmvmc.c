@@ -2311,8 +2311,8 @@ static void ibmvmc_remove(struct vio_dev *vdev)
 }
 
 static struct vio_device_id ibmvmc_device_table[] = {
-	{ "ibm,vmc", "IBM,vmc" },
-	{ "", "" }
+	{ .type = "ibm,vmc", .compat = "IBM,vmc" },
+	{ }
 };
 MODULE_DEVICE_TABLE(vio, ibmvmc_device_table);
 
