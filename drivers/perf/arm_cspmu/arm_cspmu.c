@@ -1077,10 +1077,8 @@ static int arm_cspmu_request_irq(struct arm_cspmu *cspmu)
 	ret = devm_request_irq(dev, irq, arm_cspmu_handle_irq,
 			       IRQF_NOBALANCING | IRQF_NO_THREAD, dev_name(dev),
 			       cspmu);
-	if (ret) {
-		dev_err(dev, "Could not request IRQ %d\n", irq);
+	if (ret)
 		return ret;
-	}
 
 	cspmu->irq = irq;
 
