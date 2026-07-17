@@ -518,14 +518,15 @@ static int rtw8922d_pwr_on_func(struct rtw89_dev *rtwdev)
 	}
 
 begin:
-	rtw89_write32_clr(rtwdev, R_BE_SYS_PW_CTRL, B_BE_AFSM_WLSUS_EN |
-						    B_BE_AFSM_PCIE_SUS_EN);
-	rtw89_write32_set(rtwdev, R_BE_SYS_PW_CTRL, B_BE_DIS_WLBT_PDNSUSEN_SOPC);
-	rtw89_write32_set(rtwdev, R_BE_WLLPS_CTRL, B_BE_DIS_WLBT_LPSEN_LOPC);
+	val32 = rtw89_read32(rtwdev, R_BE_SYS_PW_CTRL);
+	val32 &= ~(B_BE_AFSM_WLSUS_EN | B_BE_AFSM_PCIE_SUS_EN | B_BE_APFM_SWLPS);
+	val32 |= B_BE_DIS_WLBT_PDNSUSEN_SOPC;
 	if (hal->cid != RTL8922D_CID7090)
-		rtw89_write32_clr(rtwdev, R_BE_SYS_PW_CTRL, B_BE_APDM_HPDN);
+		val32 &= ~B_BE_APDM_HPDN;
+	rtw89_write32(rtwdev, R_BE_SYS_PW_CTRL, val32);
+
+	rtw89_write32_set(rtwdev, R_BE_WLLPS_CTRL, B_BE_DIS_WLBT_LPSEN_LOPC);
 	rtw89_write32_clr(rtwdev, R_BE_FWS1ISR, B_BE_FS_WL_HW_RADIO_OFF_INT);
-	rtw89_write32_clr(rtwdev, R_BE_SYS_PW_CTRL, B_BE_APFM_SWLPS);
 
 	ret = read_poll_timeout(rtw89_read32, val32, val32 & B_BE_RDY_SYSPWR,
 				1000, 3000000, false, rtwdev, R_BE_SYS_PW_CTRL);
@@ -581,13 +582,12 @@ begin:
 	if (ret)
 		return ret;
 
-	rtw89_write32_set(rtwdev, R_BE_SYS_ADIE_PAD_PWR_CTRL, B_BE_SYM_PADPDN_WL_RFC1_1P3);
+	rtw89_write32_set(rtwdev, R_BE_SYS_ADIE_PAD_PWR_CTRL,
+			  B_BE_SYM_PADPDN_WL_RFC1_1P3 | B_BE_SYM_PADPDN_WL_RFC0_1P3);
 
 	ret = rtw89_mac_write_xtal_si(rtwdev, XTAL_SI_ANAPAR_WL, 0x40, 0x40);
 	if (ret)
 		return ret;
-
-	rtw89_write32_set(rtwdev, R_BE_SYS_ADIE_PAD_PWR_CTRL, B_BE_SYM_PADPDN_WL_RFC0_1P3);
 
 	ret = rtw89_mac_write_xtal_si(rtwdev, XTAL_SI_ANAPAR_WL, 0x20, 0x20);
 	if (ret)
