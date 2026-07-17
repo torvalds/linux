@@ -1112,6 +1112,7 @@ static struct index_block *ntfs_ir_to_ib(struct index_root *ir, s64 ib_vcn)
 	struct index_entry *ie_last;
 	char *ies_start, *ies_end;
 	int i;
+	u32 ib_cap;
 
 	ntfs_debug("Entering\n");
 
@@ -1127,6 +1128,16 @@ static struct index_block *ntfs_ir_to_ib(struct index_root *ir, s64 ib_vcn)
 	 * as well, which can never have any data.
 	 */
 	i = (char *)ie_last - ies_start + le16_to_cpu(ie_last->length);
+
+	/* Entries must fit in the allocated index block */
+	ib_cap = le32_to_cpu(ib->index.allocated_size) -
+			le32_to_cpu(ib->index.entries_offset);
+	if ((u32)i > ib_cap) {
+		ntfs_error(NULL, "Entries (%d B) exceed IB capacity", i);
+		kvfree(ib);
+		return NULL;
+	}
+
 	memcpy(ntfs_ie_get_first(&ib->index), ies_start, i);
 
 	ib->index.flags = ir->index.flags;
