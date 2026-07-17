@@ -400,9 +400,9 @@ struct rockchip_pin_ctrl {
 	int				pmu_mux_offset;
 	int				grf_drv_offset;
 	int				pmu_drv_offset;
-	struct rockchip_mux_recalced_data *iomux_recalced;
+	const struct rockchip_mux_recalced_data *iomux_recalced;
 	u32				niomux_recalced;
-	struct rockchip_mux_route_data *iomux_routes;
+	const struct rockchip_mux_route_data *iomux_routes;
 	u32				niomux_routes;
 
 	int	(*pull_calc_reg)(struct rockchip_pin_bank *bank,
