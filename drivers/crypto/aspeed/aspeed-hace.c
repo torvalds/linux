@@ -131,10 +131,8 @@ static int aspeed_hace_probe(struct platform_device *pdev)
 
 	rc = devm_request_irq(&pdev->dev, hace_dev->irq, aspeed_hace_irq, 0,
 			      dev_name(&pdev->dev), hace_dev);
-	if (rc) {
-		dev_err(&pdev->dev, "Failed to request interrupt\n");
+	if (rc)
 		return rc;
-	}
 
 	/* Get clk and enable it */
 	hace_dev->clk = devm_clk_get(&pdev->dev, NULL);
