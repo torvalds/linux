@@ -4812,7 +4812,7 @@ void mlmeext_sta_add_event_callback(struct adapter *padapter, struct sta_info *p
 	psta->raid = networktype_to_raid_ex(padapter, psta);
 
 	/* rate radaptive */
-	Update_RA_Entry(padapter, psta);
+	update_ra_entry(padapter, psta);
 }
 
 void mlmeext_sta_del_event_callback(struct adapter *padapter)
