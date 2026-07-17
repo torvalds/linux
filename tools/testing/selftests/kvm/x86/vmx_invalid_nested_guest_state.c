@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
 		    ARBITRARY_IO_PORT, run->io.port);
 
 	/*
-	 * Stuff invalid guest state for L2 by making TR unusuable.  The next
+	 * Stuff invalid guest state for L2 by making TR unusable.  The next
 	 * KVM_RUN should induce a TRIPLE_FAULT in L2 as KVM doesn't support
 	 * emulating invalid guest state for L2.
 	 */
