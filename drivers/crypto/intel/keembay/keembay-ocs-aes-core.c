@@ -1612,10 +1612,8 @@ static int kmb_ocs_aes_probe(struct platform_device *pdev)
 
 	rc = devm_request_threaded_irq(dev, aes_dev->irq, ocs_aes_irq_handler,
 				       NULL, 0, "keembay-ocs-aes", aes_dev);
-	if (rc < 0) {
-		dev_err(dev, "Could not request IRQ\n");
+	if (rc < 0)
 		return rc;
-	}
 
 	INIT_LIST_HEAD(&aes_dev->list);
 	spin_lock(&ocs_aes.lock);
