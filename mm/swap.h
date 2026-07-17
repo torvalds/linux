@@ -358,11 +358,6 @@ void swap_update_readahead(struct folio *folio, struct vm_area_struct *vma,
 			   unsigned long addr);
 
 #else /* CONFIG_SWAP */
-static inline struct swap_cluster_info *swap_cluster_lock(
-	struct swap_info_struct *si, pgoff_t offset, bool irq)
-{
-	return NULL;
-}
 
 static inline struct swap_cluster_info *swap_cluster_get_and_lock(
 		struct folio *folio)
