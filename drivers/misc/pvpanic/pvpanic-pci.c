@@ -35,8 +35,8 @@ static int pvpanic_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 }
 
 static const struct pci_device_id pvpanic_pci_id_tbl[]  = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_REDHAT, PCI_DEVICE_ID_REDHAT_PVPANIC)},
-	{}
+	{ PCI_DEVICE(PCI_VENDOR_ID_REDHAT, PCI_DEVICE_ID_REDHAT_PVPANIC) },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, pvpanic_pci_id_tbl);
 

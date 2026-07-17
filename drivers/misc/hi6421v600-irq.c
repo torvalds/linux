@@ -282,7 +282,7 @@ static int hi6421v600_irq_probe(struct platform_device *pdev)
 
 static const struct platform_device_id hi6421v600_irq_table[] = {
 	{ .name = "hi6421v600-irq" },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, hi6421v600_irq_table);
 

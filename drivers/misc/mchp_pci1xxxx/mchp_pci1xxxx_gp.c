@@ -150,7 +150,7 @@ static const struct pci_device_id pci1xxxx_tbl[] = {
 	{ PCI_DEVICE(0x1055, 0xA035) },
 	{ PCI_DEVICE(0x1055, 0xA045) },
 	{ PCI_DEVICE(0x1055, 0xA055) },
-	{0,}
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, pci1xxxx_tbl);
 

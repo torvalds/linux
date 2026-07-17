@@ -287,7 +287,7 @@ static void rp1_remove(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id dev_id_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_RPI, PCI_DEVICE_ID_RPI_RP1_C0), },
+	{ PCI_DEVICE(PCI_VENDOR_ID_RPI, PCI_DEVICE_ID_RPI_RP1_C0) },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, dev_id_table);

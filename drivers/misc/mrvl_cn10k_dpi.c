@@ -656,7 +656,7 @@ static void dpi_remove(struct pci_dev *pdev)
 static const struct pci_device_id dpi_id_table[] = {
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_CAVIUM, PCI_DEVID_MRVL_CN10K_DPI_PF,
 			 PCI_VENDOR_ID_CAVIUM, PCI_SUBDEVID_MRVL_CN10K_DPI_PF) },
-	{ 0, }  /* end of table */
+	{ }  /* end of table */
 };
 
 static struct pci_driver dpi_driver = {

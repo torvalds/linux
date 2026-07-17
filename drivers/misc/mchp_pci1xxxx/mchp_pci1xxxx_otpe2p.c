@@ -419,8 +419,8 @@ static void pci1xxxx_otp_eeprom_remove(struct auxiliary_device *aux_dev)
 }
 
 static const struct auxiliary_device_id pci1xxxx_otp_eeprom_auxiliary_id_table[] = {
-	{.name = "mchp_pci1xxxx_gp.gp_otp_e2p"},
-	{},
+	{ .name = "mchp_pci1xxxx_gp.gp_otp_e2p" },
+	{ }
 };
 MODULE_DEVICE_TABLE(auxiliary, pci1xxxx_otp_eeprom_auxiliary_id_table);
 

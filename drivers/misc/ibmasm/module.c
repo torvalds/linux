@@ -178,7 +178,7 @@ static void ibmasm_remove_one(struct pci_dev *pdev)
 static struct pci_device_id ibmasm_pci_table[] =
 {
 	{ PCI_DEVICE(VENDORID_IBM, DEVICEID_RSA) },
-	{},
+	{ }
 };
 
 static struct pci_driver ibmasm_driver = {

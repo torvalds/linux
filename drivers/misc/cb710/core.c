@@ -292,9 +292,8 @@ static void cb710_remove_one(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id cb710_pci_tbl[] = {
-	{ PCI_VENDOR_ID_ENE, PCI_DEVICE_ID_ENE_CB710_FLASH,
-		PCI_ANY_ID, PCI_ANY_ID, },
-	{ 0, }
+	{ PCI_DEVICE(PCI_VENDOR_ID_ENE, PCI_DEVICE_ID_ENE_CB710_FLASH) },
+	{ }
 };
 
 static SIMPLE_DEV_PM_OPS(cb710_pm_ops, cb710_suspend, cb710_resume);

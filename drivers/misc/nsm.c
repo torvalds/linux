@@ -61,7 +61,7 @@ struct nsm {
 /* NSM device ID */
 static const struct virtio_device_id id_table[] = {
 	{ VIRTIO_ID_NITRO_SEC_MOD, VIRTIO_DEV_ANY_ID },
-	{ 0 },
+	{ }
 };
 
 static struct nsm *file_to_nsm(struct file *file)
