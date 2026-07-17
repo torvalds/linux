@@ -485,6 +485,65 @@ bool kvm_riscv_gstage_wp_range(struct kvm_gstage *gstage, gpa_t start, gpa_t end
 	return flush;
 }
 
+static inline void clear_huge_mask(unsigned long *mask, unsigned long page_size,
+				   gfn_t base_gfn, gpa_t addr)
+{
+	unsigned long start_index = 0;
+	unsigned long end_index = BITS_PER_LONG - 1;
+	unsigned long end_gfn = base_gfn + end_index;
+	unsigned long aligned_start_gfn = addr >> PAGE_SHIFT;
+	unsigned long aligned_end_gfn = aligned_start_gfn + (page_size >> PAGE_SHIFT) - 1;
+	unsigned int nbits = 0;
+
+	if (aligned_start_gfn > base_gfn)
+		start_index = aligned_start_gfn - base_gfn;
+
+	if (aligned_end_gfn < end_gfn)
+		end_index = aligned_end_gfn - base_gfn;
+
+	nbits = end_index - start_index + 1;
+	bitmap_clear(mask, start_index, nbits);
+}
+
+bool kvm_riscv_gstage_wp_pt_masked(struct kvm_gstage *gstage, gfn_t base_gfn,
+				   unsigned long mask)
+{
+	unsigned long page_size;
+	bool flush = false;
+	bool found_leaf;
+	u32 ptep_level;
+	pte_t *ptep;
+	gpa_t addr = 0;
+	int ret;
+
+	while (mask) {
+		addr = (base_gfn + __ffs(mask)) << PAGE_SHIFT;
+
+		found_leaf = kvm_riscv_gstage_get_leaf(gstage, addr, &ptep, &ptep_level);
+		ret = gstage_level_to_page_size(gstage, ptep_level, &page_size);
+		if (ret)
+			break;
+
+		if (found_leaf) {
+			if (ptep_level) {
+				addr = ALIGN_DOWN(addr, page_size);
+				clear_huge_mask(&mask, page_size, base_gfn, addr);
+			}
+
+			flush |= kvm_riscv_gstage_op_pte(gstage, addr, ptep,
+							 ptep_level, GSTAGE_OP_WP);
+
+			if (ptep_level)
+				continue;
+		}
+
+		/* clear the first set bit*/
+		mask &= mask - 1;
+	}
+
+	return flush;
+}
+
 void __init kvm_riscv_gstage_mode_detect(void)
 {
 #ifdef CONFIG_64BIT

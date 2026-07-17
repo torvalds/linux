@@ -169,7 +169,7 @@ void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
 
 	kvm_riscv_gstage_init(&gstage, kvm);
 
-	kvm_riscv_gstage_wp_range(&gstage, start, end);
+	kvm_riscv_gstage_wp_pt_masked(&gstage, base_gfn, mask);
 
 	if (kvm_dirty_log_manual_protect_and_init_set(kvm)) {
 		if (READ_ONCE(eager_page_split))
