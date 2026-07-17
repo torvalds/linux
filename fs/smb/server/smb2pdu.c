@@ -4150,6 +4150,17 @@ int smb2_open(struct ksmbd_work *work)
 						 0, sess->user->uid, false);
 			if (rc)
 				goto err_out;
+
+			/*
+			 * smb_check_perm_dacl() returns success without
+			 * touching *pdaccess when the object has no stored
+			 * NT ACL, leaving maximal_access as the
+			 * FILE_MAXIMAL_ACCESS_LE request sentinel instead of
+			 * a real access mask.
+			 */
+			if (maximal_access == FILE_MAXIMAL_ACCESS_LE)
+				ksmbd_vfs_query_maximal_access(idmap, path.dentry,
+							       &maximal_access);
 		}
 	}
 
