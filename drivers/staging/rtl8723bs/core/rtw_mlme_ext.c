@@ -3720,7 +3720,8 @@ unsigned int send_beacon(struct adapter *padapter)
 			 !padapter->bSurpriseRemoved &&
 			 !padapter->driver_stopped);
 
-	} while (false == bxmitok && issue < 100 && !padapter->bSurpriseRemoved && !padapter->driver_stopped);
+	} while (false == bxmitok && issue < 100 && !padapter->bSurpriseRemoved &&
+		 !padapter->driver_stopped);
 
 	if (padapter->bSurpriseRemoved || padapter->driver_stopped)
 		return _FAIL;
