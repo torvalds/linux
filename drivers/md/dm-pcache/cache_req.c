@@ -317,7 +317,7 @@ static struct pcache_backing_dev_req *get_pre_alloc_req(struct pcache_cache_subt
  *
  * The scenario handled here:
  *
- *	  |--------|			  key_tmp (existing cached range)
+ *        |--------|			  key_tmp (existing cached range)
  * |====|					   key (requested range, preceding key_tmp)
  *
  * Since `key` is before `key_tmp`, it signifies that the requested data
@@ -352,7 +352,7 @@ static int read_before(struct pcache_cache_key *key, struct pcache_cache_key *ke
  * During cache_subtree_walk, this function manages a scenario where part of the
  * requested data range overlaps with an existing cache node (`key_tmp`).
  *
- *	 |----------------|  key_tmp (existing cached range)
+ *     |----------------|  key_tmp (existing cached range)
  * |===========|		   key (requested range, overlapping the tail of key_tmp)
  */
 static int read_overlap_tail(struct pcache_cache_key *key, struct pcache_cache_key *key_tmp,
@@ -474,8 +474,8 @@ static int read_overlap_contain(struct pcache_cache_key *key, struct pcache_cach
 }
 
 /*
- *	 |-----------|		key_tmp (existing cached range)
- *	   |====|			key (requested range, fully within key_tmp)
+ * |-----------|		key_tmp (existing cached range)
+ *   |====|			key (requested range, fully within key_tmp)
  *
  * If `key_tmp` contains valid cached data, this function copies the relevant
  * portion to the request's bio. Otherwise, it sends a backing request to
@@ -524,8 +524,8 @@ static int read_overlap_contained(struct pcache_cache_key *key, struct pcache_ca
 }
 
 /*
- *	 |--------|		  key_tmp (existing cached range)
- *	   |==========|	  key (requested range, overlapping the head of key_tmp)
+ * |--------|		  key_tmp (existing cached range)
+ *   |==========|	  key (requested range, overlapping the head of key_tmp)
  */
 static int read_overlap_head(struct pcache_cache_key *key, struct pcache_cache_key *key_tmp,
 		struct pcache_cache_subtree_walk_ctx *ctx)

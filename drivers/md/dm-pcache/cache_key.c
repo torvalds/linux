@@ -288,7 +288,7 @@ int cache_subtree_walk(struct pcache_cache_subtree_walk_ctx *ctx)
 
 		/*
 		 * If key_tmp starts after the end of key, stop traversing.
-		 *	  |--------|
+		 *        |--------|
 		 * |====|
 		 */
 		if (cache_key_lstart(key_tmp) >= cache_key_lend(key)) {
