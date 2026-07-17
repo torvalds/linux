@@ -2707,6 +2707,7 @@ static u32 rtw89_btc_fw_rpt_ver(struct rtw89_dev *rtwdev, u32 rpt_map)
 		case 3:
 		case 4:
 		case 5:
+		case 105:
 			bit_map = BIT(5);
 			break;
 		default:
@@ -2723,6 +2724,7 @@ static u32 rtw89_btc_fw_rpt_ver(struct rtw89_dev *rtwdev, u32 rpt_map)
 		case 3:
 		case 4:
 		case 5:
+		case 105:
 			bit_map = BIT(6);
 			break;
 		default:
@@ -2737,6 +2739,7 @@ static u32 rtw89_btc_fw_rpt_ver(struct rtw89_dev *rtwdev, u32 rpt_map)
 		case 3:
 		case 4:
 		case 5:
+		case 105:
 			bit_map = BIT(7);
 			break;
 		default:
@@ -2749,6 +2752,7 @@ static u32 rtw89_btc_fw_rpt_ver(struct rtw89_dev *rtwdev, u32 rpt_map)
 		case 1:
 		case 2:
 		case 3:
+		case 105:
 			break;
 		case 4:
 		case 5:
@@ -2765,6 +2769,7 @@ static u32 rtw89_btc_fw_rpt_ver(struct rtw89_dev *rtwdev, u32 rpt_map)
 			bit_map = BIT(7);
 			break;
 		case 3:
+		case 105:
 			bit_map = BIT(8);
 			break;
 		case 4:
@@ -2778,6 +2783,8 @@ static u32 rtw89_btc_fw_rpt_ver(struct rtw89_dev *rtwdev, u32 rpt_map)
 	case RPT_EN_TEST:
 		if (ver->frptmap == 5)
 			bit_map = BIT(10);
+		else if (ver->frptmap == 105)
+			bit_map = BIT(9);
 		else
 			bit_map = BIT(31);
 		break;
@@ -2789,6 +2796,7 @@ static u32 rtw89_btc_fw_rpt_ver(struct rtw89_dev *rtwdev, u32 rpt_map)
 			bit_map = GENMASK(2, 0);
 			break;
 		case 3:
+		case 105:
 			bit_map = GENMASK(2, 0) | BIT(8);
 			break;
 		case 4:
@@ -2809,6 +2817,7 @@ static u32 rtw89_btc_fw_rpt_ver(struct rtw89_dev *rtwdev, u32 rpt_map)
 			bit_map = GENMASK(6, 3) | BIT(8);
 			break;
 		case 3:
+		case 105:
 			bit_map = GENMASK(7, 3);
 			break;
 		case 4:
@@ -2833,6 +2842,7 @@ static u32 rtw89_btc_fw_rpt_ver(struct rtw89_dev *rtwdev, u32 rpt_map)
 			break;
 		case 4:
 		case 5:
+		case 105:
 			bit_map = GENMASK(9, 0);
 			break;
 		default:
@@ -2849,6 +2859,7 @@ static u32 rtw89_btc_fw_rpt_ver(struct rtw89_dev *rtwdev, u32 rpt_map)
 			bit_map = GENMASK(6, 2) | BIT(8);
 			break;
 		case 3:
+		case 105:
 			bit_map = GENMASK(8, 2);
 			break;
 		case 4:
