@@ -4729,7 +4729,9 @@ static int ufshcd_get_max_pwr_mode(struct ufs_hba *hba)
 	ufshcd_dme_get(hba, UIC_ARG_MIB(PA_CONNECTEDTXDATALANES),
 			&pwr_info->lane_tx);
 
-	if (!pwr_info->lane_rx || !pwr_info->lane_tx) {
+	if (!pwr_info->lane_rx || !pwr_info->lane_tx ||
+	    pwr_info->lane_rx > UFS_MAX_LANES ||
+	    pwr_info->lane_tx > UFS_MAX_LANES) {
 		dev_err(hba->dev, "%s: invalid connected lanes value. rx=%d, tx=%d\n",
 				__func__,
 				pwr_info->lane_rx,
