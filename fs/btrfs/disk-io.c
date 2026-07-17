@@ -666,8 +666,6 @@ static struct btrfs_root *btrfs_alloc_root(struct btrfs_fs_info *fs_info,
 	init_waitqueue_head(&root->log_commit_wait[1]);
 	INIT_LIST_HEAD(&root->log_ctxs[0]);
 	INIT_LIST_HEAD(&root->log_ctxs[1]);
-	atomic_set(&root->log_commit[0], 0);
-	atomic_set(&root->log_commit[1], 0);
 	atomic_set(&root->log_writers, 0);
 	refcount_set(&root->refs, 1);
 	atomic_set(&root->snapshot_force_cow, 0);

@@ -195,7 +195,7 @@ struct btrfs_root {
 	struct list_head log_ctxs[2];
 	/* Used only for log trees of subvolumes, not for the log root tree */
 	atomic_t log_writers;
-	atomic_t log_commit[2];
+	bool log_commit[2];
 	/*
 	 * Protected by the 'log_mutex' lock but can be read without holding
 	 * that lock to avoid unnecessary lock contention, in which case it

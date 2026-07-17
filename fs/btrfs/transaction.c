@@ -1517,12 +1517,8 @@ static noinline int commit_fs_roots(struct btrfs_trans_handle *trans)
 			ASSERT(atomic_read(&root->log_writers) == 0,
 			       "atomic_read(&root->log_writers)=%d",
 			       atomic_read(&root->log_writers));
-			ASSERT(atomic_read(&root->log_commit[0]) == 0,
-			       "atomic_read(&root->log_commit[0])=%d",
-			       atomic_read(&root->log_commit[0]));
-			ASSERT(atomic_read(&root->log_commit[1]) == 0,
-			       "atomic_read(&root->log_commit[1])=%d",
-			       atomic_read(&root->log_commit[1]));
+			ASSERT(!root->log_commit[0]);
+			ASSERT(!root->log_commit[1]);
 
 			radix_tree_tag_clear(&fs_info->fs_roots_radix,
 					(unsigned long)btrfs_root_id(root),
