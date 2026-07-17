@@ -2765,14 +2765,74 @@ static void rtw8922d_rfk_band_changed(struct rtw89_dev *rtwdev,
 {
 }
 
+static void __rtw8922d_txiqk_disable(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_iqk_info *iqk_info = &rtwdev->iqk;
+	u8 path, kidx;
+
+	for (path = RF_PATH_A; path <= RF_PATH_B; path++) {
+		kidx = rtw89_phy_read32_mask(rtwdev, R_KTBL0A_BE4 + (path << 8),
+					     B_KTBL0_IDX0);
+		if (kidx == 0) {
+			rtw89_phy_write32_clr(rtwdev, R_CFIR_CTRL_A_BE4 + (path << 8),
+					      B_CFIR_CTRL_KIDX0_EN);
+		} else if (kidx == 1) {
+			rtw89_phy_write32_clr(rtwdev, R_CFIR_CTRL_A_BE4 + (path << 8),
+					      B_CFIR_CTRL_KIDX1_EN);
+		} else {
+			rtw89_phy_write32_mask(rtwdev, R_NCTL_CFG_BE4,
+					       B_NCTL_CFG_BE4_SPAGE, 0x1);
+			rtw89_phy_write32_clr(rtwdev, R_CFIR_CTRL_A_BE4 + (path << 8),
+					      B_CFIR_CTRL_KIDX0_EN);
+			rtw89_phy_write32_mask(rtwdev, R_NCTL_CFG_BE4,
+					       B_NCTL_CFG_BE4_SPAGE, 0x0);
+		}
+
+		iqk_info->iqc_bak[path] =
+			rtw89_phy_read32(rtwdev, R_TX_IQC_A_BE4 + (path << 8));
+		rtw89_phy_write32(rtwdev, R_TX_IQC_A_BE4 + (path << 8), 0x40000002);
+	}
+}
+
+static void __rtw8922d_txiqk_enable(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_iqk_info *iqk_info = &rtwdev->iqk;
+	u8 path, kidx;
+
+	for (path = RF_PATH_A; path <= RF_PATH_B; path++) {
+		kidx = rtw89_phy_read32_mask(rtwdev, R_KTBL0A_BE4 + (path << 8),
+					     B_KTBL0_IDX0);
+		if (kidx == 0) {
+			rtw89_phy_write32_set(rtwdev, R_CFIR_CTRL_A_BE4 + (path << 8),
+					      B_CFIR_CTRL_KIDX0_EN);
+		} else if (kidx == 1) {
+			rtw89_phy_write32_set(rtwdev, R_CFIR_CTRL_A_BE4 + (path << 8),
+					      B_CFIR_CTRL_KIDX1_EN);
+		} else {
+			rtw89_phy_write32_mask(rtwdev, R_NCTL_CFG_BE4,
+					       B_NCTL_CFG_BE4_SPAGE, 0x1);
+			rtw89_phy_write32_set(rtwdev, R_CFIR_CTRL_A_BE4 + (path << 8),
+					      B_CFIR_CTRL_KIDX0_EN);
+			rtw89_phy_write32_mask(rtwdev, R_NCTL_CFG_BE4,
+					       B_NCTL_CFG_BE4_SPAGE, 0x0);
+		}
+
+		rtw89_phy_write32(rtwdev, R_TX_IQC_A_BE4 + (path << 8),
+				  iqk_info->iqc_bak[path]);
+	}
+}
+
 static void rtw8922d_rfk_scan(struct rtw89_dev *rtwdev,
 			      struct rtw89_vif_link *rtwvif_link,
 			      bool start)
 {
-	if (start)
+	if (start) {
 		__rtw8922d_tssi_disable(rtwdev, rtwvif_link->phy_idx);
-	else
+		__rtw8922d_txiqk_disable(rtwdev);
+	} else {
 		__rtw8922d_tssi_enable(rtwdev, rtwvif_link->phy_idx);
+		__rtw8922d_txiqk_enable(rtwdev);
+	}
 }
 
 static void rtw8922d_rfk_track(struct rtw89_dev *rtwdev)

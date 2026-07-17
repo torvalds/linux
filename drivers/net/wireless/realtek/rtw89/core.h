@@ -6284,6 +6284,7 @@ struct rtw89_iqk_info {
 	u8 iqk_table_idx[RTW89_IQK_PATH_NR];
 	u32 lok_idac[RTW89_IQK_CHS_NR][RTW89_IQK_PATH_NR];
 	u32 lok_vbuf[RTW89_IQK_CHS_NR][RTW89_IQK_PATH_NR];
+	u32 iqc_bak[2];
 };
 
 #define RTW89_DPK_RF_PATH 2
