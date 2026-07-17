@@ -281,3 +281,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&vcc5v0_host_en>;
 };
+
+&work_led {
+	linux,default-trigger = "default-on";
+};
