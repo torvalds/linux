@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+//
+// Device Tree file describing the Lynx 28G SerDes blocks found on the LX2160A
+// Rev1 and Rev2
+//
+// Copyright 2026 NXP
+
+&soc {
+	serdes_1: phy@1ea0000 {
+		compatible = "fsl,lynx-28g";
+		reg = <0x0 0x1ea0000 0x0 0x1e30>;
+		#phy-cells = <1>;
+	};
+
+	serdes_2: phy@1eb0000 {
+		compatible = "fsl,lynx-28g";
+		reg = <0x0 0x1eb0000 0x0 0x1e30>;
+		#phy-cells = <1>;
+		status = "disabled";
+	};
+};
