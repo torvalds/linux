@@ -2432,8 +2432,8 @@ static void fastrpc_cb_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id fastrpc_match_table[] = {
-	{ .compatible = "qcom,fastrpc-compute-cb", },
-	{}
+	{ .compatible = "qcom,fastrpc-compute-cb" },
+	{ }
 };
 
 static struct platform_driver fastrpc_cb_driver = {
@@ -2765,7 +2765,7 @@ static int fastrpc_rpmsg_callback(struct rpmsg_device *rpdev, void *data,
 static const struct of_device_id fastrpc_rpmsg_of_match[] = {
 	{ .compatible = "qcom,kaanapali-fastrpc", .data = &kaanapali_soc_data },
 	{ .compatible = "qcom,fastrpc", .data = &default_soc_data },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, fastrpc_rpmsg_of_match);
 

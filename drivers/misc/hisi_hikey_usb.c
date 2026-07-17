@@ -254,7 +254,7 @@ static void hisi_hikey_usb_remove(struct platform_device *pdev)
 
 static const struct of_device_id id_table_hisi_hikey_usb[] = {
 	{ .compatible = "hisilicon,usbhub" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, id_table_hisi_hikey_usb);
 

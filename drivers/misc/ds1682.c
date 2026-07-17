@@ -277,8 +277,8 @@ static const struct i2c_device_id ds1682_id[] = {
 MODULE_DEVICE_TABLE(i2c, ds1682_id);
 
 static const struct of_device_id ds1682_of_match[] = {
-	{ .compatible = "dallas,ds1682", },
-	{}
+	{ .compatible = "dallas,ds1682" },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ds1682_of_match);
 

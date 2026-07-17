@@ -199,7 +199,7 @@ static void open_dice_remove(struct platform_device *pdev)
 
 static const struct of_device_id open_dice_of_match[] = {
 	{ .compatible = "google,open-dice" },
-	{},
+	{ }
 };
 
 static struct platform_driver open_dice_driver = {
