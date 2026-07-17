@@ -836,7 +836,7 @@ static void panel_edp_put_adapter(void *_adap)
 {
 	struct i2c_adapter *adap = _adap;
 
-	put_device(&adap->dev);
+	i2c_put_adapter(adap);
 }
 
 static int panel_edp_probe(struct device *dev, const struct panel_desc *desc,
@@ -881,7 +881,7 @@ static int panel_edp_probe(struct device *dev, const struct panel_desc *desc,
 
 	ddc = of_parse_phandle(dev->of_node, "ddc-i2c-bus", 0);
 	if (ddc) {
-		panel->ddc = of_find_i2c_adapter_by_node(ddc);
+		panel->ddc = of_get_i2c_adapter_by_node(ddc);
 		of_node_put(ddc);
 
 		if (!panel->ddc)
