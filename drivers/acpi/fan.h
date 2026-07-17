@@ -10,8 +10,9 @@
 #ifndef _ACPI_FAN_H_
 #define _ACPI_FAN_H_
 
-#include <linux/kconfig.h>
+#include <linux/device.h>
 #include <linux/limits.h>
+#include <linux/types.h>
 
 #define ACPI_FAN_DEVICE_IDS	\
 	{"INT3404", }, /* Fan */ \
