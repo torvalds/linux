@@ -680,8 +680,6 @@ void start_bss_network(struct adapter *padapter)
 	/* Beacon Control related register */
 	rtw_hal_set_hwreg(padapter, HW_VAR_BEACON_INTERVAL, (u8 *)(&bcn_interval));
 
-	rtw_hal_set_hwreg(padapter, HW_VAR_DO_IQK, NULL);
-
 	if (!pmlmepriv->cur_network.join_res) { /* setting only at  first time */
 		/* turn on all dynamic functions */
 		switch_dm_func(padapter, DYNAMIC_ALL_FUNC_ENABLE, true);

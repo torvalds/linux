@@ -2637,10 +2637,6 @@ void SetHwReg8723B(struct adapter *padapter, u8 variable, u8 *val)
 		}
 		break;
 
-	case HW_VAR_DO_IQK:
-		pHalData->bNeedIQK = true;
-		break;
-
 	case HW_VAR_DL_RSVD_PAGE:
 		if (check_fwstate(&padapter->mlmepriv, WIFI_AP_STATE))
 			rtl8723b_download_BTCoex_AP_mode_rsvd_page(padapter);

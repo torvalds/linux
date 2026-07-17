@@ -210,7 +210,6 @@ struct hal_com_data {
 
 	bool		bSwChnl;
 	bool		bSetChnlBW;
-	bool		bNeedIQK;
 
 	u8 TxPowerTrackControl; /* for mp mode, turn off txpwrtracking as default */
 

@@ -4010,8 +4010,6 @@ void start_create_ibss(struct adapter *padapter)
 		val8 = 0xcf;
 		rtw_hal_set_hwreg(padapter, HW_VAR_SEC_CFG, (u8 *)(&val8));
 
-		rtw_hal_set_hwreg(padapter, HW_VAR_DO_IQK, NULL);
-
 		/* switch channel */
 		/* SelectChannel(padapter, pmlmeext->cur_channel, HAL_PRIME_CHNL_OFFSET_DONT_CARE); */
 		set_channel_bwmode(padapter, pmlmeext->cur_channel, HAL_PRIME_CHNL_OFFSET_DONT_CARE, CHANNEL_WIDTH_20);
@@ -5306,7 +5304,6 @@ u8 join_cmd_hdl(struct adapter *padapter, u8 *pbuf)
 	rtw_hal_set_hwreg(padapter, HW_VAR_BSSID, pmlmeinfo->network.mac_address);
 	join_type = 0;
 	rtw_hal_set_hwreg(padapter, HW_VAR_MLME_JOIN, (u8 *)(&join_type));
-	rtw_hal_set_hwreg(padapter, HW_VAR_DO_IQK, NULL);
 
 	set_channel_bwmode(padapter, ch, offset, bw);
 
