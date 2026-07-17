@@ -216,6 +216,7 @@ static const struct ib_device_ops ionic_dev_ops = {
 	.owner = THIS_MODULE,
 	.driver_id = RDMA_DRIVER_IONIC,
 	.uverbs_abi_ver = IONIC_ABI_VERSION,
+	.uverbs_robust_udata = true,
 
 	.alloc_ucontext = ionic_alloc_ucontext,
 	.dealloc_ucontext = ionic_dealloc_ucontext,
