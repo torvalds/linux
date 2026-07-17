@@ -9596,8 +9596,7 @@ bool smb2_is_sign_req(struct ksmbd_work *work, unsigned int command)
 	struct smb2_hdr *rcv_hdr2 = smb_get_msg(work->request_buf);
 
 	if ((rcv_hdr2->Flags & SMB2_FLAGS_SIGNED) &&
-	    command != SMB2_NEGOTIATE_HE &&
-	    command != SMB2_OPLOCK_BREAK_HE)
+	    command != SMB2_NEGOTIATE_HE)
 		return true;
 
 	return false;
