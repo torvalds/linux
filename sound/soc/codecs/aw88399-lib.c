@@ -1328,8 +1328,20 @@ static void aw88399_parse_channel_dt(struct aw_device *aw_dev)
 {
 	struct device_node *np = aw_dev->dev->of_node;
 	u32 channel_value;
+	int ret;
 
-	of_property_read_u32(np, "awinic,audio-channel", &channel_value);
+	ret = of_property_read_u32(np, "awinic,audio-channel", &channel_value);
+	if (ret) {
+		/*
+		 * On ACPI systems, DT properties don't exist. Derive channel
+		 * from I2C address: 0x34 -> channel 0 (left), 0x35 -> channel 1 (right)
+		 */
+		aw_dev->channel = aw_dev->i2c->addr - 0x34;
+		dev_dbg(aw_dev->dev,
+			"DT channel property not found, using I2C address-based channel %d (addr 0x%02x)\n",
+			aw_dev->channel, aw_dev->i2c->addr);
+		return;
+	}
 	aw_dev->channel = channel_value;
 }
 
