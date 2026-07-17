@@ -1297,6 +1297,17 @@ int x86_perf_rdpmc_index(struct perf_event *event)
 	return event->hw.event_base_rdpmc;
 }
 
+static inline bool acr_match_prev_indices(struct perf_event *event,
+					  struct cpu_hw_events *cpuc)
+{
+	struct hw_perf_event *hwc = &event->hw;
+
+	if (!is_acr_event_group(event))
+		return true;
+	/* ACR counter indices don't change. */
+	return hwc->config1 == cpuc->acr_cfg_b[hwc->idx];
+}
+
 static inline int match_prev_assignment(struct perf_event *event,
 					struct cpu_hw_events *cpuc,
 					int i)
@@ -1306,7 +1317,7 @@ static inline int match_prev_assignment(struct perf_event *event,
 	return hwc->idx == cpuc->assign[i] &&
 	       hwc->last_cpu == smp_processor_id() &&
 	       hwc->last_tag == cpuc->tags[i] &&
-	       !is_acr_event_group(event);
+	       acr_match_prev_indices(event, cpuc);
 }
 
 static void x86_pmu_start(struct perf_event *event, int flags);

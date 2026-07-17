@@ -141,7 +141,7 @@ static inline bool is_acr_self_reload_event(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
 
-	if (hwc->idx < 0)
+	if (hwc->idx < 0 || !is_acr_event_group(event))
 		return false;
 
 	return test_bit(hwc->idx, (unsigned long *)&hwc->config1);
