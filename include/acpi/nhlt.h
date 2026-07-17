@@ -10,7 +10,6 @@
 #define __ACPI_NHLT_H__
 
 #include <linux/acpi.h>
-#include <linux/kconfig.h>
 #include <linux/overflow.h>
 #include <linux/types.h>
 
