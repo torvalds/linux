@@ -396,10 +396,10 @@ int rtw_cmd_thread(void *context)
 			break;
 		}
 
-		if (padapter->bDriverStopped || padapter->bSurpriseRemoved) {
+		if (padapter->driver_stopped || padapter->bSurpriseRemoved) {
 			netdev_dbg(padapter->pnetdev,
 				   "%s: DriverStopped(%d) SurpriseRemoved(%d) break at line %d\n",
-				   __func__, padapter->bDriverStopped,
+				   __func__, padapter->driver_stopped,
 				   padapter->bSurpriseRemoved, __LINE__);
 			break;
 		}
@@ -419,10 +419,10 @@ int rtw_cmd_thread(void *context)
 			continue;
 
 _next:
-		if (padapter->bDriverStopped || padapter->bSurpriseRemoved) {
+		if (padapter->driver_stopped || padapter->bSurpriseRemoved) {
 			netdev_dbg(padapter->pnetdev,
 				   "%s: DriverStopped(%d) SurpriseRemoved(%d) break at line %d\n",
-				   __func__, padapter->bDriverStopped,
+				   __func__, padapter->driver_stopped,
 				   padapter->bSurpriseRemoved, __LINE__);
 			break;
 		}

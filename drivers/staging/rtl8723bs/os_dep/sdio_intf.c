@@ -229,7 +229,7 @@ static struct adapter *rtw_sdio_if1_init(struct dvobj_priv *dvobj)
 	padapter->dvobj = dvobj;
 	dvobj->if1 = padapter;
 
-	padapter->bDriverStopped = true;
+	padapter->driver_stopped = true;
 
 	dvobj->padapters = padapter;
 	padapter->iface_id = 0;
@@ -415,7 +415,7 @@ static int rtw_sdio_suspend(struct device *dev)
 	struct pwrctrl_priv *pwrpriv = dvobj_to_pwrctl(psdpriv);
 	struct adapter *padapter = psdpriv->if1;
 
-	if (padapter->bDriverStopped)
+	if (padapter->driver_stopped)
 		return 0;
 
 	if (pwrpriv->bInSuspend)

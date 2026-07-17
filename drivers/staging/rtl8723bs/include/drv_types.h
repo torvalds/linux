@@ -294,7 +294,7 @@ struct adapter {
 	void *HalData;
 	u32 hal_data_sz;
 
-	s32	bDriverStopped;
+	bool driver_stopped;
 	s32	bSurpriseRemoved;
 	s32  bCardDisableWOHSM;
 
@@ -400,12 +400,12 @@ static inline void RTW_ENABLE_FUNC(struct adapter *padapter, int func_bit)
 			 RTW_IS_FUNC_DISABLED((padapter), DF_IO_BIT))
 
 #define RTW_CANNOT_RX(padapter) \
-			((padapter)->bDriverStopped || \
+			((padapter)->driver_stopped || \
 			 (padapter)->bSurpriseRemoved || \
 			 RTW_IS_FUNC_DISABLED((padapter), DF_RX_BIT))
 
 #define RTW_CANNOT_TX(padapter) \
-			((padapter)->bDriverStopped || \
+			((padapter)->driver_stopped || \
 			 (padapter)->bSurpriseRemoved || \
 			 RTW_IS_FUNC_DISABLED((padapter), DF_TX_BIT))
 
