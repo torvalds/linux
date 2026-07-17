@@ -976,10 +976,8 @@ static int sun8i_ce_probe(struct platform_device *pdev)
 
 	err = devm_request_irq(&pdev->dev, irq, ce_irq_handler, 0,
 			       "sun8i-ce-ns", ce);
-	if (err) {
-		dev_err(ce->dev, "Cannot request CryptoEngine Non-secure IRQ (err=%d)\n", err);
+	if (err)
 		goto error_pm;
-	}
 
 	err = sun8i_ce_register_algs(ce);
 	if (err)

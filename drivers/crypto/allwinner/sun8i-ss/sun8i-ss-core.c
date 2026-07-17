@@ -824,10 +824,8 @@ static int sun8i_ss_probe(struct platform_device *pdev)
 		goto error_pm;
 
 	err = devm_request_irq(&pdev->dev, irq, ss_irq_handler, 0, "sun8i-ss", ss);
-	if (err) {
-		dev_err(ss->dev, "Cannot request SecuritySystem IRQ (err=%d)\n", err);
+	if (err)
 		goto error_irq;
-	}
 
 	err = sun8i_ss_register_algs(ss);
 	if (err)
