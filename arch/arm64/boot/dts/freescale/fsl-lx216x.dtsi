@@ -1840,6 +1840,3 @@
 		};
 	};
 };
-
-#include "fsl-lx2160a-pcie-mbvl.dtsi"
-#include "fsl-lx2160a-serdes.dtsi"

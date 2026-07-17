@@ -5,7 +5,7 @@
  * Author: Gregor Herburger
  */
 
-#include "fsl-lx2160a.dtsi"
+#include "fsl-lx2160a-rev1.dtsi"
 
 / {
 	reg_vcc3v3: regulator-vcc3v3 {
