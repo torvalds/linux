@@ -39,8 +39,6 @@ void rtw_hal_sdio_update_tx_freepage(
 	u8 RequiredPublicFreePgNum = 0;
 	/* _irqL irql; */
 
-	/* spin_lock_bh(&pHalData->SdioTxFIFOFreePageLock); */
-
 	DedicatedPgNum = pHalData->SdioTxFIFOFreePage[PageIdx];
 	if (RequiredPageNum <= DedicatedPgNum) {
 		pHalData->SdioTxFIFOFreePage[PageIdx] -= RequiredPageNum;
@@ -49,8 +47,6 @@ void rtw_hal_sdio_update_tx_freepage(
 		RequiredPublicFreePgNum = RequiredPageNum - DedicatedPgNum;
 		pHalData->SdioTxFIFOFreePage[PUBLIC_QUEUE_IDX] -= RequiredPublicFreePgNum;
 	}
-
-	/* spin_unlock_bh(&pHalData->SdioTxFIFOFreePageLock); */
 }
 
 void rtw_hal_set_sdio_tx_max_length(

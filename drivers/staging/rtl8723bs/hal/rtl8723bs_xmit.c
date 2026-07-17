@@ -529,7 +529,6 @@ s32 rtl8723bs_init_xmit_priv(struct adapter *padapter)
 
 	phal = GET_HAL_DATA(padapter);
 
-	spin_lock_init(&phal->SdioTxFIFOFreePageLock);
 	init_completion(&xmitpriv->SdioXmitStart);
 	init_completion(&xmitpriv->SdioXmitTerminate);
 

@@ -255,7 +255,6 @@ struct hal_com_data {
 	/*  SDIO Tx FIFO related. */
 	/*  HIQ, MID, LOW, PUB free pages; padapter->xmitpriv.free_txpg */
 	u8 	SdioTxFIFOFreePage[SDIO_TX_FREE_PG_QUEUE];
-	spinlock_t		SdioTxFIFOFreePageLock;
 	u8 	SdioTxOQTMaxFreeSpace;
 	u8 	SdioTxOQTFreeSpace;
 
