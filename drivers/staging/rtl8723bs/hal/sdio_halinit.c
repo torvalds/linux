@@ -478,15 +478,10 @@ static void sdio_AggSettingRxUpdate(struct adapter *padapter)
 
 static void _initSdioAggregationSetting(struct adapter *padapter)
 {
-	struct hal_com_data	*pHalData = GET_HAL_DATA(padapter);
-
 	/*  Rx aggregation setting */
 	HalRxAggr8723BSdio(padapter);
 
 	sdio_AggSettingRxUpdate(padapter);
-
-	/*  201/12/10 MH Add for USB agg mode dynamic switch. */
-	pHalData->UsbRxHighSpeedMode = false;
 }
 
 static void _InitOperationMode(struct adapter *padapter)

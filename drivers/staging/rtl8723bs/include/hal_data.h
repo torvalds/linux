@@ -244,9 +244,6 @@ struct hal_com_data {
 	u8 OutEpQueueSel;
 	u8 OutEpNumber;
 
-	/*  2010/12/10 MH Add for USB aggregation mode dynamic scheme. */
-	bool		UsbRxHighSpeedMode;
-
 	/*  Auto FSM to Turn On, include clock, isolation, power control for MAC only */
 	u8 bMacPwrCtrlOn;
 
