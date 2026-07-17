@@ -609,6 +609,7 @@ int aw_dev_set_volume(struct aw_device *aw_dev, unsigned int value);
 int aw_dev_update_cali_re(struct aw_cali_desc *cali_desc);
 int aw88399_dev_get_prof_name(struct aw_device *aw_dev, int index, char **prof_name);
 void aw88399_dev_mute(struct aw_device *aw_dev, bool is_mute);
+void aw88399_dev_set_channel(struct aw88399 *aw88399, int channel);
 void aw88399_hw_reset(struct aw88399 *aw88399);
 int aw88399_init(struct aw88399 *aw88399, struct i2c_client *i2c, struct regmap *regmap);
 extern const struct regmap_config aw88399_remap_config;

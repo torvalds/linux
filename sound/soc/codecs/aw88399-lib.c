@@ -1401,5 +1401,11 @@ int aw88399_init(struct aw88399 *aw88399, struct i2c_client *i2c, struct regmap 
 }
 EXPORT_SYMBOL_GPL(aw88399_init);
 
+void aw88399_dev_set_channel(struct aw88399 *aw88399, int channel)
+{
+	aw88399->aw_pa->channel = channel;
+}
+EXPORT_SYMBOL_GPL(aw88399_dev_set_channel);
+
 MODULE_DESCRIPTION("AW88399 common device library");
 MODULE_LICENSE("GPL");
