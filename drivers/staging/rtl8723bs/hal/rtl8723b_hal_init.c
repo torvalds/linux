@@ -1048,11 +1048,8 @@ void rtl8723b_init_default_value(struct adapter *padapter)
 
 	/*  init default value */
 	pHalData->fw_ractrl = false;
-	pHalData->bIQKInitialized = false;
 	if (!adapter_to_pwrctl(padapter)->bkeepfwalive)
 		pHalData->LastHMEBoxNum = 0;
-
-	pHalData->bIQKInitialized = false;
 
 	/*  init dm default value */
 	pdmpriv->TM_Trigger = 0;/* for IQK */

@@ -206,7 +206,6 @@ struct hal_com_data {
 	u8 TypeAPA;
 	u8 RFEType;
 	u8 BoardType;
-	u8 bIQKInitialized;
 	bool		bLCKInProgress;
 
 	bool		bSwChnl;
