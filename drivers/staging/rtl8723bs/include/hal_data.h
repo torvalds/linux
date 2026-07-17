@@ -223,12 +223,9 @@ struct hal_com_data {
 	u8 LastHMEBoxNum;
 
 	u8 fw_ractrl;
-	u8 RegTxPause;
 	/*  Beacon function related global variable. */
-	u8 RegBcnCtrlVal;
 	u8 RegFwHwTxQCtrl;
 	u8 RegReg542;
-	u8 RegCR_1;
 	u16 RegRRSR;
 
 	u8 CurAntenna;
