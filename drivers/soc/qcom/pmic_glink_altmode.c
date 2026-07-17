@@ -53,7 +53,7 @@ struct usbc_sc8280x_tbt_data {
 	/* This field is NOP on USB4, all cables support rounded rates by spec */
 	u8 rounded_cable : 1;
 	u8 power_limited : 1;
-	u8 res[11];
+	u8 res[7];
 };
 
 struct usbc_notify {
@@ -74,6 +74,7 @@ struct usbc_notify {
 		struct usbc_sc8280x_dp_data dp;
 		struct usbc_sc8280x_tbt_data tbt;
 	} extended_data;
+	u32 reserved;
 };
 
 struct usbc_sc8180x_notify {
