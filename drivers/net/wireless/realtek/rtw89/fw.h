@@ -5042,7 +5042,7 @@ struct rtw89_h2c_rf_rxdck {
 	u8 is_chl_k;
 } __packed;
 
-struct rtw89_h2c_rf_txiqk {
+struct rtw89_h2c_rf_txiqk_v0 {
 	u8 len;
 	u8 phy;
 	u8 txiqk_enable;
@@ -5052,6 +5052,11 @@ struct rtw89_h2c_rf_txiqk {
 	u8 cur_bw;
 	u8 cur_ch;
 	u8 txiqk_dbg_en;
+} __packed;
+
+struct rtw89_h2c_rf_txiqk {
+	struct rtw89_h2c_rf_txiqk_v0 v0;
+	u8 is_ther_rek;
 } __packed;
 
 struct rtw89_h2c_rf_cim3k {

@@ -948,6 +948,7 @@ static const struct __fw_feat_cfg fw_feat_tbl[] = {
 	__CFG_FW_FEAT(RTL8922D, ge, 0, 35, 104, 0, TX_HISTORY_V1),
 	__CFG_FW_FEAT(RTL8922D, ge, 0, 35, 108, 0, SIM_SER_L0L1_BY_HALT_H2C),
 	__CFG_FW_FEAT(RTL8922D, lt, 0, 35, 109, 1, SCAN_OFFLOAD_BE_V1),
+	__CFG_FW_FEAT(RTL8922D, lt, 0, 35, 113, 0, RFK_TXIQK_V0),
 };
 
 static void rtw89_fw_iterate_feature_cfg(struct rtw89_fw_info *fw,
@@ -8464,10 +8465,17 @@ fail:
 int rtw89_fw_h2c_rf_txiqk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx,
 			  const struct rtw89_chan *chan)
 {
+	struct rtw89_h2c_rf_txiqk_v0 *h2c_v0;
 	struct rtw89_h2c_rf_txiqk *h2c;
 	u32 len = sizeof(*h2c);
 	struct sk_buff *skb;
+	u8 ver = U8_MAX;
 	int ret;
+
+	if (RTW89_CHK_FW_FEATURE(RFK_TXIQK_V0, &rtwdev->fw)) {
+		len = sizeof(*h2c_v0);
+		ver = 0;
+	}
 
 	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
 	if (!skb) {
@@ -8475,18 +8483,25 @@ int rtw89_fw_h2c_rf_txiqk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx,
 		return -ENOMEM;
 	}
 	skb_put(skb, len);
+	h2c_v0 = (struct rtw89_h2c_rf_txiqk_v0 *)skb->data;
+
+	h2c_v0->len = len;
+	h2c_v0->phy = phy_idx;
+	h2c_v0->txiqk_enable = true;
+	h2c_v0->is_wb_txiqk = true;
+	h2c_v0->kpath = RF_AB;
+	h2c_v0->cur_band = chan->band_type;
+	h2c_v0->cur_bw = chan->band_width;
+	h2c_v0->cur_ch = chan->channel;
+	h2c_v0->txiqk_dbg_en = rtw89_debug_is_enabled(rtwdev, RTW89_DBG_RFK);
+
+	if (ver == 0)
+		goto hdr;
+
 	h2c = (struct rtw89_h2c_rf_txiqk *)skb->data;
+	h2c->is_ther_rek = false;
 
-	h2c->len = len;
-	h2c->phy = phy_idx;
-	h2c->txiqk_enable = true;
-	h2c->is_wb_txiqk = true;
-	h2c->kpath = RF_AB;
-	h2c->cur_band = chan->band_type;
-	h2c->cur_bw = chan->band_width;
-	h2c->cur_ch = chan->channel;
-	h2c->txiqk_dbg_en = rtw89_debug_is_enabled(rtwdev, RTW89_DBG_RFK);
-
+hdr:
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_OUTSRC, H2C_CL_OUTSRC_RF_FW_RFK,
 			      H2C_FUNC_RFK_TXIQK_OFFOAD, 0, 0, len);
