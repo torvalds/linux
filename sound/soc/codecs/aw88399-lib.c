@@ -167,8 +167,9 @@ int aw_dev_check_syspll(struct aw_device *aw_dev)
 }
 EXPORT_SYMBOL_GPL(aw_dev_check_syspll);
 
-static int aw_dev_check_sysst(struct aw_device *aw_dev)
+static int aw_dev_check_sysst(struct aw88399 *aw88399)
 {
+	struct aw_device *aw_dev = aw88399->aw_pa;
 	unsigned int check_val;
 	unsigned int reg_val;
 	int ret, i;
@@ -181,6 +182,14 @@ static int aw_dev_check_sysst(struct aw_device *aw_dev)
 		check_val = AW88399_BIT_SYSST_NOSWS_CHECK;
 	else
 		check_val = AW88399_BIT_SYSST_SWS_CHECK;
+
+	/*
+	 * On some hardware the BSTS (boost-finished) status bit does not
+	 * reliably assert even when audio output is working normally.
+	 * Allow per-instance bypass when flagged by the side-codec driver.
+	 */
+	if (aw88399->bsts_unreliable)
+		check_val &= ~AW88399_BSTS_FINISHED_VALUE;
 
 	for (i = 0; i < AW88399_DEV_SYSST_CHECK_MAX; i++) {
 		ret = regmap_read(aw_dev->regmap, AW88399_SYSST_REG, &reg_val);
@@ -710,7 +719,7 @@ static int aw88399_dev_start(struct aw88399 *aw88399)
 	usleep_range(AW88399_1000_US, AW88399_1000_US + 50);
 
 	/* check i2s status */
-	ret = aw_dev_check_sysst(aw_dev);
+	ret = aw_dev_check_sysst(aw88399);
 	if (ret) {
 		dev_err(aw_dev->dev, "sysst check failed");
 		goto sysst_check_fail;
