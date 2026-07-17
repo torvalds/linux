@@ -60,14 +60,32 @@ static inline void nfsd_stats_payload_misses_inc(struct nfsd_net *nn)
 	percpu_counter_inc(&nn->counter[NFSD_STATS_PAYLOAD_MISSES]);
 }
 
+/**
+ * nfsd_stats_drc_mem_usage_add - Add memory used by a cache item
+ * @nn: target network namespace
+ * @amount: byte count
+ *
+ * percpu_counter_add_local() keeps updates on the per-CPU fast
+ * path. The sole reader, percpu_counter_sum_positive(), sums the
+ * per-CPU deltas, so batching locally does not lose accuracy.
+ */
 static inline void nfsd_stats_drc_mem_usage_add(struct nfsd_net *nn, s64 amount)
 {
-	percpu_counter_add(&nn->counter[NFSD_STATS_DRC_MEM_USAGE], amount);
+	percpu_counter_add_local(&nn->counter[NFSD_STATS_DRC_MEM_USAGE],
+				 amount);
 }
 
+/**
+ * nfsd_stats_drc_mem_usage_sub - Subtract memory used by a cache item
+ * @nn: target network namespace
+ * @amount: byte count
+ *
+ * See nfsd_stats_drc_mem_usage_add() for batching rationale.
+ */
 static inline void nfsd_stats_drc_mem_usage_sub(struct nfsd_net *nn, s64 amount)
 {
-	percpu_counter_sub(&nn->counter[NFSD_STATS_DRC_MEM_USAGE], amount);
+	percpu_counter_sub_local(&nn->counter[NFSD_STATS_DRC_MEM_USAGE],
+				 amount);
 }
 
 #ifdef CONFIG_NFSD_V4
