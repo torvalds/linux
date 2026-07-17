@@ -103,7 +103,7 @@ struct tmigr_group {
  *			before the timer migration hierarchy hotplug callback is
  *			reached.  During this phase, the CPU has to handle the
  *			global timers on its own and must not act as a migrator.
-
+ *
  * @idle:		Indicates whether the CPU is idle in the timer migration
  *			hierarchy
  * @remote:		Is set when timers of the CPU are expired remotely
