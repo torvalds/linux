@@ -14,17 +14,17 @@
 #include <linux/limits.h>
 #include <linux/types.h>
 
-#define ACPI_FAN_DEVICE_IDS	\
-	{"INT3404", }, /* Fan */ \
-	{"INTC1044", }, /* Fan for Tiger Lake generation */ \
-	{"INTC1048", }, /* Fan for Alder Lake generation */ \
-	{"INTC1063", }, /* Fan for Meteor Lake generation */ \
-	{"INTC106A", }, /* Fan for Lunar Lake generation */ \
-	{"INTC10A2", }, /* Fan for Raptor Lake generation */ \
-	{"INTC10D6", }, /* Fan for Panther Lake generation */ \
-	{"INTC10FE", }, /* Fan for Wildcat Lake generation */ \
-	{"INTC10F5", }, /* Fan for Nova Lake generation */ \
-	{"PNP0C0B", } /* Generic ACPI fan */
+#define ACPI_FAN_DEVICE_IDS						\
+	{ .id = "INT3404" },	/* Fan */				\
+	{ .id = "INTC1044" },	/* Fan for Tiger Lake generation */	\
+	{ .id = "INTC1048" },	/* Fan for Alder Lake generation */	\
+	{ .id = "INTC1063" },	/* Fan for Meteor Lake generation */	\
+	{ .id = "INTC106A" },	/* Fan for Lunar Lake generation */	\
+	{ .id = "INTC10A2" },	/* Fan for Raptor Lake generation */	\
+	{ .id = "INTC10D6" },	/* Fan for Panther Lake generation */	\
+	{ .id = "INTC10FE" },	/* Fan for Wildcat Lake generation */	\
+	{ .id = "INTC10F5" },	/* Fan for Nova Lake generation */	\
+	{ .id = "PNP0C0B" }	/* Generic ACPI fan */
 
 #define ACPI_FPS_NAME_LEN	20
 
