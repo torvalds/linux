@@ -202,7 +202,7 @@ static struct file *secretmem_file_create(unsigned long flags)
 	if (IS_ERR(file))
 		goto err_free_inode;
 
-	mapping_set_gfp_mask(inode->i_mapping, GFP_HIGHUSER);
+	mapping_set_gfp_mask(inode->i_mapping, GFP_USER);
 	mapping_set_unevictable(inode->i_mapping);
 
 	inode->i_op = &secretmem_iops;
