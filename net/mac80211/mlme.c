@@ -5257,13 +5257,17 @@ void ieee80211_disconnect(struct ieee80211_vif *vif, bool reconnect)
 EXPORT_SYMBOL(ieee80211_disconnect);
 
 static void ieee80211_destroy_auth_data(struct ieee80211_sub_if_data *sdata,
-					bool assoc)
+					bool assoc,
+					struct ieee80211_prep_tx_info *info)
 {
 	struct ieee80211_mgd_auth_data *auth_data = sdata->u.mgd.auth_data;
 
 	lockdep_assert_wiphy(sdata->local->hw.wiphy);
 
 	sdata->u.mgd.auth_data = NULL;
+
+	if (info)
+		drv_mgd_complete_tx(sdata->local, sdata, info);
 
 	if (!assoc) {
 		/*
@@ -5296,13 +5300,17 @@ enum assoc_status {
 };
 
 static void ieee80211_destroy_assoc_data(struct ieee80211_sub_if_data *sdata,
-					 enum assoc_status status)
+					 enum assoc_status status,
+					 struct ieee80211_prep_tx_info *info)
 {
 	struct ieee80211_mgd_assoc_data *assoc_data = sdata->u.mgd.assoc_data;
 
 	lockdep_assert_wiphy(sdata->local->hw.wiphy);
 
 	sdata->u.mgd.assoc_data = NULL;
+
+	if (info)
+		drv_mgd_complete_tx(sdata->local, sdata, info);
 
 	if (status != ASSOC_SUCCESS) {
 		/*
@@ -5495,11 +5503,11 @@ static void ieee80211_rx_mgmt_auth(struct ieee80211_sub_if_data *sdata,
 
 		sdata_info(sdata, "%pM denied authentication (status %d)\n",
 			   mgmt->sa, status_code);
-		ieee80211_destroy_auth_data(sdata, false);
+		ieee80211_destroy_auth_data(sdata, false, &info);
 		event.u.mlme.status = MLME_DENIED;
 		event.u.mlme.reason = status_code;
 		drv_event_callback(sdata->local, sdata, &event);
-		goto notify_driver;
+		return;
 	}
 
 	switch (ifmgd->auth_data->algorithm) {
@@ -5671,7 +5679,7 @@ static void ieee80211_rx_mgmt_deauth(struct ieee80211_sub_if_data *sdata,
 			   ifmgd->assoc_data->ap_addr, reason_code,
 			   ieee80211_get_reason_code_string(reason_code));
 
-		ieee80211_destroy_assoc_data(sdata, ASSOC_ABANDON);
+		ieee80211_destroy_assoc_data(sdata, ASSOC_ABANDON, NULL);
 
 		cfg80211_rx_mlme_mgmt(sdata->dev, (u8 *)mgmt, len);
 		return;
@@ -7136,6 +7144,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_mgd_assoc_data *assoc_data = ifmgd->assoc_data;
+	enum assoc_status assoc_status = ASSOC_ABANDON;
 	u16 capab_info, status_code, aid;
 	struct ieee80211_elems_parse_params parse_params = {
 		.bss = NULL,
@@ -7143,7 +7152,6 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 		.from_ap = true,
 		.type = le16_to_cpu(mgmt->frame_control) & IEEE80211_FCTL_TYPE,
 	};
-	struct ieee802_11_elems *elems;
 	struct sta_info *sta;
 	int ac;
 	const u8 *elem_start;
@@ -7209,7 +7217,8 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	elem_len = len - (elem_start - (u8 *)mgmt);
 	parse_params.start = elem_start;
 	parse_params.len = elem_len;
-	elems = ieee802_11_parse_elems_full(&parse_params);
+	struct ieee802_11_elems *elems __free(kfree) =
+		ieee802_11_parse_elems_full(&parse_params);
 	if (!elems)
 		goto notify_driver;
 
@@ -7275,7 +7284,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 				sdata_info(sdata,
 					   "MLO association with %pM but no (basic) multi-link element in response!\n",
 					   assoc_data->ap_addr);
-				goto abandon_assoc;
+				goto destroy_assoc_data;
 			}
 
 			common = (void *)elems->ml_basic->variable;
@@ -7286,7 +7295,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 					   "AP MLD MAC address mismatch: got %pM expected %pM\n",
 					   common->mld_mac_addr,
 					   assoc_data->ap_addr);
-				goto abandon_assoc;
+				goto destroy_assoc_data;
 			}
 
 			sdata->vif.cfg.eml_cap =
@@ -7303,8 +7312,8 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 		if (!ieee80211_assoc_success(sdata, mgmt, elems,
 					     elem_start, elem_len)) {
 			/* oops -- internal error -- send timeout for now */
-			ieee80211_destroy_assoc_data(sdata, ASSOC_TIMEOUT);
-			goto notify_driver;
+			assoc_status = ASSOC_TIMEOUT;
+			goto destroy_assoc_data;
 		}
 		event.u.mlme.status = MLME_SUCCESS;
 		drv_event_callback(sdata->local, sdata, &event);
@@ -7348,23 +7357,19 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	sta = sta_info_get_bss(sdata, sdata->vif.cfg.ap_addr);
 	resp.assoc_encrypted = sta && sta->sta.epp_peer;
 
-	ieee80211_destroy_assoc_data(sdata,
-				     status_code == WLAN_STATUS_SUCCESS ?
-					ASSOC_SUCCESS :
-					ASSOC_REJECTED);
-
 	resp.buf = (u8 *)mgmt;
 	resp.len = len;
 	resp.req_ies = ifmgd->assoc_req_ies;
 	resp.req_ies_len = ifmgd->assoc_req_ies_len;
 	cfg80211_rx_assoc_resp(sdata->dev, &resp);
+	assoc_status = status_code == WLAN_STATUS_SUCCESS ? ASSOC_SUCCESS :
+							    ASSOC_REJECTED;
+destroy_assoc_data:
+	ieee80211_destroy_assoc_data(sdata, assoc_status, &info);
+	return;
+
 notify_driver:
 	drv_mgd_complete_tx(sdata->local, sdata, &info);
-	kfree(elems);
-	return;
-abandon_assoc:
-	ieee80211_destroy_assoc_data(sdata, ASSOC_ABANDON);
-	goto notify_driver;
 }
 
 static void ieee80211_rx_bss_info(struct ieee80211_link_data *link,
@@ -9097,7 +9102,7 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 			 * ok ... we waited for assoc or continuation but
 			 * userspace didn't do it, so kill the auth data
 			 */
-			ieee80211_destroy_auth_data(sdata, false);
+			ieee80211_destroy_auth_data(sdata, false, NULL);
 		} else if (ieee80211_auth(sdata)) {
 			u8 ap_addr[ETH_ALEN];
 			struct ieee80211_event event = {
@@ -9108,7 +9113,7 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 
 			memcpy(ap_addr, ifmgd->auth_data->ap_addr, ETH_ALEN);
 
-			ieee80211_destroy_auth_data(sdata, false);
+			ieee80211_destroy_auth_data(sdata, false, NULL);
 
 			cfg80211_auth_timeout(sdata->dev, ap_addr);
 			drv_event_callback(sdata->local, sdata, &event);
@@ -9127,7 +9132,8 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 				.u.mlme.status = MLME_TIMEOUT,
 			};
 
-			ieee80211_destroy_assoc_data(sdata, ASSOC_TIMEOUT);
+			ieee80211_destroy_assoc_data(sdata, ASSOC_TIMEOUT,
+						     NULL);
 			drv_event_callback(sdata->local, sdata, &event);
 		}
 	} else if (ifmgd->assoc_data && ifmgd->assoc_data->timeout_started)
@@ -9340,9 +9346,10 @@ void ieee80211_mgd_quiesce(struct ieee80211_sub_if_data *sdata)
 					       WLAN_REASON_DEAUTH_LEAVING,
 					       false, frame_buf);
 		if (ifmgd->assoc_data)
-			ieee80211_destroy_assoc_data(sdata, ASSOC_ABANDON);
+			ieee80211_destroy_assoc_data(sdata, ASSOC_ABANDON,
+						     NULL);
 		if (ifmgd->auth_data)
-			ieee80211_destroy_auth_data(sdata, false);
+			ieee80211_destroy_auth_data(sdata, false, NULL);
 		cfg80211_tx_mlme_mgmt(sdata->dev, frame_buf,
 				      IEEE80211_DEAUTH_FRAME_LEN,
 				      false);
@@ -9959,7 +9966,7 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 			auth_data->peer_confirmed =
 				ifmgd->auth_data->peer_confirmed;
 		}
-		ieee80211_destroy_auth_data(sdata, cont_auth);
+		ieee80211_destroy_auth_data(sdata, cont_auth, NULL);
 	}
 
 	/* prep auth_data so we don't go into idle on disassoc */
@@ -10493,7 +10500,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 
 	/* Cleanup is delayed if auth_data matches */
 	if (ifmgd->auth_data && !match_auth)
-		ieee80211_destroy_auth_data(sdata, false);
+		ieee80211_destroy_auth_data(sdata, false, NULL);
 
 	if (req->ie && req->ie_len) {
 		memcpy(assoc_data->ie, req->ie, req->ie_len);
@@ -10643,7 +10650,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 
 	/* We are associating, clean up auth_data */
 	if (ifmgd->auth_data)
-		ieee80211_destroy_auth_data(sdata, true);
+		ieee80211_destroy_auth_data(sdata, true, NULL);
 
 	return 0;
  err_clear:
@@ -10681,11 +10688,10 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 					       IEEE80211_STYPE_DEAUTH,
 					       req->reason_code, tx,
 					       frame_buf);
-		ieee80211_destroy_auth_data(sdata, false);
+		ieee80211_destroy_auth_data(sdata, false, &info);
 		ieee80211_report_disconnect(sdata, frame_buf,
 					    sizeof(frame_buf), true,
 					    req->reason_code, false);
-		drv_mgd_complete_tx(sdata->local, sdata, &info);
 		return 0;
 	}
 
@@ -10702,11 +10708,10 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 					       IEEE80211_STYPE_DEAUTH,
 					       req->reason_code, tx,
 					       frame_buf);
-		ieee80211_destroy_assoc_data(sdata, ASSOC_ABANDON);
+		ieee80211_destroy_assoc_data(sdata, ASSOC_ABANDON, &info);
 		ieee80211_report_disconnect(sdata, frame_buf,
 					    sizeof(frame_buf), true,
 					    req->reason_code, false);
-		drv_mgd_complete_tx(sdata->local, sdata, &info);
 		return 0;
 	}
 
@@ -10783,9 +10788,9 @@ void ieee80211_mgd_stop(struct ieee80211_sub_if_data *sdata)
 				  &ifmgd->uhr_omp.status_work);
 
 	if (ifmgd->assoc_data)
-		ieee80211_destroy_assoc_data(sdata, ASSOC_TIMEOUT);
+		ieee80211_destroy_assoc_data(sdata, ASSOC_TIMEOUT, NULL);
 	if (ifmgd->auth_data)
-		ieee80211_destroy_auth_data(sdata, false);
+		ieee80211_destroy_auth_data(sdata, false, NULL);
 	spin_lock_bh(&ifmgd->teardown_lock);
 	if (ifmgd->teardown_skb) {
 		kfree_skb(ifmgd->teardown_skb);
