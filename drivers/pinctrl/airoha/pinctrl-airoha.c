@@ -2519,10 +2519,8 @@ static int airoha_pinctrl_add_gpiochip(struct airoha_pinctrl *pinctrl,
 
 	err = devm_request_irq(dev, irq, airoha_irq_handler, IRQF_SHARED,
 				dev_name(dev), pinctrl);
-	if (err) {
-		dev_err(dev, "error requesting irq %d: %d\n", irq, err);
+	if (err)
 		return err;
-	}
 
 	return devm_gpiochip_add_data(dev, gc, pinctrl);
 }
