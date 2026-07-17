@@ -472,6 +472,24 @@ void split_huge_pmd_address(struct vm_area_struct *vma, unsigned long address,
 void __split_huge_pud(struct vm_area_struct *vma, pud_t *pud,
 		unsigned long address);
 
+/**
+ * pud_is_huge() - Is this PUD either a huge PUD entry or a software leaf entry?
+ * @pud: The PUD to check.
+ *
+ * This is similar to pmd_is_huge(), but it checks at the PUD level.
+ *
+ * Returns: true if this PUD is huge, false otherwise.
+ */
+static inline bool pud_is_huge(pud_t pud)
+{
+	if (pud_present(pud))
+		return pud_trans_huge(pud);
+	else if (!pud_none(pud))
+		return true;
+
+	return false;
+}
+
 #ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
 int change_huge_pud(struct mmu_gather *tlb, struct vm_area_struct *vma,
 		    pud_t *pudp, unsigned long addr, pgprot_t newprot,
@@ -795,6 +813,11 @@ static inline struct folio *get_persistent_huge_zero_folio(void)
 }
 
 static inline bool pmd_is_huge(pmd_t pmd)
+{
+	return false;
+}
+
+static inline bool pud_is_huge(pud_t pud)
 {
 	return false;
 }
