@@ -1171,11 +1171,14 @@ void aw88399_start(struct aw88399 *aw88399, bool sync_start)
 	if (aw88399->aw_pa->status == AW88399_DEV_PW_ON)
 		return;
 
-	ret = aw88399_dev_fw_update(aw88399, AW88399_DSP_FW_UPDATE_OFF, true);
+	ret = aw88399_dev_fw_update(aw88399, aw88399->fw_needs_reload ?
+		AW88399_DSP_FW_UPDATE_ON : AW88399_DSP_FW_UPDATE_OFF, true);
 	if (ret) {
 		dev_err(aw88399->aw_pa->dev, "fw update failed.");
 		return;
 	}
+
+	aw88399->fw_needs_reload = false;
 
 	if (sync_start == AW88399_SYNC_START)
 		aw88399_start_pa(aw88399);

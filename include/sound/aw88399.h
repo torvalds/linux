@@ -599,6 +599,7 @@ struct aw88399 {
 	unsigned int vcalb_init_val;
 	unsigned int dither_st;
 	bool bsts_unreliable;
+	bool fw_needs_reload;
 };
 
 int aw_dev_check_syspll(struct aw_device *aw_dev);
