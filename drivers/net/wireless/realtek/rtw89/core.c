@@ -11,6 +11,7 @@
 #include "core.h"
 #include "efuse.h"
 #include "fw.h"
+#include "led.h"
 #include "mac.h"
 #include "phy.h"
 #include "ps.h"
@@ -7588,6 +7589,7 @@ static int rtw89_core_register_hw(struct rtw89_dev *rtwdev)
 
 	rtw89_rfkill_polling_init(rtwdev);
 	rtw89_btc_init(rtwdev);
+	rtw89_led_init(rtwdev);
 
 	return 0;
 
@@ -7601,6 +7603,7 @@ static void rtw89_core_unregister_hw(struct rtw89_dev *rtwdev)
 {
 	struct ieee80211_hw *hw = rtwdev->hw;
 
+	rtw89_led_deinit(rtwdev);
 	rtw89_rfkill_polling_deinit(rtwdev);
 	ieee80211_unregister_hw(hw);
 }

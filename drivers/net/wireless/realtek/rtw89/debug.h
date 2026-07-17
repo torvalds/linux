@@ -32,6 +32,7 @@ enum rtw89_debug_mask {
 	RTW89_DBG_ACPI = BIT(21),
 	RTW89_DBG_EDCCA = BIT(22),
 	RTW89_DBG_PS = BIT(23),
+	RTW89_DBG_LED = BIT(24),
 
 	RTW89_DBG_UNEXP = BIT(31),
 };

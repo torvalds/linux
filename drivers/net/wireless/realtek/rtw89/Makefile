@@ -92,6 +92,7 @@ obj-$(CONFIG_RTW89_8922AU) += rtw89_8922au.o
 rtw89_8922au-objs := rtw8922au.o
 
 rtw89_core-$(CONFIG_RTW89_DEBUG) += debug.o
+rtw89_core-$(CONFIG_RTW89_LEDS) += led.o
 
 obj-$(CONFIG_RTW89_PCI) += rtw89_pci.o
 rtw89_pci-y := pci.o pci_be.o

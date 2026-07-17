@@ -10,6 +10,7 @@
 #include <linux/dmi.h>
 #include <linux/firmware.h>
 #include <linux/iopoll.h>
+#include <linux/leds.h>
 #include <linux/workqueue.h>
 #include <net/mac80211.h>
 
@@ -5278,6 +5279,26 @@ struct rtw89_chanctx_listener {
 #define RTW89_NHM_TH_NUM 11
 #define RTW89_NHM_RPT_NUM 12
 
+struct rtw89_led_gpio_entry {
+	u8 pin;
+	struct rtw89_reg3_def pinmux;
+	struct rtw89_reg2_def mode;
+	struct rtw89_reg2_def out;
+};
+
+struct rtw89_led_desc {
+	const struct rtw89_led_gpio_entry *gpios;
+	u8 n_gpio;
+};
+
+struct rtw89_led {
+	bool registered;
+	const struct rtw89_led_desc *desc;
+	struct led_classdev led;
+	enum led_brightness brightness_cache;
+	char name[32];
+};
+
 struct rtw89_chip_info {
 	enum rtw89_core_chip_id chip_id;
 	enum rtw89_chip_gen chip_gen;
@@ -7245,6 +7266,7 @@ struct rtw89_dev {
 
 	struct rtw89_debugfs *debugfs;
 	struct rtw89_vif *pure_monitor_mode_vif;
+	struct rtw89_led led;
 
 	/* HCI related data, keep last */
 	u8 priv[] __aligned(sizeof(void *));
