@@ -474,6 +474,11 @@ static const struct a6xx_indexed_registers a7xx_cp_bv_mempool_indexed[] = {
 		REG_A7XX_CP_BV_MEM_POOL_DBG_DATA, 0x2200, NULL },
 };
 
+static const struct a6xx_indexed_registers a7xx_cp_mempool_indexed[] = {
+	{ "CP_MEM_POOL_DBG", REG_A6XX_CP_MEM_POOL_DBG_ADDR,
+		REG_A6XX_CP_MEM_POOL_DBG_DATA, 0x2200, NULL },
+};
+
 #define DEBUGBUS(_id, _count) { .id = _id, .name = #_id, .count = _count }
 
 static const struct a6xx_debugbus_block {
