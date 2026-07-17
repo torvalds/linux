@@ -87,4 +87,26 @@ struct mana_ib_create_qp_rss_resp {
 	struct rss_resp_entry entries[64];
 };
 
+enum mana_ib_ucontext_support {
+	MANA_IB_UCNTX_ALLOC_PDN_SUPPORT = 1 << 0,
+};
+
+struct mana_ib_alloc_ucontext_resp {
+	__aligned_u64 comp_mask;
+};
+
+enum mana_ib_create_pd_flags {
+	MANA_IB_PD_SHORT_PDN = 1 << 0,
+};
+
+struct mana_ib_alloc_pd {
+	__u32 comp_mask;
+	__u32 reserved;
+};
+
+struct mana_ib_alloc_pd_resp {
+	__u32 pdn;
+	__u32 reserved;
+};
+
 #endif
