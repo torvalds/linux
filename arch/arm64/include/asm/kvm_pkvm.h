@@ -195,7 +195,10 @@ struct pkvm_mapping {
 	struct rb_node node;
 	u64 gfn;
 	u64 pfn;
-	u64 nr_pages;
+	struct {
+		u64 nr_pages:48;
+		u64 nc:1;
+	};
 	u64 __subtree_last;	/* Internal member for interval tree */
 };
 
