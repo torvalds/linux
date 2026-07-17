@@ -533,13 +533,6 @@ static void _InitInterrupt(struct adapter *padapter)
 	InitInterrupt8723BSdio(padapter);
 }
 
-static void _InitRFType(struct adapter *padapter)
-{
-	struct hal_com_data *pHalData = GET_HAL_DATA(padapter);
-
-	pHalData->rf_chip	= RF_6052;
-}
-
 static void _RfPowerSave(struct adapter *padapter)
 {
 /* YJ, TODO */
@@ -642,9 +635,6 @@ u32 rtl8723bs_hal_init(struct adapter *padapter)
 	/*  2010/08/09 MH We need to check if we need to turnon or off RF after detecting */
 	/*  HW GPIO pin. Before PHY_RFConfig8192C. */
 	HalDetectPwrDownMode(padapter);
-
-	/*  Set RF type for BB/RF configuration */
-	_InitRFType(padapter);
 
 	/*  Save target channel */
 	/*  <Roger_Notes> Current Channel will be updated again later. */
@@ -976,13 +966,6 @@ static void _EfuseCellSel(struct adapter *padapter)
 	rtw_write32(padapter, EFUSE_TEST, value32);
 }
 
-static void _ReadRFType(struct adapter *Adapter)
-{
-	struct hal_com_data *pHalData = GET_HAL_DATA(Adapter);
-
-	pHalData->rf_chip = RF_6052;
-}
-
 static void Hal_EfuseParseMACAddr_8723BS(
 	struct adapter *padapter, u8 *hwinfo, bool AutoLoadFail
 )
@@ -1080,7 +1063,6 @@ static s32 _ReadAdapterInfo8723BS(struct adapter *padapter)
 	rtw_write8(padapter, 0x4e, val8);
 
 	_EfuseCellSel(padapter);
-	_ReadRFType(padapter);
 	_ReadPROMContent(padapter);
 
 	if (!padapter->hw_init_completed) {

@@ -157,7 +157,6 @@ struct hal_com_data {
 	u32 ReceiveConfig;
 
 	/* rf_ctrl */
-	u8 rf_chip;
 	u8 PackageType;
 
 	/*  EEPROM setting. */
