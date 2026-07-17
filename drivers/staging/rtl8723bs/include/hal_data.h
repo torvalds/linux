@@ -234,9 +234,6 @@ struct hal_com_data {
 
 	u8 u1ForcedIgiLb;			/*  forced IGI lower bound */
 
-	u8 bDumpRxPkt;/* for debug */
-	u8 bDumpTxPkt;/* for debug */
-
 	/*  2010/08/09 MH Add CU power down mode. */
 	bool		pwrdown;
 

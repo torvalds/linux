@@ -643,12 +643,6 @@ u8 GetHalDefVar(
 	case HAL_DEF_DBG_DM_FUNC:
 		*((u32 *)value) = hal_data->odmpriv.SupportAbility;
 		break;
-	case HAL_DEF_DBG_DUMP_RXPKT:
-		*((u8 *)value) = hal_data->bDumpRxPkt;
-		break;
-	case HAL_DEF_DBG_DUMP_TXPKT:
-		*((u8 *)value) = hal_data->bDumpTxPkt;
-		break;
 	case HAL_DEF_ANT_DETECT:
 		*((u8 *)value) = hal_data->AntDetection;
 		break;
