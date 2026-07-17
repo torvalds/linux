@@ -313,7 +313,7 @@ static void mremap_dontunmap_partial_mapping_overwrite(void)
 	    mremap(source_mapping, 5 * page_size,
 		   5 * page_size,
 		   MREMAP_DONTUNMAP | MREMAP_MAYMOVE | MREMAP_FIXED, dest_mapping);
-	BUG_ON(dest_mapping == MAP_FAILED, "mremap");
+	BUG_ON(remapped_mapping == MAP_FAILED, "mremap");
 	BUG_ON(dest_mapping != remapped_mapping, "expected to remap to dest_mapping");
 
 	BUG_ON(check_region_contains_byte(source_mapping, 5 * page_size, 0) !=
