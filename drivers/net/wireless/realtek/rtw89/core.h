@@ -3354,6 +3354,26 @@ struct rtw89_btc_fbtc_cysta_v5 { /* statistics for cycles */
 	__le32 except_map;
 } __packed;
 
+struct rtw89_btc_fbtc_cysta_v105 {
+	u8 fver;
+	u8 rsvd;
+	u8 collision_cnt;
+	u8 except_cnt;
+	u8 wl_rx_err_ratio[BTC_CYCLE_SLOT_MAX];
+
+	__le16 skip_cnt;
+	__le16 cycles;
+
+	__le16 slot_step_time[BTC_CYCLE_SLOT_MAX];
+	__le16 slot_cnt[CXST_MAX];
+	__le16 bcn_cnt[CXBCN_MAX];
+	struct rtw89_btc_fbtc_cycle_time_info_v5 cycle_time;
+	struct rtw89_btc_fbtc_cycle_leak_info leak_slot;
+	struct rtw89_btc_fbtc_cycle_a2dp_empty_info a2dp_ept;
+	struct rtw89_btc_fbtc_a2dp_trx_stat_v4 a2dp_trx[BTC_CYCLE_SLOT_MAX];
+	__le32 except_map;
+} __packed;
+
 struct rtw89_btc_fbtc_cysta_v7 { /* statistics for cycles */
 	u8 fver;
 	u8 rsvd;
@@ -3383,6 +3403,7 @@ union rtw89_btc_fbtc_cysta_info {
 	struct rtw89_btc_fbtc_cysta_v3 v3;
 	struct rtw89_btc_fbtc_cysta_v4 v4;
 	struct rtw89_btc_fbtc_cysta_v5 v5;
+	struct rtw89_btc_fbtc_cysta_v105 v105;
 	struct rtw89_btc_fbtc_cysta_v7 v7;
 };
 

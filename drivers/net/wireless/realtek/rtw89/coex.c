@@ -1757,6 +1757,11 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 			pcysta->v5 = pfwinfo->rpt_fbtc_cysta.finfo.v5;
 			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_cysta.finfo.v5);
 			fwsubver->fcxcysta = pfwinfo->rpt_fbtc_cysta.finfo.v5.fver;
+		} else if (ver->fcxcysta == 105) {
+			pfinfo = &pfwinfo->rpt_fbtc_cysta.finfo.v105;
+			pcysta->v105 = pfwinfo->rpt_fbtc_cysta.finfo.v105;
+			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_cysta.finfo.v105);
+			fwsubver->fcxcysta = pfwinfo->rpt_fbtc_cysta.finfo.v105.fver;
 		} else if (ver->fcxcysta == 7) {
 			pfinfo = &pfwinfo->rpt_fbtc_cysta.finfo.v7;
 			pcysta->v7 = pfwinfo->rpt_fbtc_cysta.finfo.v7;
@@ -2434,6 +2439,58 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 				     le16_to_cpu(pcysta->v5.slot_cnt[CXST_B1]));
 			_chk_btc_err(rtwdev, BTC_DCNT_CYCLE_HANG,
 				     le16_to_cpu(pcysta->v5.cycles));
+		} else if (ver->fcxcysta == 105) {
+			if (dm->fddt_train == BTC_FDDT_ENABLE)
+				break;
+
+			cnt_leak_slot = le16_to_cpu(pcysta->v105.slot_cnt[CXST_LK]);
+			cnt_rx_imr = le32_to_cpu(pcysta->v105.leak_slot.cnt_rximr);
+
+			/* Check Leak-AP */
+			if (cnt_leak_slot != 0 && cnt_rx_imr != 0 &&
+			    dm->tdma_now.rxflctrl) {
+				if (le16_to_cpu(pcysta->v5.cycles) >= BTC_CYSTA_CHK_PERIOD &&
+				    cnt_leak_slot < BTC_LEAK_AP_TH * cnt_rx_imr)
+					dm->leak_ap = 1;
+			}
+
+			/* Check diff time between real WL slot and W1 slot */
+			if (dm->tdma_now.type == CXTDMA_OFF) {
+				if (ver->fcxslots == 1)
+					wl_slot_set = le16_to_cpu(dm->slot_now.v1[CXST_W1].dur);
+				else if (ver->fcxslots == 7)
+					wl_slot_set = le16_to_cpu(dm->slot_now.v7[CXST_W1].dur);
+				wl_slot_real = le16_to_cpu(pcysta->v105.cycle_time.tavg[CXT_WL]);
+
+				if (wl_slot_real > wl_slot_set)
+					diff_t = wl_slot_real - wl_slot_set;
+				else
+					diff_t = wl_slot_set - wl_slot_real;
+			}
+			_chk_btc_err(rtwdev, BTC_DCNT_WL_SLOT_DRIFT, diff_t);
+
+			/* Check diff time between real BT slot and EBT/E5G slot */
+			bt_slot_set = btc->bt_req_len[RTW89_PHY_0];
+			bt_slot_real = le16_to_cpu(pcysta->v105.cycle_time.tavg[CXT_BT]);
+			diff_t = 0;
+			if (dm->tdma_now.type == CXTDMA_OFF &&
+			    dm->tdma_now.ext_ctrl == CXECTL_EXT &&
+			    bt_slot_set != 0) {
+				if (bt_slot_set > bt_slot_real)
+					diff_t = bt_slot_set - bt_slot_real;
+				else
+					diff_t = bt_slot_real - bt_slot_set;
+			}
+
+			_chk_btc_err(rtwdev, BTC_DCNT_BT_SLOT_DRIFT, diff_t);
+			_chk_btc_err(rtwdev, BTC_DCNT_E2G_HANG,
+				     le16_to_cpu(pcysta->v105.slot_cnt[CXST_E2G]));
+			_chk_btc_err(rtwdev, BTC_DCNT_W1_HANG,
+				     le16_to_cpu(pcysta->v105.slot_cnt[CXST_W1]));
+			_chk_btc_err(rtwdev, BTC_DCNT_B1_HANG,
+				     le16_to_cpu(pcysta->v105.slot_cnt[CXST_B1]));
+			_chk_btc_err(rtwdev, BTC_DCNT_CYCLE_HANG,
+				     le16_to_cpu(pcysta->v105.cycles));
 		} else if (ver->fcxcysta == 7) {
 			if (dm->fddt_train == BTC_FDDT_ENABLE)
 				break;
@@ -10690,6 +10747,144 @@ out:
 	return p - buf;
 }
 
+static int _show_fbtc_cysta_v105(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_bt_a2dp_desc *a2dp = &btc->cx.bt0.link_info.a2dp_desc;
+	struct rtw89_btc_btf_fwinfo *pfwinfo = &btc->fwinfo;
+	struct rtw89_btc_dm *dm = &btc->dm;
+	struct rtw89_btc_fbtc_a2dp_trx_stat_v4 *a2dp_trx;
+	struct rtw89_btc_fbtc_cysta_v105 *pcysta;
+	struct rtw89_btc_rpt_cmn_info *pcinfo;
+	u8 i, cnt = 0, slot_pair, divide_cnt;
+	u16 cycle, c_begin, c_end, store_index;
+	char *p = buf, *end = buf + bufsz;
+
+	pcinfo = &pfwinfo->rpt_fbtc_cysta.cinfo;
+	if (!pcinfo->valid)
+		return 0;
+
+	pcysta = &pfwinfo->rpt_fbtc_cysta.finfo.v105;
+	p += scnprintf(p, end - p,
+		       " %-15s : cycle:%d, bcn[all:%d/all_ok:%d/bt:%d/bt_ok:%d]",
+		       "[cycle_cnt]",
+		       le16_to_cpu(pcysta->cycles),
+		       le16_to_cpu(pcysta->bcn_cnt[CXBCN_ALL]),
+		       le16_to_cpu(pcysta->bcn_cnt[CXBCN_ALL_OK]),
+		       le16_to_cpu(pcysta->bcn_cnt[CXBCN_BT_SLOT]),
+		       le16_to_cpu(pcysta->bcn_cnt[CXBCN_BT_OK]));
+
+	for (i = 0; i < CXST_MAX; i++) {
+		if (!le16_to_cpu(pcysta->slot_cnt[i]))
+			continue;
+
+		p += scnprintf(p, end - p, ", %s:%d", id_to_slot(i),
+			       le16_to_cpu(pcysta->slot_cnt[i]));
+	}
+
+	if (dm->tdma_now.rxflctrl)
+		p += scnprintf(p, end - p, ", leak_rx:%d",
+			       le32_to_cpu(pcysta->leak_slot.cnt_rximr));
+
+	if (pcysta->collision_cnt)
+		p += scnprintf(p, end - p, ", collision:%d",
+			       pcysta->collision_cnt);
+
+	if (le16_to_cpu(pcysta->skip_cnt))
+		p += scnprintf(p, end - p, ", skip:%d",
+			       le16_to_cpu(pcysta->skip_cnt));
+
+	p += scnprintf(p, end - p, "\n");
+
+	p += scnprintf(p, end - p, " %-15s : avg_t[wl:%d/bt:%d/lk:%d.%03d]",
+		       "[cycle_time]",
+		       le16_to_cpu(pcysta->cycle_time.tavg[CXT_WL]),
+		       le16_to_cpu(pcysta->cycle_time.tavg[CXT_BT]),
+		       le16_to_cpu(pcysta->leak_slot.tavg) / 1000,
+		       le16_to_cpu(pcysta->leak_slot.tavg) % 1000);
+	p += scnprintf(p, end - p,
+		       ", max_t[wl:%d/bt:%d/lk:%d.%03d]\n",
+		       le16_to_cpu(pcysta->cycle_time.tmax[CXT_WL]),
+		       le16_to_cpu(pcysta->cycle_time.tmax[CXT_BT]),
+		       le16_to_cpu(pcysta->leak_slot.tmax) / 1000,
+		       le16_to_cpu(pcysta->leak_slot.tmax) % 1000);
+
+	cycle = le16_to_cpu(pcysta->cycles);
+	if (cycle <= 1)
+		goto out;
+
+	/* 1 cycle record 1 wl-slot and 1 bt-slot */
+	slot_pair = BTC_CYCLE_SLOT_MAX / 2;
+
+	if (cycle <= slot_pair)
+		c_begin = 1;
+	else
+		c_begin = cycle - slot_pair + 1;
+
+	c_end = cycle;
+
+	if (a2dp->exist)
+		divide_cnt = 3;
+	else
+		divide_cnt = BTC_CYCLE_SLOT_MAX / 4;
+
+	if (c_begin > c_end)
+		goto out;
+
+	for (cycle = c_begin; cycle <= c_end; cycle++) {
+		cnt++;
+		store_index = ((cycle - 1) % slot_pair) * 2;
+
+		if (cnt % divide_cnt == 1)
+			p += scnprintf(p, end - p, " %-15s : ",
+				       "[cycle_step]");
+
+		p += scnprintf(p, end - p, "->b%02d",
+			       le16_to_cpu(pcysta->slot_step_time[store_index]));
+		if (a2dp->exist) {
+			a2dp_trx = &pcysta->a2dp_trx[store_index];
+			p += scnprintf(p, end - p, "(%d/%d/%dM/%d/%d/%d)",
+				       a2dp_trx->empty_cnt,
+				       a2dp_trx->retry_cnt,
+				       a2dp_trx->tx_rate ? 3 : 2,
+				       a2dp_trx->tx_cnt,
+				       a2dp_trx->ack_cnt,
+				       a2dp_trx->nack_cnt);
+		}
+		p += scnprintf(p, end - p, "->w%02d",
+			       le16_to_cpu(pcysta->slot_step_time[store_index + 1]));
+		if (a2dp->exist) {
+			a2dp_trx = &pcysta->a2dp_trx[store_index + 1];
+			p += scnprintf(p, end - p, "(%d/%d/%dM/%d/%d/%d)",
+				       a2dp_trx->empty_cnt,
+				       a2dp_trx->retry_cnt,
+				       a2dp_trx->tx_rate ? 3 : 2,
+				       a2dp_trx->tx_cnt,
+				       a2dp_trx->ack_cnt,
+				       a2dp_trx->nack_cnt);
+		}
+		if (cnt % divide_cnt == 0 || cnt == c_end)
+			p += scnprintf(p, end - p, "\n");
+	}
+
+	if (a2dp->exist) {
+		p += scnprintf(p, end - p,
+			       " %-15s : a2dp_ept:%d, a2dp_late:%d",
+			       "[a2dp_t_sta]",
+			       le16_to_cpu(pcysta->a2dp_ept.cnt),
+			       le16_to_cpu(pcysta->a2dp_ept.cnt_timeout));
+
+		p += scnprintf(p, end - p, ", avg_t:%d, max_t:%d",
+			       le16_to_cpu(pcysta->a2dp_ept.tavg),
+			       le16_to_cpu(pcysta->a2dp_ept.tmax));
+
+		p += scnprintf(p, end - p, "\n");
+	}
+
+out:
+	return p - buf;
+}
+
 static int _show_fbtc_cysta_v7(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 {
 	struct rtw89_btc_bt_info *bt = &rtwdev->btc.cx.bt0;
@@ -11081,6 +11276,8 @@ static int _show_fw_dm_msg(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 		p += _show_fbtc_cysta_v4(rtwdev, p, end - p);
 	else if (ver->fcxcysta == 5)
 		p += _show_fbtc_cysta_v5(rtwdev, p, end - p);
+	else if (ver->fcxcysta == 105)
+		p += _show_fbtc_cysta_v105(rtwdev, p, end - p);
 	else if (ver->fcxcysta == 7)
 		p += _show_fbtc_cysta_v7(rtwdev, p, end - p);
 
