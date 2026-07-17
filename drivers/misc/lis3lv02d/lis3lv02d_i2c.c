@@ -247,9 +247,9 @@ static int lis3_i2c_runtime_resume(struct device *dev)
 #endif /* CONFIG_PM */
 
 static const struct i2c_device_id lis3lv02d_id[] = {
-	{"lis3lv02d", LIS3LV02D},
-	{"lis331dlh", LIS331DLH},
-	{}
+	{ .name = "lis3lv02d", .driver_data = LIS3LV02D },
+	{ .name = "lis331dlh", .driver_data = LIS331DLH },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, lis3lv02d_id);

@@ -141,8 +141,8 @@ static void sbrmi_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id sbrmi_id[] = {
-	{"sbrmi-i2c"},
-	{}
+	{ .name = "sbrmi-i2c" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, sbrmi_id);
 
