@@ -11,6 +11,7 @@
 #include <linux/firmware.h>
 #include <linux/iopoll.h>
 #include <linux/leds.h>
+#include <linux/led-class-multicolor.h>
 #include <linux/workqueue.h>
 #include <net/mac80211.h>
 
@@ -5279,8 +5280,12 @@ struct rtw89_chanctx_listener {
 #define RTW89_NHM_TH_NUM 11
 #define RTW89_NHM_RPT_NUM 12
 
+#define RTW89_LED_MAX_NUM  4
+
 struct rtw89_led_gpio_entry {
 	u8 pin;
+	unsigned int color;
+	u8 intensity;
 	struct rtw89_reg3_def pinmux;
 	struct rtw89_reg2_def mode;
 	struct rtw89_reg2_def out;
@@ -5295,7 +5300,9 @@ struct rtw89_led {
 	bool registered;
 	const struct rtw89_led_desc *desc;
 	struct led_classdev led;
-	enum led_brightness brightness_cache;
+	struct led_classdev_mc led_mc;
+	struct mc_subled subled[RTW89_LED_MAX_NUM];
+	enum led_brightness brightness_cache[RTW89_LED_MAX_NUM];
 	char name[32];
 };
 
@@ -5454,6 +5461,10 @@ struct rtw89_chip_variant {
 	const struct rtw89_qta_def *qta_def_override;
 };
 
+struct rtw89_board_variant {
+	const struct rtw89_led_desc *led_desc;
+};
+
 union rtw89_bus_info {
 	const struct rtw89_pci_info *pci;
 	const struct rtw89_usb_info *usb;
@@ -5462,6 +5473,7 @@ union rtw89_bus_info {
 struct rtw89_driver_info {
 	const struct rtw89_chip_info *chip;
 	const struct rtw89_chip_variant *variant;
+	const struct rtw89_board_variant *board;
 	const struct dmi_system_id *quirks;
 	unsigned long dev_id_quirks; /* bitmap of rtw89_quirks */
 	union rtw89_bus_info bus;
@@ -7136,6 +7148,7 @@ struct rtw89_dev {
 	struct rtw89_hw_scan_info scan_info;
 	const struct rtw89_chip_info *chip;
 	const struct rtw89_chip_variant *variant;
+	const struct rtw89_board_variant *board;
 	const struct rtw89_pci_info *pci_info;
 	const struct rtw89_rfe_parms *rfe_parms;
 	struct rtw89_hal hal;

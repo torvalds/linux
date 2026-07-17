@@ -7701,6 +7701,7 @@ struct rtw89_dev *rtw89_alloc_ieee80211_hw(struct device *device,
 	rtwdev->ops = ops;
 	rtwdev->chip = chip;
 	rtwdev->variant = variant;
+	rtwdev->board = info->board;
 	rtwdev->fw.req.firmware = firmware;
 	rtwdev->fw.fw_format = fw_format;
 	rtwdev->support_mlo = support_mlo;

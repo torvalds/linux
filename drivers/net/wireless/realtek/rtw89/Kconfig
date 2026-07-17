@@ -197,4 +197,11 @@ config RTW89_LEDS
 	imply MAC80211_LEDS
 	default y
 
+config RTW89_LEDS_MC
+	bool
+	depends on RTW89_LEDS
+	depends on LEDS_CLASS_MULTICOLOR
+	imply LEDS_TRIGGER_TIMER
+	default y
+
 endif

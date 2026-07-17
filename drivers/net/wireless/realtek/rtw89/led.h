@@ -21,4 +21,17 @@ static inline void rtw89_led_init(struct rtw89_dev *rtwdev) {}
 static inline void rtw89_led_deinit(struct rtw89_dev *rtwdev) {}
 #endif
 
+#ifdef CONFIG_RTW89_LEDS_MC
+int rtw89_led_mc_init(struct rtw89_dev *rtwdev, const struct rtw89_led_desc *desc);
+void rtw89_led_mc_deinit(struct rtw89_dev *rtwdev);
+#else
+static inline int rtw89_led_mc_init(struct rtw89_dev *rtwdev,
+				    const struct rtw89_led_desc *desc)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void rtw89_led_mc_deinit(struct rtw89_dev *rtwdev) {}
+#endif
+
 #endif

@@ -45,7 +45,7 @@ static int rtw89_led_set(struct led_classdev *led, enum led_brightness brightnes
 	const struct rtw89_led_desc *desc = rtw_led->desc;
 	const struct rtw89_led_gpio_entry *e = &desc->gpios[0];
 
-	if (rtw_led->brightness_cache == brightness) {
+	if (rtw_led->brightness_cache[0] == brightness) {
 		rtw89_debug(rtwdev, RTW89_DBG_LED, "led_set: pin=%u skip (no change)\n",
 			    e->pin);
 		return 0;
@@ -56,7 +56,7 @@ static int rtw89_led_set(struct led_classdev *led, enum led_brightness brightnes
 	rtw89_debug(rtwdev, RTW89_DBG_LED, "led_set: pin=%u brightness=%u\n",
 		    e->pin, brightness);
 	rtw89_led_gpio_set(rtwdev, e, brightness);
-	rtw_led->brightness_cache = brightness;
+	rtw_led->brightness_cache[0] = brightness;
 
 	wiphy_unlock(rtwdev->hw->wiphy);
 
@@ -97,15 +97,27 @@ void rtw89_led_init(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_led_desc *desc = &rtw89_common_led_desc;
 	struct rtw89_led *rtw_led = &rtwdev->led;
+	const struct rtw89_board_variant *board = rtwdev->board;
 	int ret;
+	int i;
 
 	/* single-GPIO monochrome LED is the only supported layout */
 	BUILD_BUG_ON(ARRAY_SIZE(rtw89_common_led_gpios) != 1);
 
-	rtw_led->desc = desc;
-	rtw_led->brightness_cache = LED_OFF;
+	if (board)
+		desc = board->led_desc;
+	if (!desc->n_gpio || desc->n_gpio > RTW89_LED_MAX_NUM)
+		return;
 
-	ret = rtw89_led_sc_init(rtwdev, desc);
+	rtw_led->desc = desc;
+	for (i = 0; i < ARRAY_SIZE(rtw_led->brightness_cache); i++)
+		rtw_led->brightness_cache[i] = LED_OFF;
+
+	if (desc->n_gpio == 1)
+		ret = rtw89_led_sc_init(rtwdev, desc);
+	else
+		ret = rtw89_led_mc_init(rtwdev, desc);
+
 	if (ret)
 		return;
 
@@ -115,9 +127,13 @@ void rtw89_led_init(struct rtw89_dev *rtwdev)
 void rtw89_led_deinit(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_led *rtw_led = &rtwdev->led;
+	const struct rtw89_led_desc *desc = rtw_led->desc;
 
 	if (!rtw_led->registered)
 		return;
 
-	rtw89_led_sc_deinit(rtwdev);
+	if (desc->n_gpio == 1)
+		rtw89_led_sc_deinit(rtwdev);
+	else
+		rtw89_led_mc_deinit(rtwdev);
 }
