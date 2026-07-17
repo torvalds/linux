@@ -463,7 +463,7 @@ int pkvm_pgtable_stage2_map(struct kvm_pgtable *pgt, u64 addr, u64 size,
 					size / PAGE_SIZE, prot);
 	}
 
-	if (WARN_ON(ret))
+	if (ret)
 		return ret;
 
 	swap(mapping, cache->mapping);
