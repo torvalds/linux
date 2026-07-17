@@ -3138,7 +3138,7 @@ static void _fw_set_drv_info(struct rtw89_dev *rtwdev, u8 index)
 		rtw89_fw_h2c_cxdrv_rfk(rtwdev, index);
 		break;
 	case CXDRVINFO_TXPWR:
-		if (ver->drvinfo_ver == 3)
+		if (ver->drvinfo_ver == 3 || ver->drvinfo_ver == 103)
 			index = 4;
 
 		if (ver->fcxtrx == 7 || ver->fcxtrx == 107)
@@ -3147,26 +3147,27 @@ static void _fw_set_drv_info(struct rtw89_dev *rtwdev, u8 index)
 			rtw89_fw_h2c_cxtxpwr_v9(rtwdev, index);
 		break;
 	case CXDRVINFO_FDDT:
-		if (ver->drvinfo_ver == 3)
+		if (ver->drvinfo_ver == 3 || ver->drvinfo_ver == 103)
 			index = 5;
 		else
 			return;
 
-		rtw89_debug(rtwdev, RTW89_DBG_BTC, "drv_info FDDT index=%d\n", index);
 		break;
 	case CXDRVINFO_MLO:
+		if (!ver->fcxmlo || ver->drvinfo_ver == 103)
+			return;
+
 		if (ver->drvinfo_ver == 3)
 			index = 6;
 		else
 			return;
 
-		rtw89_debug(rtwdev, RTW89_DBG_BTC, "drv_info MLO index=%d\n", index);
 		break;
 	case CXDRVINFO_OSI:
-		if (!ver->fcxosi)
+		if (!ver->fcxosi || ver->drvinfo_ver == 103)
 			return;
 
-		if (ver->drvinfo_ver > 1)
+		if (ver->drvinfo_ver == 3)
 			index = 7;
 		else
 			return;
