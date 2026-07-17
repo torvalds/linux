@@ -790,6 +790,11 @@ int is_x86_event(struct perf_event *event)
 	return false;
 }
 
+inline struct pmu *x86_get_static_pmu(void)
+{
+	return &pmu;
+}
+
 struct pmu *x86_get_pmu(unsigned int cpu)
 {
 	struct cpu_hw_events *cpuc = &per_cpu(cpu_hw_events, cpu);
