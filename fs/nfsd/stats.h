@@ -59,20 +59,42 @@ static inline void nfsd_stats_fh_stale_inc(struct nfsd_net *nn,
 		percpu_counter_inc(&exp->ex_stats->counter[EXP_STATS_FH_STALE]);
 }
 
+/**
+ * nfsd_stats_io_read_add - Count number of bytes for an NFS READ
+ * @nn: target network namespace
+ * @exp: target export
+ * @amount: byte count
+ *
+ * These counters are updated on every READ request. Readers use
+ * percpu_counter_sum_positive(), so local batching does not affect
+ * read accuracy.
+ */
 static inline void nfsd_stats_io_read_add(struct nfsd_net *nn,
 					  struct svc_export *exp, s64 amount)
 {
-	percpu_counter_add(&nn->counter[NFSD_STATS_IO_READ], amount);
+	percpu_counter_add_local(&nn->counter[NFSD_STATS_IO_READ], amount);
 	if (exp && exp->ex_stats)
-		percpu_counter_add(&exp->ex_stats->counter[EXP_STATS_IO_READ], amount);
+		percpu_counter_add_local(&exp->ex_stats->counter[EXP_STATS_IO_READ],
+					 amount);
 }
 
+/**
+ * nfsd_stats_io_write_add - Count number of bytes for an NFS WRITE
+ * @nn: target network namespace
+ * @exp: target export
+ * @amount: byte count
+ *
+ * These counters are updated on every WRITE request. Readers use
+ * percpu_counter_sum_positive(), so local batching does not affect
+ * read accuracy.
+ */
 static inline void nfsd_stats_io_write_add(struct nfsd_net *nn,
 					   struct svc_export *exp, s64 amount)
 {
-	percpu_counter_add(&nn->counter[NFSD_STATS_IO_WRITE], amount);
+	percpu_counter_add_local(&nn->counter[NFSD_STATS_IO_WRITE], amount);
 	if (exp && exp->ex_stats)
-		percpu_counter_add(&exp->ex_stats->counter[EXP_STATS_IO_WRITE], amount);
+		percpu_counter_add_local(&exp->ex_stats->counter[EXP_STATS_IO_WRITE],
+					 amount);
 }
 
 static inline void nfsd_stats_payload_misses_inc(struct nfsd_net *nn)
