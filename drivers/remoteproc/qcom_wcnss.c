@@ -521,10 +521,8 @@ static int wcnss_request_irq(struct qcom_wcnss *wcnss,
 					NULL, thread_fn,
 					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 					"wcnss", wcnss);
-	if (ret) {
-		dev_err(&pdev->dev, "request %s IRQ failed\n", name);
+	if (ret)
 		return ret;
-	}
 
 	/* Return the IRQ number if the IRQ was successfully acquired */
 	return irq_number;

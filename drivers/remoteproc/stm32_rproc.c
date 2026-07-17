@@ -682,8 +682,7 @@ static int stm32_rproc_parse_dt(struct platform_device *pdev,
 		err = devm_request_irq(dev, irq, stm32_rproc_wdg, 0,
 				       dev_name(dev), pdev);
 		if (err)
-			return dev_err_probe(dev, err,
-					     "failed to request wdg irq\n");
+			return err;
 
 		ddata->wdg_irq = irq;
 

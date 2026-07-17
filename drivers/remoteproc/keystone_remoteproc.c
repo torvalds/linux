@@ -411,7 +411,7 @@ static int keystone_rproc_probe(struct platform_device *pdev)
 	ret = devm_request_irq(dev, ksproc->irq_ring, keystone_rproc_vring_interrupt,
 			       IRQF_NO_AUTOEN, dev_name(dev), ksproc);
 	if (ret)
-		return dev_err_probe(dev, ret, "failed to request vring interrupt\n");
+		return ret;
 
 	ksproc->irq_fault = platform_get_irq_byname(pdev, "exception");
 	if (ksproc->irq_fault < 0)
@@ -419,7 +419,7 @@ static int keystone_rproc_probe(struct platform_device *pdev)
 	ret = devm_request_irq(dev, ksproc->irq_fault, keystone_rproc_exception_interrupt,
 			       IRQF_NO_AUTOEN, dev_name(dev), ksproc);
 	if (ret)
-		return dev_err_probe(dev, ret, "failed to enable exception interrupt\n");
+		return ret;
 
 	ksproc->kick_gpio = devm_gpiod_get(dev, "kick", GPIOD_ASIS);
 	ret = PTR_ERR_OR_ZERO(ksproc->kick_gpio);

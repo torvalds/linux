@@ -662,8 +662,6 @@ struct qcom_sysmon *qcom_add_sysmon_subdev(struct rproc *rproc,
 						IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 						"q6v5 shutdown-ack", sysmon);
 		if (ret) {
-			dev_err(sysmon->dev,
-				"failed to acquire shutdown-ack IRQ\n");
 			kfree(sysmon);
 			return ERR_PTR(ret);
 		}

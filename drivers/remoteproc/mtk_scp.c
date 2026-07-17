@@ -1246,10 +1246,8 @@ static struct mtk_scp *scp_rproc_init(struct platform_device *pdev,
 					scp_irq_handler, IRQF_ONESHOT,
 					pdev->name, scp);
 
-	if (ret) {
-		dev_err(dev, "failed to request irq\n");
+	if (ret)
 		goto remove_subdev;
-	}
 
 	return scp;
 
