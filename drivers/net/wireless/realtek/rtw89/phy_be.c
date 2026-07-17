@@ -707,13 +707,19 @@ void rtw89_phy_bb_wrap_set_rfsi_bandedge_ch(struct rtw89_dev *rtwdev,
 					    const struct rtw89_chan *chan,
 					    enum rtw89_phy_idx phy_idx)
 {
+	bool cfr_manual_en = false;
 	u32 reg;
 	u32 val;
 
 	val = rtw89_phy_bb_wrap_be_bandedge_decision(rtwdev, chan);
 
+	if (chan->band_type == RTW89_BAND_2G &&
+	    ((chan->primary_channel == 13 && chan->band_width == RTW89_CHANNEL_WIDTH_20) ||
+	     (chan->primary_channel == 11 && chan->band_width == RTW89_CHANNEL_WIDTH_40)))
+		cfr_manual_en = true;
+
 	rtw89_phy_write32_idx(rtwdev, R_TX_CFR_MANUAL_EN_BE4, B_TX_CFR_MANUAL_EN_BE4_M,
-			      chan->primary_channel == 13, phy_idx);
+			      cfr_manual_en, phy_idx);
 
 	reg = rtw89_mac_reg_by_idx(rtwdev, R_BANDEDGE_DBWX_BE4, phy_idx);
 	rtw89_write32_mask(rtwdev, reg, B_BANDEDGE_DBW20_BE4, val & BIT(0));
