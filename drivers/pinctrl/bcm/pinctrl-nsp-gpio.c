@@ -671,11 +671,8 @@ static int nsp_gpio_probe(struct platform_device *pdev)
 		/* Install ISR for this GPIO controller. */
 		ret = devm_request_irq(dev, irq, nsp_gpio_irq_handler,
 				       IRQF_SHARED, "gpio-a", &chip->gc);
-		if (ret) {
-			dev_err(&pdev->dev, "Unable to request IRQ%d: %d\n",
-				irq, ret);
+		if (ret)
 			return ret;
-		}
 
 		girq = &chip->gc.irq;
 		gpio_irq_chip_set_chip(girq, &nsp_gpio_irq_chip);
