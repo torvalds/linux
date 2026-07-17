@@ -447,7 +447,7 @@ static int acpi_bert_data_init(void *th, struct acpi_data_attr *data_attr)
 	struct acpi_table_bert *bert = th;
 
 	if (bert->header.length < sizeof(struct acpi_table_bert) ||
-	    bert->region_length < sizeof(struct acpi_hest_generic_status)) {
+	    bert->region_length < sizeof(struct acpi_bert_region)) {
 		kfree(data_attr);
 		return -EINVAL;
 	}
