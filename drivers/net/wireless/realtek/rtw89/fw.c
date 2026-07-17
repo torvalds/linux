@@ -6256,6 +6256,10 @@ int rtw89_fw_h2c_cxdrv_role_v7(struct rtw89_dev *rtwdev, u8 type)
 	skb_put(skb, len);
 	h2c = (struct rtw89_h2c_cxrole_v7 *)skb->data;
 
+	h2c->hdr.type = type;
+	h2c->hdr.ver = 7;
+	h2c->hdr.len = len - H2C_LEN_CXDRVHDR_V7;
+
 	h2c->r.connect_cnt = r->connect_cnt;
 	h2c->r.link_mode = r->link_mode;
 	h2c->r.link_mode_chg = r->link_mode_chg;
@@ -6324,7 +6328,7 @@ int rtw89_fw_h2c_cxdrv_role_v8(struct rtw89_dev *rtwdev, u8 type)
 	h2c = (struct rtw89_h2c_cxrole_v8 *)skb->data;
 
 	h2c->hdr.type = type;
-	h2c->hdr.ver = rtwdev->btc.ver->fwlrole;
+	h2c->hdr.ver = 8;
 	h2c->hdr.len = len - H2C_LEN_CXDRVHDR_V7;
 	h2c->r.connect_cnt = r->connect_cnt;
 	h2c->r.link_mode = r->link_mode;
@@ -6398,7 +6402,7 @@ int rtw89_fw_h2c_cxdrv_role_v10(struct rtw89_dev *rtwdev, u8 type)
 	h2c = (struct rtw89_h2c_cxrole_v10 *)skb->data;
 
 	h2c->hdr.type = type;
-	h2c->hdr.ver = rtwdev->btc.ver->fwlrole;
+	h2c->hdr.ver = 10;
 	h2c->hdr.len = len - H2C_LEN_CXDRVHDR_V7;
 
 	for (j = RTW89_MAC_0; j <= RTW89_MAC_1; j++) {
