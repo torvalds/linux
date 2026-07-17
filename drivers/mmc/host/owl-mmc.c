@@ -635,11 +635,8 @@ static int owl_mmc_probe(struct platform_device *pdev)
 
 	ret = devm_request_irq(&pdev->dev, owl_host->irq, owl_irq_handler,
 			       0, dev_name(&pdev->dev), owl_host);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to request irq %d\n",
-			owl_host->irq);
+	if (ret)
 		goto err_release_channel;
-	}
 
 	ret = mmc_add_host(mmc);
 	if (ret) {

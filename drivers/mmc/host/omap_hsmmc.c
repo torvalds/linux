@@ -1915,10 +1915,8 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	/* Request IRQ for MMC operations */
 	ret = devm_request_irq(&pdev->dev, host->irq, omap_hsmmc_irq, 0,
 			mmc_hostname(mmc), host);
-	if (ret) {
-		dev_err(mmc_dev(host->mmc), "Unable to grab HSMMC IRQ\n");
+	if (ret)
 		goto err_irq;
-	}
 
 	ret = omap_hsmmc_reg_get(host);
 	if (ret)

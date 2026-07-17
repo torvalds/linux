@@ -683,11 +683,8 @@ static int meson_mx_mmc_probe(struct platform_device *pdev)
 					meson_mx_mmc_irq,
 					meson_mx_mmc_irq_thread, IRQF_ONESHOT,
 					NULL, host);
-	if (ret) {
-		dev_err_probe(host->controller_dev, ret,
-			      "Failed to request IRQ\n");
+	if (ret)
 		goto error_unregister_slot_pdev;
-	}
 
 	core_clk = devm_clk_get_enabled(host->controller_dev, "core");
 	if (IS_ERR(core_clk)) {
