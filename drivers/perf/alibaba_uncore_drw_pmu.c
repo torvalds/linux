@@ -449,11 +449,8 @@ static struct ali_drw_pmu_irq *__ali_drw_pmu_init_irq(struct platform_device
 	 */
 	ret = devm_request_irq(&pdev->dev, irq_num, ali_drw_pmu_isr,
 			       IRQF_SHARED, dev_name(&pdev->dev), irq);
-	if (ret < 0) {
-		dev_err(&pdev->dev,
-			"Fail to request IRQ:%d ret:%d\n", irq_num, ret);
+	if (ret < 0)
 		goto out_free;
-	}
 
 	ret = irq_set_affinity_hint(irq_num, cpumask_of(irq->cpu));
 	if (ret)

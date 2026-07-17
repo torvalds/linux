@@ -767,11 +767,8 @@ static int qcom_l3_cache_pmu_probe(struct platform_device *pdev)
 
 	ret = devm_request_irq(&pdev->dev, ret, qcom_l3_cache__handle_irq, 0,
 			       name, l3pmu);
-	if (ret) {
-		dev_err(&pdev->dev, "Request for IRQ failed for slice @%pa\n",
-			&memrc->start);
+	if (ret)
 		return ret;
-	}
 
 	/* Add this instance to the list used by the offline callback */
 	ret = cpuhp_state_add_instance(CPUHP_AP_PERF_ARM_QCOM_L3_ONLINE, &l3pmu->node);

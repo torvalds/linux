@@ -830,10 +830,8 @@ static int ddr_perf_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, irq, ddr_perf_irq_handler,
 			       IRQF_NOBALANCING | IRQF_NO_THREAD,
 			       DDR_CPUHP_CB_NAME, pmu);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Request irq failed: %d", ret);
+	if (ret < 0)
 		goto ddr_perf_err;
-	}
 
 	pmu->irq = irq;
 	ret = irq_set_affinity(pmu->irq, cpumask_of(pmu->cpu));
