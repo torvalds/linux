@@ -1935,8 +1935,8 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 			dm->wl_fw_cx_offload = !!le32_to_cpu(prpt->v4.wl_fw_info.cx_offload);
 
 			for (i = RTW89_PHY_0; i < RTW89_PHY_NUM; i++)
-				memcpy(&dm->gnt_set[i], &prpt->v4.gnt_val[i],
-				       sizeof(dm->gnt_set[i]));
+				memcpy(&dm->gnt_val[i], &prpt->v4.gnt_val[i],
+				       sizeof(dm->gnt_val[i]));
 
 			bt->bcnt[BTC_BCNT_HIPRI_TX] =
 				le32_to_cpu(prpt->v4.bt_cnt[BTC_BCNT_HI_TX]);
@@ -1967,8 +1967,8 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 			dm->wl_fw_cx_offload = 0;
 
 			for (i = RTW89_PHY_0; i < RTW89_PHY_NUM; i++)
-				memcpy(&dm->gnt_set[i], &prpt->v5.gnt_val[i],
-				       sizeof(dm->gnt_set[i]));
+				memcpy(&dm->gnt_val[i], &prpt->v5.gnt_val[i],
+				       sizeof(dm->gnt_val[i]));
 
 			bt->bcnt[BTC_BCNT_HIPRI_TX] =
 				le16_to_cpu(prpt->v5.bt_cnt[BTC_BCNT_HI_TX]);
@@ -1994,8 +1994,8 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 			dm->wl_fw_cx_offload = 0;
 
 			for (i = RTW89_PHY_0; i < RTW89_PHY_NUM; i++)
-				memcpy(&dm->gnt_set[i], &prpt->v105.gnt_val[i],
-				       sizeof(dm->gnt_set[i]));
+				memcpy(&dm->gnt_val[i], &prpt->v105.gnt_val[i],
+				       sizeof(dm->gnt_val[i]));
 
 			bt->bcnt[BTC_BCNT_HIPRI_TX] =
 				le16_to_cpu(prpt->v105.bt_cnt[BTC_BCNT_HI_TX_V105]);
@@ -2020,8 +2020,8 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 			wl->ver_info.fw = le32_to_cpu(prpt->v7.rpt_info.fw_ver);
 
 			for (i = RTW89_PHY_0; i < RTW89_PHY_NUM; i++)
-				memcpy(&dm->gnt_set[i], &prpt->v7.gnt_val[i],
-				       sizeof(dm->gnt_set[i]));
+				memcpy(&dm->gnt_val[i], &prpt->v7.gnt_val[i],
+				       sizeof(dm->gnt_val[i]));
 
 			bt->bcnt[BTC_BCNT_HIPRI_TX] =
 				le16_to_cpu(prpt->v7.bt_cnt[BTC_BCNT_HI_TX_V105]);
@@ -2052,8 +2052,8 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 			wl->ver_info.fw = le32_to_cpu(prpt->v8.rpt_info.fw_ver);
 
 			for (i = RTW89_PHY_0; i < RTW89_PHY_NUM; i++)
-				memcpy(&dm->gnt_set[i], &prpt->v8.gnt_val[i],
-				       sizeof(dm->gnt_set[i]));
+				memcpy(&dm->gnt_val[i], &prpt->v8.gnt_val[i],
+				       sizeof(dm->gnt_val[i]));
 
 			bt->bcnt[BTC_BCNT_HIPRI_TX] =
 				le16_to_cpu(prpt->v8.bt_cnt[BTC_BCNT_HI_TX_V105]);
@@ -2137,8 +2137,8 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 			       sizeof(wl->ver_info.build_date));
 
 			for (i = RTW89_PHY_0; i < RTW89_PHY_NUM; i++)
-				memcpy(&dm->gnt_set[i], &prpt->v11.gnt_val[i][0],
-				       sizeof(dm->gnt_set[i]));
+				memcpy(&dm->gnt_val[i], &prpt->v11.gnt_val[i][0],
+				       sizeof(dm->gnt_val[i]));
 
 			for (i = BTC_BT_1ST; i <= BTC_BT_EXT; i++) {
 				if (i == BTC_BT_EXT) {
