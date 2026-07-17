@@ -91,8 +91,7 @@ static unsigned char mincore_swap(swp_entry_t entry, bool shmem)
 	folio = swap_cache_get_folio(entry);
 	if (shmem)
 		put_swap_device(si);
-	/* The swap cache space contains either folio, shadow or NULL */
-	if (folio && !xa_is_value(folio)) {
+	if (folio) {
 		present = folio_test_uptodate(folio);
 		folio_put(folio);
 	}
