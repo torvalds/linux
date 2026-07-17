@@ -93,7 +93,7 @@ static unsigned char mincore_swap(swp_entry_t entry, bool shmem)
  */
 static unsigned char mincore_page(struct address_space *mapping, pgoff_t index)
 {
-	unsigned char present = 0;
+	unsigned char present;
 	struct folio *folio;
 
 	/*
@@ -103,17 +103,16 @@ static unsigned char mincore_page(struct address_space *mapping, pgoff_t index)
 	 * tmpfs's .fault). So swapped out tmpfs mappings are tested here.
 	 */
 	folio = filemap_get_entry(mapping, index);
-	if (folio) {
-		if (xa_is_value(folio)) {
-			if (shmem_mapping(mapping))
-				return mincore_swap(radix_to_swp_entry(folio),
-						    true);
-			else
-				return 0;
-		}
-		present = folio_test_uptodate(folio);
-		folio_put(folio);
+	if (!folio)
+		return 0;
+
+	if (xa_is_value(folio)) {
+		if (!shmem_mapping(mapping))
+			return 0;
+		return mincore_swap(radix_to_swp_entry(folio), true);
 	}
+	present = folio_test_uptodate(folio);
+	folio_put(folio);
 
 	return present;
 }
