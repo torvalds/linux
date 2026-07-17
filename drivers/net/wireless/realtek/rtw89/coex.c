@@ -1133,7 +1133,7 @@ static void _reset_btc_var(struct rtw89_dev *rtwdev, u8 type)
 		/* set the slot_now table to original */
 		btc->dm.tdma_now = t_def[CXTD_OFF];
 		btc->dm.tdma = t_def[CXTD_OFF];
-		if (ver->fcxslots >= 7) {
+		if (ver->fcxslots >= 2) {
 			for (i = 0; i < ARRAY_SIZE(s_def); i++) {
 				btc->dm.slot.v7[i].dur = s_def[i].dur;
 				btc->dm.slot.v7[i].cxtype = s_def[i].cxtype;
@@ -1721,6 +1721,10 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 			pfinfo = &pfwinfo->rpt_fbtc_slots.finfo.v1;
 			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_slots.finfo.v1);
 			fwsubver->fcxslots = pfwinfo->rpt_fbtc_slots.finfo.v1.fver;
+		} else if (ver->fcxslots == 2) {
+			pfinfo = &pfwinfo->rpt_fbtc_slots.finfo.v2;
+			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_slots.finfo.v2);
+			fwsubver->fcxslots = pfwinfo->rpt_fbtc_slots.finfo.v2.fver;
 		} else if (ver->fcxslots == 7) {
 			pfinfo = &pfwinfo->rpt_fbtc_slots.finfo.v7;
 			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_slots.finfo.v7);
@@ -2232,6 +2236,15 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 				     memcmp(dm->slot_now.v7,
 					    pfwinfo->rpt_fbtc_slots.finfo.v7.slot,
 					    sizeof(dm->slot_now.v7)));
+		} else if (ver->fcxslots == 2) {
+			rtw89_debug(rtwdev, RTW89_DBG_BTC,
+				    "[BTC], %s(): check %d %zu\n",
+				    __func__, BTC_DCNT_SLOT_NONSYNC,
+				    sizeof(dm->slot_now.v7));
+			_chk_btc_err(rtwdev, BTC_DCNT_SLOT_NONSYNC,
+				     memcmp(dm->slot_now.v7,
+					    pfwinfo->rpt_fbtc_slots.finfo.v2.slot,
+					    sizeof(dm->slot_now.v7)));
 		} else if (ver->fcxslots == 1) {
 			rtw89_debug(rtwdev, RTW89_DBG_BTC,
 				    "[BTC], %s(): check %d %zu\n",
@@ -2687,7 +2700,7 @@ static void _append_slot(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 
-	if (btc->ver->fcxslots == 7)
+	if (btc->ver->fcxslots == 2 || btc->ver->fcxslots == 7)
 		_append_slot_v7(rtwdev);
 	else
 		_append_slot_v1(rtwdev);
@@ -2902,7 +2915,7 @@ static void rtw89_btc_fw_set_slots(struct rtw89_dev *rtwdev)
 	struct rtw89_btc_dm *dm = &btc->dm;
 	u16 n, len;
 
-	if (ver->fcxslots == 7) {
+	if (ver->fcxslots == 2 || ver->fcxslots == 7) {
 		len = sizeof(*tlv_v7) + sizeof(dm->slot.v7);
 		tlv_v7 = kmalloc(len, GFP_KERNEL);
 		if (!tlv_v7)
@@ -3096,7 +3109,7 @@ static void _fw_set_policy(struct rtw89_dev *rtwdev, u16 policy_type,
 			   btc->policy, btc->policy_len);
 	if (!ret) {
 		memcpy(&dm->tdma_now, &dm->tdma, sizeof(dm->tdma_now));
-		if (btc->ver->fcxslots == 7)
+		if (btc->ver->fcxslots == 2 || btc->ver->fcxslots == 7)
 			memcpy(&dm->slot_now.v7, &dm->slot.v7, sizeof(dm->slot_now.v7));
 		else
 			memcpy(&dm->slot_now.v1, &dm->slot.v1, sizeof(dm->slot_now.v1));
@@ -4404,7 +4417,6 @@ void rtw89_btc_set_policy(struct rtw89_dev *rtwdev, u16 policy_type)
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_dm *dm = &btc->dm;
 	struct rtw89_btc_fbtc_tdma *t = &dm->tdma;
-	struct rtw89_btc_fbtc_slot *s = dm->slot.v1;
 	u8 type;
 	u32 tbl_w1, tbl_b1, tbl_b4;
 	bool tdma_on = false;
@@ -4428,14 +4440,16 @@ void rtw89_btc_set_policy(struct rtw89_dev *rtwdev, u16 policy_type)
 	switch (type) {
 	case BTC_CXP_USERDEF0:
 		*t = t_def[CXTD_OFF];
-		s[CXST_OFF] = s_def[CXST_OFF];
+		_slot_set_le(btc, CXST_OFF, s_def[CXST_OFF].dur,
+			     s_def[CXST_OFF].cxtbl, s_def[CXST_OFF].cxtype);
 		_slot_set_tbl(btc, CXST_OFF, cxtbl[2]);
 		btc->update_policy_force = true;
 		break;
 	case BTC_CXP_OFF: /* TDMA off */
 		tdma_on = false;
 		*t = t_def[CXTD_OFF];
-		s[CXST_OFF] = s_def[CXST_OFF];
+		_slot_set_le(btc, CXST_OFF, s_def[CXST_OFF].dur,
+			     s_def[CXST_OFF].cxtbl, s_def[CXST_OFF].cxtype);
 
 		switch (policy_type) {
 		case BTC_CXP_OFF_BT:
@@ -4498,16 +4512,23 @@ void rtw89_btc_set_policy(struct rtw89_dev *rtwdev, u16 policy_type)
 		*t = t_def[CXTD_OFF_EXT];
 		switch (policy_type) {
 		case BTC_CXP_OFFE_DEF:
-			s[CXST_E2G] = s_def[CXST_E2G];
-			s[CXST_E5G] = s_def[CXST_E5G];
-			s[CXST_EBT] = s_def[CXST_EBT];
-			s[CXST_ENULL] = s_def[CXST_ENULL];
+			_slot_set_le(btc, CXST_E2G, s_def[CXST_E2G].dur,
+				     s_def[CXST_E2G].cxtbl, s_def[CXST_E2G].cxtype);
+			_slot_set_le(btc, CXST_E5G, s_def[CXST_E5G].dur,
+				     s_def[CXST_E5G].cxtbl, s_def[CXST_E5G].cxtype);
+			_slot_set_le(btc, CXST_EBT, s_def[CXST_EBT].dur,
+				     s_def[CXST_EBT].cxtbl, s_def[CXST_EBT].cxtype);
+			_slot_set_le(btc, CXST_ENULL, s_def[CXST_ENULL].dur,
+				     s_def[CXST_ENULL].cxtbl, s_def[CXST_ENULL].cxtype);
 			break;
 		case BTC_CXP_OFFE_DEF2:
 			_slot_set(btc, CXST_E2G, 20, cxtbl[1], SLOT_ISO);
-			s[CXST_E5G] = s_def[CXST_E5G];
-			s[CXST_EBT] = s_def[CXST_EBT];
-			s[CXST_ENULL] = s_def[CXST_ENULL];
+			_slot_set_le(btc, CXST_E5G, s_def[CXST_E5G].dur,
+				     s_def[CXST_E5G].cxtbl, s_def[CXST_E5G].cxtype);
+			_slot_set_le(btc, CXST_EBT, s_def[CXST_EBT].dur,
+				     s_def[CXST_EBT].cxtbl, s_def[CXST_EBT].cxtype);
+			_slot_set_le(btc, CXST_ENULL, s_def[CXST_ENULL].dur,
+				     s_def[CXST_ENULL].cxtbl, s_def[CXST_ENULL].cxtype);
 			break;
 		}
 		break;
@@ -10081,6 +10102,7 @@ static int _show_fbtc_tdma(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 static int _show_fbtc_slots(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
+	const struct rtw89_btc_ver *ver = btc->ver;
 	struct rtw89_btc_dm *dm = &btc->dm;
 	char *p = buf, *end = buf + bufsz;
 	u16 dur, cxtype;
@@ -10088,11 +10110,11 @@ static int _show_fbtc_slots(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 	u8 i = 0;
 
 	for (i = 0; i < CXST_MAX; i++) {
-		if (btc->ver->fcxslots == 1) {
+		if (ver->fcxslots == 1) {
 			dur = le16_to_cpu(dm->slot_now.v1[i].dur);
 			tbl = le32_to_cpu(dm->slot_now.v1[i].cxtbl);
 			cxtype = le16_to_cpu(dm->slot_now.v1[i].cxtype);
-		} else if (btc->ver->fcxslots == 7) {
+		} else if (ver->fcxslots == 2 || ver->fcxslots == 7) {
 			dur = le16_to_cpu(dm->slot_now.v7[i].dur);
 			tbl = le32_to_cpu(dm->slot_now.v7[i].cxtbl);
 			cxtype = le16_to_cpu(dm->slot_now.v7[i].cxtype);

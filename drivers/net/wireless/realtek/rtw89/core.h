@@ -3093,6 +3093,14 @@ struct rtw89_btc_fbtc_slot_v7 {
 	__le32 cxtbl;
 } __packed;
 
+struct rtw89_btc_fbtc_slots_v2 {
+	u8 fver; /* btc_ver::fcxslots */
+	u8 tbl_num;
+	__le16 rsvd;
+	__le32 update_map;
+	struct rtw89_btc_fbtc_slot_v7 slot[CXST_MAX];
+} __packed;
+
 struct rtw89_btc_fbtc_slot_u16 {
 	__le16 dur; /* slot duration */
 	__le16 cxtype;
@@ -3118,6 +3126,7 @@ struct rtw89_btc_fbtc_slots_v7 {
 
 union rtw89_btc_fbtc_slots_info {
 	struct rtw89_btc_fbtc_slots v1;
+	struct rtw89_btc_fbtc_slots_v2 v2;
 	struct rtw89_btc_fbtc_slots_v7 v7;
 } __packed;
 

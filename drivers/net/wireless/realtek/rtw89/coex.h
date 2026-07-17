@@ -424,7 +424,7 @@ void _slot_set_le(struct rtw89_btc *btc, u8 sid, __le16 dura, __le32 tbl, __le16
 		btc->dm.slot.v1[sid].dur = dura;
 		btc->dm.slot.v1[sid].cxtbl = tbl;
 		btc->dm.slot.v1[sid].cxtype = type;
-	} else if (btc->ver->fcxslots == 7) {
+	} else if (btc->ver->fcxslots == 2 || btc->ver->fcxslots == 7) {
 		btc->dm.slot.v7[sid].dur = dura;
 		btc->dm.slot.v7[sid].cxtype = type;
 		btc->dm.slot.v7[sid].cxtbl = tbl;
@@ -442,7 +442,7 @@ void _slot_set_dur(struct rtw89_btc *btc, u8 sid, u16 dura)
 {
 	if (btc->ver->fcxslots == 1)
 		btc->dm.slot.v1[sid].dur = cpu_to_le16(dura);
-	else if (btc->ver->fcxslots == 7)
+	else if (btc->ver->fcxslots == 2 || btc->ver->fcxslots == 7)
 		btc->dm.slot.v7[sid].dur = cpu_to_le16(dura);
 }
 
@@ -451,7 +451,7 @@ void _slot_set_type(struct rtw89_btc *btc, u8 sid, u16 type)
 {
 	if (btc->ver->fcxslots == 1)
 		btc->dm.slot.v1[sid].cxtype = cpu_to_le16(type);
-	else if (btc->ver->fcxslots == 7)
+	else if (btc->ver->fcxslots == 2 || btc->ver->fcxslots == 7)
 		btc->dm.slot.v7[sid].cxtype = cpu_to_le16(type);
 }
 
@@ -460,7 +460,7 @@ void _slot_set_tbl(struct rtw89_btc *btc, u8 sid, u32 tbl)
 {
 	if (btc->ver->fcxslots == 1)
 		btc->dm.slot.v1[sid].cxtbl = cpu_to_le32(tbl);
-	else if (btc->ver->fcxslots == 7)
+	else if (btc->ver->fcxslots == 2 || btc->ver->fcxslots == 7)
 		btc->dm.slot.v7[sid].cxtbl = cpu_to_le32(tbl);
 }
 
