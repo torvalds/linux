@@ -135,6 +135,10 @@
 	status = "okay";
 };
 
+&serdes_1 {
+	status = "okay";
+};
+
 &uart0 {
 	status = "okay";
 };
