@@ -198,10 +198,6 @@ struct hal_com_data {
 	/*  Store the original power by rate value of the base of each rate section of rf path A & B */
 	u8 TxPwrByRateBase2_4G[MAX_RF_PATH_NUM][MAX_RATE_SECTION_NUM];
 
-	/*  Read/write are allow for following hardware information variables */
-	u8 pwrGroupCnt;
-	u32 MCSTxPowerLevelOriginalOffset[MAX_PG_GROUP][16];
-
 	u8 CrystalCap;
 
 	u8 TypeGLNA;
