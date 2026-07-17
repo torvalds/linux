@@ -2024,11 +2024,8 @@ static int omap_sham_probe(struct platform_device *pdev)
 
 	err = devm_request_irq(dev, dd->irq, dd->pdata->intr_hdlr,
 			       IRQF_TRIGGER_NONE, dev_name(dev), dd);
-	if (err) {
-		dev_err(dev, "unable to request irq %d, err = %d\n",
-			dd->irq, err);
+	if (err)
 		goto data_err;
-	}
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);

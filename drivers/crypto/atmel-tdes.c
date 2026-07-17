@@ -968,10 +968,8 @@ static int atmel_tdes_probe(struct platform_device *pdev)
 
 	err = devm_request_irq(&pdev->dev, tdes_dd->irq, atmel_tdes_irq,
 			       IRQF_SHARED, "atmel-tdes", tdes_dd);
-	if (err) {
-		dev_err(dev, "unable to request tdes irq.\n");
+	if (err)
 		goto err_tasklet_kill;
-	}
 
 	/* Initializing the clock */
 	tdes_dd->iclk = devm_clk_get(&pdev->dev, "tdes_clk");

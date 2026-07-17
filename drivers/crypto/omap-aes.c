@@ -1114,10 +1114,8 @@ static int omap_aes_probe(struct platform_device *pdev)
 
 		err = devm_request_irq(dev, irq, omap_aes_irq, 0,
 				dev_name(dev), dd);
-		if (err) {
-			dev_err(dev, "Unable to grab omap-aes IRQ\n");
+		if (err)
 			goto err_irq;
-		}
 	}
 
 	spin_lock_init(&dd->lock);
