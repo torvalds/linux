@@ -16,19 +16,39 @@
 struct proc_dir_entry *nfsd_proc_stat_init(struct net *net);
 void nfsd_proc_stat_shutdown(struct net *net);
 
+/**
+ * nfsd_stats_rc_hits_inc - Count a duplicate reply cache hit
+ * @nn: target network namespace
+ *
+ * These reply cache counters are updated once per RPC. Readers use
+ * percpu_counter_sum_positive(), so local batching does not affect
+ * read accuracy.
+ */
 static inline void nfsd_stats_rc_hits_inc(struct nfsd_net *nn)
 {
-	percpu_counter_inc(&nn->counter[NFSD_STATS_RC_HITS]);
+	percpu_counter_add_local(&nn->counter[NFSD_STATS_RC_HITS], 1);
 }
 
+/**
+ * nfsd_stats_rc_misses_inc - Count a duplicate reply cache miss
+ * @nn: target network namespace
+ *
+ * See nfsd_stats_rc_hits_inc() for batching rationale.
+ */
 static inline void nfsd_stats_rc_misses_inc(struct nfsd_net *nn)
 {
-	percpu_counter_inc(&nn->counter[NFSD_STATS_RC_MISSES]);
+	percpu_counter_add_local(&nn->counter[NFSD_STATS_RC_MISSES], 1);
 }
 
+/**
+ * nfsd_stats_rc_nocache_inc - Count a request not cached in the reply cache
+ * @nn: target network namespace
+ *
+ * See nfsd_stats_rc_hits_inc() for batching rationale.
+ */
 static inline void nfsd_stats_rc_nocache_inc(struct nfsd_net *nn)
 {
-	percpu_counter_inc(&nn->counter[NFSD_STATS_RC_NOCACHE]);
+	percpu_counter_add_local(&nn->counter[NFSD_STATS_RC_NOCACHE], 1);
 }
 
 static inline void nfsd_stats_fh_stale_inc(struct nfsd_net *nn,
