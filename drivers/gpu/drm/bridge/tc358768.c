@@ -479,6 +479,7 @@ static int tc358768_dsi_host_attach(struct mipi_dsi_host *host,
 	if (panel) {
 		bridge = drm_panel_bridge_add_typed(panel,
 						    DRM_MODE_CONNECTOR_DSI);
+		drm_panel_put(panel);
 		if (IS_ERR(bridge))
 			return PTR_ERR(bridge);
 

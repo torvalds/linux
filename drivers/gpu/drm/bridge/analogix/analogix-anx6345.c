@@ -663,6 +663,11 @@ static bool anx6345_get_chip_id(struct anx6345 *anx6345)
 	return false;
 }
 
+static void anx6345_panel_put_action(void *data)
+{
+	drm_panel_put(data);
+}
+
 static int anx6345_i2c_probe(struct i2c_client *client)
 {
 	struct anx6345 *anx6345;
@@ -690,6 +695,13 @@ static int anx6345_i2c_probe(struct i2c_client *client)
 
 	if (err)
 		DRM_DEBUG("No panel found\n");
+
+	if (anx6345->panel) {
+		err = devm_add_action_or_reset(dev, anx6345_panel_put_action,
+					       anx6345->panel);
+		if (err)
+			return err;
+	}
 
 	/* 1.2V digital core power regulator  */
 	anx6345->dvdd12 = devm_regulator_get(dev, "dvdd12");
