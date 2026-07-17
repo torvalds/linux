@@ -66,6 +66,7 @@ extern void __init swiotlb_update_mem_attributes(void);
  * @node:	Member of the IO TLB memory pool list.
  * @rcu:	RCU head for swiotlb_dyn_free().
  * @transient:  %true if transient memory pool.
+ * @cc_shared:	%true if the pool memory is shared for confidential computing.
  */
 struct io_tlb_pool {
 	phys_addr_t start;
@@ -81,6 +82,7 @@ struct io_tlb_pool {
 	struct list_head node;
 	struct rcu_head rcu;
 	bool transient;
+	bool cc_shared;
 #endif
 };
 
@@ -92,6 +94,7 @@ struct io_tlb_pool {
  * @debugfs:	The dentry to debugfs.
  * @force_bounce: %true if swiotlb bouncing is forced
  * @for_alloc:  %true if the pool is used for memory allocation
+ * @cc_shared:	%true if the pool memory is shared for confidential computing.
  * @can_grow:	%true if more pools can be allocated dynamically.
  * @phys_limit:	Maximum allowed physical address.
  * @lock:	Lock to synchronize changes to the list.
@@ -111,6 +114,7 @@ struct io_tlb_mem {
 	struct dentry *debugfs;
 	bool force_bounce;
 	bool for_alloc;
+	bool cc_shared;
 #ifdef CONFIG_SWIOTLB_DYNAMIC
 	bool can_grow;
 	u64 phys_limit;
@@ -282,7 +286,8 @@ static inline void swiotlb_sync_single_for_cpu(struct device *dev,
 extern void swiotlb_print_info(void);
 
 #ifdef CONFIG_DMA_RESTRICTED_POOL
-struct page *swiotlb_alloc(struct device *dev, size_t size);
+struct page *swiotlb_alloc(struct device *dev, size_t size,
+		unsigned long attrs);
 bool swiotlb_free(struct device *dev, struct page *page, size_t size);
 void swiotlb_free_from_pool(struct device *dev,
 		phys_addr_t tlb_addr, struct io_tlb_pool *pool);
@@ -292,7 +297,8 @@ static inline bool is_swiotlb_for_alloc(struct device *dev)
 	return dev->dma_io_tlb_mem->for_alloc;
 }
 #else
-static inline struct page *swiotlb_alloc(struct device *dev, size_t size)
+static inline struct page *swiotlb_alloc(struct device *dev, size_t size,
+		unsigned long attrs)
 {
 	return NULL;
 }

@@ -77,6 +77,10 @@ static inline dma_addr_t dma_range_map_max(const struct bus_dma_region *map)
 #ifndef phys_to_dma_unencrypted
 #define phys_to_dma_unencrypted		phys_to_dma
 #endif
+
+#ifndef phys_to_dma_encrypted
+#define phys_to_dma_encrypted		phys_to_dma
+#endif
 #else
 static inline dma_addr_t __phys_to_dma(struct device *dev, phys_addr_t paddr)
 {
@@ -89,6 +93,12 @@ static inline dma_addr_t phys_to_dma_unencrypted(struct device *dev,
 						phys_addr_t paddr)
 {
 	return dma_addr_unencrypted(__phys_to_dma(dev, paddr));
+}
+
+static inline dma_addr_t phys_to_dma_encrypted(struct device *dev,
+		phys_addr_t paddr)
+{
+	return dma_addr_encrypted(__phys_to_dma(dev, paddr));
 }
 /*
  * If memory encryption is supported, phys_to_dma will set the memory encryption
