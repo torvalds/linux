@@ -265,7 +265,7 @@ static void release_pmc_hardware(void) {}
 
 #endif
 
-bool check_hw_exists(struct pmu *pmu, unsigned long *cntr_mask,
+bool check_hw_exists(unsigned long *cntr_mask,
 		     unsigned long *fixed_cntr_mask)
 {
 	u64 val, val_fail = -1, val_new= ~0;
@@ -297,8 +297,6 @@ bool check_hw_exists(struct pmu *pmu, unsigned long *cntr_mask,
 		if (ret)
 			goto msr_fail;
 		for_each_set_bit(i, fixed_cntr_mask, X86_PMC_IDX_MAX) {
-			if (fixed_counter_disabled(i, pmu))
-				continue;
 			if (val & (0x03ULL << i*4)) {
 				bios_fail = 1;
 				val_fail = val;
@@ -1618,8 +1616,6 @@ void perf_event_print_debug(void)
 			cpu, idx, prev_left);
 	}
 	for_each_set_bit(idx, fixed_cntr_mask, X86_PMC_IDX_MAX) {
-		if (fixed_counter_disabled(idx, cpuc->pmu))
-			continue;
 		rdmsrq(x86_pmu_fixed_ctr_addr(idx), pmc_count);
 
 		pr_info("CPU#%d: fixed-PMC%d count: %016llx\n",
@@ -2180,7 +2176,7 @@ static int __init init_hw_perf_events(void)
 	pmu_check_apic();
 
 	/* sanity check that the hardware exists or is emulated */
-	if (!check_hw_exists(&pmu, x86_pmu.cntr_mask, x86_pmu.fixed_cntr_mask))
+	if (!check_hw_exists(x86_pmu.cntr_mask, x86_pmu.fixed_cntr_mask))
 		goto out_bad_pmu;
 
 	pr_cont("%s PMU driver.\n", x86_pmu.name);
