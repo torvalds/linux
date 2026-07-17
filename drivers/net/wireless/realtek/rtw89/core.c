@@ -6418,6 +6418,9 @@ static int rtw89_core_set_supported_band(struct rtw89_dev *rtwdev)
 	u8 support_bands = rtwdev->chip->support_bands;
 	int ret;
 
+	if (test_bit(RTW89_QUIRK_DISABLE_2GHZ, rtwdev->quirks))
+		support_bands &= ~BIT(NL80211_BAND_2GHZ);
+
 	if (support_bands & BIT(NL80211_BAND_2GHZ)) {
 		sband = rtw89_core_sband_dup(rtwdev, &rtw89_sband_2ghz);
 		if (!sband)

@@ -97,7 +97,8 @@ static const struct rtw89_driver_info rtw89_8852cu_valve_info = {
 	.variant = NULL,
 	.board = &rtw89_8852cu_valve_board,
 	.quirks = NULL,
-	.dev_id_quirks = BIT(RTW89_QUIRK_HW_INFO_SYSFS),
+	.dev_id_quirks = BIT(RTW89_QUIRK_HW_INFO_SYSFS) |
+			 BIT(RTW89_QUIRK_DISABLE_2GHZ),
 	.bus = {
 		.usb = &rtw8852c_usb_info,
 	},
