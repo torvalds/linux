@@ -188,8 +188,8 @@ attacks:
 - Non-root users cannot securely remove encryption keys.
 
 All the above problems are fixed with v2 encryption policies.  For
-this reason among others, it is recommended to use v2 encryption
-policies on all new encrypted directories.
+this reason among others, v1 encryption policies are deprecated.  Use
+v2 encryption policies on all new encrypted directories.
 
 Key hierarchy
 =============
@@ -305,7 +305,8 @@ included in the IV.  Moreover:
 
 - For v2 encryption policies, the encryption is done with a per-mode
   key derived using the KDF.  Users may use the same master key for
-  other v2 encryption policies.
+  other v2 encryption policies.  However, using a distinct master key
+  for each policy is still the best practice and normal usage.
 
 IV_INO_LBLK_64 policies
 -----------------------
@@ -604,7 +605,9 @@ This structure must be initialized as follows:
   struct fscrypt_policy_v1 is used or FSCRYPT_POLICY_V2 (2) if
   struct fscrypt_policy_v2 is used. (Note: we refer to the original
   policy version as "v1", though its version code is really 0.)
-  For new encrypted directories, use v2 policies.
+  For new encrypted directories, use v2 policies, which are supported
+  since Linux v5.4.  v1 policies are deprecated and have several
+  usability and security problems.
 
 - ``contents_encryption_mode`` and ``filenames_encryption_mode`` must
   be set to constants from ``<linux/fscrypt.h>`` which identify the
@@ -739,17 +742,6 @@ FS_IOC_SET_ENCRYPTION_POLICY can fail with the following errors:
 Getting an encryption policy
 ----------------------------
 
-Two ioctls are available to get a file's encryption policy:
-
-- `FS_IOC_GET_ENCRYPTION_POLICY_EX`_
-- `FS_IOC_GET_ENCRYPTION_POLICY`_
-
-The extended (_EX) version of the ioctl is more general and is
-recommended to use when possible.  However, on older kernels only the
-original ioctl is available.  Applications should try the extended
-version, and if it fails with ENOTTY fall back to the original
-version.
-
 FS_IOC_GET_ENCRYPTION_POLICY_EX
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -783,7 +775,6 @@ FS_IOC_GET_ENCRYPTION_POLICY_EX can fail with the following errors:
 - ``ENODATA``: the file is not encrypted
 - ``ENOTTY``: this type of filesystem does not implement encryption,
   or this kernel is too old to support FS_IOC_GET_ENCRYPTION_POLICY_EX
-  (try FS_IOC_GET_ENCRYPTION_POLICY instead)
 - ``EOPNOTSUPP``: the kernel was not configured with encryption
   support for this filesystem, or the filesystem superblock has not
   had encryption enabled on it
@@ -799,12 +790,13 @@ check for STATX_ATTR_ENCRYPTED in stx_attributes.
 FS_IOC_GET_ENCRYPTION_POLICY
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The FS_IOC_GET_ENCRYPTION_POLICY ioctl can also retrieve the
-encryption policy, if any, for a directory or regular file.  However,
-unlike `FS_IOC_GET_ENCRYPTION_POLICY_EX`_,
-FS_IOC_GET_ENCRYPTION_POLICY only supports the original policy
-version.  It takes in a pointer directly to struct fscrypt_policy_v1
-rather than struct fscrypt_get_policy_ex_arg.
+The FS_IOC_GET_ENCRYPTION_POLICY ioctl is deprecated.  It supports
+only v1 encryption policies, which themselves are deprecated.  Use
+`FS_IOC_GET_ENCRYPTION_POLICY_EX`_ instead.
+
+FS_IOC_GET_ENCRYPTION_POLICY retrieves the encryption policy for a
+directory or regular file, but only if it uses a v1 policy.  It takes
+in a pointer directly to struct fscrypt_policy_v1.
 
 The error codes for FS_IOC_GET_ENCRYPTION_POLICY are the same as those
 for FS_IOC_GET_ENCRYPTION_POLICY_EX, except that
@@ -886,6 +878,10 @@ as follows:
   ``master_key_descriptor`` field of struct fscrypt_policy_v1.
   To add this type of key, the calling process must have the
   CAP_SYS_ADMIN capability in the initial user namespace.
+
+  (Note that v1 encryption policies are deprecated.  The ability to
+  add a key for v1 encryption policies remains only for compatibility
+  with existing encrypted directories.)
 
   Alternatively, if the key is being added for use by v2 encryption
   policies, then ``key_spec.type`` must contain
