@@ -386,20 +386,6 @@ bool blk_crypto_config_supported_natively(struct block_device *bdev,
 	return true;
 }
 
-/*
- * Check if bios with @cfg can be en/decrypted by blk-crypto (i.e. either the
- * block_device it's submitted to supports inline crypto, or the
- * blk-crypto-fallback is enabled and supports the cfg).
- */
-bool blk_crypto_config_supported(struct block_device *bdev,
-				 const struct blk_crypto_config *cfg)
-{
-	if (IS_ENABLED(CONFIG_BLK_INLINE_ENCRYPTION_FALLBACK) &&
-	    cfg->key_type == BLK_CRYPTO_KEY_TYPE_RAW)
-		return true;
-	return blk_crypto_config_supported_natively(bdev, cfg);
-}
-
 /**
  * blk_crypto_start_using_key() - Start using a blk_crypto_key on a device
  * @bdev: block device to operate on
