@@ -339,8 +339,6 @@ static unsigned int damon_migrate_folio_list(struct list_head *folio_list,
 	LIST_HEAD(migrate_folios);
 
 	while (!list_empty(folio_list)) {
-		struct folio *folio;
-
 		cond_resched();
 
 		folio = lru_to_folio(folio_list);
