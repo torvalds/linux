@@ -83,7 +83,7 @@ void fscrypt_generate_iv(union fscrypt_iv *iv, u64 index,
 {
 	u8 flags = fscrypt_policy_flags(&ci->ci_policy);
 
-	memset(iv, 0, ci->ci_mode->ivsize);
+	memset(iv, 0, sizeof(*iv));
 
 	if (flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64) {
 		WARN_ON_ONCE(index > U32_MAX);

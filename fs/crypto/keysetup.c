@@ -267,7 +267,7 @@ static int setup_per_mode_enc_key(struct fscrypt_inode_info *ci,
 				    hkdf_info, hkdf_infolen, raw_mode_key,
 				    mode->keysize);
 		err = fscrypt_prepare_key(prep_key, raw_mode_key, ci);
-		memzero_explicit(raw_mode_key, mode->keysize);
+		memzero_explicit(raw_mode_key, sizeof(raw_mode_key));
 	}
 	if (err) {
 		kfree(new_node);
@@ -397,7 +397,7 @@ static int fscrypt_setup_v2_file_key(struct fscrypt_inode_info *ci,
 				    ci->ci_nonce, FSCRYPT_FILE_NONCE_SIZE,
 				    derived_key, ci->ci_mode->keysize);
 		err = fscrypt_set_per_file_enc_key(ci, derived_key);
-		memzero_explicit(derived_key, ci->ci_mode->keysize);
+		memzero_explicit(derived_key, sizeof(derived_key));
 	}
 	if (err)
 		return err;
